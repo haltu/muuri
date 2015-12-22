@@ -1,0 +1,40 @@
+* {
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 0;
+}
+.grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  margin: 50px;
+  background: #666;
+  min-height: 1px;
+}
+.item {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  margin: 5px;
+  line-height: 100px;
+  text-align: center;
+  font-size: 24px;
+  background: #000;
+  color: #fff;
+  z-index: 1;
+}
+.item.dragging {
+  z-index: 2;
+}
+.item.h2 {
+  height: 210px;
+  line-height: 210px;
+}
+.item.w2 {
+  width: 210px;
+}

@@ -9,32 +9,32 @@
   </head>
   <body>
     <div class="grid">
-      <div class="item">A</div>
-      <div class="item w2">B</div>
-      <div class="item h2">C</div>
-      <div class="item">D</div>
-      <div class="item">E</div>
-      <div class="item">F</div>
-      <div class="item">G</div>
-      <div class="item">H</div>
-      <div class="item">I</div>
-      <div class="item">J</div>
-      <div class="item">K</div>
-      <div class="item">L</div>
-      <div class="item h2">M</div>
-      <div class="item">N</div>
-      <div class="item">O</div>
-      <div class="item">P</div>
-      <div class="item h2 w2">Q</div>
-      <div class="item">R</div>
-      <div class="item">S</div>
-      <div class="item">T</div>
-      <div class="item">U</div>
-      <div class="item">V</div>
-      <div class="item">W</div>
-      <div class="item">X</div>
-      <div class="item">Y</div>
-      <div class="item">Z</div>
+      <div class="item"><div class="item-content">A</div></div>
+      <div class="item w2"><div class="item-content">B</div></div>
+      <div class="item h2"><div class="item-content">C</div></div>
+      <div class="item"><div class="item-content">D</div></div>
+      <div class="item"><div class="item-content">E</div></div>
+      <div class="item"><div class="item-content">F</div></div>
+      <div class="item"><div class="item-content">G</div></div>
+      <div class="item"><div class="item-content">H</div></div>
+      <div class="item"><div class="item-content">I</div></div>
+      <div class="item"><div class="item-content">J</div></div>
+      <div class="item"><div class="item-content">K</div></div>
+      <div class="item"><div class="item-content">L</div></div>
+      <div class="item h2"><div class="item-content">M</div></div>
+      <div class="item"><div class="item-content">N</div></div>
+      <div class="item"><div class="item-content">O</div></div>
+      <div class="item"><div class="item-content">P</div></div>
+      <div class="item h2 w2"><div class="item-content">Q</div></div>
+      <div class="item"><div class="item-content">R</div></div>
+      <div class="item"><div class="item-content">S</div></div>
+      <div class="item"><div class="item-content">T</div></div>
+      <div class="item"><div class="item-content">U</div></div>
+      <div class="item"><div class="item-content">V</div></div>
+      <div class="item"><div class="item-content">W</div></div>
+      <div class="item"><div class="item-content">X</div></div>
+      <div class="item"><div class="item-content">Y</div></div>
+      <div class="item"><div class="item-content">Z</div></div>
     </div>
     <script src="scripts/jquery.js"></script>
     <script src="scripts/mezr.js"></script>
@@ -43,12 +43,31 @@
     <script src="scripts/hammer.js"></script>
     <script src="../muuri.js"></script>
     <script>
+
       var grid = new Muuri({
+
         container: document.getElementsByClassName('grid')[0],
+        containerAnimDuration: 1000,
+        containerAnimEasing: [1000, 30],
+
         items: document.getElementsByClassName('item'),
-        animDuration: 1000,
-        animEasing: [1000, 30]
+        itemAnimDuration: 1000,
+        itemAnimEasing: [1000, 30]
+
       });
+
+      $('.item-content').on('dblclick', function () {
+
+        var item = grid.getItem($(this).parent()[0]);
+        if (item.state === 'hidden') {
+          grid.show(item);
+        }
+        else {
+          grid.hide(item);
+        }
+
+      });
+
     </script>
   </body>
 </html>

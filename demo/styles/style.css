@@ -7,6 +7,18 @@ body {
   margin: 0;
   padding: 0;
 }
+.controls {
+  overflow: hidden;
+  margin: 15px 50px;
+}
+.controls .group {
+  float: left;
+  margin-right: 10px;
+}
+.controls button {
+  display: inline-block;
+  float: left;
+}
 .grid {
   position: absolute;
   left: 0;
@@ -14,7 +26,7 @@ body {
   top: 0;
   margin: 50px;
   background: #666;
-  min-height: 1px;
+  min-height: 110px;
 }
 .item {
   position: absolute;

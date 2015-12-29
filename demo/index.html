@@ -8,6 +8,25 @@
     <link rel="stylesheet" href="styles/style.css">
   </head>
   <body>
+    <div class="controls">
+      <div class="group">
+        <button id="init">Init</button>
+        <button id="destroy">Destroy</button>
+      </div>
+      <div class="group">
+      <button id="show">Show</button>
+      <button id="hide">Hide</button>
+      </div>
+      <div class="group">
+        <button id="add">Add</button>
+        <button id="remove">Remove</button>
+      </div>
+      <div class="group">
+        <button id="layout">Layout</button>
+        <button id="refresh">Refresh</button>
+        <button id="randomize">Randomize</button>
+      </div>
+    </div>
     <div class="grid">
       <div class="item"><div class="item-content">A</div></div>
       <div class="item w2"><div class="item-content">B</div></div>
@@ -37,6 +56,7 @@
       <div class="item"><div class="item-content">Z</div></div>
     </div>
     <script src="scripts/jquery.js"></script>
+    <script src="scripts/lodash.js"></script>
     <script src="scripts/mezr.js"></script>
     <script src="scripts/jvent.js"></script>
     <script src="scripts/velocity.js"></script>
@@ -44,29 +64,137 @@
     <script src="../muuri.js"></script>
     <script>
 
-      var grid = new Muuri({
+      var grid;
 
-        container: document.getElementsByClassName('grid')[0],
-        containerAnimDuration: 1000,
-        containerAnimEasing: [1000, 30],
+      function generateAlphabet() {
 
-        items: document.getElementsByClassName('item'),
-        itemAnimDuration: 1000,
-        itemAnimEasing: [1000, 30]
+        var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        return possible.charAt(Math.floor(Math.random() * possible.length));
 
-      });
+      }
 
-      $('.item-content').on('dblclick', function () {
+      function generateElements(amount) {
 
-        var item = grid.getItem($(this).parent()[0]);
-        if (item.state === 'hidden') {
-          grid.show(item);
+        var ret = [];
+
+        for (var i = 0, len = amount || 1; i < amount; i++) {
+
+          var innerDiv = document.createElement('div');
+          innerDiv.setAttribute('class', 'item-content');
+          innerDiv.appendChild(document.createTextNode(generateAlphabet()));
+
+          var outerDiv = document.createElement('div');
+          var width = Math.floor(Math.random() * 2) + 1;
+          var height = Math.floor(Math.random() * 2) + 1;
+          outerDiv.setAttribute('class', 'item h' + height + ' w' + width);
+          outerDiv.appendChild(innerDiv);
+
+          ret.push(outerDiv);
+
         }
-        else {
-          grid.hide(item);
+
+        return ret;
+
+      }
+
+      function init() {
+
+        if (grid) {
+          grid.destroy();
         }
 
-      });
+        grid = new Muuri({
+
+          container: document.getElementsByClassName('grid')[0],
+          containerAnimDuration: 1000,
+          containerAnimEasing: [1000, 30],
+
+          items: document.getElementsByClassName('item'),
+          positionDuration: 1000,
+          positionEasing: [1000, 30]
+
+        });
+
+      }
+
+      function destroy() {
+
+        grid.destroy();
+
+      }
+
+      function show() {
+
+        var items = _(grid.getItems()).filter(function (item) {
+          return !item.isActive;
+        }).sample(5).value();
+
+        grid.show(items, function () {
+          console.log('CALLBACK: Show ' + items.length + ' items');
+        });
+
+      }
+
+      function hide() {
+
+        var items = _(grid.getItems()).filter(function (item) {
+          return item.isActive;
+        }).sample(5).value();
+
+        grid.hide(items, function () {
+          console.log('CALLBACK: Hide ' + items.length + ' items');
+        });
+
+      }
+
+      function add() {
+
+        var items = generateElements(5);
+
+        $(grid._element).append(items);
+
+        grid.add(items, 0, function () {
+          console.log('CALLBACK: Add ' + items.length + ' items');
+        });
+
+      }
+
+      function remove() {
+
+        var items = _(grid.getItems()).filter(function (item) {
+          return item.isActive;
+        }).sample(5).value();
+
+        console.log(items);
+
+        grid.remove(items, function () {
+          console.log('CALLBACK: Remove ' + items.length + ' items');
+        });
+
+      }
+
+      function layout() {
+
+        grid.layout(function () {
+          console.log('CALLBACK: Layout');
+        });
+
+      }
+
+      function refresh() {
+
+        grid.refresh();
+
+      }
+
+      $('#init').on('click', init);
+      $('#destroy').on('click', destroy);
+      $('#show').on('click', show);
+      $('#hide').on('click', hide);
+      $('#add').on('click', add);
+      $('#remove').on('click', remove);
+      $('#refresh').on('click', refresh);
+      $('#layout').on('click', layout);
 
     </script>
   </body>

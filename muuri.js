@@ -1,5 +1,5 @@
 /*!
-Muuri v0.0.3
+Muuri v0.0.4
 Copyright (c) 2015, Haltu Oy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -19,49 +19,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-*/
-
-// Muuri public methods
-// ********************
-// .getItem()
-// .getItems()
-// .on()
-// .once()
-// .off()
-// .layout()
-// .destroy()
-// .refresh()
-// .show()
-// .hide()
-// .remove()
-// .add()
-// .link() // TODO
-// .unlink() // TODO
-
-// Muuri.Item public methods
-// *************************
-// .getIndex()
-// .show()
-// .hide()
-// .refresh()
-// .position()
-// .moveTo()
-// .swapWith()
-// .destroy()
-
-/*
-TODO:
-- Layout algorithm optimizations (gets laggy after around 50 items).
-- UMD Module.
-- Use Velocity's hook in the setStyles function to get rid of bloat code.
-- Come up with a way to initialize the item as hidden. For example check if the
-  element css display prop is "none".
-- On item positioning if target left/top are the same as current left/top skip
-  animations altogether.
-- When initiating an item/container store it's inline styles, which will be
-  will be restored on destroy.
-- Callbacks need special care, handle situations where the process running. We
-  need a callback queue system or more favourably promises.
 */
 
 (function (global, factory) {
@@ -127,9 +84,9 @@ TODO:
       inst._items.push(new Muuri.Item(inst, element));
     });
 
-    // Automatic row-height and column width calculation.
-    inst._rowHeight = inst._getRowHeight();
-    inst._colWidth = inst._getColWidth();
+    // Calculate grid's row height and column width.
+    inst._rowHeight = inst._getSlotSize('height');
+    inst._colWidth = inst._getSlotSize('width');
 
     // Relayout on window resize if enabled.
     if (stn.layoutOnResize || stn.layoutOnResize === 0) {
@@ -165,94 +122,40 @@ TODO:
   };
 
   /**
-   * Calculate and return minimum row height for the grid.
+   * Calculate and return the virtual grid's slot width or height.
    *
    * @protected
    * @memberof Muuri.prototype
+   * @param {String} type - Must be "width" or "height".
+   * @param {Array} [items]
    * @returns {Number}
    */
-  Muuri.prototype._getRowHeight = function () {
+  Muuri.prototype._getSlotSize = function (type, items) {
 
-    var inst = this;
-    var stnRowHeight = inst._settings.rowHeight;
-
-    if (stnRowHeight === 'auto') {
-
-      var heightsHash = {};
-      var heights = [];
-      var possibilities = [];
-
-      // Generate heights hashtable.
-      arrayEach(inst._getActiveItems(), function (item) {
-        heightsHash[item.height] = item.height;
-      });
-
-      // Transform hashtable to simple array.
-      for (var prop in heightsHash) {
-        if (heightsHash.hasOwnProperty(prop)) {
-          heights.push(heightsHash[prop]);
-        }
-      }
-
-      // Add the smallest height to the possibilities.
-      possibilities.push(Math.min.apply(Math, heights));
-
-      // Add all the differences between heights to possibilites.
-      arrayEach(heights, function (height) {
-        arrayEach(heights, function (heightCompare) {
-          var diff = Math.abs(height - heightCompare);
-          if (diff > 0) {
-            possibilities.push(diff);
-          }
-        });
-      });
-
-      // And voila! We have a winner.
-      return Math.min.apply(Math, possibilities);
-
-    }
-    else {
-
-      return stnRowHeight;
-
-    }
-
-  };
-
-  /**
-   * Calculate and return minimum column width for the grid.
-   *
-   * @protected
-   * @memberof Muuri.prototype
-   * @returns {Number}
-   */
-  Muuri.prototype._getColWidth = function () {
-
-    var inst = this;
-
-    var widthsHash = {};
-    var widths = [];
+    var items = items ? items : this._getActiveItems();
+    var hash = {};
+    var sizes = [];
     var possibilities = [];
 
-    // Generate widths hashtable.
-    arrayEach(inst._getActiveItems(), function (item) {
-      widthsHash[item.width] = item.width;
+    // Generate hashtable.
+    arrayEach(items, function (item) {
+      hash[item[type]] = item[type];
     });
 
     // Transform hashtable to simple array.
-    for (var prop in widthsHash) {
-      if (widthsHash.hasOwnProperty(prop)) {
-        widths.push(widthsHash[prop]);
+    for (var prop in hash) {
+      if (hash.hasOwnProperty(prop)) {
+        sizes.push(hash[prop]);
       }
     }
 
-    // Add the smallest width to the possibilities.
-    possibilities.push(Math.min.apply(Math, widths));
+    // Add the smallest size to the possibilities.
+    possibilities.push(Math.min.apply(Math, sizes));
 
-    // Add all the differences between widths to possibilites.
-    arrayEach(widths, function (width) {
-      arrayEach(widths, function (widthCompare) {
-        var diff = Math.abs(width - widthCompare);
+    // Add all the differences between sizes to possibilites.
+    arrayEach(sizes, function (size) {
+      arrayEach(sizes, function (sizeCompare) {
+        var diff = Math.abs(size - sizeCompare);
         if (diff > 0) {
           possibilities.push(diff);
         }
@@ -265,8 +168,8 @@ TODO:
   };
 
   /**
-   * Create and return layout map, which is used by the layout method to
-   * position the items.
+   * Calculate and set positions of currently active items and return a data
+   * object containing data about the generated "virtual grid".
    *
    * @protected
    * @memberof Muuri.prototype
@@ -277,16 +180,14 @@ TODO:
     var inst = this;
     var rowHeight = inst._rowHeight;
     var colWidth = inst._colWidth;
-    var gridWidth = mezr.width(inst._element, 'core');
+    var containerWidth = mezr.width(inst._element, 'core');
     var grid = [];
     var items = inst._getActiveItems();
-    var map = {
-      width: gridWidth,
+    var data = {
       items: items,
-      content: {
-        width: 0,
-        height: 0
-      }
+      containerWidth: containerWidth,
+      fillWidth: 0,
+      fillHeight: 0
     };
 
     // Loop visible items.
@@ -298,7 +199,7 @@ TODO:
         item.top = 0;
       }
       else {
-        var slot = findSlot(grid, gridWidth, rowHeight, colWidth, item.width, item.height);
+        var slot = findSlot(grid, containerWidth, rowHeight, colWidth, item.width, item.height);
         item.left = slot.left;
         item.top = slot.top;
       }
@@ -306,13 +207,13 @@ TODO:
       // Fill slot.
       fillSlots(grid, rowHeight, colWidth, item.width, item.height, item.left, item.top);
 
-      // Update the map content width/height.
-      map.content.width = Math.max(map.content.width, item.left + item.width);
-      map.content.height = Math.max(map.content.height, item.top + item.height);
+      // Update the data fillWidth and fillHeight.
+      data.fillWidth = Math.max(data.fillWidth, item.left + item.width);
+      data.fillHeight = Math.max(data.fillHeight, item.top + item.height);
 
     });
 
-    return map;
+    return data;
 
   };
 
@@ -485,15 +386,16 @@ TODO:
   Muuri.prototype.refresh = function () {
 
     var inst = this;
+    var items = inst._getActiveItems();
 
     // Refresh items' dimensions.
-    arrayEach(inst._getActiveItems(), function (item) {
+    arrayEach(items, function (item) {
       item.refresh();
     });
 
-    // Recalculate row height and column width.
-    inst._rowHeight = inst._getRowHeight();
-    inst._colWidth = inst._getColWidth();
+    // Recalculate grid's row height and column width.
+    inst._rowHeight = inst._getSlotSize('height', items);
+    inst._colWidth = inst._getSlotSize('width', items);
 
   };
 
@@ -510,88 +412,67 @@ TODO:
     var inst = this;
     var callback = typeOf(animate) === 'boolean' ? callback : animate;
     var animEnabled = animate === false ? false : true;
-    var layoutMap = inst._positionItems();
+    var animDuration = inst._settings.containerAnimDuration;
+    var animEasing = inst._settings.containerAnimEasing;
+    var grid = inst._positionItems();
+    var counter = -1;
+    var itemsLength = grid.items.length;
+    var tryFinish = function () {
+      if (++counter === itemsLength) {
+        if (typeOf(callback) === 'function') {
+          callback(inst);
+        }
+        inst._e.emit('layoutEnd');
+      }
+    };
 
     // Emit event.
     inst._e.emit('layoutStart');
 
-    if (animEnabled) {
+    // Stop currently running container animation.
+    Velocity(inst._element, 'stop', inst._animQueue);
 
-      var containerAnimDuration = inst._settings.containerAnimDuration;
-      var containerAnimEasing = inst._settings.containerAnimEasing;
-      var animCounter = -1;
-      var layoutMapLength = layoutMap.items.length;
-      var tryFinish = function () {
-        if (++animCounter === layoutMapLength && typeOf(callback) === 'function') {
-          callback(inst);
-          inst._e.emit('layoutEnd');
-        }
-      };
+    // If container's current inline height matches the target height, let's
+    // skip manipulating the DOM.
+    if (parseFloat(inst._element.style.height) === grid.fillHeight) {
 
-      // Stop currently running container animation.
-      Velocity(inst._element, 'stop', inst._animQueue);
-
-      // If container's current inline height matches the target height, let's
-      // we can skip manipulating the DOM.
-      if (parseFloat(inst._element.style.height) === layoutMap.content.height) {
-        tryFinish();
-      }
-
-      // Otherwise if container animations are enabled let's make it happen.
-      else if (containerAnimDuration > 0) {
-        Velocity(inst._element, {height: layoutMap.content.height}, {
-          duration: containerAnimDuration,
-          easing: containerAnimEasing,
-          complete: tryFinish,
-          queue: inst._animQueue
-        });
-        Velocity.Utilities.dequeue(inst._element, inst._animQueue);
-      }
-
-      // In all other cases just set the height and be done with it.
-      else {
-        setStyles(inst._element, {
-          height: layoutMap.content.height + 'px'
-        });
-        tryFinish();
-      }
-
-      // Animate items to correct positions.
-      arrayEach(layoutMap.items, function (item) {
-        if (item._drag.active) {
-          tryFinish();
-        }
-        else {
-          item.position(tryFinish);
-        }
-      });
+      tryFinish();
 
     }
+    // Otherwise if container animations are enabled let's make it happen.
+    else if (animEnabled && animDuration > 0) {
+
+      Velocity(inst._element, {height: grid.fillHeight}, {
+        duration: animDuration,
+        easing: animEasing,
+        complete: tryFinish,
+        queue: inst._animQueue
+      });
+
+      Velocity.Utilities.dequeue(inst._element, inst._animQueue);
+
+    }
+    // In all other cases just set the height.
     else {
 
-      // Set container height.
-      Velocity(inst._element, 'stop', inst._animQueue);
       setStyles(inst._element, {
-        height: layoutMap.content.height + 'px'
+        height: grid.fillHeight + 'px'
       });
 
-      // Loop the layout items and apply positions.
-      arrayEach(layoutMap.items, function (item) {
-        if (item._drag.active) {
-          return;
-        }
-        else {
-          item.position(false);
-        }
-      });
-
-      // Finish it up.
-      if (typeOf(callback) === 'function') {
-        callback(inst);
-      }
-      inst._e.emit('layoutEnd');
+      tryFinish();
 
     }
+
+    // Position items.
+    arrayEach(grid.items, function (item) {
+      if (item._drag.active) {
+        tryFinish();
+      }
+      else {
+        item.position(animEnabled, tryFinish);
+      }
+    });
+
 
   };
 
@@ -607,19 +488,26 @@ TODO:
 
     var inst = this;
     var finalItems = [];
+    var isInterrupted = false;
 
     // Sanitize items.
     items = typeOf(items) === 'array' ? items : [items];
     var counter = items.length;
 
     // Function for attempting to finish the method process.
-    var tryFinish = function () {
+    var tryFinish = function (interrupted) {
+
+      if (interrupted) {
+        isInterrupted = true;
+      }
+
       if (--counter < 1) {
         if (typeOf(callback) === 'function') {
-          callback(finalItems);
+          callback(isInterrupted, finalItems);
         }
-        inst._e.emit('show', finalItems);
+        inst._e.emit('show', isInterrupted, finalItems);
       }
+
     };
 
     // Hide items.
@@ -648,19 +536,26 @@ TODO:
 
     var inst = this;
     var finalItems = [];
+    var isInterrupted = false;
 
     // Sanitize items.
     items = typeOf(items) === 'array' ? items : [items];
     var counter = items.length;
 
     // Function for attempting to finish the method process.
-    var tryFinish = function () {
+    var tryFinish = function (interrupted) {
+
+      if (interrupted) {
+        isInterrupted = true;
+      }
+
       if (--counter < 1) {
         if (typeOf(callback) === 'function') {
-          callback(finalItems);
+          callback(isInterrupted, finalItems);
         }
-        inst._e.emit('hide', finalItems);
+        inst._e.emit('hide', isInterrupted, finalItems);
       }
+
     };
 
     // Hide items.
@@ -700,11 +595,14 @@ TODO:
     var newItems = inst.register(elements, index);
 
     // Create a process end handler.
-    var finish = function () {
+    var finish = function (interrupted, items) {
+
       if (typeOf(callback) === 'function') {
-        callback(newItems);
+        callback(interrupted, items);
       }
-      inst._e.emit('add', newItems);
+
+      inst._e.emit('add', interrupted, items);
+
     };
 
     // If there are new items
@@ -720,20 +618,20 @@ TODO:
         item.isActive = true;
       });
 
-      // Layout and show items.
+      // Show items.
       inst.show(newItems, finish);
 
     }
     else {
 
-      finish();
+      finish(false, newItems);
 
     }
 
   };
 
   /**
-   * Remove an item from muuri and it's element from DOM.
+   * Remove items from muuri instance and their elements from DOM.
    *
    * @public
    * @memberof Muuri.prototype
@@ -747,10 +645,13 @@ TODO:
 
     // Create a process end handler.
     var finish = function () {
+
       if (typeOf(callback) === 'function') {
         callback();
       }
+
       inst._e.emit('remove');
+
     };
 
     // Sanitize items.
@@ -764,20 +665,21 @@ TODO:
     // If items exist.
     if (finalItems.length) {
 
-      // Hide and layout items.
+      // Remove items instantly from Muuri instance.
+      arrayEach(items, function (item) {
+        item.isRemoving = true;
+        var index = item.index();
+        if (index > -1) {
+          inst._items.splice(index, 1);
+        }
+      });
+
+      // Hide and remove items from DOM.
       inst.hide(items, function () {
         arrayEach(items, function (item) {
           item.destroy(true);
         });
         finish();
-      });
-
-      // Remove items instantly from Muuri instance.
-      arrayEach(items, function (item) {
-        var index = item.index();
-        if (index > -1) {
-          inst._items.splice(index, 1);
-        }
       });
 
     }
@@ -820,6 +722,7 @@ TODO:
 
     // Remove event listeners.
     inst._e.removeAllListeners('destroy');
+    inst._e.removeAllListeners('register');
     inst._e.removeAllListeners('show');
     inst._e.removeAllListeners('hide');
     inst._e.removeAllListeners('add');
@@ -854,28 +757,24 @@ TODO:
     // or not).
     inst.isActive = true;
 
-    // Set up positioning state (defined if the item is currently animating
+    // Set up positioning state (defines if the item is currently animating
     // it's position).
     inst.isPositioning = false;
+
+    // Set up removing state (defines if the item is currently being removedn).
+    inst.isRemoving = false;
 
     // Set up visibility states (initialized as visible).
     inst.isHidden = false;
     inst.isHiding = false;
     inst.isShowing = false;
 
-    // Position animation callback queue. Whenever a callback is provided for
-    // position method and animation is enabled the callback is stored
-    // temporarily to this array. The callbacks are called with the first
-    // argument as false if the animation succeeded without interruptions and
-    // with the first argument as true if the animation was interrupted.
-    inst._positioningQueue = []; // TODO
-
     // Visibility animation callback queue. Whenever a callback is provided for
     // show/hide methods and animation is enabled the callback is stored
     // temporarily to this array. The callbacks are called with the first
     // argument as false if the animation succeeded without interruptions and
     // with the first argument as true if the animation was interrupted.
-    inst._peekabooQueue = []; // TODO for hide method.
+    inst._peekabooQueue = [];
 
     // Set visibility related classes and styles.
     addClass(element, stn.itemShownClass);
@@ -921,17 +820,9 @@ TODO:
       }
     }, stn.dragOverlapInterval);
 
-    // Setup drag data.
-    inst._drag = {
-      active: false,
-      release: false,
-      startLeft: 0,
-      startTop: 0,
-      currentLeft: 0,
-      currentTop: 0,
-      start: null,
-      move: null
-    };
+    // Setup initial drag data.
+    inst._drag = {};
+    inst._resetDragData();
 
     // Initiate Hammer.
     inst._hammer = new Hammer.Manager(inst.element, {
@@ -942,6 +833,13 @@ TODO:
 
     // Hammer drag start.
     inst._hammer.on('panstart', function (e) {
+
+      // If item is not active, reset drag.
+      if (!inst.isActive) {
+        inst._resetDragData();
+        removeClass(inst.element, stn.draggingClass);
+        return;
+      }
 
       // Check if item is positioning currently.
       var isPositioning = inst.isPositioning;
@@ -989,6 +887,13 @@ TODO:
     // Hammer drag move.
     inst._hammer.on('panmove', function (e) {
 
+      // If item is not active, reset drag.
+      if (!inst.isActive) {
+        inst._resetDragData();
+        removeClass(inst.element, stn.draggingClass);
+        return;
+      }
+
       // Store event.
       inst._drag.move = e;
 
@@ -1011,6 +916,13 @@ TODO:
     // Hammer drag end/cancel.
     inst._hammer.on('panend pancancel', function (e) {
 
+      // If item is not active, reset drag.
+      if (!inst.isActive) {
+        inst._resetDragData();
+        removeClass(inst.element, stn.draggingClass);
+        return;
+      }
+
       // Finish currently queued overlap check.
       checkOverlap(true);
 
@@ -1025,17 +937,32 @@ TODO:
       inst.position(function () {
 
         // Reset drag data.
-        inst._drag.release = false;
-        inst._drag.startLeft = 0;
-        inst._drag.startTop = 0;
-        inst._drag.currentLeft = 0;
-        inst._drag.currentTop = 0;
-        inst._drag.start = null;
-        inst._drag.move = null;
+        inst._resetDragData();
 
       });
 
     });
+
+  };
+
+  /**
+   * Reset drag data.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._resetDragData = function () {
+
+    var inst = this;
+
+    inst._drag.active = false;
+    inst._drag.release = false;
+    inst._drag.startLeft = 0;
+    inst._drag.startTop = 0;
+    inst._drag.currentLeft = 0;
+    inst._drag.currentTop = 0;
+    inst._drag.start = null;
+    inst._drag.move = null;
 
   };
 
@@ -1194,6 +1121,10 @@ TODO:
    */
   Muuri.Item.prototype.position = function (animate, callback) {
 
+    // TODO: How to handle situation where item is removed in mid-flight? The
+    // main problem is that it may not call the callback which will break
+    // all functions depending on the callback.
+
     var inst = this;
     var stn = inst.muuri._settings;
     var callback = typeOf(animate) === 'boolean' ? callback : animate;
@@ -1227,11 +1158,39 @@ TODO:
     // Stop currently running animation, if any.
     inst._stopPositioning();
 
-    // If animations are enabled.
-    if (animEnabled) {
+    // If no animations are needed, easy peasy!
+    if (!animEnabled) {
+
+      finish();
+
+    }
+    // If animations are needed, let's dive in.
+    else {
 
       // Mark the item as positioning.
       inst.isPositioning = true;
+
+      // Get current left and top position.
+      var currentLeft = 0;
+      var currentTop =  0;
+      if (inst._drag.release) {
+        currentLeft = inst._drag.currentLeft || 0;
+        currentTop = inst._drag.currentTop || 0;
+      }
+      else {
+        currentLeft = parseFloat(isPositioning ? Velocity.hook(inst.element, 'translateX') : inst.element.style.left) || 0;
+        currentTop = parseFloat(isPositioning ? Velocity.hook(inst.element, 'translateY') : inst.element.style.top) || 0;
+      }
+
+      // If the item is already in correct position there's no need to
+      // animate it.
+      if (inst.left === currentLeft && inst.top === currentTop) {
+        if (inst._drag.release) {
+          inst._drag.release = false;
+        }
+        finish();
+        return;
+      }
 
       // Drag release handling.
       if (inst._drag.release) {
@@ -1248,10 +1207,6 @@ TODO:
       // If item is not currently positioning we need to give it som special
       // love.
       else if (!isPositioning) {
-
-        // Get current left/top.
-        var currentLeft = parseFloat(inst.element.style.left) || 0;
-        var currentTop = parseFloat(inst.element.style.top) || 0;
 
         // Transform the left/top values to translateX/translateY values.
         setStyles(inst.element, {
@@ -1270,7 +1225,7 @@ TODO:
 
       }
 
-      // Do the animation.
+      // Set up the animation.
       Velocity(inst.element, {
         translateX: inst.left,
         translateY: inst.top
@@ -1280,12 +1235,10 @@ TODO:
         complete: finish,
         queue: inst.muuri._animQueue
       });
+
+      // Start the animation.
       Velocity.Utilities.dequeue(inst.element, inst.muuri._animQueue);
 
-    }
-    // No animations, sync it up.
-    else {
-      finish();
     }
 
   };
@@ -1306,8 +1259,18 @@ TODO:
     // Allow pasing the callback function also as the first argument.
     callback = typeOf(animate) === 'function' ? animate : callback;
 
+    // if item is currently being removed.
+    if (inst.isRemoving) {
+
+      // Call the callback with the interrupted flag and be done with it.
+      if (typeOf(callback) === 'function') {
+        callback(true);
+      }
+
+    }
+
     // If item is visible.
-    if (!inst.isHidden && !inst.isShowing) {
+    else if (!inst.isHidden && !inst.isShowing) {
 
       // Call the callback and be done with it.
       if (typeOf(callback) === 'function') {
@@ -1393,7 +1356,6 @@ TODO:
           callback();
         }
 
-
       }
 
     }
@@ -1416,40 +1378,71 @@ TODO:
     // Allow pasing the callback function also as the first argument.
     callback = typeOf(animate) === 'function' ? animate : callback;
 
-    if (!inst.isHidden) {
+    // If item is hidden.
+    if (inst.isHidden && !inst.isHiding) {
 
-      var finish = function () {
+      // Call the callback and be done with it.
+      if (typeOf(callback) === 'function') {
+        callback();
+      }
 
-        setStyles(inst.element, {
-          display: 'none'
-        });
+    }
 
-        if (typeOf(callback) === 'function') {
-          callback();
-        }
+    // If item is animating to hidden.
+    else if (inst.isHidden) {
 
-      };
+      // Push the callback to callback queue.
+      if (typeOf(callback) === 'function') {
+        inst._peekabooQueue.push(callback);
+      }
+
+    }
+
+    // If item is visible or animating to visible.
+    else {
+
+      // Stop animation.
+      Velocity(inst.child, 'stop', inst.muuri._animQueue);
 
       // Update states.
       inst.isActive = false;
       inst.isHidden = true;
-
-      // Stop currently running animation.
-      Velocity(inst.child, 'stop', inst.muuri._animQueue);
+      inst.isShowing = inst.isHiding = false;
 
       // Update classes.
       addClass(inst.element, stn.itemHiddenClass);
       removeClass(inst.element, stn.itemShownClass);
 
+      // Process current callback queue.
+      inst._processQueue(inst._peekabooQueue, true);
+
       // If animations enabled.
       if (animate !== false && stn.hideDuration > 0) {
+
+        // Update state.
+        inst.isHiding = true;
+
+        // Push the callback to callback queue.
+        if (typeOf(callback) === 'function') {
+          inst._peekabooQueue.push(callback);
+        }
 
         // Set up animation.
         Velocity(inst.child, {opacity: 0, scale: 0}, {
           duration: stn.hideDuration,
           easing: stn.hideEasing,
           queue: inst.muuri._animQueue,
-          complete: finish
+          complete: function () {
+
+            // Hide element.
+            setStyles(inst.element, {
+              display: 'none'
+            });
+
+            // Process callback queue.
+            inst._processQueue(inst._peekabooQueue);
+
+          }
         });
 
         // Initialize the animation.
@@ -1463,11 +1456,22 @@ TODO:
         // Set the styles manually and finish up.
         Velocity.hook(inst.child, 'scale', 0);
         Velocity.hook(inst.child, 'opacity', 0);
-        finish();
+
+        // Hide element.
+        setStyles(inst.element, {
+          display: 'none'
+        });
+
+        // Call the callback and be done with it.
+        if (typeOf(callback) === 'function') {
+          callback();
+        }
 
       }
 
     }
+
+
 
   };
 
@@ -1500,7 +1504,6 @@ TODO:
     removeClass(inst.element, stn.itemHiddenClass);
 
     // Reset callback queues.
-    inst._positioningQueue.length = 0;
     inst._peekabooQueue.length = 0;
 
     // Destroy Hammer instance if it exists.
@@ -1508,7 +1511,7 @@ TODO:
       inst._hammer.destroy();
     }
 
-    // Remove item from Muuri instance.
+    // Remove item from Muuri instance if it still exists there.
     if (index > -1) {
       inst.muuri._items.splice(index, 1);
     }
@@ -1538,12 +1541,8 @@ TODO:
     hideEasing: 'ease-out',
 
     // Layout
-    rowHeight: 'auto',
     layoutOnResize: 100,
     layoutOnInit: true,
-
-    // Linked instances (drag from a muuri to another)
-    linkedTo: [], // TODO
 
     // Drag & Drop
     dragEnabled: true,
@@ -1555,11 +1554,6 @@ TODO:
     dragOverlapInterval: 50,
     dragOverlapTolerance: 50, // 1 - 100
     dragOverlapAction: 'move', // move|swap
-    dragHandle: '', // TODO
-    dragClone: false, // TODO
-    dragScroll: true, // TODO
-    dragScrollSensitivity: 50, // TODO
-    dragScrollSpeed: 50, // TODO
 
     // Classnames
     containerClass: 'muuri-container',
@@ -1861,18 +1855,18 @@ TODO:
    * Returns an object containing the item's left and top position.
    *
    * @param {Array} grid
-   * @param {Number} gridWidth
+   * @param {Number} containerWidth
    * @param {Number} rowHeight
    * @param {Number} colWidth
    * @param {Number} itemWidth
    * @param {Number} itemHeight
    * @returns {Object}
    */
-  function findSlot(grid, gridWidth, rowHeight, colWidth, itemWidth, itemHeight) {
+  function findSlot(grid, containerWidth, rowHeight, colWidth, itemWidth, itemHeight) {
 
     // If the item width exceeds the container width we can simplify the
     // algorithm a lot. Just position the item to the next free row.
-    if (itemWidth > gridWidth) {
+    if (itemWidth > containerWidth) {
       return {
         left: 0,
         top: grid.length * rowHeight
@@ -1881,7 +1875,7 @@ TODO:
 
     var slotWidth = itemWidth / colWidth;
     var slotHeight = itemHeight / rowHeight;
-    var xEdge = Math.floor(gridWidth / colWidth);
+    var xEdge = Math.floor(containerWidth / colWidth);
     var x = 0;
     var y = 0;
     var yLen = grid.length + 1;

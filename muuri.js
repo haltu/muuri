@@ -272,7 +272,7 @@ TODO:
    * @memberof Muuri.prototype
    * @returns {Object}
    */
-  Muuri.prototype._createLayoutMap = function () {
+  Muuri.prototype._positionItems = function () {
 
     var inst = this;
     var rowHeight = inst._rowHeight;
@@ -292,25 +292,15 @@ TODO:
     // Loop visible items.
     arrayEach(items, function (item, i) {
 
-      // Reset item position.
-      item.left = 0;
-      item.top = 0;
-
       // Find slot.
       if (i === 0) {
         item.left = 0;
         item.top = 0;
       }
-      // If item is not wider than the container.
-      else if (item.width <= map.width) {
-        var slot = findSlot(grid, gridWidth, rowHeight, colWidth, item.width, item.height);
-        console.log(slot);
-        item.left = slot.left;
-        item.top = slot.top
-      }
-      // If item is wider than the container.
       else {
-        // TODO...
+        var slot = findSlot(grid, gridWidth, rowHeight, colWidth, item.width, item.height);
+        item.left = slot.left;
+        item.top = slot.top;
       }
 
       // Fill slot.
@@ -422,7 +412,7 @@ TODO:
 
     // Return clone of all items instantly if no elements are provided.
     if (!elems) {
-      return inst._items.slice(0);
+      return inst._items.slice();
     }
 
     var ret = [];
@@ -520,7 +510,7 @@ TODO:
     var inst = this;
     var callback = typeOf(animate) === 'boolean' ? callback : animate;
     var animEnabled = animate === false ? false : true;
-    var layoutMap = inst._createLayoutMap();
+    var layoutMap = inst._positionItems();
 
     // Emit event.
     inst._e.emit('layoutStart');
@@ -720,8 +710,8 @@ TODO:
     // If there are new items
     if (newItems.length) {
 
-      // Generate layout map.
-      var layoutMap = inst._createLayoutMap();
+      // Position items.
+      inst._positionItems();
 
       // Set up items to their correct positions and hide them.
       arrayEach(newItems, function (item) {
@@ -818,7 +808,7 @@ TODO:
     }
 
     // Restore items.
-    arrayEach(inst._items, function (item) {
+    arrayEach(inst._items.slice(), function (item) {
       item.destroy();
     });
 
@@ -1327,7 +1317,7 @@ TODO:
     }
 
     // If item is animating to visible.
-    else if (!item.isHidden) {
+    else if (!inst.isHidden) {
 
       // Push the callback to callback queue.
       if (typeOf(callback) === 'function') {
@@ -1837,6 +1827,14 @@ TODO:
 
   /**
    * Helper utility for layout calculations. Fills slots in a virtual grid.
+   *
+   * @param {Array} grid
+   * @param {Number} rowHeight
+   * @param {Number} colWidth
+   * @param {Number} itemWidth
+   * @param {Number} itemHeight
+   * @param {Number} itemLeft
+   * @param {Number} itemTop
    */
   function fillSlots(grid, rowHeight, colWidth, itemWidth, itemHeight, itemLeft, itemTop) {
 
@@ -1844,11 +1842,15 @@ TODO:
     var slotHeight = itemHeight / rowHeight;
     var slotX = itemLeft / colWidth;
     var slotY = itemTop / rowHeight;
+    var y = slotY;
+    var x = slotX;
+    var yLen = slotY + slotHeight;
+    var xLen = slotX + slotWidth;
 
-    for (var y = slotY, yLen = slotY + slotHeight; y < yLen; y++) {
-      grid[y] = grid[y] || [];
-      for (var x = slotX, xLen = slotX + slotWidth; x < xLen; x++) {
-        grid[y][x] = 1;
+    for (y = slotY; y < yLen; y++) {
+      var row = grid[y] = grid[y] || [];
+      for (x = slotX; x < xLen; x++) {
+        row[x] = 1;
       }
     }
 
@@ -1856,21 +1858,36 @@ TODO:
 
   /**
    * Helper utility for layout calculations. Finds slots in a virtual grid.
+   * Returns an object containing the item's left and top position.
+   *
+   * @param {Array} grid
+   * @param {Number} gridWidth
+   * @param {Number} rowHeight
+   * @param {Number} colWidth
+   * @param {Number} itemWidth
+   * @param {Number} itemHeight
+   * @returns {Object}
    */
   function findSlot(grid, gridWidth, rowHeight, colWidth, itemWidth, itemHeight) {
+
+    // If the item width exceeds the container width we can simplify the
+    // algorithm a lot. Just position the item to the next free row.
+    if (itemWidth > gridWidth) {
+      return {
+        left: 0,
+        top: grid.length * rowHeight
+      };
+    }
 
     var slotWidth = itemWidth / colWidth;
     var slotHeight = itemHeight / rowHeight;
     var xEdge = Math.floor(gridWidth / colWidth);
-    var xLen = xEdge - 1;
     var x = 0;
     var y = 0;
-
-    console.log(xEdge);
-    console.log(slotWidth);
+    var yLen = grid.length + 1;
 
     yLoop:
-    for (y = 0, yLen = 1000; y < yLen; y++) {
+    for (y = 0; y < yLen; y++) {
 
       // Always reset x when starting to iterate.
       x = 0;
@@ -1883,7 +1900,7 @@ TODO:
 
       // Otherwise let's check inspect the row's slots.
       xLoop:
-      for (x = 0; x < xLen; x++) {
+      for (x = 0; x < xEdge; x++) {
 
         // If slot won't fit in the current row break x-loop instantly.
         if ((slotWidth + x) > xEdge) {
@@ -1899,9 +1916,9 @@ TODO:
 
         var isMatch = true;
         var y2 = y;
-        var y2Len = y + (slotHeight - 1);
+        var y2Len = y + slotHeight;
         var x2 = x;
-        var x2Len = x + (slotWidth - 1);
+        var x2Len = x + slotWidth;
 
         y2Loop:
         for (y2 = y2; y2 < y2Len; y2++) {
@@ -1914,7 +1931,7 @@ TODO:
 
           // If the slot is taken we can deduct that the item won't fit here.
           x2Loop:
-          for (x2 = x2; x2 < x2Len; x2++) {
+          for (x2 = x; x2 < x2Len; x2++) {
             if (grid[y2][x2]) {
               isMatch = false;
               break y2Loop;

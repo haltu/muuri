@@ -625,6 +625,11 @@ SOFTWARE.
     // If there are new items
     if (newItems.length) {
 
+      // Make sure all items are visible.
+      arrayEach(newItems, function (item) {
+        item.show(false);
+      });
+
       // Position items.
       inst._positionItems();
 
@@ -632,7 +637,6 @@ SOFTWARE.
       arrayEach(newItems, function (item) {
         item.position(false);
         item.hide(false);
-        item.isActive = true;
       });
 
       // Show items.
@@ -771,7 +775,7 @@ SOFTWARE.
 
     // Set up active state (defines if the item is considered part of the layout
     // or not).
-    inst.isActive = true;
+    inst.isActive = isHidden ? false : true;
 
     // Set up positioning state (defines if the item is currently animating
     // it's position).

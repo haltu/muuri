@@ -3,6 +3,10 @@
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
 }
+html {
+  background: #222;
+  overflow-y: scroll;
+}
 body {
   margin: 0;
   padding: 0;
@@ -25,8 +29,20 @@ body {
   right: 0;
   top: 0;
   margin: 50px;
-  background: #666;
-  min-height: 110px;
+  border: 5px solid #ff0000;
+  background: #222;
+  opacity: 0;
+  -moz-box-sizing: content-box;
+  -webkit-box-sizing: content-box;
+  box-sizing: content-box;
+  -webkit-transition: opacity 0.3s ease;
+  -moz-transition: opacity 0.3s ease;
+  -ms-transition: opacity 0.3s ease;
+  -o-transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease;
+}
+.grid.muuri {
+  opacity: 1;
 }
 .item {
   position: absolute;
@@ -40,7 +56,10 @@ body {
 .item.muuri-releasing {
   z-index: 2;
 }
-.item.muuri-item-hidden {
+.item.muuri-dragging {
+  cursor: move;
+}
+.item.muuri-hidden {
   z-index: 0;
 }
 .item.h2 {
@@ -51,9 +70,7 @@ body {
   width: 210px;
 }
 .item-content {
-  position: absolute;
-  left: 0;
-  top: 0;
+  position: relative;
   width: 100%;
   height: 100%;
   text-align: center;

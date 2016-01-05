@@ -24,7 +24,7 @@
       <div class="group">
         <button id="layout">Layout</button>
         <button id="refresh">Refresh</button>
-        <button id="randomize">Randomize</button>
+        <button id="sync-elements">Sync Elements</button>
       </div>
     </div>
     <div class="grid">
@@ -61,6 +61,7 @@
     <script src="scripts/jvent.js"></script>
     <script src="scripts/velocity.js"></script>
     <script src="scripts/hammer.js"></script>
+    <script src="scripts/random-color.js"></script>
     <script src="../muuri.js"></script>
     <script>
 
@@ -82,6 +83,7 @@
           var innerDiv = document.createElement('div');
           innerDiv.setAttribute('class', 'item-content');
           innerDiv.appendChild(document.createTextNode(generateAlphabet()));
+          innerDiv.style.backgroundColor = randomColor();
 
           var outerDiv = document.createElement('div');
           var width = Math.floor(Math.random() * 2) + 1;
@@ -103,16 +105,14 @@
           grid.destroy();
         }
 
+        // Colorize tiles.
+        $('.item-content').each(function () {
+          $(this).css('background-color', randomColor());
+        });
+
         grid = new Muuri({
-
           container: document.getElementsByClassName('grid')[0],
-          containerAnimDuration: 1000,
-          containerAnimEasing: [1000, 30],
-
-          items: document.getElementsByClassName('item'),
-          positionDuration: 1000,
-          positionEasing: [1000, 30]
-
+          items: document.getElementsByClassName('item')
         });
 
       }
@@ -120,6 +120,7 @@
       function destroy() {
 
         grid.destroy();
+        grid = null;
 
       }
 
@@ -133,6 +134,8 @@
           console.log('CALLBACK: Show ' + items.length + ' items');
         });
 
+        layout();
+
       }
 
       function hide() {
@@ -145,17 +148,21 @@
           console.log('CALLBACK: Hide ' + items.length + ' items');
         });
 
+        layout();
+
       }
 
       function add() {
 
         var items = generateElements(5);
 
-        $(grid._element).append(items);
+        $(grid.element).append(items);
 
         grid.add(items, 0, function () {
           console.log('CALLBACK: Add ' + items.length + ' items');
         });
+
+        layout();
 
       }
 
@@ -165,11 +172,11 @@
           return item.isActive;
         }).sample(5).value();
 
-        console.log(items);
-
         grid.remove(items, function () {
           console.log('CALLBACK: Remove ' + items.length + ' items');
         });
+
+        layout();
 
       }
 
@@ -187,6 +194,12 @@
 
       }
 
+      function syncElements() {
+
+        grid.syncElements();
+
+      }
+
       $('#init').on('click', init);
       $('#destroy').on('click', destroy);
       $('#show').on('click', show);
@@ -195,6 +208,7 @@
       $('#remove').on('click', remove);
       $('#refresh').on('click', refresh);
       $('#layout').on('click', layout);
+      $('#sync-elements').on('click', syncElements);
 
     </script>
   </body>

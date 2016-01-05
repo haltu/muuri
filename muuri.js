@@ -1,5 +1,5 @@
 /*!
-Muuri v0.0.4
+Muuri v0.0.5
 Copyright (c) 2015, Haltu Oy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -72,16 +72,16 @@ SOFTWARE.
     inst._animQueue = 'muuri-' + inst._id;
 
     // Create private eventize instance.
-    inst._e = new EventEmitter();
+    inst._emitter = new EventEmitter();
 
     // Setup container element.
-    inst._element = stn.container;
+    inst.element = stn.container;
     addClass(stn.container, stn.containerClass);
 
     // Setup initial items.
-    inst._items = [];
+    inst.items = [];
     arrayEach(stn.items, function (element) {
-      inst._items.push(new Muuri.Item(inst, element));
+      inst.items.push(new Muuri.Item(inst, element));
     });
 
     // Calculate grid's row height and column width.
@@ -115,7 +115,7 @@ SOFTWARE.
    */
   Muuri.prototype._getActiveItems = function () {
 
-    return this._items.filter(function (item) {
+    return this.items.filter(function (item) {
       return item.isActive;
     });
 
@@ -180,7 +180,7 @@ SOFTWARE.
     var inst = this;
     var rowHeight = inst._rowHeight;
     var colWidth = inst._colWidth;
-    var containerWidth = mezr.width(inst._element, 'core');
+    var containerWidth = mezr.width(inst.element, 'core');
     var grid = [];
     var items = inst._getActiveItems();
     var data = {
@@ -228,7 +228,7 @@ SOFTWARE.
   Muuri.prototype.on = function (eventName, listener) {
 
     var inst = this;
-    inst._e.on(eventName, listener);
+    inst._emitter.on(eventName, listener);
     return inst;
 
   };
@@ -244,7 +244,7 @@ SOFTWARE.
   Muuri.prototype.once = function (eventName, listener) {
 
     var inst = this;
-    inst._e.once(eventName, listener);
+    inst._emitter.once(eventName, listener);
     return inst;
 
   };
@@ -260,7 +260,7 @@ SOFTWARE.
   Muuri.prototype.off = function (eventName, listener) {
 
     var inst = this;
-    inst._e.off(name, listener);
+    inst._emitter.off(name, listener);
     return inst;
 
   };
@@ -278,14 +278,14 @@ SOFTWARE.
     var inst = this;
 
     if (!target) {
-      return inst._items[0] || null;
+      return inst.items[0] || null;
     }
     else if (typeOf(target) === 'number') {
-      return inst._items[target] || null;
+      return inst.items[target] || null;
     }
     else {
       var ret = null;
-      arrayEach(inst._items, function (item) {
+      arrayEach(inst.items, function (item) {
         if (item.element === target) {
           ret = item;
           return true;
@@ -297,27 +297,27 @@ SOFTWARE.
   };
 
   /**
-   * Get Muuri instances items that match the provided elements. if no elements
+   * Get Muuri instances items that match the provided elements. If no elements
    * are provided returns all Muuri's items. Note that the returned array
    * is not the same object used by the Muuri instance so modifying it will
    * not affect Muuri's items.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {HTMLElement} [elems]
+   * @param {Array|HTMLElement} [elements]
    * @returns {Array} array of Muuri.Item instances
    */
-  Muuri.prototype.getItems = function (elems) {
+  Muuri.prototype.getItems = function (elements) {
 
     var inst = this;
 
     // Return clone of all items instantly if no elements are provided.
-    if (!elems) {
-      return inst._items.slice();
+    if (!elements) {
+      return inst.items.slice();
     }
 
     var ret = [];
-    arrayEach(typeOf(elems) === 'array' ? elems : [elems], function (elem) {
+    arrayEach(typeOf(elements) === 'array' ? elements : [elements], function (elem) {
       ret.push(inst.getItem(elem));
     });
 
@@ -344,7 +344,7 @@ SOFTWARE.
     elements = typeOf(elements) === 'array' ? elements : [elements];
 
     // Filter out all elements that exist already in current instance.
-    arrayEach(inst._items, function (item) {
+    arrayEach(inst.items, function (item) {
       var index = elements.indexOf(item.element);
       if (index > -1) {
         elements.splice(index, 1);
@@ -363,13 +363,13 @@ SOFTWARE.
 
     // Normalize the index for the splice apply hackery so that value of -1
     // prepends the new items to the current items.
-    index = index < 0 ? inst._items.length - index + 1 : index;
+    index = index < 0 ? inst.items.length - index + 1 : index;
 
     // Add the new items to the items collection to correct index.
-    inst._items.splice.apply(inst._items, [index, 0].concat(newItems));
+    inst.items.splice.apply(inst.items, [index, 0].concat(newItems));
 
     // Emit event.
-    inst._e.emit('register', newItems);
+    inst._emitter.emit('register', newItems);
 
     // Return new items
     return newItems;
@@ -378,7 +378,7 @@ SOFTWARE.
 
   /**
    * Refresh Muuri instance's items' dimensions and recalculate minimum row
-   * height.
+   * height and column width.
    *
    * @public
    * @memberof Muuri.prototype
@@ -400,6 +400,23 @@ SOFTWARE.
   };
 
   /**
+   * Order the item elements to match the order of the items.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   */
+  Muuri.prototype.syncElements = function () {
+
+    var inst = this;
+    var container = inst.element;
+
+    arrayEach(inst.items, function (item) {
+      container.appendChild(item.element);
+    });
+
+  };
+
+  /**
    * Calculate and apply Muuri instance's item positions.
    *
    * @public
@@ -412,8 +429,8 @@ SOFTWARE.
     var inst = this;
     var callback = typeOf(animate) === 'boolean' ? callback : animate;
     var animEnabled = animate === false ? false : true;
-    var animDuration = inst._settings.containerAnimDuration;
-    var animEasing = inst._settings.containerAnimEasing;
+    var animDuration = inst._settings.containerDuration;
+    var animEasing = inst._settings.containerEasing;
     var grid = inst._positionItems();
     var counter = -1;
     var itemsLength = grid.items.length;
@@ -422,19 +439,19 @@ SOFTWARE.
         if (typeOf(callback) === 'function') {
           callback(inst);
         }
-        inst._e.emit('layoutEnd');
+        inst._emitter.emit('layoutEnd');
       }
     };
 
     // Emit event.
-    inst._e.emit('layoutStart');
+    inst._emitter.emit('layoutStart');
 
     // Stop currently running container animation.
-    Velocity(inst._element, 'stop', inst._animQueue);
+    Velocity(inst.element, 'stop', inst._animQueue);
 
     // If container's current inline height matches the target height, let's
     // skip manipulating the DOM.
-    if (parseFloat(inst._element.style.height) === grid.fillHeight) {
+    if (parseFloat(inst.element.style.height) === grid.fillHeight) {
 
       tryFinish();
 
@@ -442,20 +459,20 @@ SOFTWARE.
     // Otherwise if container animations are enabled let's make it happen.
     else if (animEnabled && animDuration > 0) {
 
-      Velocity(inst._element, {height: grid.fillHeight}, {
+      Velocity(inst.element, {height: grid.fillHeight}, {
         duration: animDuration,
         easing: animEasing,
         complete: tryFinish,
         queue: inst._animQueue
       });
 
-      Velocity.Utilities.dequeue(inst._element, inst._animQueue);
+      Velocity.Utilities.dequeue(inst.element, inst._animQueue);
 
     }
     // In all other cases just set the height.
     else {
 
-      setStyles(inst._element, {
+      setStyles(inst.element, {
         height: grid.fillHeight + 'px'
       });
 
@@ -482,7 +499,7 @@ SOFTWARE.
    * @public
    * @memberof Muuri.prototype
    * @param {Array|HTMLElement|Muuri.Item} items
-   * @param {Function} callback
+   * @param {Function} [callback]
    */
   Muuri.prototype.show = function (items, callback) {
 
@@ -505,7 +522,7 @@ SOFTWARE.
         if (typeOf(callback) === 'function') {
           callback(isInterrupted, finalItems);
         }
-        inst._e.emit('show', isInterrupted, finalItems);
+        inst._emitter.emit('show', isInterrupted, finalItems);
       }
 
     };
@@ -530,7 +547,7 @@ SOFTWARE.
    * @public
    * @memberof Muuri.prototype
    * @param {Array|HTMLElement|Muuri.Item} items
-   * @param {Function} callback
+   * @param {Function} [callback]
    */
   Muuri.prototype.hide = function (items, callback) {
 
@@ -553,7 +570,7 @@ SOFTWARE.
         if (typeOf(callback) === 'function') {
           callback(isInterrupted, finalItems);
         }
-        inst._e.emit('hide', isInterrupted, finalItems);
+        inst._emitter.emit('hide', isInterrupted, finalItems);
       }
 
     };
@@ -573,7 +590,7 @@ SOFTWARE.
   };
 
   /**
-   * Add existing DOM elements to Muuri and animate them in.
+   * Register existing DOM elements as Muuri items and animate them in.
    *
    * @public
    * @memberof Muuri.prototype
@@ -601,7 +618,7 @@ SOFTWARE.
         callback(interrupted, items);
       }
 
-      inst._e.emit('add', interrupted, items);
+      inst._emitter.emit('add', interrupted, items);
 
     };
 
@@ -650,7 +667,7 @@ SOFTWARE.
         callback();
       }
 
-      inst._e.emit('remove');
+      inst._emitter.emit('remove');
 
     };
 
@@ -670,7 +687,7 @@ SOFTWARE.
         item.isRemoving = true;
         var index = item.index();
         if (index > -1) {
-          inst._items.splice(index, 1);
+          inst.items.splice(index, 1);
         }
       });
 
@@ -702,7 +719,7 @@ SOFTWARE.
 
     var inst = this;
 
-    inst._e.emit('destroy');
+    inst._emitter.emit('destroy');
 
     // Unbind window resize event listener.
     if (inst._resizeFn) {
@@ -710,25 +727,23 @@ SOFTWARE.
     }
 
     // Restore items.
-    arrayEach(inst._items.slice(), function (item) {
+    arrayEach(inst.items.slice(), function (item) {
       item.destroy();
     });
 
     // Restore container.
-    removeClass(inst._element, inst._settings.containerClass);
-    setStyles(inst._element, {
+    removeClass(inst.element, inst._settings.containerClass);
+    setStyles(inst.element, {
       height: ''
     });
 
-    // Remove event listeners.
-    inst._e.removeAllListeners('destroy');
-    inst._e.removeAllListeners('register');
-    inst._e.removeAllListeners('show');
-    inst._e.removeAllListeners('hide');
-    inst._e.removeAllListeners('add');
-    inst._e.removeAllListeners('remove');
-    inst._e.removeAllListeners('layoutStart');
-    inst._e.removeAllListeners('layoutEnd');
+    // Remove all event listeners.
+    var events = inst._emitter._collection || {};
+    for (var ev in events) {
+      if (events.hasOwnProperty(ev) && typeOf(ev) === 'array') {
+        events[ev].length = 0;
+      }
+    }
 
   };
 
@@ -777,7 +792,7 @@ SOFTWARE.
     inst._peekabooQueue = [];
 
     // Set visibility related classes and styles.
-    addClass(element, stn.itemShownClass);
+    addClass(element, stn.shownClass);
     setStyles(inst.element, {
       display: 'block'
     });
@@ -805,6 +820,7 @@ SOFTWARE.
   Muuri.Item.prototype._initDrag = function () {
 
     var inst = this;
+    var emitter = this.muuri._emitter;
     var stn = inst.muuri._settings;
     var hammerDragConfig = {
       event: 'pan',
@@ -879,8 +895,11 @@ SOFTWARE.
 
       }
 
-      // Overlap handling
+      // Overlap handling.
       checkOverlap();
+
+      // Emit event.
+      emitter.emit('item-dragstart', inst, inst._drag);
 
     });
 
@@ -911,6 +930,9 @@ SOFTWARE.
       // Overlap handling
       checkOverlap();
 
+      // Emit event.
+      emitter.emit('item-dragmove', inst, inst._drag);
+
     });
 
     // Hammer drag end/cancel.
@@ -933,11 +955,18 @@ SOFTWARE.
       inst._drag.active = false;
       inst._drag.release = true;
 
+      // Emit events.
+      emitter.emit('item-dragend', inst, inst._drag);
+      emitter.emit('item-releasestart', inst, inst._drag);
+
       // Position item.
       inst.position(function () {
 
         // Reset drag data.
         inst._resetDragData();
+
+        // Emit event.
+        emitter.emit('item-releaseend', inst, inst._drag);
 
       });
 
@@ -976,10 +1005,11 @@ SOFTWARE.
   Muuri.Item.prototype._checkOverlap = function () {
 
     var inst = this;
+    var emitter = inst.muuri._emitter;
     var stn = inst.muuri._settings;
     var overlapTolerance = stn.dragOverlapTolerance;
     var overlapAction = stn.dragOverlapAction;
-    var items = inst.muuri._items;
+    var items = inst.muuri.items;
     var bestMatch = null;
     var instData = {
       width: inst.width,
@@ -1000,13 +1030,21 @@ SOFTWARE.
 
     // Check if the best match overlaps enough to justify a placement switch.
     if (bestMatch && bestMatch.score >= overlapTolerance) {
+
+      var itemIndex = inst.index();
+      var matchIndex = bestMatch.item.index();
+
       if (overlapAction === 'swap') {
-        arraySwap(items, inst.index(), bestMatch.item.index());
+        arraySwap(items, itemIndex, matchIndex);
+        emitter.emit('item-swap', inst, itemIndex, matchIndex);
       }
       else {
-        arrayMove(items, inst.index(), bestMatch.item.index());
+        arrayMove(items, itemIndex, matchIndex);
+        emitter.emit('item-move', inst, itemIndex, matchIndex);
       }
+
       inst.muuri.layout();
+
     }
 
   };
@@ -1063,7 +1101,7 @@ SOFTWARE.
    */
   Muuri.Item.prototype.index = function () {
 
-    return this.muuri._items.indexOf(this);
+    return this.muuri.items.indexOf(this);
 
   };
 
@@ -1093,7 +1131,15 @@ SOFTWARE.
    */
   Muuri.Item.prototype.moveTo = function (target) {
 
-    arrayMove(this.muuri._items, this.index(), typeOf(target) === 'number' ? target : target.index());
+    var inst = this;
+    var emitter = inst.muuri._emitter;
+    var itemIndex = inst.index();
+    var targetIndex = typeOf(target) === 'number' ? target : target.index();
+
+    if (itemIndex !== targetIndex) {
+      arrayMove(inst.muuri.items, itemIndex, targetIndex);
+      emitter.emit('item-move', inst, itemIndex, targetIndex);
+    }
 
   };
 
@@ -1107,7 +1153,15 @@ SOFTWARE.
    */
   Muuri.Item.prototype.swapWith = function (target) {
 
-    arraySwap(this.muuri._items, this.index(), typeOf(target) === 'number' ? target : target.index());
+    var inst = this;
+    var emitter = inst.muuri._emitter;
+    var itemIndex = inst.index();
+    var targetIndex = typeOf(target) === 'number' ? target : target.index();
+
+    if (itemIndex !== targetIndex) {
+      arraySwap(inst.muuri.items, itemIndex, targetIndex);
+      emitter.emit('item-swap', inst, itemIndex, targetIndex);
+    }
 
   };
 
@@ -1117,7 +1171,7 @@ SOFTWARE.
    * @public
    * @memberof Muuri.Item.prototype
    * @param {Boolean} [animate=true] Should we animate the positioning?
-   * @param {Function} callback
+   * @param {Function} [callback]
    */
   Muuri.Item.prototype.position = function (animate, callback) {
 
@@ -1128,8 +1182,8 @@ SOFTWARE.
     var inst = this;
     var stn = inst.muuri._settings;
     var callback = typeOf(animate) === 'boolean' ? callback : animate;
-    var animDuration = inst._drag.release ? stn.dragReleaseAnimDuration : stn.positionDuration;
-    var animEasing = inst._drag.release ? stn.dragReleaseAnimEasing : stn.positionEasing;
+    var animDuration = inst._drag.release ? stn.dragReleaseDuration : stn.positionDuration;
+    var animEasing = inst._drag.release ? stn.dragReleaseEasing : stn.positionEasing;
     var animEnabled = animate === false ? false : animDuration > 0;
     var isPositioning = inst.isPositioning;
     var finish = function () {
@@ -1301,8 +1355,8 @@ SOFTWARE.
       inst.isShowing = inst.isHiding = false;
 
       // Update classes.
-      addClass(inst.element, stn.itemShownClass);
-      removeClass(inst.element, stn.itemHiddenClass);
+      addClass(inst.element, stn.shownClass);
+      removeClass(inst.element, stn.hiddenClass);
 
       // Set element's display style.
       setStyles(inst.element, {
@@ -1410,8 +1464,8 @@ SOFTWARE.
       inst.isShowing = inst.isHiding = false;
 
       // Update classes.
-      addClass(inst.element, stn.itemHiddenClass);
-      removeClass(inst.element, stn.itemShownClass);
+      addClass(inst.element, stn.hiddenClass);
+      removeClass(inst.element, stn.shownClass);
 
       // Process current callback queue.
       inst._processQueue(inst._peekabooQueue, true);
@@ -1500,8 +1554,8 @@ SOFTWARE.
     removeClass(inst.element, stn.draggingClass);
     removeClass(inst.element, stn.releasingClass);
     removeClass(inst.element, stn.itemClass);
-    removeClass(inst.element, stn.itemShownClass);
-    removeClass(inst.element, stn.itemHiddenClass);
+    removeClass(inst.element, stn.shownClass);
+    removeClass(inst.element, stn.hiddenClass);
 
     // Reset callback queues.
     inst._peekabooQueue.length = 0;
@@ -1513,7 +1567,7 @@ SOFTWARE.
 
     // Remove item from Muuri instance if it still exists there.
     if (index > -1) {
-      inst.muuri._items.splice(index, 1);
+      inst.muuri.items.splice(index, 1);
     }
 
     // Remove element from DOM.
@@ -1523,21 +1577,55 @@ SOFTWARE.
 
   };
 
-  /** Default settings. */
+  /**
+   * Default settings.
+   *
+   * @public
+   * @memberof Muuri
+   * @property {HTMLElement} container
+   * @property {Number} containerDuration
+   * @property {Array|String} containerEasing
+   * @property {Array} items
+   * @property {Number} positionDuration
+   * @property {Array|String} positionEasing
+   * @property {Number} showDuration
+   * @property {Array|String} showEasing
+   * @property {Number} hideDuration
+   * @property {Array|String} hideEasing
+   * @property {!Number} layoutOnResize
+   * @property {Boolean} layoutOnInit
+   * @property {Boolean} dragEnabled
+   * @property {Number} dragPointers
+   * @property {Number} dragThreshold
+   * @property {String} dragDirection
+   * @property {Number} dragReleaseDuration
+   * @property {Array|String} dragReleaseEasing
+   * @property {Number} dragOverlapInterval
+   * @property {Number} dragOverlapTolerance
+   * @property {String} dragOverlapAction
+   * @property {Number} dragOverlapInterval
+   * @property {String} containerClass
+   * @property {String} itemClass
+   * @property {String} shownClass
+   * @property {String} hiddenClass
+   * @property {String} positioningClass
+   * @property {String} draggingClass
+   * @property {String} releasingClass
+   */
   Muuri.defaultSettings = {
 
     // Container
     container: null,
-    containerAnimDuration: 300,
-    containerAnimEasing: 'ease-out',
+    containerDuration: 300,
+    containerEasing: 'ease-out',
 
     // Items
     items: [],
     positionDuration: 300,
     positionEasing: 'ease-out',
-    showDuration: 200,
+    showDuration: 300,
     showEasing: 'ease-out',
-    hideDuration: 200,
+    hideDuration: 300,
     hideEasing: 'ease-out',
 
     // Layout
@@ -1549,17 +1637,17 @@ SOFTWARE.
     dragPointers: 1,
     dragThreshold: 10,
     dragDirection: 'all',
-    dragReleaseAnimDuration: 300,
-    dragReleaseAnimEasing: 'ease-out',
+    dragReleaseDuration: 300,
+    dragReleaseEasing: 'ease-out',
     dragOverlapInterval: 50,
-    dragOverlapTolerance: 50, // 1 - 100
-    dragOverlapAction: 'move', // move|swap
+    dragOverlapTolerance: 50,
+    dragOverlapAction: 'move',
 
     // Classnames
-    containerClass: 'muuri-container',
+    containerClass: 'muuri',
     itemClass: 'muuri-item',
-    itemShownClass: 'muuri-item-shown',
-    itemHiddenClass: 'muuri-item-hidden',
+    shownClass: 'muuri-shown',
+    hiddenClass: 'muuri-hidden',
     positioningClass: 'muuri-positioning',
     draggingClass: 'muuri-dragging',
     releasingClass: 'muuri-releasing'
@@ -1733,7 +1821,7 @@ SOFTWARE.
   }
 
   /**
-   * Calculate how many the percentages the intersection area of two items is
+   * Calculate how many percent the intersection area of two items is
    * from the maximum potential intersection area between the items.
    *
    * @param {Object} itemA

@@ -1,5 +1,5 @@
 /*!
-Muuri v0.0.5
+Muuri v0.0.6
 Copyright (c) 2015, Haltu Oy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -760,12 +760,13 @@ SOFTWARE.
 
     var inst = this;
     var stn = muuri._settings;
+    var isHidden = getStyle(element, 'display') === 'none';
 
     inst.muuri = muuri;
-
-    // Set up element.
     inst.element = element;
     inst.child = element.children[0];
+
+    // Set item class.
     addClass(element, stn.itemClass);
 
     // Set up active state (defines if the item is considered part of the layout
@@ -780,7 +781,7 @@ SOFTWARE.
     inst.isRemoving = false;
 
     // Set up visibility states (initialized as visible).
-    inst.isHidden = false;
+    inst.isHidden = isHidden;
     inst.isHiding = false;
     inst.isShowing = false;
 
@@ -791,13 +792,27 @@ SOFTWARE.
     // with the first argument as true if the animation was interrupted.
     inst._peekabooQueue = [];
 
-    // Set visibility related classes and styles.
-    addClass(element, stn.shownClass);
-    setStyles(inst.element, {
-      display: 'block'
+    // Set element's initial position.
+    hookStyles(inst.element, {
+      left: '0',
+      top: '0',
+      translateX: '0px',
+      translateY: '0px'
     });
-    Velocity.hook(inst.child, 'scale', 1);
-    Velocity.hook(inst.child, 'opacity', 1);
+
+    // Set hidden/shown class.
+    addClass(element, isHidden ? stn.hiddenClass : stn.shownClass);
+
+    // Set hidden/shown styles for the child element.
+    hookStyles(inst.child, {
+      scale: isHidden ? 0 : 1,
+      opacity: isHidden ? 0 : 1
+    });
+
+    // Enforce display "block" if element is visible.
+    if (!isHidden) {
+      setStyles(inst.element, {display: 'block'});
+    }
 
     // Set up initial dimensions and positions.
     inst.refresh();
@@ -837,7 +852,7 @@ SOFTWARE.
     }, stn.dragOverlapInterval);
 
     // Setup initial drag data.
-    inst._drag = {};
+    var drag = inst._drag = {};
     inst._resetDragData();
 
     // Initiate Hammer.
@@ -867,31 +882,37 @@ SOFTWARE.
       inst._stopPositioning();
 
       // Setup drag data.
-      inst._drag.active = true;
-      inst._drag.release = false;
-      inst._drag.start = e;
-      inst._drag.move = e;
+      drag.active = true;
+      drag.release = false;
+      drag.start = e;
+      drag.move = e;
 
-      // Setup item position.
-      if (!isPositioning) {
+      // Get current left/top translate values.
+      var currentLeft = parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
+      var currentTop = parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
 
-        // Get current left/top.
-        inst._drag.startLeft = inst._drag.currentLeft = parseFloat(inst.element.style.left) || 0;
-        inst._drag.startTop = inst._drag.currentTop = parseFloat(inst.element.style.top) || 0;
+      // Set initial left/top value.
+      drag.startLeft = drag.currentLeft = currentLeft;
+      drag.startTop = drag.currentTop = currentTop;
 
-        // Transform the left/top values to translateX/translateY values.
-        setStyles(inst.element, {
-          transform: 'translateX(' + inst._drag.startLeft + 'px) translateY(' + inst._drag.startTop + 'px)',
-          left: '0px',
-          top: '0px'
+      // If drag threshold is defined.
+      if (stn.dragThreshold > 0) {
+
+        // Adjust the initial x-scale movement if necessary.
+        if (Math.abs(e.deltaX) === stn.dragThreshold) {
+          drag.currentLeft = e.deltaX > 0 ? currentLeft + 1 : currentLeft - 1;
+        }
+
+        // Adjust the initial y-scale movement if necessary.
+        if (Math.abs(e.deltaY) === stn.dragThreshold) {
+          drag.currentTop = e.deltaY > 0 ? currentTop + 1 : currentTop - 1;
+        }
+
+        // Update element's translateX/Y values.
+        hookStyles(inst.element, {
+          translateX: drag.currentLeft + 'px',
+          translateY: drag.currentTop + 'px'
         });
-
-      }
-      else {
-
-        // Get current left/top.
-        inst._drag.startLeft = inst._drag.currentLeft = parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
-        inst._drag.startTop = inst._drag.currentTop = parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
 
       }
 
@@ -899,7 +920,7 @@ SOFTWARE.
       checkOverlap();
 
       // Emit event.
-      emitter.emit('item-dragstart', inst, inst._drag);
+      emitter.emit('item-dragstart', inst, drag);
 
     });
 
@@ -914,24 +935,23 @@ SOFTWARE.
       }
 
       // Store event.
-      inst._drag.move = e;
+      drag.move = e;
 
       // Calculate current position.
-      var offsetX = inst._drag.move.deltaX - inst._drag.start.deltaX;
-      var offsetY = inst._drag.move.deltaY - inst._drag.start.deltaY;
-      inst._drag.currentLeft = inst._drag.startLeft + offsetX;
-      inst._drag.currentTop = inst._drag.startTop + offsetY;
+      drag.currentLeft = drag.startLeft + (drag.move.deltaX - drag.start.deltaX);
+      drag.currentTop = drag.startTop + (drag.move.deltaY - drag.start.deltaY);
 
-      // Set position.
-      setStyles(inst.element, {
-        transform: 'translateX(' + inst._drag.currentLeft + 'px) translateY(' + inst._drag.currentTop + 'px)'
+      // Update element's translateX/Y values.
+      hookStyles(inst.element, {
+        translateX: drag.currentLeft + 'px',
+        translateY: drag.currentTop + 'px'
       });
 
-      // Overlap handling
+      // Overlap handling.
       checkOverlap();
 
       // Emit event.
-      emitter.emit('item-dragmove', inst, inst._drag);
+      emitter.emit('item-dragmove', inst, drag);
 
     });
 
@@ -952,12 +972,12 @@ SOFTWARE.
       removeClass(inst.element, stn.draggingClass);
 
       // Mark drag as inactive and flag as released.
-      inst._drag.active = false;
-      inst._drag.release = true;
+      drag.active = false;
+      drag.release = true;
 
       // Emit events.
-      emitter.emit('item-dragend', inst, inst._drag);
-      emitter.emit('item-releasestart', inst, inst._drag);
+      emitter.emit('item-dragend', inst, drag);
+      emitter.emit('item-releasestart', inst, drag);
 
       // Position item.
       inst.position(function () {
@@ -966,7 +986,7 @@ SOFTWARE.
         inst._resetDragData();
 
         // Emit event.
-        emitter.emit('item-releaseend', inst, inst._drag);
+        emitter.emit('item-releaseend', inst, drag);
 
       });
 
@@ -983,15 +1003,16 @@ SOFTWARE.
   Muuri.Item.prototype._resetDragData = function () {
 
     var inst = this;
+    var drag = inst._drag;
 
-    inst._drag.active = false;
-    inst._drag.release = false;
-    inst._drag.startLeft = 0;
-    inst._drag.startTop = 0;
-    inst._drag.currentLeft = 0;
-    inst._drag.currentTop = 0;
-    inst._drag.start = null;
-    inst._drag.move = null;
+    drag.active = false;
+    drag.release = false;
+    drag.startLeft = 0;
+    drag.startTop = 0;
+    drag.currentLeft = 0;
+    drag.currentTop = 0;
+    drag.start = null;
+    drag.move = null;
 
   };
 
@@ -1188,13 +1209,6 @@ SOFTWARE.
     var isPositioning = inst.isPositioning;
     var finish = function () {
 
-      // Set position as left/top properties and reset transform styles.
-      setStyles(inst.element, {
-        transform: '',
-        left: inst.left + 'px',
-        top: inst.top + 'px'
-      });
-
       // Remove positioning classes.
       removeClass(inst.element, stn.positioningClass);
       removeClass(inst.element, stn.releasingClass);
@@ -1215,29 +1229,23 @@ SOFTWARE.
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
 
+      hookStyles(inst.element, {
+        translateX: inst.left + 'px',
+        translateY: inst.top + 'px'
+      });
+
       finish();
 
     }
     // If animations are needed, let's dive in.
     else {
 
-      // Mark the item as positioning.
-      inst.isPositioning = true;
-
       // Get current left and top position.
-      var currentLeft = 0;
-      var currentTop =  0;
-      if (inst._drag.release) {
-        currentLeft = inst._drag.currentLeft || 0;
-        currentTop = inst._drag.currentTop || 0;
-      }
-      else {
-        currentLeft = parseFloat(isPositioning ? Velocity.hook(inst.element, 'translateX') : inst.element.style.left) || 0;
-        currentTop = parseFloat(isPositioning ? Velocity.hook(inst.element, 'translateY') : inst.element.style.top) || 0;
-      }
+      var currentLeft = inst._drag.release ? inst._drag.currentLeft : parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
+      var currentTop =  inst._drag.release ? inst._drag.currentTop : parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
 
-      // If the item is already in correct position there's no need to
-      // animate it.
+      // If the item is already in correct position there's no need to animate
+      // it.
       if (inst.left === currentLeft && inst.top === currentTop) {
         if (inst._drag.release) {
           inst._drag.release = false;
@@ -1246,37 +1254,18 @@ SOFTWARE.
         return;
       }
 
-      // Drag release handling.
+      // Mark as positioning.
+      inst.isPositioning = true;
+
+      // Handle release if necessary.
       if (inst._drag.release) {
-
         inst._drag.release = false;
-        Velocity.hook(inst.element, 'translateX', inst._drag.currentLeft + 'px');
-        Velocity.hook(inst.element, 'translateY', inst._drag.currentTop + 'px');
-
-        // Add classes.
-        addClass(inst.element, stn.positioningClass);
         addClass(inst.element, stn.releasingClass);
-
       }
-      // If item is not currently positioning we need to give it som special
-      // love.
-      else if (!isPositioning) {
 
-        // Transform the left/top values to translateX/translateY values.
-        setStyles(inst.element, {
-          transform: 'translateX(' + currentLeft + 'px) translateY(' + currentTop + 'px)',
-          left: '0px',
-          top: '0px'
-        });
-
-        // Forcefeed translate values values to velocity. Without this the
-        // animations might start from wrong positions.
-        Velocity.hook(inst.element, 'translateX', currentLeft + 'px');
-        Velocity.hook(inst.element, 'translateY', currentTop + 'px');
-
-        // Add classes.
+      // Add positioning class if necessary.
+      if (!isPositioning) {
         addClass(inst.element, stn.positioningClass);
-
       }
 
       // Set up the animation.
@@ -1402,8 +1391,10 @@ SOFTWARE.
       else {
 
         // Set the styles manually and finish up.
-        Velocity.hook(inst.child, 'scale', 1);
-        Velocity.hook(inst.child, 'opacity', 1);
+        hookStyles(inst.child, {
+          scale: 1,
+          opacity: 1
+        });
 
         // Call the callback and be done with it.
         if (typeOf(callback) === 'function') {
@@ -1508,8 +1499,10 @@ SOFTWARE.
       else {
 
         // Set the styles manually and finish up.
-        Velocity.hook(inst.child, 'scale', 0);
-        Velocity.hook(inst.child, 'opacity', 0);
+        hookStyles(inst.child, {
+          scale: 0,
+          opacity: 0
+        });
 
         // Hide element.
         setStyles(inst.element, {
@@ -1779,15 +1772,42 @@ SOFTWARE.
   }
 
   /**
+   * Returns the computed value of an element's style property as a string.
+   *
+   * @param {HTMLElement} element
+   * @param {String} style
+   * @returns {String}
+   */
+  function getStyle(element, style) {
+
+    return global.getComputedStyle(element, null).getPropertyValue(style);
+
+  }
+
+  /**
    * Set inline styles to an element.
    *
    * @param {HTMLElement} element
    * @param {Object} styles
    */
-  function setStyles(element, styles) {
+  function setStyles(element, styles, velocityHook) {
 
     for (var prop in styles) {
       element.style[prop === 'transform' ? transformName : prop] = styles[prop];
+    }
+
+  }
+
+  /**
+   * Set inline styles to an element with Velocity's hook method.
+   *
+   * @param {HTMLElement} element
+   * @param {Object} styles
+   */
+  function hookStyles(element, styles) {
+
+    for (var prop in styles) {
+      Velocity.hook(element, prop, styles[prop]);
     }
 
   }

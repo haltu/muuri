@@ -1,5 +1,5 @@
 /*!
-Muuri v0.0.6
+Muuri v0.0.7
 Copyright (c) 2015, Haltu Oy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -19,6 +19,23 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+*/
+
+/*
+TODO
+****
+- Make it easy to customize the drag behaviour so that vertical/horizontal
+  scrolling is possible on touch devices. Simplest way would be having a drag
+  handle, but that is a usability tradeoff. The best solution is requiring a
+  long press (with customizable duration) before the drag is activated. So
+  basically we need a way to a predicate to the drag start event.
+- Allow connecting muuri instances so that items can be dragged from one to
+  another.
+- Handle scrolling the scroll container element during drag. Note that this
+  can be left out since it is pretty easy to hook into the drag events and
+  build your own scroll logic.
+- Allow easy customizing of show and hide animations.
+
 */
 
 (function (global, factory) {
@@ -781,10 +798,10 @@ SOFTWARE.
     // it's position).
     inst.isPositioning = false;
 
-    // Set up removing state (defines if the item is currently being removedn).
+    // Set up removing state (defines if the item is currently being removed).
     inst.isRemoving = false;
 
-    // Set up visibility states (initialized as visible).
+    // Set up visibility states.
     inst.isHidden = isHidden;
     inst.isHiding = false;
     inst.isShowing = false;
@@ -839,161 +856,85 @@ SOFTWARE.
   Muuri.Item.prototype._initDrag = function () {
 
     var inst = this;
-    var emitter = this.muuri._emitter;
     var stn = inst.muuri._settings;
-    var hammerDragConfig = {
-      event: 'pan',
-      pointers: stn.dragPointers,
-      threshold: stn.dragThreshold,
-      direction: Hammer['DIRECTION_' + stn.dragDirection.toUpperCase()]
-    };
+    var isPredicateResolved = false;
+    var predicateData = {};
 
-    // Create a debounced checkOverlap function.
-    var checkOverlap = debounce(function () {
-      if (inst._drag.active) {
-        inst._checkOverlap();
-      }
-    }, stn.dragOverlapInterval);
+    // Initiate Hammer.
+    var hammer = inst._hammer = new Hammer.Manager(inst.element);
+    hammer.add(new Hammer.Pan({
+      event: 'drag',
+      pointers: 1,
+      threshold: 0,
+      direction: Hammer.DIRECTION_ALL
+    }));
+    hammer.add(new Hammer.Press({
+      event: 'press',
+      pointers: 1,
+      threshold: 100,
+      time: 0
+    }));
 
     // Setup initial drag data.
     var drag = inst._drag = {};
+    drag.checkOverlap = debounce(function () {
+      if (drag.active) {
+        inst._checkOverlap();
+      }
+    }, stn.dragOverlapInterval);
+    drag.predicate = typeOf(stn.dragPredicate) === 'function' ? stn.dragPredicate : dragPredicate;
     inst._resetDragData();
 
-    // Initiate Hammer.
-    inst._hammer = new Hammer.Manager(inst.element, {
-      recognizers: [
-        [Hammer.Pan, hammerDragConfig]
-      ]
+    // Press.
+    hammer.on('press', function (e) {
+      predicateData = {};
+      isPredicateResolved = false;
+      if (drag.predicate(e, inst, predicateData)) {
+        isPredicateResolved = true;
+      }
     });
 
-    // Hammer drag start.
-    inst._hammer.on('panstart', function (e) {
+    // Press up.
+    hammer.on('pressup', function (e) {
+      drag.predicate(e, inst, predicateData);
+    });
 
-      // If item is not active, reset drag.
-      if (!inst.isActive) {
-        inst._resetDragData();
-        removeClass(inst.element, stn.draggingClass);
-        return;
+    // Drag start.
+    hammer.on('dragstart', function (e) {
+      if (isPredicateResolved) {
+        inst._onDragMove(e);
       }
-
-      // Check if item is positioning currently.
-      var isPositioning = inst.isPositioning;
-
-      // Set dragging class.
-      addClass(inst.element, stn.draggingClass);
-
-      // Stop current animation.
-      inst._stopPositioning();
-
-      // Setup drag data.
-      drag.active = true;
-      drag.release = false;
-      drag.start = e;
-      drag.move = e;
-
-      // Get current left/top translate values.
-      var currentLeft = parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
-      var currentTop = parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
-
-      // Set initial left/top value.
-      drag.startLeft = drag.currentLeft = currentLeft;
-      drag.startTop = drag.currentTop = currentTop;
-
-      // If drag threshold is defined.
-      if (stn.dragThreshold > 0) {
-
-        // Adjust the initial x-scale movement if necessary.
-        if (Math.abs(e.deltaX) === stn.dragThreshold) {
-          drag.currentLeft = e.deltaX > 0 ? currentLeft + 1 : currentLeft - 1;
+      else {
+        if (drag.predicate(e, inst, predicateData)) {
+          isPredicateResolved = true;
         }
-
-        // Adjust the initial y-scale movement if necessary.
-        if (Math.abs(e.deltaY) === stn.dragThreshold) {
-          drag.currentTop = e.deltaY > 0 ? currentTop + 1 : currentTop - 1;
+        if (isPredicateResolved) {
+          inst._onDragStart(e);
         }
-
-        // Update element's translateX/Y values.
-        hookStyles(inst.element, {
-          translateX: drag.currentLeft + 'px',
-          translateY: drag.currentTop + 'px'
-        });
-
       }
-
-      // Overlap handling.
-      checkOverlap();
-
-      // Emit event.
-      emitter.emit('item-dragstart', inst, drag);
-
     });
 
-    // Hammer drag move.
-    inst._hammer.on('panmove', function (e) {
-
-      // If item is not active, reset drag.
-      if (!inst.isActive) {
-        inst._resetDragData();
-        removeClass(inst.element, stn.draggingClass);
-        return;
+    // Drag move.
+    hammer.on('dragmove', function (e) {
+      if (isPredicateResolved) {
+        inst._onDragMove(e);
       }
-
-      // Store event.
-      drag.move = e;
-
-      // Calculate current position.
-      drag.currentLeft = drag.startLeft + (drag.move.deltaX - drag.start.deltaX);
-      drag.currentTop = drag.startTop + (drag.move.deltaY - drag.start.deltaY);
-
-      // Update element's translateX/Y values.
-      hookStyles(inst.element, {
-        translateX: drag.currentLeft + 'px',
-        translateY: drag.currentTop + 'px'
-      });
-
-      // Overlap handling.
-      checkOverlap();
-
-      // Emit event.
-      emitter.emit('item-dragmove', inst, drag);
-
+      else {
+        if (drag.predicate(e, inst, predicateData)) {
+          isPredicateResolved = true;
+        }
+        if (isPredicateResolved) {
+          inst._onDragStart(e);
+        }
+      }
     });
 
-    // Hammer drag end/cancel.
-    inst._hammer.on('panend pancancel', function (e) {
-
-      // If item is not active, reset drag.
-      if (!inst.isActive) {
-        inst._resetDragData();
-        removeClass(inst.element, stn.draggingClass);
-        return;
+    // Drag end/cancel.
+    hammer.on('dragend dragcancel', function (e) {
+      drag.predicate(e, inst, predicateData);
+      if (isPredicateResolved && drag.active) {
+        inst._onDragEnd(e);
       }
-
-      // Finish currently queued overlap check.
-      checkOverlap(true);
-
-      // Remove dragging class.
-      removeClass(inst.element, stn.draggingClass);
-
-      // Mark drag as inactive and flag as released.
-      drag.active = false;
-      drag.release = true;
-
-      // Emit events.
-      emitter.emit('item-dragend', inst, drag);
-      emitter.emit('item-releasestart', inst, drag);
-
-      // Position item.
-      inst.position(function () {
-
-        // Reset drag data.
-        inst._resetDragData();
-
-        // Emit event.
-        emitter.emit('item-releaseend', inst, drag);
-
-      });
-
     });
 
   };
@@ -1017,6 +958,141 @@ SOFTWARE.
     drag.currentTop = 0;
     drag.start = null;
     drag.move = null;
+
+  };
+
+  /**
+   * Drag start functionality.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._onDragStart = function (e) {
+
+    var inst = this;
+    var drag = inst._drag;
+    var emitter = inst.muuri._emitter;
+    var stn = inst.muuri._settings;
+
+    // If item is not active, don't start the drag.
+    if (!inst.isActive) {
+      return;
+    }
+
+    // Stop current positioning animation.
+    if (inst.isPositioning) {
+      inst._stopPositioning();
+    }
+
+    // Set dragging class.
+    addClass(inst.element, stn.draggingClass);
+
+    // Setup drag data.
+    drag.active = true;
+    drag.release = false;
+    drag.start = e;
+    drag.move = e;
+
+    // Get current left/top translate values.
+    var currentLeft = parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
+    var currentTop = parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
+
+    // Set initial left/top value.
+    drag.startLeft = drag.currentLeft = currentLeft;
+    drag.startTop = drag.currentTop = currentTop;
+
+    // Emit event.
+    emitter.emit('item-dragstart', inst, drag);
+
+  };
+
+  /**
+   * Drag move functionality.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._onDragMove = function (e) {
+
+    var inst = this;
+    var drag = inst._drag;
+    var emitter = inst.muuri._emitter;
+    var stn = inst.muuri._settings;
+
+    // If item is not active, reset drag.
+    if (!inst.isActive) {
+      inst._resetDragData();
+      removeClass(inst.element, stn.draggingClass);
+      // TODO: Cancel checkOverlap.
+      return;
+    }
+
+    // Store event.
+    drag.move = e;
+
+    // Calculate current position.
+    drag.currentLeft = drag.startLeft + (drag.move.deltaX - drag.start.deltaX);
+    drag.currentTop = drag.startTop + (drag.move.deltaY - drag.start.deltaY);
+
+    // Update element's translateX/Y values.
+    hookStyles(inst.element, {
+      translateX: drag.currentLeft + 'px',
+      translateY: drag.currentTop + 'px'
+    });
+
+    // Overlap handling.
+    drag.checkOverlap();
+
+    // Emit event.
+    emitter.emit('item-dragmove', inst, drag);
+
+  };
+
+  /**
+   * Drag end functionality.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._onDragEnd = function (e) {
+
+    var inst = this;
+    var drag = inst._drag;
+    var emitter = inst.muuri._emitter;
+    var stn = inst.muuri._settings;
+
+    // If item is not active, reset drag.
+    if (!inst.isActive) {
+      inst._resetDragData();
+      removeClass(inst.element, stn.draggingClass);
+      // TODO: Cancel checkOverlap.
+      return;
+    }
+
+    // Finish currently queued overlap check.
+    drag.checkOverlap(true);
+
+    // Remove dragging class.
+    removeClass(inst.element, stn.draggingClass);
+
+    // Mark drag as inactive and flag as released.
+    drag.active = false;
+    drag.release = true;
+
+    // Emit events.
+    emitter.emit('item-dragend', inst, drag);
+    emitter.emit('item-releasestart', inst, drag);
+
+    // Position item.
+    inst.position(function () {
+
+      // Reset drag data.
+      inst._resetDragData();
+
+      // Emit event.
+      emitter.emit('item-releaseend', inst, drag);
+
+    });
 
   };
 
@@ -1592,9 +1668,7 @@ SOFTWARE.
    * @property {!Number} layoutOnResize
    * @property {Boolean} layoutOnInit
    * @property {Boolean} dragEnabled
-   * @property {Number} dragPointers
-   * @property {Number} dragThreshold
-   * @property {String} dragDirection
+   * @property {!Function} dragPredicate
    * @property {Number} dragReleaseDuration
    * @property {Array|String} dragReleaseEasing
    * @property {Number} dragOverlapInterval
@@ -1631,9 +1705,7 @@ SOFTWARE.
 
     // Drag & Drop
     dragEnabled: true,
-    dragPointers: 1,
-    dragThreshold: 10,
-    dragDirection: 'all',
+    dragPredicate: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease-out',
     dragOverlapInterval: 50,
@@ -2059,6 +2131,48 @@ SOFTWARE.
       left: x * colWidth,
       top: y * rowHeight
     };
+
+  }
+
+  /**
+   * Default drag start predicate handler.
+   *
+   * @param {Object} e
+   * @param {Muuri.Item} item
+   * @param {Object} predicate
+   */
+  function dragPredicate(e, item, predicate) {
+
+    if (predicate.isRejected) {
+      return;
+    }
+
+    if (predicate.isResolved) {
+      return true;
+    }
+
+    // For touch input we need to add a bit of delay before the drag can
+    // begin in order not to break native scrolling.
+    if (e.pointerType === 'touch') {
+
+      if (e.type === 'press') {
+        predicate.timeout = global.setTimeout(function() {
+          predicate.isResolved = true;
+        }, 150);
+      }
+      else if (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5) {
+        global.clearTimeout(predicate.timeout);
+      }
+
+    }
+    // For other input types we can just specify a little threshold.
+    else {
+
+      if (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5) {
+        return predicate.isResolved = true;
+      }
+
+    }
 
   }
 

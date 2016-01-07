@@ -1,5 +1,5 @@
 /*!
-Muuri v0.0.7
+Muuri v0.0.8-dev
 Copyright (c) 2015, Haltu Oy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -35,6 +35,8 @@ TODO
   can be left out since it is pretty easy to hook into the drag events and
   build your own scroll logic.
 - Allow easy customizing of show and hide animations.
+- Smarter touch device friendly default settings for hammer dragging. Don't
+  break the page scroll before the drag predicate has resolved.
 
 */
 
@@ -857,17 +859,19 @@ TODO
 
     var inst = this;
     var stn = inst.muuri._settings;
-    var isPredicateResolved = false;
-    var predicateData = {};
 
     // Initiate Hammer.
     var hammer = inst._hammer = new Hammer.Manager(inst.element);
+
+    // Add drag recognizer to hammer.
     hammer.add(new Hammer.Pan({
       event: 'drag',
       pointers: 1,
       threshold: 0,
       direction: Hammer.DIRECTION_ALL
     }));
+
+    // Add press recognizer to hammer.
     hammer.add(new Hammer.Press({
       event: 'press',
       pointers: 1,
@@ -877,38 +881,46 @@ TODO
 
     // Setup initial drag data.
     var drag = inst._drag = {};
+
+    // Add overlap checker function to drag data.
     drag.checkOverlap = debounce(function () {
       if (drag.active) {
         inst._checkOverlap();
       }
     }, stn.dragOverlapInterval);
+
+    // Add predicate related data to drag data.
     drag.predicate = typeOf(stn.dragPredicate) === 'function' ? stn.dragPredicate : dragPredicate;
+    drag.predicateData = {};
+    drag.predicateResolved = false;
+
+    // Add rest of the drag data.
     inst._resetDragData();
 
     // Press.
     hammer.on('press', function (e) {
-      predicateData = {};
-      isPredicateResolved = false;
-      if (drag.predicate(e, inst, predicateData)) {
-        isPredicateResolved = true;
+      drag.predicateData = {};
+      drag.predicateResolved = false;
+      if (drag.predicate(e, inst, drag.predicateData)) {
+        drag.predicateResolved = true;
       }
     });
 
     // Press up.
     hammer.on('pressup', function (e) {
-      drag.predicate(e, inst, predicateData);
+      drag.predicate(e, inst, drag.predicateData);
     });
 
     // Drag start.
     hammer.on('dragstart', function (e) {
-      if (isPredicateResolved) {
-        inst._onDragMove(e);
+      if (drag.predicateResolved) {
+        inst._onDragStart(e);
       }
       else {
-        if (drag.predicate(e, inst, predicateData)) {
-          isPredicateResolved = true;
+        if (drag.predicate(e, inst, drag.predicateData)) {
+          drag.predicateResolved = true;
         }
-        if (isPredicateResolved) {
+        if (drag.predicateResolved) {
           inst._onDragStart(e);
         }
       }
@@ -916,14 +928,14 @@ TODO
 
     // Drag move.
     hammer.on('dragmove', function (e) {
-      if (isPredicateResolved) {
+      if (drag.predicateResolved) {
         inst._onDragMove(e);
       }
       else {
-        if (drag.predicate(e, inst, predicateData)) {
-          isPredicateResolved = true;
+        if (drag.predicate(e, inst, drag.predicateData)) {
+          drag.predicateResolved = true;
         }
-        if (isPredicateResolved) {
+        if (drag.predicateResolved) {
           inst._onDragStart(e);
         }
       }
@@ -931,8 +943,8 @@ TODO
 
     // Drag end/cancel.
     hammer.on('dragend dragcancel', function (e) {
-      drag.predicate(e, inst, predicateData);
-      if (isPredicateResolved && drag.active) {
+      drag.predicate(e, inst, drag.predicateData);
+      if (drag.predicateResolved && drag.active) {
         inst._onDragEnd(e);
       }
     });
@@ -1001,6 +1013,35 @@ TODO
     drag.startLeft = drag.currentLeft = currentLeft;
     drag.startTop = drag.currentTop = currentTop;
 
+    // Setup clone if necessary.
+    if (stn.dragClone) {
+
+      // Add clone data to drag data.
+      drag.clone = inst.element.cloneNode(true);
+      drag.cloneParent = stn.dragCloneParent || document.body;
+
+      // Append drag clone to DOM.
+      drag.cloneParent.appendChild(drag.clone);
+
+      // Reset clone's positional styles.
+      hookStyles(drag.clone, {
+        translateX: '0px',
+        translateY: '0px',
+        left: '0',
+        top: '0'
+      });
+
+      // Align clone's position with that of the original element.
+      mezr.place([drag.clone, 'margin'], {
+        my: 'left top',
+        at: 'center center',
+        of: [inst.element, 'margin']
+      });
+
+      // TODO: Optionally hide the original element.
+
+    }
+
     // Emit event.
     emitter.emit('item-dragstart', inst, drag);
 
@@ -1041,7 +1082,9 @@ TODO
     });
 
     // Overlap handling.
-    drag.checkOverlap();
+    if (stn.dragSort) {
+      drag.checkOverlap();
+    }
 
     // Emit event.
     emitter.emit('item-dragmove', inst, drag);
@@ -1705,7 +1748,11 @@ TODO
 
     // Drag & Drop
     dragEnabled: true,
+    dragConnectWith: [], // TODO
     dragPredicate: null,
+    dragSort: true,
+    dragClone: false, // TODO
+    dragCloneParent: document.body, // TODO
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease-out',
     dragOverlapInterval: 50,
@@ -2161,6 +2208,7 @@ TODO
         }, 150);
       }
       else if (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5) {
+        predicate.isRejected = true;
         global.clearTimeout(predicate.timeout);
       }
 

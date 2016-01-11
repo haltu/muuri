@@ -24,20 +24,17 @@ SOFTWARE.
 /*
 TODO
 ****
-- Make it easy to customize the drag behaviour so that vertical/horizontal
-  scrolling is possible on touch devices. Simplest way would be having a drag
-  handle, but that is a usability tradeoff. The best solution is requiring a
-  long press (with customizable duration) before the drag is activated. So
-  basically we need a way to a predicate to the drag start event.
+- Dragged item should keep track of it's original index in DOM before moving
+  the item to drag container so that the release end function can put the
+  element back to it's original place.
+- Get rid of the even emitter dependency and built lightweight in-house
+  solution.
 - Allow connecting muuri instances so that items can be dragged from one to
   another.
 - Handle scrolling the scroll container element during drag. Note that this
   can be left out since it is pretty easy to hook into the drag events and
   build your own scroll logic.
 - Allow easy customizing of show and hide animations.
-- Smarter touch device friendly default settings for hammer dragging. Don't
-  break the page scroll before the drag predicate has resolved.
-
 */
 
 (function (global, factory) {
@@ -387,7 +384,7 @@ TODO
     // Add the new items to the items collection to correct index.
     inst.items.splice.apply(inst.items, [index, 0].concat(newItems));
 
-    // Emit event.
+    // Emit "register" event.
     inst._emitter.emit('register', newItems);
 
     // Return new items
@@ -419,7 +416,8 @@ TODO
   };
 
   /**
-   * Order the item elements to match the order of the items.
+   * Order the item elements to match the order of the items. If the item's
+   * element is not a child of the container is ignored and left untouched.
    *
    * @public
    * @memberof Muuri.prototype
@@ -430,7 +428,9 @@ TODO
     var container = inst.element;
 
     arrayEach(inst.items, function (item) {
-      container.appendChild(item.element);
+      if (item.element.parentNode === container) {
+        container.appendChild(item.element);
+      }
     });
 
   };
@@ -454,16 +454,24 @@ TODO
     var counter = -1;
     var itemsLength = grid.items.length;
     var tryFinish = function () {
+
+      // If container and all items have finished their animations (if any).
       if (++counter === itemsLength) {
+
+        // Call callback.
         if (typeOf(callback) === 'function') {
           callback(inst);
         }
-        inst._emitter.emit('layoutEnd');
+
+        // Emit "layoutend" event.
+        inst._emitter.emit('layoutend');
+
       }
+
     };
 
-    // Emit event.
-    inst._emitter.emit('layoutStart');
+    // Emit "layoutstart" event.
+    inst._emitter.emit('layoutstart');
 
     // Stop currently running container animation.
     Velocity(inst.element, 'stop', inst._animQueue);
@@ -533,15 +541,22 @@ TODO
     // Function for attempting to finish the method process.
     var tryFinish = function (interrupted) {
 
+      // If the current item's animation was interrupted.
       if (interrupted) {
         isInterrupted = true;
       }
 
+      // If all items have finished their animations (if any).
       if (--counter < 1) {
+
+        // Call callback.
         if (typeOf(callback) === 'function') {
           callback(isInterrupted, finalItems);
         }
+
+        // Emit "show" event.
         inst._emitter.emit('show', isInterrupted, finalItems);
+
       }
 
     };
@@ -581,15 +596,22 @@ TODO
     // Function for attempting to finish the method process.
     var tryFinish = function (interrupted) {
 
+      // If the current item's animation was interrupted.
       if (interrupted) {
         isInterrupted = true;
       }
 
+      // If all items have finished their animations (if any).
       if (--counter < 1) {
+
+        // Call callback.
         if (typeOf(callback) === 'function') {
           callback(isInterrupted, finalItems);
         }
+
+        // Emit "show" event.
         inst._emitter.emit('hide', isInterrupted, finalItems);
+
       }
 
     };
@@ -742,8 +764,6 @@ TODO
 
     var inst = this;
 
-    inst._emitter.emit('destroy');
-
     // Unbind window resize event listener.
     if (inst._resizeFn) {
       global.removeEventListener('resize', inst._resizeFn);
@@ -759,6 +779,9 @@ TODO
     setStyles(inst.element, {
       height: ''
     });
+
+    // Emit "destroy" event.
+    inst._emitter.emit('destroy');
 
     // Remove all event listeners.
     var events = inst._emitter._collection || {};
@@ -843,6 +866,8 @@ TODO
     inst.top = 0;
 
     // Set up drag & drop.
+    inst._drag = {active: false};
+    inst._release = {active: false};
     if (muuri._settings.dragEnabled) {
       inst._initDrag();
     }
@@ -879,8 +904,12 @@ TODO
       time: 0
     }));
 
+    // Setup initial release data.
+    inst._resetReleaseData();
+
     // Setup initial drag data.
-    var drag = inst._drag = {};
+    var drag = inst._drag;
+    inst._resetDragData();
 
     // Add overlap checker function to drag data.
     drag.checkOverlap = debounce(function () {
@@ -893,9 +922,6 @@ TODO
     drag.predicate = typeOf(stn.dragPredicate) === 'function' ? stn.dragPredicate : dragPredicate;
     drag.predicateData = {};
     drag.predicateResolved = false;
-
-    // Add rest of the drag data.
-    inst._resetDragData();
 
     // Press.
     hammer.on('press', function (e) {
@@ -962,12 +988,32 @@ TODO
     var inst = this;
     var drag = inst._drag;
 
+    // Is the drag active or not?
     drag.active = false;
-    drag.release = false;
+
+    // The element that is currently dragged (instance element or it's clone).
+    drag.element = null;
+
+    // These values implicate the offset difference between the element's
+    // temporary drag container and it's true container.
+    drag.offsetDiffLeft = 0;
+    drag.offsetDiffTop = 0;
+
+    // The true left/top position data.
     drag.startLeft = 0;
     drag.startTop = 0;
     drag.currentLeft = 0;
     drag.currentTop = 0;
+
+    // Relative left/top position meaning that in these values the container
+    // offset difference is accounted for and allow user to compare the
+    // element's current position directly to it's "virtual" grid position.
+    drag.relativeStartLeft = 0;
+    drag.relativeStartTop = 0;
+    drag.relativeCurrentLeft = 0;
+    drag.relativeCurrentTop = 0;
+
+    // Hammer dragstart/dragend event data.
     drag.start = null;
     drag.move = null;
 
@@ -996,54 +1042,89 @@ TODO
       inst._stopPositioning();
     }
 
-    // Set dragging class.
-    addClass(inst.element, stn.draggingClass);
+    // Reset release data and remove release class if item is being released.
+    if (inst._release.active) {
+      removeClass(inst.element, stn.releasingClass);
+      inst._resetReleaseData();
+    }
 
     // Setup drag data.
     drag.active = true;
-    drag.release = false;
     drag.start = e;
     drag.move = e;
+    drag.element = inst.element;
 
-    // Get current left/top translate values.
+    // Set drag class.
+    addClass(inst.element, stn.draggingClass);
+
+    // Get element's current position.
     var currentLeft = parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
     var currentTop = parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
 
-    // Set initial left/top value.
-    drag.startLeft = drag.currentLeft = currentLeft;
-    drag.startTop = drag.currentTop = currentTop;
+    // Get container references.
+    var defaultContainer = inst.muuri.element;
+    var dragContainer = stn.dragContainer;
 
-    // Setup clone if necessary.
-    if (stn.dragClone) {
+    // Set initial left/top drag value.
+    drag.startLeft = drag.currentLeft = drag.relativeStartLeft = drag.relativeCurrentLeft = currentLeft;
+    drag.startTop = drag.currentTop = drag.relativeStartTop = drag.relativeCurrentTop = currentTop;
 
-      // Add clone data to drag data.
-      drag.clone = inst.element.cloneNode(true);
-      drag.cloneParent = stn.dragCloneParent || document.body;
+    // If a specific drag container is set and it is different from the
+    // default muuri container we need to cast some extra spells.
+    if (dragContainer && dragContainer !== defaultContainer) {
 
-      // Append drag clone to DOM.
-      drag.cloneParent.appendChild(drag.clone);
+      // If dragged element is already in drag container.
+      if (inst.element.parentNode === dragContainer) {
 
-      // Reset clone's positional styles.
-      hookStyles(drag.clone, {
-        translateX: '0px',
-        translateY: '0px',
-        left: '0',
-        top: '0'
-      });
+        // Get offset diff.
+        var offsetDiff = mezr.place([inst.element, 'margin'], {
+          my: 'left top',
+          at: 'left top',
+          of: [defaultContainer, 'padding']
+        });
 
-      // Align clone's position with that of the original element.
-      mezr.place([drag.clone, 'margin'], {
-        my: 'left top',
-        at: 'center center',
-        of: [inst.element, 'margin']
-      });
+        // Store the container offset diffs to drag data.
+        drag.offsetDiffLeft = offsetDiff.left;
+        drag.offsetDiffTop = offsetDiff.top;
 
-      // TODO: Optionally hide the original element.
+        // Set up relative drag position data.
+        drag.relativeStartLeft = drag.relativeCurrentLeft = currentLeft - drag.offsetDiffLeft;
+        drag.relativeStartTop = drag.relativeCurrentTop = currentTop - drag.offsetDiffTop;
+
+      }
+      // If dragged element is not within the correct container.
+      else {
+
+        // Append element into correct container.
+        dragContainer.appendChild(inst.element);
+
+        // Get offset diff.
+        var offsetDiff = mezr.place([inst.element, 'margin'], {
+          my: 'left top',
+          at: 'left top',
+          of: [defaultContainer, 'padding']
+        });
+
+        // Store the container offset diffs to drag data.
+        drag.offsetDiffLeft = offsetDiff.left;
+        drag.offsetDiffTop = offsetDiff.top;
+
+        // Set up drag position data.
+        drag.startLeft = drag.currentLeft = currentLeft + drag.offsetDiffLeft;
+        drag.startTop = drag.currentTop = currentTop + drag.offsetDiffTop;
+
+        // Fix position to account for the append procedure.
+        hookStyles(inst.element, {
+          translateX: drag.startLeft + 'px',
+          translateY: drag.startTop + 'px'
+        });
+
+      }
 
     }
 
     // Emit event.
-    emitter.emit('item-dragstart', inst, drag);
+    emitter.emit('item-dragstart', inst);
 
   };
 
@@ -1064,16 +1145,20 @@ TODO
     if (!inst.isActive) {
       inst._resetDragData();
       removeClass(inst.element, stn.draggingClass);
-      // TODO: Cancel checkOverlap.
+      drag.checkOverlap('cancel');
       return;
     }
 
     // Store event.
     drag.move = e;
 
-    // Calculate current position.
-    drag.currentLeft = drag.startLeft + (drag.move.deltaX - drag.start.deltaX);
-    drag.currentTop = drag.startTop + (drag.move.deltaY - drag.start.deltaY);
+    // Update position data.
+    var xDiff = drag.move.deltaX - drag.start.deltaX;
+    var yDiff = drag.move.deltaY - drag.start.deltaY;
+    drag.currentLeft = drag.startLeft + xDiff;
+    drag.currentTop = drag.startTop + yDiff;
+    drag.relativeCurrentLeft = drag.relativeStartLeft + xDiff;
+    drag.relativeCurrentTop = drag.relativeStartTop + yDiff;
 
     // Update element's translateX/Y values.
     hookStyles(inst.element, {
@@ -1087,7 +1172,7 @@ TODO
     }
 
     // Emit event.
-    emitter.emit('item-dragmove', inst, drag);
+    emitter.emit('item-dragmove', inst);
 
   };
 
@@ -1103,39 +1188,104 @@ TODO
     var drag = inst._drag;
     var emitter = inst.muuri._emitter;
     var stn = inst.muuri._settings;
+    var release = inst._release;
 
     // If item is not active, reset drag.
     if (!inst.isActive) {
       inst._resetDragData();
       removeClass(inst.element, stn.draggingClass);
-      // TODO: Cancel checkOverlap.
+      drag.checkOverlap('cancel');
       return;
     }
 
     // Finish currently queued overlap check.
-    drag.checkOverlap(true);
+    if (stn.dragSort) {
+      drag.checkOverlap('finish');
+    }
 
-    // Remove dragging class.
+    // Remove drag classname from element.
     removeClass(inst.element, stn.draggingClass);
 
-    // Mark drag as inactive and flag as released.
+    // Flag drag as inactive.
     drag.active = false;
-    drag.release = true;
 
-    // Emit events.
-    emitter.emit('item-dragend', inst, drag);
-    emitter.emit('item-releasestart', inst, drag);
+    // Emit drag end event.
+    emitter.emit('item-dragend', inst);
 
-    // Position item.
-    inst.position(function () {
+    // Setup release data.
+    release.offsetDiffLeft = drag.offsetDiffLeft;
+    release.offsetDiffTop = drag.offsetDiffTop;
+    release.element = drag.element;
 
-      // Reset drag data.
-      inst._resetDragData();
+    // Reset drag data,
+    inst._resetDragData();
 
-      // Emit event.
-      emitter.emit('item-releaseend', inst, drag);
+    // Start the release process.
+    inst._startRelease();
 
-    });
+  };
+
+  /**
+   * Reset release data.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._resetReleaseData = function () {
+
+    var inst = this;
+    var release = inst._release;
+
+    release.active = false;
+    release.positioningStarted = false;
+    release.offsetDiffLeft = 0;
+    release.offsetDiffTop = 0;
+    release.element = null;
+
+  };
+
+  /**
+   * Start the release process of an item.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._startRelease = function () {
+
+    var inst = this;
+    var emitter = inst.muuri._emitter;
+    var stn = inst.muuri._settings;
+
+    inst._release.active = true;
+    addClass(inst.element, stn.releasingClass);
+    emitter.emit('item-releasestart', inst);
+    inst.position();
+
+  };
+
+  /**
+   * End the release process of an item.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._endRelease = function () {
+
+    var inst = this;
+    var emitter = inst.muuri._emitter;
+    var stn = inst.muuri._settings;
+    var release = inst._release;
+
+    removeClass(inst.element, stn.releasingClass);
+    if (inst.element.parentNode !== inst.muuri.element) {
+      inst.muuri.element.appendChild(inst.element);
+      hookStyles(inst.element, {
+        translateX: inst.left + 'px',
+        translateY: inst.top + 'px'
+      });
+    }
+    inst._resetReleaseData();
+    emitter.emit('item-releaseend', inst);
 
   };
 
@@ -1158,8 +1308,8 @@ TODO
     var instData = {
       width: inst.width,
       height: inst.height,
-      left: inst._drag.currentLeft,
-      top: inst._drag.currentTop
+      left: inst._drag.relativeCurrentLeft,
+      top: inst._drag.relativeCurrentTop
     };
 
     // Find best match (the element with most overlap).
@@ -1227,7 +1377,6 @@ TODO
 
       // Remove visibility classes.
       removeClass(inst.element, stn.positioningClass);
-      removeClass(inst.element, stn.releasingClass);
 
       // Reset state.
       inst.isPositioning = false;
@@ -1319,72 +1468,84 @@ TODO
    */
   Muuri.Item.prototype.position = function (animate, callback) {
 
-    // TODO: How to handle situation where item is removed in mid-flight? The
-    // main problem is that it may not call the callback which will break
-    // all functions depending on the callback.
-
     var inst = this;
     var stn = inst.muuri._settings;
     var callback = typeOf(animate) === 'boolean' ? callback : animate;
-    var animDuration = inst._drag.release ? stn.dragReleaseDuration : stn.positionDuration;
-    var animEasing = inst._drag.release ? stn.dragReleaseEasing : stn.positionEasing;
+    var emitter = inst.muuri._emitter;
+    var release = inst._release;
+    var isJustReleased = release.active && release.positioningStarted === false;
+    var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.positionDuration;
+    var animEasing = isJustReleased ? stn.dragReleaseEasing : stn.positionEasing;
     var animEnabled = animate === false ? false : animDuration > 0;
     var isPositioning = inst.isPositioning;
     var finish = function () {
 
       // Remove positioning classes.
       removeClass(inst.element, stn.positioningClass);
-      removeClass(inst.element, stn.releasingClass);
 
       // Mark the item as not positioning.
       inst.isPositioning = false;
+
+      // Finish up release.
+      if (release.active) {
+        inst._endRelease();
+      }
 
       // Call the callback.
       if (typeOf(callback) === 'function') {
         callback(inst);
       }
 
+      // Emit "item-positionend" event.
+      emitter.emit('item-positionend', inst);
+
     };
+
+    // Emit "item-positionstart" event.
+    emitter.emit('item-positionstart', inst);
 
     // Stop currently running animation, if any.
     inst._stopPositioning();
+
+    // Mark release positiong as started.
+    if (isJustReleased) {
+      release.positioningStarted = true;
+    }
+
+    // Get item container offset. This applies only for release handling in the
+    // scenario where the released element is not currently within the muuri
+    // container.
+    var offsetLeft = inst._release.active ? inst._release.offsetDiffLeft : 0;
+    var offsetTop = inst._release.active ? inst._release.offsetDiffTop : 0;
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
 
       hookStyles(inst.element, {
-        translateX: inst.left + 'px',
-        translateY: inst.top + 'px'
+        translateX: (inst.left + offsetLeft) + 'px',
+        translateY: (inst.top + offsetTop) + 'px'
       });
 
       finish();
 
     }
+
     // If animations are needed, let's dive in.
     else {
 
       // Get current left and top position.
-      var currentLeft = inst._drag.release ? inst._drag.currentLeft : parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
-      var currentTop =  inst._drag.release ? inst._drag.currentTop : parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
+      var currentLeft = (parseFloat(Velocity.hook(inst.element, 'translateX')) || 0) + offsetLeft;
+      var currentTop =  (parseFloat(Velocity.hook(inst.element, 'translateY')) || 0) + offsetTop;
 
       // If the item is already in correct position there's no need to animate
       // it.
       if (inst.left === currentLeft && inst.top === currentTop) {
-        if (inst._drag.release) {
-          inst._drag.release = false;
-        }
         finish();
         return;
       }
 
       // Mark as positioning.
       inst.isPositioning = true;
-
-      // Handle release if necessary.
-      if (inst._drag.release) {
-        inst._drag.release = false;
-        addClass(inst.element, stn.releasingClass);
-      }
 
       // Add positioning class if necessary.
       if (!isPositioning) {
@@ -1393,8 +1554,8 @@ TODO
 
       // Set up the animation.
       Velocity(inst.element, {
-        translateX: inst.left,
-        translateY: inst.top
+        translateX: inst.left + offsetLeft,
+        translateY: inst.top + offsetTop
       }, {
         duration: animDuration,
         easing: animEasing,
@@ -1641,8 +1802,6 @@ TODO
 
     }
 
-
-
   };
 
   /**
@@ -1655,11 +1814,28 @@ TODO
 
     var inst = this;
     var stn = inst.muuri._settings;
+    var emitter = inst.muuri._emitter;
     var index = inst.index();
 
     // Stop animations.
     inst._stopPositioning();
     Velocity(inst.child, 'stop', inst.muuri._animQueue);
+
+    // If item is being released, stop it gracefully.
+    if (inst._release.active) {
+      if (inst.element.parentNode !== inst.muuri.element) {
+        inst.muuri.element.appendChild(inst.element);
+      }
+      inst._resetReleaseData();
+    }
+
+    // If item is being dragged, stop it gracefully.
+    if (inst._drag.active) {
+      if (inst.element.parentNode !== inst.muuri.element) {
+        inst.muuri.element.appendChild(inst.element);
+      }
+      inst._resetDragData();
+    }
 
     // Remove all inline styles.
     inst.element.removeAttribute('style');
@@ -1690,6 +1866,9 @@ TODO
     if (removeElement) {
       inst.element.parentNode.removeChild(inst.element);
     }
+
+    // Emit "item-destroy" event.
+    emitter.emit('item-destroy', inst);
 
   };
 
@@ -1751,8 +1930,7 @@ TODO
     dragConnectWith: [], // TODO
     dragPredicate: null,
     dragSort: true,
-    dragClone: false, // TODO
-    dragCloneParent: document.body, // TODO
+    dragContainer: document.body,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease-out',
     dragOverlapInterval: 50,
@@ -1847,8 +2025,9 @@ TODO
    * Returns a function, that, as long as it continues to be invoked, will not
    * be triggered. The function will be called after it stops being called for
    * N milliseconds. The returned function accepts one argument which, when
-   * being true, calls the debounced function immediately if it is currently
-   * waiting to be called.
+   * being "finish", calls the debounced function immediately if it is currently
+   * waiting to be called, and when being "cancel" cancels the currently queued
+   * function call.
    *
    * @param {Function} fn
    * @param {Number} wait
@@ -1857,17 +2036,19 @@ TODO
   function debounce(fn, wait) {
 
     var timeout;
+    var actionCancel = 'cancel';
+    var actionFinish = 'finish';
 
-    return function (finish) {
+    return function (action) {
 
       if (timeout !== undefined) {
         timeout = global.clearTimeout(timeout);
-        if (finish) {
+        if (action === actionFinish) {
           fn();
         }
       }
 
-      if (!finish) {
+      if (action !== actionCancel && action !== actionFinish) {
         timeout = global.setTimeout(function() {
           timeout = undefined;
           fn();

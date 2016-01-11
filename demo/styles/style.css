@@ -54,7 +54,7 @@ body {
 }
 .item.muuri-dragging,
 .item.muuri-releasing {
-  z-index: 2;
+  z-index: 9999;
 }
 .item.muuri-dragging {
   cursor: move;

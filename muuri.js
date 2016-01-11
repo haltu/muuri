@@ -24,6 +24,7 @@ SOFTWARE.
 /*
 TODO
 ****
+- Review the emitted events -> make item instance emit appropritate events.
 - Dragged item should keep track of it's original index in DOM before moving
   the item to drag container so that the release end function can put the
   element back to it's original place.
@@ -483,6 +484,7 @@ TODO
       tryFinish();
 
     }
+
     // Otherwise if container animations are enabled let's make it happen.
     else if (animEnabled && animDuration > 0) {
 
@@ -496,6 +498,7 @@ TODO
       Velocity.Utilities.dequeue(inst.element, inst._animQueue);
 
     }
+
     // In all other cases just set the height.
     else {
 
@@ -609,7 +612,7 @@ TODO
           callback(isInterrupted, finalItems);
         }
 
-        // Emit "show" event.
+        // Emit "hide" event.
         inst._emitter.emit('hide', isInterrupted, finalItems);
 
       }
@@ -655,10 +658,12 @@ TODO
     // Create a process end handler.
     var finish = function (interrupted, items) {
 
+      // Call callback function.
       if (typeOf(callback) === 'function') {
         callback(interrupted, items);
       }
 
+      // Emit "add" event.
       inst._emitter.emit('add', interrupted, items);
 
     };
@@ -708,10 +713,12 @@ TODO
     // Create a process end handler.
     var finish = function () {
 
+      // Call callback function.
       if (typeOf(callback) === 'function') {
         callback();
       }
 
+      // Emit "remove" event.
       inst._emitter.emit('remove');
 
     };
@@ -745,6 +752,7 @@ TODO
       });
 
     }
+
     // If no items exist.
     else {
 
@@ -1092,6 +1100,7 @@ TODO
         drag.relativeStartTop = drag.relativeCurrentTop = currentTop - drag.offsetDiffTop;
 
       }
+
       // If dragged element is not within the correct container.
       else {
 
@@ -1123,7 +1132,7 @@ TODO
 
     }
 
-    // Emit event.
+    // Emit "item-dragstart" event.
     emitter.emit('item-dragstart', inst);
 
   };
@@ -1171,7 +1180,7 @@ TODO
       drag.checkOverlap();
     }
 
-    // Emit event.
+    // Emit "item-dragmove" event.
     emitter.emit('item-dragmove', inst);
 
   };
@@ -1209,7 +1218,7 @@ TODO
     // Flag drag as inactive.
     drag.active = false;
 
-    // Emit drag end event.
+    // Emit "item-dragend" event.
     emitter.emit('item-dragend', inst);
 
     // Setup release data.
@@ -1256,9 +1265,16 @@ TODO
     var emitter = inst.muuri._emitter;
     var stn = inst.muuri._settings;
 
+    // Flag release as active.
     inst._release.active = true;
+
+    // Add release classname to released element.
     addClass(inst.element, stn.releasingClass);
+
+    // Emit "item-releasestart" event.
     emitter.emit('item-releasestart', inst);
+
+    // Position the released item.
     inst.position();
 
   };
@@ -1276,7 +1292,11 @@ TODO
     var stn = inst.muuri._settings;
     var release = inst._release;
 
+    // Remove release classname from the released element.
     removeClass(inst.element, stn.releasingClass);
+
+    // If the released element is outside the muuri container put it back there
+    // and adjust position accordingly.
     if (inst.element.parentNode !== inst.muuri.element) {
       inst.muuri.element.appendChild(inst.element);
       hookStyles(inst.element, {
@@ -1284,7 +1304,11 @@ TODO
         translateY: inst.top + 'px'
       });
     }
+
+    // Reset release data.
     inst._resetReleaseData();
+
+    // Emit "item-releaseend" event.
     emitter.emit('item-releaseend', inst);
 
   };
@@ -1582,17 +1606,15 @@ TODO
 
     var inst = this;
     var stn = inst.muuri._settings;
+    var emitter = inst.muuri._emitter;
 
     // Allow pasing the callback function also as the first argument.
     callback = typeOf(animate) === 'function' ? animate : callback;
 
-    // if item is currently being removed.
+    // If item is currently being removed return immediately.
     if (inst.isRemoving) {
 
-      // Call the callback with the interrupted flag and be done with it.
-      if (typeOf(callback) === 'function') {
-        callback(true);
-      }
+      return;
 
     }
 
@@ -1619,6 +1641,8 @@ TODO
     // If item is hidden or animating to hidden.
     else {
 
+      var isHiding = inst.isHiding;
+
       // Stop animation.
       Velocity(inst.child, 'stop', inst.muuri._animQueue);
 
@@ -1642,6 +1666,14 @@ TODO
       // Process current callback queue.
       inst._processQueue(inst._peekabooQueue, true);
 
+      // Emit "item-hideend" event with interrupted flag.
+      if (isHiding) {
+        emitter.emit('item-hideend', inst, true);
+      }
+
+      // Emit "item-showstart" event.
+      emitter.emit('item-showstart', inst);
+
       // If animations enabled.
       if (animate !== false && stn.showDuration > 0) {
 
@@ -1662,6 +1694,9 @@ TODO
 
             // Process callback queue.
             inst._processQueue(inst._peekabooQueue);
+
+            // Emit "item-showend" event.
+            emitter.emit('item-showend', inst);
 
           }
         });
@@ -1685,6 +1720,9 @@ TODO
           callback();
         }
 
+        // Emit "item-showend" event.
+        emitter.emit('item-showend', inst);
+
       }
 
     }
@@ -1703,6 +1741,7 @@ TODO
 
     var inst = this;
     var stn = inst.muuri._settings;
+    var emitter = inst.muuri._emitter;
 
     // Allow pasing the callback function also as the first argument.
     callback = typeOf(animate) === 'function' ? animate : callback;
@@ -1730,6 +1769,8 @@ TODO
     // If item is visible or animating to visible.
     else {
 
+      var isShowing = inst.isShowing;
+
       // Stop animation.
       Velocity(inst.child, 'stop', inst.muuri._animQueue);
 
@@ -1744,6 +1785,14 @@ TODO
 
       // Process current callback queue.
       inst._processQueue(inst._peekabooQueue, true);
+
+      // Emit "item-showend" event with interrupted flag.
+      if (isShowing) {
+        emitter.emit('item-showend', inst, true);
+      }
+
+      // Emit "item-hidestart" event.
+      emitter.emit('item-hidestart', inst);
 
       // If animations enabled.
       if (animate !== false && stn.hideDuration > 0) {
@@ -1771,6 +1820,9 @@ TODO
             // Process callback queue.
             inst._processQueue(inst._peekabooQueue);
 
+            // Emit "item-hideend" event.
+            emitter.emit('item-hideend', inst);
+
           }
         });
 
@@ -1797,6 +1849,9 @@ TODO
         if (typeOf(callback) === 'function') {
           callback();
         }
+
+        // Emit "item-hideend" event.
+        emitter.emit('item-hideend', inst);
 
       }
 
@@ -2394,6 +2449,7 @@ TODO
       }
 
     }
+
     // For other input types we can just specify a little threshold.
     else {
 

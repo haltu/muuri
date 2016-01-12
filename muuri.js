@@ -24,7 +24,6 @@ SOFTWARE.
 /*
 TODO
 ****
-- Review the emitted events -> make item instance emit appropritate events.
 - Dragged item should keep track of it's original index in DOM before moving
   the item to drag container so that the release end function can put the
   element back to it's original place.
@@ -54,7 +53,6 @@ TODO
    * *********
    */
 
-  var transformName = getSupportedTransform();
   var muuriId = 0;
 
   /**
@@ -288,7 +286,7 @@ TODO
    * @public
    * @memberof Muuri.prototype
    * @param {Number|HTMLElement} [target=0]
-   * @returns {Muuri.Item|Null}
+   * @returns {!Muuri.Item}
    */
   Muuri.prototype.getItem = function (target) {
 
@@ -414,6 +412,9 @@ TODO
     inst._rowHeight = inst._getSlotSize('height', items);
     inst._colWidth = inst._getSlotSize('width', items);
 
+    // Emit "refresh" event.
+    inst._emitter.emit('refresh');
+
   };
 
   /**
@@ -434,6 +435,9 @@ TODO
       }
     });
 
+    // Emit "syncelements" event.
+    inst._emitter.emit('syncelements');
+
   };
 
   /**
@@ -447,6 +451,7 @@ TODO
   Muuri.prototype.layout = function (animate, callback) {
 
     var inst = this;
+    var emitter = inst._emitter;
     var callback = typeOf(animate) === 'boolean' ? callback : animate;
     var animEnabled = animate === false ? false : true;
     var animDuration = inst._settings.containerDuration;
@@ -465,17 +470,17 @@ TODO
         }
 
         // Emit "layoutend" event.
-        inst._emitter.emit('layoutend');
+        emitter.emit('layoutend');
 
       }
 
     };
 
-    // Emit "layoutstart" event.
-    inst._emitter.emit('layoutstart');
-
     // Stop currently running container animation.
     Velocity(inst.element, 'stop', inst._animQueue);
+
+    // Emit "layoutstart" event.
+    emitter.emit('layoutstart');
 
     // If container's current inline height matches the target height, let's
     // skip manipulating the DOM.
@@ -534,6 +539,7 @@ TODO
   Muuri.prototype.show = function (items, callback) {
 
     var inst = this;
+    var emitter = inst._emitter;
     var finalItems = [];
     var isInterrupted = false;
 
@@ -554,21 +560,30 @@ TODO
 
         // Call callback.
         if (typeOf(callback) === 'function') {
-          callback(isInterrupted, finalItems);
+          callback(finalItems, isInterrupted);
         }
 
-        // Emit "show" event.
-        inst._emitter.emit('show', isInterrupted, finalItems);
+        // Emit "showend" event.
+        if (finalItems.length) {
+          emitter.emit('showend', finalItems, isInterrupted);
+        }
 
       }
 
     };
 
-    // Hide items.
-    if (items.length) {
-      arrayEach(items, function (item) {
-        item = item instanceof Muuri.Item ? item : inst.getItem(item);
+    // Sanitize items.
+    arrayEach(items, function (item) {
+      item = item instanceof Muuri.Item ? item : inst.getItem(item);
+      if (item) {
         finalItems.push(item);
+      }
+    });
+
+    // Show items.
+    if (finalItems.length) {
+      emitter.emit('showstart', finalItems);
+      arrayEach(finalItems, function (item) {
         item.show(tryFinish);
       });
     }
@@ -589,6 +604,7 @@ TODO
   Muuri.prototype.hide = function (items, callback) {
 
     var inst = this;
+    var emitter = inst._emitter;
     var finalItems = [];
     var isInterrupted = false;
 
@@ -609,21 +625,30 @@ TODO
 
         // Call callback.
         if (typeOf(callback) === 'function') {
-          callback(isInterrupted, finalItems);
+          callback(finalItems, isInterrupted);
         }
 
-        // Emit "hide" event.
-        inst._emitter.emit('hide', isInterrupted, finalItems);
+        // Emit "hideend" event.
+        if (finalItems.length) {
+          emitter.emit('hideend', finalItems, isInterrupted);
+        }
 
       }
 
     };
 
-    // Hide items.
-    if (items.length) {
-      arrayEach(items, function (item) {
-        item = item instanceof Muuri.Item ? item : inst.getItem(item);
+    // Sanitize items.
+    arrayEach(items, function (item) {
+      item = item instanceof Muuri.Item ? item : inst.getItem(item);
+      if (item) {
         finalItems.push(item);
+      }
+    });
+
+    // Hide items.
+    if (finalItems.length) {
+      emitter.emit('hidestart', finalItems);
+      arrayEach(finalItems, function (item) {
         item.hide(tryFinish);
       });
     }
@@ -645,6 +670,7 @@ TODO
   Muuri.prototype.add = function (elements, index, callback) {
 
     var inst = this;
+    var emitter = inst._emitter;
 
     // Allow callback to be the second argument.
     callback = typeOf(index) === 'function' ? index : callback;
@@ -654,22 +680,28 @@ TODO
 
     // Register new items.
     var newItems = inst.register(elements, index);
+    var newItemsLength = newItems.length;
 
     // Create a process end handler.
-    var finish = function (interrupted, items) {
+    var finish = function (items, interrupted) {
 
       // Call callback function.
       if (typeOf(callback) === 'function') {
-        callback(interrupted, items);
+        callback(items, interrupted);
       }
 
-      // Emit "add" event.
-      inst._emitter.emit('add', interrupted, items);
+      // Emit "addend" event.
+      if (newItemsLength) {
+        emitter.emit('addend', items, interrupted);
+      }
 
     };
 
     // If there are new items
-    if (newItems.length) {
+    if (newItemsLength) {
+
+      // Emit "addstart" event.
+      emitter.emit('addstart', newItems);
 
       // Make sure all items are visible.
       arrayEach(newItems, function (item) {
@@ -691,7 +723,7 @@ TODO
     }
     else {
 
-      finish(false, newItems);
+      finish(newItems);
 
     }
 
@@ -708,6 +740,7 @@ TODO
   Muuri.prototype.remove = function (items, callback) {
 
     var inst = this;
+    var emitter = inst._emitter;
     var finalItems = [];
 
     // Create a process end handler.
@@ -718,8 +751,10 @@ TODO
         callback();
       }
 
-      // Emit "remove" event.
-      inst._emitter.emit('remove');
+      // Emit "removeend" event.
+      if (finalItems.length) {
+        emitter.emit('removeend', finalItems);
+      }
 
     };
 
@@ -733,6 +768,9 @@ TODO
 
     // If items exist.
     if (finalItems.length) {
+
+      // Emit "removestart" event.
+      emitter.emit('removestart', finalItems);
 
       // Remove items instantly from Muuri instance.
       arrayEach(items, function (item) {
@@ -865,7 +903,9 @@ TODO
 
     // Enforce display "block" if element is visible.
     if (!isHidden) {
-      setStyles(inst.element, {display: 'block'});
+      setStyles(inst.element, {
+        display: 'block'
+      });
     }
 
     // Set up initial dimensions and positions.
@@ -879,6 +919,9 @@ TODO
     if (muuri._settings.dragEnabled) {
       inst._initDrag();
     }
+
+    // Emit "item-init" event.
+    inst.muuri._emitter.emit('item-init', inst);
 
   };
 
@@ -1062,9 +1105,6 @@ TODO
     drag.move = e;
     drag.element = inst.element;
 
-    // Set drag class.
-    addClass(inst.element, stn.draggingClass);
-
     // Get element's current position.
     var currentLeft = parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
     var currentTop = parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
@@ -1131,6 +1171,9 @@ TODO
       }
 
     }
+
+    // Set drag class.
+    addClass(inst.element, stn.draggingClass);
 
     // Emit "item-dragstart" event.
     emitter.emit('item-dragstart', inst);
@@ -1431,9 +1474,11 @@ TODO
   Muuri.Item.prototype.refresh = function () {
 
     var inst = this;
+
     if (!inst.isHidden) {
       inst.width = Math.round(Mezr.width(inst.element, 'margin'));
       inst.height = Math.round(Mezr.height(inst.element, 'margin'));
+      inst.muuri._emitter.emit('item-refresh', inst);
     }
 
   };
@@ -1946,6 +1991,8 @@ TODO
    * @property {Boolean} layoutOnInit
    * @property {Boolean} dragEnabled
    * @property {!Function} dragPredicate
+   * @property {Boolean} dragSort
+   * @property {!HtmlElement} dragContainer
    * @property {Number} dragReleaseDuration
    * @property {Array|String} dragReleaseEasing
    * @property {Number} dragOverlapInterval
@@ -1982,7 +2029,6 @@ TODO
 
     // Drag & Drop
     dragEnabled: true,
-    dragConnectWith: [], // TODO
     dragPredicate: null,
     dragSort: true,
     dragContainer: document.body,
@@ -2053,7 +2099,7 @@ TODO
    * type is object in destination object and the source object.
    *
    * @param {Array} array
-   * @returns {Object|Null}
+   * @returns {!Object}
    */
   function mergeObjects(array) {
 
@@ -2115,22 +2161,6 @@ TODO
   }
 
   /**
-   * Get supported transform property name.
-   *
-   * @returns {String}
-   */
-  function getSupportedTransform() {
-
-    var prefixes = ['transform','WebkitTransform','MozTransform','OTransform','msTransform'];
-    for (var i = 0; i < 5; i++) {
-      if (document.documentElement.style[prefixes[i]] !== undefined) {
-        return prefixes[i];
-      }
-    }
-
-  }
-
-  /**
    * Returns the computed value of an element's style property as a string.
    *
    * @param {HTMLElement} element
@@ -2152,7 +2182,7 @@ TODO
   function setStyles(element, styles, velocityHook) {
 
     for (var prop in styles) {
-      element.style[prop === 'transform' ? transformName : prop] = styles[prop];
+      element.style[prop] = styles[prop];
     }
 
   }

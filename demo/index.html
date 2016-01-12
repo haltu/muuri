@@ -28,32 +28,32 @@
       </div>
     </div>
     <div class="grid">
-      <div class="item"><div class="item-content">A</div></div>
-      <div class="item w2"><div class="item-content">B</div></div>
-      <div class="item h2"><div class="item-content">C</div></div>
-      <div class="item"><div class="item-content">D</div></div>
-      <div class="item"><div class="item-content">E</div></div>
-      <div class="item"><div class="item-content">F</div></div>
-      <div class="item"><div class="item-content">G</div></div>
-      <div class="item"><div class="item-content">H</div></div>
-      <div class="item"><div class="item-content">I</div></div>
-      <div class="item"><div class="item-content">J</div></div>
-      <div class="item"><div class="item-content">K</div></div>
-      <div class="item"><div class="item-content">L</div></div>
-      <div class="item h2"><div class="item-content">M</div></div>
-      <div class="item"><div class="item-content">N</div></div>
-      <div class="item"><div class="item-content">O</div></div>
-      <div class="item"><div class="item-content">P</div></div>
-      <div class="item h2 w2"><div class="item-content">Q</div></div>
-      <div class="item"><div class="item-content">R</div></div>
-      <div class="item"><div class="item-content">S</div></div>
-      <div class="item"><div class="item-content">T</div></div>
-      <div class="item"><div class="item-content">U</div></div>
-      <div class="item"><div class="item-content">V</div></div>
-      <div class="item"><div class="item-content">W</div></div>
-      <div class="item"><div class="item-content">X</div></div>
-      <div class="item"><div class="item-content">Y</div></div>
-      <div class="item"><div class="item-content">Z</div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">A</div></div></div>
+      <div class="item w2"><div class="item-content"><div class="item-stuff">B</div></div></div>
+      <div class="item h2"><div class="item-content"><div class="item-stuff">C</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">D</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">E</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">F</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">G</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">H</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">I</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">J</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">K</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">L</div></div></div>
+      <div class="item h2"><div class="item-content"><div class="item-stuff">M</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">N</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">O</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">P</div></div></div>
+      <div class="item h2 w2"><div class="item-content"><div class="item-stuff">Q</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">R</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">S</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">T</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">U</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">V</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">W</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">X</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">Y</div></div></div>
+      <div class="item"><div class="item-content"><div class="item-stuff">Z</div></div></div>
     </div>
     <script src="scripts/jquery.js"></script>
     <script src="scripts/lodash.js"></script>
@@ -80,16 +80,19 @@
 
         for (var i = 0, len = amount || 1; i < amount; i++) {
 
+          var stuffDiv = document.createElement('div');
+          stuffDiv.setAttribute('class', 'item-stuff');
+          stuffDiv.appendChild(document.createTextNode(generateAlphabet()));
+          stuffDiv.style.backgroundColor = randomColor();
+
           var innerDiv = document.createElement('div');
           innerDiv.setAttribute('class', 'item-content');
-          innerDiv.appendChild(document.createTextNode(generateAlphabet()));
-          innerDiv.style.backgroundColor = randomColor();
 
           var outerDiv = document.createElement('div');
           var width = Math.floor(Math.random() * 2) + 1;
           var height = Math.floor(Math.random() * 2) + 1;
           outerDiv.setAttribute('class', 'item h' + height + ' w' + width);
-          outerDiv.appendChild(innerDiv);
+          outerDiv.appendChild(innerDiv.appendChild(stuffDiv));
 
           ret.push(outerDiv);
 
@@ -106,14 +109,13 @@
         }
 
         // Colorize tiles.
-        $('.item-content').each(function () {
+        $('.item-stuff').each(function () {
           $(this).css('background-color', randomColor());
         });
 
         grid = new Muuri({
           container: document.getElementsByClassName('grid')[0],
-          items: document.getElementsByClassName('item'),
-          dragReleaseDuration: 2000
+          items: document.getElementsByClassName('item')
         });
 
       }

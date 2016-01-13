@@ -24,6 +24,7 @@ SOFTWARE.
 /*
 TODO
 ****
+- Fix item position when any of the item's parent scrolling containers scroll.
 - Dragged item should keep track of it's original index in DOM before moving
   the item to drag container so that the release end function can put the
   element back to it's original place.
@@ -1177,6 +1178,19 @@ TODO
 
     // Emit "item-dragstart" event.
     emitter.emit('item-dragstart', inst);
+
+  };
+
+  /**
+   * Drag move functionality.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._refreshDragData = function (e) {
+
+    var inst = this;
+    var drag = inst._drag;
 
   };
 
@@ -2488,6 +2502,49 @@ TODO
       }
 
     }
+
+  }
+
+  /**
+   * Get element's scroll containers.
+   *
+   * @param {HTMLElement} element
+   * @returns {Array}
+   */
+  function getScrollParents(element) {
+
+    // Return window instantly if element is fixed positioned.
+    if (getStyle(element, 'position') === 'fixed') {
+      return [window];
+    }
+
+    var overflowRegex = /(auto|scroll)/;
+    var ret = [];
+    var parent = element.parentNode;
+
+    // Get scroll parents.
+    while (parent && parent !== document) {
+
+      // Check if the parent is scrollable.
+      if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
+        ret.push(parent);
+      }
+
+      // If the parent is fixed we can call it a day, let's just add the
+      // window to the return values before we break the loop.
+      if (getStyle(parent, 'position') === 'fixed') {
+        ret.push(window);
+        parent = null;
+      }
+
+      // Otherwise we just keep on checking.
+      else {
+        parent = parent.parentNode;
+      }
+
+    }
+
+    return ret;
 
   }
 

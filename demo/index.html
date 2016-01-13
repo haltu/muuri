@@ -87,12 +87,13 @@
 
           var innerDiv = document.createElement('div');
           innerDiv.setAttribute('class', 'item-content');
+          innerDiv.appendChild(stuffDiv);
 
           var outerDiv = document.createElement('div');
           var width = Math.floor(Math.random() * 2) + 1;
           var height = Math.floor(Math.random() * 2) + 1;
           outerDiv.setAttribute('class', 'item h' + height + ' w' + width);
-          outerDiv.appendChild(innerDiv.appendChild(stuffDiv));
+          outerDiv.appendChild(innerDiv);
 
           ret.push(outerDiv);
 

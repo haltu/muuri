@@ -24,7 +24,6 @@ SOFTWARE.
 /*
 TODO
 ****
-- Fix item position when any of the item's parent scrolling containers scroll.
 - Dragged item should keep track of it's original index in DOM before moving
   the item to drag container so that the release end function can put the
   element back to it's original place.
@@ -947,9 +946,9 @@ TODO
       direction: Hammer.DIRECTION_ALL
     }));
 
-    // Add press recognizer to hammer.
+    // Add draginit recognizer to hammer.
     hammer.add(new Hammer.Press({
-      event: 'press',
+      event: 'draginit',
       pointers: 1,
       threshold: 100,
       time: 0
@@ -974,11 +973,13 @@ TODO
     drag.predicateData = {};
     drag.predicateResolved = false;
 
-    // Add sroll handler.
-    drag.onScroll = inst._updateDragData.bind(inst);
+    // Add drag sroll handler.
+    drag.onScroll = function () {
+      inst._onDragScroll();
+    };
 
     // Press.
-    hammer.on('press', function (e) {
+    hammer.on('draginit', function (e) {
       drag.predicateData = {};
       drag.predicateResolved = false;
       if (drag.predicate(e, inst, drag.predicateData)) {
@@ -987,7 +988,7 @@ TODO
     });
 
     // Press up.
-    hammer.on('pressup', function (e) {
+    hammer.on('draginitup', function (e) {
       drag.predicate(e, inst, drag.predicateData);
     });
 
@@ -1045,54 +1046,38 @@ TODO
     // Is the drag active or not?
     drag.active = false;
 
+    // Hammer dragstart/dragend event data.
+    drag.start = null;
+    drag.move = null;
+
     // The element that is currently dragged (instance element or it's clone).
     drag.element = null;
 
     // Scroll parents of the dragged element and muuri container.
     drag.scrollParents = [];
 
-    // These values implicate the offset difference between the element's
-    // temporary drag container and it's true container.
-    drag.offsetDiffLeft = 0;
-    drag.offsetDiffTop = 0;
+    // The current translateX/translateY position.
+    drag.left = 0;
+    drag.top = 0;
 
-    // The true left/top position data.
-    drag.startLeft = 0;
-    drag.startTop = 0;
-    drag.currentLeft = 0;
-    drag.currentTop = 0;
+    // Dragged element's current position within the grid.
+    drag.gridX = 0;
+    drag.gridY = 0;
 
-    // Relative left/top position meaning that in these values the container
-    // offset difference is accounted for and allow user to compare the
-    // element's current position directly to it's "virtual" grid position.
-    drag.relativeStartLeft = 0;
-    drag.relativeStartTop = 0;
-    drag.relativeCurrentLeft = 0;
-    drag.relativeCurrentTop = 0;
+    // Dragged element's current offset from window's northwest corner. Does not
+    // account for element's margins.
+    drag.elemClientX = 0;
+    drag.elemClientY = 0;
 
-    // Hammer dragstart/dragend event data.
-    drag.start = null;
-    drag.move = null;
+    // Offset difference between the dragged element's temporary drag container
+    // and it's original container.
+    drag.containerDiffX = 0;
+    drag.containerDiffY = 0;
 
   };
 
   /**
-   * Update drag data (when for example scrolling occurs during drag).
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._updateDragData = function () {
-
-    var inst = this;
-    var drag = inst._drag;
-
-    console.log('TODO');
-
-  };
-
-  /**
-   * Drag start functionality.
+   * Drag start handler.
    *
    * @protected
    * @memberof Muuri.Item.prototype
@@ -1127,38 +1112,38 @@ TODO
     drag.element = inst.element;
 
     // Get element's current position.
-    var currentLeft = parseFloat(Velocity.hook(inst.element, 'translateX')) || 0;
-    var currentTop = parseFloat(Velocity.hook(inst.element, 'translateY')) || 0;
+    var currentLeft = parseFloat(Velocity.hook(drag.element, 'translateX')) || 0;
+    var currentTop = parseFloat(Velocity.hook(drag.element, 'translateY')) || 0;
 
     // Get container references.
     var defaultContainer = inst.muuri.element;
     var dragContainer = stn.dragContainer;
 
     // Set initial left/top drag value.
-    drag.startLeft = drag.currentLeft = drag.relativeStartLeft = drag.relativeCurrentLeft = currentLeft;
-    drag.startTop = drag.currentTop = drag.relativeStartTop = drag.relativeCurrentTop = currentTop;
+    drag.left = drag.gridX = currentLeft;
+    drag.top = drag.gridY = currentTop;
 
     // If a specific drag container is set and it is different from the
     // default muuri container we need to cast some extra spells.
     if (dragContainer && dragContainer !== defaultContainer) {
 
       // If dragged element is already in drag container.
-      if (inst.element.parentNode === dragContainer) {
+      if (drag.element.parentNode === dragContainer) {
 
         // Get offset diff.
-        var offsetDiff = mezr.place([inst.element, 'margin'], {
+        var offsetDiff = mezr.place([drag.element, 'margin'], {
           my: 'left top',
           at: 'left top',
           of: [defaultContainer, 'padding']
         });
 
         // Store the container offset diffs to drag data.
-        drag.offsetDiffLeft = offsetDiff.left;
-        drag.offsetDiffTop = offsetDiff.top;
+        drag.containerDiffX = offsetDiff.left;
+        drag.containerDiffY = offsetDiff.top;
 
         // Set up relative drag position data.
-        drag.relativeStartLeft = drag.relativeCurrentLeft = currentLeft - drag.offsetDiffLeft;
-        drag.relativeStartTop = drag.relativeCurrentTop = currentTop - drag.offsetDiffTop;
+        drag.gridX = currentLeft - drag.containerDiffX;
+        drag.gridY = currentTop - drag.containerDiffY;
 
       }
 
@@ -1166,43 +1151,48 @@ TODO
       else {
 
         // Append element into correct container.
-        dragContainer.appendChild(inst.element);
+        dragContainer.appendChild(drag.element);
 
         // Get offset diff.
-        var offsetDiff = mezr.place([inst.element, 'margin'], {
+        var offsetDiff = mezr.place([drag.element, 'margin'], {
           my: 'left top',
           at: 'left top',
           of: [defaultContainer, 'padding']
         });
 
         // Store the container offset diffs to drag data.
-        drag.offsetDiffLeft = offsetDiff.left;
-        drag.offsetDiffTop = offsetDiff.top;
+        drag.containerDiffX = offsetDiff.left;
+        drag.containerDiffY = offsetDiff.top;
 
         // Set up drag position data.
-        drag.startLeft = drag.currentLeft = currentLeft + drag.offsetDiffLeft;
-        drag.startTop = drag.currentTop = currentTop + drag.offsetDiffTop;
+        drag.left = currentLeft + drag.containerDiffX;
+        drag.top = currentTop + drag.containerDiffY;
 
         // Fix position to account for the append procedure.
-        hookStyles(inst.element, {
-          translateX: drag.startLeft + 'px',
-          translateY: drag.startTop + 'px'
+        hookStyles(drag.element, {
+          translateX: drag.left + 'px',
+          translateY: drag.top + 'px'
         });
 
       }
 
     }
 
-    // Get drag scrollers
-    drag.scrollers = arrayUnique(getScrollParents(drag.element).concat(getScrollParents(defaultContainer)));
+    // Get and store element's current offset from window's northwest corner.
+    var elemGbcr = drag.element.getBoundingClientRect();
+    drag.elemClientX = elemGbcr.left;
+    drag.elemClientY = elemGbcr.top;
+
+    // Get drag scroll parents.
+    drag.scrollParents = arrayUnique(getScrollParents(drag.element).concat(getScrollParents(defaultContainer)));
 
     // Bind scroll listeners.
-    arrayEach(drag.scrollers, function (elem) {
+    arrayEach(drag.scrollParents, function (elem) {
       elem.addEventListener('scroll', drag.onScroll);
     });
 
     // Set drag class.
-    addClass(inst.element, stn.draggingClass);
+    addClass(drag.element, stn.draggingClass);
 
     // Emit "item-dragstart" event.
     emitter.emit('item-dragstart', inst);
@@ -1210,7 +1200,7 @@ TODO
   };
 
   /**
-   * Drag move functionality.
+   * Drag move handler.
    *
    * @protected
    * @memberof Muuri.Item.prototype
@@ -1228,21 +1218,25 @@ TODO
       return;
     }
 
-    // Store event.
+    // Get delta difference from last dragmove event.
+    var xDiff = e.deltaX - drag.move.deltaX;
+    var yDiff = e.deltaY - drag.move.deltaY;
+
+    // Update move event.
     drag.move = e;
 
     // Update position data.
-    var xDiff = drag.move.deltaX - drag.start.deltaX;
-    var yDiff = drag.move.deltaY - drag.start.deltaY;
-    drag.currentLeft = drag.startLeft + xDiff;
-    drag.currentTop = drag.startTop + yDiff;
-    drag.relativeCurrentLeft = drag.relativeStartLeft + xDiff;
-    drag.relativeCurrentTop = drag.relativeStartTop + yDiff;
+    drag.left += xDiff;
+    drag.top += yDiff;
+    drag.gridX += xDiff;
+    drag.gridY += yDiff;
+    drag.elemClientX += xDiff;
+    drag.elemClientY += yDiff;
 
     // Update element's translateX/Y values.
-    hookStyles(inst.element, {
-      translateX: drag.currentLeft + 'px',
-      translateY: drag.currentTop + 'px'
+    hookStyles(drag.element, {
+      translateX: drag.left + 'px',
+      translateY: drag.top + 'px'
     });
 
     // Overlap handling.
@@ -1256,7 +1250,49 @@ TODO
   };
 
   /**
-   * Drag end functionality.
+   * Drag scroll handler.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._onDragScroll = function () {
+
+    var inst = this;
+    var drag = inst._drag;
+    var emitter = inst.muuri._emitter;
+    var stn = inst.muuri._settings;
+
+    // Get offset diff.
+    var elemGbcr = drag.element.getBoundingClientRect();
+    var xDiff = drag.elemClientX - elemGbcr.left;
+    var yDiff = drag.elemClientY - elemGbcr.top;
+
+    // Update position data.
+    drag.left += xDiff;
+    drag.top += yDiff;
+    drag.gridX += xDiff;
+    drag.gridY += yDiff;
+
+    // TODO: Update container diff...?
+
+    // Update element's translateX/Y values.
+    hookStyles(drag.element, {
+      translateX: drag.left + 'px',
+      translateY: drag.top + 'px'
+    });
+
+    // Overlap handling.
+    if (stn.dragSort) {
+      drag.checkOverlap();
+    }
+
+    // Emit "item-dragscroll" event.
+    emitter.emit('item-dragscroll', inst);
+
+  };
+
+  /**
+   * Drag end handler.
    *
    * @protected
    * @memberof Muuri.Item.prototype
@@ -1280,8 +1316,13 @@ TODO
       drag.checkOverlap('finish');
     }
 
+    // Remove scroll listeners
+    arrayEach(drag.scrollParents, function (elem) {
+      elem.removeEventListener('scroll', drag.onScroll);
+    });
+
     // Remove drag classname from element.
-    removeClass(inst.element, stn.draggingClass);
+    removeClass(drag.element, stn.draggingClass);
 
     // Flag drag as inactive.
     drag.active = false;
@@ -1290,17 +1331,12 @@ TODO
     emitter.emit('item-dragend', inst);
 
     // Setup release data.
-    release.offsetDiffLeft = drag.offsetDiffLeft;
-    release.offsetDiffTop = drag.offsetDiffTop;
+    release.containerDiffX = drag.containerDiffX;
+    release.containerDiffY = drag.containerDiffY;
     release.element = drag.element;
 
     // Reset drag data,
     inst._resetDragData();
-
-    // Remove scroll listeners
-    arrayEach(drag.scrollers, function (elem) {
-      elem.removeEventListener('scroll', drag.onScroll);
-    });
 
     // Start the release process.
     inst._startRelease();
@@ -1319,11 +1355,11 @@ TODO
     var drag = inst._drag;
     var stn = inst.muuri._settings;
 
-    arrayEach(drag.scrollers, function (elem) {
+    arrayEach(drag.scrollParents, function (elem) {
       elem.removeEventListener('scroll', drag.onScroll);
     });
     drag.checkOverlap('cancel');
-    removeClass(inst.element, stn.draggingClass);
+    removeClass(drag.element, stn.draggingClass);
     inst._resetDragData();
 
   };
@@ -1341,8 +1377,8 @@ TODO
 
     release.active = false;
     release.positioningStarted = false;
-    release.offsetDiffLeft = 0;
-    release.offsetDiffTop = 0;
+    release.containerDiffX = 0;
+    release.containerDiffY = 0;
     release.element = null;
 
   };
@@ -1358,12 +1394,13 @@ TODO
     var inst = this;
     var emitter = inst.muuri._emitter;
     var stn = inst.muuri._settings;
+    var release = inst._release;
 
     // Flag release as active.
-    inst._release.active = true;
+    release.active = true;
 
     // Add release classname to released element.
-    addClass(inst.element, stn.releasingClass);
+    addClass(release.element, stn.releasingClass);
 
     // Emit "item-releasestart" event.
     emitter.emit('item-releasestart', inst);
@@ -1384,15 +1421,16 @@ TODO
     var inst = this;
     var emitter = inst.muuri._emitter;
     var stn = inst.muuri._settings;
+    var release = inst._release;
 
     // Remove release classname from the released element.
-    removeClass(inst.element, stn.releasingClass);
+    removeClass(release.element, stn.releasingClass);
 
     // If the released element is outside the muuri container put it back there
     // and adjust position accordingly.
-    if (inst.element.parentNode !== inst.muuri.element) {
-      inst.muuri.element.appendChild(inst.element);
-      hookStyles(inst.element, {
+    if (release.element.parentNode !== inst.muuri.element) {
+      inst.muuri.element.appendChild(release.element);
+      hookStyles(release.element, {
         translateX: inst.left + 'px',
         translateY: inst.top + 'px'
       });
@@ -1425,8 +1463,8 @@ TODO
     var instData = {
       width: inst.width,
       height: inst.height,
-      left: inst._drag.relativeCurrentLeft,
-      top: inst._drag.relativeCurrentTop
+      left: inst._drag.gridX,
+      top: inst._drag.gridY
     };
 
     // Find best match (the element with most overlap).
@@ -1634,8 +1672,8 @@ TODO
     // Get item container offset. This applies only for release handling in the
     // scenario where the released element is not currently within the muuri
     // container.
-    var offsetLeft = inst._release.active ? inst._release.offsetDiffLeft : 0;
-    var offsetTop = inst._release.active ? inst._release.offsetDiffTop : 0;
+    var offsetLeft = inst._release.active ? inst._release.containerDiffX : 0;
+    var offsetTop = inst._release.active ? inst._release.containerDiffY : 0;
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {

@@ -28,14 +28,13 @@ TODO
 - Dragged item should keep track of it's original index in DOM before moving
   the item to drag container so that the release end function can put the
   element back to it's original place.
-- Get rid of the even emitter dependency and built lightweight in-house
+- Get rid of the event emitter dependency and build a lightweight in-house
   solution.
+- Allow customizing show/hide animations.
+- Demonstrate easy ways to customize dragstart/dragend/release animation
+  effects.
 - Allow connecting muuri instances so that items can be dragged from one to
   another.
-- Handle scrolling the scroll container element during drag. Note that this
-  can be left out since it is pretty easy to hook into the drag events and
-  build your own scroll logic.
-- Allow easy customizing of show and hide animations.
 */
 
 (function (global, factory) {
@@ -276,7 +275,7 @@ TODO
   Muuri.prototype.off = function (eventName, listener) {
 
     var inst = this;
-    inst._emitter.off(name, listener);
+    inst._emitter.off(eventName, listener);
     return inst;
 
   };
@@ -367,7 +366,7 @@ TODO
       }
     });
 
-    // Return early if there are no addable items.
+    // Return early if there are no valid items.
     if (!elements.length) {
       return newItems;
     }
@@ -975,6 +974,9 @@ TODO
     drag.predicateData = {};
     drag.predicateResolved = false;
 
+    // Add sroll handler.
+    drag.onScroll = inst._updateDragData.bind(inst);
+
     // Press.
     hammer.on('press', function (e) {
       drag.predicateData = {};
@@ -1046,6 +1048,9 @@ TODO
     // The element that is currently dragged (instance element or it's clone).
     drag.element = null;
 
+    // Scroll parents of the dragged element and muuri container.
+    drag.scrollParents = [];
+
     // These values implicate the offset difference between the element's
     // temporary drag container and it's true container.
     drag.offsetDiffLeft = 0;
@@ -1068,6 +1073,21 @@ TODO
     // Hammer dragstart/dragend event data.
     drag.start = null;
     drag.move = null;
+
+  };
+
+  /**
+   * Update drag data (when for example scrolling occurs during drag).
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._updateDragData = function () {
+
+    var inst = this;
+    var drag = inst._drag;
+
+    console.log('TODO');
 
   };
 
@@ -1173,24 +1193,19 @@ TODO
 
     }
 
+    // Get drag scrollers
+    drag.scrollers = arrayUnique(getScrollParents(drag.element).concat(getScrollParents(defaultContainer)));
+
+    // Bind scroll listeners.
+    arrayEach(drag.scrollers, function (elem) {
+      elem.addEventListener('scroll', drag.onScroll);
+    });
+
     // Set drag class.
     addClass(inst.element, stn.draggingClass);
 
     // Emit "item-dragstart" event.
     emitter.emit('item-dragstart', inst);
-
-  };
-
-  /**
-   * Drag move functionality.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._refreshDragData = function (e) {
-
-    var inst = this;
-    var drag = inst._drag;
 
   };
 
@@ -1209,9 +1224,7 @@ TODO
 
     // If item is not active, reset drag.
     if (!inst.isActive) {
-      inst._resetDragData();
-      removeClass(inst.element, stn.draggingClass);
-      drag.checkOverlap('cancel');
+      inst._resetDrag();
       return;
     }
 
@@ -1258,9 +1271,7 @@ TODO
 
     // If item is not active, reset drag.
     if (!inst.isActive) {
-      inst._resetDragData();
-      removeClass(inst.element, stn.draggingClass);
-      drag.checkOverlap('cancel');
+      inst._resetDrag();
       return;
     }
 
@@ -1286,8 +1297,34 @@ TODO
     // Reset drag data,
     inst._resetDragData();
 
+    // Remove scroll listeners
+    arrayEach(drag.scrollers, function (elem) {
+      elem.removeEventListener('scroll', drag.onScroll);
+    });
+
     // Start the release process.
     inst._startRelease();
+
+  };
+
+  /**
+   * Reset drag data and cancel any ongoing drag activity.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._resetDrag = function (e) {
+
+    var inst = this;
+    var drag = inst._drag;
+    var stn = inst.muuri._settings;
+
+    arrayEach(drag.scrollers, function (elem) {
+      elem.removeEventListener('scroll', drag.onScroll);
+    });
+    drag.checkOverlap('cancel');
+    removeClass(inst.element, stn.draggingClass);
+    inst._resetDragData();
 
   };
 
@@ -1347,7 +1384,6 @@ TODO
     var inst = this;
     var emitter = inst.muuri._emitter;
     var stn = inst.muuri._settings;
-    var release = inst._release;
 
     // Remove release classname from the released element.
     removeClass(inst.element, stn.releasingClass);
@@ -1948,7 +1984,7 @@ TODO
       if (inst.element.parentNode !== inst.muuri.element) {
         inst.muuri.element.appendChild(inst.element);
       }
-      inst._resetDragData();
+      inst._resetDrag();
     }
 
     // Remove all inline styles.
@@ -2193,7 +2229,7 @@ TODO
    * @param {HTMLElement} element
    * @param {Object} styles
    */
-  function setStyles(element, styles, velocityHook) {
+  function setStyles(element, styles) {
 
     for (var prop in styles) {
       element.style[prop] = styles[prop];
@@ -2240,6 +2276,26 @@ TODO
   function arrayMove(array, fromIndex, toIndex) {
 
     array.splice(toIndex, 0, array.splice(fromIndex, 1)[0]);
+
+  }
+
+  /**
+   * Returns a new duplicate free version of the provided array.
+   *
+   * @param {Array} array
+   * @returns {Array}
+   */
+  function arrayUnique(array) {
+
+    var ret = [];
+
+    for (var i = 0, len = array.length; i < len; i++) {
+      if (ret.indexOf(array[i]) === -1) {
+        ret.push(array[i]);
+      }
+    }
+
+    return ret;
 
   }
 
@@ -2513,35 +2569,21 @@ TODO
    */
   function getScrollParents(element) {
 
-    // Return window instantly if element is fixed positioned.
+    var ret = [global];
+
+    // Return instantly if element is fixed.
     if (getStyle(element, 'position') === 'fixed') {
-      return [window];
+      return ret;
     }
 
-    var overflowRegex = /(auto|scroll)/;
-    var ret = [];
-    var parent = element.parentNode;
-
     // Get scroll parents.
-    while (parent && parent !== document) {
-
-      // Check if the parent is scrollable.
+    var overflowRegex = /(auto|scroll)/;
+    var parent = element.parentNode;
+    while (parent && parent !== document && parent !== document.documentElement) {
       if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
         ret.push(parent);
       }
-
-      // If the parent is fixed we can call it a day, let's just add the
-      // window to the return values before we break the loop.
-      if (getStyle(parent, 'position') === 'fixed') {
-        ret.push(window);
-        parent = null;
-      }
-
-      // Otherwise we just keep on checking.
-      else {
-        parent = parent.parentNode;
-      }
-
+      parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
     }
 
     return ret;

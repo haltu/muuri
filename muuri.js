@@ -24,14 +24,13 @@ SOFTWARE.
 /*
 TODO
 ****
-- Dragged item should keep track of it's original index in DOM before moving
-  the item to drag container so that the release end function can put the
-  element back to it's original place.
+- Check if deltaX and deltaY for drag start event needs fixing.
+- Allow dropping tile on empty area (namely the bottom). Needs a little
+  tweak for the layout algorithm and/or checkOverlap function.
+- Streamline the drag flow -> make sure it's as fast as possible with clear API.
 - Get rid of the event emitter dependency and build a lightweight in-house
   solution.
-- Allow customizing show/hide animations.
-- Demonstrate easy ways to customize dragstart/dragend/release animation
-  effects.
+- Allow customizing show/hide/release animations -> Provide animation "hooks".
 - Allow connecting muuri instances so that items can be dragged from one to
   another.
 */
@@ -934,6 +933,7 @@ TODO
 
     var inst = this;
     var stn = inst.muuri._settings;
+    var predicateResolved = false;
 
     // Initiate Hammer.
     var hammer = inst._hammer = new Hammer.Manager(inst.element);
@@ -971,63 +971,42 @@ TODO
     // Add predicate related data to drag data.
     drag.predicate = typeOf(stn.dragPredicate) === 'function' ? stn.dragPredicate : dragPredicate;
     drag.predicateData = {};
-    drag.predicateResolved = false;
+    drag.isPredicateResolved = function () {
+      return predicateResolved;
+    };
+    drag.resolvePredicate = function (e) {
+      if (!predicateResolved && e.type !== 'draginitup' && e.type !== 'dragend' && e.type !== 'dragcancel') {
+        predicateResolved = true;
+        inst._onDragStart(e);
+      }
+    };
 
     // Add drag sroll handler.
     drag.onScroll = function () {
       inst._onDragScroll();
     };
 
-    // Press.
+    // Drag init.
     hammer.on('draginit', function (e) {
       drag.predicateData = {};
-      drag.predicateResolved = false;
-      if (drag.predicate(e, inst, drag.predicateData)) {
-        drag.predicateResolved = true;
-      }
+      predicateResolved = false;
+      drag.predicate(e, inst, drag.resolvePredicate, drag.predicateData);
     });
 
-    // Press up.
-    hammer.on('draginitup', function (e) {
-      drag.predicate(e, inst, drag.predicateData);
-    });
-
-    // Drag start.
-    hammer.on('dragstart', function (e) {
-      if (drag.predicateResolved) {
-        inst._onDragStart(e);
-      }
-      else {
-        if (drag.predicate(e, inst, drag.predicateData)) {
-          drag.predicateResolved = true;
-        }
-        if (drag.predicateResolved) {
-          inst._onDragStart(e);
-        }
-      }
-    });
-
-    // Drag move.
-    hammer.on('dragmove', function (e) {
-      if (drag.predicateResolved) {
+    // Drag start/move.
+    hammer.on('dragstart dragmove', function (e) {
+      if (predicateResolved && drag.active) {
         inst._onDragMove(e);
       }
-      else {
-        if (drag.predicate(e, inst, drag.predicateData)) {
-          drag.predicateResolved = true;
-        }
-        if (drag.predicateResolved) {
-          inst._onDragStart(e);
-        }
-      }
+      drag.predicate(e, inst, drag.resolvePredicate, drag.predicateData);
     });
 
-    // Drag end/cancel.
-    hammer.on('dragend dragcancel', function (e) {
-      drag.predicate(e, inst, drag.predicateData);
-      if (drag.predicateResolved && drag.active) {
+    // Drag initup/end/cancel.
+    hammer.on('dragend dragcancel draginitup', function (e) {
+      if (predicateResolved && drag.active) {
         inst._onDragEnd(e);
       }
+      drag.predicate(e, inst, drag.resolvePredicate, drag.predicateData);
     });
 
   };
@@ -2560,30 +2539,34 @@ TODO
    *
    * @param {Object} e
    * @param {Muuri.Item} item
-   * @param {Object} predicate
+   * @param {Function} resolvePredicate
+   * @param {Object} predicateData
    */
-  function dragPredicate(e, item, predicate) {
+  function dragPredicate(e, item, resolvePredicate, predicateData) {
 
-    if (predicate.isRejected) {
-      return;
+    // Cancel timeout if it's still running and we are at the end of the flow.
+    if (predicateData.timeout && (e.type === 'dragend' || e.type === 'dragcancel' || e.type === 'draginitup')) {
+      global.clearTimeout(predicateData.timeout)
     }
 
-    if (predicate.isResolved) {
-      return true;
+    // If predicate is already handled, don't go further.
+    if (predicateData.isRejected || predicateData.isResolved) {
+      return;
     }
 
     // For touch input we need to add a bit of delay before the drag can
     // begin in order not to break native scrolling.
     if (e.pointerType === 'touch') {
 
-      if (e.type === 'press') {
-        predicate.timeout = global.setTimeout(function() {
-          predicate.isResolved = true;
-        }, 150);
+      if (e.type === 'draginit') {
+        predicateData.timeout = global.setTimeout(function() {
+          predicateData.isResolved = true;
+          resolvePredicate(e);
+        }, 100);
       }
-      else if (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5) {
-        predicate.isRejected = true;
-        global.clearTimeout(predicate.timeout);
+      else if (Math.abs(e.deltaY) > 40 || Math.abs(e.deltaX) > 40) {
+        predicateData.isRejected = true;
+        predicateData.timeout = global.clearTimeout(predicateData.timeout);
       }
 
     }
@@ -2592,7 +2575,8 @@ TODO
     else {
 
       if (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5) {
-        return predicate.isResolved = true;
+        predicateData.isResolved = true;
+        resolvePredicate(e);
       }
 
     }

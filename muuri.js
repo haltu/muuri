@@ -1,5 +1,5 @@
 /*!
-Muuri v0.0.8-dev
+Muuri v0.0.9-dev
 Copyright (c) 2015, Haltu Oy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -24,15 +24,20 @@ SOFTWARE.
 /*
 TODO
 ****
-- Check if deltaX and deltaY for drag start event needs fixing.
+- Allow item to have different dimensions during drag without it affecting to
+  the item's layout calculations.
+- Allow connecting muuri instances so that items can be dragged from one to
+  another.
+- Adjust the overlap tolerance algorithm to be a bit more intelligent and
+  robust. Currently it's very jumpy with low toleance levels, pretty much
+  unusable truth to be told. It should take into consideration the direction
+  where the item is being moved and possibly the speed also.
+- Allow configuring the default predicate with a config object.
 - Allow dropping tile on empty area (namely the bottom). Needs a little
   tweak for the layout algorithm and/or checkOverlap function.
 - Streamline the drag flow -> make sure it's as fast as possible with clear API.
 - Get rid of the event emitter dependency and build a lightweight in-house
   solution.
-- Allow customizing show/hide/release animations -> Provide animation "hooks".
-- Allow connecting muuri instances so that items can be dragged from one to
-  another.
 */
 
 (function (global, factory) {
@@ -91,6 +96,10 @@ TODO
     inst.element = stn.container;
     addClass(stn.container, stn.containerClass);
 
+    // Setup show and hide animations for items.
+    inst._itemShow = typeOf(stn.show) === 'function' ? stn.show() : showHideAnimation(stn.show, true);
+    inst._itemHide = typeOf(stn.hide) === 'function' ? stn.hide() : showHideAnimation(stn.hide);
+
     // Setup initial items.
     inst.items = [];
     arrayEach(stn.items, function (element) {
@@ -104,6 +113,7 @@ TODO
     // Relayout on window resize if enabled.
     if (stn.layoutOnResize || stn.layoutOnResize === 0) {
       var debounced = debounce(function () {
+        inst.refresh();
         inst.layout();
       }, stn.layoutOnResize);
       inst._resizeFn = function () {
@@ -933,7 +943,6 @@ TODO
 
     var inst = this;
     var stn = inst.muuri._settings;
-    var predicateResolved = false;
 
     // Initiate Hammer.
     var hammer = inst._hammer = new Hammer.Manager(inst.element);
@@ -969,6 +978,7 @@ TODO
     }, stn.dragOverlapInterval);
 
     // Add predicate related data to drag data.
+    var predicateResolved = false;
     drag.predicate = typeOf(stn.dragPredicate) === 'function' ? stn.dragPredicate : dragPredicate;
     drag.predicateData = {};
     drag.isPredicateResolved = function () {
@@ -986,23 +996,20 @@ TODO
       inst._onDragScroll();
     };
 
-    // Drag init.
-    hammer.on('draginit', function (e) {
+    // Bind drag events.
+    hammer
+    .on('draginit', function (e) {
       drag.predicateData = {};
       predicateResolved = false;
       drag.predicate(e, inst, drag.resolvePredicate, drag.predicateData);
-    });
-
-    // Drag start/move.
-    hammer.on('dragstart dragmove', function (e) {
+    })
+    .on('dragstart dragmove', function (e) {
       if (predicateResolved && drag.active) {
         inst._onDragMove(e);
       }
       drag.predicate(e, inst, drag.resolvePredicate, drag.predicateData);
-    });
-
-    // Drag initup/end/cancel.
-    hammer.on('dragend dragcancel draginitup', function (e) {
+    })
+    .on('dragend dragcancel draginitup', function (e) {
       if (predicateResolved && drag.active) {
         inst._onDragEnd(e);
       }
@@ -1031,6 +1038,10 @@ TODO
 
     // The element that is currently dragged (instance element or it's clone).
     drag.element = null;
+
+    // The curently dragged element's width and height.
+    drag.elemWidth = 0;
+    drag.elemHeight = 0;
 
     // Scroll parents of the dragged element and muuri container.
     drag.scrollParents = [];
@@ -1089,6 +1100,8 @@ TODO
     drag.start = e;
     drag.move = e;
     drag.element = inst.element;
+    drag.elemWidth = inst.width;
+    drag.elemHeight = inst.height;
 
     // Get element's current position.
     var currentLeft = parseFloat(Velocity.hook(drag.element, 'translateX')) || 0;
@@ -1241,18 +1254,38 @@ TODO
     var emitter = inst.muuri._emitter;
     var stn = inst.muuri._settings;
 
+    // Get containers.
+    var defaultContainer = inst.muuri.element;
+    var dragContainer = stn.dragContainer;
+
     // Get offset diff.
     var elemGbcr = drag.element.getBoundingClientRect();
     var xDiff = drag.elemClientX - elemGbcr.left;
     var yDiff = drag.elemClientY - elemGbcr.top;
 
+    // Update container diff.
+    if (dragContainer && dragContainer !== defaultContainer) {
+
+      // Get offset diff.
+      // TODO: Speed up this function by providing mezr parsed data instead
+      // of elements. This way mezr will work a LOT faster.
+      var offsetDiff = mezr.place([drag.element, 'margin'], {
+        my: 'left top',
+        at: 'left top',
+        of: [defaultContainer, 'padding']
+      });
+
+      // Store the container offset diffs to drag data.
+      drag.containerDiffX = offsetDiff.left;
+      drag.containerDiffY = offsetDiff.top;
+
+    }
+
     // Update position data.
     drag.left += xDiff;
     drag.top += yDiff;
-    drag.gridX += xDiff;
-    drag.gridY += yDiff;
-
-    // TODO: Update container diff...?
+    drag.gridX = drag.left - drag.containerDiffX;
+    drag.gridY = drag.top - drag.containerDiffY;
 
     // Update element's translateX/Y values.
     hookStyles(drag.element, {
@@ -1440,8 +1473,8 @@ TODO
     var items = inst.muuri.items;
     var bestMatch = null;
     var instData = {
-      width: inst.width,
-      height: inst.height,
+      width: inst._drag.elemWidth,
+      height: inst._drag.elemHeight,
       left: inst._drag.gridX,
       top: inst._drag.gridY
     };
@@ -1756,7 +1789,7 @@ TODO
       var isHiding = inst.isHiding;
 
       // Stop animation.
-      Velocity(inst.child, 'stop', inst.muuri._animQueue);
+      inst.muuri._itemHide.stop(inst);
 
       // Update states.
       inst.isActive = true;
@@ -1772,9 +1805,6 @@ TODO
         display: 'block'
       });
 
-      // Refresh the item's dimensions.
-      inst.refresh();
-
       // Process current callback queue.
       inst._processQueue(inst._peekabooQueue, true);
 
@@ -1786,56 +1816,24 @@ TODO
       // Emit "item-showstart" event.
       emitter.emit('item-showstart', inst);
 
-      // If animations enabled.
-      if (animate !== false && stn.showDuration > 0) {
+      // Update state.
+      inst.isShowing = true;
 
-        // Update state.
-        inst.isShowing = true;
-
-        // Push the callback to callback queue.
-        if (typeOf(callback) === 'function') {
-          inst._peekabooQueue.push(callback);
-        }
-
-        // Set up animation.
-        Velocity(inst.child, {opacity: 1, scale: 1}, {
-          duration: stn.showDuration,
-          easing: stn.showEasing,
-          queue: inst.muuri._animQueue,
-          complete: function () {
-
-            // Process callback queue.
-            inst._processQueue(inst._peekabooQueue);
-
-            // Emit "item-showend" event.
-            emitter.emit('item-showend', inst);
-
-          }
-        });
-
-        // Initialize the animation.
-        Velocity.Utilities.dequeue(inst.child, inst.muuri._animQueue);
-
+      // Push the callback to callback queue.
+      if (typeOf(callback) === 'function') {
+        inst._peekabooQueue.push(callback);
       }
 
-      // If animations are disabled.
-      else {
+      // Animate child element.
+      inst.muuri._itemShow.start(inst, animate, function () {
 
-        // Set the styles manually and finish up.
-        hookStyles(inst.child, {
-          scale: 1,
-          opacity: 1
-        });
-
-        // Call the callback and be done with it.
-        if (typeOf(callback) === 'function') {
-          callback();
-        }
+        // Process callback queue.
+        inst._processQueue(inst._peekabooQueue);
 
         // Emit "item-showend" event.
         emitter.emit('item-showend', inst);
 
-      }
+      });
 
     }
 
@@ -1884,7 +1882,7 @@ TODO
       var isShowing = inst.isShowing;
 
       // Stop animation.
-      Velocity(inst.child, 'stop', inst.muuri._animQueue);
+      inst.muuri._itemShow.stop(inst);
 
       // Update states.
       inst.isActive = false;
@@ -1906,66 +1904,21 @@ TODO
       // Emit "item-hidestart" event.
       emitter.emit('item-hidestart', inst);
 
-      // If animations enabled.
-      if (animate !== false && stn.hideDuration > 0) {
-
-        // Update state.
-        inst.isHiding = true;
-
-        // Push the callback to callback queue.
-        if (typeOf(callback) === 'function') {
-          inst._peekabooQueue.push(callback);
-        }
-
-        // Set up animation.
-        Velocity(inst.child, {opacity: 0, scale: 0}, {
-          duration: stn.hideDuration,
-          easing: stn.hideEasing,
-          queue: inst.muuri._animQueue,
-          complete: function () {
-
-            // Hide element.
-            setStyles(inst.element, {
-              display: 'none'
-            });
-
-            // Process callback queue.
-            inst._processQueue(inst._peekabooQueue);
-
-            // Emit "item-hideend" event.
-            emitter.emit('item-hideend', inst);
-
-          }
-        });
-
-        // Initialize the animation.
-        Velocity.Utilities.dequeue(inst.child, inst.muuri._animQueue);
-
-      }
-
-      // If animations are disabled.
-      else {
-
-        // Set the styles manually and finish up.
-        hookStyles(inst.child, {
-          scale: 0,
-          opacity: 0
-        });
+      // Animate child element.
+      inst.muuri._itemHide.start(inst, animate, function () {
 
         // Hide element.
         setStyles(inst.element, {
           display: 'none'
         });
 
-        // Call the callback and be done with it.
-        if (typeOf(callback) === 'function') {
-          callback();
-        }
+        // Process callback queue.
+        inst._processQueue(inst._peekabooQueue);
 
         // Emit "item-hideend" event.
         emitter.emit('item-hideend', inst);
 
-      }
+      });
 
     }
 
@@ -1986,7 +1939,8 @@ TODO
 
     // Stop animations.
     inst._stopPositioning();
-    Velocity(inst.child, 'stop', inst.muuri._animQueue);
+    inst.muuri._itemShow.stop(inst);
+    inst.muuri._itemHide.stop(inst);
 
     // If item is being released, stop it gracefully.
     if (inst._release.active) {
@@ -2050,10 +2004,8 @@ TODO
    * @property {Array} items
    * @property {Number} positionDuration
    * @property {Array|String} positionEasing
-   * @property {Number} showDuration
-   * @property {Array|String} showEasing
-   * @property {Number} hideDuration
-   * @property {Array|String} hideEasing
+   * @property {!Function|Object} show
+   * @property {!Function|Object} hide
    * @property {!Number} layoutOnResize
    * @property {Boolean} layoutOnInit
    * @property {Boolean} dragEnabled
@@ -2085,10 +2037,14 @@ TODO
     items: [],
     positionDuration: 300,
     positionEasing: 'ease-out',
-    showDuration: 300,
-    showEasing: 'ease-out',
-    hideDuration: 300,
-    hideEasing: 'ease-out',
+    show: {
+      duration: 300,
+      easing: 'ease-out'
+    },
+    hide: {
+      duration: 300,
+      easing: 'ease-out'
+    },
 
     // Layout
     layoutOnResize: 100,
@@ -2546,7 +2502,7 @@ TODO
 
     // Cancel timeout if it's still running and we are at the end of the flow.
     if (predicateData.timeout && (e.type === 'dragend' || e.type === 'dragcancel' || e.type === 'draginitup')) {
-      global.clearTimeout(predicateData.timeout)
+      predicateData.timeout = global.clearTimeout(predicateData.timeout)
     }
 
     // If predicate is already handled, don't go further.
@@ -2558,10 +2514,11 @@ TODO
     // begin in order not to break native scrolling.
     if (e.pointerType === 'touch') {
 
+      predicateData.e = e;
       if (e.type === 'draginit') {
         predicateData.timeout = global.setTimeout(function() {
           predicateData.isResolved = true;
-          resolvePredicate(e);
+          resolvePredicate(predicateData.e);
         }, 100);
       }
       else if (Math.abs(e.deltaY) > 40 || Math.abs(e.deltaX) > 40) {
@@ -2579,6 +2536,50 @@ TODO
         resolvePredicate(e);
       }
 
+    }
+
+  }
+
+  /**
+   * Default item show/hide animation flow. Returns and object that contains
+   * the animation start and stop method.
+   *
+   * @param {Object} opts
+   * @param {Boolean} [isShow]
+   * @returns {Object}
+   */
+  function showHideAnimation(opts, isShow) {
+
+    var duration = (opts && opts.duration) || 0;
+    var easing = (opts && opts.easing) || 'ease-out';
+
+    if (!duration) {
+      return {
+        start: function () {},
+        stop: function () {}
+      };
+    }
+    else {
+      var targetStyles = isShow ? {opacity: 1, scale: 1} : {opacity: 0, scale: 0};
+      return {
+        start: function (item, animate, animDone) {
+          if (animate) {
+            Velocity(item.child, targetStyles, {
+              duration: duration,
+              easing: easing,
+              queue: item.muuri._animQueue,
+              complete: animDone
+            });
+            Velocity.Utilities.dequeue(item.child, item.muuri._animQueue);
+          }
+          else {
+            hookStyles(item.child, targetStyles);
+          }
+        },
+        stop: function (item) {
+          Velocity(item.child, 'stop', item.muuri._animQueue);
+        }
+      };
     }
 
   }

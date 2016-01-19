@@ -21,25 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-/*
-TODO
-****
-- Allow item to have different dimensions during drag without it affecting to
-  the item's layout calculations.
-- Allow connecting muuri instances so that items can be dragged from one to
-  another.
-- Adjust the overlap tolerance algorithm to be a bit more intelligent and
-  robust. Currently it's very jumpy with low toleance levels, pretty much
-  unusable truth to be told. It should take into consideration the direction
-  where the item is being moved and possibly the speed also.
-- Allow configuring the default predicate with a config object.
-- Allow dropping tile on empty area (namely the bottom). Needs a little
-  tweak for the layout algorithm and/or checkOverlap function.
-- Streamline the drag flow -> make sure it's as fast as possible with clear API.
-- Get rid of the event emitter dependency and build a lightweight in-house
-  solution.
-*/
-
 (function (global, factory) {
 
   var libName = 'Muuri';
@@ -1141,6 +1122,11 @@ TODO
 
       // If dragged element is not within the correct container.
       else {
+
+        // TODO: Set element's inline width and height before appending since
+        // otherwise it might enlarge or shrink after append procedure,
+        // especially if the element's widht/height is defined in relative
+        // units (% or em).
 
         // Append element into correct container.
         dragContainer.appendChild(drag.element);

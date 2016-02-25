@@ -1,5 +1,5 @@
 /*!
-Muuri v0.0.9-dev
+Muuri v0.1.0-nightly
 Copyright (c) 2015, Haltu Oy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -21,27 +21,172 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+TODO
+****
+- Streamline the events -> there are currently too many different events fired.
+- Make sure functions that functions that assume items in Muuri check that items
+  exist before going on executing themselves.
+- arrayEach -> for loop
+- Enforce and validate a specific coding style.
+- Velocity should be the only hard dependency:
+  - Get rid of Mezr dependency and instead inline a trimmed down version of it,
+    which also accounts for the fixed element bug (when it sticks to the nearest
+    transformed element instead of the window).
+  - Instead of using Hammer build an adapter which can be used to apply
+    drag events with any gesture library.
+*/
+
 (function (global, factory) {
 
   var libName = 'Muuri';
-  var depJvent = global.Jvent;
   var depMezr = global.mezr;
   var depVelocity = typeof jQuery === 'function' ? jQuery.Velocity : global.Velocity;
   var depHammer = global.Hammer;
-  global[libName] = factory(global, depJvent, depMezr, depVelocity, depHammer);
+  global[libName] = factory(global, depMezr, depVelocity, depHammer);
 
-}(this, function (global, EventEmitter, Mezr, Velocity, Hammer, undefined) {
+}(this, function (global, Mezr, Velocity, Hammer, undefined) {
 
   /**
    * Constants
    * *********
    */
 
-  var muuriId = 0;
+  var uuid = 0;
+  var noop = function () {};
+
+  // Muuri events.
+  var evRefresh = 'refresh';
+  var evSyncElements = 'syncelements';
+  var evLayoutStart = 'layoutstart';
+  var evLayoutEnd = 'layoutend';
+  var evShowStart = 'showstart';
+  var evShowEnd = 'showend';
+  var evHideStart = 'hidestart';
+  var evHideEnd = 'hideend';
+  var evDestroy = 'destroy';
+
+  // Muuri item events.
+  var evItemInit = 'item-init';
+  var evItemDragStart = 'item-dragstart';
+  var evItemDragMove = 'item-dragmove';
+  var evItemDragScroll = 'item-dragscroll';
+  var evItemDragEnd = 'item-dragend';
+  var evItemReleaseStart = 'item-releasestart';
+  var evItemReleaseEnd = 'item-releaseend';
+  var evItemSwap = 'item-swap';
+  var evItemMove = 'item-move';
+  var evItemRefresh = 'item-refresh';
+  var evItemPositionStart = 'item-positionstart';
+  var evItemPositionEnd = 'item-positionend';
+  var evItemShowStart = 'item-showstart';
+  var evItemShowEnd = 'item-showend';
+  var evItemHideStart = 'item-hidestart';
+  var evItemHideEnd = 'item-hideend';
+  var evItemDestroy = 'item-destroy';
 
   /**
-   * Muuri constructor
-   * *****************
+   * Emitter
+   * *******
+   */
+
+  /**
+   * Event emitter constructor.
+   *
+   * @private
+   */
+  function Emitter() {}
+
+  /**
+   * Bind an event listener.
+   *
+   * @private
+   * @memberof Emitter.prototype
+   * @param {String} event
+   * @param {Function} listener
+   * @returns {Emitter} returns the Emitter instance.
+   */
+  Emitter.prototype.on = function (event, listener) {
+
+    var events = this._events || {};
+    var listeners = events[event] || [];
+
+    listeners[listeners.length] = listener;
+    events[event] = listeners;
+
+    return this;
+
+  };
+
+  /**
+   * Unbind all event listeners that match the provided listener function.
+   *
+   * @private
+   * @memberof Emitter.prototype
+   * @param {String} event
+   * @param {Function} listener
+   * @returns {Emitter} returns the Emitter instance.
+   */
+  Emitter.prototype.off = function (event, listener) {
+
+    var events = this._events || {};
+    var listeners = events[event] || [];
+    var counter = listeners.length;
+
+    if (counter) {
+      while (counter--) {
+        if (listener === listeners[i]) {
+          listeners.splice(counter, 1);
+        }
+      }
+    }
+
+    return this;
+
+  };
+
+  /**
+   * Emit all listeners in a specified event with the provided arguments.
+   *
+   * @private
+   * @memberof Emitter.prototype
+   * @param {String} event
+   * @param {*} [arg1]
+   * @param {*} [arg2]
+   * @param {*} [arg3]
+   * @param {*} [arg4]
+   * @param {*} [arg5]
+   * @returns {Emitter} returns the Emitter instance.
+   */
+  Emitter.prototype.emit = function (event, arg1, arg2, arg3, arg4, arg5) {
+
+    var events = this._events || {};
+    var listeners = events[event] || [];
+    var listenersLength = listeners.length;
+
+    if (listenersLength) {
+
+      var argsLength = arguments.length - 1;
+      listeners = listeners.concat();
+
+      for (var i = 0; i < listenersLength; i++) {
+        argsLength === 0 ? listeners[i]() :
+        argsLength === 1 ? listeners[i](arg1) :
+        argsLength === 2 ? listeners[i](arg1, arg2) :
+        argsLength === 3 ? listeners[i](arg1, arg2, arg3) :
+        argsLength === 4 ? listeners[i](arg1, arg2, arg3, arg4) :
+                           listeners[i](arg1, arg2, arg3, arg4, arg5);
+      }
+
+    }
+
+    return this;
+
+  };
+
+  /**
+   * Muuri
+   * *****
    */
 
   /**
@@ -62,30 +207,27 @@ SOFTWARE.
     var inst = this;
 
     // Merge user settings with default settings.
-    var stn = inst._settings = mergeObjects([{}, Muuri.defaultSettings, settings || {}]);
-
-    // Instance id.
-    inst._id = ++muuriId;
+    var stn = inst._settings = mergeObjects({}, Muuri.defaultSettings, settings || {});
 
     // Unique animation queue name.
-    inst._animQueue = 'muuri-' + inst._id;
+    inst._animQueue = 'muuri-' + ++uuid;
 
     // Create private eventize instance.
-    inst._emitter = new EventEmitter();
+    inst._emitter = new Emitter();
 
     // Setup container element.
     inst.element = stn.container;
     addClass(stn.container, stn.containerClass);
 
     // Setup show and hide animations for items.
-    inst._itemShow = typeOf(stn.show) === 'function' ? stn.show() : showHideAnimation(stn.show, true);
-    inst._itemHide = typeOf(stn.hide) === 'function' ? stn.hide() : showHideAnimation(stn.hide);
+    inst._itemShow = typeof stn.show === 'function' ? stn.show() : showHideAnimation(stn.show, true);
+    inst._itemHide = typeof stn.hide === 'function' ? stn.hide() : showHideAnimation(stn.hide);
 
     // Setup initial items.
     inst.items = [];
-    arrayEach(stn.items, function (element) {
-      inst.items.push(new Muuri.Item(inst, element));
-    });
+    for (var i = 0, len = stn.items.length; i < len; i++) {
+      inst.items[inst.items.length] = new Muuri.Item(inst, stn.items[i]);
+    }
 
     // Calculate grid's row height and column width.
     inst._rowHeight = inst._getSlotSize('height');
@@ -126,45 +268,45 @@ SOFTWARE.
   };
 
   /**
-   * Calculate and return the virtual grid's slot width or height.
+   * Calculate and return the virtual grid's slot width or height. Returns null
+   * if there are no items.
    *
    * @protected
    * @memberof Muuri.prototype
    * @param {String} type - Must be "width" or "height".
    * @param {Array} [items]
-   * @returns {Number}
+   * @returns {!Number}
    */
   Muuri.prototype._getSlotSize = function (type, items) {
 
+    // If no items are provided get all active items by default.
     var items = items ? items : this._getActiveItems();
-    var hash = {};
-    var sizes = [];
-    var possibilities = [];
 
-    // Generate hashtable.
-    arrayEach(items, function (item) {
-      hash[item[type]] = item[type];
-    });
-
-    // Transform hashtable to simple array.
-    for (var prop in hash) {
-      if (hash.hasOwnProperty(prop)) {
-        sizes.push(hash[prop]);
-      }
+    // Return early if there are no items.
+    if (!items.length) {
+      return null;
     }
 
-    // Add the smallest size to the possibilities.
-    possibilities.push(Math.min.apply(Math, sizes));
+    // Get sizes for the specified type.
+    var sizes = arrayUnique(items.map(function (item) {
+      return item[type]
+    }));
+    var sizesLength = sizes.length;
+
+    // Store the possible values and add the smallest size to the possibilities
+    // right off the bat.
+    var possibilities = [Math.min.apply(Math, sizes)];
 
     // Add all the differences between sizes to possibilites.
-    arrayEach(sizes, function (size) {
-      arrayEach(sizes, function (sizeCompare) {
-        var diff = Math.abs(size - sizeCompare);
+    for (var i = 0; i < sizesLength; i++) {
+      var size = sizes[i];
+      for (var ii = 0; i < sizesLength; ii++) {
+        var diff = Math.abs(size - sizes[ii]);
         if (diff > 0) {
-          possibilities.push(diff);
+          possibilities[possibilities.length] = diff;
         }
-      });
-    });
+      }
+    }
 
     // And voila! We have a winner.
     return Math.min.apply(Math, possibilities);
@@ -184,7 +326,7 @@ SOFTWARE.
     var inst = this;
     var rowHeight = inst._rowHeight;
     var colWidth = inst._colWidth;
-    var containerWidth = mezr.width(inst.element, 'core');
+    var containerWidth = Mezr.width(inst.element, 'core');
     var grid = [];
     var items = inst._getActiveItems();
     var data = {
@@ -195,7 +337,9 @@ SOFTWARE.
     };
 
     // Loop visible items.
-    arrayEach(items, function (item, i) {
+    for (var i = 0, len = items.length; i < len; i++) {
+
+      var item = items[i];
 
       // Find slot.
       if (i === 0) {
@@ -215,7 +359,7 @@ SOFTWARE.
       data.fillWidth = Math.max(data.fillWidth, item.left + item.width);
       data.fillHeight = Math.max(data.fillHeight, item.top + item.height);
 
-    });
+    }
 
     return data;
 
@@ -226,29 +370,14 @@ SOFTWARE.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {String} eventName
+   * @param {String} event
    * @param {Function} listener
+   * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.on = function (eventName, listener) {
+  Muuri.prototype.on = function (event, listener) {
 
     var inst = this;
-    inst._emitter.on(eventName, listener);
-    return inst;
-
-  };
-
-  /**
-   * Bind a one-off event listener.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {String} eventName
-   * @param {Function} listener
-   */
-  Muuri.prototype.once = function (eventName, listener) {
-
-    var inst = this;
-    inst._emitter.once(eventName, listener);
+    inst._emitter.on(event, listener);
     return inst;
 
   };
@@ -258,23 +387,27 @@ SOFTWARE.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {String} eventName
+   * @param {String} event
    * @param {Function} listener
+   * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.off = function (eventName, listener) {
+  Muuri.prototype.off = function (event, listener) {
 
     var inst = this;
-    inst._emitter.off(eventName, listener);
+    inst._emitter.off(event, listener);
     return inst;
 
   };
 
   /**
-   * Get Muuri instance item by element or by index.
+   * Get instance's item by element or by index. Target can also be a
+   * Muuri item instance in which case the function returns the item if it
+   * exists within related Muuri instance. If nothing is found with the
+   * provided target null is returned.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Number|HTMLElement} [target=0]
+   * @param {Number|HTMLElement|Muuri.Item} [target=0]
    * @returns {!Muuri.Item}
    */
   Muuri.prototype.getItem = function (target) {
@@ -282,56 +415,82 @@ SOFTWARE.
     var inst = this;
 
     if (!target) {
+
       return inst.items[0] || null;
+
     }
-    else if (typeOf(target) === 'number') {
+    else if (target instanceof Muuri.Item) {
+
+      return target.muuri === inst;
+
+    }
+    else if (typeof target === 'number') {
+
       return inst.items[target] || null;
+
     }
     else {
+
       var ret = null;
-      arrayEach(inst.items, function (item) {
+
+      for (var i = 0, len = inst.items.length; i < len; i++) {
+
+        var item = inst.items[i];
+
         if (item.element === target) {
           ret = item;
-          return true;
+          break;
         }
-      });
+
+      }
+
       return ret;
+
     }
 
   };
 
   /**
-   * Get Muuri instances items that match the provided elements. If no elements
-   * are provided returns all Muuri's items. Note that the returned array
-   * is not the same object used by the Muuri instance so modifying it will
-   * not affect Muuri's items.
+   * Get instance's items that match the provided targets. If no elements are
+   * provided returns all Muuri's items. Note that the returned array is not the
+   * same object used by the instance so modifying it will not affect instance's
+   * items.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|HTMLElement} [elements]
-   * @returns {Array} array of Muuri.Item instances
+   * @param {Array|Number|HTMLElement|Muuri.Item} [targets]
+   * @returns {Array} Array of Muuri item instances.
    */
-  Muuri.prototype.getItems = function (elements) {
+  Muuri.prototype.getItems = function (targets) {
 
     var inst = this;
 
     // Return clone of all items instantly if no elements are provided.
-    if (!elements) {
-      return inst.items.slice();
+    if (!targets) {
+      return inst.items.concat();
     }
 
-    var ret = [];
-    arrayEach(typeOf(elements) === 'array' ? elements : [elements], function (elem) {
-      ret.push(inst.getItem(elem));
-    });
+    var items = [];
+    targets = [].concat(targets);
 
-    return ret;
+    for (var i = 0, len = targets.length; i < len; i++) {
+
+      var item = inst.getItem(targets[i]);
+
+      if (item) {
+        items[items.length] = item;
+      }
+
+    }
+
+    return items;
 
   };
 
   /**
-   * Register existing DOM elements as Muuri items. Returns the new items that
-   * were registered.
+   * Register DOM elements as Muuri items. Returns the new items that were
+   * registered. All items that are not already children of the container
+   * element will be automatically appended to the container.
    *
    * @public
    * @memberof Muuri.prototype
@@ -339,21 +498,22 @@ SOFTWARE.
    * @param {Number} [index=0]
    * @returns {Array}
    */
-  Muuri.prototype.register = function (elements, index) {
+  Muuri.prototype.addItems = function (elements, index) {
 
     var inst = this;
     var newItems = [];
 
     // Make sure elements is an array.
-    elements = typeOf(elements) === 'array' ? elements : [elements];
+    elements = [].concat(elements);
 
     // Filter out all elements that exist already in current instance.
-    arrayEach(inst.items, function (item) {
+    for (var i = 0, len = inst.items.length; i < len; i++) {
+      var item = inst.items[i];
       var index = elements.indexOf(item.element);
       if (index > -1) {
         elements.splice(index, 1);
       }
-    });
+    }
 
     // Return early if there are no valid items.
     if (!elements.length) {
@@ -361,9 +521,9 @@ SOFTWARE.
     }
 
     // Create new items.
-    arrayEach(elements, function (element) {
-      newItems.push(new Muuri.Item(inst, element));
-    });
+    for (var i = 0, len = elements.length; i < len; i++) {
+      newItems[newItems.length] = new Muuri.Item(inst, elements[i]);
+    }
 
     // Normalize the index for the splice apply hackery so that value of -1
     // prepends the new items to the current items.
@@ -372,11 +532,32 @@ SOFTWARE.
     // Add the new items to the items collection to correct index.
     inst.items.splice.apply(inst.items, [index, 0].concat(newItems));
 
-    // Emit "register" event.
-    inst._emitter.emit('register', newItems);
-
     // Return new items
     return newItems;
+
+  };
+
+  /**
+   * Remove items from muuri instances.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @param {Array|Number|HTMLElement|Muuri.Item} items
+   * @param {Boolean} [removeElement=false]
+   * @returns {Array} The indices of removed items.
+   */
+  Muuri.prototype.removeItems = function (items, removeElement) {
+
+    var inst = this;
+    var indices = [];
+
+    items = inst.getItems(items);
+
+    for (var i = 0, len = items.length; i < len; i++) {
+      indices[indices.length] = items[i].destroy(removeElement);
+    }
+
+    return indices;
 
   };
 
@@ -392,17 +573,17 @@ SOFTWARE.
     var inst = this;
     var items = inst._getActiveItems();
 
-    // Refresh items' dimensions.
-    arrayEach(items, function (item) {
-      item.refresh();
-    });
+    // Refresh dimensions.
+    for (var i = 0, len = items.length; i < len; i++) {
+      items[i].refresh();
+    }
 
-    // Recalculate grid's row height and column width.
+    // Recalculate row height and column width.
     inst._rowHeight = inst._getSlotSize('height', items);
     inst._colWidth = inst._getSlotSize('width', items);
 
-    // Emit "refresh" event.
-    inst._emitter.emit('refresh');
+    // Emit refresh event.
+    inst._emitter.emit(evRefresh);
 
   };
 
@@ -418,14 +599,15 @@ SOFTWARE.
     var inst = this;
     var container = inst.element;
 
-    arrayEach(inst.items, function (item) {
+    for (var i = 0, len = inst.items.length; i < len; i++) {
+      var item = inst.items[i];
       if (item.element.parentNode === container) {
         container.appendChild(item.element);
       }
-    });
+    }
 
     // Emit "syncelements" event.
-    inst._emitter.emit('syncelements');
+    inst._emitter.emit(evSyncElements);
 
   };
 
@@ -441,7 +623,7 @@ SOFTWARE.
 
     var inst = this;
     var emitter = inst._emitter;
-    var callback = typeOf(animate) === 'boolean' ? callback : animate;
+    var callback = typeof animate === 'boolean' ? callback : animate;
     var animEnabled = animate === false ? false : true;
     var animDuration = inst._settings.containerDuration;
     var animEasing = inst._settings.containerEasing;
@@ -454,12 +636,12 @@ SOFTWARE.
       if (++counter === itemsLength) {
 
         // Call callback.
-        if (typeOf(callback) === 'function') {
+        if (typeof callback === 'function') {
           callback(inst);
         }
 
         // Emit "layoutend" event.
-        emitter.emit('layoutend');
+        emitter.emit(evLayoutEnd);
 
       }
 
@@ -469,7 +651,7 @@ SOFTWARE.
     Velocity(inst.element, 'stop', inst._animQueue);
 
     // Emit "layoutstart" event.
-    emitter.emit('layoutstart');
+    emitter.emit(evLayoutStart);
 
     // If container's current inline height matches the target height, let's
     // skip manipulating the DOM.
@@ -505,14 +687,18 @@ SOFTWARE.
     }
 
     // Position items.
-    arrayEach(grid.items, function (item) {
+    for (var i = 0, len = grid.items.length; i < len; i++) {
+
+      var item = grid.items[i];
+
       if (item._drag.active) {
         tryFinish();
       }
       else {
         item.position(animEnabled, tryFinish);
       }
-    });
+
+    }
 
 
   };
@@ -522,62 +708,57 @@ SOFTWARE.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Muuri.Item} items
+   * @param {Array|Number|HTMLElement|Muuri.Item} items
    * @param {Function} [callback]
    */
   Muuri.prototype.show = function (items, callback) {
 
     var inst = this;
-    var emitter = inst._emitter;
-    var finalItems = [];
-    var isInterrupted = false;
 
     // Sanitize items.
-    items = typeOf(items) === 'array' ? items : [items];
+    items = inst.getItems(items);
+
+    var emitter = inst._emitter;
+    var isInterrupted = false;
     var counter = items.length;
 
-    // Function for attempting to finish the method process.
-    var tryFinish = function (interrupted) {
+    if (!counter) {
 
-      // If the current item's animation was interrupted.
-      if (interrupted) {
-        isInterrupted = true;
+      if (typeof callback === 'function') {
+        callback(items, isInterrupted);
       }
 
-      // If all items have finished their animations (if any).
-      if (--counter < 1) {
-
-        // Call callback.
-        if (typeOf(callback) === 'function') {
-          callback(finalItems, isInterrupted);
-        }
-
-        // Emit "showend" event.
-        if (finalItems.length) {
-          emitter.emit('showend', finalItems, isInterrupted);
-        }
-
-      }
-
-    };
-
-    // Sanitize items.
-    arrayEach(items, function (item) {
-      item = item instanceof Muuri.Item ? item : inst.getItem(item);
-      if (item) {
-        finalItems.push(item);
-      }
-    });
-
-    // Show items.
-    if (finalItems.length) {
-      emitter.emit('showstart', finalItems);
-      arrayEach(finalItems, function (item) {
-        item.show(tryFinish);
-      });
     }
     else {
-      tryFinish();
+
+      // Emit showstart event.
+      emitter.emit(evShowStart, items);
+
+      // Show items.
+      for (var i = 0, len = items.length; i < len; i++) {
+        items[i].show(function (interrupted) {
+
+          // If the current item's animation was interrupted.
+          if (interrupted) {
+            isInterrupted = true;
+          }
+
+          // If all items have finished their animations.
+          if (--counter < 1) {
+
+            // Call callback.
+            if (typeof callback === 'function') {
+              callback(items, isInterrupted);
+            }
+
+            // Emit showend event.
+            emitter.emit(evShowEnd, items, isInterrupted);
+
+          }
+
+        });
+      }
+
     }
 
   };
@@ -587,203 +768,56 @@ SOFTWARE.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Muuri.Item} items
+   * @param {Array|Number|HTMLElement|Muuri.Item} items
    * @param {Function} [callback]
    */
   Muuri.prototype.hide = function (items, callback) {
 
     var inst = this;
-    var emitter = inst._emitter;
-    var finalItems = [];
-    var isInterrupted = false;
 
     // Sanitize items.
-    items = typeOf(items) === 'array' ? items : [items];
+    items = inst.getItems(items);
+
+    var emitter = inst._emitter;
+    var isInterrupted = false;
     var counter = items.length;
 
-    // Function for attempting to finish the method process.
-    var tryFinish = function (interrupted) {
+    if (!counter) {
 
-      // If the current item's animation was interrupted.
-      if (interrupted) {
-        isInterrupted = true;
+      if (typeof callback === 'function') {
+        callback(items, isInterrupted);
       }
 
-      // If all items have finished their animations (if any).
-      if (--counter < 1) {
-
-        // Call callback.
-        if (typeOf(callback) === 'function') {
-          callback(finalItems, isInterrupted);
-        }
-
-        // Emit "hideend" event.
-        if (finalItems.length) {
-          emitter.emit('hideend', finalItems, isInterrupted);
-        }
-
-      }
-
-    };
-
-    // Sanitize items.
-    arrayEach(items, function (item) {
-      item = item instanceof Muuri.Item ? item : inst.getItem(item);
-      if (item) {
-        finalItems.push(item);
-      }
-    });
-
-    // Hide items.
-    if (finalItems.length) {
-      emitter.emit('hidestart', finalItems);
-      arrayEach(finalItems, function (item) {
-        item.hide(tryFinish);
-      });
     }
     else {
-      tryFinish();
-    }
 
-  };
-
-  /**
-   * Register existing DOM elements as Muuri items and animate them in.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement} elements
-   * @param {Number} [index=0]
-   * @param {Function} [callback]
-   */
-  Muuri.prototype.add = function (elements, index, callback) {
-
-    var inst = this;
-    var emitter = inst._emitter;
-
-    // Allow callback to be the second argument.
-    callback = typeOf(index) === 'function' ? index : callback;
-
-    // Normalize index.
-    index = typeOf(index) === 'number' ? index : 0;
-
-    // Register new items.
-    var newItems = inst.register(elements, index);
-    var newItemsLength = newItems.length;
-
-    // Create a process end handler.
-    var finish = function (items, interrupted) {
-
-      // Call callback function.
-      if (typeOf(callback) === 'function') {
-        callback(items, interrupted);
-      }
-
-      // Emit "addend" event.
-      if (newItemsLength) {
-        emitter.emit('addend', items, interrupted);
-      }
-
-    };
-
-    // If there are new items
-    if (newItemsLength) {
-
-      // Emit "addstart" event.
-      emitter.emit('addstart', newItems);
-
-      // Make sure all items are visible.
-      arrayEach(newItems, function (item) {
-        item.show(false);
-      });
-
-      // Position items.
-      inst._positionItems();
-
-      // Set up items to their correct positions and hide them.
-      arrayEach(newItems, function (item) {
-        item.position(false);
-        item.hide(false);
-      });
+      // Emit hidestart event.
+      emitter.emit(evHideStart, items);
 
       // Show items.
-      inst.show(newItems, finish);
+      for (var i = 0, len = items.length; i < len; i++) {
+        items[i].hide(function (interrupted) {
 
-    }
-    else {
+          // If the current item's animation was interrupted.
+          if (interrupted) {
+            isInterrupted = true;
+          }
 
-      finish(newItems);
+          // If all items have finished their animations.
+          if (--counter < 1) {
 
-    }
+            // Call callback.
+            if (typeof callback === 'function') {
+              callback(items, isInterrupted);
+            }
 
-  };
+            // Emit hideend event.
+            emitter.emit(evHideEnd, items, isInterrupted);
 
-  /**
-   * Remove items from muuri instance and their elements from DOM.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Muuri.Item} items
-   * @param {Function} [callback]
-   */
-  Muuri.prototype.remove = function (items, callback) {
+          }
 
-    var inst = this;
-    var emitter = inst._emitter;
-    var finalItems = [];
-
-    // Create a process end handler.
-    var finish = function () {
-
-      // Call callback function.
-      if (typeOf(callback) === 'function') {
-        callback();
-      }
-
-      // Emit "removeend" event.
-      if (finalItems.length) {
-        emitter.emit('removeend', finalItems);
-      }
-
-    };
-
-    // Sanitize items.
-    items = typeOf(items) === 'array' ? items : [items];
-
-    // Get items.
-    arrayEach(items, function (item) {
-      finalItems.push(item instanceof Muuri.Item ? item : inst.getItem(item));
-    });
-
-    // If items exist.
-    if (finalItems.length) {
-
-      // Emit "removestart" event.
-      emitter.emit('removestart', finalItems);
-
-      // Remove items instantly from Muuri instance.
-      arrayEach(items, function (item) {
-        item.isRemoving = true;
-        var index = item.index();
-        if (index > -1) {
-          inst.items.splice(index, 1);
-        }
-      });
-
-      // Hide and remove items from DOM.
-      inst.hide(items, function () {
-        arrayEach(items, function (item) {
-          item.destroy(true);
         });
-        finish();
-      });
-
-    }
-
-    // If no items exist.
-    else {
-
-      finish();
+      }
 
     }
 
@@ -816,17 +850,22 @@ SOFTWARE.
     });
 
     // Emit "destroy" event.
-    inst._emitter.emit('destroy');
+    inst._emitter.emit(evDestroy);
 
     // Remove all event listeners.
     var events = inst._emitter._collection || {};
     for (var ev in events) {
-      if (events.hasOwnProperty(ev) && typeOf(ev) === 'array') {
+      if (events.hasOwnProperty(ev) && Array.isArray(ev)) {
         events[ev].length = 0;
       }
     }
 
   };
+
+  /**
+   * Muuri - Item
+   * ************
+   */
 
   /**
    * Creates a new Muuri Item instance.
@@ -846,6 +885,12 @@ SOFTWARE.
     inst.muuri = muuri;
     inst.element = element;
     inst.child = element.children[0];
+
+    // Append the element within the Muuri container element if it is not there
+    // already.
+    if (element.parentNode !== muuri.element) {
+      muuri.element.appendChild(element);
+    }
 
     // Set item class.
     addClass(element, stn.itemClass);
@@ -910,7 +955,7 @@ SOFTWARE.
     }
 
     // Emit "item-init" event.
-    inst.muuri._emitter.emit('item-init', inst);
+    inst.muuri._emitter.emit(evItemInit, inst);
 
   };
 
@@ -960,7 +1005,7 @@ SOFTWARE.
 
     // Add predicate related data to drag data.
     var predicateResolved = false;
-    drag.predicate = typeOf(stn.dragPredicate) === 'function' ? stn.dragPredicate : dragPredicate;
+    drag.predicate = typeof stn.dragPredicate === 'function' ? stn.dragPredicate : dragPredicate;
     drag.predicateData = {};
     drag.isPredicateResolved = function () {
       return predicateResolved;
@@ -1104,7 +1149,7 @@ SOFTWARE.
       if (drag.element.parentNode === dragContainer) {
 
         // Get offset diff.
-        var offsetDiff = mezr.place([drag.element, 'margin'], {
+        var offsetDiff = Mezr.place([drag.element, 'margin'], {
           my: 'left top',
           at: 'left top',
           of: [defaultContainer, 'padding']
@@ -1132,7 +1177,7 @@ SOFTWARE.
         dragContainer.appendChild(drag.element);
 
         // Get offset diff.
-        var offsetDiff = mezr.place([drag.element, 'margin'], {
+        var offsetDiff = Mezr.place([drag.element, 'margin'], {
           my: 'left top',
           at: 'left top',
           of: [defaultContainer, 'padding']
@@ -1173,7 +1218,7 @@ SOFTWARE.
     addClass(drag.element, stn.draggingClass);
 
     // Emit "item-dragstart" event.
-    emitter.emit('item-dragstart', inst);
+    emitter.emit(evItemDragStart, inst);
 
   };
 
@@ -1223,7 +1268,7 @@ SOFTWARE.
     }
 
     // Emit "item-dragmove" event.
-    emitter.emit('item-dragmove', inst);
+    emitter.emit(evItemDragMove, inst);
 
   };
 
@@ -1255,7 +1300,7 @@ SOFTWARE.
       // Get offset diff.
       // TODO: Speed up this function by providing mezr parsed data instead
       // of elements. This way mezr will work a LOT faster.
-      var offsetDiff = mezr.place([drag.element, 'margin'], {
+      var offsetDiff = Mezr.place([drag.element, 'margin'], {
         my: 'left top',
         at: 'left top',
         of: [defaultContainer, 'padding']
@@ -1285,7 +1330,7 @@ SOFTWARE.
     }
 
     // Emit "item-dragscroll" event.
-    emitter.emit('item-dragscroll', inst);
+    emitter.emit(evItemDragScroll, inst);
 
   };
 
@@ -1326,7 +1371,7 @@ SOFTWARE.
     drag.active = false;
 
     // Emit "item-dragend" event.
-    emitter.emit('item-dragend', inst);
+    emitter.emit(evItemDragEnd, inst);
 
     // Setup release data.
     release.containerDiffX = drag.containerDiffX;
@@ -1401,7 +1446,7 @@ SOFTWARE.
     addClass(release.element, stn.releasingClass);
 
     // Emit "item-releasestart" event.
-    emitter.emit('item-releasestart', inst);
+    emitter.emit(evItemReleaseStart, inst);
 
     // Position the released item.
     inst.position();
@@ -1438,7 +1483,7 @@ SOFTWARE.
     inst._resetReleaseData();
 
     // Emit "item-releaseend" event.
-    emitter.emit('item-releaseend', inst);
+    emitter.emit(evItemReleaseEnd, inst);
 
   };
 
@@ -1483,11 +1528,11 @@ SOFTWARE.
 
       if (overlapAction === 'swap') {
         arraySwap(items, itemIndex, matchIndex);
-        emitter.emit('item-swap', inst, itemIndex, matchIndex);
+        emitter.emit(evItemSwap, inst, itemIndex, matchIndex);
       }
       else {
         arrayMove(items, itemIndex, matchIndex);
-        emitter.emit('item-move', inst, itemIndex, matchIndex);
+        emitter.emit(evItemMove, inst, itemIndex, matchIndex);
       }
 
       inst.muuri.layout();
@@ -1564,7 +1609,7 @@ SOFTWARE.
     if (!inst.isHidden) {
       inst.width = Math.round(Mezr.width(inst.element, 'margin'));
       inst.height = Math.round(Mezr.height(inst.element, 'margin'));
-      inst.muuri._emitter.emit('item-refresh', inst);
+      inst.muuri._emitter.emit(evItemRefresh, inst);
     }
 
   };
@@ -1582,11 +1627,11 @@ SOFTWARE.
     var inst = this;
     var emitter = inst.muuri._emitter;
     var itemIndex = inst.index();
-    var targetIndex = typeOf(target) === 'number' ? target : target.index();
+    var targetIndex = typeof target === 'number' ? target : target.index();
 
     if (itemIndex !== targetIndex) {
       arrayMove(inst.muuri.items, itemIndex, targetIndex);
-      emitter.emit('item-move', inst, itemIndex, targetIndex);
+      emitter.emit(evItemMove, inst, itemIndex, targetIndex);
     }
 
   };
@@ -1604,11 +1649,11 @@ SOFTWARE.
     var inst = this;
     var emitter = inst.muuri._emitter;
     var itemIndex = inst.index();
-    var targetIndex = typeOf(target) === 'number' ? target : target.index();
+    var targetIndex = typeof target === 'number' ? target : target.index();
 
     if (itemIndex !== targetIndex) {
       arraySwap(inst.muuri.items, itemIndex, targetIndex);
-      emitter.emit('item-swap', inst, itemIndex, targetIndex);
+      emitter.emit(evItemSwap, inst, itemIndex, targetIndex);
     }
 
   };
@@ -1625,7 +1670,7 @@ SOFTWARE.
 
     var inst = this;
     var stn = inst.muuri._settings;
-    var callback = typeOf(animate) === 'boolean' ? callback : animate;
+    var callback = typeof animate === 'boolean' ? callback : animate;
     var emitter = inst.muuri._emitter;
     var release = inst._release;
     var isJustReleased = release.active && release.positioningStarted === false;
@@ -1647,17 +1692,17 @@ SOFTWARE.
       }
 
       // Call the callback.
-      if (typeOf(callback) === 'function') {
+      if (typeof callback === 'function') {
         callback(inst);
       }
 
-      // Emit "item-positionend" event.
-      emitter.emit('item-positionend', inst);
+      // Emit item-positionend event.
+      emitter.emit(evItemPositionEnd, inst);
 
     };
 
     // Emit "item-positionstart" event.
-    emitter.emit('item-positionstart', inst);
+    emitter.emit(evItemPositionStart, inst);
 
     // Stop currently running animation, if any.
     inst._stopPositioning();
@@ -1740,7 +1785,7 @@ SOFTWARE.
     var emitter = inst.muuri._emitter;
 
     // Allow pasing the callback function also as the first argument.
-    callback = typeOf(animate) === 'function' ? animate : callback;
+    callback = typeof animate === 'function' ? animate : callback;
 
     // If item is currently being removed return immediately.
     if (inst.isRemoving) {
@@ -1753,7 +1798,7 @@ SOFTWARE.
     else if (!inst.isHidden && !inst.isShowing) {
 
       // Call the callback and be done with it.
-      if (typeOf(callback) === 'function') {
+      if (typeof callback === 'function') {
         callback();
       }
 
@@ -1763,8 +1808,8 @@ SOFTWARE.
     else if (!inst.isHidden) {
 
       // Push the callback to callback queue.
-      if (typeOf(callback) === 'function') {
-        inst._peekabooQueue.push(callback);
+      if (typeof callback === 'function') {
+        inst._peekabooQueue[inst._peekabooQueue.length] = callback;
       }
 
     }
@@ -1794,20 +1839,20 @@ SOFTWARE.
       // Process current callback queue.
       inst._processQueue(inst._peekabooQueue, true);
 
-      // Emit "item-hideend" event with interrupted flag.
+      // Emit item-hideend event with interrupted flag.
       if (isHiding) {
-        emitter.emit('item-hideend', inst, true);
+        emitter.emit(evItemHideEnd, inst, true);
       }
 
-      // Emit "item-showstart" event.
-      emitter.emit('item-showstart', inst);
+      // Emit item-showstart event.
+      emitter.emit(evItemShowStart, inst);
 
       // Update state.
       inst.isShowing = true;
 
       // Push the callback to callback queue.
-      if (typeOf(callback) === 'function') {
-        inst._peekabooQueue.push(callback);
+      if (typeof callback === 'function') {
+        inst._peekabooQueue[inst._peekabooQueue.length] = callback;
       }
 
       // Animate child element.
@@ -1816,8 +1861,8 @@ SOFTWARE.
         // Process callback queue.
         inst._processQueue(inst._peekabooQueue);
 
-        // Emit "item-showend" event.
-        emitter.emit('item-showend', inst);
+        // Emit item-showend event.
+        emitter.emit(evItemShowEnd, inst);
 
       });
 
@@ -1840,13 +1885,13 @@ SOFTWARE.
     var emitter = inst.muuri._emitter;
 
     // Allow pasing the callback function also as the first argument.
-    callback = typeOf(animate) === 'function' ? animate : callback;
+    callback = typeof animate === 'function' ? animate : callback;
 
     // If item is hidden.
     if (inst.isHidden && !inst.isHiding) {
 
       // Call the callback and be done with it.
-      if (typeOf(callback) === 'function') {
+      if (typeof callback === 'function') {
         callback();
       }
 
@@ -1856,8 +1901,8 @@ SOFTWARE.
     else if (inst.isHidden) {
 
       // Push the callback to callback queue.
-      if (typeOf(callback) === 'function') {
-        inst._peekabooQueue.push(callback);
+      if (typeof callback === 'function') {
+        inst._peekabooQueue[inst._peekabooQueue.length] = callback;
       }
 
     }
@@ -1882,13 +1927,13 @@ SOFTWARE.
       // Process current callback queue.
       inst._processQueue(inst._peekabooQueue, true);
 
-      // Emit "item-showend" event with interrupted flag.
+      // Emit item-showend event with interrupted flag.
       if (isShowing) {
-        emitter.emit('item-showend', inst, true);
+        emitter.emit(evItemShowEnd, inst, true);
       }
 
-      // Emit "item-hidestart" event.
-      emitter.emit('item-hidestart', inst);
+      // Emit item-hidestart event.
+      emitter.emit(evItemHideStart, inst);
 
       // Animate child element.
       inst.muuri._itemHide.start(inst, animate, function () {
@@ -1901,8 +1946,8 @@ SOFTWARE.
         // Process callback queue.
         inst._processQueue(inst._peekabooQueue);
 
-        // Emit "item-hideend" event.
-        emitter.emit('item-hideend', inst);
+        // Emit item-hideend event.
+        emitter.emit(evItemHideEnd, inst);
 
       });
 
@@ -1915,6 +1960,7 @@ SOFTWARE.
    *
    * @public
    * @memberof Muuri.Item.prototype
+   * @param {Boolean} [removeElement=false]
    */
   Muuri.Item.prototype.destroy = function (removeElement) {
 
@@ -1974,10 +2020,21 @@ SOFTWARE.
       inst.element.parentNode.removeChild(inst.element);
     }
 
+    // Render the instance unusable -> nullify all Muuri related properties.
+    var props = Object.keys(inst).concat(Object.keys(Muuri.Item));
+    for (var i = 0; i < props.length; i++) {
+      inst[props[i]] = null;
+    }
+
     // Emit "item-destroy" event.
-    emitter.emit('item-destroy', inst);
+    emitter.emit(evItemDestroy, index);
 
   };
+
+  /**
+   * Muuri - Settings
+   * ****************
+   */
 
   /**
    * Default settings.
@@ -2059,23 +2116,9 @@ SOFTWARE.
   };
 
   /**
-   * Helper functions
-   * ****************
+   * Helpers - Generic
+   * *****************
    */
-
-  /**
-   * Returns type of any object in lowercase letters.
-   *
-   * @public
-   * @param {Object} value
-   * @returns {String}
-   */
-  function typeOf(value) {
-
-    var type = typeof value;
-    return type !== 'object' ? type : ({}).toString.call(value).split(' ')[1].replace(']', '').toLowerCase();
-
-  }
 
   /**
    * Loop array items. Provide the array as the first argument and a callback
@@ -2102,30 +2145,95 @@ SOFTWARE.
   }
 
   /**
-   * Merge properties of provided objects. The first object in the array is
-   * considered as the destination object which inherits the properties of the
-   * following objects. Merges object properties recursively if the property's
-   * type is object in destination object and the source object.
+   * Swap array items.
    *
    * @param {Array} array
-   * @returns {!Object}
+   * @param {Number} indexA
+   * @param {Number} indexB
    */
-  function mergeObjects(array) {
+  function arraySwap(array, indexA, indexB) {
 
-    var dest = array.splice(0, 1)[0];
+    var temp = array[indexA];
+    array[indexA] = array[indexB];
+    array[indexB] = temp;
 
-    arrayEach(array, function (src) {
-      for (var prop in src) {
-        if (src.hasOwnProperty(prop)) {
-          if (typeOf(dest[prop]) === 'object' && typeOf(src[prop]) === 'object') {
-            mergeObjects([dest[prop], src[prop]]);
+  }
+
+  /**
+   * Move array item to another index.
+   *
+   * @param {Array} array
+   * @param {Number} fromIndex
+   * @param {Number} toIndex
+   */
+  function arrayMove(array, fromIndex, toIndex) {
+
+    array.splice(toIndex, 0, array.splice(fromIndex, 1)[0]);
+
+  }
+
+  /**
+   * Returns a new duplicate free version of the provided array.
+   *
+   * @param {Array} array
+   * @returns {Array}
+   */
+  function arrayUnique(array) {
+
+    var ret = [];
+
+    for (var i = 0, len = array.length; i < len; i++) {
+      if (ret.indexOf(array[i]) === -1) {
+        ret[ret.length] = array[i];
+      }
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Check if a value is a plain object.
+   *
+   * @param {*} val
+   * @returns {Boolean}
+   */
+  function isPlainObject(val) {
+
+    return typeof val === 'object' && Object.prototype.toString.call(val) === '[object Object]';
+
+  }
+
+  /**
+   * Merge properties of provided objects. The first argument is considered as
+   * the destination object which inherits the properties of the
+   * following argument objects. Merges object properties recursively if the
+   * property's type is object in destination object and the source object.
+   *
+   * @param {Object} dest
+   * @param {...Object} sources
+   * @returns {Object} Returns the destination object.
+   */
+  function mergeObjects(dest) {
+
+    var sources = Array.prototype.slice.call(arguments, 1);
+
+    for (var i = 0; i < sources.length; i++) {
+
+      var source = sources[i];
+
+      for (var prop in source) {
+        if (source.hasOwnProperty(prop)) {
+          if (isPlainObject(dest[prop]) && isPlainObject(source[prop])) {
+            mergeObjects(dest[prop], source[prop]);
           }
           else {
-            dest[prop] = src[prop];
+            dest[prop] = source[prop];
           }
         }
       }
-    });
+
+    }
 
     return dest;
 
@@ -2170,6 +2278,11 @@ SOFTWARE.
   }
 
   /**
+   * Helpers - DOM utils
+   * *******************
+   */
+
+  /**
    * Returns the computed value of an element's style property as a string.
    *
    * @param {HTMLElement} element
@@ -2206,95 +2319,6 @@ SOFTWARE.
 
     for (var prop in styles) {
       Velocity.hook(element, prop, styles[prop]);
-    }
-
-  }
-
-  /**
-   * Swap array items.
-   *
-   * @param {Array} array
-   * @param {Number} indexA
-   * @param {Number} indexB
-   */
-  function arraySwap(array, indexA, indexB) {
-
-    var temp = array[indexA];
-    array[indexA] = array[indexB];
-    array[indexB] = temp;
-
-  }
-
-  /**
-   * Move array item to another index.
-   *
-   * @param {Array} array
-   * @param {Number} fromIndex
-   * @param {Number} toIndex
-   */
-  function arrayMove(array, fromIndex, toIndex) {
-
-    array.splice(toIndex, 0, array.splice(fromIndex, 1)[0]);
-
-  }
-
-  /**
-   * Returns a new duplicate free version of the provided array.
-   *
-   * @param {Array} array
-   * @returns {Array}
-   */
-  function arrayUnique(array) {
-
-    var ret = [];
-
-    for (var i = 0, len = array.length; i < len; i++) {
-      if (ret.indexOf(array[i]) === -1) {
-        ret.push(array[i]);
-      }
-    }
-
-    return ret;
-
-  }
-
-  /**
-   * Calculate how many percent the intersection area of two items is
-   * from the maximum potential intersection area between the items.
-   *
-   * @param {Object} itemA
-   * @param {Object} itemB
-   * @returns {Number} A number between 0-100.
-   */
-  function getOverlapScore(itemA, itemB) {
-
-    var intersection = Mezr.intersection(itemA, itemB, true);
-
-    if (!intersection) {
-
-      return 0;
-
-    }
-    else {
-
-      var aUnpos = {
-        width: itemA.width,
-        height: itemA.height,
-        left: 0,
-        top: 0
-      };
-
-      var bUnpos = {
-        width: itemB.width,
-        height: itemB.height,
-        left: 0,
-        top: 0
-      };
-
-      var maxIntersection = Mezr.intersection(aUnpos, bUnpos, true);
-
-      return (intersection.width * intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
-
     }
 
   }
@@ -2341,6 +2365,81 @@ SOFTWARE.
     }
     else if (hasClass(el, className)) {
       el.className = (' ' + el.className + ' ').replace(' ' + className + ' ', ' ').trim();
+    }
+
+  }
+
+  /**
+   * Get element's scroll containers.
+   *
+   * @param {HTMLElement} element
+   * @returns {Array}
+   */
+  function getScrollParents(element) {
+
+    var ret = [global];
+
+    // Return instantly if element is fixed.
+    if (getStyle(element, 'position') === 'fixed') {
+      return ret;
+    }
+
+    // Get scroll parents.
+    var overflowRegex = /(auto|scroll)/;
+    var parent = element.parentNode;
+    while (parent && parent !== document && parent !== document.documentElement) {
+      if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
+        ret[ret.length] = parent;
+      }
+      parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Helpers - Muuri
+   * ***************
+   */
+
+  /**
+   * Calculate how many percent the intersection area of two items is
+   * from the maximum potential intersection area between the items.
+   *
+   * @param {Object} itemA
+   * @param {Object} itemB
+   * @returns {Number} A number between 0-100.
+   */
+  function getOverlapScore(itemA, itemB) {
+
+    var intersection = Mezr.intersection(itemA, itemB, true);
+
+    if (!intersection) {
+
+      return 0;
+
+    }
+    else {
+
+      var aUnpos = {
+        width: itemA.width,
+        height: itemA.height,
+        left: 0,
+        top: 0
+      };
+
+      var bUnpos = {
+        width: itemB.width,
+        height: itemB.height,
+        left: 0,
+        top: 0
+      };
+
+      var maxIntersection = Mezr.intersection(aUnpos, bUnpos, true);
+
+      return (intersection.width * intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
+
     }
 
   }
@@ -2541,8 +2640,8 @@ SOFTWARE.
 
     if (!duration) {
       return {
-        start: function () {},
-        stop: function () {}
+        start: noop,
+        stop: noop
       };
     }
     else {
@@ -2571,33 +2670,8 @@ SOFTWARE.
   }
 
   /**
-   * Get element's scroll containers.
-   *
-   * @param {HTMLElement} element
-   * @returns {Array}
+   * Init
    */
-  function getScrollParents(element) {
-
-    var ret = [global];
-
-    // Return instantly if element is fixed.
-    if (getStyle(element, 'position') === 'fixed') {
-      return ret;
-    }
-
-    // Get scroll parents.
-    var overflowRegex = /(auto|scroll)/;
-    var parent = element.parentNode;
-    while (parent && parent !== document && parent !== document.documentElement) {
-      if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
-        ret.push(parent);
-      }
-      parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
-    }
-
-    return ret;
-
-  }
 
   return Muuri;
 

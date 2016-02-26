@@ -130,29 +130,25 @@
 
       function show() {
 
-        var items = _(grid.getItems()).filter(function (item) {
-          return !item.isActive;
+        var items = _(grid.get()).filter(function (item) {
+          return !item._active;
         }).sample(5).value();
 
         grid.show(items, function () {
           console.log('CALLBACK: Show ' + items.length + ' items');
         });
 
-        layout();
-
       }
 
       function hide() {
 
-        var items = _(grid.getItems()).filter(function (item) {
-          return item.isActive;
+        var items = _(grid.get()).filter(function (item) {
+          return item._active;
         }).sample(5).value();
 
         grid.hide(items, function () {
           console.log('CALLBACK: Hide ' + items.length + ' items');
         });
-
-        layout();
 
       }
 
@@ -160,27 +156,26 @@
 
         var items = generateElements(5);
 
-        $(grid.element).append(items);
-
-        grid.add(items, 0, function () {
-          console.log('CALLBACK: Add ' + items.length + ' items');
+        items.forEach(function (item) {
+          item.style.display = 'none';
         });
 
-        layout();
+        grid.show(grid.add(items), function (items) {
+          console.log('CALLBACK: Added ' + items.length + ' items');
+        });
 
       }
 
       function remove() {
 
-        var items = _(grid.getItems()).filter(function (item) {
-          return item.isActive;
+        var items = _(grid.get()).filter(function (item) {
+          return item._active;
         }).sample(5).value();
 
-        grid.remove(items, function () {
-          console.log('CALLBACK: Remove ' + items.length + ' items');
+        grid.hide(items, function (items) {
+          grid.remove(items, true);
+          console.log('CALLBACK: Removed ' + items.length + ' items');
         });
-
-        layout();
 
       }
 
@@ -200,7 +195,7 @@
 
       function syncElements() {
 
-        grid.syncElements();
+        grid.synchronize();
 
       }
 

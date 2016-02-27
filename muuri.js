@@ -24,10 +24,8 @@ SOFTWARE.
 /*
 TODO
 ****
-- Allow placing hidden item's in their correct position somehow. Crucial for
-  when showing hidden elements, we need to set their position before showing
-  them.
-- Allow doing a layout on specific items and allow doing an instant layout.
+- Test the dragging / scrolling experience on multiple devices and make fixes
+  as required. VERY IMPORTANT!!!
 - Allow doing an instant show/hide.
 - Make sure there is no unnecessary looping of items occuring internally.
 - Get rid of Mezr dependency.
@@ -218,10 +216,6 @@ TODO
       inst.items[inst.items.length] = new Muuri.Item(inst, stn.items[i]);
     }
 
-    // Calculate grid's row height and column width.
-    inst._rowHeight = inst._getSlotSize('height');
-    inst._colWidth = inst._getSlotSize('width');
-
     // Relayout on window resize if enabled.
     if (stn.layoutOnResize || stn.layoutOnResize === 0) {
       var debounced = debounce(function () {
@@ -314,51 +308,74 @@ TODO
   };
 
   /**
-   * Calculate and return the virtual grid's slot width or height. Returns null
-   * if there are no items.
+   * Calculate the minimum slot width and height for the virtual grid, based on
+   * the items.
    *
    * @protected
    * @memberof Muuri.prototype
-   * @param {String} type - "width" or "height".
-   * @param {Array} [items]
-   * @returns {!Number}
+   * @param {Array} items
+   * @returns {Object}
    */
-  Muuri.prototype._getSlotSize = function (type, items) {
+  Muuri.prototype._getSlotSize = function (items) {
 
-    // If no items are provided get all active items by default.
-    var items = items ? items : this._getActiveItems();
+    var ret = {
+      width: 0,
+      height: 0
+    };
+    var widthsTemp = {};
+    var heightsTemp = {};
+    var widths = [];
+    var heights = [];
 
-    // Return early if there are no items.
-    if (!items.length) {
-      return null;
+    // First of all, let's store all different widths and heights of the
+    // provided items.
+    for (var i = 0, len = items.length; i < len; i++) {
+      var item = items[i];
+      widthsTemp[item._width] = item._width;
+      heightsTemp[item._height] = item._height;
     }
 
-    // Get sizes for the specified type.
-    var sizes = arrayUnique(items.map(function (item) {
-      return item['_' + type]
-    }));
+    // Transform the temporary widths object into an array.
+    for (var prop in widthsTemp) {
+      widths[widths.length] = widthsTemp[prop];
+    }
 
-    var sizesLength = sizes.length;
+    // Transform the temporary heights object into an array.
+    for (var prop in heightsTemp) {
+      heights[heights.length] = heightsTemp[prop];
+    }
 
-    // Store the possible values and add the smallest size to the possibilities
-    // right off the bat.
-    var possibilities = [Math.min.apply(Math, sizes)];
+    // Calculate the slot width and height.
+    for (var i = 0; i < 2; i++) {
 
-    // Add all the differences between sizes to possibilites.
-    for (var i = 0; i < sizesLength; i++) {
-      var size = sizes[i];
+      var sizes = i === 0 ? widths : heights;
+      var sizesLength = sizes.length;
+      var possibilities = [Math.min.apply(Math, sizes)];
+
       for (var ii = 0; ii < sizesLength; ii++) {
-        var diff = Math.abs(size - sizes[ii]);
-        if (diff > 0) {
-          possibilities[possibilities.length] = diff;
+        var size = sizes[ii];
+        for (var iii = 0; iii < sizesLength; iii++) {
+          var diff = Math.abs(size - sizes[iii]);
+          if (diff > 0) {
+            possibilities[possibilities.length] = diff;
+          }
         }
       }
+
+      var result = Math.min.apply(Math, possibilities);
+
+      if (i === 0) {
+        ret.width = result;
+      }
+      else {
+        ret.height = result;
+      }
+
     }
 
-    // And voila! We have a winner.
-    return Math.min.apply(Math, possibilities);
+    return ret;
 
-  };
+  }
 
   /**
    * Calculate and set positions of currently active items and return a data
@@ -366,48 +383,56 @@ TODO
    *
    * @protected
    * @memberof Muuri.prototype
+   * @param {Array} items
    * @returns {Object}
    */
-  Muuri.prototype._generateLayout = function () {
+  Muuri.prototype._generateLayout = function (items) {
 
-    var rowHeight = this._rowHeight;
-    var colWidth = this._colWidth;
-    var containerWidth = Mezr.width(this._element, 'core');
-    var grid = [];
-    var items = this._getActiveItems();
-    var data = {
-      items: items,
-      containerWidth: containerWidth,
-      fillWidth: 0,
-      fillHeight: 0
-    };
+    items = items || this._getActiveItems();
 
-    // Loop visible items.
-    for (var i = 0, len = items.length; i < len; i++) {
+    var slots = [];
+    var fillWidth = 0;
+    var fillHeight = 0;
+    var slotWidth = 0;
+    var slotHeight = 0;
 
-      var item = items[i];
+    if (items.length) {
 
-      // Find slot.
-      if (i === 0) {
-        item._left = 0;
-        item._top = 0;
+      var grid = [];
+      var containerWidth = Mezr.width(this._element, 'core');
+      var slotSize = this._getSlotSize(items);
+
+      slotWidth = slotSize.width;
+      slotHeight = slotSize.height;
+
+      // Find slots for items.
+      for (var i = 0, len = items.length; i < len; i++) {
+
+        var item = items[i];
+        var slot = i === 0 ? {left: 0, top: 0} : findSlot(grid, containerWidth, slotHeight, slotWidth, item._width, item._height);
+
+        // Fill slot.
+        fillSlots(grid, slotHeight, slotWidth, item._width, item._height, slot.left, slot.top);
+
+        // Update fillWidth and fillHeight.
+        fillWidth = Math.max(fillWidth, slot.left + item._width);
+        fillHeight = Math.max(fillHeight, slot.top + item._height);
+
+        // Push the slot data to return data.
+        slots[i] = slot;
+
       }
-      else {
-        var slot = findSlot(grid, containerWidth, rowHeight, colWidth, item._width, item._height);
-        item._left = slot.left;
-        item._top = slot.top;
-      }
-
-      // Fill slot.
-      fillSlots(grid, rowHeight, colWidth, item._width, item._height, item._left, item._top);
-
-      // Update the data fillWidth and fillHeight.
-      data.fillWidth = Math.max(data.fillWidth, item._left + item._width);
-      data.fillHeight = Math.max(data.fillHeight, item._top + item._height);
 
     }
 
-    return data;
+    return {
+      items: items,
+      slots: slots,
+      fillWidth: fillWidth,
+      fillHeight: fillHeight,
+      slotWidth: slotWidth,
+      slotHeight: slotHeight
+    };
 
   };
 
@@ -440,6 +465,29 @@ TODO
 
     this._emitter.off(event, listener);
     return this;
+
+  };
+
+  /**
+   * Refresh Muuri instance's items' dimensions and recalculate minimum row
+   * height and column width.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @param {Array|Number|Element|Muuri.Item} items
+   */
+  Muuri.prototype.refresh = function (items) {
+
+    // Get items.
+    items = items ? this.get(items) : this._getActiveItems();
+
+    // Refresh dimensions.
+    for (var i = 0, len = items.length; i < len; i++) {
+      items[i]._refresh();
+    }
+
+    // Emit refresh event.
+    this._emitter.emit(evRefresh, items);
 
   };
 
@@ -513,11 +561,11 @@ TODO
 
     // Create new items.
     for (var i = 0, len = elements.length; i < len; i++) {
-
       var item = new Muuri.Item(this, elements[i]);
       newItems[newItems.length] = item;
       if (item._active) {
         needsRefresh = true;
+        item._noLayoutAnimation = true;
       }
     }
 
@@ -585,32 +633,6 @@ TODO
   };
 
   /**
-   * Refresh Muuri instance's items' dimensions and recalculate minimum row
-   * height and column width.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   */
-  Muuri.prototype.refresh = function () {
-
-    // Get active items.
-    var items = this._getActiveItems();
-
-    // Refresh dimensions.
-    for (var i = 0, len = items.length; i < len; i++) {
-      items[i]._refresh();
-    }
-
-    // Recalculate row height and column width.
-    this._rowHeight = this._getSlotSize('height', items);
-    this._colWidth = this._getSlotSize('width', items);
-
-    // Emit refresh event.
-    this._emitter.emit(evRefresh);
-
-  };
-
-  /**
    * Order the item elements to match the order of the items. If the item's
    * element is not a child of the container is ignored and left untouched.
    *
@@ -635,8 +657,7 @@ TODO
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|Number|Element|Muuri.Item} [items] // TODO
-   * @param {Boolean} [animate=true] Should the positioning be animated?
+   * @param {Boolean} [animate=true]
    * @param {Function} [callback]
    */
   Muuri.prototype.layout = function (animate, callback) {
@@ -647,9 +668,9 @@ TODO
     var animEnabled = animate === false ? false : true;
     var animDuration = inst._settings.containerDuration;
     var animEasing = inst._settings.containerEasing;
-    var grid = inst._generateLayout();
+    var layout = inst._generateLayout();
     var counter = -1;
-    var itemsLength = grid.items.length;
+    var itemsLength = layout.items.length;
     var tryFinish = function () {
 
       // If container and all items have finished their animations (if any).
@@ -675,7 +696,7 @@ TODO
 
     // If container's current inline height matches the target height, let's
     // skip manipulating the DOM.
-    if (parseFloat(inst._element.style.height) === grid.fillHeight) {
+    if (parseFloat(inst._element.style.height) === layout.fillHeight) {
 
       tryFinish();
 
@@ -684,7 +705,7 @@ TODO
     // Otherwise if container animations are enabled let's make it happen.
     else if (animEnabled && animDuration > 0) {
 
-      Velocity(inst._element, {height: grid.fillHeight}, {
+      Velocity(inst._element, {height: layout.fillHeight}, {
         duration: animDuration,
         easing: animEasing,
         complete: tryFinish,
@@ -699,7 +720,7 @@ TODO
     else {
 
       setStyles(inst._element, {
-        height: grid.fillHeight + 'px'
+        height: layout.fillHeight + 'px'
       });
 
       tryFinish();
@@ -707,16 +728,16 @@ TODO
     }
 
     // Position items.
-    for (var i = 0, len = grid.items.length; i < len; i++) {
+    for (var i = 0, len = layout.items.length; i < len; i++) {
 
-      var item = grid.items[i];
+      var item = layout.items[i];
 
-      if (item._drag.active) {
-        tryFinish();
-      }
-      else {
-        item._layout(animEnabled, tryFinish);
-      }
+      // Update item's position.
+      item._left = layout.slots[i].left;
+      item._top = layout.slots[i].top;
+
+      // Layout non-dragged items.
+      item._drag.active ? tryFinish() : item._layout(animEnabled, tryFinish);
 
     }
 
@@ -1622,7 +1643,7 @@ TODO
     var isJustReleased = release.active && release.positioningStarted === false;
     var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.positionDuration;
     var animEasing = isJustReleased ? stn.dragReleaseEasing : stn.positionEasing;
-    var animEnabled = animate === false ? false : animDuration > 0;
+    var animEnabled = animate === false || inst._noLayoutAnimation ? false : animDuration > 0;
     var isPositioning = inst._positioning;
     var finish = function () {
 
@@ -1666,6 +1687,10 @@ TODO
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
+
+      if (inst._noLayoutAnimation) {
+        inst._noLayoutAnimation = false;
+      }
 
       hookStyles(inst._element, {
         translateX: (inst._left + offsetLeft) + 'px',
@@ -1854,6 +1879,14 @@ TODO
 
       // Process current callback queue.
       processQueue(inst._peekabooQueue, true);
+
+      // Update state.
+      inst._hiding = true;
+
+      // Push the callback to callback queue.
+      if (typeof callback === 'function') {
+        inst._peekabooQueue[inst._peekabooQueue.length] = callback;
+      }
 
       // Animate child element.
       inst._muuri._itemHide.start(inst, animate, function () {
@@ -2168,6 +2201,35 @@ TODO
   }
 
   /**
+   * Get intersection area dimensions and position between two rectangles in 2d
+   * space.
+   *
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {?Object}
+   */
+  function getIntersection(a, b, returnData) {
+
+    var overlap = {
+      left: a.left - b.left,
+      right: (b.left + b.width) - (a.left + a.width),
+      top: a.top - b.top,
+      bottom: (b.top + b.height) - (a.top + a.height)
+    };
+    var intersectionWidth = Math.max(a.width + Math.min(overlap.left, 0) + Math.min(overlap.right, 0), 0);
+    var intersectionHeight = Math.max(a.height + Math.min(overlap.top, 0) + Math.min(overlap.bottom, 0), 0);
+    var hasIntersection = intersectionWidth > 0 && intersectionHeight > 0;
+
+    return !hasIntersection ? null : {
+      width: intersectionWidth,
+      height: intersectionHeight,
+      left: a.left + Math.abs(Math.min(overlap.left, 0)),
+      top: a.top + Math.abs(Math.min(overlap.top, 0))
+    };
+
+  }
+
+  /**
    * Helpers - DOM utils
    * *******************
    */
@@ -2303,34 +2365,29 @@ TODO
    */
   function getOverlapScore(a, b) {
 
-    var intersection = Mezr.intersection(a, b, true);
+    var intersection = getIntersection(a, b);
 
     if (!intersection) {
-
       return 0;
-
     }
-    else {
 
-      var aUnpos = {
-        width: a.width,
-        height: a.height,
-        left: 0,
-        top: 0
-      };
+    var aUnpos = {
+      width: a.width,
+      height: a.height,
+      left: 0,
+      top: 0
+    };
 
-      var bUnpos = {
-        width: b.width,
-        height: b.height,
-        left: 0,
-        top: 0
-      };
+    var bUnpos = {
+      width: b.width,
+      height: b.height,
+      left: 0,
+      top: 0
+    };
 
-      var maxIntersection = Mezr.intersection(aUnpos, bUnpos, true);
+    var maxIntersection = getIntersection(aUnpos, bUnpos);
 
-      return (intersection.width * intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
-
-    }
+    return (intersection.width * intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
 
   }
 
@@ -2542,10 +2599,12 @@ TODO
     // If we have some items let's dig in.
     else {
 
-      var startEvent = method === 'show' ? evShowStart : evHideStart;
-      var endEvent = method === 'show' ? evShowEnd : evHideEnd;
+      var isShow = method === 'show';
+      var startEvent = isShow ? evShowStart : evHideStart;
+      var endEvent = isShow ? evShowEnd : evHideEnd;
       var isInterrupted = false;
       var completed = [];
+      var hiddenItems = [];
       var needsRefresh = false;
 
       // Emit showstart event.
@@ -2560,7 +2619,10 @@ TODO
           var item = items[i];
 
           // Check if refresh is needed.
-          if ((method === 'show' && !item._active) || (method === 'hide' && item._active)) {
+          if ((isShow && !item._active) || (!isShow && item._active)) {
+            if (isShow) {
+              item._noLayoutAnimation = true;
+            }
             needsRefresh = true;
           }
 
@@ -2589,6 +2651,9 @@ TODO
       // Refresh and layout only if neeeed.
       if (needsRefresh) {
         inst.refresh();
+        for (var i = 0, len = hiddenItems.length; i < len; i++) {
+          hiddenItems[i]._noLayoutAnimation = true;
+        }
         inst.layout();
       }
 

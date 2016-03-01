@@ -1321,11 +1321,20 @@ SOFTWARE.
     drag.elemClientY = elemGbcr.top;
 
     // Get drag scroll parents.
-    drag.scrollParents = arrayUnique(getScrollParents(drag.element).concat(getScrollParents(defaultContainer)));
+    drag.scrollParents = getScrollParents(drag.element);
+    if (dragContainer && dragContainer !== defaultContainer) {
+      drag.scrollParents = arrayUnique(drag.scrollParents.concat(getScrollParents(defaultContainer)));
+    }
 
     // Bind scroll listeners.
     for (var i = 0, len = drag.scrollParents.length; i < len; i++) {
       drag.scrollParents[i].addEventListener('scroll', drag.onScroll);
+    }
+
+    // For touch devices we need to disable the native scrolling of the dragged
+    // element's closest scroll container.
+    if (hasTouchEvents) {
+      drag.scrollParents[0].addEventListener('touchmove', preventDefault);
     }
 
     // Set drag class.
@@ -1475,6 +1484,12 @@ SOFTWARE.
       drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
     }
 
+    // For touch devices enable the native scrolling of the dragged element's
+    // closest scroll parent.
+    if (hasTouchEvents) {
+      drag.scrollParents[0].removeEventListener('touchmove', preventDefault);
+    }
+
     // Remove drag classname from element.
     removeClass(drag.element, stn.draggingClass);
 
@@ -1509,13 +1524,26 @@ SOFTWARE.
     var drag = this._drag;
     var stn = this._muuri._settings;
 
+    // Remove scroll listeners
     for (var i = 0, len = drag.scrollParents.length; i < len; i++) {
       drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
     }
 
+    // For touch devices enable the native scrolling of the dragged element's
+    // closest scroll parent.
+    if (hasTouchEvents) {
+      drag.scrollParents[0].removeEventListener('touchmove', preventDefault);
+    }
+
+    // Cancel overlap check.
     drag.checkOverlap('cancel');
+
+    // Remove draggin class.
     removeClass(drag.element, stn.draggingClass);
+
+    // Remove dragged element's inline styles.
     unlockElementSize(drag);
+
     this._resetDragData();
 
   };
@@ -2408,22 +2436,20 @@ SOFTWARE.
    */
   function getScrollParents(element) {
 
-    var ret = [global];
+    var ret = [];
 
-    // Return instantly if element is fixed.
-    if (getStyle(element, 'position') === 'fixed') {
-      return ret;
-    }
-
-    // Get scroll parents.
-    var overflowRegex = /(auto|scroll)/;
-    var parent = element.parentNode;
-    while (parent && parent !== document && parent !== document.documentElement) {
-      if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
-        ret[ret.length] = parent;
+    if (getStyle(element, 'position') !== 'fixed') {
+      var overflowRegex = /(auto|scroll)/;
+      var parent = element.parentNode;
+      while (parent && parent !== document && parent !== document.documentElement) {
+        if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
+          ret[ret.length] = parent;
+        }
+        parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
       }
-      parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
     }
+
+    ret[ret.length] = global;
 
     return ret;
 
@@ -2875,6 +2901,18 @@ SOFTWARE.
   }
 
   /**
+   * Helper to prevent event's default functionality.
+   *
+   * @private
+   * @param {Object} e
+   */
+  function preventDefault(e) {
+
+    e.preventDefault();
+
+  }
+
+  /**
    * Disable pull to refresh functionality init.
    *
    * @private
@@ -2912,7 +2950,6 @@ SOFTWARE.
     document.addEventListener('touchmove', docTouchMove, false);
 
   }
-
 
   /**
    * Disable pull to refresh functionality teardown.

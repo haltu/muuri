@@ -39,6 +39,7 @@ SOFTWARE.
   var uuid = 0;
   var noop = function () {};
   var hasTouchEvents = 'ontouchstart' in document.documentElement;
+  var hasPointerEvents = 'onpointerdown' in document.documentElement;
   var touchedItemsCount = 0;
   var instancesCount = 0;
   var docTouchStart;

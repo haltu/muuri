@@ -1,5 +1,5 @@
 /*!
-Muuri v0.1.0-nightly
+Muuri v0.1.0-beta
 Copyright (c) 2015, Haltu Oy
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -21,32 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-/*
-
-TODO - CRITICAL
-***************
-- Find a way to get the "offsetDiff" without mezr using already existing data.
-- Inline element dimension getter functions.
-- Account for fixed elements that do not attach themselves to window but the
-  closest transformed element when calculating offsets and scrollparents.
-- Test the dragging / scrolling experience on multiple devices and make fixes
-  as required.
-
-TODO - NICE TO HAVE
-*******************
-- Review the docs and the inline jsdocs and make sure they match.
-- Pretty demo site.
-- Check if animation perf can be improved. For example animate only elements
-  which will be visible in the viewport's current position at some point of
-  their animation. Other elements could be just snapped to place. This could
-  be an optional feature since there is the possibility that user scrolls
-  while the animation is running which would not look right for the user.
-- Enforce and validate a specific coding style.
-- Smarter overlap algorithm that takes into account the drad direction and
-  possibly also velocity.
-
-*/
-
 (function (global, factory) {
 
   var libName = 'Muuri';
@@ -64,6 +38,11 @@ TODO - NICE TO HAVE
 
   var uuid = 0;
   var noop = function () {};
+  var hasTouchEvents = 'ontouchstart' in document.documentElement;
+  var touchedItemsCount = 0;
+  var instancesCount = 0;
+  var docTouchStart;
+  var docTouchMove;
 
   // Events.
   var evRefresh = 'refresh';
@@ -205,6 +184,12 @@ TODO - NICE TO HAVE
 
     // Merge user settings with default settings.
     var stn = inst._settings = mergeObjects({}, Muuri.defaultSettings, settings || {});
+
+    // Increase the generic instances counter and init "disable pull to refresh"
+    // functionality if this is the first instance.
+    if (hasTouchEvents && ++instancesCount === 1) {
+      bindDPTR();
+    }
 
     // Unique animation queue name.
     inst._animQueue = 'muuri-' + ++uuid;
@@ -903,6 +888,12 @@ TODO - NICE TO HAVE
       }
     }
 
+    // Decrement the generic instances counter and remove "disable pull to
+    // refresh" functionality if this is the last instance.
+    if (hasTouchEvents && --instancesCount === 0) {
+      unbindDPTR();
+    }
+
     // Render the instance unusable -> nullify all Muuri related properties.
     var props = Object.keys(this).concat(Object.keys(Muuri.prototype));
     for (var i = 0; i < props.length; i++) {
@@ -1061,6 +1052,8 @@ TODO - NICE TO HAVE
       time: 0
     }));
 
+    hammer.set({ touchAction: 'pan-y' });
+
     // Setup initial release data.
     inst._resetReleaseData();
 
@@ -1093,6 +1086,14 @@ TODO - NICE TO HAVE
     drag.onScroll = function () {
       inst._onDragScroll();
     };
+
+    // Bind touch start/end/cancel events. Used for keeping track of active
+    // item touches.
+    if (hasTouchEvents) {
+      inst._element.addEventListener('touchstart', inst._onTouchStart, false);
+      inst._element.addEventListener('touchend', inst._onTouchEnd, false);
+      inst._element.addEventListener('touchcancel', inst._onTouchCancel, false);
+    }
 
     // Bind drag events.
     hammer
@@ -1163,6 +1164,42 @@ TODO - NICE TO HAVE
     // and it's original container.
     drag.containerDiffX = 0;
     drag.containerDiffY = 0;
+
+  };
+
+  /**
+   * Touch start handler.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._onTouchStart = function (e) {
+
+    ++touchedItemsCount;
+
+  };
+
+  /**
+   * Touch end handler.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._onTouchEnd = function (e) {
+
+    --touchedItemsCount;
+
+  };
+
+  /**
+   * Touch cancel handler.
+   *
+   * @protected
+   * @memberof Muuri.Item.prototype
+   */
+  Muuri.Item.prototype._onTouchCancel = function (e) {
+
+    --touchedItemsCount;
 
   };
 
@@ -1962,6 +1999,17 @@ TODO - NICE TO HAVE
       this._resetReleaseData();
     }
 
+    // If browser has touch events and dragging is enabled remove the touch
+    // listeners and also adjust the touched items count.
+    if (hasTouchEvents && this._hammer) {
+      if (this._drag.active) {
+        --touchedItemsCount;
+      }
+      element.removeEventListener('touchstart', this._onTouchStart);
+      element.removeEventListener('touchend', this._onTouchEnd);
+      element.removeEventListener('touchcancel', this._onTouchCancel);
+    }
+
     // If item is being dragged, stop it gracefully.
     if (this._drag.active) {
       if (element.parentNode !== this._muuri._element) {
@@ -1970,9 +2018,18 @@ TODO - NICE TO HAVE
       this._resetDrag();
     }
 
+    // Destroy Hammer instance and custom touch listeners.
+    if (this._hammer) {
+      this._hammer.destroy();
+    }
+
     // Remove all inline styles.
     element.removeAttribute('style');
     this._child.removeAttribute('style');
+
+    // Handle visibility callback queue, fire all uncompleted callbacks with
+    // interrupted flag.
+    processQueue(this._peekabooQueue, true, this);
 
     // Remove Muuri specific classes.
     removeClass(element, stn.positioningClass);
@@ -1981,15 +2038,6 @@ TODO - NICE TO HAVE
     removeClass(element, stn.itemClass);
     removeClass(element, stn.shownClass);
     removeClass(element, stn.hiddenClass);
-
-    // Handle visibility callback queue, fire all uncompleted callbacks with
-    // interrupted flag.
-    processQueue(this._peekabooQueue, true, this);
-
-    // Destroy Hammer instance if it exists.
-    if (this._hammer) {
-      this._hammer.destroy();
-    }
 
     // Remove item from Muuri instance if it still exists there.
     if (index > -1) {
@@ -2584,6 +2632,8 @@ TODO - NICE TO HAVE
    */
   function dragPredicate(e, item, resolvePredicate, predicateData) {
 
+    // TODO: Cancel if scrolling is detected...
+
     // Cancel timeout if it's still running and we are at the end of the flow.
     if (predicateData.timeout && (e.type === 'dragend' || e.type === 'dragcancel' || e.type === 'draginitup')) {
       predicateData.timeout = global.clearTimeout(predicateData.timeout)
@@ -2821,6 +2871,60 @@ TODO - NICE TO HAVE
     for (var i = 0, len = snapshot.length; i < len; i++) {
       snapshot[i](interrupted, instance);
     }
+
+  }
+
+  /**
+   * Disable pull to refresh functionality init.
+   *
+   * @private
+   */
+  function bindDPTR() {
+
+    var maybe = false;
+    var lastTouchY = 0;
+
+    docTouchStart = function (e) {
+
+      lastTouchY = e.touches[0].clientY;
+      maybe = touchedItemsCount && window.pageYOffset == 0;
+
+    };
+
+    docTouchMove = function (e) {
+
+      var touchY = e.touches[0].clientY;
+      var touchYDelta = touchY - lastTouchY;
+
+      lastTouchY = touchY;
+
+      if (maybe) {
+        maybe = false;
+        if (touchYDelta > 0) {
+          e.preventDefault();
+          return;
+        }
+      }
+
+    };
+
+    document.addEventListener('touchstart', docTouchStart, false);
+    document.addEventListener('touchmove', docTouchMove, false);
+
+  }
+
+
+  /**
+   * Disable pull to refresh functionality teardown.
+   *
+   * @private
+   */
+  function unbindDPTR () {
+
+    document.removeEventListener('touchstart', docTouchStart);
+    document.addEventListener('touchmove', docTouchMove);
+    docTouchStart = null;
+    docTouchMov = null;
 
   }
 

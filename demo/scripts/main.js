@@ -4,7 +4,14 @@ palikka
   return window[this.id];
 
 })
-.define('demo', ['jQuery'], function ($) {
+.define('docReady', ['jQuery'], function ($) {
+
+  return palikka.defer(function (resolve) {
+    $(resolve);
+  });
+
+})
+.define('demo', ['jQuery',  'docReady'], function ($) {
 
   var m = {};
   var $grid = $('.grid');
@@ -174,5 +181,8 @@ palikka
   }
 
   return m.init();
+
+})
+.require(['jQuery', 'docReady'], function ($) {
 
 });

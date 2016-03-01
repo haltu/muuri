@@ -1,13 +1,25 @@
 <!doctype html>
 <html>
+
   <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>muuri demo</title>
+    <title>Muuri - A dynamic grid layout with built-in support for dragging and dropping grid items.</title>
     <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
-    <link rel="stylesheet" href="styles/index.css">
+    <link rel="stylesheet" href="styles/normalize.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <link href='https://fonts.googleapis.com/css?family=Fira+Sans:400,300,300italic,400italic,500,500italic,700,700italic' rel='stylesheet' type='text/css'>
   </head>
+
   <body>
+
+  <div class="splash">
+
+    <div class="muuri-logo">
+    </div>
+
+  </div>
+
     <div class="controls">
       <div class="group">
         <button id="init">Init</button>
@@ -27,6 +39,7 @@
         <button id="sync-elements">Sync Elements</button>
       </div>
     </div>
+
     <div class="grid">
       <div class="item"><div class="item-content"><div class="item-stuff">A</div></div></div>
       <div class="item w2"><div class="item-content"><div class="item-stuff">B</div></div></div>
@@ -55,160 +68,15 @@
       <div class="item"><div class="item-content"><div class="item-stuff">Y</div></div></div>
       <div class="item"><div class="item-content"><div class="item-stuff">Z</div></div></div>
     </div>
+
     <script src="scripts/jquery.js"></script>
     <script src="scripts/lodash.js"></script>
     <script src="scripts/mezr.js"></script>
-    <script src="scripts/jvent.js"></script>
     <script src="scripts/velocity.js"></script>
     <script src="scripts/hammer.js"></script>
-    <script src="scripts/random-color.js"></script>
     <script src="../muuri.js"></script>
-    <script>
+    <script src="scripts/main.js"></script>
 
-      var grid;
-
-      function generateAlphabet() {
-
-        var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        return possible.charAt(Math.floor(Math.random() * possible.length));
-
-      }
-
-      function generateElements(amount) {
-
-        var ret = [];
-
-        for (var i = 0, len = amount || 1; i < amount; i++) {
-
-          var stuffDiv = document.createElement('div');
-          stuffDiv.setAttribute('class', 'item-stuff');
-          stuffDiv.appendChild(document.createTextNode(generateAlphabet()));
-          stuffDiv.style.backgroundColor = randomColor();
-
-          var innerDiv = document.createElement('div');
-          innerDiv.setAttribute('class', 'item-content');
-          innerDiv.appendChild(stuffDiv);
-
-          var outerDiv = document.createElement('div');
-          var width = Math.floor(Math.random() * 2) + 1;
-          var height = Math.floor(Math.random() * 2) + 1;
-          outerDiv.setAttribute('class', 'item h' + height + ' w' + width);
-          outerDiv.appendChild(innerDiv);
-
-          ret.push(outerDiv);
-
-        }
-
-        return ret;
-
-      }
-
-      function init() {
-
-        if (grid) {
-          grid.destroy();
-        }
-
-        // Colorize tiles.
-        $('.item-stuff').each(function () {
-          $(this).css('background-color', randomColor());
-        });
-
-        grid = new Muuri({
-          container: document.getElementsByClassName('grid')[0],
-          items: document.getElementsByClassName('item')
-        });
-
-      }
-
-      function destroy() {
-
-        grid.destroy();
-        grid = null;
-
-      }
-
-      function show() {
-
-        var items = _(grid.get()).filter(function (item) {
-          return !item._active;
-        }).sample(5).value();
-
-        grid.show(items, function () {
-          console.log('CALLBACK: Show ' + items.length + ' items');
-        });
-
-      }
-
-      function hide() {
-
-        var items = _(grid.get()).filter(function (item) {
-          return item._active;
-        }).sample(5).value();
-
-        grid.hide(items, function () {
-          console.log('CALLBACK: Hide ' + items.length + ' items');
-        });
-
-      }
-
-      function add() {
-
-        var items = generateElements(5);
-
-        items.forEach(function (item) {
-          item.style.display = 'none';
-        });
-
-        grid.show(grid.add(items), function (items) {
-          console.log('CALLBACK: Added ' + items.length + ' items');
-        });
-
-      }
-
-      function remove() {
-
-        var items = _(grid.get()).filter(function (item) {
-          return item._active;
-        }).sample(5).value();
-
-        grid.hide(items, function (items) {
-          grid.remove(items, true);
-          console.log('CALLBACK: Removed ' + items.length + ' items');
-        });
-
-      }
-
-      function layout() {
-
-        grid.layout(function () {
-          console.log('CALLBACK: Layout');
-        });
-
-      }
-
-      function refresh() {
-
-        grid.refresh();
-
-      }
-
-      function syncElements() {
-
-        grid.synchronize();
-
-      }
-
-      $('#init').on('click', init);
-      $('#destroy').on('click', destroy);
-      $('#show').on('click', show);
-      $('#hide').on('click', hide);
-      $('#add').on('click', add);
-      $('#remove').on('click', remove);
-      $('#refresh').on('click', refresh);
-      $('#layout').on('click', layout);
-      $('#sync-elements').on('click', syncElements);
-
-    </script>
   </body>
+
 </html>

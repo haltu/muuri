@@ -22,19 +22,29 @@ SOFTWARE.
 */
 
 /*
-TODO
-****
+
+TODO - CRITICAL
+***************
+- Find a way to get the "offsetDiff" without mezr using already existing data.
+- Inline element dimension getter functions.
+- Account for fixed elements that do not attach themselves to window but the
+  closest transformed element when calculating offsets and scrollparents.
 - Test the dragging / scrolling experience on multiple devices and make fixes
-  as required. VERY IMPORTANT!!!
-- Allow doing an instant show/hide.
-- Make sure there is no unnecessary looping of items occuring internally.
-- Get rid of Mezr dependency.
+  as required.
+
+TODO - NICE TO HAVE
+*******************
+- Review the docs and the inline jsdocs and make sure they match.
+- Pretty demo site.
 - Check if animation perf can be improved. For example animate only elements
   which will be visible in the viewport's current position at some point of
   their animation. Other elements could be just snapped to place. This could
   be an optional feature since there is the possibility that user scrolls
   while the animation is running which would not look right for the user.
 - Enforce and validate a specific coding style.
+- Smarter overlap algorithm that takes into account the drad direction and
+  possibly also velocity.
+
 */
 
 (function (global, factory) {
@@ -54,13 +64,13 @@ TODO
 
   var uuid = 0;
   var noop = function () {};
+
+  // Events.
   var evRefresh = 'refresh';
   var evSynchronize = 'synchronize';
   var evLayoutStart = 'layoutstart';
   var evLayoutEnd = 'layoutend';
   var evShowStart = 'showstart';
-  var evPositionStart = 'positionstart';
-  var evPositionEnd = 'positionend';
   var evShowEnd = 'showend';
   var evHideStart = 'hidestart';
   var evHideEnd = 'hideend';
@@ -211,9 +221,9 @@ TODO
     inst._itemHide = typeof stn.hide === 'function' ? stn.hide() : showHideAnimation(stn.hide);
 
     // Setup initial items.
-    inst.items = [];
+    inst._items = [];
     for (var i = 0, len = stn.items.length; i < len; i++) {
-      inst.items[inst.items.length] = new Muuri.Item(inst, stn.items[i]);
+      inst._items[inst._items.length] = new Muuri.Item(inst, stn.items[i]);
     }
 
     // Relayout on window resize if enabled.
@@ -230,7 +240,7 @@ TODO
 
     // Layout on init if enabled.
     if (stn.layoutOnInit) {
-      inst.layout(false);
+      inst.layout(true);
     }
 
   }
@@ -243,14 +253,14 @@ TODO
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Number|HTMLElement|Muuri.Item} [target=0]
+   * @param {HTMLElement|Muuri.Item|Number} [target=0]
    * @returns {!Muuri.Item}
    */
   Muuri.prototype._getItem = function (target) {
 
     if (!target) {
 
-      return this.items[0] || null;
+      return this._items[0] || null;
 
     }
     else if (target instanceof Muuri.Item) {
@@ -260,16 +270,16 @@ TODO
     }
     else if (typeof target === 'number') {
 
-      return this.items[target] || null;
+      return this._items[target] || null;
 
     }
     else {
 
       var ret = null;
 
-      for (var i = 0, len = this.items.length; i < len; i++) {
+      for (var i = 0, len = this._items.length; i < len; i++) {
 
-        var item = this.items[i];
+        var item = this._items[i];
 
         if (item._element === target) {
           ret = item;
@@ -281,29 +291,6 @@ TODO
       return ret;
 
     }
-
-  };
-
-  /**
-   * Return an array of visible items in correct order.
-   *
-   * @protected
-   * @memberof Muuri.prototype
-   * @returns {Array}
-   */
-  Muuri.prototype._getActiveItems = function () {
-
-    var ret = [];
-    var items = this.items;
-
-    for (var i = 0, len = items.length; i < len; i++) {
-      var item = items[i];
-      if (item._active) {
-        ret[ret.length] = item;
-      }
-    }
-
-    return ret;
 
   };
 
@@ -388,7 +375,7 @@ TODO
    */
   Muuri.prototype._generateLayout = function (items) {
 
-    items = items || this._getActiveItems();
+    items = items || this.get('active');
 
     var slots = [];
     var fillWidth = 0;
@@ -469,17 +456,17 @@ TODO
   };
 
   /**
-   * Refresh Muuri instance's items' dimensions and recalculate minimum row
-   * height and column width.
+   * Recalculate the width and height of the provided targets. If no targets are
+   * provided all active items will be refreshed.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|Number|Element|Muuri.Item} items
+   * @param {Array|HTMLElement|Muuri.Item|Number} [items]
    */
   Muuri.prototype.refresh = function (items) {
 
     // Get items.
-    items = items ? this.get(items) : this._getActiveItems();
+    items = items ? this.get(items) : this.get('active');
 
     // Refresh dimensions.
     for (var i = 0, len = items.length; i < len; i++) {
@@ -492,44 +479,63 @@ TODO
   };
 
   /**
-   * Get instance's items that match the provided targets. If no elements are
-   * provided returns all Muuri's items. Note that the returned array is not the
-   * same object used by the instance so modifying it will not affect instance's
-   * items.
+   * Get all items. Optionally you can provide specific targets (indices or
+   * elements) and filter the results by the items' state (active/inactive).
+   * Note that the returned array is not the same object used by the instance so
+   * modifying it will not affect instance's items. All items that are not found
+   * are omitted from the returned array.
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|Number|HTMLElement|Muuri.Item} [targets]
+   * @param {Array|HTMLElement|Muuri.Item|Number} [targets]
+   * @param {String} [filter]
    * @returns {Array} Array of Muuri item instances.
    */
-  Muuri.prototype.get = function (targets) {
+  Muuri.prototype.get = function (targets, filter) {
 
-    // Return clone of all items instantly if no elements are provided.
-    if (!targets) {
-      return this.items.concat();
-    }
+    var hasTargets = targets && typeof targets !== 'string';
 
-    var items = [];
-    targets = [].concat(targets);
+    filter = !hasTargets ? targets : filter;
+    filter = typeof filter === 'string' ? filter : null;
+    targets = hasTargets ? [].concat(targets) : null;
 
-    for (var i = 0, len = targets.length; i < len; i++) {
+    if (filter || targets) {
 
-      var item = this._getItem(targets[i]);
+      var items = targets || this._items;
+      var ret = [];
+      var isActive = filter === 'active';
+      var isInactive = filter === 'inactive';
 
-      if (item) {
-        items[items.length] = item;
+      for (var i = 0, len = items.length; i < len; i++) {
+        var item = hasTargets ? this._getItem(items[i]) : items[i];
+        if (item && (!filter || (isActive && item._active) || (isInactive && !item._active))) {
+          ret[ret.length] = item;
+        }
       }
 
-    }
+      return ret;
 
-    return items;
+    }
+    else {
+
+      return this._items.concat();
+
+    }
 
   };
 
   /**
-   * Register DOM elements as Muuri items. Returns the new items that were
-   * registered. All items that are not already children of the container
-   * element will be automatically appended to the container.
+   * Add new items by providing the elements you wish to add to the instance and
+   * optionally provide the index where you want the items to be inserted into.
+   * All elements that are not already children of the container element will be
+   * automatically appended to the container. If an element has it's CSS display
+   * property set to none it will be marked as inactive during the initiation
+   * process. As long as the item is inactive it will not be part of the layout,
+   * but it will retain it's index. You can activate items at any point
+   * with muuri.show() method. This method will automatically call
+   * muuri.layout() if one or more of the added elements are visible. If only
+   * hidden items are added no layout will be called. All the new visible items
+   * are positioned without animation during their first layout.
    *
    * @public
    * @memberof Muuri.prototype
@@ -540,14 +546,14 @@ TODO
   Muuri.prototype.add = function (elements, index) {
 
     var newItems = [];
-    var needsRefresh = false;
+    var needsRelayout = false;
 
     // Make sure elements is an array.
     elements = [].concat(elements);
 
     // Filter out all elements that exist already in current instance.
-    for (var i = 0, len = this.items.length; i < len; i++) {
-      var item = this.items[i];
+    for (var i = 0, len = this._items.length; i < len; i++) {
+      var item = this._items[i];
       var index = elements.indexOf(item._element);
       if (index > -1) {
         elements.splice(index, 1);
@@ -564,21 +570,20 @@ TODO
       var item = new Muuri.Item(this, elements[i]);
       newItems[newItems.length] = item;
       if (item._active) {
-        needsRefresh = true;
+        needsRelayout = true;
         item._noLayoutAnimation = true;
       }
     }
 
     // Normalize the index for the splice apply hackery so that value of -1
     // prepends the new items to the current items.
-    index = index < 0 ? this.items.length - index + 1 : index;
+    index = index < 0 ? this._items.length - index + 1 : index;
 
     // Add the new items to the items collection to correct index.
-    this.items.splice.apply(this.items, [index, 0].concat(newItems));
+    this._items.splice.apply(this._items, [index, 0].concat(newItems));
 
-    // If refresh is needed.
-    if (needsRefresh) {
-      this.refresh();
+    // If relayout is needed.
+    if (needsRelayout) {
       this.layout();
     }
 
@@ -595,14 +600,14 @@ TODO
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|Number|HTMLElement|Muuri.Item} items
+   * @param {Array|HTMLElement|Muuri.Item|Number} items
    * @param {Boolean} [removeElement=false]
    * @returns {Array} The indices of removed items.
    */
   Muuri.prototype.remove = function (items, removeElement) {
 
     var indices = [];
-    var needsRefresh = false;
+    var needsRelayout = false;
 
     items = this.get(items);
 
@@ -612,7 +617,7 @@ TODO
 
       // Check it refresh is needed.
       if (item._active) {
-        needsRefresh = true;
+        needsRelayout = true;
       }
 
       // Remove item.
@@ -620,9 +625,8 @@ TODO
 
     }
 
-    // If refresh is needed.
-    if (needsRefresh) {
-      this.refresh();
+    // If relayout is needed.
+    if (needsRelayout) {
       this.layout();
     }
 
@@ -634,15 +638,17 @@ TODO
 
   /**
    * Order the item elements to match the order of the items. If the item's
-   * element is not a child of the container is ignored and left untouched.
+   * element is not a child of the container it is ignored and left untouched.
+   * This comes handy if you need to keep the DOM structure matched with the
+   * order of the items.
    *
    * @public
    * @memberof Muuri.prototype
    */
   Muuri.prototype.synchronize = function () {
 
-    for (var i = 0, len = this.items.length; i < len; i++) {
-      var item = this.items[i];
+    for (var i = 0, len = this._items.length; i < len; i++) {
+      var item = this._items[i];
       if (item._element.parentNode === this._element) {
         this._element.appendChild(item._element);
       }
@@ -657,32 +663,38 @@ TODO
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Boolean} [animate=true]
+   * @param {Boolean} [instant=false]
    * @param {Function} [callback]
    */
-  Muuri.prototype.layout = function (animate, callback) {
+  Muuri.prototype.layout = function (instant, callback) {
 
     var inst = this;
     var emitter = inst._emitter;
-    var callback = typeof animate === 'boolean' ? callback : animate;
-    var animEnabled = animate === false ? false : true;
+    var callback = typeof instant === 'function' ? instant : callback;
+    var isInstant = instant === true;
     var animDuration = inst._settings.containerDuration;
     var animEasing = inst._settings.containerEasing;
     var layout = inst._generateLayout();
     var counter = -1;
     var itemsLength = layout.items.length;
-    var tryFinish = function () {
+    var completed = [];
+    var tryFinish = function (interrupted, item) {
+
+      // Push all items to the completed items array which were not interrupted.
+      if (!interrupted) {
+        completed[completed.length] = item;
+      }
 
       // If container and all items have finished their animations (if any).
       if (++counter === itemsLength) {
 
         // Call callback.
         if (typeof callback === 'function') {
-          callback(inst);
+          callback(completed, layout);
         }
 
         // Emit layoutend event.
-        emitter.emit(evLayoutEnd);
+        emitter.emit(evLayoutEnd, completed, layout);
 
       }
 
@@ -692,52 +704,55 @@ TODO
     Velocity(inst._element, 'stop', inst._animQueue);
 
     // Emit layoutstart event.
-    emitter.emit(evLayoutStart);
+    emitter.emit(evLayoutStart, layout.items, layout);
 
-    // If container's current inline height matches the target height, let's
-    // skip manipulating the DOM.
-    if (parseFloat(inst._element.style.height) === layout.fillHeight) {
+    // If container's current inline height does not match the target height,
+    // let's adjust it's size.
+    if (parseFloat(inst._element.style.height) !== layout.fillHeight) {
 
-      tryFinish();
+      // If container animations are enabled let's animate.
+      if (!isInstant && animDuration > 0) {
+
+        Velocity(inst._element, {height: layout.fillHeight}, {
+          duration: animDuration,
+          easing: animEasing,
+          queue: inst._animQueue
+        });
+
+        Velocity.Utilities.dequeue(inst._element, inst._animQueue);
+
+      }
+      // Otherwise let's just set the height.
+      else {
+
+        setStyles(inst._element, {
+          height: layout.fillHeight + 'px'
+        });
+
+      }
 
     }
 
-    // Otherwise if container animations are enabled let's make it happen.
-    else if (animEnabled && animDuration > 0) {
+    if (!itemsLength) {
 
-      Velocity(inst._element, {height: layout.fillHeight}, {
-        duration: animDuration,
-        easing: animEasing,
-        complete: tryFinish,
-        queue: inst._animQueue
-      });
-
-      Velocity.Utilities.dequeue(inst._element, inst._animQueue);
+      tryFinish(true);
 
     }
-
-    // In all other cases just set the height.
     else {
 
-      setStyles(inst._element, {
-        height: layout.fillHeight + 'px'
-      });
+      // Position items.
+      for (var i = 0, len = layout.items.length; i < len; i++) {
 
-      tryFinish();
+        var item = layout.items[i];
 
-    }
+        // Update item's position.
+        item._left = layout.slots[i].left;
+        item._top = layout.slots[i].top;
 
-    // Position items.
-    for (var i = 0, len = layout.items.length; i < len; i++) {
+        // Layout non-dragged items.
+        item._drag.active ? tryFinish(false, item) : item._layout(isInstant, tryFinish);
 
-      var item = layout.items[i];
-
-      // Update item's position.
-      item._left = layout.slots[i].left;
-      item._top = layout.slots[i].top;
-
-      // Layout non-dragged items.
-      item._drag.active ? tryFinish() : item._layout(animEnabled, tryFinish);
+      }
 
     }
 
@@ -748,12 +763,13 @@ TODO
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|Number|HTMLElement|Muuri.Item} items
+   * @param {Array|HTMLElement|Muuri.Item|Number} items
+   * @param {Boolean} [instant=false]
    * @param {Function} [callback]
    */
-  Muuri.prototype.show = function (items, callback) {
+  Muuri.prototype.show = function (items, instant, callback) {
 
-    showHideHandler(this, 'show', items, callback);
+    showHideHandler(this, 'show', items, instant, callback);
 
   };
 
@@ -762,12 +778,13 @@ TODO
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|Number|HTMLElement|Muuri.Item} items
+   * @param {Array|HTMLElement|Muuri.Item|Number} items
+   * @param {Boolean} [instant=false]
    * @param {Function} [callback]
    */
-  Muuri.prototype.hide = function (items, callback) {
+  Muuri.prototype.hide = function (items, instant, callback) {
 
-    showHideHandler(this, 'hide', items, callback);
+    showHideHandler(this, 'hide', items, instant, callback);
 
   };
 
@@ -776,27 +793,27 @@ TODO
    *
    * @public
    * @memberof Muuri.Item.prototype
-   * @param {Number|Element|Muuri.Item} item
+   * @param {HTMLElement|Muuri.Item|Number} item
    * @returns {Number}
    */
   Muuri.prototype.indexOf = function (item) {
 
     if (typeof item === 'number') {
 
-      return item <= (this.items.length - 1) ? item : null;
+      return item <= (this._items.length - 1) ? item : null;
 
     }
     else if (item instanceof Muuri.Item) {
 
-      var index = this.items.indexOf(item);
+      var index = this._items.indexOf(item);
       return index > -1 ? index : null;
 
     }
     else {
 
       var index = null;
-      for (var i = 0, len = this.items.length; i < len; i++) {
-        if (inst.items[i]._element === item) {
+      for (var i = 0, len = this._items.length; i < len; i++) {
+        if (this._items[i]._element === item) {
           index = i;
           break;
         }
@@ -812,17 +829,17 @@ TODO
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Number|Element|Muuri.Item} item
-   * @param {Number|Element|Muuri.Item} target
+   * @param {HTMLElement|Muuri.Item|Number} targetFrom
+   * @param {HTMLElement|Muuri.Item|Number} targetTo
    */
-  Muuri.prototype.move = function (item, target) {
+  Muuri.prototype.move = function (targetFrom, targetTo) {
 
-    item = this._getItem(item);
-    target = this._getItem(target);
+    targetFrom = this._getItem(targetFrom);
+    targetTo = this._getItem(targetTo);
 
-    if (item && target && (item !== target)) {
-      arrayMove(this.items, this.items.indexOf(item), this.items.indexOf(target));
-      this._emitter.emit(evMove, item, target);
+    if (targetFrom && targetTo && (targetFrom !== targetTo)) {
+      arrayMove(this._items, this._items.indexOf(targetFrom), this._items.indexOf(targetTo));
+      this._emitter.emit(evMove, targetFrom, targetTo);
     }
 
   };
@@ -832,23 +849,23 @@ TODO
    *
    * @public
    * @memberof Muuri.Item.prototype
-   * @param {Number|Element|Muuri.Item} item
-   * @param {Number|Element|Muuri.Item} target
+   * @param {HTMLElement|Muuri.Item|Number} targetA
+   * @param {HTMLElement|Muuri.Item|Number} targetB
    */
-  Muuri.prototype.swap = function (item, target) {
+  Muuri.prototype.swap = function (targetA, targetB) {
 
-    item = this._getItem(item);
-    target = this._getItem(target);
+    targetA = this._getItem(targetA);
+    targetB = this._getItem(targetB);
 
-    if (item && target && (item !== target)) {
-      arraySwap(this.items, this.items.indexOf(item), this.items.indexOf(target));
-      this._emitter.emit(evSwap, item, target);
+    if (targetA && targetB && (targetA !== targetB)) {
+      arraySwap(this._items, this._items.indexOf(targetA), this._items.indexOf(targetB));
+      this._emitter.emit(evSwap, targetA, targetB);
     }
 
   };
 
   /**
-   * Destroy Muuri instance.
+   * Destroy the instance.
    *
    * @public
    * @memberof Muuri.prototype
@@ -861,7 +878,7 @@ TODO
     }
 
     // Destroy items.
-    var items = this.items.concat();
+    var items = this._items.concat();
     for (var i = 0, len = items.length; i < len; i++) {
       items[i]._destroy();
     }
@@ -943,6 +960,13 @@ TODO
     // argument as false if the animation succeeded without interruptions and
     // with the first argument as true if the animation was interrupted.
     this._peekabooQueue = [];
+
+    // Layout animation callback queue. Whenever a callback is provided for
+    // layout method and animation is enabled the callback is stored temporarily
+    // to this array. The callbacks are called with the first argument as false
+    // if the animation succeeded without interruptions and with the first
+    // argument as true if the animation was interrupted.
+    this._layoutQueue = [];
 
     // Set element's initial position.
     hookStyles(this._element, {
@@ -1114,6 +1138,9 @@ TODO
     drag.elemWidth = 0;
     drag.elemHeight = 0;
 
+    // Dragged element's inline styles stored for graceful teardown.
+    drag.elementStyles = null;
+
     // Scroll parents of the dragged element and muuri container.
     drag.scrollParents = [];
 
@@ -1148,6 +1175,7 @@ TODO
     var drag = this._drag;
     var emitter = this._muuri._emitter;
     var stn = this._muuri._settings;
+    var isReleased = this._release.active;
 
     // If item is not active, don't start the drag.
     if (!this._active) {
@@ -1159,8 +1187,10 @@ TODO
       this._stopLayout();
     }
 
-    // Reset release data and remove release class if item is being released.
-    if (this._release.active) {
+    // If item is being released reset release data, remove release class and
+    // import the current elementStyles to drag object.
+    if (isReleased) {
+      drag.elementStyles = this._release.elementStyles;
       removeClass(this._element, stn.releasingClass);
       this._resetReleaseData();
     }
@@ -1212,10 +1242,11 @@ TODO
       // If dragged element is not within the correct container.
       else {
 
-        // TODO: Set element's inline width and height before appending since
-        // otherwise it might enlarge or shrink after append procedure,
-        // especially if the element's widht/height is defined in relative
-        // units (% or em).
+        // Lock element's width, height, padding and margin before appending
+        // to the temporary container because otherwise the element might
+        // enlarge or shrink after the append procedure if the some of the
+        // properties are defined in relative sizes.
+        lockElementSize(drag);
 
         // Append element into correct container.
         dragContainer.appendChild(drag.element);
@@ -1262,7 +1293,7 @@ TODO
     addClass(drag.element, stn.draggingClass);
 
     // Emit item-dragstart event.
-    emitter.emit(evDragStart, this);
+    emitter.emit(evDragStart, this, parseDragEventData(drag));
 
   };
 
@@ -1311,7 +1342,7 @@ TODO
     }
 
     // Emit item-dragmove event.
-    emitter.emit(evDragMove, this);
+    emitter.emit(evDragMove, this, parseDragEventData(drag));
 
   };
 
@@ -1372,7 +1403,7 @@ TODO
     }
 
     // Emit item-dragscroll event.
-    emitter.emit(evDragScroll, this);
+    emitter.emit(evDragScroll, this, parseDragEventData(drag));
 
   };
 
@@ -1412,12 +1443,13 @@ TODO
     drag.active = false;
 
     // Emit item-dragend event.
-    emitter.emit(evDragEnd, this);
+    emitter.emit(evDragEnd, this, parseDragEventData(drag));
 
     // Setup release data.
     release.containerDiffX = drag.containerDiffX;
     release.containerDiffY = drag.containerDiffY;
     release.element = drag.element;
+    release.elementStyles = drag.elementStyles;
 
     // Reset drag data.
     this._resetDragData();
@@ -1444,6 +1476,7 @@ TODO
 
     drag.checkOverlap('cancel');
     removeClass(drag.element, stn.draggingClass);
+    unlockElementSize(drag);
     this._resetDragData();
 
   };
@@ -1463,6 +1496,7 @@ TODO
     release.containerDiffX = 0;
     release.containerDiffY = 0;
     release.element = null;
+    release.elementStyles = null;
 
   };
 
@@ -1474,7 +1508,6 @@ TODO
    */
   Muuri.Item.prototype._startRelease = function () {
 
-    var emitter = this._muuri._emitter;
     var stn = this._muuri._settings;
     var release = this._release;
 
@@ -1484,11 +1517,11 @@ TODO
     // Add release classname to released element.
     addClass(release.element, stn.releasingClass);
 
-    // Emit item-releasestart event.
-    emitter.emit(evReleaseStart, this);
+    // Emit releasestart event.
+    this._muuri._emitter.emit(evReleaseStart, this);
 
     // Position the released item.
-    this._layout();
+    this._layout(false);
 
   };
 
@@ -1500,7 +1533,6 @@ TODO
    */
   Muuri.Item.prototype._endRelease = function () {
 
-    var emitter = this._muuri._emitter;
     var stn = this._muuri._settings;
     var release = this._release;
 
@@ -1517,11 +1549,14 @@ TODO
       });
     }
 
+    // Unlock temporary inlined styles.
+    unlockElementSize(release);
+
     // Reset release data.
     this._resetReleaseData();
 
-    // Emit item-releaseend event.
-    emitter.emit(evReleaseEnd, this);
+    // Emit releaseend event.
+    this._muuri._emitter.emit(evReleaseEnd, this);
 
   };
 
@@ -1537,7 +1572,7 @@ TODO
     var stn = this._muuri._settings;
     var overlapTolerance = stn.dragOverlapTolerance;
     var overlapAction = stn.dragOverlapAction;
-    var items = this._muuri.items;
+    var items = this._muuri._items;
     var bestMatch = null;
     var instIndex = 0;
     var instData = {
@@ -1606,6 +1641,9 @@ TODO
       // Reset state.
       this._positioning = false;
 
+      // Process callback queue.
+      processQueue(this._layoutQueue, true, this);
+
     }
 
   };
@@ -1630,20 +1668,19 @@ TODO
    *
    * @public
    * @memberof Muuri.Item.prototype
-   * @param {Boolean} [animate=true] Should we animate the positioning?
+   * @param {Boolean} instant
    * @param {Function} [callback]
    */
-  Muuri.Item.prototype._layout = function (animate, callback) {
+  Muuri.Item.prototype._layout = function (instant, callback) {
 
     var inst = this;
     var stn = inst._muuri._settings;
-    var callback = typeof animate === 'boolean' ? callback : animate;
     var emitter = inst._muuri._emitter;
     var release = inst._release;
     var isJustReleased = release.active && release.positioningStarted === false;
     var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.positionDuration;
     var animEasing = isJustReleased ? stn.dragReleaseEasing : stn.positionEasing;
-    var animEnabled = animate === false || inst._noLayoutAnimation ? false : animDuration > 0;
+    var animEnabled = instant === true || inst._noLayoutAnimation ? false : animDuration > 0;
     var isPositioning = inst._positioning;
     var finish = function () {
 
@@ -1658,21 +1695,18 @@ TODO
         inst._endRelease();
       }
 
-      // Call the callback.
-      if (typeof callback === 'function') {
-        callback(inst);
-      }
-
-      // Emit item-positionend event.
-      emitter.emit(evPositionEnd, inst);
+      // Process the callback queue.
+      processQueue(inst._layoutQueue, false, inst);
 
     };
 
-    // Emit item-positionstart event.
-    emitter.emit(evPositionStart, inst);
-
     // Stop currently running animation, if any.
     inst._stopLayout();
+
+    // Push the callback to the callback queue.
+    if (typeof callback === 'function') {
+      inst._layoutQueue[inst._layoutQueue.length] = callback;
+    }
 
     // Mark release positiong as started.
     if (isJustReleased) {
@@ -1746,24 +1780,21 @@ TODO
    *
    * @public
    * @memberof Muuri.Item.prototype
-   * @param {Boolean} [animate=true]
+   * @param {Boolean} instant
    * @param {Function} [callback]
    */
-  Muuri.Item.prototype._show = function (animate, callback) {
+  Muuri.Item.prototype._show = function (instant, callback) {
 
     var inst = this;
     var stn = inst._muuri._settings;
     var emitter = inst._muuri._emitter;
-
-    // Allow pasing the callback function also as the first argument.
-    callback = typeof animate === 'function' ? animate : callback;
 
     // If item is visible.
     if (!inst._hidden && !inst._showing) {
 
       // Call the callback and be done with it.
       if (typeof callback === 'function') {
-        callback();
+        callback(false, inst);
       }
 
     }
@@ -1801,7 +1832,7 @@ TODO
       });
 
       // Process current callback queue.
-      processQueue(inst._peekabooQueue, true);
+      processQueue(inst._peekabooQueue, true, inst);
 
       // Update state.
       inst._showing = true;
@@ -1812,10 +1843,10 @@ TODO
       }
 
       // Animate child element.
-      inst._muuri._itemShow.start(inst, animate, function () {
+      inst._muuri._itemShow.start(inst, instant, function () {
 
         // Process callback queue.
-        processQueue(inst._peekabooQueue);
+        processQueue(inst._peekabooQueue, false, inst);
 
       });
 
@@ -1828,24 +1859,21 @@ TODO
    *
    * @public
    * @memberof Muuri.Item.prototype
-   * @param {Boolean} [animate=true]
+   * @param {Boolean} instant
    * @param {Function} [callback]
    */
-  Muuri.Item.prototype._hide = function (animate, callback) {
+  Muuri.Item.prototype._hide = function (instant, callback) {
 
     var inst = this;
     var stn = inst._muuri._settings;
     var emitter = inst._muuri._emitter;
-
-    // Allow pasing the callback function also as the first argument.
-    callback = typeof animate === 'function' ? animate : callback;
 
     // If item is hidden.
     if (inst._hidden && !inst._hiding) {
 
       // Call the callback and be done with it.
       if (typeof callback === 'function') {
-        callback();
+        callback(false, inst);
       }
 
     }
@@ -1878,7 +1906,7 @@ TODO
       removeClass(inst._element, stn.shownClass);
 
       // Process current callback queue.
-      processQueue(inst._peekabooQueue, true);
+      processQueue(inst._peekabooQueue, true, inst);
 
       // Update state.
       inst._hiding = true;
@@ -1889,7 +1917,7 @@ TODO
       }
 
       // Animate child element.
-      inst._muuri._itemHide.start(inst, animate, function () {
+      inst._muuri._itemHide.start(inst, instant, function () {
 
         // Hide element.
         setStyles(inst._element, {
@@ -1897,7 +1925,7 @@ TODO
         });
 
         // Process callback queue.
-        processQueue(inst._peekabooQueue);
+        processQueue(inst._peekabooQueue, false, inst);
 
       });
 
@@ -1916,7 +1944,8 @@ TODO
 
     var muuri = this._muuri;
     var stn = this._muuri._settings;
-    var index = this._muuri.items.indexOf(this);
+    var element = this._element;
+    var index = this._muuri._items.indexOf(this);
 
     // Stop animations.
     this._stopLayout();
@@ -1925,35 +1954,35 @@ TODO
 
     // If item is being released, stop it gracefully.
     if (this._release.active) {
-      if (this._element.parentNode !== this._muuri._element) {
-        this._muuri._element.appendChild(this._element);
+      if (element.parentNode !== this._muuri._element) {
+        this._muuri._element.appendChild(element);
       }
       this._resetReleaseData();
     }
 
     // If item is being dragged, stop it gracefully.
     if (this._drag.active) {
-      if (this._element.parentNode !== this._muuri._element) {
-        this._muuri._element.appendChild(this._element);
+      if (element.parentNode !== this._muuri._element) {
+        this._muuri._element.appendChild(element);
       }
       this._resetDrag();
     }
 
     // Remove all inline styles.
-    this._element.removeAttribute('style');
+    element.removeAttribute('style');
     this._child.removeAttribute('style');
 
     // Remove Muuri specific classes.
-    removeClass(this._element, stn.positioningClass);
-    removeClass(this._element, stn.draggingClass);
-    removeClass(this._element, stn.releasingClass);
-    removeClass(this._element, stn.itemClass);
-    removeClass(this._element, stn.shownClass);
-    removeClass(this._element, stn.hiddenClass);
+    removeClass(element, stn.positioningClass);
+    removeClass(element, stn.draggingClass);
+    removeClass(element, stn.releasingClass);
+    removeClass(element, stn.itemClass);
+    removeClass(element, stn.shownClass);
+    removeClass(element, stn.hiddenClass);
 
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.
-    processQueue(this._peekabooQueue, true);
+    processQueue(this._peekabooQueue, true, this);
 
     // Destroy Hammer instance if it exists.
     if (this._hammer) {
@@ -1962,12 +1991,12 @@ TODO
 
     // Remove item from Muuri instance if it still exists there.
     if (index > -1) {
-      this._muuri.items.splice(index, 1);
+      this._muuri._items.splice(index, 1);
     }
 
     // Remove element from DOM.
     if (removeElement) {
-      this._element.parentNode.removeChild(this._element);
+      element.parentNode.removeChild(element);
     }
 
     // Render the instance unusable -> nullify all Muuri related properties.
@@ -2523,6 +2552,27 @@ TODO
   }
 
   /**
+   * Return parsed drag event data.
+   *
+   * @param {Object} drag
+   * @returns {Object}
+   */
+  function parseDragEventData(drag) {
+
+    return {
+      start: drag.start,
+      move: drag.move,
+      left: drag.left,
+      top: drag.top,
+      gridX: drag.gridX,
+      gridY: drag.gridY,
+      clientX: drag.elemClientX,
+      clientY: drag.elemClientY
+    };
+
+  }
+
+  /**
    * Default drag start predicate handler.
    *
    * @param {Object} e
@@ -2573,18 +2623,69 @@ TODO
   }
 
   /**
+   * Lock dragged element's dimensions.
+   *
+   * @param {Object} data
+   */
+  function lockElementSize(data) {
+
+    // Don't override existing element styles.
+    if (!data.elementStyles) {
+
+      var styles = ['width', 'height', 'padding', 'margin'];
+
+      // Reset element styles.
+      data.elementStyles = {};
+
+      // Store current inline style values.
+      for (var i = 0; i < 4; i++) {
+        var style = styles[i];
+        var value = data.element.style[style];
+        data.elementStyles[style] = value || '';
+      }
+
+      // Set effective values as inline styles.
+      for (var i = 0; i < 4; i++) {
+        var style = styles[i];
+        data.element.style[style] = getStyle(data.element, style);
+      }
+
+    }
+
+  }
+
+  /**
+   * Unlock dragged element's dimensions.
+   *
+   * @param {Object} data
+   */
+  function unlockElementSize(data) {
+
+    if (data.elementStyles) {
+      for (var style in data.elementStyles) {
+        data.element.style[style] = data.elementStyles[style];
+      }
+    }
+
+  }
+
+  /**
    * Show/hide Muuri instance's items.
    *
    * @private
    * @param {Muuri} inst
    * @param {String} method - "show" or "hide".
-   * @param {Array|Number|HTMLElement|Muuri.Item} items
+   * @param {Array|HTMLElement|Muuri.Item|Number} items
+   * @param {Boolean} [instant=false]
    * @param {Function} [callback]
    */
-  function showHideHandler(inst, method, items, callback) {
+  function showHideHandler(inst, method, items, instant, callback) {
 
     // Sanitize items.
     items = inst.get(items);
+
+    // Sanitize callback.
+    callback = typeof instant === 'function' ? instant : callback;
 
     var counter = items.length;
 
@@ -2602,10 +2703,10 @@ TODO
       var isShow = method === 'show';
       var startEvent = isShow ? evShowStart : evHideStart;
       var endEvent = isShow ? evShowEnd : evHideEnd;
-      var isInterrupted = false;
+      var isInstant = instant === true;
       var completed = [];
+      var needsRelayout = false;
       var hiddenItems = [];
-      var needsRefresh = false;
 
       // Emit showstart event.
       inst._emitter.emit(startEvent, items);
@@ -2614,45 +2715,44 @@ TODO
       // to keep the correct reference of the item for the asynchronous callback
       // of the item's private show/hide method.
       for (var i = 0, len = items.length; i < len; i++) {
-        (function (i) {
 
-          var item = items[i];
+        var item = items[i];
 
-          // Check if refresh is needed.
-          if ((isShow && !item._active) || (!isShow && item._active)) {
-            if (isShow) {
-              item._noLayoutAnimation = true;
-            }
-            needsRefresh = true;
+        // Check if relayout or refresh is needed.
+        if ((isShow && !item._active) || (!isShow && item._active)) {
+          needsRelayout = true;
+          if (isShow) {
+            item._noLayoutAnimation = true;
+            hiddenItems[hiddenItems.length] = item;
+          }
+        }
+
+        // Hide/show the item.
+        item['_' + method](isInstant, function (interrupted, item) {
+
+          // If the current item's animation was not interrupted add it to the
+          // completed set.
+          if (!interrupted) {
+            completed[completed.length] = item;
           }
 
-          item['_' + method](function (interrupted) {
-
-            // If the current item's animation was not interrupted add it to the
-            // completed set.
-            if (!interrupted) {
-              completed[completed.length] = item;
+          // If all items have finished their animations call the callback
+          // and emit the event.
+          if (--counter < 1) {
+            if (typeof callback === 'function') {
+              callback(completed);
             }
+            inst._emitter.emit(endEvent, completed);
+          }
 
-            // If all items have finished their animations call the callback
-            // and emit the event.
-            if (--counter < 1) {
-              if (typeof callback === 'function') {
-                callback(completed);
-              }
-              inst._emitter.emit(endEvent, completed);
-            }
+        });
 
-          });
-
-        })(i);
       }
 
-      // Refresh and layout only if neeeed.
-      if (needsRefresh) {
-        inst.refresh();
-        for (var i = 0, len = hiddenItems.length; i < len; i++) {
-          hiddenItems[i]._noLayoutAnimation = true;
+      // Relayout only if needed.
+      if (needsRelayout) {
+        if (hiddenItems.length) {
+          inst.refresh(hiddenItems);
         }
         inst.layout();
       }
@@ -2683,8 +2783,11 @@ TODO
     else {
       var targetStyles = isShow ? {opacity: 1, scale: 1} : {opacity: 0, scale: 0};
       return {
-        start: function (item, animate, animDone) {
-          if (animate) {
+        start: function (item, instant, animDone) {
+          if (instant) {
+            hookStyles(item._child, targetStyles);
+          }
+          else {
             Velocity(item._child, targetStyles, {
               duration: duration,
               easing: easing,
@@ -2692,9 +2795,6 @@ TODO
               complete: animDone
             });
             Velocity.Utilities.dequeue(item._child, item._muuri._animQueue);
-          }
-          else {
-            hookStyles(item._child, targetStyles);
           }
         },
         stop: function (item) {
@@ -2706,20 +2806,21 @@ TODO
   }
 
   /**
-   * Process callback queue.
+   * Process item's callback queue.
    *
    * @private
    * @param {Array} queue
-   * @param {Boolean} [interrupted=false]
+   * @param {Boolean} interrupted
+   * @param {Muuri.Item} instance
    */
-  function processQueue(queue, interrupted) {
+  function processQueue(queue, interrupted, instance) {
 
     var snapshot = queue.splice(0, queue.length);
     for (var i = 0, len = snapshot.length; i < len; i++) {
-      snapshot[i](interrupted);
+      snapshot[i](interrupted, instance);
     }
 
-  };
+  }
 
   /**
    * Init

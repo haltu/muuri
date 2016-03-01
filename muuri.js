@@ -270,6 +270,8 @@ TODO - NICE TO HAVE
     }
     else if (typeof target === 'number') {
 
+      target = target > -1 ? target : this._items.length + target;
+
       return this._items[target] || null;
 
     }

@@ -109,7 +109,7 @@ TODO - NICE TO HAVE
    */
   Emitter.prototype.on = function (event, listener) {
 
-    var events = this._events || {};
+    var events = this._events = this._events || {};
     var listeners = events[event] || [];
 
     listeners[listeners.length] = listener;
@@ -130,7 +130,7 @@ TODO - NICE TO HAVE
    */
   Emitter.prototype.off = function (event, listener) {
 
-    var events = this._events || {};
+    var events = this._events = this._events || {};
     var listeners = events[event] || [];
     var counter = listeners.length;
 
@@ -159,7 +159,7 @@ TODO - NICE TO HAVE
    */
   Emitter.prototype.emit = function (event, arg1, arg2, arg3) {
 
-    var events = this._events || {};
+    var events = this._events = this._events || {};
     var listeners = events[event] || [];
     var listenersLength = listeners.length;
 

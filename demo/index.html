@@ -6,74 +6,105 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <title>Muuri - A dynamic grid layout with built-in support for dragging and dropping grid items.</title>
     <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
-    <link rel="stylesheet" href="styles/normalize.css">
+    <link rel="stylesheet" href="styles/bootstrap.css">
     <link rel="stylesheet" href="styles/main.css">
     <link href='https://fonts.googleapis.com/css?family=Fira+Sans:400,300,300italic,400italic,500,500italic,700,700italic' rel='stylesheet' type='text/css'>
+    <script src="scripts/vendor/palikka.js"></script>
   </head>
 
   <body>
 
-  <div class="splash">
-
-    <div class="muuri-logo">
-    </div>
-
-  </div>
-
-    <div class="controls">
-      <div class="group">
-        <button id="init">Init</button>
-        <button id="destroy">Destroy</button>
+    <nav class="navbar navbar-default navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navigation" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Muuri</a>
+        </div>
+        <div class="collapse navbar-collapse" id="navigation">
+          <ul class="nav navbar-nav navbar-right">
+            <li><a href="#demo">Demo</a></li>
+            <li><a href="#install">Install</a></li>
+            <li><a href="#options">Options</a></li>
+            <li><a href="#methods">Methods</a></li>
+            <li><a href="#events">Events</a></li>
+            <li><a href="https://github.com/haltu/muuri">GitHub</a></li>
+          </ul>
+        </div>
       </div>
-      <div class="group">
-      <button id="show">Show</button>
-      <button id="hide">Hide</button>
-      </div>
-      <div class="group">
-        <button id="add">Add</button>
-        <button id="remove">Remove</button>
-      </div>
-      <div class="group">
-        <button id="layout">Layout</button>
-        <button id="refresh">Refresh</button>
-        <button id="sync-elements">Sync Elements</button>
-      </div>
-    </div>
+    </nav>
 
-    <div class="grid">
-      <div class="item"><div class="item-content"><div class="item-stuff">A</div></div></div>
-      <div class="item w2"><div class="item-content"><div class="item-stuff">B</div></div></div>
-      <div class="item h2"><div class="item-content"><div class="item-stuff">C</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">D</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">E</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">F</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">G</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">H</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">I</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">J</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">K</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">L</div></div></div>
-      <div class="item h2"><div class="item-content"><div class="item-stuff">M</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">N</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">O</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">P</div></div></div>
-      <div class="item h2 w2"><div class="item-content"><div class="item-stuff">Q</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">R</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">S</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">T</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">U</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">V</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">W</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">X</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">Y</div></div></div>
-      <div class="item"><div class="item-content"><div class="item-stuff">Z</div></div></div>
-    </div>
 
-    <script src="scripts/jquery.js"></script>
-    <script src="scripts/lodash.js"></script>
-    <script src="scripts/mezr.js"></script>
-    <script src="scripts/velocity.js"></script>
-    <script src="scripts/hammer.js"></script>
+    <section id="demo">
+      <div class="container">
+
+        <h2>Demo</h2>
+
+        <div class="btn-group" role="group" aria-label="...">
+          <button type="button" class="btn btn-default demo-init">Init</button>
+          <button type="button" class="btn btn-default demo-destroy">Destroy</button>
+          <button type="button" class="btn btn-default demo-show">Show</button>
+          <button type="button" class="btn btn-default demo-hide">Hide</button>
+          <button type="button" class="btn btn-default demo-add">Add</button>
+          <button type="button" class="btn btn-default demo-remove">Remove</button>
+          <button type="button" class="btn btn-default demo-layout">Layout</button>
+          <button type="button" class="btn btn-default demo-refresh">Refresh</button>
+          <button type="button" class="btn btn-default demo-synchronize">Synchronize</button>
+        </div>
+
+        <div class="grid"></div>
+
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="container">
+        <h2>Install</h2>
+        <p>Todo...</p>
+      </div>
+    </section>
+
+    <section id="options">
+      <div class="container">
+        <h2>Options</h2>
+        <p>Todo...</p>
+      </div>
+    </section>
+
+    <section id="methods">
+      <div class="container">
+        <h2>Methods</h2>
+        <p>Todo...</p>
+      </div>
+    </section>
+
+    <section id="events">
+      <div class="container">
+        <h2>Events</h2>
+        <p>Todo...</p>
+      </div>
+    </section>
+
+    <footer>
+      <div class="container">
+        <nav class="navbar navbar-default">
+          <div class="container">
+            <p class="navbar-text">&copy; 2015 <a href="http://www.haltu.fi/">Haltu Oy</a></p>
+          </div>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="scripts/vendor/jquery.js"></script>
+    <script src="scripts/vendor/bootstrap.js"></script>
+    <script src="scripts/vendor/lodash.js"></script>
+    <script src="scripts/vendor/mezr.js"></script>
+    <script src="scripts/vendor/velocity.js"></script>
+    <script src="scripts/vendor/hammer.js"></script>
     <script src="../muuri.js"></script>
     <script src="scripts/main.js"></script>
 

@@ -1,38 +1,40 @@
-$(function () {
+palikka
+.define(['jQuery'], function () {
 
-  var $elem = $('.muuri-logo');
-  var grid;
+  return window[this.id];
 
-  function createElements () {
+})
+.define('demo', ['jQuery'], function ($) {
 
-    var rows = 5;
-    var cols = 21;
-    var length = rows * cols;
-    var matrix = [
-      [0, 4, 6, 9, 11, 14, 16, 17, 18, 19, 20, 22],
-      [0, 4, 6, 9, 11, 14, 16, 17, 18, 19, 20, 22],
-    ];
+  var m = {};
+  var $grid = $('.grid');
+  var $root = $('html');
+  var uuid = 0;
 
-    for (var i = 0; i < length; i++) {
-      var elem = document.createElement('div');
-      $(elem).addClass('item');
-      $elem.push('<div class="item"></div>');
-    }
+  m.grid = null;
 
-  }
+  m.init = function () {
 
-});
+    init();
 
-$(function () {
+    // Bind events.
+    $('.demo-init').on('click', init);
+    $('.demo-destroy').on('click', destroy);
+    $('.demo-show').on('click', show);
+    $('.demo-hide').on('click', hide);
+    $('.demo-add').on('click', add);
+    $('.demo-remove').on('click', remove);
+    $('.demo-refresh').on('click', refresh);
+    $('.demo-layout').on('click', layout);
+    $('.demo-synchronize').on('click', synchronize);
 
-  var grid;
+    return m;
 
-  function generateAlphabet() {
+  };
 
-    var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    return possible.charAt(Math.floor(Math.random() * possible.length));
-
-  }
+  //
+  // Helper utilities
+  //
 
   function generateElements(amount) {
 
@@ -42,8 +44,7 @@ $(function () {
 
       var stuffDiv = document.createElement('div');
       stuffDiv.setAttribute('class', 'item-stuff');
-      stuffDiv.appendChild(document.createTextNode(generateAlphabet()));
-      stuffDiv.style.backgroundColor = randomColor();
+      stuffDiv.appendChild(document.createTextNode(++uuid));
 
       var innerDiv = document.createElement('div');
       innerDiv.setAttribute('class', 'item-content');
@@ -65,91 +66,113 @@ $(function () {
 
   function init() {
 
-    if (grid) {
-      grid.destroy();
-    }
+    if (!m.grid) {
 
-    grid = new Muuri({
-      container: document.getElementsByClassName('grid')[0],
-      items: document.getElementsByClassName('item')
-    });
+      var dragCounter = 0;
+
+      m.grid = new Muuri({
+        container: $grid.get(0),
+        items: generateElements(20),
+        dragContainer: document.body
+      });
+
+      m.grid
+      .on('dragstart', function () {
+        ++dragCounter;
+        $root.addClass('dragging');
+      })
+      .on('dragend', function () {
+        if (--dragCounter < 1) {
+          $root.removeClass('dragging');
+        }
+      });
+
+    }
 
   }
 
   function destroy() {
 
-    grid.destroy();
-    grid = null;
+    if (m.grid) {
+      m.grid.destroy();
+      $grid.empty();
+      m.grid = null;
+      uuid = 0;
+    }
 
   }
 
   function show() {
 
-    grid.show(_.sample(grid.get('inactive'), 5), function (items) {
-      console.log('CALLBACK: Hide ' + items.length + ' items');
-    });
+    if (m.grid) {
+      m.grid.show(_.sampleSize(m.grid.get('inactive'), 5), function (items) {
+        console.log('CALLBACK: Hide ' + items.length + ' items');
+      });
+    }
 
   }
 
   function hide() {
 
-    grid.hide(_.sample(grid.get('active'), 5), function (items) {
-      console.log('CALLBACK: Hide ' + items.length + ' items');
-    });
+    if (m.grid) {
+      m.grid.hide(_.sampleSize(m.grid.get('active'), 5), function (items) {
+        console.log('CALLBACK: Hide ' + items.length + ' items');
+      });
+    }
 
   }
 
   function add() {
 
-    var items = generateElements(5);
-
-    items.forEach(function (item) {
-      item.style.display = 'none';
-    });
-
-    grid.show(grid.add(items), function (items) {
-      console.log('CALLBACK: Added ' + items.length + ' items');
-    });
+    if (m.grid) {
+      var items = generateElements(5);
+      items.forEach(function (item) {
+        item.style.display = 'none';
+      });
+      m.grid.show(m.grid.add(items), function (items) {
+        console.log('CALLBACK: Added ' + items.length + ' items');
+      });
+    }
 
   }
 
   function remove() {
 
-    grid.hide(_.sample(grid.get('active'), 5), function (items) {
-      grid.remove(items, true);
-      console.log('CALLBACK: Removed ' + items.length + ' items');
-    });
+    if (m.grid) {
+      m.grid.hide(_.sampleSize(m.grid.get('active'), 5), function (items) {
+        m.grid.remove(items, true);
+        console.log('CALLBACK: Removed ' + items.length + ' items');
+      });
+    }
 
   }
 
   function layout() {
 
-    grid.layout(function () {
-      console.log('CALLBACK: Layout');
-    });
+    if (m.grid) {
+      m.grid.layout(function () {
+        console.log('CALLBACK: Layout');
+      });
+    }
 
   }
 
   function refresh() {
 
-    grid.refresh();
+    if (m.grid) {
+      m.grid.refresh();
+    }
 
   }
 
   function synchronize() {
 
-    grid.synchronize();
+    if (m.grid) {
+      m.grid.synchronize();
+    }
 
   }
 
-  $('#init').on('click', init);
-  $('#destroy').on('click', destroy);
-  $('#show').on('click', show);
-  $('#hide').on('click', hide);
-  $('#add').on('click', add);
-  $('#remove').on('click', remove);
-  $('#refresh').on('click', refresh);
-  $('#layout').on('click', layout);
-  $('#sync-elements').on('click', synchronize);
+  return m.init();
 
 });

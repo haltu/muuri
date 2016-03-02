@@ -185,4 +185,16 @@ palikka
 })
 .require(['jQuery', 'docReady'], function ($) {
 
+  /*
+  document.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+  });
+  */
+
+  /*
+  window.addEventListener('scroll', function () {
+    console.log('moro');
+  });
+  */
+
 });

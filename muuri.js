@@ -38,12 +38,6 @@ SOFTWARE.
 
   var uuid = 0;
   var noop = function () {};
-  var hasTouchEvents = 'ontouchstart' in document.documentElement;
-  var hasPointerEvents = 'onpointerdown' in document.documentElement;
-  var touchedItemsCount = 0;
-  var instancesCount = 0;
-  var docTouchStart;
-  var docTouchMove;
 
   // Events.
   var evRefresh = 'refresh';
@@ -185,12 +179,6 @@ SOFTWARE.
 
     // Merge user settings with default settings.
     var stn = inst._settings = mergeObjects({}, Muuri.defaultSettings, settings || {});
-
-    // Increase the generic instances counter and init "disable pull to refresh"
-    // functionality if this is the first instance.
-    if (hasTouchEvents && ++instancesCount === 1) {
-      bindDPTR();
-    }
 
     // Unique animation queue name.
     inst._animQueue = 'muuri-' + ++uuid;
@@ -889,12 +877,6 @@ SOFTWARE.
       }
     }
 
-    // Decrement the generic instances counter and remove "disable pull to
-    // refresh" functionality if this is the last instance.
-    if (hasTouchEvents && --instancesCount === 0) {
-      unbindDPTR();
-    }
-
     // Render the instance unusable -> nullify all Muuri related properties.
     var props = Object.keys(this).concat(Object.keys(Muuri.prototype));
     for (var i = 0; i < props.length; i++) {
@@ -1053,7 +1035,9 @@ SOFTWARE.
       time: 0
     }));
 
-    hammer.set({ touchAction: 'pan-y' });
+    // This is not ideal, but saves us from a LOT of hacks. Let's try to keep
+    // the default drag setup consistent across devices.
+    hammer.set({ touchAction: 'none' });
 
     // Setup initial release data.
     inst._resetReleaseData();
@@ -1087,14 +1071,6 @@ SOFTWARE.
     drag.onScroll = function () {
       inst._onDragScroll();
     };
-
-    // Bind touch start/end/cancel events. Used for keeping track of active
-    // item touches.
-    if (hasTouchEvents) {
-      inst._element.addEventListener('touchstart', inst._onTouchStart, false);
-      inst._element.addEventListener('touchend', inst._onTouchEnd, false);
-      inst._element.addEventListener('touchcancel', inst._onTouchCancel, false);
-    }
 
     // Bind drag events.
     hammer
@@ -1165,42 +1141,6 @@ SOFTWARE.
     // and it's original container.
     drag.containerDiffX = 0;
     drag.containerDiffY = 0;
-
-  };
-
-  /**
-   * Touch start handler.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._onTouchStart = function (e) {
-
-    ++touchedItemsCount;
-
-  };
-
-  /**
-   * Touch end handler.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._onTouchEnd = function (e) {
-
-    --touchedItemsCount;
-
-  };
-
-  /**
-   * Touch cancel handler.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._onTouchCancel = function (e) {
-
-    --touchedItemsCount;
 
   };
 
@@ -1330,12 +1270,6 @@ SOFTWARE.
     // Bind scroll listeners.
     for (var i = 0, len = drag.scrollParents.length; i < len; i++) {
       drag.scrollParents[i].addEventListener('scroll', drag.onScroll);
-    }
-
-    // For touch devices we need to disable the native scrolling of the dragged
-    // element's closest scroll container.
-    if (hasTouchEvents) {
-      drag.scrollParents[0].addEventListener('touchmove', preventDefault);
     }
 
     // Set drag class.
@@ -1485,12 +1419,6 @@ SOFTWARE.
       drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
     }
 
-    // For touch devices enable the native scrolling of the dragged element's
-    // closest scroll parent.
-    if (hasTouchEvents) {
-      drag.scrollParents[0].removeEventListener('touchmove', preventDefault);
-    }
-
     // Remove drag classname from element.
     removeClass(drag.element, stn.draggingClass);
 
@@ -1528,12 +1456,6 @@ SOFTWARE.
     // Remove scroll listeners
     for (var i = 0, len = drag.scrollParents.length; i < len; i++) {
       drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
-    }
-
-    // For touch devices enable the native scrolling of the dragged element's
-    // closest scroll parent.
-    if (hasTouchEvents) {
-      drag.scrollParents[0].removeEventListener('touchmove', preventDefault);
     }
 
     // Cancel overlap check.
@@ -2026,17 +1948,6 @@ SOFTWARE.
         this._muuri._element.appendChild(element);
       }
       this._resetReleaseData();
-    }
-
-    // If browser has touch events and dragging is enabled remove the touch
-    // listeners and also adjust the touched items count.
-    if (hasTouchEvents && this._hammer) {
-      if (this._drag.active) {
-        --touchedItemsCount;
-      }
-      element.removeEventListener('touchstart', this._onTouchStart);
-      element.removeEventListener('touchend', this._onTouchEnd);
-      element.removeEventListener('touchcancel', this._onTouchCancel);
     }
 
     // If item is being dragged, stop it gracefully.
@@ -2659,8 +2570,6 @@ SOFTWARE.
    */
   function dragPredicate(e, item, resolvePredicate, predicateData) {
 
-    // TODO: Cancel if scrolling is detected...
-
     // Cancel timeout if it's still running and we are at the end of the flow.
     if (predicateData.timeout && (e.type === 'dragend' || e.type === 'dragcancel' || e.type === 'draginitup')) {
       predicateData.timeout = global.clearTimeout(predicateData.timeout)
@@ -2898,71 +2807,6 @@ SOFTWARE.
     for (var i = 0, len = snapshot.length; i < len; i++) {
       snapshot[i](interrupted, instance);
     }
-
-  }
-
-  /**
-   * Helper to prevent event's default functionality.
-   *
-   * @private
-   * @param {Object} e
-   */
-  function preventDefault(e) {
-
-    e.preventDefault();
-
-  }
-
-  /**
-   * Disable pull to refresh functionality init.
-   *
-   * @private
-   */
-  function bindDPTR() {
-
-    var maybe = false;
-    var lastTouchY = 0;
-
-    docTouchStart = function (e) {
-
-      lastTouchY = e.touches[0].clientY;
-      maybe = touchedItemsCount && window.pageYOffset == 0;
-
-    };
-
-    docTouchMove = function (e) {
-
-      var touchY = e.touches[0].clientY;
-      var touchYDelta = touchY - lastTouchY;
-
-      lastTouchY = touchY;
-
-      if (maybe) {
-        maybe = false;
-        if (touchYDelta > 0) {
-          e.preventDefault();
-          return;
-        }
-      }
-
-    };
-
-    document.addEventListener('touchstart', docTouchStart, false);
-    document.addEventListener('touchmove', docTouchMove, false);
-
-  }
-
-  /**
-   * Disable pull to refresh functionality teardown.
-   *
-   * @private
-   */
-  function unbindDPTR () {
-
-    document.removeEventListener('touchstart', docTouchStart);
-    document.addEventListener('touchmove', docTouchMove);
-    docTouchStart = null;
-    docTouchMov = null;
 
   }
 

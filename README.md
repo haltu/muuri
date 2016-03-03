@@ -916,22 +916,18 @@ Triggered when dragging of an item begins.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.start** &nbsp;&mdash;&nbsp; *object*
+  * **data.type** &nbsp;&mdash;&nbsp; *String*
+    *  `"dragstart"`
+  * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.
-  * **data.move** &nbsp;&mdash;&nbsp; *object*
-    * The hammer event for the last drag move event.
-  * **data.left** &nbsp;&mdash;&nbsp; *number*
+  * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
     *  The dragged element's current translateX value.
-  * **data.top** &nbsp;&mdash;&nbsp; *object*
+  * **data.currentTop** &nbsp;&mdash;&nbsp; *object*
     *  The dragged element's current translateY value.
-  * **data.gridX** &nbsp;&mdash;&nbsp; *number*
+  * **data.gridLeft** &nbsp;&mdash;&nbsp; *number*
     *  The dragged element's current x-coordinate within the muuri container element.
-  * **data.gridY** &nbsp;&mdash;&nbsp; *object*
+  * **data.gridTop** &nbsp;&mdash;&nbsp; *object*
     *  The dragged element's current y-coordinate within the muuri container element.
-  * **data.clientX** &nbsp;&mdash;&nbsp; *number*
-    * Dragged element's current left offset from window's northwest corner. Does not account for element's margins.
-  * **data.clientY** &nbsp;&mdash;&nbsp; *object*
-    * Dragged element's current top offset from window's northwest corner. Does not account for element's margins.
 
 **Examples**
 
@@ -951,22 +947,18 @@ Triggered when an item is dragged.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.start** &nbsp;&mdash;&nbsp; *object*
+  * **data.type** &nbsp;&mdash;&nbsp; *String*
+    *  `"dragmove"`
+  * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.
-  * **data.move** &nbsp;&mdash;&nbsp; *object*
-    * The hammer event for the last drag move event.
-  * **data.left** &nbsp;&mdash;&nbsp; *number*
+  * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
     *  The dragged element's current translateX value.
-  * **data.top** &nbsp;&mdash;&nbsp; *object*
+  * **data.currentTop** &nbsp;&mdash;&nbsp; *object*
     *  The dragged element's current translateY value.
-  * **data.gridX** &nbsp;&mdash;&nbsp; *number*
+  * **data.gridLeft** &nbsp;&mdash;&nbsp; *number*
     *  The dragged element's current x-coordinate within the muuri container element.
-  * **data.gridY** &nbsp;&mdash;&nbsp; *object*
+  * **data.gridTop** &nbsp;&mdash;&nbsp; *object*
     *  The dragged element's current y-coordinate within the muuri container element.
-  * **data.clientX** &nbsp;&mdash;&nbsp; *number*
-    * Dragged element's current left offset from window's northwest corner. Does not account for element's margins.
-  * **data.clientY** &nbsp;&mdash;&nbsp; *object*
-    * Dragged element's current top offset from window's northwest corner. Does not account for element's margins.
 
 **Examples**
 
@@ -986,22 +978,18 @@ Triggered when any of the scroll parents of a dragged item is scrolled.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.start** &nbsp;&mdash;&nbsp; *object*
-    *  The hammer event for the drag start event.
-  * **data.move** &nbsp;&mdash;&nbsp; *object*
-    * The hammer event for the last drag move event.
-  * **data.left** &nbsp;&mdash;&nbsp; *number*
+  * **data.type** &nbsp;&mdash;&nbsp; *String*
+    *  `"dragscroll"`
+  * **data.event** &nbsp;&mdash;&nbsp; *object*
+    *  Th scroll event.
+  * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
     *  The dragged element's current translateX value.
-  * **data.top** &nbsp;&mdash;&nbsp; *object*
+  * **data.currentTop** &nbsp;&mdash;&nbsp; *object*
     *  The dragged element's current translateY value.
-  * **data.gridX** &nbsp;&mdash;&nbsp; *number*
+  * **data.gridLeft** &nbsp;&mdash;&nbsp; *number*
     *  The dragged element's current x-coordinate within the muuri container element.
-  * **data.gridY** &nbsp;&mdash;&nbsp; *object*
+  * **data.gridTop** &nbsp;&mdash;&nbsp; *object*
     *  The dragged element's current y-coordinate within the muuri container element.
-  * **data.clientX** &nbsp;&mdash;&nbsp; *number*
-    * Dragged element's current left offset from window's northwest corner. Does not account for element's margins.
-  * **data.clientY** &nbsp;&mdash;&nbsp; *object*
-    * Dragged element's current top offset from window's northwest corner. Does not account for element's margins.
 
 **Examples**
 
@@ -1021,22 +1009,18 @@ Triggered after item dragging ends.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.start** &nbsp;&mdash;&nbsp; *object*
+  * **data.type** &nbsp;&mdash;&nbsp; *String*
+    *  `"dragend"`
+  * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.
-  * **data.move** &nbsp;&mdash;&nbsp; *object*
-    * The hammer event for the last drag move event.
-  * **data.left** &nbsp;&mdash;&nbsp; *number*
+  * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
     *  The dragged element's current translateX value.
-  * **data.top** &nbsp;&mdash;&nbsp; *object*
+  * **data.currentTop** &nbsp;&mdash;&nbsp; *object*
     *  The dragged element's current translateY value.
-  * **data.gridX** &nbsp;&mdash;&nbsp; *number*
+  * **data.gridLeft** &nbsp;&mdash;&nbsp; *number*
     *  The dragged element's current x-coordinate within the muuri container element.
-  * **data.gridY** &nbsp;&mdash;&nbsp; *object*
+  * **data.gridTop** &nbsp;&mdash;&nbsp; *object*
     *  The dragged element's current y-coordinate within the muuri container element.
-  * **data.clientX** &nbsp;&mdash;&nbsp; *number*
-    * Dragged element's current left offset from window's northwest corner. Does not account for element's margins.
-  * **data.clientY** &nbsp;&mdash;&nbsp; *object*
-    * Dragged element's current top offset from window's northwest corner. Does not account for element's margins.
 
 **Examples**
 

@@ -362,7 +362,7 @@ SOFTWARE.
     if (items.length) {
 
       var grid = [];
-      var containerWidth = Mezr.width(this._element, 'core');
+      var containerWidth = getDimension(this._element, 'width');
       var slotSize = this._getSlotSize(items);
 
       slotWidth = slotSize.width;
@@ -1068,8 +1068,8 @@ SOFTWARE.
     };
 
     // Add drag sroll handler.
-    drag.onScroll = function () {
-      inst._onDragScroll();
+    drag.onScroll = function (e) {
+      inst._onDragScroll(e);
     };
 
     // Bind drag events.
@@ -1077,19 +1077,19 @@ SOFTWARE.
     .on('draginit', function (e) {
       drag.predicateData = {};
       predicateResolved = false;
-      drag.predicate(e, inst, drag.resolvePredicate, drag.predicateData);
+      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
     })
     .on('dragstart dragmove', function (e) {
       if (predicateResolved && drag.active) {
         inst._onDragMove(e);
       }
-      drag.predicate(e, inst, drag.resolvePredicate, drag.predicateData);
+      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
     })
     .on('dragend dragcancel draginitup', function (e) {
       if (predicateResolved && drag.active) {
         inst._onDragEnd(e);
       }
-      drag.predicate(e, inst, drag.resolvePredicate, drag.predicateData);
+      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
     });
 
   };
@@ -1275,8 +1275,8 @@ SOFTWARE.
     // Set drag class.
     addClass(drag.element, stn.draggingClass);
 
-    // Emit item-dragstart event.
-    emitter.emit(evDragStart, this, parseDragEventData(drag));
+    // Emit dragstart event.
+    emitter.emit(evDragStart, this, generateDragEvent('dragstart', e, drag));
 
   };
 
@@ -1325,7 +1325,7 @@ SOFTWARE.
     }
 
     // Emit item-dragmove event.
-    emitter.emit(evDragMove, this, parseDragEventData(drag));
+    emitter.emit(evDragMove, this, generateDragEvent('dragmove', e, drag));
 
   };
 
@@ -1335,7 +1335,7 @@ SOFTWARE.
    * @protected
    * @memberof Muuri.Item.prototype
    */
-  Muuri.Item.prototype._onDragScroll = function () {
+  Muuri.Item.prototype._onDragScroll = function (e) {
 
     var drag = this._drag;
     var emitter = this._muuri._emitter;
@@ -1386,7 +1386,7 @@ SOFTWARE.
     }
 
     // Emit item-dragscroll event.
-    emitter.emit(evDragScroll, this, parseDragEventData(drag));
+    emitter.emit(evDragScroll, this, generateDragEvent('dragscroll', e, drag));
 
   };
 
@@ -1426,7 +1426,7 @@ SOFTWARE.
     drag.active = false;
 
     // Emit item-dragend event.
-    emitter.emit(evDragEnd, this, parseDragEventData(drag));
+    emitter.emit(evDragEnd, this, generateDragEvent('dragend', e, drag));
 
     // Setup release data.
     release.containerDiffX = drag.containerDiffX;
@@ -1647,8 +1647,8 @@ SOFTWARE.
   Muuri.Item.prototype._refresh = function () {
 
     if (!this._hidden) {
-      this._width = Math.round(Mezr.width(this._element, 'margin'));
-      this._height = Math.round(Mezr.height(this._element, 'margin'));
+      this._width = Math.round(getDimension(this._element, 'width', true));
+      this._height = Math.round(getDimension(this._element, 'height', true));
     }
 
   };
@@ -2341,6 +2341,80 @@ SOFTWARE.
   }
 
   /**
+   * Get element's padding/margin dimension.
+   *
+   * @param {HTMLElement} el
+   * @param {String} dimension
+   * @param {Boolean} [withMargin=false]
+   */
+  function getDimension(el, dimension, withMargin) {
+
+    var ret = el.getBoundingClientRect()[dimension];
+    var isHeight = dimension === 'height';
+    var dimensionCapitalized = isHeight ? 'Height' : 'Width';
+    var innerDimension = 'inner' + dimensionCapitalized;
+    var clientDimension = 'client' + dimensionCapitalized;
+    var edgeA = isHeight ? 'top' : 'left';
+    var edgeB = isHeight ? 'bottom' : 'right';
+    var borderA;
+    var borderB;
+    var marginA;
+    var marginB;
+
+    if (withMargin) {
+
+      // Add margin size to the base size.
+      marginA = parseFloat(getStyle(el, 'margin-' + edgeA));
+      marginB = parseFloat(getStyle(el, 'margin-' + edgeB));
+      ret += marginA > 0 ? marginA : 0;
+      ret += marginB > 0 ? marginB : 0;
+
+    }
+    else {
+
+      // Remove scrollbar size from the base size.
+      if (el === document.documentElement) {
+        ret -= global[innerDimension] - document.documentElement[clientDimension];
+      }
+      else {
+        borderA = parseFloat(getStyle(el, 'border-' + edgeA + '-width'));
+        borderB = parseFloat(getStyle(el, 'border-' + edgeB + '-width'));
+        ret -= Math.round(ret) - el[clientDimension] - borderA - borderB;
+      }
+
+      // Remove border size from the base size.
+      ret -= borderA !== undefined ? borderA : parseFloat(getStyle(el, 'border-' + edgeA + '-width'));
+      ret -= borderB !== undefined ? borderB : parseFloat(getStyle(el, 'border-' + edgeB + '-width'));
+
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Calculate the offset difference of two elements.
+   *
+   * @param {HTMLElement} target
+   * @param {HTMLElement} anchor
+   * @returns {PlaceData}
+   */
+  function getOffsetDiff(target, anchor) {
+
+    // TODO: IMport offset and nwoffset functions also.
+
+    var
+    targetOffset = getNorthwestOffset(target),
+    anchorOffset = getOffset(anchor);
+
+    return {
+      left: anchorOffset.left - targetOffset.left,
+      top: anchorOffset.top - targetOffset.top
+    };
+
+  }
+
+  /**
    * Get element's scroll containers.
    *
    * @param {HTMLElement} element
@@ -2542,70 +2616,37 @@ SOFTWARE.
   /**
    * Return parsed drag event data.
    *
+   * @param {String} type
+   * @param {Object} event
    * @param {Object} drag
    * @returns {Object}
    */
-  function parseDragEventData(drag) {
+  function generateDragEvent(type, event, drag) {
 
     return {
-      start: drag.start,
-      move: drag.move,
-      left: drag.left,
-      top: drag.top,
-      gridX: drag.gridX,
-      gridY: drag.gridY,
-      clientX: drag.elemClientX,
-      clientY: drag.elemClientY
+      type: type,
+      event: event,
+      currentLeft: drag.left,
+      currentTop: drag.top,
+      gridLeft: drag.gridX,
+      gridTop: drag.gridY
     };
 
   }
 
   /**
-   * Default drag start predicate handler.
+   * Default drag start predicate handler. The context of the function is
+   * always a temporary object which is gets reset on each draginit event.
    *
    * @param {Object} e
    * @param {Muuri.Item} item
-   * @param {Function} resolvePredicate
-   * @param {Object} predicateData
+   * @param {Function} resolve
    */
-  function dragPredicate(e, item, resolvePredicate, predicateData) {
+  function dragPredicate(e, item, resolve) {
 
-    // Cancel timeout if it's still running and we are at the end of the flow.
-    if (predicateData.timeout && (e.type === 'dragend' || e.type === 'dragcancel' || e.type === 'draginitup')) {
-      predicateData.timeout = global.clearTimeout(predicateData.timeout)
-    }
-
-    // If predicate is already handled, don't go further.
-    if (predicateData.isRejected || predicateData.isResolved) {
-      return;
-    }
-
-    // For touch input we need to add a bit of delay before the drag can
-    // begin in order not to break native scrolling.
-    if (e.pointerType === 'touch') {
-
-      predicateData.e = e;
-      if (e.type === 'draginit') {
-        predicateData.timeout = global.setTimeout(function() {
-          predicateData.isResolved = true;
-          resolvePredicate(predicateData.e);
-        }, 100);
-      }
-      else if (Math.abs(e.deltaY) > 40 || Math.abs(e.deltaX) > 40) {
-        predicateData.isRejected = true;
-        predicateData.timeout = global.clearTimeout(predicateData.timeout);
-      }
-
-    }
-
-    // For other input types we can just specify a little threshold.
-    else {
-
-      if (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5) {
-        predicateData.isResolved = true;
-        resolvePredicate(e);
-      }
-
+    if (!this.isResolved && (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5)) {
+      this.isResolved = true;
+      resolve(e);
     }
 
   }

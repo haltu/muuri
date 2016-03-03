@@ -24,12 +24,11 @@ SOFTWARE.
 (function (global, factory) {
 
   var libName = 'Muuri';
-  var depMezr = global.mezr;
   var depVelocity = typeof jQuery === 'function' ? jQuery.Velocity : global.Velocity;
   var depHammer = global.Hammer;
-  global[libName] = factory(global, depMezr, depVelocity, depHammer);
+  global[libName] = factory(global, depVelocity, depHammer);
 
-}(this, function (global, Mezr, Velocity, Hammer, undefined) {
+}(this, function (global, Velocity, Hammer, undefined) {
 
   /**
    * Constants
@@ -1203,11 +1202,7 @@ SOFTWARE.
       if (drag.element.parentNode === dragContainer) {
 
         // Get offset diff.
-        var offsetDiff = Mezr.place([drag.element, 'margin'], {
-          my: 'left top',
-          at: 'left top',
-          of: [defaultContainer, 'padding']
-        });
+        var offsetDiff = getOffsetDiff(drag.element, defaultContainer);
 
         // Store the container offset diffs to drag data.
         drag.containerDiffX = offsetDiff.left;
@@ -1232,11 +1227,7 @@ SOFTWARE.
         dragContainer.appendChild(drag.element);
 
         // Get offset diff.
-        var offsetDiff = Mezr.place([drag.element, 'margin'], {
-          my: 'left top',
-          at: 'left top',
-          of: [defaultContainer, 'padding']
-        });
+        var offsetDiff = getOffsetDiff(drag.element, defaultContainer);
 
         // Store the container offset diffs to drag data.
         drag.containerDiffX = offsetDiff.left;
@@ -1354,13 +1345,7 @@ SOFTWARE.
     if (dragContainer && dragContainer !== defaultContainer) {
 
       // Get offset diff.
-      // TODO: Speed up this function by providing mezr parsed data instead
-      // of elements. This way mezr will work a LOT faster.
-      var offsetDiff = Mezr.place([drag.element, 'margin'], {
-        my: 'left top',
-        at: 'left top',
-        of: [defaultContainer, 'padding']
-      });
+      var offsetDiff = getOffsetDiff(drag.element, defaultContainer);
 
       // Store the container offset diffs to drag data.
       drag.containerDiffX = offsetDiff.left;
@@ -2342,6 +2327,7 @@ SOFTWARE.
 
   /**
    * Get element's padding/margin dimension.
+   * Borrowed from: https://github.com/niklasramo/mezr/blob/0.4.0/mezr.js#L434
    *
    * @param {HTMLElement} el
    * @param {String} dimension
@@ -2356,23 +2342,20 @@ SOFTWARE.
     var clientDimension = 'client' + dimensionCapitalized;
     var edgeA = isHeight ? 'top' : 'left';
     var edgeB = isHeight ? 'bottom' : 'right';
-    var borderA;
-    var borderB;
-    var marginA;
-    var marginB;
 
     if (withMargin) {
 
-      // Add margin size to the base size.
-      marginA = parseFloat(getStyle(el, 'margin-' + edgeA));
-      marginB = parseFloat(getStyle(el, 'margin-' + edgeB));
+      var marginA = parseFloat(getStyle(el, 'margin-' + edgeA));
+      var marginB = parseFloat(getStyle(el, 'margin-' + edgeB));
       ret += marginA > 0 ? marginA : 0;
       ret += marginB > 0 ? marginB : 0;
 
     }
     else {
 
-      // Remove scrollbar size from the base size.
+      var borderA;
+      var borderB;
+
       if (el === document.documentElement) {
         ret -= global[innerDimension] - document.documentElement[clientDimension];
       }
@@ -2382,7 +2365,6 @@ SOFTWARE.
         ret -= Math.round(ret) - el[clientDimension] - borderA - borderB;
       }
 
-      // Remove border size from the base size.
       ret -= borderA !== undefined ? borderA : parseFloat(getStyle(el, 'border-' + edgeA + '-width'));
       ret -= borderB !== undefined ? borderB : parseFloat(getStyle(el, 'border-' + edgeB + '-width'));
 
@@ -2393,7 +2375,81 @@ SOFTWARE.
   }
 
   /**
-   * Calculate the offset difference of two elements.
+   * Returns the element's offset, which in practice means the vertical and
+   * horizontal distance between the element's northwest corner and the
+   * document's northwest corner. This method is a stripped down version of
+   * Mezr's offset method and tailored for Muuri specifically. By default the
+   * element's "dimension edge" is considered to be the element's padding layer.
+   * Borrowed from: https://github.com/niklasramo/mezr/blob/0.4.0/mezr.js#L589
+   *
+   * @param {HTMLElement} el
+   * @returns {Offset}
+   */
+  function getOffset(el) {
+
+    var offsetLeft = 0;
+    var offsetTop = 0;
+    var viewportScrollLeft = parseFloat(global.pageXOffset);
+    var viewportScrollTop = parseFloat(global.pageYOffset);
+
+    // For window we just need to get viewport's scroll distance.
+    if (el.self === global.self) {
+
+      offsetLeft = viewportScrollLeft;
+      offsetTop = viewportScrollTop;
+
+    }
+
+    // For all elements except the document and window we can use the combination of gbcr and
+    // viewport's scroll distance.
+    else if (el !== document) {
+
+      var gbcr = el.getBoundingClientRect();
+      offsetLeft += gbcr.left + viewportScrollLeft + parseFloat(getStyle(el, 'border-left-width'));
+      offsetTop += gbcr.top + viewportScrollTop + parseFloat(getStyle(el, 'border-top-width'));
+
+    }
+
+    return {
+      left: offsetLeft,
+      top: offsetTop
+    };
+
+  }
+
+  /**
+   * Returns the element's offset parent.
+   * Borrowed from: https://github.com/niklasramo/mezr/blob/0.4.0/mezr.js#L772
+   *
+   * @param {HTMLElement} el
+   * @returns {!HTMLElement}
+   */
+  function getOffsetParent(el) {
+
+    var
+    body = document.body,
+    docElem = document.documentElement,
+    pos = getStyle(el, 'position'),
+    offsetParent = pos === 'fixed' ? global :
+                   el === body ? docElem :
+                   el === docElem || el === global ? document :
+                   el.offsetParent || null;
+
+    while (offsetParent && offsetParent !== global && offsetParent !== document && getStyle(offsetParent, 'position') === 'static') {
+
+      offsetParent = offsetParent === body ? docElem : offsetParent.offsetParent || document;
+
+    }
+
+    return offsetParent;
+
+  }
+
+  /**
+   * Calculate the offset difference of two elements. The target element is is
+   * always considered to be Muuri item's element which means that it's margins
+   * are considered to be part of it's width and height. The anchor element's
+   * widht and height however always consist of the core and the padding only.
    *
    * @param {HTMLElement} target
    * @param {HTMLElement} anchor
@@ -2401,15 +2457,15 @@ SOFTWARE.
    */
   function getOffsetDiff(target, anchor) {
 
-    // TODO: IMport offset and nwoffset functions also.
+    var anchorOffset = getOffset(anchor);
+    var targetZeroPosition = getOffset(getOffsetParent(target) || doc);
 
-    var
-    targetOffset = getNorthwestOffset(target),
-    anchorOffset = getOffset(anchor);
+    targetZeroPosition.left -= Math.abs(Math.min(parseFloat(getStyle(target, 'margin-left')), 0));
+    targetZeroPosition.top -= Math.abs(Math.min(parseFloat(getStyle(target, 'margin-top')), 0));
 
     return {
-      left: anchorOffset.left - targetOffset.left,
-      top: anchorOffset.top - targetOffset.top
+      left: anchorOffset.left - targetZeroPosition.left,
+      top: anchorOffset.top - targetZeroPosition.top
     };
 
   }

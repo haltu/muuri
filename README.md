@@ -11,14 +11,12 @@ A word of warning. This library is currently under active development and not ye
 Muuri depends on the following libraries:
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (2.0.x)
 * [Velocity](https://github.com/julianshapiro/velocity) (1.2.x)
-* [Mezr](https://github.com/niklasramo/mezr) (0.4.x)
 
 **First, include Muuri and it's dependencies in your site.**
 
 ```html
 <script src="velocity.js"></script>
 <script src="hammer.js"></script>
-<script src="mezr.js"></script>
 <script src="muuri.js"></script>
 ```
 
@@ -169,7 +167,6 @@ var grid = new Muuri({
     </div>
     <script src="velocity.js"></script>
     <script src="hammer.js"></script>
-    <script src="mezr.js"></script>
     <script src="muuri.js"></script>
     <script>
       var grid = new Muuri({

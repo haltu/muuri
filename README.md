@@ -2,9 +2,50 @@
 
 A dynamic grid layout with built-in support for dragging and dropping grid items. Uses a custom bin-packing layout algorithm (similar to that of [Packery](https://github.com/metafizzy/packery)) for positioning the grid items. Powered by [Velocity](https://github.com/julianshapiro/velocity) (animations) and [Hammer.js](https://github.com/hammerjs/hammer.js) (touch gestures). Works in IE9+ and modern browsers.
 
-A word of warning. This library is currently under active development and not yet ready for prime time.
-
 **So, why was this library built?** We at Haltu had need for a library that would essentially be a combination of [Packery](https://github.com/metafizzy/packery), [Hammer.js](https://github.com/hammerjs/hammer.js) and [Sortable](https://github.com/RubaXa/Sortable). We started out hacking away with Packery, but had to make an awful lot of hacks/workarounds to make it work nicely on touch devices with the drag-and-drop feature for our purposes. Also we needed to have connected grids where you could drag an item from one to another. On top of it all we needed a way to filter the items. This is an attempt to build a buttery smooth layout library that can handle all those aspects.
+
+**A word of warning.** This library is currently under active development and not yet ready for prime time. Use at your own risk, API and functionality might be subject to change.
+
+## Table of contents
+
+* [Getting started](#)
+* [Options](#)
+* [Methods](#)
+  * [muuri.on( event, listener )](#)
+  * [muuri.off( eventName, listener )](#)
+  * [muuri.refresh( [targets] )](#)
+  * [muuri.get( [targets], [filter] )](#)
+  * [muuri.add( elements, [index] )](#)
+  * [muuri.remove( targets, [removeElement] )](#)
+  * [muuri.synchronize()](#)
+  * [muuri.layout( [instant], [callback] )](#)
+  * [muuri.show( targets, [instant], [callback] )](#)
+  * [muuri.hide( targets, [instant], [callback] )](#)
+  * [muuri.indexOf( target )](#)
+  * [muuri.move( targetFrom, targetTo )](#)
+  * [muuri.swap( targetA, targetB )](#)
+  * [muuri.destroy()](#)
+* [Events](#)
+  * [refresh](#)
+  * [synchronize](#)
+  * [layoutstart](#)
+  * [layoutend](#)
+  * [showstart](#)
+  * [showend](#)
+  * [hidestart](#)
+  * [hideend](#)
+  * [move](#)
+  * [swap](#)
+  * [add](#)
+  * [remove](#)
+  * [dragstart](#)
+  * [dragmove](#)
+  * [dragscroll](#)
+  * [dragend](#)
+  * [releasestart](#)
+  * [releaseend](#)
+  * [destroy](#)
+* [License](#)
 
 ## Getting started
 
@@ -183,12 +224,6 @@ var grid = new Muuri({
 * **`container`** &nbsp;&mdash;&nbsp; *Element*
   * Default value: `null`.
   * The container element. Must be always defined.
-* **`containerDuration`** &nbsp;&mdash;&nbsp; *Number*
-  * Default value: `300`.
-  * The duration for container's height animation. Set to `0` to disable.
-* **`containerEasing`** &nbsp;&mdash;&nbsp; *String / Array*
-  * Default value: `"ease-out"`.
-  * The easing for container's height animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
 * **`items`** &nbsp;&mdash;&nbsp; *Array of Elements*
   * Default value: `null`.
   * The initial item elements wrapped in an array. The elements must be children of the container element.
@@ -204,6 +239,12 @@ var grid = new Muuri({
 * **`hide`** &nbsp;&mdash;&nbsp; *Object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
   * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
+* **`colWidth`** &nbsp;&mdash;&nbsp; *Number / String*
+  * Default value: `"auto"`.
+  * Define column width for the grid (integer) or set to `"auto"` if you want Muuri to automatically calculate this for you based on the width of the items in the Muuri instance.
+* **`rowHeight`** &nbsp;&mdash;&nbsp; *Number / String*
+  * Default value: `"auto"`.
+  * Define row height for the grid (integer) or set to `"auto"` if you want Muuri to automatically calculate this for you based on the height of the items in the Muuri instance.
 * **`layoutOnResize`** &nbsp;&mdash;&nbsp; *Null / Number*
   * Default value: `100`.
   * Should Muuri automatically trigger layout on window resize? Set to `null` to disable. When a number (`0` or greater) is provided Muuri will automatically trigger layout when window is resized. The provided number equals to the amount of time (in milliseconds) that is waited before the layout is triggered after each resize event. The layout method is wrapped in a debouned function in order to avoid unnecessary layout calls.
@@ -277,8 +318,6 @@ var defaults = {
 
     // Container
     container: null,
-    containerDuration: 300,
-    containerEasing: 'ease-out',
 
     // Items
     items: [],

@@ -18,7 +18,7 @@ html.dragging body {
 
 .grid {
   position: relative;
-  margin: 30px 0 0 0;
+  margin: 20px 0;
   border: 5px solid #ff0000;
   -moz-box-sizing: content-box;
   -webkit-box-sizing: content-box;

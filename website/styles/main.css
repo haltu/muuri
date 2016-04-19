@@ -1,0 +1,99 @@
+/* Core */
+
+html {
+  overflow-y: scroll;
+  overflow-x: hidden;
+  background: rgba(30,33,37,1);
+}
+html.dragging body {
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+body {
+  font-family: 'Fira Sans', Helvetica, Arial, sans-serif;
+}
+
+/* Header */
+
+header {
+  margin: 30px;
+}
+h1 {
+  color: #3396FF;
+  font-size: 50px;
+  font-weight: 100;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Footer */
+
+footer {
+  display: none;
+}
+footer p {}
+
+/* Grid */
+
+.grid {
+  position: relative;
+  max-width: 990px;
+  margin: 20px auto;
+  -moz-box-sizing: content-box;
+  -webkit-box-sizing: content-box;
+  box-sizing: content-box;
+}
+.item {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  line-height: 100px;
+  margin: 10px;
+  z-index: 1;
+}
+.item.muuri-dragging,
+.item.muuri-releasing {
+  z-index: 9999;
+}
+.item.muuri-dragging {
+  cursor: move;
+}
+.item.muuri-hidden {
+  z-index: 0;
+}
+.item.h2 {
+  height: 220px;
+  line-height: 220px;
+}
+.item.w2 {
+  width: 220px;
+}
+.item-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.item-stuff {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 400;
+  background-color: rgba(30,33,37,0.9);
+  border: 2px solid;
+  color: #4A9FF9;
+  -webkit-transition: all 0.2s ease-out;
+  -moz-transition: all 0.2s ease-out;
+  -ms-transition: all 0.2s ease-out;
+  -o-transition: all 0.2s ease-out;
+  transition: all 0.2s ease-out;
+}
+.item.muuri-dragging .item-stuff {
+  color: #20C67A;
+}

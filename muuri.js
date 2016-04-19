@@ -21,14 +21,27 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+TODO:
+*****
+- Cache slot size, container width and layout data. Allow force refreshing the
+  data and refresh it automatically only when absolutely needed.
+- Optimize the position algorithm to work speedily also when the slot width
+  and height are set to 1px. Needs some advanced math algorithms and strategies.
+- Unit tests
+*/
+
 (function (global, factory) {
 
   var libName = 'Muuri';
   var depVelocity = typeof jQuery === 'function' ? jQuery.Velocity : global.Velocity;
   var depHammer = global.Hammer;
+
   global[libName] = factory(global, depVelocity, depHammer);
 
 }(this, function (global, Velocity, Hammer, undefined) {
+
+  'use strict';
 
   /**
    * Constants
@@ -38,7 +51,7 @@ SOFTWARE.
   var uuid = 0;
   var noop = function () {};
 
-  // Events.
+  // Event names.
   var evRefresh = 'refresh';
   var evSynchronize = 'synchronize';
   var evLayoutStart = 'layoutstart';
@@ -59,6 +72,93 @@ SOFTWARE.
   var evReleaseEnd = 'releaseend';
   var evDestroy = 'destroy';
 
+  // Get the primary supported transform property.
+  var supportedTransform = (function () {
+
+    var all = ['transform','WebkitTransform','MozTransform','OTransform','msTransform'];
+
+    for (var i = 0; i < all.length; i++) {
+      if (document.documentElement.style[all[i]] !== undefined) {
+        return all[i];
+      }
+    }
+
+    return null;
+
+  })();
+
+  // Detect if current browser positions fixed elements relative to the nearest
+  // ancestor transformed element instead of the window.
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=20574
+  //
+  // Borrowed from Mezr library:
+  // https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L95-L113
+  // https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L247-L300
+  var hasBrokenW3CTELCS = (function () {
+
+    // If document body is ready we can run the test immediately.
+    if (document.body) {
+      return testW3CTELCS();
+    }
+    // Otherwise we need to wait for the body to be ready.
+    else {
+      document.addEventListener('DOMContentLoaded', function () {
+        hasBrokenW3CTELCS = testW3CTELCS();
+      }, false);
+    }
+
+    function testW3CTELCS() {
+
+      // If the browser does not support transforms we can deduct that the
+      // W3C TELCS is broken (non-existent).
+      if (!supportedTransform) {
+        return true;
+      }
+
+      var body = document.body;
+      var outer = document.createElement('div');
+      var inner = document.createElement('div');
+      var leftUntransformed;
+      var leftTransformed;
+
+      setStyles(outer, {
+        display: 'block',
+        visibility: 'hidden',
+        position: 'absolute',
+        width: '1px',
+        height: '1px',
+        left: '1px',
+        top: '0',
+        margin: '0'
+      });
+
+      setStyles(inner, {
+        display: 'block',
+        position: 'fixed',
+        width: '1px',
+        height: '1px',
+        left: '0',
+        top: '0',
+        margin: '0'
+      });
+
+      outer.appendChild(inner);
+      body.appendChild(outer);
+      leftUntransformed = inner.getBoundingClientRect().left;
+      outer.style[supportedTransform] = 'translateZ(0)';
+      leftTransformed = inner.getBoundingClientRect().left;
+      body.removeChild(outer);
+
+      return leftTransformed === leftUntransformed;
+
+    }
+
+    // If document body is not ready return null to indicate that the test is
+    // not yet finished.
+    return null;
+
+  })();
+
   /**
    * Emitter
    * *******
@@ -66,6 +166,9 @@ SOFTWARE.
 
   /**
    * Event emitter constructor.
+   *
+   * This is a simplified version of jvent.js event emitter library:
+   * https://github.com/pazguille/jvent/blob/0.2.0/dist/jvent.js
    *
    * @private
    */
@@ -280,62 +383,31 @@ SOFTWARE.
    */
   Muuri.prototype._getSlotSize = function (items) {
 
-    var ret = {
-      width: 0,
-      height: 0
-    };
-    var widthsTemp = {};
-    var heightsTemp = {};
-    var widths = [];
-    var heights = [];
+    var colWidth = this._settings.colWidth;
+    var rowHeight = this._settings.rowHeight;
+    var autoWidth = colWidth === 'auto';
+    var autoHeight = rowHeight === 'auto';
+    var widths = autoWidth ? [] : parseInt(colWidth) || 0;
+    var heights = autoHeight ? [] : parseInt(rowHeight) || 0;
 
-    // First of all, let's store all different widths and heights of the
-    // provided items.
-    for (var i = 0, len = items.length; i < len; i++) {
-      var item = items[i];
-      widthsTemp[item._width] = item._width;
-      heightsTemp[item._height] = item._height;
-    }
-
-    // Transform the temporary widths object into an array.
-    for (var prop in widthsTemp) {
-      widths[widths.length] = widthsTemp[prop];
-    }
-
-    // Transform the temporary heights object into an array.
-    for (var prop in heightsTemp) {
-      heights[heights.length] = heightsTemp[prop];
-    }
-
-    // Calculate the slot width and height.
-    for (var i = 0; i < 2; i++) {
-
-      var sizes = i === 0 ? widths : heights;
-      var sizesLength = sizes.length;
-      var possibilities = [Math.min.apply(Math, sizes)];
-
-      for (var ii = 0; ii < sizesLength; ii++) {
-        var size = sizes[ii];
-        for (var iii = 0; iii < sizesLength; iii++) {
-          var diff = Math.abs(size - sizes[iii]);
-          if (diff > 0) {
-            possibilities[possibilities.length] = diff;
-          }
+    // Get width and/or height of all items if needed.
+    if (autoWidth || autoHeight) {
+      for (var i = 0, len = items.length; i < len; i++) {
+        if (autoWidth) {
+          widths[widths.length] = items[i]._width;
+        }
+        if (autoHeight) {
+          heights[heights.length] = items[i]._height;
         }
       }
-
-      var result = Math.min.apply(Math, possibilities);
-
-      if (i === 0) {
-        ret.width = result;
-      }
-      else {
-        ret.height = result;
-      }
-
     }
 
-    return ret;
+    // Calculate and return the slot height/width (greatest common divisor) if
+    // needed or just return the predefined colWidth and/or rowHeight.
+    return {
+      width: !autoWidth ? widths : widths.length ? gcdMany(widths) : 0,
+      height: !autoHeight ? heights : heights.length ? gcdMany(heights) : 0
+    };
 
   }
 
@@ -361,7 +433,7 @@ SOFTWARE.
     if (items.length) {
 
       var grid = [];
-      var containerWidth = getDimension(this._element, 'width');
+      var containerWidth = Math.round(getDimension(this._element, 'width'));
       var slotSize = this._getSlotSize(items);
 
       slotWidth = slotSize.width;
@@ -647,8 +719,6 @@ SOFTWARE.
     var emitter = inst._emitter;
     var callback = typeof instant === 'function' ? instant : callback;
     var isInstant = instant === true;
-    var animDuration = inst._settings.containerDuration;
-    var animEasing = inst._settings.containerEasing;
     var layout = inst._generateLayout();
     var counter = -1;
     var itemsLength = layout.items.length;
@@ -675,47 +745,23 @@ SOFTWARE.
 
     };
 
-    // Stop currently running container animation.
-    Velocity(inst._element, 'stop', inst._animQueue);
-
     // Emit layoutstart event.
     emitter.emit(evLayoutStart, layout.items, layout);
 
-    // If container's current inline height does not match the target height,
-    // let's adjust it's size.
-    if (parseFloat(inst._element.style.height) !== layout.fillHeight) {
+    // Set container's height.
+    setStyles(inst._element, {
+      height: layout.fillHeight + 'px'
+    });
 
-      // If container animations are enabled let's animate.
-      if (!isInstant && animDuration > 0) {
-
-        Velocity(inst._element, {height: layout.fillHeight}, {
-          duration: animDuration,
-          easing: animEasing,
-          queue: inst._animQueue
-        });
-
-        Velocity.Utilities.dequeue(inst._element, inst._animQueue);
-
-      }
-      // Otherwise let's just set the height.
-      else {
-
-        setStyles(inst._element, {
-          height: layout.fillHeight + 'px'
-        });
-
-      }
-
-    }
-
+    // If there are now items let's finish quickly.
     if (!itemsLength) {
 
       tryFinish(true);
 
     }
+    // If there are items let's position them.
     else {
 
-      // Position items.
       for (var i = 0, len = layout.items.length; i < len; i++) {
 
         var item = layout.items[i];
@@ -1050,7 +1096,7 @@ SOFTWARE.
       if (drag.active) {
         inst._checkOverlap();
       }
-    }, stn.dragOverlapInterval);
+    }, stn.dragSortInterval);
 
     // Add predicate related data to drag data.
     var predicateResolved = false;
@@ -1152,7 +1198,6 @@ SOFTWARE.
   Muuri.Item.prototype._onDragStart = function (e) {
 
     var drag = this._drag;
-    var emitter = this._muuri._emitter;
     var stn = this._muuri._settings;
     var isReleased = this._release.active;
 
@@ -1267,7 +1312,7 @@ SOFTWARE.
     addClass(drag.element, stn.draggingClass);
 
     // Emit dragstart event.
-    emitter.emit(evDragStart, this, generateDragEvent('dragstart', e, drag));
+    this._muuri._emitter.emit(evDragStart, this, generateDragEvent('dragstart', e, drag));
 
   };
 
@@ -1280,7 +1325,6 @@ SOFTWARE.
   Muuri.Item.prototype._onDragMove = function (e) {
 
     var drag = this._drag;
-    var emitter = this._muuri._emitter;
     var stn = this._muuri._settings;
 
     // If item is not active, reset drag.
@@ -1316,7 +1360,7 @@ SOFTWARE.
     }
 
     // Emit item-dragmove event.
-    emitter.emit(evDragMove, this, generateDragEvent('dragmove', e, drag));
+    this._muuri._emitter.emit(evDragMove, this, generateDragEvent('dragmove', e, drag));
 
   };
 
@@ -1329,7 +1373,6 @@ SOFTWARE.
   Muuri.Item.prototype._onDragScroll = function (e) {
 
     var drag = this._drag;
-    var emitter = this._muuri._emitter;
     var stn = this._muuri._settings;
 
     // Get containers.
@@ -1371,7 +1414,7 @@ SOFTWARE.
     }
 
     // Emit item-dragscroll event.
-    emitter.emit(evDragScroll, this, generateDragEvent('dragscroll', e, drag));
+    this._muuri._emitter.emit(evDragScroll, this, generateDragEvent('dragscroll', e, drag));
 
   };
 
@@ -1384,7 +1427,6 @@ SOFTWARE.
   Muuri.Item.prototype._onDragEnd = function (e) {
 
     var drag = this._drag;
-    var emitter = this._muuri._emitter;
     var stn = this._muuri._settings;
     var release = this._release;
 
@@ -1411,7 +1453,7 @@ SOFTWARE.
     drag.active = false;
 
     // Emit item-dragend event.
-    emitter.emit(evDragEnd, this, generateDragEvent('dragend', e, drag));
+    this._muuri._emitter.emit(evDragEnd, this, generateDragEvent('dragend', e, drag));
 
     // Setup release data.
     release.containerDiffX = drag.containerDiffX;
@@ -1545,8 +1587,8 @@ SOFTWARE.
    Muuri.Item.prototype._checkOverlap = function() {
 
     var stn = this._muuri._settings;
-    var overlapTolerance = stn.dragOverlapTolerance;
-    var overlapAction = stn.dragOverlapAction;
+    var overlapTolerance = stn.dragSortTolerance;
+    var overlapAction = stn.dragSortAction;
     var items = this._muuri._items;
     var bestMatch = null;
     var instIndex = 0;
@@ -1650,7 +1692,6 @@ SOFTWARE.
 
     var inst = this;
     var stn = inst._muuri._settings;
-    var emitter = inst._muuri._emitter;
     var release = inst._release;
     var isJustReleased = release.active && release.positioningStarted === false;
     var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.positionDuration;
@@ -1762,7 +1803,6 @@ SOFTWARE.
 
     var inst = this;
     var stn = inst._muuri._settings;
-    var emitter = inst._muuri._emitter;
 
     // If item is visible.
     if (!inst._hidden && !inst._showing) {
@@ -1841,7 +1881,6 @@ SOFTWARE.
 
     var inst = this;
     var stn = inst._muuri._settings;
-    var emitter = inst._muuri._emitter;
 
     // If item is hidden.
     if (inst._hidden && !inst._hiding) {
@@ -1993,13 +2032,13 @@ SOFTWARE.
    * @public
    * @memberof Muuri
    * @property {HTMLElement} container
-   * @property {Number} containerDuration
-   * @property {Array|String} containerEasing
    * @property {Array} items
    * @property {Number} positionDuration
    * @property {Array|String} positionEasing
    * @property {!Function|Object} show
    * @property {!Function|Object} hide
+   * @property {Number|String} colWidth
+   * @property {Number|String} rowHeight
    * @property {!Number} layoutOnResize
    * @property {Boolean} layoutOnInit
    * @property {Boolean} dragEnabled
@@ -2008,10 +2047,9 @@ SOFTWARE.
    * @property {!HtmlElement} dragContainer
    * @property {Number} dragReleaseDuration
    * @property {Array|String} dragReleaseEasing
-   * @property {Number} dragOverlapInterval
-   * @property {Number} dragOverlapTolerance
-   * @property {String} dragOverlapAction
-   * @property {Number} dragOverlapInterval
+   * @property {Number} dragSortInterval
+   * @property {Number} dragSortTolerance
+   * @property {String} dragSortAction
    * @property {String} containerClass
    * @property {String} itemClass
    * @property {String} shownClass
@@ -2024,8 +2062,6 @@ SOFTWARE.
 
     // Container
     container: null,
-    containerDuration: 300,
-    containerEasing: 'ease-out',
 
     // Items
     items: [],
@@ -2041,19 +2077,21 @@ SOFTWARE.
     },
 
     // Layout
+    colWidth: 'auto',
+    rowHeight: 'auto',
     layoutOnResize: 100,
     layoutOnInit: true,
 
     // Drag & Drop
     dragEnabled: true,
+    dragContainer: document.body,
     dragPredicate: null,
     dragSort: true,
-    dragContainer: document.body,
+    dragSortInterval: 50,
+    dragSortTolerance: 50,
+    dragSortAction: 'move',
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease-out',
-    dragOverlapInterval: 50,
-    dragOverlapTolerance: 50,
-    dragOverlapAction: 'move',
 
     // Classnames
     containerClass: 'muuri',
@@ -2326,8 +2364,10 @@ SOFTWARE.
   }
 
   /**
-   * Get element's padding/margin dimension.
-   * Borrowed from: https://github.com/niklasramo/mezr/blob/0.4.0/mezr.js#L434
+   * Get element's width/height with padding or with padding, border and margin.
+   *
+   * Borrowed from Mezr library:
+   * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L511-L609
    *
    * @param {HTMLElement} el
    * @param {String} dimension
@@ -2380,7 +2420,9 @@ SOFTWARE.
    * document's northwest corner. This method is a stripped down version of
    * Mezr's offset method and tailored for Muuri specifically. By default the
    * element's "dimension edge" is considered to be the element's padding layer.
-   * Borrowed from: https://github.com/niklasramo/mezr/blob/0.4.0/mezr.js#L589
+   *
+   * Borrowed from Mezr library:
+   * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L643-L714
    *
    * @param {HTMLElement} el
    * @returns {Offset}
@@ -2419,29 +2461,68 @@ SOFTWARE.
 
   /**
    * Returns the element's offset parent.
-   * Borrowed from: https://github.com/niklasramo/mezr/blob/0.4.0/mezr.js#L772
+   *
+   * Borrowed from Mezr library:
+   * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L808-L859
    *
    * @param {HTMLElement} el
    * @returns {!HTMLElement}
    */
   function getOffsetParent(el) {
 
-    var
-    body = document.body,
-    docElem = document.documentElement,
-    pos = getStyle(el, 'position'),
-    offsetParent = pos === 'fixed' ? global :
-                   el === body ? docElem :
-                   el === docElem || el === global ? document :
-                   el.offsetParent || null;
+    var isFixed = getStyle(el, 'position') === 'fixed';
 
-    while (offsetParent && offsetParent !== global && offsetParent !== document && getStyle(offsetParent, 'position') === 'static') {
+    if (isFixed && hasBrokenW3CTELCS) {
 
-      offsetParent = offsetParent === body ? docElem : offsetParent.offsetParent || document;
+      return global;
 
     }
 
-    return offsetParent;
+    var offsetParent = el === document.documentElement || el === global ? document : el.parentElement || null;
+
+    if (isFixed) {
+
+      while (offsetParent && offsetParent !== document && !isTransformed(offsetParent)) {
+
+        offsetParent = offsetParent.parentElement || document;
+
+      }
+
+      return offsetParent === document ? global : offsetParent;
+
+    }
+    else {
+
+      while (offsetParent && offsetParent !== document && getStyle(offsetParent, 'position') === 'static' && !isTransformed(offsetParent)) {
+
+        offsetParent = offsetParent.parentElement || document;
+
+      }
+
+      return offsetParent;
+
+    }
+
+  }
+
+  /**
+   * Returns true if element is transformed, false if not. In practice the
+   * element's display value must be anything else than "none" or "inline" as
+   * well as have a valid transform value applied in order to be counted as a
+   * transformed element.
+   *
+   * Borrowed from Mezr library:
+   * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L302-L317
+   *
+   * @param {Element} el
+   * @returns {Boolean}
+   */
+  function isTransformed(el) {
+
+    var transform = getStyle(el, supportedTransform);
+    var display = getStyle(el, 'display');
+
+    return transform !== 'none' && display !== 'inline' && display !== 'none';
 
   }
 
@@ -2471,7 +2552,10 @@ SOFTWARE.
   }
 
   /**
-   * Get element's scroll containers.
+   * Get element's scroll parents.
+   *
+   * Borrowed from jQuery UI library (and heavily modified):
+   * https://github.com/jquery/jquery-ui/blob/63448148a217da7e64c04b21a04982f0d64aabaa/ui/scroll-parent.js
    *
    * @param {HTMLElement} element
    * @returns {Array}
@@ -2479,19 +2563,62 @@ SOFTWARE.
   function getScrollParents(element) {
 
     var ret = [];
+    var overflowRegex = /(auto|scroll)/;
+    var parent = element.parentNode;
 
-    if (getStyle(element, 'position') !== 'fixed') {
-      var overflowRegex = /(auto|scroll)/;
-      var parent = element.parentNode;
+    // If positioning of fixed elements is broken (according to W3C spec).
+    if (hasBrokenW3CTELCS) {
+
+      // If the element is fixed it can not have any scroll parents.
+      if (getStyle(element, 'position') === 'fixed') {
+        return ret;
+      }
+
+      // Find scroll parents.
       while (parent && parent !== document && parent !== document.documentElement) {
         if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
           ret[ret.length] = parent;
         }
         parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
       }
-    }
 
-    ret[ret.length] = global;
+      // If parent is not fixed element, add window object as the last scroll
+      // parent.
+      if (parent !== null) {
+        ret[ret.length] = global;
+      }
+
+    }
+    // If fixed elements behave as defined in the W3C specification.
+    else {
+
+      // Find scroll parents.
+      while (parent && parent !== document) {
+
+        // If the currently looped element is fixed ignore all parents that are
+        // not transformed.
+        if (getStyle(element, 'position') === 'fixed' && !isTransformed(parent)) {
+          parent = parent.parentNode;
+          continue;
+        }
+
+        // Add the parent element to return items if it is scrollable.
+        if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
+          ret[ret.length] = parent;
+        }
+
+        // Update element and parent references.
+        element = parent;
+        parent = parent.parentNode;
+
+      }
+
+      // Replace reference of possible root element to window object.
+      if (ret.length && ret[ret.length - 1] === document.documentElement) {
+        ret[ret.length - 1] = global;
+      }
+
+    }
 
     return ret;
 
@@ -2501,6 +2628,43 @@ SOFTWARE.
    * Helpers - Muuri
    * ***************
    */
+
+
+  /**
+   * Calculate the greatest common divisor between two integers.
+   *
+   * @param {Number} a
+   * @param {Number} b
+   * @returns {Number}
+   */
+    function gcd(a, b) {
+
+      return !b ? a : gcd(b, a % b);
+
+    }
+
+  /**
+   * Calculate the greatest common divisor between multiple integers. Provide
+   * an array of one or more integers and you shall receive their greatest
+   * common divisor.
+   *
+   * @param {Array} values
+   * @returns {Number}
+   */
+    function gcdMany(values) {
+
+      var val = gcd(values[0], values[1]);
+
+      for (var i = 2; i < values.length; i++) {
+        val = gcd(val, values[i]);
+        if (val === 1) {
+          break;
+        }
+      }
+
+      return val;
+
+    }
 
   /**
    * Calculate how many percent the intersection area of two items is from the
@@ -2700,7 +2864,7 @@ SOFTWARE.
    */
   function dragPredicate(e, item, resolve) {
 
-    if (!this.isResolved && (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5)) {
+    if (!this.isResolved) {
       this.isResolved = true;
       resolve(e);
     }

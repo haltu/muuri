@@ -79,7 +79,7 @@ palikka
 
       m.grid = new Muuri({
         container: $grid.get(0),
-        items: generateElements(20),
+        items: generateElements(50),
         dragReleaseEasing: 'ease-in',
         dragContainer: document.body
       });

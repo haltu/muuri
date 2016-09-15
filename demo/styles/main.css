@@ -4,9 +4,6 @@ html {
   overflow-y: scroll;
   overflow-x: hidden;
 }
-body {
-  padding-top: 70px;
-}
 html.dragging body {
   -moz-user-select: none;
   -webkit-user-select: none;

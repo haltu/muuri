@@ -2,8 +2,6 @@
 
 A dynamic grid layout with built-in support for dragging and dropping grid items. Uses a custom bin-packing layout algorithm (similar to that of [Packery](https://github.com/metafizzy/packery)) for positioning the grid items. Powered by [Velocity](https://github.com/julianshapiro/velocity) (animations) and [Hammer.js](https://github.com/hammerjs/hammer.js) (touch gestures). Works in IE9+ and modern browsers.
 
-**So, why was this library built?** We at Haltu had need for a library that would essentially be a combination of [Packery](https://github.com/metafizzy/packery), [Hammer.js](https://github.com/hammerjs/hammer.js) and [Sortable](https://github.com/RubaXa/Sortable). We started out hacking away with Packery, but had to make an awful lot of hacks/workarounds to make it work nicely on touch devices with the drag-and-drop feature for our purposes. Also we needed to have connected grids where you could drag an item from one to another. On top of it all we needed a way to filter the items. This is an attempt to build a buttery smooth layout library that can handle all those aspects.
-
 **A word of warning.** This library is currently under active development and not yet ready for prime time. Use at your own risk, API and functionality might be subject to change.
 
 ## Table of contents

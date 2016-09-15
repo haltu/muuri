@@ -1,35 +1,26 @@
 /*!
-Muuri v0.1.0-beta
-Copyright (c) 2015, Haltu Oy
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
-/*
-TODO:
-*****
-- Cache slot size, container width and layout data. Allow force refreshing the
-  data and refresh it automatically only when absolutely needed.
-- Optimize the position algorithm to work speedily also when the slot width
-  and height are set to 1px. Needs some advanced math algorithms and strategies.
-- Unit tests
-*/
+ * Muuri v0.1.0
+ * https://github.com/haltu/muuri
+ * Copyright (c) 2015, Haltu Oy
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 (function (global, factory) {
 
@@ -43,13 +34,9 @@ TODO:
 
   'use strict';
 
-  /**
-   * Constants
-   * *********
-   */
-
   var uuid = 0;
   var noop = function () {};
+  var raf = typeof global.requestAnimationFrame === 'function' ? global.requestAnimationFrame : null;
 
   // Event names.
   var evRefresh = 'refresh';
@@ -74,17 +61,13 @@ TODO:
 
   // Get the primary supported transform property.
   var supportedTransform = (function () {
-
     var all = ['transform','WebkitTransform','MozTransform','OTransform','msTransform'];
-
     for (var i = 0; i < all.length; i++) {
       if (document.documentElement.style[all[i]] !== undefined) {
         return all[i];
       }
     }
-
     return null;
-
   })();
 
   // Detect if current browser positions fixed elements relative to the nearest
@@ -96,66 +79,52 @@ TODO:
   // https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L247-L300
   var hasBrokenW3CTELCS = (function () {
 
-    // If document body is ready we can run the test immediately.
-    if (document.body) {
-      return testW3CTELCS();
-    }
-    // Otherwise we need to wait for the body to be ready.
-    else {
-      document.addEventListener('DOMContentLoaded', function () {
-        hasBrokenW3CTELCS = testW3CTELCS();
-      }, false);
+    // Document body needs to be ready for tests.
+    if (!document.body) {
+      throw Error('Muuri needs access to document.body to work.');
     }
 
-    function testW3CTELCS() {
-
-      // If the browser does not support transforms we can deduct that the
-      // W3C TELCS is broken (non-existent).
-      if (!supportedTransform) {
-        return true;
-      }
-
-      var body = document.body;
-      var outer = document.createElement('div');
-      var inner = document.createElement('div');
-      var leftUntransformed;
-      var leftTransformed;
-
-      setStyles(outer, {
-        display: 'block',
-        visibility: 'hidden',
-        position: 'absolute',
-        width: '1px',
-        height: '1px',
-        left: '1px',
-        top: '0',
-        margin: '0'
-      });
-
-      setStyles(inner, {
-        display: 'block',
-        position: 'fixed',
-        width: '1px',
-        height: '1px',
-        left: '0',
-        top: '0',
-        margin: '0'
-      });
-
-      outer.appendChild(inner);
-      body.appendChild(outer);
-      leftUntransformed = inner.getBoundingClientRect().left;
-      outer.style[supportedTransform] = 'translateZ(0)';
-      leftTransformed = inner.getBoundingClientRect().left;
-      body.removeChild(outer);
-
-      return leftTransformed === leftUntransformed;
-
+    // If the browser does not support transforms we can deduct that the
+    // W3C TELCS is broken (non-existent).
+    if (!supportedTransform) {
+      return true;
     }
 
-    // If document body is not ready return null to indicate that the test is
-    // not yet finished.
-    return null;
+    var body = document.body;
+    var outer = document.createElement('div');
+    var inner = document.createElement('div');
+    var leftUntransformed;
+    var leftTransformed;
+
+    setStyles(outer, {
+      display: 'block',
+      visibility: 'hidden',
+      position: 'absolute',
+      width: '1px',
+      height: '1px',
+      left: '1px',
+      top: '0',
+      margin: '0'
+    });
+
+    setStyles(inner, {
+      display: 'block',
+      position: 'fixed',
+      width: '1px',
+      height: '1px',
+      left: '0',
+      top: '0',
+      margin: '0'
+    });
+
+    outer.appendChild(inner);
+    body.appendChild(outer);
+    leftUntransformed = inner.getBoundingClientRect().left;
+    outer.style[supportedTransform] = 'translateZ(0)';
+    leftTransformed = inner.getBoundingClientRect().left;
+    body.removeChild(outer);
+
+    return leftTransformed === leftUntransformed;
 
   })();
 
@@ -187,7 +156,6 @@ TODO:
 
     var events = this._events = this._events || {};
     var listeners = events[event] || [];
-
     listeners[listeners.length] = listener;
     events[event] = listeners;
 
@@ -282,15 +250,20 @@ TODO:
     // Merge user settings with default settings.
     var stn = inst._settings = mergeObjects({}, Muuri.defaultSettings, settings || {});
 
+    // Make sure a valid container element is provided before going continuing.
+    if (!document.body.contains(stn.container)) {
+      throw new Error('Container must be an existing DOM element');
+    }
+
+    // Setup container element.
+    inst._element = stn.container;
+    addClass(stn.container, stn.containerClass);
+
     // Unique animation queue name.
     inst._animQueue = 'muuri-' + ++uuid;
 
     // Create private eventize instance.
     inst._emitter = new Emitter();
-
-    // Setup container element.
-    inst._element = stn.container;
-    addClass(stn.container, stn.containerClass);
 
     // Setup show and hide animations for items.
     inst._itemShow = typeof stn.show === 'function' ? stn.show() : showHideAnimation(stn.show, true);
@@ -347,25 +320,19 @@ TODO:
     else if (typeof target === 'number') {
 
       target = target > -1 ? target : this._items.length + target;
-
       return this._items[target] || null;
 
     }
     else {
 
       var ret = null;
-
       for (var i = 0, len = this._items.length; i < len; i++) {
-
         var item = this._items[i];
-
         if (item._element === target) {
           ret = item;
           break;
         }
-
       }
-
       return ret;
 
     }
@@ -409,7 +376,7 @@ TODO:
       height: !autoHeight ? heights : heights.length ? gcdMany(heights) : 0
     };
 
-  }
+  };
 
   /**
    * Calculate and set positions of currently active items and return a data
@@ -946,8 +913,13 @@ TODO:
    */
   Muuri.Item = function (muuri, element) {
 
-    // Append the element within the Muuri container element if it is not there
-    // already.
+    // Make sure the item element is not a parent of the grid container element.
+    if (element.contains(muuri._element)) {
+      throw new Error('Item element must not be a parent of the grid container element');
+    }
+
+    // If the provided item element is not a direct child of the grid container
+    // element, append it to the grid container.
     if (element.parentNode !== muuri._element) {
       muuri._element.appendChild(element);
     }
@@ -1114,7 +1086,14 @@ TODO:
 
     // Add drag sroll handler.
     drag.onScroll = function (e) {
-      inst._onDragScroll(e);
+      if (raf) {
+        raf(function () {
+          inst._onDragScroll(e);
+        });
+      }
+      else {
+        inst._onDragScroll(e);
+      }
     };
 
     // Bind drag events.
@@ -1507,7 +1486,6 @@ TODO:
   Muuri.Item.prototype._resetReleaseData = function () {
 
     var release = this._release;
-
     release.active = false;
     release.positioningStarted = false;
     release.containerDiffX = 0;
@@ -1584,7 +1562,7 @@ TODO:
    * @protected
    * @memberof Muuri.Item.prototype
    */
-   Muuri.Item.prototype._checkOverlap = function() {
+  Muuri.Item.prototype._checkOverlap = function () {
 
     var stn = this._muuri._settings;
     var overlapTolerance = stn.dragSortTolerance;
@@ -2146,13 +2124,11 @@ TODO:
   function arrayUnique(array) {
 
     var ret = [];
-
     for (var i = 0, len = array.length; i < len; i++) {
       if (ret.indexOf(array[i]) === -1) {
         ret[ret.length] = array[i];
       }
     }
-
     return ret;
 
   }
@@ -2184,9 +2160,7 @@ TODO:
     var sources = Array.prototype.slice.call(arguments, 1);
 
     for (var i = 0; i < sources.length; i++) {
-
       var source = sources[i];
-
       for (var prop in source) {
         if (source.hasOwnProperty(prop)) {
           if (isPlainObject(dest[prop]) && isPlainObject(source[prop])) {
@@ -2197,7 +2171,6 @@ TODO:
           }
         }
       }
-
     }
 
     return dest;
@@ -2232,7 +2205,7 @@ TODO:
       }
 
       if (action !== actionCancel && action !== actionFinish) {
-        timeout = global.setTimeout(function() {
+        timeout = global.setTimeout(function () {
           timeout = undefined;
           fn();
         }, wait);
@@ -2436,20 +2409,16 @@ TODO:
 
     // For window we just need to get viewport's scroll distance.
     if (el.self === global.self) {
-
       offsetLeft = viewportScrollLeft;
       offsetTop = viewportScrollTop;
-
     }
 
     // For all elements except the document and window we can use the combination of gbcr and
     // viewport's scroll distance.
     else if (el !== document) {
-
       var gbcr = el.getBoundingClientRect();
       offsetLeft += gbcr.left + viewportScrollLeft + parseFloat(getStyle(el, 'border-left-width'));
       offsetTop += gbcr.top + viewportScrollTop + parseFloat(getStyle(el, 'border-top-width'));
-
     }
 
     return {
@@ -2473,34 +2442,22 @@ TODO:
     var isFixed = getStyle(el, 'position') === 'fixed';
 
     if (isFixed && hasBrokenW3CTELCS) {
-
       return global;
-
     }
 
     var offsetParent = el === document.documentElement || el === global ? document : el.parentElement || null;
 
     if (isFixed) {
-
       while (offsetParent && offsetParent !== document && !isTransformed(offsetParent)) {
-
         offsetParent = offsetParent.parentElement || document;
-
       }
-
       return offsetParent === document ? global : offsetParent;
-
     }
     else {
-
       while (offsetParent && offsetParent !== document && getStyle(offsetParent, 'position') === 'static' && !isTransformed(offsetParent)) {
-
         offsetParent = offsetParent.parentElement || document;
-
       }
-
       return offsetParent;
-
     }
 
   }
@@ -2540,7 +2497,6 @@ TODO:
 
     var anchorOffset = getOffset(anchor);
     var targetZeroPosition = getOffset(getOffsetParent(target) || doc);
-
     targetZeroPosition.left -= Math.abs(Math.min(parseFloat(getStyle(target, 'margin-left')), 0));
     targetZeroPosition.top -= Math.abs(Math.min(parseFloat(getStyle(target, 'margin-top')), 0));
 
@@ -2629,7 +2585,6 @@ TODO:
    * ***************
    */
 
-
   /**
    * Calculate the greatest common divisor between two integers.
    *
@@ -2637,11 +2592,11 @@ TODO:
    * @param {Number} b
    * @returns {Number}
    */
-    function gcd(a, b) {
+  function gcd(a, b) {
 
-      return !b ? a : gcd(b, a % b);
+    return !b ? a : gcd(b, a % b);
 
-    }
+  }
 
   /**
    * Calculate the greatest common divisor between multiple integers. Provide
@@ -2651,20 +2606,20 @@ TODO:
    * @param {Array} values
    * @returns {Number}
    */
-    function gcdMany(values) {
+  function gcdMany(values) {
 
-      var val = gcd(values[0], values[1]);
+    var val = gcd(values[0], values[1]);
 
-      for (var i = 2; i < values.length; i++) {
-        val = gcd(val, values[i]);
-        if (val === 1) {
-          break;
-        }
+    for (var i = 2; i < values.length; i++) {
+      val = gcd(val, values[i]);
+      if (val === 1) {
+        break;
       }
-
-      return val;
-
     }
+
+    return val;
+
+  }
 
   /**
    * Calculate how many percent the intersection area of two items is from the

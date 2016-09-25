@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.1.0
+ * Muuri v0.2.0-dev
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -259,8 +259,11 @@
     inst._element = stn.container;
     addClass(stn.container, stn.containerClass);
 
+    // Instance id.
+    inst._id = ++uuid;
+
     // Unique animation queue name.
-    inst._animQueue = 'muuri-' + ++uuid;
+    inst._animQueue = 'muuri-' + inst._id;
 
     // Create private eventize instance.
     inst._emitter = new Emitter();
@@ -336,104 +339,6 @@
       return ret;
 
     }
-
-  };
-
-  /**
-   * Calculate the minimum slot width and height for the virtual grid, based on
-   * the items.
-   *
-   * @protected
-   * @memberof Muuri.prototype
-   * @param {Array} items
-   * @returns {Object}
-   */
-  Muuri.prototype._getSlotSize = function (items) {
-
-    var colWidth = this._settings.colWidth;
-    var rowHeight = this._settings.rowHeight;
-    var autoWidth = colWidth === 'auto';
-    var autoHeight = rowHeight === 'auto';
-    var widths = autoWidth ? [] : parseInt(colWidth) || 0;
-    var heights = autoHeight ? [] : parseInt(rowHeight) || 0;
-
-    // Get width and/or height of all items if needed.
-    if (autoWidth || autoHeight) {
-      for (var i = 0, len = items.length; i < len; i++) {
-        if (autoWidth) {
-          widths[widths.length] = items[i]._width;
-        }
-        if (autoHeight) {
-          heights[heights.length] = items[i]._height;
-        }
-      }
-    }
-
-    // Calculate and return the slot height/width (greatest common divisor) if
-    // needed or just return the predefined colWidth and/or rowHeight.
-    return {
-      width: !autoWidth ? widths : widths.length ? gcdMany(widths) : 0,
-      height: !autoHeight ? heights : heights.length ? gcdMany(heights) : 0
-    };
-
-  };
-
-  /**
-   * Calculate and set positions of currently active items and return a data
-   * object containing data about the generated "virtual grid".
-   *
-   * @protected
-   * @memberof Muuri.prototype
-   * @param {Array} items
-   * @returns {Object}
-   */
-  Muuri.prototype._generateLayout = function (items) {
-
-    items = items || this.get('active');
-
-    var slots = [];
-    var fillWidth = 0;
-    var fillHeight = 0;
-    var slotWidth = 0;
-    var slotHeight = 0;
-
-    if (items.length) {
-
-      var grid = [];
-      var containerWidth = Math.round(getDimension(this._element, 'width'));
-      var slotSize = this._getSlotSize(items);
-
-      slotWidth = slotSize.width;
-      slotHeight = slotSize.height;
-
-      // Find slots for items.
-      for (var i = 0, len = items.length; i < len; i++) {
-
-        var item = items[i];
-        var slot = i === 0 ? {left: 0, top: 0} : findSlot(grid, containerWidth, slotHeight, slotWidth, item._width, item._height);
-
-        // Fill slot.
-        fillSlots(grid, slotHeight, slotWidth, item._width, item._height, slot.left, slot.top);
-
-        // Update fillWidth and fillHeight.
-        fillWidth = Math.max(fillWidth, slot.left + item._width);
-        fillHeight = Math.max(fillHeight, slot.top + item._height);
-
-        // Push the slot data to return data.
-        slots[i] = slot;
-
-      }
-
-    }
-
-    return {
-      items: items,
-      slots: slots,
-      fillWidth: fillWidth,
-      fillHeight: fillHeight,
-      slotWidth: slotWidth,
-      slotHeight: slotHeight
-    };
 
   };
 
@@ -686,7 +591,7 @@
     var emitter = inst._emitter;
     var callback = typeof instant === 'function' ? instant : callback;
     var isInstant = instant === true;
-    var layout = inst._generateLayout();
+    var layout = new Muuri.Layout(inst);
     var counter = -1;
     var itemsLength = layout.items.length;
     var completed = [];
@@ -715,10 +620,19 @@
     // Emit layoutstart event.
     emitter.emit(evLayoutStart, layout.items, layout);
 
-    // Set container's height.
-    setStyles(inst._element, {
-      height: layout.fillHeight + 'px'
-    });
+    // Set container's height if needed.
+    if (layout.setHeight) {
+      setStyles(inst._element, {
+        height: layout.height + 'px'
+      });
+    }
+
+    // Set container's width if needed.
+    if (layout.setWidth) {
+      setStyles(inst._element, {
+        width: layout.width + 'px'
+      });
+    }
 
     // If there are now items let's finish quickly.
     if (!itemsLength) {
@@ -732,10 +646,11 @@
       for (var i = 0, len = layout.items.length; i < len; i++) {
 
         var item = layout.items[i];
+        var pos = layout.slots[item._id];
 
         // Update item's position.
-        item._left = layout.slots[i].left;
-        item._top = layout.slots[i].top;
+        item._left = pos.left;
+        item._top = pos.top;
 
         // Layout non-dragged items.
         item._drag.active ? tryFinish(false, item) : item._layout(isInstant, tryFinish);
@@ -927,6 +842,8 @@
     var stn = muuri._settings;
     var isHidden = getStyle(element, 'display') === 'none';
 
+    // Instance id.
+    this._id = ++uuid;
     this._muuri = muuri;
     this._element = element;
     this._child = element.children[0];
@@ -952,7 +869,7 @@
     // temporarily to this array. The callbacks are called with the first
     // argument as false if the animation succeeded without interruptions and
     // with the first argument as true if the animation was interrupted.
-    this._peekabooQueue = [];
+    this._visibiliyQueue = [];
 
     // Layout animation callback queue. Whenever a callback is provided for
     // layout method and animation is enabled the callback is stored temporarily
@@ -1797,7 +1714,7 @@
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._peekabooQueue[inst._peekabooQueue.length] = callback;
+        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
       }
 
     }
@@ -1825,21 +1742,21 @@
       });
 
       // Process current callback queue.
-      processQueue(inst._peekabooQueue, true, inst);
+      processQueue(inst._visibiliyQueue, true, inst);
 
       // Update state.
       inst._showing = true;
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._peekabooQueue[inst._peekabooQueue.length] = callback;
+        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
       }
 
       // Animate child element.
       inst._muuri._itemShow.start(inst, instant, function () {
 
         // Process callback queue.
-        processQueue(inst._peekabooQueue, false, inst);
+        processQueue(inst._visibiliyQueue, false, inst);
 
       });
 
@@ -1875,7 +1792,7 @@
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._peekabooQueue[inst._peekabooQueue.length] = callback;
+        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
       }
 
     }
@@ -1898,14 +1815,14 @@
       removeClass(inst._element, stn.shownClass);
 
       // Process current callback queue.
-      processQueue(inst._peekabooQueue, true, inst);
+      processQueue(inst._visibiliyQueue, true, inst);
 
       // Update state.
       inst._hiding = true;
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._peekabooQueue[inst._peekabooQueue.length] = callback;
+        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
       }
 
       // Animate child element.
@@ -1917,7 +1834,7 @@
         });
 
         // Process callback queue.
-        processQueue(inst._peekabooQueue, false, inst);
+        processQueue(inst._visibiliyQueue, false, inst);
 
       });
 
@@ -1971,7 +1888,7 @@
 
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.
-    processQueue(this._peekabooQueue, true, this);
+    processQueue(this._visibiliyQueue, true, this);
 
     // Remove Muuri specific classes.
     removeClass(element, stn.positioningClass);
@@ -2000,6 +1917,329 @@
   };
 
   /**
+   * Creates a new Muuri Layout instance.
+   *
+   * @public
+   * @class
+   * @memberof Muuri
+   * @param {Muuri} muuri
+   * @param {Muuri.Item[]} [items]
+   */
+  Muuri.Layout = function (muuri, items) {
+
+    var stn = muuri._settings.layout;
+
+    this.muuri = muuri;
+    this.items = items ? items.concat() : muuri.get('active');
+    this.slots = {};
+    this.width = 0;
+    this.height = 0;
+    this.setWidth = false;
+    this.setHeight = false;
+
+    // If items exist.
+    if (this.items.length) {
+
+      // Calculate the current width and height of the container.
+      this.width = getDimension(muuri._element, 'width');
+      this.height = getDimension(muuri._element, 'height');
+
+      // If the user has provided custom function as a layout method invoke it.
+      if (typeof stn === 'function') {
+
+        stn.call(this);
+
+      }
+      // Otherwise parse the layout mode and settings from provided options and
+      // do the calculations.
+      else {
+
+        // Parse the layout method name and settings from muuri settings.
+        var useDefaults = typeof stn === 'string';
+        var methodName = useDefaults ? stn : stn[0];
+        var methodSettings = !useDefaults ? stn[1] : {
+          horizontal: false,
+          alignRight: false,
+          alignBottom: false
+        };
+
+        // Make sure the provided layout method exists.
+        if (typeof Muuri.Layout.methods[methodName] !== 'function') {
+          throw new Error('Layout method "' + method +  '" does not exist.');
+        }
+
+        // Invoke the layout method.
+        typeof Muuri.Layout.methods[methodName].call(this, methodSettings);
+
+      }
+
+    }
+
+  };
+
+  /**
+   * Available layout methods.
+   *
+   * @public
+   * @memberof Muuri.Layout
+   */
+  Muuri.Layout.methods = {
+
+    /**
+     * Helper method that loops through the layout items and updates the layout
+     * instance data.
+     *
+     * @public
+     * @memberof Muuri.Layout.prototype
+     * @param {Object} settings
+     */
+    firstFit: function (settings) {
+
+      // Empty slots data.
+      var emptySlots = [];
+
+      // Check layout alignment.
+      var isHorizontal = settings.horizontal ? true : false;
+      var alignRight = settings.alignRight ? true : false;
+      var alignBottom = settings.alignBottom ? true : false;
+
+      // Round container width and height.
+      this.width = Math.round(this.width);
+      this.height = Math.round(this.height);
+
+      // Set horizontal/vertical mode.
+      if (isHorizontal) {
+        this.setWidth = true;
+        this.width = 0;
+      }
+      else {
+        this.setHeight = true;
+        this.height = 0;
+      }
+
+      // Find slots for items.
+      for (var i = 0; i < this.items.length; i++) {
+
+        var item = this.items[i];
+        var slot = this._getfirstFitSlot(emptySlots, item._width, item._height, !isHorizontal);
+
+        // Update layout height.
+        if (isHorizontal) {
+          this.width = Math.max(this.width, slot.left + slot.width);
+        }
+        else {
+          this.height = Math.max(this.height, slot.top + slot.height);
+        }
+
+        // Add slot to slots data.
+        this.slots[item._id] = slot;
+
+      }
+
+      // If the alignment is set to right or bottom, we need to adjust the
+      // results.
+      if (alignRight || alignBottom) {
+        for (var id in this.slots) {
+          var slot = this.slots[id];
+          if (alignRight) {
+            slot.left = this.width - (slot.left + slot.width);
+          }
+          if (alignBottom) {
+            slot.top = this.height - (slot.top + slot.height);
+          }
+        }
+      }
+
+    }
+
+  };
+
+  /**
+   * Calculate position for a firstFit layout item. Returns the left and top
+   * position of the item in pixels.
+   *
+   * @param {Array} slots
+   * @param {Number} itemWidth
+   * @param {Number} itemHeight
+   * @param {Boolean} vertical
+   * @returns {Object}
+   */
+  Muuri.Layout.prototype._getfirstFitSlot = function(slots, itemWidth, itemHeight, vertical) {
+
+    var currentSlots = slots[0] || [];
+    var newSlots = [];
+    var item = {
+      left: null,
+      top: null,
+      width: itemWidth,
+      height: itemHeight
+    };
+    var slot;
+
+    // Try to find a slot for the item.
+    for (var i = 0; i < currentSlots.length; i++) {
+      slot = currentSlots[i];
+      if (item.width <= slot.width && item.height <= slot.height) {
+        item.left = slot.left;
+        item.top = slot.top;
+        break;
+      }
+    }
+
+    // If no slot was found for the item, let's position the item in to the
+    // bottom left (vertical mode) or top right (horizontal mode) of the grid.
+    if (item.left === null) {
+      item.left = vertical ? 0 : this.width;
+      item.top = vertical ? this.height : 0;
+    }
+
+    // In vertical mode, if the item's bottom overlaps the grid's bottom.
+    if (vertical && (item.top + item.height) > this.height) {
+
+      // If item is not aligned to the left edge, create a new slot.
+      if (item.left > 0) {
+        newSlots[newSlots.length] = {
+          left: 0,
+          top: this.height,
+          width: item.left,
+          height: Infinity
+        };
+      }
+
+      // If item is not aligned to the right edge, create a new slot.
+      if ((item.left + item.width) < this.width) {
+        newSlots[newSlots.length] = {
+          left: item.left + item.width,
+          top: this.height,
+          width: this.width - item.left - item.width,
+          height: Infinity
+        };
+      }
+
+      // Update grid height.
+      this.height = item.top + item.height;
+
+    }
+
+    // In horizontal mode, if the item's right overlaps the grid's right edge.
+    if (!vertical && (item.left + item.width) > this.width) {
+
+      // If item is not aligned to the top, create a new slot.
+      if (item.top > 0) {
+        newSlots[newSlots.length] = {
+          left: this.width,
+          top: 0,
+          width: Infinity,
+          height: item.top
+        };
+      }
+
+      // If item is not aligned to the bottom, create a new slot.
+      if ((item.top + item.height) < this.height) {
+        newSlots[newSlots.length] = {
+          left: this.width,
+          top: item.top + item.height,
+          width: Infinity,
+          height: this.height - item.top - item.height
+        };
+      }
+
+      // Update grid width.
+      this.width = item.left + item.width;
+
+    }
+
+    // Check if any of the current slots overlap the item.
+    for (var i = 0; i < currentSlots.length; i++) {
+
+      slot = currentSlots[i];
+
+      // Check it slot overlaps the item.
+      var slotOverlapsItem = !( item.left > (slot.left + slot.width) ||
+                                (item.left + item.width) < slot.left ||
+                                item.top > (slot.top + slot.height)  ||
+                                (item.top + item.height) < slot.top
+                              );
+
+      // If the slot does not overlap the item, push it to the new slots array.
+      if (!slotOverlapsItem) {
+
+        if ((vertical && slot.top < this.height) || (!vertical && slot.left < this.width)) {
+          newSlots[newSlots.length] = slot;
+        }
+
+      }
+      // If the slot overlaps the item, split the slot into smaller slots.
+      else {
+
+        var shards = [];
+
+        // Left shard.
+        if (slot.left < item.left) {
+          shards[shards.length] = {
+            left: slot.left,
+            top: slot.top,
+            width: item.left - slot.left,
+            height: slot.height
+          };
+        }
+
+        // Right shard.
+        if ((slot.left + slot.width) > (item.left + item.width)) {
+          shards[shards.length] = {
+            left: item.left + item.width,
+            top: slot.top,
+            width: (slot.left + slot.width) - (item.left + item.width),
+            height: slot.height
+          };
+        }
+
+        // Top shard.
+        if (slot.top < item.top) {
+          shards[shards.length] = {
+            left: slot.left,
+            top: slot.top,
+            width: slot.width,
+            height: item.top - slot.top
+          };
+        }
+
+        // Bottom shard.
+        if ((slot.top + slot.height) > (item.top + item.height)) {
+          shards[shards.length] = {
+            left: slot.left,
+            top: item.top + item.height,
+            width: slot.width,
+            height: (slot.top + slot.height) - (item.top + item.height)
+          };
+        }
+
+        // Validate shards and push valid ones to new slots array.
+        for (var ii = 0; ii < shards.length; ii++) {
+          var shard = shards[ii];
+          if (shard.width > 0 && shard.height > 0) {
+            if ((vertical && shard.top < this.height) || (!vertical && shard.left < this.width)) {
+              newSlots[newSlots.length] = shard;
+            }
+          }
+        }
+
+      }
+
+    }
+
+    // Sort the new slots based on their y-coordinate and x-coordinate.
+    newSlots.sort(vertical ? sortRectsTopLeft : sortRectsLeftTop);
+
+    // Update the slots data.
+    slots[0] = newSlots;
+
+    // Return the item.
+    return item;
+
+  };
+
+  /**
    * Muuri - Settings
    * ****************
    */
@@ -2015,8 +2255,7 @@
    * @property {Array|String} positionEasing
    * @property {!Function|Object} show
    * @property {!Function|Object} hide
-   * @property {Number|String} colWidth
-   * @property {Number|String} rowHeight
+   * @property {Array|String} layout
    * @property {!Number} layoutOnResize
    * @property {Boolean} layoutOnInit
    * @property {Boolean} dragEnabled
@@ -2055,13 +2294,12 @@
     },
 
     // Layout
-    colWidth: 'auto',
-    rowHeight: 'auto',
+    layout: 'firstFit',
     layoutOnResize: 100,
     layoutOnInit: true,
 
     // Drag & Drop
-    dragEnabled: true,
+    dragEnabled: false,
     dragContainer: document.body,
     dragPredicate: null,
     dragSort: true,
@@ -2223,8 +2461,9 @@
    * @param {Object} b
    * @returns {?Object}
    */
-  function getIntersection(a, b, returnData) {
+  function getIntersection(a, b) {
 
+    var ret = null;
     var overlap = {
       left: a.left - b.left,
       right: (b.left + b.width) - (a.left + a.width),
@@ -2235,12 +2474,17 @@
     var intersectionHeight = Math.max(a.height + Math.min(overlap.top, 0) + Math.min(overlap.bottom, 0), 0);
     var hasIntersection = intersectionWidth > 0 && intersectionHeight > 0;
 
-    return !hasIntersection ? null : {
-      width: intersectionWidth,
-      height: intersectionHeight,
-      left: a.left + Math.abs(Math.min(overlap.left, 0)),
-      top: a.top + Math.abs(Math.min(overlap.top, 0))
-    };
+    if (hasIntersection) {
+      ret = {};
+      ret.width = intersectionWidth;
+      ret.height = intersectionHeight;
+      ret.left = a.left + Math.abs(Math.min(overlap.left, 0));
+      ret.right = ret.left + ret.width;
+      ret.top = a.top + Math.abs(Math.min(overlap.top, 0));
+      ret.bottom = ret.top + ret.height;
+    }
+
+    return ret;
 
   }
 
@@ -2487,7 +2731,7 @@
    * Calculate the offset difference of two elements. The target element is is
    * always considered to be Muuri item's element which means that it's margins
    * are considered to be part of it's width and height. The anchor element's
-   * widht and height however always consist of the core and the padding only.
+   * width and height however always consist of the core and the padding only.
    *
    * @param {HTMLElement} target
    * @param {HTMLElement} anchor
@@ -2586,42 +2830,6 @@
    */
 
   /**
-   * Calculate the greatest common divisor between two integers.
-   *
-   * @param {Number} a
-   * @param {Number} b
-   * @returns {Number}
-   */
-  function gcd(a, b) {
-
-    return !b ? a : gcd(b, a % b);
-
-  }
-
-  /**
-   * Calculate the greatest common divisor between multiple integers. Provide
-   * an array of one or more integers and you shall receive their greatest
-   * common divisor.
-   *
-   * @param {Array} values
-   * @returns {Number}
-   */
-  function gcdMany(values) {
-
-    var val = gcd(values[0], values[1]);
-
-    for (var i = 2; i < values.length; i++) {
-      val = gcd(val, values[i]);
-      if (val === 1) {
-        break;
-      }
-    }
-
-    return val;
-
-  }
-
-  /**
    * Calculate how many percent the intersection area of two items is from the
    * maximum potential intersection area between the items.
    *
@@ -2654,137 +2862,6 @@
     var maxIntersection = getIntersection(aUnpos, bUnpos);
 
     return (intersection.width * intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
-
-  }
-
-  /**
-   * Helper utility for layout calculations. Fills slots in a virtual grid.
-   *
-   * @param {Array} grid
-   * @param {Number} rowHeight
-   * @param {Number} colWidth
-   * @param {Number} itemWidth
-   * @param {Number} itemHeight
-   * @param {Number} itemLeft
-   * @param {Number} itemTop
-   */
-  function fillSlots(grid, rowHeight, colWidth, itemWidth, itemHeight, itemLeft, itemTop) {
-
-    var slotWidth = itemWidth / colWidth;
-    var slotHeight = itemHeight / rowHeight;
-    var slotX = itemLeft / colWidth;
-    var slotY = itemTop / rowHeight;
-    var y = slotY;
-    var x = slotX;
-    var yLen = slotY + slotHeight;
-    var xLen = slotX + slotWidth;
-
-    for (y = slotY; y < yLen; y++) {
-      var row = grid[y] = grid[y] || [];
-      for (x = slotX; x < xLen; x++) {
-        row[x] = 1;
-      }
-    }
-
-  }
-
-  /**
-   * Helper utility for layout calculations. Finds slots in a virtual grid.
-   * Returns an object containing the item's left and top position.
-   *
-   * @param {Array} grid
-   * @param {Number} containerWidth
-   * @param {Number} rowHeight
-   * @param {Number} colWidth
-   * @param {Number} itemWidth
-   * @param {Number} itemHeight
-   * @returns {Object}
-   */
-  function findSlot(grid, containerWidth, rowHeight, colWidth, itemWidth, itemHeight) {
-
-    // If the item width exceeds the container width we can simplify the
-    // algorithm a lot. Just position the item to the next free row.
-    if (itemWidth > containerWidth) {
-      return {
-        left: 0,
-        top: grid.length * rowHeight
-      };
-    }
-
-    var slotWidth = itemWidth / colWidth;
-    var slotHeight = itemHeight / rowHeight;
-    var xEdge = Math.floor(containerWidth / colWidth);
-    var x = 0;
-    var y = 0;
-    var yLen = grid.length + 1;
-
-    yLoop:
-    for (y = 0; y < yLen; y++) {
-
-      // Always reset x when starting to iterate.
-      x = 0;
-
-      // If the row does not exist, we are sure that there is nothing below it
-      // or on it and can safely quit here.
-      if (!grid[y]) {
-        break;
-      }
-
-      // Otherwise let's check inspect the row's slots.
-      xLoop:
-      for (x = 0; x < xEdge; x++) {
-
-        // If slot won't fit in the current row break x-loop instantly.
-        if ((slotWidth + x) > xEdge) {
-          break;
-        }
-
-        // If the slot is taken move on to the next slot in the row.
-        if (grid[y][x]) {
-          continue;
-        }
-
-        // Otherwise, let's check if this position is suitable for the item.
-
-        var isMatch = true;
-        var y2 = y;
-        var y2Len = y + slotHeight;
-        var x2 = x;
-        var x2Len = x + slotWidth;
-
-        y2Loop:
-        for (y2 = y2; y2 < y2Len; y2++) {
-
-          // If the row does not exist, we are sure that there is nothing below
-          // it or on it and can safely quit here.
-          if (!grid[y2]) {
-            break;
-          }
-
-          // If the slot is taken we can deduct that the item won't fit here.
-          x2Loop:
-          for (x2 = x; x2 < x2Len; x2++) {
-            if (grid[y2][x2]) {
-              isMatch = false;
-              break y2Loop;
-            }
-          }
-
-        }
-
-        // If match was found break the main loop.
-        if (isMatch) {
-          break yLoop;
-        }
-
-      }
-
-    }
-
-    return {
-      left: x * colWidth,
-      top: y * rowHeight
-    };
 
   }
 
@@ -2985,7 +3062,7 @@
       };
     }
     else {
-      var targetStyles = isShow ? {opacity: 1, scale: 1} : {opacity: 0, scale: 0};
+      var targetStyles = isShow ? {opacity: 1, scale: 1} : {opacity: 0, scale: 0.5};
       return {
         start: function (item, instant, animDone) {
           if (instant) {
@@ -3023,6 +3100,38 @@
     for (var i = 0, len = snapshot.length; i < len; i++) {
       snapshot[i](interrupted, instance);
     }
+
+  }
+
+  /**
+   * Sort rectangles with top-left gravity. Assumes that objects with
+   * properties x (x-coordinate), y (y-coordinate) ,w (width) and h (height) are
+   * being sorted.
+   *
+   * @private
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Number}
+   */
+  function sortRectsTopLeft(a, b) {
+
+    return a.top < b.top ? -1 : (a.top > b.top ? 1 : (a.left < b.left ? -1 : (a.left > b.left ? 1 : 0)));
+
+  }
+
+  /**
+   * Sort rectangles with left-top gravity. Assumes that objects with
+   * properties x (x-coordinate), y (y-coordinate) ,w (width) and h (height) are
+   * being sorted.
+   *
+   * @private
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Number}
+   */
+  function sortRectsLeftTop(a, b) {
+
+    return a.left < b.left ? -1 : (a.left > b.left ? 1 : (a.top < b.top ? -1 : (a.top > b.top ? 1 : 0)));
 
   }
 

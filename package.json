@@ -1,7 +1,7 @@
 {
   "name": "muuri",
-  "version": "0.1.0",
-  "description": "A grid layout library with drag and drop support",
+  "version": "0.2.0-dev",
+  "description": "A grid layout library with rich API and drag & drop support",
   "keywords": [
     "grid",
     "layout",

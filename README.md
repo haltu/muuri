@@ -1,8 +1,14 @@
 # Muuri
 
-A dynamic grid layout with built-in support for dragging and dropping grid items. Uses a custom bin-packing layout algorithm (similar to that of [Packery](https://github.com/metafizzy/packery)) for positioning the grid items. Powered by [Velocity](https://github.com/julianshapiro/velocity) (animations) and [Hammer.js](https://github.com/hammerjs/hammer.js) (touch gestures). Works in IE9+ and modern browsers.
+Muuri makes it easy to build responsive grid layouts that can be sorted and filtered. On top of that Muuri has built-in support for making the grid items draggable and thus allowing drag & drop sorting of the grid items. Basically Muuri is  (or aims to be) a combination of [Packery](https://github.com/metafizzy/packery), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/).
 
-**A word of warning.** This library is currently under active development and not yet ready for prime time. Use at your own risk, API and functionality might be subject to change.
+The best part of Muuri is it's API. It's designed to be as simple as possible while allowing you to do a multitude of things. For example, there are no built-in API methods for filtering and sorting the grid items because it's trivial to build your own custom filtering and sorting with the API.
+
+Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm positions items pretty much the same way as [Packery](https://github.com/metafizzy/packery) does. However, you can also provide your own layout algorithm to position the items in any way you want.
+
+Currently Muuri uses [Velocity](https://github.com/julianshapiro/velocity) for animating the grid items (positioining/showing/hiding) and [Hammer.js](https://github.com/hammerjs/hammer.js) for handling the dragging. Hammer.js is an optional dependency that is only required if dragging is enabled, but Velocity is a hard dependency.
+
+**A word of warning.** This library is currently under active development and not yet recommended to be used in production. The API is likely to change a bit before the magical v1.0.0, unit tests are still under contruction and a few major features completely missing.
 
 ## Table of contents
 
@@ -48,16 +54,19 @@ A dynamic grid layout with built-in support for dragging and dropping grid items
 ## Getting started
 
 Muuri depends on the following libraries:
-* [Hammer.js](https://github.com/hammerjs/hammer.js) (2.0.x)
 * [Velocity](https://github.com/julianshapiro/velocity) (1.2.x)
+* [Hammer.js](https://github.com/hammerjs/hammer.js) (2.0.x) optional, required only if you are using the draggin feature
 
 **First, include Muuri and it's dependencies in your site.**
 
 ```html
 <script src="velocity.js"></script>
 <script src="hammer.js"></script>
+<!-- Needs to be within in body element or have access to body element -->
 <script src="muuri.js"></script>
 ```
+
+An important note for including Muuri to your site is that it needs to have access to the `body` element when it's loaded. Muuri does some feature checking on init and might not work correctly if it does not have access to the `body` element.
 
 **Then, define your grid markup.**
 
@@ -237,12 +246,17 @@ var grid = new Muuri({
 * **`hide`** &nbsp;&mdash;&nbsp; *Object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
   * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
-* **`colWidth`** &nbsp;&mdash;&nbsp; *Number / String*
-  * Default value: `"auto"`.
-  * Define column width for the grid (integer) or set to `"auto"` if you want Muuri to automatically calculate this for you based on the width of the items in the Muuri instance.
-* **`rowHeight`** &nbsp;&mdash;&nbsp; *Number / String*
-  * Default value: `"auto"`.
   * Define row height for the grid (integer) or set to `"auto"` if you want Muuri to automatically calculate this for you based on the height of the items in the Muuri instance.
+* **`layout`** &nbsp;&mdash;&nbsp; *Array / Function / String*
+  * Default value: `"firstFit"`.
+  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in mehthod - `"firstFit"`. If you are using the array syntax the first value should be a string (name of the method) and the second value (optional) should be a configuration object. For example, if you wanted to use the default method on a page that scrolls horizontally you could set this option to: `["firstFit", {horizontal: true}]`. If you provide a function you can fully control the layout of the items. The function will receive a `Muuri.Layout` instance as it's context which you can manipulate as much as you want to get the items to the wanted positions.  
+  * `firstFit`
+    * `horizontal` (type: *boolean*, default: `false`)
+      *  When `true` the grid works in landscape mode (grid expands to the right). Good for horizontally scrolling sites.
+    * `alignRight` (type: *boolean*, default: `false`)
+      * When `true` the items are aligned from right to left.
+    * `alignBottom` (type: *boolean*, default: `false`)
+      * When `true` the items are aligned from the bottom up.
 * **`layoutOnResize`** &nbsp;&mdash;&nbsp; *Null / Number*
   * Default value: `100`.
   * Should Muuri automatically trigger layout on window resize? Set to `null` to disable. When a number (`0` or greater) is provided Muuri will automatically trigger layout when window is resized. The provided number equals to the amount of time (in milliseconds) that is waited before the layout is triggered after each resize event. The layout method is wrapped in a debouned function in order to avoid unnecessary layout calls.
@@ -250,7 +264,7 @@ var grid = new Muuri({
   * Default value: `true`.
   * Should Muuri trigger layout automatically on init?
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *Boolean*
-  * Default value: `true`.
+  * Default value: `false`.
   * Should items be draggable?
 * **`dragPredicate`** &nbsp;&mdash;&nbsp; *Function*
   * Default value: `null`.
@@ -337,7 +351,7 @@ var defaults = {
     layoutOnInit: true,
 
     // Drag & Drop
-    dragEnabled: true,
+    dragEnabled: false,
     dragPredicate: null,
     dragSort: true,
     dragContainer: document.body,
@@ -744,28 +758,26 @@ Triggered when `muuri.layout()` method is called, just before the items are posi
 **Listener parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that are about to be positioned.
-* **layoutData** &nbsp;&mdash;&nbsp; *array*
-  * An object containing information about the current layout.
-  * **layoutData.items** &nbsp;&mdash;&nbsp; *array*
-    * An array of `Muuri.Item` instances that are about to be positioned.
-  * **layoutData.slots** &nbsp;&mdash;&nbsp; *array*
-    * An array of item positions within the virtual grid. Matches the order of the `layoutData.items` array.
-  * **layoutData.fillWidth** &nbsp;&mdash;&nbsp; *number*
-    * The width of the virtual grid.
-  * **layoutData.fillHeight** &nbsp;&mdash;&nbsp; *number*
-    * The height of the virtual grid.
-  * **layoutData.slotWidth** &nbsp;&mdash;&nbsp; *number*
-    * The slot width of the virtual grid.
-  * **layoutData.slotHeight** &nbsp;&mdash;&nbsp; *number*
-    * The slot height of the virtual grid.
+  * An array of `Muuri.Item` instances that were succesfully positioned. If, for example, an item is being dragged it is ignored by the layout method.
+* **layout** &nbsp;&mdash;&nbsp; *object*
+  * A `Muuri.Layout` instance.
+  * **layout.muuri** &nbsp;&mdash;&nbsp; *Muuri*
+    * A `Muuri` instance for which the layout was generated. 
+  * **layout.items** &nbsp;&mdash;&nbsp; *array*
+      * An array of `Muuri.Item` instances that were positioned.
+  * **layout.slots** &nbsp;&mdash;&nbsp; *object*
+    * An object containing the positions of the `layout.items`. Indexed with the ids of the items. For example, to get the first item's position you would do `layout.slots[layout.items[0]._id]`. Each slot contains the the item's *width*, *height*, *left* and *top*.
+  * **layout.width** &nbsp;&mdash;&nbsp; *number*
+    * The width of the grid.
+  * **layout.height** &nbsp;&mdash;&nbsp; *number*
+    * The height of the grid.
 
 **Examples**
 
 ```javascript
-muuri.on('layoutstart', function (items, layoutData) {
+muuri.on('layoutstart', function (items, layout) {
   console.log(items);
-  console.log(layoutData);
+  console.log(layout);
 });
 ```
 
@@ -777,27 +789,25 @@ Triggered when `muuri.layout()` method is called, after the items have positione
 
 * **items** &nbsp;&mdash;&nbsp; *array*
   * An array of `Muuri.Item` instances that were succesfully positioned. If, for example, an item is being dragged it is ignored by the layout method.
-* **layoutData** &nbsp;&mdash;&nbsp; *array*
-  * An object containing information about the current layout.
-  * **layoutData.items** &nbsp;&mdash;&nbsp; *array*
-    * An array of `Muuri.Item` instances that were meant to be positioned. This might be different from the `items` argument's data.
-  * **layoutData.slots** &nbsp;&mdash;&nbsp; *array*
-    * An array of item positions within the virtual grid. Matches the order of the `layoutData.items` array.
-  * **layoutData.fillWidth** &nbsp;&mdash;&nbsp; *number*
-    * The width of the virtual grid.
-  * **layoutData.fillHeight** &nbsp;&mdash;&nbsp; *number*
-    * The height of the virtual grid.
-  * **layoutData.slotWidth** &nbsp;&mdash;&nbsp; *number*
-    * The slot width of the virtual grid.
-  * **layoutData.slotHeight** &nbsp;&mdash;&nbsp; *number*
-    * The slot height of the virtual grid.
+* **layout** &nbsp;&mdash;&nbsp; *object*
+  * A `Muuri.Layout` instance.
+  * **layout.muuri** &nbsp;&mdash;&nbsp; *Muuri*
+    * A `Muuri` instance for which the layout was generated. 
+  * **layout.items** &nbsp;&mdash;&nbsp; *array*
+      * An array of `Muuri.Item` instances that were positioned.
+  * **layout.slots** &nbsp;&mdash;&nbsp; *object*
+    * An object containing the positions of the `layout.items`. Indexed with the ids of the items. For example, to get the first item's position you would do `layout.slots[layout.items[0]._id]`. Each slot contains the the item's *width*, *height*, *left* and *top*.
+  * **layout.width** &nbsp;&mdash;&nbsp; *number*
+    * The width of the grid.
+  * **layout.height** &nbsp;&mdash;&nbsp; *number*
+    * The height of the grid.
 
 **Examples**
 
 ```javascript
-muuri.on('layoutend', function (items, layoutData) {
+muuri.on('layoutend', function (items, layout) {
   console.log(items);
-  console.log(layoutData);
+  console.log(layout);
 });
 ```
 

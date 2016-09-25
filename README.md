@@ -2,7 +2,7 @@
 
 Muuri makes it easy to build responsive grid layouts that can be sorted and filtered. On top of that Muuri has built-in support for making the grid items draggable and thus allowing drag & drop sorting of the grid items. Basically Muuri is  (or aims to be) a combination of [Packery](https://github.com/metafizzy/packery), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/).
 
-The best part of Muuri is it's API. It's designed to be as simple as possible while allowing you to do a multitude of things. For example, there are no built-in API methods for filtering and sorting the grid items because it's trivial to build your own custom filtering and sorting with the API.
+The best part of Muuri is it's API. It's designed to be as simple as possible while allowing the developer to take full control over the grid. For example, there are no built-in API methods for filtering and sorting the grid items because there really is no need for them. It's trivial to roll your own custom filtering and sorting with the API.
 
 Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm positions items pretty much the same way as [Packery](https://github.com/metafizzy/packery) does. However, you can also provide your own layout algorithm to position the items in any way you want.
 
@@ -246,10 +246,9 @@ var grid = new Muuri({
 * **`hide`** &nbsp;&mdash;&nbsp; *Object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
   * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
-  * Define row height for the grid (integer) or set to `"auto"` if you want Muuri to automatically calculate this for you based on the height of the items in the Muuri instance.
 * **`layout`** &nbsp;&mdash;&nbsp; *Array / Function / String*
   * Default value: `"firstFit"`.
-  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in mehthod - `"firstFit"`. If you are using the array syntax the first value should be a string (name of the method) and the second value (optional) should be a configuration object. For example, if you wanted to use the default method on a page that scrolls horizontally you could set this option to: `["firstFit", {horizontal: true}]`. If you provide a function you can fully control the layout of the items. The function will receive a `Muuri.Layout` instance as it's context which you can manipulate as much as you want to get the items to the wanted positions.  
+  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `"firstFit"`. If you are using the array syntax the first value should be a string (name of the method) and the second value (optional) should be a configuration object. For example, if you wanted to use the default method on a page that scrolls horizontally you could set this option to: `["firstFit", {horizontal: true}]`. If you provide a function you can fully control the layout of the items. The function will receive a `Muuri.Layout` instance as it's context which you can manipulate as much as you want to get the items to the wanted positions. More info about rolling your own layout method is coming up later on, but in the meantime you can check the source code and see how the default method is done.
   * `firstFit`
     * `horizontal` (type: *boolean*, default: `false`)
       *  When `true` the grid works in landscape mode (grid expands to the right). Good for horizontally scrolling sites.
@@ -345,8 +344,7 @@ var defaults = {
     },
 
     // Layout
-    colWidth: 'auto',
-    rowHeight: 'auto',
+    layout: 'firstFit',
     layoutOnResize: 100,
     layoutOnInit: true,
 

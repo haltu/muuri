@@ -5,6 +5,9 @@
   "keywords": [
     "grid",
     "layout",
+    "bin-packing",
+    "filter",
+    "sort",
     "drag"
   ],
   "homepage": "https://github.com/haltu/muuri",

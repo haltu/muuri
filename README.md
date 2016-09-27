@@ -1,14 +1,14 @@
 # Muuri
 
-Muuri makes it easy to build responsive grid layouts that can be sorted and filtered. On top of that Muuri has built-in support for making the grid items draggable and thus allowing drag & drop sorting of the grid items. Basically Muuri is  (or aims to be) a combination of [Packery](https://github.com/metafizzy/packery), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/).
+Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
 
-The best part of Muuri is it's API. It's designed to be as simple as possible while allowing the developer to take full control over the grid. For example, there are no built-in API methods for filtering and sorting the grid items because there really is no need for them. It's trivial to roll your own custom filtering and sorting with the API.
+Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
-Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm positions items pretty much the same way as [Packery](https://github.com/metafizzy/packery) does. However, you can also provide your own layout algorithm to position the items in any way you want.
+Muuri uses [Velocity](https://github.com/julianshapiro/velocity) for animating the grid items (positioining/showing/hiding) and [Hammer.js](https://github.com/hammerjs/hammer.js) for handling the dragging. Hammer.js is an optional dependency that is only required if dragging is enabled, but Velocity is a hard dependency.
 
-Currently Muuri uses [Velocity](https://github.com/julianshapiro/velocity) for animating the grid items (positioining/showing/hiding) and [Hammer.js](https://github.com/hammerjs/hammer.js) for handling the dragging. Hammer.js is an optional dependency that is only required if dragging is enabled, but Velocity is a hard dependency.
+And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
-**A word of warning.** This library is currently under active development and not yet recommended to be used in production. The API is likely to change a bit before the magical v1.0.0, unit tests are still under contruction and a few major features completely missing.
+**A word of warning.** Muuri is currently under active development and might be still a bit rough on the edges so production use is not recommended just yet. But when did that ever stop you ;)
 
 ## Table of contents
 
@@ -18,7 +18,7 @@ Currently Muuri uses [Velocity](https://github.com/julianshapiro/velocity) for a
   * [muuri.on( event, listener )](#muurion-event-listener-)
   * [muuri.off( eventName, listener )](#muurioff-eventname-listener-)
   * [muuri.refresh( [targets] )](#muurirefresh-targets-)
-  * [muuri.get( [targets], [filter] )](#muuriget-targets-filter-)
+  * [muuri.get( [targets], [state] )](#muuriget-targets-state-)
   * [muuri.add( elements, [index] )](#muuriadd-elements-index-)
   * [muuri.remove( targets, [removeElement] )](#muuriremove-targets-removeelement-)
   * [muuri.synchronize()](#muurisynchronize)
@@ -55,7 +55,7 @@ Currently Muuri uses [Velocity](https://github.com/julianshapiro/velocity) for a
 
 Muuri depends on the following libraries:
 * [Velocity](https://github.com/julianshapiro/velocity) (1.2.x)
-* [Hammer.js](https://github.com/hammerjs/hammer.js) (2.0.x) optional, required only if you are using the draggin feature
+* [Hammer.js](https://github.com/hammerjs/hammer.js) (2.0.x) optional, required only if you are using the dragging feature
 
 **First, include Muuri and it's dependencies in your site.**
 
@@ -228,88 +228,93 @@ var grid = new Muuri({
 
 ## Options
 
-* **`container`** &nbsp;&mdash;&nbsp; *Element*
+* **`container`** &nbsp;&mdash;&nbsp; *element*
   * Default value: `null`.
   * The container element. Must be always defined.
-* **`items`** &nbsp;&mdash;&nbsp; *Array of Elements*
+* **`items`** &nbsp;&mdash;&nbsp; *array of elements*
   * Default value: `null`.
   * The initial item elements wrapped in an array. The elements must be children of the container element.
-* **`positionDuration`** &nbsp;&mdash;&nbsp; *Number*
+* **`positionDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * The duration for item's positioning animation in milliseconds. Set to `0` to disable.
-* **`positionEasing`** &nbsp;&mdash;&nbsp; *String / Array*
+* **`positionEasing`** &nbsp;&mdash;&nbsp; *string / array*
   * Default value: `"ease-out"`.
   * The easing for item's positioning animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
-* **`show`** &nbsp;&mdash;&nbsp; *Object*
+* **`show`** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
   * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
-* **`hide`** &nbsp;&mdash;&nbsp; *Object*
+* **`hide`** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
   * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
-* **`layout`** &nbsp;&mdash;&nbsp; *Array / Function / String*
+* **`layout`** &nbsp;&mdash;&nbsp; *array / function / string*
   * Default value: `"firstFit"`.
-  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `"firstFit"`. If you are using the array syntax the first value should be a string (name of the method) and the second value (optional) should be a configuration object. For example, if you wanted to use the default method on a page that scrolls horizontally you could set this option to: `["firstFit", {horizontal: true}]`. If you provide a function you can fully control the layout of the items. The function will receive a `Muuri.Layout` instance as it's context which you can manipulate as much as you want to get the items to the wanted positions. More info about rolling your own layout method is coming up later on, but in the meantime you can check the source code and see how the default method is done.
-  * `firstFit`
-    * `horizontal` (type: *boolean*, default: `false`)
-      *  When `true` the grid works in landscape mode (grid expands to the right). Good for horizontally scrolling sites.
-    * `alignRight` (type: *boolean*, default: `false`)
-      * When `true` the items are aligned from right to left.
-    * `alignBottom` (type: *boolean*, default: `false`)
-      * When `true` the items are aligned from the bottom up.
-* **`layoutOnResize`** &nbsp;&mdash;&nbsp; *Null / Number*
+  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `"firstFit"`.
+  * The array syntax is the only way to use the built-in layout methods and provide arguments for them. The first value should be a string (name of the method) and the second value (optional) should be a configuration object, e.g. `["firstFit", {horizontal: true}]`.
+  * You can always just provide a function which will receive a `Muuri.Layout` instance as it's context which you can manipulate as much as you want to get the items to the wanted positions. More info about rolling your own layout method is coming up later on, but in the meantime you can check the source code and see how the default method is implemented.
+  * Available methods and related settings:
+    * `"firstFit"`
+      * `horizontal` (type: *boolean*, default: `false`)
+        *  When `true` the grid works in landscape mode (grid expands to the right). Use for horizontally scrolling sites. When `false` the grid works in "portrait" mode and expands downwards.
+      * `alignRight` (type: *boolean*, default: `false`)
+        * When `true` the items are aligned from right to left.
+      * `alignBottom` (type: *boolean*, default: `false`)
+        * When `true` the items are aligned from the bottom up.
+      * `forceOrder` (type: *boolean*, default: `false`)
+        * When `true` the items are forced to be visually in order, meaning that the following condition will be always true when calculating the layout: `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. By default this is false, which means that every item is blindly placed to the first available slot without cosidering where the previous item was placed, which means that the visual order of the items is not guaranteed.
+* **`layoutOnResize`** &nbsp;&mdash;&nbsp; *null / number*
   * Default value: `100`.
   * Should Muuri automatically trigger layout on window resize? Set to `null` to disable. When a number (`0` or greater) is provided Muuri will automatically trigger layout when window is resized. The provided number equals to the amount of time (in milliseconds) that is waited before the layout is triggered after each resize event. The layout method is wrapped in a debouned function in order to avoid unnecessary layout calls.
-* **`layoutOnInit`** &nbsp;&mdash;&nbsp; *Boolean*
+* **`layoutOnInit`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
   * Should Muuri trigger layout automatically on init?
-* **`dragEnabled`** &nbsp;&mdash;&nbsp; *Boolean*
+* **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Should items be draggable?
-* **`dragPredicate`** &nbsp;&mdash;&nbsp; *Function*
+* **`dragPredicate`** &nbsp;&mdash;&nbsp; *function*
   * Default value: `null`.
   * A function that determines when dragging should start. Set to null to use the default predicate.
-* **`dragSort`** &nbsp;&mdash;&nbsp; *Boolean*
+* **`dragSort`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
   * Should the items be sorted during drag?
-* **`dragContainer`** &nbsp;&mdash;&nbsp; *Element*
+* **`dragContainer`** &nbsp;&mdash;&nbsp; *element*
   * Default value: `document.body`.
   * Which item should the dragged item be appended to for the duration of the drag?
-* **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *Number*
+* **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * The duration for item's drag release animation. Set to `0` to disable.
-* **`dragReleaseEasing`** &nbsp;&mdash;&nbsp; *String / Array*
+* **`dragReleaseEasing`** &nbsp;&mdash;&nbsp; *string / array*
   * Default value: `"ease-out"`.
   * The easing for item's drag release animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
-* **`dragOverlapInterval`** &nbsp;&mdash;&nbsp; *Number*
+* **`dragOverlapInterval`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `50`.
   * When an item is dragged around the grid Muuri automatically checks if the item overlaps another item enough to move the item in it's place. The overlap check method is debounced and this option defines the debounce interval in milliseconds. In other words, this is option defines the amount of time the dragged item must be still before an overlap is checked.
-* **`dragOverlapTolerance`** &nbsp;&mdash;&nbsp; *Number*
+* **`dragOverlapTolerance`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `50`.
   * Allowed values: `1` - `100`.
   * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for the dragged item's replacement.
-* **`dragOverlapAction`** &nbsp;&mdash;&nbsp; *String*
+* **`dragOverlapAction`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"move"`.
   * Allowed values: `"move"`, `"swap"`.
   * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
-* **`containerClass`** &nbsp;&mdash;&nbsp; *String*
+* **`containerClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri"`.
   * Container element classname.
-* **`itemClass`** &nbsp;&mdash;&nbsp; *String*
+* **`itemClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri-item"`.
   * Item element classname.
-* **`shownClass`** &nbsp;&mdash;&nbsp; *String*
+* **`shownClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri-shown"`.
   * Visible item classname.
-* **`hiddenClass`** &nbsp;&mdash;&nbsp; *String*
+* **`hiddenClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri-hidden"`.
   * Hidden item classname.
-* **`positioningClass`** &nbsp;&mdash;&nbsp; *String*
+* **`positioningClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri-positioning"`.
   * This classname will be added to the item element for the duration of positioing.
-* **`draggingClass`** &nbsp;&mdash;&nbsp; *String*
+* **`draggingClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri-dragging"`.
   * This classname will be added to the item element for the duration of drag.
-* **`releasingClass`** &nbsp;&mdash;&nbsp; *String*
+* **`releasingClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri-releasing"`.
   * This classname will be added to the item element for the duration of release.
 
@@ -382,7 +387,7 @@ Bind an event on the Muuri instance.
 * **event** &nbsp;&mdash;&nbsp; *string*
 * **listener** &nbsp;&mdash;&nbsp; *function*
 
-**Returns** &nbsp;&mdash;&nbsp; *Object*
+**Returns** &nbsp;&mdash;&nbsp; *object*
 
 Returns the instance.
 
@@ -405,7 +410,7 @@ Unbind an event from the Muuri instance.
 * **event** &nbsp;&mdash;&nbsp; *string*
 * **listener** &nbsp;&mdash;&nbsp; *function*
 
-**Returns** &nbsp;&mdash;&nbsp; *Object*
+**Returns** &nbsp;&mdash;&nbsp; *object*
 
 Returns the instance.
 
@@ -447,7 +452,7 @@ muuri.refresh([elemA, elemB]);
 muuri.refresh([itemA, itemB]);
 ```
 
-### `muuri.get( [targets], [filter] )`
+### `muuri.get( [targets], [state] )`
 
 Get all items. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state (active/inactive). Note that the returned array is not the same object used by the instance so modifying it will not affect instance's items. All items that are not found are omitted from the returned array.
 
@@ -456,13 +461,13 @@ Get all items. Optionally you can provide specific targets (indices or elements)
 * **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
   * Optional.
   * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-* **filter** &nbsp;&mdash;&nbsp; *string*
+* **state** &nbsp;&mdash;&nbsp; *string*
   * Optional.
   * Default value: `undefined`.
   * Allowed values: `"active"`, `"inactive"`.
   * Filter the returned array by the items' state. For example, if set to `"active"` all *inactive* items will be removed from the returned array.
 
-**Returns** &nbsp;&mdash;&nbsp; *Array*
+**Returns** &nbsp;&mdash;&nbsp; *array*
 
 Returns an array of `Muuri.Item` instances.
 
@@ -505,7 +510,7 @@ This method will automatically call `muuri.layout()` if one or more of the added
   * Default value: `0`.
   * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `muuri.synchronize()` method to arrange the DOM elments to the same order as the items.
 
-**Returns** &nbsp;&mdash;&nbsp; *Array*
+**Returns** &nbsp;&mdash;&nbsp; *array*
 
 Returns an array of `Muuri.Item` instances.
 
@@ -532,7 +537,7 @@ Remove items from the instance.
   * Default value: `false`.
   * Should the associated DOM element be removed or not?
 
-**Returns** &nbsp;&mdash;&nbsp; *Array*
+**Returns** &nbsp;&mdash;&nbsp; *array*
 
 Returns the indices of the removed items.
 

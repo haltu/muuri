@@ -13,20 +13,24 @@ palikka
 })
 .define('demo', ['jQuery',  'docReady'], function ($) {
 
+  // TODO: Isolate this demo code into it's own file.
+  // TODO: Update item's visible index when dragging items around.
+
   var m = {};
   var $grid = $('.grid');
   var $root = $('html');
   var $filterField = $('.filter-field');
   var $searchField = $('.search-field');
   var $sortField = $('.sort-field');
+  var $addItems = $('.add-more-items');
   var uuid = 0;
   var characters = 'abcdefghijklmnopqrstuvwxyz';
 
   // Keep the current sort value memorized.
   var currentSortValue = $sortField.val();
 
-  // Keep sort item order memorized.
-  var currentOrder = [];
+  // Keep drag order memorized.
+  var dragOrder = [];
 
   // Get filter option values.
   var filterOptions = $filterField.find('option').map(function () {
@@ -45,6 +49,7 @@ palikka
     $filterField.add($searchField).on('input', filter);
     $sortField.on('input', sort);
     $grid.on('click', '.card-remove', removeItem);
+    $addItems.on('click', addItems);
 
     return m;
 
@@ -62,7 +67,7 @@ palikka
 
       m.grid = new Muuri({
         container: $grid.get(0),
-        items: generateElements(50),
+        items: generateElements(20),
         positionDuration: 625,
         positionEasing: [500, 20],
         dragEnabled: true,
@@ -88,17 +93,17 @@ palikka
         if (--dragCounter < 1) {
           $root.removeClass('dragging');
         }
+      })
+      .on('move', function () {
+        updateIndices();
       });
 
     }
 
   }
 
-  function filter(e) {
+  function filter() {
 
-    // TODO: Handle dragged item being hidden.
-
-    var $field = $(this);
     var items = m.grid.get();
     var activeFilter = $filterField.val() || '';
     var searchQuery = $searchField.val() || '';
@@ -133,9 +138,9 @@ palikka
     }
 
     // If we are changing from "order" sorting to something else
-    // let's store the item order.
+    // let's store the drag order.
     if (currentSortValue === 'order') {
-      currentOrder = m.grid.get();
+      dragOrder = m.grid.get();
     }
 
     // Sort the items.
@@ -149,44 +154,90 @@ palikka
       items.sort(compareItemId);
     }
     else {
-      Array.prototype.splice.apply(items, [0, items.length].concat(currentOrder));
+      Array.prototype.splice.apply(items, [0, items.length].concat(dragOrder));
     }
 
     // Update current sort value.
     currentSortValue = sortValue;
+
+    // Update UI indices.
+    updateIndices();
 
     // Do layout.
     m.grid.layout();
 
   }
 
-  function add() {
+  function addItems() {
 
-    if (m.grid) {
-      var items = generateElements(5);
-      items.forEach(function (item) {
-        item.style.display = 'none';
-      });
-      m.grid.show(m.grid.add(items), function (items) {
-        console.log('CALLBACK: Added ' + items.length + ' items');
-      });
+    // Generate new elements.
+    var newElems = generateElements(5);
+
+    // Set the display of the new elements to "none" so it will be hidden by
+    // default.
+    newElems.forEach(function (item) {
+      item.style.display = 'none';
+    });
+
+    // Add the elements to the grid.
+    var newItems = m.grid.add(newElems);
+
+    // Get current sort value.
+    var sortValue = $sortField.val();
+
+    // Update UI indices.
+    updateIndices();
+
+    // Sort the items only if needed.
+    if (sortValue !== 'order') {
+
+      // Get all items.
+      var items = m.grid._items;
+
+      // Sort the items.
+      if (sortValue === 'title') {
+        items.sort(compareItemTitle);
+      }
+      else if (sortValue === 'color') {
+        items.sort(compareItemColor);
+      }
+      else if (sortValue === 'id') {
+        items.sort(compareItemId);
+      }
+
+      // Add the new items to the cached drag order.
+      dragOrder = dragOrder.concat(newItems);
+
     }
+
+    // Filter the grid.
+    filter();
 
   }
 
   function removeItem(e) {
 
     var elem = $(this).closest('.item').get(0);
+
     m.grid.hide(elem, function (items) {
+
       var item = items[0];
+
       m.grid.remove(item, true);
+
       if (currentSortValue !== 'order') {
-        var itemIndex = currentOrder.indexOf(item);
+
+        var itemIndex = dragOrder.indexOf(item);
+
         if (itemIndex > -1) {
-          currentOrder.splice(itemIndex, 1);
+          dragOrder.splice(itemIndex, 1);
         }
+
       }
+
     });
+
+    updateIndices();
 
   }
 
@@ -194,14 +245,9 @@ palikka
   // Utils
   //
 
-
-  var set = ["243-252", "270-251", "160-166", "228-219", "123-102", "210-276", "153-263", "163-146", "155-110", "192-287", "252-102", "123-238", "252-193", "147-102", "239-131", "198-252", "279-228", "234-118", "122-216", "116-162", "101-180", "137-178", "203-251", "172-199", "178-230", "222-235", "246-131", "221-204", "211-271", "241-169", "109-183", "177-218", "236-271", "267-172", "214-157", "182-126", "238-182", "286-127", "147-293", "242-229", "289-280", "165-175", "263-131", "214-274", "180-274", "145-175", "234-263", "225-257", "206-238", "294-116", "224-209", "199-231", "228-116", "259-187", "216-157", "238-269", "289-208", "201-155", "171-175", "103-187", "182-204", "133-155", "141-190", "123-273", "204-117", "131-178", "105-247", "121-258", "186-295", "131-117", "188-234", "236-154", "263-240", "114-290", "205-262", "132-138", "114-293", "178-285", "113-180", "280-219", "190-279", "132-162", "196-132", "183-197", "190-171", "102-192", "283-224", "116-190", "165-243", "166-219", "158-255", "171-185", "243-147", "154-199", "265-160", "239-188", "130-294", "279-296", "118-196", "290-107"];
-  var set = null;
-
   function generateElements(amount) {
 
     var ret = [];
-    var setLog = [];
 
     for (var i = 0, len = amount || 1; i < amount; i++) {
 
@@ -211,8 +257,6 @@ palikka
       var title = generateRandomWord(2);
       var width = Math.floor(Math.random() * 2) + 1;
       var height = Math.floor(Math.random() * 2) + 1;
-      var w = set ? set[i].split('-')[0] : (Math.floor(Math.random() * 200) + 100);
-      var h = set ? set[i].split('-')[1] : (Math.floor(Math.random() * 200) + 100);
 
       // Generate item.
       var item =  $('<div class="item h' + height + ' w' + width + ' ' + color + '" data-id="' + id + '" data-color="' + color + '" data-title="' + title + '">' +
@@ -225,21 +269,9 @@ palikka
                     '</div>' +
                   '</div>').get(0);
 
-      /*
-      $(item).css({
-        width: w + 'px',
-        height: h + 'px',
-        lineHeight: h + 'px'
-      });
-      */
-
-      setLog.push(w + '-' + h);
-
       ret.push(item);
 
     }
-
-    // console.log(setLog);
 
     return ret;
 
@@ -284,6 +316,14 @@ palikka
     var aVal = (a._element.dataset.color || '');
     var bVal = (b._element.dataset.color || '');
     return aVal < bVal ? -1 : aVal > bVal ? 1 : compareItemTitle(a, b);
+
+  }
+
+  function updateIndices() {
+
+    m.grid.get().forEach(function (item, i) {
+      $(item._element).attr('data-id', i + 1).find('.card-id').text(i + 1);
+    });
 
   }
 

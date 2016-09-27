@@ -130,9 +130,9 @@ header {
   max-width: 940px;
 }
 header h1 {
-  color: #3396FF;
+  color: #3e3e3e;
   font-size: 40px;
-  font-weight: 100;
+  font-weight: 700;
   margin: 0 0 10px 0;
   letter-spacing: 3px;
   text-transform: uppercase;
@@ -146,7 +146,7 @@ header h1 span {
   margin-left: 10px;
   margin-top: 5px;
   text-transform: none;
-  color: #9e9e9e;
+  color: #aaa;
 }
 header h2 {
   text-align: center;
@@ -157,6 +157,16 @@ header h2 {
   margin: 0 auto;
   color: #6e6e6e;
 }
+header h2 > span {
+  display: block;
+  font-size: 17px;
+  color: #aaa;
+  margin-top: 3px;
+}
+header h2 > span > i {
+  margin: 0 10px;
+  color: #ccc;
+}
 header aside {
   color: #bbb;
   font-size: 15px;
@@ -165,9 +175,7 @@ header aside {
   text-align: center;
 }
 header nav {
-  margin: 0 0 20px 0;
   text-align: center;
-  border-bottom: 2px solid #e5e5e5;
 }
 header nav a {
   position: relative;
@@ -213,7 +221,18 @@ header nav a:hover i {
   transition: transform 0.2s ease-out, opacity 0s ease 0s;
 }
 @media (max-width: 600px) {
-
+  header {
+    margin-bottom: 0;
+  }
+  header h2 > span {
+    margin-top: 10px;
+  }
+  header h2 > span > i {
+    display: none;
+  }
+  header h2 > span > span {
+    display: block;
+  }
   header nav {
     margin-top: 20px;
     border-bottom: 0;
@@ -246,7 +265,7 @@ footer p {
   margin: 0;
 }
 footer .credits {
-  color: #bbb;
+  color: #aaa;
   font-size: 16px;
   margin-bottom: 5px;
   font-style: italic;
@@ -259,11 +278,61 @@ footer .copyright i {
   vertical-align: top;
 }
 
+/* Sections */
+
+section {
+  margin: 60px auto;
+  padding-top: 0;
+  max-width: 940px;
+  border-top: 2px solid #e5e5e5;
+  text-align: left;
+}
+section.demo {
+  margin-top: 30px;
+}
+section h4 {
+  margin: 30px 0 15px 0;
+  font-weight: 500;
+  font-size: 20px;
+  color: #3e3e3e;
+}
+@media (max-width: 600px) {
+  section.demo {
+    border-top: 0;
+  }
+}
+
+/* Section titles */
+
+.section-title {
+  color: #3e3e3e;
+  font-size: 26px;
+  font-weight: 700;
+  margin: 40px 0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+}
+.section-title > span {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+}
+.section-title > span:after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 10px;
+  bottom: 0;
+  right: 10px;
+  height: 2px;
+  background: #3e3e3e;
+}
+
 /* Controls */
 
 .controls {
   margin: 30px auto;
-  max-width: 940px;
 }
 .control {
   position: relative;
@@ -308,7 +377,7 @@ footer .copyright i {
 .grid {
   position: relative;
   max-width: 960px;
-  margin: 20px auto;
+  margin: 0 -10px;
   -moz-box-sizing: content-box;
   -webkit-box-sizing: content-box;
   box-sizing: content-box;
@@ -371,22 +440,21 @@ footer .copyright i {
   transition: all 0.2s ease-out;
 }
 .item.red .card {
-  color: #f94a4a;
+  color: #f94a7a;
 }
 .item.green .card {
-  color: #61ce2c;
+  color: #2ac06d;
 }
 .item.blue .card {
   color: #4A9FF9;
 }
 .card-id {
   position: absolute;
-  left: 0;
+  left: 7px;
   top: 0;
-  width: 30px;
   height: 30px;
   line-height: 30px;
-  text-align: center;
+  text-align: left;
   font-size: 16px;
   font-weight: 400;
 }
@@ -420,46 +488,17 @@ footer .copyright i {
   transform: scale(1);
 }
 
-/* About */
-
-.about {
-  margin: 60px auto;
-  padding-top: 60px;
-  max-width: 940px;
-  border-top: 2px solid #e5e5e5;
-  text-align: left;
+.grid-footer {
+  margin: 60px 0;
+  text-align: center;
 }
-.about h2 {
-  color: #3396FF;
-  font-size: 26px;
-  font-weight: 400;
-  margin: 0;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-.about h4 {
-  margin: 30px 0 15px 0;
-  font-weight: 500;
-  font-size: 20px;
+.grid-footer .btn .material-icons {
+  margin-right: 10px;
+  font-size: 24px;
 }
 
-/* Info */
+/* Feature list */
 
-.info {
-  margin: 60px auto;
-  padding-top: 60px;
-  max-width: 940px;
-  border-top: 2px solid #e5e5e5;
-  text-align: left;
-}
-.info h2 {
-  color: #3396FF;
-  font-size: 26px;
-  font-weight: 400;
-  margin: 0;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
 .feature-list {
   margin: 0;
   padding: 0;
@@ -467,24 +506,33 @@ footer .copyright i {
 }
 .feature-list-item {
   position: relative;
-  padding-left: 100px;
+  padding-left: 80px;
   margin: 30px 0;
   overflow: hidden;
 }
 .feature-list-icon {
   display: block;
   float: left;
-  margin-left: -100px;
-  width: 100px;
+  margin-left: -80px;
+  width: 80px;
   font-size: 48px;
   line-height: 48px;
   text-align: left;
   color: #3396FF;
 }
-.feature-list-text {
-}
 .feature-list-text h4 {
   margin: 0 0 15px 0;
   font-weight: 500;
   font-size: 20px;
+}
+@media (max-width: 600px) {
+  .feature-list-item {
+    padding-left: 0;
+  }
+  .feature-list-icon {
+    margin: -4px 10px 0 0;
+    width: 24px;
+    font-size: 24px;
+    line-height: inherit;
+  }
 }

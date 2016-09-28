@@ -2,4 +2,6 @@ language: node_js
 node_js:
   - "4"
 env:
-  email: false
+  global:
+    - secure: VUU14zf9WKf/lRHKJInITvdvgppXDgrM0UYSxe3EvO5ElQKCivB/lHddIIUA8mdwQz5i5GCizrePssLr1OR0dfF98s33pYIuN4Enrpkyq7X90pKr7ru3ZrwrqLH2PC5U6ta4GppVsrgFYmRHpuwhGlm0Fpf0obGweTGXwsZtCBQ=
+    - secure: lsrw8vXXY6eOHxEGh3oB57zEtUlw1tt0CnJ8PLRGb2twumDpzKeeAKXSJjvbb13csGZvJbesOgpufdXtFIoT9LraGLA14xBBS7xVTPuhr0NCEC/MEpsXVvNkS10Vd+VsEtNMvPpMe4a0vRkNge+IlhQY4pRpnME14kaniF9BiCE=

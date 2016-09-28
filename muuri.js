@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.2.0-dev
+ * Muuri v0.2.0
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *

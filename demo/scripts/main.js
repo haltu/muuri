@@ -1,43 +1,24 @@
-palikka
-.define(['jQuery'], function () {
-
-  return window[this.id];
-
-})
-.define('docReady', ['jQuery'], function ($) {
-
-  return palikka.defer(function (resolve) {
-    $(resolve);
-  });
-
-})
-.define('demo', ['jQuery',  'docReady'], function ($) {
+$(function () {
 
   var m = {};
   var $grid = $('.grid');
   var $root = $('html');
   var uuid = 0;
+  var grid = null;
 
-  m.grid = null;
+  // Bind events.
+  $('.demo-init').on('click', init);
+  $('.demo-destroy').on('click', destroy);
+  $('.demo-show').on('click', show);
+  $('.demo-hide').on('click', hide);
+  $('.demo-add').on('click', add);
+  $('.demo-remove').on('click', remove);
+  $('.demo-refresh').on('click', refresh);
+  $('.demo-layout').on('click', layout);
+  $('.demo-synchronize').on('click', synchronize);
 
-  m.init = function () {
-
-    init();
-
-    // Bind events.
-    $('.demo-init').on('click', init);
-    $('.demo-destroy').on('click', destroy);
-    $('.demo-show').on('click', show);
-    $('.demo-hide').on('click', hide);
-    $('.demo-add').on('click', add);
-    $('.demo-remove').on('click', remove);
-    $('.demo-refresh').on('click', refresh);
-    $('.demo-layout').on('click', layout);
-    $('.demo-synchronize').on('click', synchronize);
-
-    return m;
-
-  };
+  // Init.
+  init();
 
   //
   // Helper utilities
@@ -73,18 +54,19 @@ palikka
 
   function init() {
 
-    if (!m.grid) {
+    if (!grid) {
 
       var dragCounter = 0;
 
-      m.grid = new Muuri({
+      grid = new Muuri({
         container: $grid.get(0),
         items: generateElements(20),
+        dragEnabled: true,
         dragReleaseEasing: 'ease-in',
         dragContainer: document.body
       });
 
-      m.grid
+      grid
       .on('dragstart', function () {
         ++dragCounter;
         $root.addClass('dragging');
@@ -101,10 +83,10 @@ palikka
 
   function destroy() {
 
-    if (m.grid) {
-      m.grid.destroy();
+    if (grid) {
+      grid.destroy();
       $grid.empty();
-      m.grid = null;
+      grid = null;
       uuid = 0;
     }
 
@@ -112,8 +94,8 @@ palikka
 
   function show() {
 
-    if (m.grid) {
-      m.grid.show(_.sampleSize(m.grid.get('inactive'), 5), function (items) {
+    if (grid) {
+      grid.show(grid.get('inactive').slice(0, 5), function (items) {
         console.log('CALLBACK: Hide ' + items.length + ' items');
       });
     }
@@ -122,8 +104,8 @@ palikka
 
   function hide() {
 
-    if (m.grid) {
-      m.grid.hide(_.sampleSize(m.grid.get('active'), 5), function (items) {
+    if (grid) {
+      grid.hide(grid.get('active').slice(0, 5), function (items) {
         console.log('CALLBACK: Hide ' + items.length + ' items');
       });
     }
@@ -132,12 +114,12 @@ palikka
 
   function add() {
 
-    if (m.grid) {
+    if (grid) {
       var items = generateElements(5);
       items.forEach(function (item) {
         item.style.display = 'none';
       });
-      m.grid.show(m.grid.add(items), function (items) {
+      grid.show(grid.add(items), function (items) {
         console.log('CALLBACK: Added ' + items.length + ' items');
       });
     }
@@ -146,9 +128,9 @@ palikka
 
   function remove() {
 
-    if (m.grid) {
-      m.grid.hide(_.sampleSize(m.grid.get('active'), 5), function (items) {
-        m.grid.remove(items, true);
+    if (grid) {
+      grid.hide(grid.get('active').slice(0, 5), function (items) {
+        grid.remove(items, true);
         console.log('CALLBACK: Removed ' + items.length + ' items');
       });
     }
@@ -157,8 +139,8 @@ palikka
 
   function layout() {
 
-    if (m.grid) {
-      m.grid.layout(function () {
+    if (grid) {
+      grid.layout(function () {
         console.log('CALLBACK: Layout');
       });
     }
@@ -167,20 +149,18 @@ palikka
 
   function refresh() {
 
-    if (m.grid) {
-      m.grid.refresh();
+    if (grid) {
+      grid.refresh();
     }
 
   }
 
   function synchronize() {
 
-    if (m.grid) {
-      m.grid.synchronize();
+    if (grid) {
+      grid.synchronize();
     }
 
   }
-
-  return m.init();
 
 });

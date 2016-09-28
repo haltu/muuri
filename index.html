@@ -1,0 +1,191 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>Muuri - Responsive, sortable, filterable and draggable grid layouts</title>
+    <meta name="description" content="Muuri is a JavaScript library that creates responsive, sortable, filterable and draggable grid layouts.">
+    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="author" content="Niklas Rämö">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira+Sans:400,300,300italic,400italic,500,500italic,700,700italic">
+    <link rel="stylesheet" href="styles/main.css">
+    <script src="scripts/vendor/palikka.js"></script>
+  </head>
+  <body>
+
+    <header>
+      <h1>Muuri<span>v0.2.0</span></h1>
+      <h2>Responsive, sortable, filterable and draggable grid layouts<span><span>MIT license</span><i>&bull;</i><span>Browser support: IE9+</span><i>&bull;</i><span>Grab it and grid it!</span></span></h2>
+      <nav>
+        <a href="https://raw.githubusercontent.com/haltu/muuri/master/muuri.js">Download<i></i></a>
+        <a href="https://github.com/haltu/muuri#table-of-contents">Docs<i></i></a>
+        <a href="https://github.com/haltu/muuri">GitHub<i></i></a>
+      </nav>
+    </header>
+
+    <section class="demo">
+
+      <h2 class="section-title"><span>Demo</span></h2>
+
+      <div class="controls cf">
+        <div class="control search">
+          <div class="control-icon">
+            <i class="material-icons">&#xE8B6;</i>
+          </div>
+          <input class="control-field search-field form-control " type="text" name="search" placeholder="Search..." />
+        </div>
+        <div class="control filter">
+          <div class="control-icon">
+            <i class="material-icons">&#xE152;</i>
+          </div>
+          <select class="control-field filter-field form-control">
+            <option value="" selected">All</option>
+            <option value="red">Red</option>
+            <option value="blue">Blue</option>
+            <option value="green">Green</option>
+          </select>
+        </div>
+        <div class="control sort">
+          <div class="control-icon">
+            <i class="material-icons">&#xE164;</i>
+          </div>
+          <select class="control-field sort-field form-control">
+            <option value="order" selected>Drag</option>
+            <option value="title">Title (drag disabled)</option>
+            <option value="color">Color (drag disabled)</option>
+            <option value="id">Id (drag disabled)</option>
+          </select>
+        </div>
+        <div class="control layout">
+          <div class="control-icon">
+            <i class="material-icons">&#xE871;</i>
+          </div>
+          <select class="control-field layout-field form-control">
+            <option value="left-top" selected>Left Top</option>
+            <option value="left-top-fillgaps">Left Top (fill gaps)</option>
+            <option value="right-top">Right Top</option>
+            <option value="right-top-fillgaps">Right Top (fill gaps)</option>
+            <option value="left-bottom">Left Bottom</option>
+            <option value="left-bottom-fillgaps">Left Bottom (fill gaps)</option>
+            <option value="right-bottom">Right Bottom</option>
+            <option value="right-bottom-fillgaps">Right Bottom (fill gaps)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid">
+      </div>
+
+      <div class="grid-footer">
+        <button class="add-more-items btn btn-primary"><i class="material-icons">&#xE145;</i>Add more items</button>
+      </div>
+
+    </section>
+
+    <section class="info">
+
+      <h2 class="section-title"><span>Features</span></h2>
+
+      <ul class="feature-list">
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <i class="material-icons">&#xE871;</i>
+          </div>
+          <div class="feature-list-text">
+            <h4>Customizable layout</h4>
+            <p>Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as <a href="http://packery.metafizzy.co/">Packery</a> and <a href="http://masonry.desandro.com/">Masonry</a>. The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research <a href="http://clb.demon.fi/files/RectangleBinPack.pdf">A Thousand Ways to Pack the Bin</a>. However, you can also provide your own layout algorithm to position the items in any way you want.</p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <i class="material-icons">&#xE925;</i>
+          </div>
+          <div class="feature-list-text">
+            <h4>Drag & drop</h4>
+            <p>Built-in support for dragging and dropping the grid items powered by <a href="http://hammerjs.github.io/">Hammer.js</a>. The drag and drop stuff is completely optional and Hammer.js is not required as a dependency if you are not using the drag and drop feature.</p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <i class="material-icons">&#xE87B;</i>
+          </div>
+          <div class="feature-list-text">
+            <h4>Simple and powerful API</h4>
+            <p>Simple API with enough methods and events to gain full control over the library's behaviour. For example custom filtering and sorting of the grid items can be implemented easily (check the source of this site for starters).</p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <i class="material-icons">&#xE3E7;</i>
+          </div>
+          <div class="feature-list-text">
+            <h4>Fast animations</h4>
+            <p>Fast and highly customizable positioning and show/hide animations powered by <a href="http://velocityjs.org/">Velocity.js</a>.</p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <i class="material-icons">&#xE894;</i>
+          </div>
+          <div class="feature-list-text">
+            <h4>Good browser support</h4>
+            <p>Works in all modern browsers and IE9+.</p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <i class="material-icons">&#xE90E;</i>
+          </div>
+          <div class="feature-list-text">
+            <h4>Fully open source</h4>
+            <p>Muuri is <a href="https://github.com/haltu/muuri/blob/master/LICENSE.md">MIT licensed</a>.</p>
+          </div>
+        </li>
+      </ul>
+
+    </section>
+
+    <section class="about">
+
+      <h2 class="section-title"><span>About</span></h2>
+
+      <h4>What does it do?</h4>
+      <p>Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of <a href="http://packery.metafizzy.co/">Packery</a>, <a href="http://masonry.desandro.com/">Masonry</a>, <a href="http://isotope.metafizzy.co/">Isotope</a> and <a href="https://jqueryui.com/sortable/">jQuery UI sortable</a>.</p>
+
+      <h4>What's up with the name Muuri?</h4>
+      <p>Muuri is Finnish meaning a wall.</p>
+
+      <h4>Can I use it in production?</h4>
+      <p>Muuri is currently under active development and might be still a bit rough on the edges so production use is not recommended just yet. But when did that ever stop you ;)</p>
+
+    </section>
+
+    <section class="credits">
+
+      <h2 class="section-title"><span>Credits</span></h2>
+
+      <p>This project owes much to <a href="http://desandro.com/">David DeSandro's<a> <a href="http://masonry.desandro.com/">Masonry</a> and <a href="http://packery.metafizzy.co/">Packery</a> libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!</p>
+
+      <p><a href="http://clb.demon.fi/">Jukka Jylänki's</a> research <a href="http://clb.demon.fi/files/RectangleBinPack.pdf">A Thousand Ways to Pack the Bin</a> came in handy when building Muuri's layout algorithms. Thanks Jukka!</p>
+
+      <p>Big thanks to the people behind <a href="http://velocityjs.org/">Velocity.js</a> and <a href="http://hammerjs.github.io/">Hammer.js</a> for providing such awesome libraries. Muuri would be much less cool without animations and dragging.</p>
+
+      <p><a href="http://www.haltu.fi/">Haltu Oy</a> was responsible for initiating this project in the first place and funded the intial development. Thanks Haltu!</p>
+
+    </section>
+
+    <footer>
+      <p class="credits">Created by <a href="https://github.com/niklasramo">Niklas Rämö</a></p>
+      <p class="copyright">Copyright <i>&copy;</i> 2015 <a href="http://www.haltu.fi/">Haltu Oy</a> &nbsp;&bull;&nbsp; <a href="https://github.com/haltu/muuri/blob/master/LICENSE.md">MIT License</a></p>
+    </footer>
+
+    <script src="scripts/vendor/jquery.js"></script>
+    <script src="scripts/vendor/velocity.js"></script>
+    <script src="scripts/vendor/hammer.js"></script>
+    <script src="scripts/vendor/muuri.js"></script>
+    <script src="scripts/main.js"></script>
+
+  </body>
+
+</html>

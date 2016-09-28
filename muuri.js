@@ -34,6 +34,11 @@
 
   'use strict';
 
+  // Document body needs to be ready for tests.
+  if (!document.body) {
+    throw Error('Muuri needs access to document.body to work.');
+  }
+
   var uuid = 0;
   var noop = function () {};
   var raf = typeof global.requestAnimationFrame === 'function' ? global.requestAnimationFrame : null;
@@ -61,10 +66,16 @@
 
   // Get the primary supported transform property.
   var supportedTransform = (function () {
-    var all = ['transform','WebkitTransform','MozTransform','OTransform','msTransform'];
+    var all = ['transform', 'WebkitTransform', 'MozTransform', 'OTransform', 'msTransform'];
     for (var i = 0; i < all.length; i++) {
       if (document.documentElement.style[all[i]] !== undefined) {
-        return all[i];
+        var prop = all[i];
+        var prefix = prop.toLowerCase().split('transform')[0];
+        return {
+          prefix: prefix,
+          prop: prop,
+          style: prefix ? '-' + prefix + '-transform' : prop
+        };
       }
     }
     return null;
@@ -78,11 +89,6 @@
   // https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L95-L113
   // https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L247-L300
   var hasBrokenW3CTELCS = (function () {
-
-    // Document body needs to be ready for tests.
-    if (!document.body) {
-      throw Error('Muuri needs access to document.body to work.');
-    }
 
     // If the browser does not support transforms we can deduct that the
     // W3C TELCS is broken (non-existent).
@@ -120,7 +126,7 @@
     outer.appendChild(inner);
     body.appendChild(outer);
     leftUntransformed = inner.getBoundingClientRect().left;
-    outer.style[supportedTransform] = 'translateZ(0)';
+    outer.style[supportedTransform.prop] = 'translateZ(0)';
     leftTransformed = inner.getBoundingClientRect().left;
     body.removeChild(outer);
 
@@ -222,6 +228,367 @@
     }
 
     return this;
+
+  };
+
+  /**
+   * LayoutFirstFit v0.2.0
+   * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
+   * Released under the MIT license
+   *
+   * The default Muuri layout method.
+   *
+   * @private
+   * @param {object} settings
+   */
+  function LayoutFirstFit(settings) {
+
+    var layout = this;
+
+    // Empty slots data.
+    var emptySlots = [];
+
+    // Normalize settings.
+    var fillGaps = settings.fillGaps ? true : false;
+    var isHorizontal = settings.horizontal ? true : false;
+    var alignRight = settings.alignRight ? true : false;
+    var alignBottom = settings.alignBottom ? true : false;
+
+    // Round container width and height.
+    layout.width = Math.round(layout.width);
+    layout.height = Math.round(layout.height);
+
+    // Set horizontal/vertical mode.
+    if (isHorizontal) {
+      layout.setWidth = true;
+      layout.width = 0;
+    }
+    else {
+      layout.setHeight = true;
+      layout.height = 0;
+    }
+
+    // No need to go further if items do not exist.
+    if (!layout.items.length) {
+      return;
+    }
+
+    // Find slots for items.
+    for (var i = 0; i < layout.items.length; i++) {
+
+      var item = layout.items[i];
+      var slot = LayoutFirstFit.getSlot(layout, emptySlots, item._width, item._height, !isHorizontal, fillGaps);
+
+      // Update layout height.
+      if (isHorizontal) {
+        layout.width = Math.max(layout.width, slot.left + slot.width);
+      }
+      else {
+        layout.height = Math.max(layout.height, slot.top + slot.height);
+      }
+
+      // Add slot to slots data.
+      layout.slots[item._id] = slot;
+
+    }
+
+    // If the alignment is set to right or bottom, we need to adjust the
+    // results.
+    if (alignRight || alignBottom) {
+      for (var id in layout.slots) {
+        var slot = layout.slots[id];
+        if (alignRight) {
+          slot.left = layout.width - (slot.left + slot.width);
+        }
+        if (alignBottom) {
+          slot.top = layout.height - (slot.top + slot.height);
+        }
+      }
+    }
+
+  }
+
+  /**
+   * Calculate position for the layout item. Returns the left and top position
+   * of the item in pixels.
+   *
+   * @private
+   * @memberof LayoutFirstFit
+   * @param {Muuri.Layout} layout
+   * @param {Array} slots
+   * @param {Number} itemWidth
+   * @param {Number} itemHeight
+   * @param {Boolean} vertical
+   * @param {Boolean} fillGaps
+   * @returns {Object}
+   */
+  LayoutFirstFit.getSlot = function (layout, slots, itemWidth, itemHeight, vertical, fillGaps) {
+
+    var currentSlots = slots[0] || [];
+    var newSlots = [];
+    var item = {
+      left: null,
+      top: null,
+      width: itemWidth,
+      height: itemHeight
+    };
+    var i;
+    var ii;
+    var slot;
+    var potentialSlots;
+    var ignoreCurrentSlots;
+
+    // Try to find a slot for the item.
+    for (i = 0; i < currentSlots.length; i++) {
+      slot = currentSlots[i];
+      if (item.width <= slot.width && item.height <= slot.height) {
+        item.left = slot.left;
+        item.top = slot.top;
+        break;
+      }
+    }
+
+    // If no slot was found for the item.
+    if (item.left === null) {
+
+      // Position the item in to the bottom left (vertical mode) or top right
+      // (horizontal mode) of the grid.
+      item.left = vertical ? 0 : layout.width;
+      item.top = vertical ? layout.height : 0;
+
+      // If gaps don't needs filling do not add any current slots to the new
+      // slots array.
+      if (!fillGaps) {
+        ignoreCurrentSlots = true;
+      }
+
+    }
+
+    // In vertical mode, if the item's bottom overlaps the grid's bottom.
+    if (vertical && (item.top + item.height) > layout.height) {
+
+      // If item is not aligned to the left edge, create a new slot.
+      if (item.left > 0) {
+        newSlots[newSlots.length] = {
+          left: 0,
+          top: layout.height,
+          width: item.left,
+          height: Infinity
+        };
+      }
+
+      // If item is not aligned to the right edge, create a new slot.
+      if ((item.left + item.width) < layout.width) {
+        newSlots[newSlots.length] = {
+          left: item.left + item.width,
+          top: layout.height,
+          width: layout.width - item.left - item.width,
+          height: Infinity
+        };
+      }
+
+      // Update grid height.
+      layout.height = item.top + item.height;
+
+    }
+
+    // In horizontal mode, if the item's right overlaps the grid's right edge.
+    if (!vertical && (item.left + item.width) > layout.width) {
+
+      // If item is not aligned to the top, create a new slot.
+      if (item.top > 0) {
+        newSlots[newSlots.length] = {
+          left: layout.width,
+          top: 0,
+          width: Infinity,
+          height: item.top
+        };
+      }
+
+      // If item is not aligned to the bottom, create a new slot.
+      if ((item.top + item.height) < layout.height) {
+        newSlots[newSlots.length] = {
+          left: layout.width,
+          top: item.top + item.height,
+          width: Infinity,
+          height: layout.height - item.top - item.height
+        };
+      }
+
+      // Update grid width.
+      layout.width = item.left + item.width;
+
+    }
+
+    // Clean up the current slots making sure there are no old slots that
+    // overlap with the item. If an old slot overlaps with the item, split it
+    // into smaller slots if necessary.
+    for (i = fillGaps ? 0 : ignoreCurrentSlots ? currentSlots.length : i; i < currentSlots.length; i++) {
+      potentialSlots = LayoutFirstFit.splitRect(currentSlots[i], item);
+      for (ii = 0; ii < potentialSlots.length; ii++) {
+        slot = potentialSlots[ii];
+        if (slot.width > 0 && slot.height > 0 && ((vertical && slot.top < layout.height) || (!vertical && slot.left < layout.width))) {
+          newSlots[newSlots.length] = slot;
+        }
+      }
+    }
+
+    // Remove redundant slots and sort the new slots.
+    LayoutFirstFit.purgeSlots(newSlots).sort(vertical ? LayoutFirstFit.sortRectsTopLeft : LayoutFirstFit.sortRectsLeftTop);
+
+    // Update the slots data.
+    slots[0] = newSlots;
+
+    // Return the item.
+    return item;
+
+  };
+
+  /**
+   * Sort rectangles with top-left gravity. Assumes that objects with
+   * properties left, top, width and height are being sorted.
+   *
+   * @private
+   * @memberof LayoutFirstFit
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Number}
+   */
+  LayoutFirstFit.sortRectsTopLeft = function (a, b) {
+
+    return a.top < b.top ? -1 : (a.top > b.top ? 1 : (a.left < b.left ? -1 : (a.left > b.left ? 1 : 0)));
+
+  };
+
+  /**
+   * Sort rectangles with left-top gravity. Assumes that objects with
+   * properties left, top, width and height are being sorted.
+   *
+   * @private
+   * @memberof LayoutFirstFit
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Number}
+   */
+  LayoutFirstFit.sortRectsLeftTop = function (a, b) {
+
+    return a.left < b.left ? -1 : (a.left > b.left ? 1 : (a.top < b.top ? -1 : (a.top > b.top ? 1 : 0)));
+
+  };
+
+  /**
+   * Check if a rectabgle is fully within another rectangle. Assumes that the
+   * rectangle object has the following properties: left, top, width and height.
+   *
+   * @private
+   * @memberof LayoutFirstFit
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Boolean}
+   */
+  LayoutFirstFit.isRectWithinRect = function (a, b) {
+
+    return a.left >= b.left && a.top >= b.top && (a.left + a.width) <= (b.left + b.width) && (a.top + a.height) <= (b.top + b.height);
+
+  };
+
+  /**
+   * Loops through an array of slots and removes all slots that are fully within
+   * another slot in the array.
+   *
+   * @private
+   * @memberof LayoutFirstFit
+   * @param {Array} slots
+   */
+  LayoutFirstFit.purgeSlots = function (slots) {
+
+    var i = slots.length;
+    while (i--) {
+      var slotA = slots[i];
+      var ii = slots.length;
+      while (ii--) {
+        var slotB = slots[ii];
+        if (i !== ii && LayoutFirstFit.isRectWithinRect(slotA, slotB)) {
+          slots.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    return slots;
+
+  };
+
+  /**
+   * Compares a rectangle to another and splits it to smaller pieces (the parts
+   * that exceed the other rectangles edges). At maximum generates four smaller
+   * rectangles.
+   *
+   * @private
+   * @memberof LayoutFirstFit
+   * @param {Object} a
+   * @param {Object} b
+   * returns {Array}
+   */
+  LayoutFirstFit.splitRect = function (a, b) {
+
+    var ret = [];
+    var overlap = !(b.left > (a.left + a.width) || (b.left + b.width) < a.left || b.top > (a.top + a.height) || (b.top + b.height) < a.top);
+
+    // If rect a does not overlap with rect b add rect a to the return data as
+    // is.
+    if (!overlap) {
+
+      ret[0] = a;
+
+    }
+    // If rect a overlaps with rect b split rect a into smaller rectangles and
+    // add them to the return data.
+    else {
+
+      // Left split.
+      if (a.left < b.left) {
+        ret[ret.length] = {
+          left: a.left,
+          top: a.top,
+          width: b.left - a.left,
+          height: a.height
+        };
+      }
+
+      // Right split.
+      if ((a.left + a.width) > (b.left + b.width)) {
+        ret[ret.length] = {
+          left: b.left + b.width,
+          top: a.top,
+          width: (a.left + a.width) - (b.left + b.width),
+          height: a.height
+        };
+      }
+
+      // Top split.
+      if (a.top < b.top) {
+        ret[ret.length] = {
+          left: a.left,
+          top: a.top,
+          width: a.width,
+          height: b.top - a.top
+        };
+      }
+
+      // Bottom split.
+      if ((a.top + a.height) > (b.top + b.height)) {
+        ret[ret.length] = {
+          left: a.left,
+          top: b.top + b.height,
+          width: a.width,
+          height: (a.top + a.height) - (b.top + b.height)
+        };
+      }
+
+    }
+
+    return ret;
 
   };
 
@@ -1128,7 +1495,7 @@
     var currentTop = parseFloat(Velocity.hook(drag.element, 'translateY')) || 0;
 
     // Get container references.
-    var defaultContainer = this._muuri._element;
+    var muuriContainer = this._muuri._element;
     var dragContainer = stn.dragContainer;
 
     // Set initial left/top drag value.
@@ -1137,13 +1504,13 @@
 
     // If a specific drag container is set and it is different from the
     // default muuri container we need to cast some extra spells.
-    if (dragContainer && dragContainer !== defaultContainer) {
+    if (dragContainer && dragContainer !== muuriContainer) {
 
       // If dragged element is already in drag container.
       if (drag.element.parentNode === dragContainer) {
 
         // Get offset diff.
-        var offsetDiff = getOffsetDiff(drag.element, defaultContainer);
+        var offsetDiff = getOffsetDiff(drag.element, muuriContainer);
 
         // Store the container offset diffs to drag data.
         drag.containerDiffX = offsetDiff.left;
@@ -1168,7 +1535,7 @@
         dragContainer.appendChild(drag.element);
 
         // Get offset diff.
-        var offsetDiff = getOffsetDiff(drag.element, defaultContainer);
+        var offsetDiff = getOffsetDiff(drag.element, muuriContainer);
 
         // Store the container offset diffs to drag data.
         drag.containerDiffX = offsetDiff.left;
@@ -1195,8 +1562,8 @@
 
     // Get drag scroll parents.
     drag.scrollParents = getScrollParents(drag.element);
-    if (dragContainer && dragContainer !== defaultContainer) {
-      drag.scrollParents = arrayUnique(drag.scrollParents.concat(getScrollParents(defaultContainer)));
+    if (dragContainer && dragContainer !== muuriContainer) {
+      drag.scrollParents = arrayUnique(drag.scrollParents.concat(getScrollParents(muuriContainer)));
     }
 
     // Bind scroll listeners.
@@ -1272,7 +1639,7 @@
     var stn = this._muuri._settings;
 
     // Get containers.
-    var defaultContainer = this._muuri._element;
+    var muuriContainer = this._muuri._element;
     var dragContainer = stn.dragContainer;
 
     // Get offset diff.
@@ -1281,10 +1648,10 @@
     var yDiff = drag.elemClientY - elemGbcr.top;
 
     // Update container diff.
-    if (dragContainer && dragContainer !== defaultContainer) {
+    if (dragContainer && dragContainer !== muuriContainer) {
 
       // Get offset diff.
-      var offsetDiff = getOffsetDiff(drag.element, defaultContainer);
+      var offsetDiff = getOffsetDiff(drag.element, muuriContainer);
 
       // Store the container offset diffs to drag data.
       drag.containerDiffX = offsetDiff.left;
@@ -1649,9 +2016,11 @@
     // If animations are needed, let's dive in.
     else {
 
-      // Get current left and top position.
-      var currentLeft = (parseFloat(Velocity.hook(inst._element, 'translateX')) || 0) + offsetLeft;
-      var currentTop =  (parseFloat(Velocity.hook(inst._element, 'translateY')) || 0) + offsetTop;
+      // Get current (relative) left and top position. Meaning that the
+      // drga container's offset (if applicable) is subtracted from the current
+      // translate values.
+      var currentLeft = (parseFloat(Velocity.hook(inst._element, 'translateX')) || 0) - offsetLeft;
+      var currentTop =  (parseFloat(Velocity.hook(inst._element, 'translateY')) || 0) - offsetTop;
 
       // If the item is already in correct position there's no need to animate
       // it.
@@ -1954,12 +2323,6 @@
       // Parse the layout method name and settings from muuri settings.
       var useDefaults = typeof stn === 'string';
       var methodName = useDefaults ? stn : stn[0];
-      var methodSettings = !useDefaults ? stn[1] : {
-        horizontal: false,
-        alignRight: false,
-        alignBottom: false,
-        forceOrder: false
-      };
 
       // Make sure the provided layout method exists.
       if (typeof Muuri.Layout.methods[methodName] !== 'function') {
@@ -1967,7 +2330,7 @@
       }
 
       // Invoke the layout method.
-      typeof Muuri.Layout.methods[methodName].call(this, methodSettings);
+      typeof Muuri.Layout.methods[methodName].call(this, useDefaults ? {} : stn[1]);
 
     }
 
@@ -1980,213 +2343,7 @@
    * @memberof Muuri.Layout
    */
   Muuri.Layout.methods = {
-
-    /**
-     * Helper method that loops through the layout items and updates the layout
-     * instance data.
-     *
-     * @public
-     * @memberof Muuri.Layout.prototype
-     * @param {Object} settings
-     */
-    firstFit: function (settings) {
-
-      // Empty slots data.
-      var emptySlots = [];
-
-      // Normalize settings.
-      var forceOrder = settings.forceOrder ? true : false;
-      var isHorizontal = settings.horizontal ? true : false;
-      var alignRight = settings.alignRight ? true : false;
-      var alignBottom = settings.alignBottom ? true : false;
-
-      // Round container width and height.
-      this.width = Math.round(this.width);
-      this.height = Math.round(this.height);
-
-      // Set horizontal/vertical mode.
-      if (isHorizontal) {
-        this.setWidth = true;
-        this.width = 0;
-      }
-      else {
-        this.setHeight = true;
-        this.height = 0;
-      }
-
-      // No need to go further if items do not exist.
-      if (!this.items.length) {
-        return;
-      }
-
-      // Find slots for items.
-      for (var i = 0; i < this.items.length; i++) {
-
-        var item = this.items[i];
-        var slot = this._getfirstFitSlot(emptySlots, item._width, item._height, !isHorizontal, forceOrder);
-
-        // Update layout height.
-        if (isHorizontal) {
-          this.width = Math.max(this.width, slot.left + slot.width);
-        }
-        else {
-          this.height = Math.max(this.height, slot.top + slot.height);
-        }
-
-        // Add slot to slots data.
-        this.slots[item._id] = slot;
-
-      }
-
-      // If the alignment is set to right or bottom, we need to adjust the
-      // results.
-      if (alignRight || alignBottom) {
-        for (var id in this.slots) {
-          var slot = this.slots[id];
-          if (alignRight) {
-            slot.left = this.width - (slot.left + slot.width);
-          }
-          if (alignBottom) {
-            slot.top = this.height - (slot.top + slot.height);
-          }
-        }
-      }
-
-    }
-
-  };
-
-  /**
-   * Calculate position for a firstFit layout item. Returns the left and top
-   * position of the item in pixels.
-   *
-   * @param {Array} slots
-   * @param {Number} itemWidth
-   * @param {Number} itemHeight
-   * @param {Boolean} vertical
-   * @param {Boolean} forceOrder
-   * @returns {Object}
-   */
-  Muuri.Layout.prototype._getfirstFitSlot = function (slots, itemWidth, itemHeight, vertical, forceOrder) {
-
-    var currentSlots = slots[0] || [];
-    var newSlots = [];
-    var item = {
-      left: null,
-      top: null,
-      width: itemWidth,
-      height: itemHeight
-    };
-    var i;
-    var ii;
-    var slot;
-    var potentialSlots;
-    var ignoreCurrentSlots;
-
-    // Try to find a slot for the item.
-    for (i = 0; i < currentSlots.length; i++) {
-      slot = currentSlots[i];
-      if (item.width <= slot.width && item.height <= slot.height) {
-        item.left = slot.left;
-        item.top = slot.top;
-        break;
-      }
-    }
-
-    // If no slot was found for the item.
-    if (item.left === null) {
-
-      // Position the item in to the bottom left (vertical mode) or top right
-      // (horizontal mode) of the grid.
-      item.left = vertical ? 0 : this.width;
-      item.top = vertical ? this.height : 0;
-
-      // If order needs to be maintained, do not add any current slots to the
-      // new slots array.
-      if (forceOrder) {
-        ignoreCurrentSlots = true;
-      }
-
-    }
-
-    // In vertical mode, if the item's bottom overlaps the grid's bottom.
-    if (vertical && (item.top + item.height) > this.height) {
-
-      // If item is not aligned to the left edge, create a new slot.
-      if (item.left > 0) {
-        newSlots[newSlots.length] = {
-          left: 0,
-          top: this.height,
-          width: item.left,
-          height: Infinity
-        };
-      }
-
-      // If item is not aligned to the right edge, create a new slot.
-      if ((item.left + item.width) < this.width) {
-        newSlots[newSlots.length] = {
-          left: item.left + item.width,
-          top: this.height,
-          width: this.width - item.left - item.width,
-          height: Infinity
-        };
-      }
-
-      // Update grid height.
-      this.height = item.top + item.height;
-
-    }
-
-    // In horizontal mode, if the item's right overlaps the grid's right edge.
-    if (!vertical && (item.left + item.width) > this.width) {
-
-      // If item is not aligned to the top, create a new slot.
-      if (item.top > 0) {
-        newSlots[newSlots.length] = {
-          left: this.width,
-          top: 0,
-          width: Infinity,
-          height: item.top
-        };
-      }
-
-      // If item is not aligned to the bottom, create a new slot.
-      if ((item.top + item.height) < this.height) {
-        newSlots[newSlots.length] = {
-          left: this.width,
-          top: item.top + item.height,
-          width: Infinity,
-          height: this.height - item.top - item.height
-        };
-      }
-
-      // Update grid width.
-      this.width = item.left + item.width;
-
-    }
-
-    // Clean up the current slots making sure there are no old slots that
-    // overlap with the item. If an old slot overlaps with the item, split it
-    // into smaller slots if necessary.
-    for (i = !forceOrder ? 0 : ignoreCurrentSlots ? currentSlots.length : i; i < currentSlots.length; i++) {
-      potentialSlots = splitRect(currentSlots[i], item);
-      for (ii = 0; ii < potentialSlots.length; ii++) {
-        slot = potentialSlots[ii];
-        if (slot.width > 0 && slot.height > 0 && ((vertical && slot.top < this.height) || (!vertical && slot.left < this.width))) {
-          newSlots[newSlots.length] = slot;
-        }
-      }
-    }
-
-    // Remove redundant slots and sort the new slots.
-    removeRedundantSlots(newSlots).sort(vertical ? sortRectsTopLeft : sortRectsLeftTop);
-
-    // Update the slots data.
-    slots[0] = newSlots;
-
-    // Return the item.
-    return item;
-
+    firstFit: LayoutFirstFit
   };
 
   /**
@@ -2250,7 +2407,7 @@
 
     // Drag & Drop
     dragEnabled: false,
-    dragContainer: document.body,
+    dragContainer: null,
     dragPredicate: null,
     dragSort: true,
     dragSortInterval: 50,
@@ -2670,7 +2827,7 @@
    */
   function isTransformed(el) {
 
-    var transform = getStyle(el, supportedTransform);
+    var transform = getStyle(el, supportedTransform.style);
     var display = getStyle(el, 'display');
 
     return transform !== 'none' && display !== 'inline' && display !== 'none';
@@ -3050,154 +3207,6 @@
     for (var i = 0, len = snapshot.length; i < len; i++) {
       snapshot[i](interrupted, instance);
     }
-
-  }
-
-  /**
-   * Helpers - Layout
-   * ****************
-   */
-
-  /**
-   * Sort rectangles with top-left gravity. Assumes that objects with
-   * properties left, top, width and height are being sorted.
-   *
-   * @private
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   */
-  function sortRectsTopLeft(a, b) {
-
-    return a.top < b.top ? -1 : (a.top > b.top ? 1 : (a.left < b.left ? -1 : (a.left > b.left ? 1 : 0)));
-
-  }
-
-  /**
-   * Sort rectangles with left-top gravity. Assumes that objects with
-   * properties left, top, width and height are being sorted.
-   *
-   * @private
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   */
-  function sortRectsLeftTop(a, b) {
-
-    return a.left < b.left ? -1 : (a.left > b.left ? 1 : (a.top < b.top ? -1 : (a.top > b.top ? 1 : 0)));
-
-  }
-
-  /**
-   * Check if a rectabgle is fully within another rectangle. Assumes that the
-   * rectangle object has the following properties: left, top, width and height.
-   *
-   * @private
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Boolean}
-   */
-  function isRectWithinRect(a, b) {
-
-    return a.left >= b.left && a.top >= b.top && (a.left + a.width) <= (b.left + b.width) && (a.top + a.height) <= (b.top + b.height);
-
-  }
-
-  /**
-   * Loops through an array of slots and removes all slots that are fully within
-   * another slot in the array.
-   *
-   * @private
-   * @param {Array} slots
-   */
-  function removeRedundantSlots(slots) {
-
-    var i = slots.length;
-    while (i--) {
-      var slotA = slots[i];
-      var ii = slots.length;
-      while (ii--) {
-        var slotB = slots[ii];
-        if (i !== ii && isRectWithinRect(slotA, slotB)) {
-          slots.splice(i, 1);
-          break;
-        }
-      }
-    }
-
-    return slots;
-
-  }
-
-  /**
-   * Compares a rectangle to another and splits it to smaller pieces (the parts
-   * that exceed the other rectangles edges). At maximum generates four smaller
-   * rectangles.
-   *
-   * @private
-   * @param {Object} a
-   * @param {Object} b
-   * returns {Array}
-   */
-  function splitRect(a, b) {
-
-    var ret = [];
-    var overlap = !(b.left > (a.left + a.width) || (b.left + b.width) < a.left || b.top > (a.top + a.height) || (b.top + b.height) < a.top);
-
-    // If rect a does not overlap with rect b add rect a to the return data as
-    // is.
-    if (!overlap) {
-
-      ret[0] = a;
-
-    }
-    // If rect a overlaps with rect b split rect a into smaller rectangles and
-    // add them to the return data.
-    else {
-
-      // Left split.
-      if (a.left < b.left) {
-        ret[ret.length] = {
-          left: a.left,
-          top: a.top,
-          width: b.left - a.left,
-          height: a.height
-        };
-      }
-
-      // Right split.
-      if ((a.left + a.width) > (b.left + b.width)) {
-        ret[ret.length] = {
-          left: b.left + b.width,
-          top: a.top,
-          width: (a.left + a.width) - (b.left + b.width),
-          height: a.height
-        };
-      }
-
-      // Top split.
-      if (a.top < b.top) {
-        ret[ret.length] = {
-          left: a.left,
-          top: a.top,
-          width: a.width,
-          height: b.top - a.top
-        };
-      }
-
-      // Bottom split.
-      if ((a.top + a.height) > (b.top + b.height)) {
-        ret[ret.length] = {
-          left: a.left,
-          top: b.top + b.height,
-          width: a.width,
-          height: (a.top + a.height) - (b.top + b.height)
-        };
-      }
-
-    }
-
-    return ret;
 
   }
 

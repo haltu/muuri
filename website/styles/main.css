@@ -332,23 +332,18 @@ section h4 {
 /* Controls */
 
 .controls {
-  margin: 30px auto;
+  margin: 30px -10px;
 }
 .control {
   position: relative;
   float: left;
-  width: 30%;
-}
-.control.filter {
-  margin: 0 5%;
+  width: 25%;
+  padding: 0 10px;
 }
 @media (max-width: 600px) {
   .control {
     float: none;
     width: auto;
-    margin: 0 0 15px 0;
-  }
-  .control.filter {
     margin: 0 0 15px 0;
   }
   .control.sort {
@@ -357,7 +352,7 @@ section h4 {
 }
 .control-icon {
   position: absolute;
-  left: 0;
+  left: 10px;
   top: 0;
   width: 40px;
   height: 40px;

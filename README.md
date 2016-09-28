@@ -95,7 +95,7 @@ An important note for including Muuri to your site is that it needs to have acce
 
 **Next, let's apply some styles.**
 
-* The grid element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover. More specifically Muuri adjusts the container element's *height* property, which means that if the element's *box-sizing* property is set to *border-box* applying border or padding to the element might not render the desired results.
+* The grid element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*, unless of course the elements have their display set to *block* inherently.
 * The item elements must not have any CSS transitions or animations applied to them since it might conflict with Velocity's animations.
 * You can control the gaps between the tiles by giving some margin to the item elements.
@@ -128,7 +128,7 @@ An important note for including Muuri to your site is that it needs to have acce
 
 **Finally, initiate a Muuri instance.**
 
-* The bare minimum config is demonstrated below. You must always provide Muuri with the container element and the initial item elements.
+* The bare minimum configuration is demonstrated below. You must always provide Muuri with the container element and the initial item elements.
 * Be sure to check out the all the available [options](#options), [methods](#methods) and [events](#events).
 
 ```javascript
@@ -136,94 +136,6 @@ var grid = new Muuri({
   container: document.getElementsByClassName('grid')[0],
   items: document.getElementsByClassName('item')
 });
-```
-
-**And here's a complete example with all the pieces together.**
-
-```html
-<!doctype html>
-<html>
-  <head>
-      <style>
-        * {
-          -moz-box-sizing: border-box;
-          -webkit-box-sizing: border-box;
-          box-sizing: border-box;
-        }
-        html {
-          overflow-y: scroll;
-        }
-        body {
-          margin: 0;
-          padding: 0;
-        }
-        .grid {
-          position: absolute;
-          left: 0;
-          right: 0;
-          top: 0;
-          margin: 50px;
-          background: #ccc;
-        }
-        .item {
-          position: absolute;
-          width: 100px;
-          height: 100px;
-          line-height: 100px;
-          margin: 5px;
-          z-index: 1;
-        }
-        .item.muuri-dragging,
-        .item.muuri-releasing {
-          z-index: 2;
-        }
-        .item.muuri-hidden {
-          z-index: 0;
-        }
-        .item.h2 {
-          height: 210px;
-          line-height: 210px;
-        }
-        .item.w2 {
-          width: 210px;
-        }
-        .item-content {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          text-align: center;
-          font-size: 24px;
-          background: #000;
-          color: #fff;
-        }
-      </style>
-  </head>
-  <body>
-    <div class="grid">
-      <div class="item"><div class="item-content">1</div></div>
-      <div class="item w2"><div class="item-content">2</div></div>
-      <div class="item h2"><div class="item-content">3</div></div>
-      <div class="item"><div class="item-content">4</div></div>
-      <div class="item w2 h2"><div class="item-content">5</div></div>
-      <div class="item"><div class="item-content">6</div></div>
-      <div class="item w2 h2"><div class="item-content">7</div></div>
-      <div class="item"><div class="item-content">8</div></div>
-      <div class="item h2"><div class="item-content">9</div></div>
-      <div class="item"><div class="item-content">10</div></div>
-      <div class="item w2"><div class="item-content">11</div></div>
-      <div class="item"><div class="item-content">12</div></div>
-    </div>
-    <script src="velocity.js"></script>
-    <script src="hammer.js"></script>
-    <script src="muuri.js"></script>
-    <script>
-      var grid = new Muuri({
-        container: document.getElementsByClassName('grid')[0],
-        items: document.getElementsByClassName('item')
-      });
-    </script>
-  </body>
-</html>
 ```
 
 ## Options
@@ -259,8 +171,8 @@ var grid = new Muuri({
         * When `true` the items are aligned from right to left.
       * `alignBottom` (type: *boolean*, default: `false`)
         * When `true` the items are aligned from the bottom up.
-      * `forceOrder` (type: *boolean*, default: `false`)
-        * When `true` the items are forced to be visually in order, meaning that the following condition will be always true when calculating the layout: `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. By default this is false, which means that every item is blindly placed to the first available slot without cosidering where the previous item was placed, which means that the visual order of the items is not guaranteed.
+      * `fillGaps` (type: *boolean*, default: `false`)
+        * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this options is `false` which basically means that the following condition will be always true when calculating the layout: `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
 * **`layoutOnResize`** &nbsp;&mdash;&nbsp; *null / number*
   * Default value: `100`.
   * Should Muuri automatically trigger layout on window resize? Set to `null` to disable. When a number (`0` or greater) is provided Muuri will automatically trigger layout when window is resized. The provided number equals to the amount of time (in milliseconds) that is waited before the layout is triggered after each resize event. The layout method is wrapped in a debouned function in order to avoid unnecessary layout calls.
@@ -270,15 +182,15 @@ var grid = new Muuri({
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Should items be draggable?
-* **`dragPredicate`** &nbsp;&mdash;&nbsp; *function*
+* **`dragPredicate`** &nbsp;&mdash;&nbsp; *null / function*
   * Default value: `null`.
   * A function that determines when dragging should start. Set to null to use the default predicate.
 * **`dragSort`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
   * Should the items be sorted during drag?
-* **`dragContainer`** &nbsp;&mdash;&nbsp; *element*
-  * Default value: `document.body`.
-  * Which item should the dragged item be appended to for the duration of the drag?
+* **`dragContainer`** &nbsp;&mdash;&nbsp; *null / element*
+  * Default value: `null`.
+  * Which item should the dragged item be appended to for the duration of the drag? If `null` is provided the item's muuri container element will be used.
 * **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * The duration for item's drag release animation. Set to `0` to disable.
@@ -357,7 +269,7 @@ var defaults = {
     dragEnabled: false,
     dragPredicate: null,
     dragSort: true,
-    dragContainer: document.body,
+    dragContainer: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease-out',
     dragOverlapInterval: 50,
@@ -765,7 +677,7 @@ Triggered when `muuri.layout()` method is called, just before the items are posi
 * **layout** &nbsp;&mdash;&nbsp; *object*
   * A `Muuri.Layout` instance.
   * **layout.muuri** &nbsp;&mdash;&nbsp; *Muuri*
-    * A `Muuri` instance for which the layout was generated. 
+    * A `Muuri` instance for which the layout was generated.
   * **layout.items** &nbsp;&mdash;&nbsp; *array*
       * An array of `Muuri.Item` instances that were positioned.
   * **layout.slots** &nbsp;&mdash;&nbsp; *object*
@@ -795,7 +707,7 @@ Triggered when `muuri.layout()` method is called, after the items have positione
 * **layout** &nbsp;&mdash;&nbsp; *object*
   * A `Muuri.Layout` instance.
   * **layout.muuri** &nbsp;&mdash;&nbsp; *Muuri*
-    * A `Muuri` instance for which the layout was generated. 
+    * A `Muuri` instance for which the layout was generated.
   * **layout.items** &nbsp;&mdash;&nbsp; *array*
       * An array of `Muuri.Item` instances that were positioned.
   * **layout.slots** &nbsp;&mdash;&nbsp; *object*

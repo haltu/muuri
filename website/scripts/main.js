@@ -13,18 +13,16 @@ palikka
 })
 .define('demo', ['jQuery',  'docReady'], function ($) {
 
-  // TODO: Isolate this demo code into it's own file.
-  // TODO: Update item's visible index when dragging items around.
-
   var m = {};
   var $grid = $('.grid');
   var $root = $('html');
   var $filterField = $('.filter-field');
   var $searchField = $('.search-field');
   var $sortField = $('.sort-field');
+  var $layoutField = $('.layout-field');
   var $addItems = $('.add-more-items');
-  var uuid = 0;
   var characters = 'abcdefghijklmnopqrstuvwxyz';
+  var uuid = 0;
 
   // Keep the current sort value memorized.
   var currentSortValue = $sortField.val();
@@ -45,9 +43,28 @@ palikka
 
     init();
 
-    // Bind events.
-    $filterField.add($searchField).on('input', filter);
-    $sortField.on('input', sort);
+    // Reset search field.
+    $searchField.val('');
+
+    // Reset select field filters.
+    $sortField.add($filterField).add($layoutField).each(function () {
+      $(this).val($(this).find('option:first').val());
+    });
+
+    // Nasty hackery needed for supporting IE9 backspace.
+    // Ideally we would do just: $searchField.on('input', filter);
+    var currentSearchValue = $searchField.val();
+    $searchField.on('keyup', function () {
+      var newSearchValue = $searchField.val();
+      if (currentSearchValue !== newSearchValue) {
+        currentSearchValue = newSearchValue;
+        filter();
+      }
+    });
+
+    $filterField.on('change', filter);
+    $sortField.on('change', sort);
+    $layoutField.on('change', changeLayout);
     $grid.on('click', '.card-remove', removeItem);
     $addItems.on('click', addItems);
 
@@ -71,9 +88,9 @@ palikka
         positionDuration: 625,
         positionEasing: [500, 20],
         dragEnabled: true,
+        dragContainer: document.body,
         dragReleaseDuration: 625,
         dragReleaseEasing: [500, 20],
-        dragContainer: document.body,
         dragPredicate: function (e, item, resolve) {
           var isDraggable = currentSortValue === 'order';
           var isRemoveAction = $(e.target).closest('.card-remove').length;
@@ -113,8 +130,9 @@ palikka
     // Check which items need to be shown/hidden
     if (activeFilter || searchQuery) {
       items.forEach(function (item) {
-        var isSearchMatch = searchQuery ? (item._element.dataset.title || '').indexOf(searchQuery) > -1 : true;
-        var isFilterMatch = activeFilter ? item._element.dataset.color === activeFilter : true;
+        var $elem = $(item._element);
+        var isSearchMatch = searchQuery ? ($elem.attr('data-title') || '').indexOf(searchQuery) > -1 : true;
+        var isFilterMatch = activeFilter ? $elem.attr('data-color') === activeFilter : true;
         (isSearchMatch && isFilterMatch ? itemsToShow : itemsToHide).push(item);
       });
     }
@@ -241,6 +259,21 @@ palikka
 
   }
 
+  function changeLayout() {
+
+    var layoutVal = $layoutField.val();
+
+    m.grid._settings.layout = ['firstFit', {
+      horizontal: false,
+      alignRight: layoutVal.indexOf('right') > -1,
+      alignBottom: layoutVal.indexOf('bottom') > -1,
+      fillGaps: layoutVal.indexOf('fillgaps') > -1
+    }];
+
+    m.grid.layout();
+
+  }
+
   //
   // Utils
   //
@@ -297,24 +330,24 @@ palikka
 
   function compareItemId(a, b) {
 
-    var aVal = parseInt(a._element.dataset.id) || 0;
-    var bVal = parseInt(b._element.dataset.id) || 0;
+    var aVal = parseInt($(a._element).attr('data-id')) || 0;
+    var bVal = parseInt($(b._element).attr('data-id')) || 0;
     return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
 
   }
 
   function compareItemTitle(a, b) {
 
-    var aVal = (a._element.dataset.title || '');
-    var bVal = (b._element.dataset.title || '');
+    var aVal = ($(a._element).attr('data-title') || '');
+    var bVal = ($(b._element).attr('data-title') || '');
     return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
 
   }
 
   function compareItemColor(a, b) {
 
-    var aVal = (a._element.dataset.color || '');
-    var bVal = (b._element.dataset.color || '');
+    var aVal = ($(a._element).attr('data-color') || '');
+    var bVal = ($(b._element).attr('data-color') || '');
     return aVal < bVal ? -1 : aVal > bVal ? 1 : compareItemTitle(a, b);
 
   }

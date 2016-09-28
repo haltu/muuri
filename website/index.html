@@ -57,13 +57,28 @@
             <option value="id">Id (drag disabled)</option>
           </select>
         </div>
+        <div class="control layout">
+          <div class="control-icon">
+            <i class="material-icons">&#xE871;</i>
+          </div>
+          <select class="control-field layout-field form-control">
+            <option value="left-top" selected>Left Top</option>
+            <option value="left-top-fillgaps">Left Top (fill gaps)</option>
+            <option value="right-top">Right Top</option>
+            <option value="right-top-fillgaps">Right Top (fill gaps)</option>
+            <option value="left-bottom">Left Bottom</option>
+            <option value="left-bottom-fillgaps">Left Bottom (fill gaps)</option>
+            <option value="right-bottom">Right Bottom</option>
+            <option value="right-bottom-fillgaps">Right Bottom (fill gaps)</option>
+          </select>
+        </div>
       </div>
 
       <div class="grid">
       </div>
 
       <div class="grid-footer">
-        <div class="add-more-items btn btn-primary"><i class="material-icons">&#xE145;</i>Add more items</div>
+        <button class="add-more-items btn btn-primary"><i class="material-icons">&#xE145;</i>Add more items</button>
       </div>
 
     </section>
@@ -146,8 +161,22 @@
 
     </section>
 
+    <section class="credits">
+
+      <h2 class="section-title"><span>Credits</span></h2>
+
+      <p>This project owes much to <a href="http://desandro.com/">David DeSandro's<a> <a href="http://masonry.desandro.com/">Masonry</a> and <a href="http://packery.metafizzy.co/">Packery</a> libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!</p>
+
+      <p><a href="http://clb.demon.fi/">Jukka Jylänki's</a> research <a href="http://clb.demon.fi/files/RectangleBinPack.pdf">A Thousand Ways to Pack the Bin</a> came in handy when building Muuri's layout algorithms. Thanks Jukka!</p>
+
+      <p>Big thanks to the people behind <a href="http://velocityjs.org/">Velocity.js</a> and <a href="http://hammerjs.github.io/">Hammer.js</a> for providing such awesome libraries. Muuri would be much less cool without animations and dragging.</p>
+
+      <p><a href="">Haltu Oy</a> was responsible for initiating this project in the first place and funded the intial development. Thanks Haltu!</p>
+
+    </section>
+
     <footer>
-      <p class="credits">Created by <a href="https://github.com/niklasramo">Niklas Rämö</a> at <a href="http://haltu.fi">Haltu</a></p>
+      <p class="credits">Created by <a href="https://github.com/niklasramo">Niklas Rämö</a></p>
       <p class="copyright">Copyright <i>&copy;</i> 2015 <a href="http://www.haltu.fi/">Haltu Oy</a> &nbsp;&bull;&nbsp; <a href="https://github.com/haltu/muuri/blob/master/LICENSE.md">MIT License</a></p>
     </footer>
 

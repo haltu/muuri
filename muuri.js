@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.2.0
+ * Muuri v0.2.1-dev
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -21,6 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+/*
+  TODO
+  ====
+  * drag & drop heuristics, make them good and fast!
+    -> When dragging items, don't count margins as part of the item.
+    -> When dragging item slowly, don't switch the item back as long as the item
+       is dragged towards it's new position.
+    -> Allow dropping on empty slots (gaps).
+  * "reset" method which safely updates options.
+    -> should we have specific disabled/enable drag methods?
+    -> should we have specific sort method for sorting the items?
+  * "stagger" option to achieve similar animations as shuffle.js
+  * Use Mezr v0.5.0 (when ready) instead of "borrowing it's functions".
+    -> Reduces a LOT of code and a lot of future unit tests.
+*/
 
 (function (global, factory) {
 
@@ -1295,6 +1311,12 @@
       element: this._element,
       width: this._width,
       height: this._height,
+      margin: {
+        left: this._margin.left,
+        top: this._margin.top,
+        right: this._margin.right,
+        bottom: this._margin.bottom
+      },
       left: this._left,
       top: this._top,
       active: this._active,
@@ -1419,12 +1441,11 @@
     drag.start = null;
     drag.move = null;
 
+    // The dragged Muuri.Item reference.
+    drag.item = null;
+
     // The element that is currently dragged (instance element or it's clone).
     drag.element = null;
-
-    // The curently dragged element's width and height.
-    drag.elemWidth = 0;
-    drag.elemHeight = 0;
 
     // Dragged element's inline styles stored for graceful teardown.
     drag.elementStyles = null;
@@ -1486,9 +1507,8 @@
     drag.active = true;
     drag.start = e;
     drag.move = e;
+    drag.item = this;
     drag.element = this._element;
-    drag.elemWidth = this._width;
-    drag.elemHeight = this._height;
 
     // Get element's current position.
     var currentLeft = parseFloat(Velocity.hook(drag.element, 'translateX')) || 0;
@@ -1719,6 +1739,7 @@
     this._muuri._emitter.emit(evDragEnd, this, generateDragEvent('dragend', e, drag));
 
     // Setup release data.
+    release.item = drag.item;
     release.containerDiffX = drag.containerDiffX;
     release.containerDiffY = drag.containerDiffY;
     release.element = drag.element;
@@ -1771,6 +1792,7 @@
 
     var release = this._release;
     release.active = false;
+    release.item = null;
     release.positioningStarted = false;
     release.containerDiffX = 0;
     release.containerDiffY = 0;
@@ -1852,13 +1874,14 @@
     var overlapTolerance = stn.dragSortTolerance;
     var overlapAction = stn.dragSortAction;
     var items = this._muuri._items;
+    var dragItem = this._drag.item;
     var bestMatch = null;
     var instIndex = 0;
     var instData = {
-      width: this._drag.elemWidth,
-      height: this._drag.elemHeight,
-      left: this._drag.gridX,
-      top: this._drag.gridY
+      width: dragItem._width - dragItem._margin.left - dragItem._margin.right,
+      height: dragItem._height - dragItem._margin.top - dragItem._margin.bottom,
+      left: this._drag.gridX + dragItem._margin.left,
+      top: this._drag.gridY + dragItem._margin.top
     };
 
     // Find best match (the element with most overlap).
@@ -1869,10 +1892,10 @@
       }
       else if (item._active) {
         var overlapScore = getOverlapScore(instData, {
-          width: item._width,
-          height: item._height,
-          left: item._left,
-          top: item._top
+          width: item._width - item._margin.left - item._margin.right,
+          height: item._height - item._margin.top - item._margin.bottom,
+          left: item._left + item._margin.left,
+          top: item._top + item._margin.top
         });
         if (!bestMatch || overlapScore > bestMatch.score) {
           bestMatch = {
@@ -1936,8 +1959,16 @@
   Muuri.Item.prototype._refresh = function () {
 
     if (!this._hidden) {
-      this._width = Math.round(getDimension(this._element, 'width', true));
-      this._height = Math.round(getDimension(this._element, 'height', true));
+      var widthData = getDimension(this._element, 'width', true);
+      var heightData =  getDimension(this._element, 'height', true);
+      this._width = Math.round(widthData.value);
+      this._height = Math.round(heightData.value);
+      this._margin = {
+        left: Math.round(widthData.marginA),
+        right: Math.round(widthData.marginB),
+        top: Math.round(heightData.marginA),
+        bottom: Math.round(heightData.marginB)
+      };
     }
 
   };
@@ -2321,16 +2352,16 @@
     else {
 
       // Parse the layout method name and settings from muuri settings.
-      var useDefaults = typeof stn === 'string';
-      var methodName = useDefaults ? stn : stn[0];
+      var noSettingsProvided = typeof stn === 'string';
+      var methodName = noSettingsProvided ? stn : stn[0];
 
       // Make sure the provided layout method exists.
       if (typeof Muuri.Layout.methods[methodName] !== 'function') {
-        throw new Error('Layout method "' + method +  '" does not exist.');
+        throw new Error('Layout method "' + methodName +  '" does not exist.');
       }
 
       // Invoke the layout method.
-      typeof Muuri.Layout.methods[methodName].call(this, useDefaults ? {} : stn[1]);
+      typeof Muuri.Layout.methods[methodName].call(this, noSettingsProvided ? {} : stn[1]);
 
     }
 
@@ -2689,6 +2720,8 @@
 
   /**
    * Get element's width/height with padding or with padding, border and margin.
+   * If withMargin flag is enabled the function will return an object
+   * containing the margin values for each side and the actual dimension also.
    *
    * Borrowed from Mezr library:
    * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L511-L609
@@ -2696,6 +2729,7 @@
    * @param {HTMLElement} el
    * @param {String} dimension
    * @param {Boolean} [withMargin=false]
+   * @returns {Number|Object}
    */
   function getDimension(el, dimension, withMargin) {
 
@@ -2711,8 +2745,10 @@
 
       var marginA = parseFloat(getStyle(el, 'margin-' + edgeA));
       var marginB = parseFloat(getStyle(el, 'margin-' + edgeB));
-      ret += marginA > 0 ? marginA : 0;
-      ret += marginB > 0 ? marginB : 0;
+      marginA = marginA > 0 ? marginA : 0;
+      marginB = marginB > 0 ? marginB : 0;
+      ret += marginA;
+      ret += marginB;
 
     }
     else {
@@ -2734,7 +2770,11 @@
 
     }
 
-    return ret;
+    return !withMargin ? ret : {
+      marginA: marginA,
+      marginB: marginB,
+      value: ret
+    };
 
   }
 
@@ -2952,21 +2992,21 @@
       return 0;
     }
 
-    var aUnpos = {
+    var aNonPositioned = {
       width: a.width,
       height: a.height,
       left: 0,
       top: 0
     };
 
-    var bUnpos = {
+    var bNonPositioned = {
       width: b.width,
       height: b.height,
       left: 0,
       top: 0
     };
 
-    var maxIntersection = getIntersection(aUnpos, bUnpos);
+    var maxIntersection = getIntersection(aNonPositioned, bNonPositioned);
 
     return (intersection.width * intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
 

@@ -154,10 +154,10 @@ var grid = new Muuri({
   * The easing for item's positioning animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
 * **`show`** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
-  * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
+  * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable the animation.
 * **`hide`** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
-  * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
+  * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable the animation.
 * **`layout`** &nbsp;&mdash;&nbsp; *array / function / string*
   * Default value: `"firstFit"`.
   * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `"firstFit"`.
@@ -172,7 +172,7 @@ var grid = new Muuri({
       * `alignBottom` (type: *boolean*, default: `false`)
         * When `true` the items are aligned from the bottom up.
       * `fillGaps` (type: *boolean*, default: `false`)
-        * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this options is `false` which basically means that the following condition will be always true when calculating the layout: `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
+        * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this options is `false` which basically means that the following condition will be always true when calculating the layout (assuming `alignRight` and `alignBottom` are `false`): `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
 * **`layoutOnResize`** &nbsp;&mdash;&nbsp; *null / number*
   * Default value: `100`.
   * Should Muuri automatically trigger layout on window resize? Set to `null` to disable. When a number (`0` or greater) is provided Muuri will automatically trigger layout when window is resized. The provided number equals to the amount of time (in milliseconds) that is waited before the layout is triggered after each resize event. The layout method is wrapped in a debouned function in order to avoid unnecessary layout calls.
@@ -182,32 +182,32 @@ var grid = new Muuri({
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Should items be draggable?
+* **`dragContainer`** &nbsp;&mdash;&nbsp; *null / element*
+  * Default value: `null`.
+  * Which item should the dragged item be appended to for the duration of the drag? If `null` is provided the item's muuri container element will be used.
 * **`dragPredicate`** &nbsp;&mdash;&nbsp; *null / function*
   * Default value: `null`.
   * A function that determines when dragging should start. Set to null to use the default predicate.
 * **`dragSort`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
   * Should the items be sorted during drag?
-* **`dragContainer`** &nbsp;&mdash;&nbsp; *null / element*
-  * Default value: `null`.
-  * Which item should the dragged item be appended to for the duration of the drag? If `null` is provided the item's muuri container element will be used.
+* **`dragSortInterval`** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `50`.
+  * When an item is dragged around the grid Muuri automatically checks if the item overlaps another item enough to move the item in it's place. The overlap check method is debounced and this option defines the debounce interval in milliseconds. In other words, this is option defines the amount of time the dragged item must be still before an overlap is checked.
+* **`dragSortTolerance`** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `50`.
+  * Allowed values: `1` - `100`.
+  * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for the dragged item's replacement.
+* **`dragSortAction`** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `"move"`.
+  * Allowed values: `"move"`, `"swap"`.
+  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
 * **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * The duration for item's drag release animation. Set to `0` to disable.
 * **`dragReleaseEasing`** &nbsp;&mdash;&nbsp; *string / array*
   * Default value: `"ease-out"`.
   * The easing for item's drag release animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
-* **`dragOverlapInterval`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `50`.
-  * When an item is dragged around the grid Muuri automatically checks if the item overlaps another item enough to move the item in it's place. The overlap check method is debounced and this option defines the debounce interval in milliseconds. In other words, this is option defines the amount of time the dragged item must be still before an overlap is checked.
-* **`dragOverlapTolerance`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `50`.
-  * Allowed values: `1` - `100`.
-  * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for the dragged item's replacement.
-* **`dragOverlapAction`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"move"`.
-  * Allowed values: `"move"`, `"swap"`.
-  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
 * **`containerClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri"`.
   * Container element classname.
@@ -267,14 +267,14 @@ var defaults = {
 
     // Drag & Drop
     dragEnabled: false,
+    dragContainer: null,
     dragPredicate: null,
     dragSort: true,
-    dragContainer: null,
+    dragSortInterval: 50,
+    dragSortTolerance: 50,
+    dragSortAction: 'move',
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease-out',
-    dragOverlapInterval: 50,
-    dragOverlapTolerance: 50,
-    dragOverlapAction: 'move',
 
     // Classnames
     containerClass: 'muuri',

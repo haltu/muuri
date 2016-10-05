@@ -168,9 +168,6 @@ palikka
     else if (sortValue === 'color') {
       items.sort(compareItemColor);
     }
-    else if (sortValue === 'id') {
-      items.sort(compareItemId);
-    }
     else {
       Array.prototype.splice.apply(items, [0, items.length].concat(dragOrder));
     }
@@ -218,9 +215,6 @@ palikka
       }
       else if (sortValue === 'color') {
         items.sort(compareItemColor);
-      }
-      else if (sortValue === 'id') {
-        items.sort(compareItemId);
       }
 
       // Add the new items to the cached drag order.
@@ -325,14 +319,6 @@ palikka
     }
 
     return ret;
-
-  }
-
-  function compareItemId(a, b) {
-
-    var aVal = parseInt($(a._element).attr('data-id')) || 0;
-    var bVal = parseInt($(b._element).attr('data-id')) || 0;
-    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
 
   }
 

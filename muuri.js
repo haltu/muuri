@@ -23,19 +23,20 @@
  */
 
 /*
-  TODO
-  ====
-  * drag & drop heuristics, make them good and fast!
-    -> When dragging items, don't count margins as part of the item.
-    -> When dragging item slowly, don't switch the item back as long as the item
-       is dragged towards it's new position.
-    -> Allow dropping on empty slots (gaps).
-  * "reset" method which safely updates options.
-    -> should we have specific disabled/enable drag methods?
-    -> should we have specific sort method for sorting the items?
-  * "stagger" option to achieve similar animations as shuffle.js
-  * Use Mezr v0.5.0 (when ready) instead of "borrowing it's functions".
-    -> Reduces a LOT of code and a lot of future unit tests.
+
+TODO v0.2.1
+===========
+* Drag & drop heuristics, make them good and fast!
+  - [x] When dragging items, don't count margins as part of the item.
+  - [ ] When dragging item slowly, don't switch the item back as long as the
+        item is dragged towards it's new position.
+  - [ ] Allow dropping on empty slots (gaps).
+* Reset method which safely updates options.
+´ - [ ] Generic reset method.
+  - [ ] Disable/enable drag method?
+* [ ] Optional drag placeholder.
+* [ ] Stagger option(s) to achieve similar animations as shuffle.js.
+* [ ] Code review and cleanup.
 */
 
 (function (global, factory) {
@@ -57,7 +58,12 @@
 
   var uuid = 0;
   var noop = function () {};
-  var raf = typeof global.requestAnimationFrame === 'function' ? global.requestAnimationFrame : null;
+  var raf = global.requestAnimationFrame ||
+            global.webkitRequestAnimationFrame ||
+            global.mozRequestAnimationFrame ||
+            global.msRequestAnimationFrame ||
+            global.oRequestAnimationFrame ||
+            null;
 
   // Event names.
   var evRefresh = 'refresh';
@@ -1607,6 +1613,8 @@
    */
   Muuri.Item.prototype._onDragMove = function (e) {
 
+    console.log(e);
+
     var drag = this._drag;
     var stn = this._muuri._settings;
 
@@ -2361,7 +2369,7 @@
       }
 
       // Invoke the layout method.
-      typeof Muuri.Layout.methods[methodName].call(this, noSettingsProvided ? {} : stn[1]);
+      Muuri.Layout.methods[methodName].call(this, noSettingsProvided ? {} : stn[1]);
 
     }
 
@@ -2397,14 +2405,14 @@
    * @property {!Number} layoutOnResize
    * @property {Boolean} layoutOnInit
    * @property {Boolean} dragEnabled
+   * @property {!HtmlElement} dragContainer
    * @property {!Function} dragPredicate
    * @property {Boolean} dragSort
-   * @property {!HtmlElement} dragContainer
-   * @property {Number} dragReleaseDuration
-   * @property {Array|String} dragReleaseEasing
    * @property {Number} dragSortInterval
    * @property {Number} dragSortTolerance
    * @property {String} dragSortAction
+   * @property {Number} dragReleaseDuration
+   * @property {Array|String} dragReleaseEasing
    * @property {String} containerClass
    * @property {String} itemClass
    * @property {String} shownClass

@@ -28,8 +28,6 @@ TODO v0.2.1
 ===========
 * Drag & drop heuristics, make them good and fast!
   - [x] When dragging items, don't count margins as part of the item.
-  - [ ] When dragging item slowly, don't switch the item back as long as the
-        item is dragged towards it's new position.
   - [ ] Allow dropping on empty slots (gaps).
 * Reset method which safely updates options.
 ´ - [ ] Generic reset method.
@@ -1258,7 +1256,7 @@ TODO v0.2.1
     // temporarily to this array. The callbacks are called with the first
     // argument as false if the animation succeeded without interruptions and
     // with the first argument as true if the animation was interrupted.
-    this._visibiliyQueue = [];
+    this._visibilityQueue = [];
 
     // Layout animation callback queue. Whenever a callback is provided for
     // layout method and animation is enabled the callback is stored temporarily
@@ -1366,7 +1364,7 @@ TODO v0.2.1
 
     // This is not ideal, but saves us from a LOT of hacks. Let's try to keep
     // the default drag setup consistent across devices.
-    hammer.set({ touchAction: 'none' });
+    hammer.set({touchAction: 'none'});
 
     // Setup initial release data.
     inst._resetReleaseData();
@@ -1443,8 +1441,9 @@ TODO v0.2.1
     // Is the drag active or not?
     drag.active = false;
 
-    // Hammer dragstart/dragend event data.
+    // Hammer event data.
     drag.start = null;
+    drag.lastMove = null;
     drag.move = null;
 
     // The dragged Muuri.Item reference.
@@ -1512,6 +1511,7 @@ TODO v0.2.1
     // Setup drag data.
     drag.active = true;
     drag.start = e;
+    drag.lastMove = e;
     drag.move = e;
     drag.item = this;
     drag.element = this._element;
@@ -1613,8 +1613,6 @@ TODO v0.2.1
    */
   Muuri.Item.prototype._onDragMove = function (e) {
 
-    console.log(e);
-
     var drag = this._drag;
     var stn = this._muuri._settings;
 
@@ -1628,7 +1626,8 @@ TODO v0.2.1
     var xDiff = e.deltaX - drag.move.deltaX;
     var yDiff = e.deltaY - drag.move.deltaY;
 
-    // Update move event.
+    // Update move events.
+    drag.lastMove = drag.move;
     drag.move = e;
 
     // Update position data.
@@ -1885,38 +1884,86 @@ TODO v0.2.1
     var dragItem = this._drag.item;
     var bestMatch = null;
     var instIndex = 0;
+    var visualIndex = 0;
+    var intersections = [];
     var instData = {
-      width: dragItem._width - dragItem._margin.left - dragItem._margin.right,
-      height: dragItem._height - dragItem._margin.top - dragItem._margin.bottom,
-      left: this._drag.gridX + dragItem._margin.left,
-      top: this._drag.gridY + dragItem._margin.top
+      width: dragItem._width,
+      height: dragItem._height,
+      left: this._drag.gridX,
+      top: this._drag.gridY
+    };
+    var instDataMarginless = {
+      width: instData.width - dragItem._margin.left - dragItem._margin.right,
+      height: instData.height - dragItem._margin.top - dragItem._margin.bottom,
+      left: instData.left + dragItem._margin.left,
+      top: instData.top + dragItem._margin.top
     };
 
     // Find best match (the element with most overlap).
     for (var i = 0, len = items.length; i < len; i++) {
+
       var item = items[i];
+
+      // If the item is the dragged item, save it's index.
       if (item === this) {
+
         instIndex = i;
+
       }
+      // Otherwise, if the item is active.
       else if (item._active) {
-        var overlapScore = getOverlapScore(instData, {
+
+        // Get marginless item data.
+        var itemDataMarginless = {
           width: item._width - item._margin.left - item._margin.right,
           height: item._height - item._margin.top - item._margin.bottom,
           left: item._left + item._margin.left,
           top: item._top + item._margin.top
-        });
-        if (!bestMatch || overlapScore > bestMatch.score) {
+        };
+
+        // Get marginless overlap data.
+        var overlapMarginless = getSortOverlapData(instDataMarginless, itemDataMarginless);
+
+        // Update best match if the overlap score is higher than the current
+        // best match.
+        if (!bestMatch || overlapMarginless.score > bestMatch.score) {
           bestMatch = {
             item: item,
-            score: overlapScore,
+            score: overlapMarginless.score,
             index: i
           };
         }
+
       }
+
+      // If item is active
+      if (item._active) {
+
+        // Check visual index.
+
+        // Get item data.
+        var itemData = {
+          width: item._width,
+          height: item._height,
+          left: item._left,
+          top: item._top
+        };
+
+        // Get item overlap.
+        var overlap = getSortOverlapData(instData, itemData);
+
+        // Add the possible intersection to intersections.
+        if (overlap.score) {
+          intersections[intersections.length] = overlap.intersection;
+        }
+
+      }
+
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
     if (bestMatch && bestMatch.score >= overlapTolerance) {
+
       if (overlapAction === 'swap') {
         arraySwap(items, instIndex, bestMatch.index);
         this._muuri._emitter.emit(evSwap, this, bestMatch.item);
@@ -1925,7 +1972,23 @@ TODO v0.2.1
         arrayMove(items, instIndex, bestMatch.index);
         this._muuri._emitter.emit(evMove, this, bestMatch.item);
       }
+
       this._muuri.layout();
+
+    }
+    // Otherwise if we have intersections check if we can drop the item on empty
+    // slot.
+    else if (intersections.length) {
+
+      var filledArea = 0;
+      var emptyArea = 0;
+
+      for (var i = 0; i < intersections.length; i++) {
+        filledArea += (intersections[i].width * intersections[i].height);
+      }
+
+      emptyArea = instData.width * instData.height - filledArea;
+
     }
 
   };
@@ -2122,7 +2185,7 @@ TODO v0.2.1
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
+        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
     }
@@ -2150,21 +2213,21 @@ TODO v0.2.1
       });
 
       // Process current callback queue.
-      processQueue(inst._visibiliyQueue, true, inst);
+      processQueue(inst._visibilityQueue, true, inst);
 
       // Update state.
       inst._showing = true;
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
+        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
       // Animate child element.
       inst._muuri._itemShow.start(inst, instant, function () {
 
         // Process callback queue.
-        processQueue(inst._visibiliyQueue, false, inst);
+        processQueue(inst._visibilityQueue, false, inst);
 
       });
 
@@ -2200,7 +2263,7 @@ TODO v0.2.1
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
+        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
     }
@@ -2223,14 +2286,14 @@ TODO v0.2.1
       removeClass(inst._element, stn.shownClass);
 
       // Process current callback queue.
-      processQueue(inst._visibiliyQueue, true, inst);
+      processQueue(inst._visibilityQueue, true, inst);
 
       // Update state.
       inst._hiding = true;
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
+        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
       // Animate child element.
@@ -2242,7 +2305,7 @@ TODO v0.2.1
         });
 
         // Process callback queue.
-        processQueue(inst._visibiliyQueue, false, inst);
+        processQueue(inst._visibilityQueue, false, inst);
 
       });
 
@@ -2296,7 +2359,7 @@ TODO v0.2.1
 
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.
-    processQueue(this._visibiliyQueue, true, this);
+    processQueue(this._visibilityQueue, true, this);
 
     // Remove Muuri specific classes.
     removeClass(element, stn.positioningClass);
@@ -2990,14 +3053,20 @@ TODO v0.2.1
    *
    * @param {Object} a
    * @param {Object} b
-   * @returns {Number} A number between 0-100.
+   * @returns {Object}
+   *   - An object with two properties: "score" and "intersection". The score is
+   *     a number between 0-100. The intersection is an object containing the
+   *     data for the intersection area.
    */
-  function getOverlapScore(a, b) {
+  function getSortOverlapData(a, b) {
 
-    var intersection = getIntersection(a, b);
+    var ret = {
+      intersection: getIntersection(a, b),
+      score: 0
+    };
 
-    if (!intersection) {
-      return 0;
+    if (!ret.intersection) {
+      return ret;
     }
 
     var aNonPositioned = {
@@ -3016,7 +3085,9 @@ TODO v0.2.1
 
     var maxIntersection = getIntersection(aNonPositioned, bNonPositioned);
 
-    return (intersection.width * intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
+    ret.score = (ret.intersection.width * ret.intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
+
+    return ret;
 
   }
 

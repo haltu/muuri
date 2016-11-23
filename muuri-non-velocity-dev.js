@@ -34,19 +34,18 @@ TODO v0.3.0
 * [x] Bring in Mezr 0.6.0 as a hard dependency.
 * [x] When dragging items, don't count margins as part of the item.
 * [x] Allow defining custom drag predicate.
-* [x] Fix broken hide/show methods (if no hide/show animationduration is defined
-      muuri will break).
-* [x] Allow defining hide/show styles.
-* [-] Animation adapter (with default bindings to Velocity.js). Muuri should be
-      able to do all the positioning without Velocity's help. Basically we need
-      to create an alternative version of Velocity's hook method.
-* [ ] Reset method which safely updates options. Main use case is making it
-      possible to toggle drag on and off.
+* [~] Deprecate Velocity.js hard dependency and embrace BYO attitude. By default
+      Muuri should use CSS transitions, but also allow using any animation
+      library via adapters.
+* [ ] Deprecate Mezr as a hard dependency. Instead, fork it and include a
+      stripped down version of it inlined.
+* [ ] More unit tests.
 * [ ] Create an ESLint config for the project.
 * [ ] Allow dropping on empty slots (gaps).
 * [ ] Optional drag placeholder.
+* [ ] Reset method which safely updates options. Main use case is making it
+      possible to toggle drag on and off.
 * [ ] Stagger option(s) to achieve similar animations as shuffle.js.
-* [ ] More unit tests.
 * [ ] Perf optimizations.
      - [ ] If array's size is known use new Array(size) to initialize array.
      - [ ] No more for in loops.
@@ -56,12 +55,11 @@ TODO v0.3.0
 
   var libName = 'Muuri';
   var mezr = global.mezr;
-  var Velocity = typeof jQuery === 'function' ? jQuery.Velocity : global.Velocity;
   var Hammer = global.Hammer;
 
-  global[libName] = factory(global, mezr, Velocity, Hammer);
+  global[libName] = factory(global, mezr, Hammer);
 
-}(this, function (global, mezr, Velocity, Hammer, undefined) {
+}(this, function (global, mezr, Hammer, undefined) {
 
   'use strict';
 
@@ -72,12 +70,8 @@ TODO v0.3.0
     throw Error('[' + libName + '] required dependency mezr is not defined.');
   }
 
-  // Check that we have Velocity.
-  if (!Velocity) {
-    throw Error('[' + libName + '] required dependency Velocity is not defined.');
-  }
-
   var uuid = 0;
+  var noop = function () {};
   var raf = global.requestAnimationFrame ||
             global.webkitRequestAnimationFrame ||
             global.mozRequestAnimationFrame ||
@@ -206,6 +200,113 @@ TODO v0.3.0
 
   };
 
+  /* TODO: Miniscule CSS transition controller to replace Velocity. */
+
+  function Animate(elem) {
+
+    this._element = elem;
+    this._isAnimating = false;
+    this._animatedStyles = [];
+    this._callback = null;
+
+  }
+
+  Animate.prototype.start = function (props, opts) {
+
+    // TODO: Add some intelligence by comparing the new props to old props. If
+    // a prop is already in the target value don't add it to the list of
+    // animated styles.
+
+    var inst = this;
+    var elem = inst._element;
+    var styleProps = props || {};
+    var options = opts || {};
+    var done = options.done;
+    var animatedStyles = Object.keys(styleProps);
+    var transProps = {
+      transitionProperty: animatedStyles.join(','),
+      transitionDuration: (options.duration || 400) + 'ms',
+      transitionDelay: (options.delay || 0) + 'ms',
+      transitionEasing: options.easing || 'ease'
+    };
+
+    // Stop current animation.
+    inst.stop();
+
+    // Store animated styles.
+    inst._animatedStyles = animatedStyles;
+
+    // Set as animating.
+    inst._isAnimating = true;
+
+    // Bind callback.
+    inst._callback = function () {
+      inst.stop();
+      if (typeof done === 'function') {
+        done();
+      }
+    };
+    elem.addEventListener('transitionend', inst._callback, true);
+
+    // Set transition styles.
+    setStyles(elem, transProps);
+
+    // Set target styles.
+    setStyles(elem, styleProps);
+
+  };
+
+  Animate.prototype.stop = function () {
+
+    var inst = this;
+    var styles = {};
+
+    // If is animating.
+    if (inst._isAnimating) {
+
+      // Unbind transitionend listener.
+      if (typeof inst._callback === 'function') {
+        inst._element.removeEventListener('transitionend', inst._callback, true);
+        inst._callback = null;
+      }
+
+      // Get current values of all animated styles.
+      inst._animatedStyles.forEach(function (styleName) {
+        styles[styleName] = getStyle(inst._element, styleName);
+      });
+
+      // Add transition props to styles.
+      styles['transitionProperty'] = '';
+      styles['transitionDuration'] = '';
+      styles['transitionDelay'] = '';
+      styles['transitionEasing'] = '';
+
+      // Set animating state as false.
+      inst._isAnimating = false;
+
+      // Set styles.
+      setStyles(inst._element, styles);
+
+    }
+
+  };
+
+  Animate.prototype.isAnimating = function () {
+
+    return this._isAnimating;
+
+  };
+
+  Animate.prototype.destroy = function () {
+
+    this.stop();
+    this._element = null;
+    this._isAnimating = null;
+    this._animatedStyles = null;
+    this._callback = null;
+
+  };
+
   /**
    * LayoutFirstFit v0.3.0
    * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
@@ -253,7 +354,7 @@ TODO v0.3.0
 
       var slot = LayoutFirstFit.getSlot(layout, emptySlots, item._width, item._height, !isHorizontal, fillGaps);
 
-      // Update layout height.
+      // Update layout width/height.
       if (isHorizontal) {
         layout.width = Math.max(layout.width, slot.left + slot.width);
       }
@@ -598,7 +699,7 @@ TODO v0.3.0
     var debounced;
 
     // Merge user settings with default settings.
-    var stn = inst._settings = mergeOptions({}, Muuri.defaultSettings, settings || {});
+    var stn = inst._settings = mergeObjects({}, Muuri.defaultSettings, settings || {});
 
     // Make sure a valid container element is provided before going continuing.
     if (!document.body.contains(stn.container)) {
@@ -612,15 +713,12 @@ TODO v0.3.0
     // Instance id.
     inst._id = ++uuid;
 
-    // Unique animation queue name.
-    inst._animQueue = 'muuri-' + inst._id;
-
     // Create private eventize instance.
     inst._emitter = new Emitter();
 
     // Setup show and hide animations for items.
-    inst._itemShow = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
-    inst._itemHide = typeof stn.hide === 'function' ? stn.hide() : getItemVisbilityHandler('hide', stn.hide);
+    inst._itemShow = typeof stn.show === 'function' ? stn.show() : animateVisibility(stn.show, 'show');
+    inst._itemHide = typeof stn.hide === 'function' ? stn.hide() : animateVisibility(stn.hide, 'hide');
 
     // Setup drag sort handler.
     inst._dragSort = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : dragSortHandler;
@@ -800,7 +898,7 @@ TODO v0.3.0
 
       (targetItems || this._items).forEach(function (val) {
         var item = hasTargets ? this._getItem(val) : val;
-        if (item && (!targetState || (targetState === 'active' && item._isActive) || (targetState === 'inactive' && !item._isActive))) {
+        if (item && (!targetState || (targetState === 'active' && item._active) || (targetState === 'inactive' && !item._active))) {
           ret.push(item);
         }
       }, this);
@@ -862,7 +960,7 @@ TODO v0.3.0
     elements.forEach(function (elem) {
       var item = new Muuri.Item(this, elem);
       newItems.push(item);
-      if (item._isActive) {
+      if (item._active) {
         needsRelayout = true;
         item._noLayoutAnimation = true;
       }
@@ -906,7 +1004,7 @@ TODO v0.3.0
     this.get(items).forEach(function (item) {
 
       // Check if refresh is needed.
-      if (item._isActive) {
+      if (item._active) {
         needsRelayout = true;
       }
 
@@ -1046,7 +1144,7 @@ TODO v0.3.0
    */
   Muuri.prototype.show = function (items, instant, callback) {
 
-    setVisibility(this, 'show', items, instant, callback);
+    toggleVisibility(this, 'show', items, instant, callback);
 
   };
 
@@ -1061,7 +1159,7 @@ TODO v0.3.0
    */
   Muuri.prototype.hide = function (items, instant, callback) {
 
-    setVisibility(this, 'hide', items, instant, callback);
+    toggleVisibility(this, 'hide', items, instant, callback);
 
   };
 
@@ -1206,7 +1304,6 @@ TODO v0.3.0
 
     var stn = muuri._settings;
     var isHidden;
-    var visibilityStyles;
 
     // Make sure the item element is not a parent of the grid container element.
     if (element.contains(muuri._element)) {
@@ -1227,22 +1324,24 @@ TODO v0.3.0
     this._muuri = muuri;
     this._element = element;
     this._child = element.children[0];
+    this._animate = new Animate(element);
+    this._animateChild = new Animate(this._child);
 
     // Set item class.
     addClass(element, stn.itemClass);
 
     // Set up active state (defines if the item is considered part of the layout
     // or not).
-    this._isActive = isHidden ? false : true;
+    this._active = isHidden ? false : true;
 
     // Set up positioning state (defines if the item is currently animating
     // it's position).
-    this._isPositioning = false;
+    this._positioning = false;
 
     // Set up visibility states.
-    this._isHidden = isHidden;
-    this._isHiding = false;
-    this._isShowing = false;
+    this._hidden = isHidden;
+    this._hiding = false;
+    this._showing = false;
 
     // Visibility animation callback queue. Whenever a callback is provided for
     // show/hide methods and animation is enabled the callback is stored
@@ -1259,21 +1358,20 @@ TODO v0.3.0
     this._layoutQueue = [];
 
     // Set element's initial position.
-    hookStyles(this._element, {
+    setStyles(this._element, {
       left: '0',
       top: '0',
-      translateX: '0px',
-      translateY: '0px'
+      transform: 'translateX(0px) translateY(0px)'
     });
 
     // Set hidden/shown class.
     addClass(element, isHidden ? stn.hiddenClass : stn.shownClass);
 
     // Set hidden/shown styles for the child element.
-    visibilityStyles = muuri[isHidden ? '_itemHide' : '_itemShow'].styles;
-    if (visibilityStyles) {
-      hookStyles(this._child, visibilityStyles);
-    }
+    setStyles(this._child, {
+      opacity: isHidden ? 0 : 1,
+      transform: isHidden ? 'scale(0.5)' : 'scale(1)'
+    });
 
     // Enforce display "block" if element is visible.
     if (!isHidden) {
@@ -1316,13 +1414,13 @@ TODO v0.3.0
       },
       left: this._left,
       top: this._top,
-      active: this._isActive,
-      positioning: this._isPositioning,
+      active: this._active,
+      positioning: this._positioning,
       dragging: this._drag.active,
       releasing: this._release.active,
-      visibility: this._isHiding ? 'hiding' :
-                  this._isShowing ? 'showing' :
-                  this._isHidden ? 'hidden' : 'shown'
+      visibility: this._hiding ? 'hiding' :
+                  this._showing ? 'showing' :
+                  this._hidden ? 'hidden' : 'shown'
     };
 
   };
@@ -1495,12 +1593,12 @@ TODO v0.3.0
     var elemGbcr;
 
     // If item is not active, don't start the drag.
-    if (!this._isActive) {
+    if (!this._active) {
       return;
     }
 
     // Stop current positioning animation.
-    if (this._isPositioning) {
+    if (this._positioning) {
       this._stopLayout();
     }
 
@@ -1521,8 +1619,8 @@ TODO v0.3.0
     drag.element = this._element;
 
     // Get element's current position.
-    currentLeft = parseFloat(Velocity.hook(drag.element, 'translateX')) || 0;
-    currentTop = parseFloat(Velocity.hook(drag.element, 'translateY')) || 0;
+    currentLeft = getTranslateValue(drag.element, 'x');
+    currentTop = getTranslateValue(drag.element, 'y');
 
     // Get container references.
     muuriContainer = this._muuri._element;
@@ -1576,9 +1674,8 @@ TODO v0.3.0
         drag.top = currentTop + drag.containerDiffY;
 
         // Fix position to account for the append procedure.
-        hookStyles(drag.element, {
-          translateX: drag.left + 'px',
-          translateY: drag.top + 'px'
+        setStyles(drag.element, {
+          transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
         });
 
       }
@@ -1623,7 +1720,7 @@ TODO v0.3.0
     var yDiff;
 
     // If item is not active, reset drag.
-    if (!this._isActive) {
+    if (!this._active) {
       this._resetDrag();
       return;
     }
@@ -1645,9 +1742,8 @@ TODO v0.3.0
     drag.elemClientY += yDiff;
 
     // Update element's translateX/Y values.
-    hookStyles(drag.element, {
-      translateX: drag.left + 'px',
-      translateY: drag.top + 'px'
+    setStyles(drag.element, {
+      transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
     });
 
     // Overlap handling.
@@ -1696,9 +1792,8 @@ TODO v0.3.0
     drag.gridY = drag.top - drag.containerDiffY;
 
     // Update element's translateX/Y values.
-    hookStyles(drag.element, {
-      translateX: drag.left + 'px',
-      translateY: drag.top + 'px'
+    setStyles(drag.element, {
+      transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
     });
 
     // Overlap handling.
@@ -1724,7 +1819,7 @@ TODO v0.3.0
     var release = this._release;
 
     // If item is not active, reset drag.
-    if (!this._isActive) {
+    if (!this._active) {
       this._resetDrag();
       return;
     }
@@ -1854,9 +1949,8 @@ TODO v0.3.0
     // and adjust position accordingly.
     if (release.element.parentNode !== this._muuri._element) {
       this._muuri._element.appendChild(release.element);
-      hookStyles(release.element, {
-        translateX: this._left + 'px',
-        translateY: this._top + 'px'
+      setStyles(release.element, {
+        transform: 'translateX(' + this._left + 'px) translateY(' + this._top + 'px)'
       });
     }
 
@@ -1928,16 +2022,16 @@ TODO v0.3.0
 
     var stn = this._muuri._settings;
 
-    if (this._isPositioning) {
+    if (this._positioning) {
 
       // Stop animation.
-      Velocity(this._element, 'stop', this._muuri._animQueue);
+      this._animate.stop();
 
-      // Remove visibility classes.
+      // Remove positioning class.
       removeClass(this._element, stn.positioningClass);
 
       // Reset state.
-      this._isPositioning = false;
+      this._positioning = false;
 
       // Process callback queue.
       processQueue(this._layoutQueue, true, this);
@@ -1954,7 +2048,7 @@ TODO v0.3.0
    */
   Muuri.Item.prototype._refresh = function () {
 
-    if (!this._isHidden) {
+    if (!this._hidden) {
       this._width = Math.round(mezr.width(this._element, 'margin'));
       this._height = Math.round(mezr.height(this._element, 'margin'));
       this._margin = {};
@@ -1982,7 +2076,7 @@ TODO v0.3.0
     var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.layoutDuration;
     var animEasing = isJustReleased ? stn.dragReleaseEasing : stn.layoutEasing;
     var animEnabled = instant === true || inst._noLayoutAnimation ? false : animDuration > 0;
-    var isPositioning = inst._isPositioning;
+    var isPositioning = inst._positioning;
     var offsetLeft;
     var offsetTop;
     var currentLeft;
@@ -1993,7 +2087,7 @@ TODO v0.3.0
       removeClass(inst._element, stn.positioningClass);
 
       // Mark the item as not positioning.
-      inst._isPositioning = false;
+      inst._positioning = false;
 
       // Finish up release.
       if (release.active) {
@@ -2031,9 +2125,8 @@ TODO v0.3.0
         inst._noLayoutAnimation = false;
       }
 
-      hookStyles(inst._element, {
-        translateX: (inst._left + offsetLeft) + 'px',
-        translateY: (inst._top + offsetTop) + 'px'
+      setStyles(inst._element, {
+        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
       });
 
       finish();
@@ -2046,8 +2139,8 @@ TODO v0.3.0
       // Get current (relative) left and top position. Meaning that the
       // drga container's offset (if applicable) is subtracted from the current
       // translate values.
-      currentLeft = (parseFloat(Velocity.hook(inst._element, 'translateX')) || 0) - offsetLeft;
-      currentTop = (parseFloat(Velocity.hook(inst._element, 'translateY')) || 0) - offsetTop;
+      currentLeft = getTranslateValue(inst._element, 'x') - offsetLeft;
+      currentTop = getTranslateValue(inst._element, 'y') - offsetTop;
 
       // If the item is already in correct position there's no need to animate
       // it.
@@ -2057,26 +2150,21 @@ TODO v0.3.0
       }
 
       // Mark as positioning.
-      inst._isPositioning = true;
+      inst._positioning = true;
 
       // Add positioning class if necessary.
       if (!isPositioning) {
         addClass(inst._element, stn.positioningClass);
       }
 
-      // Set up the animation.
-      Velocity(inst._element, {
-        translateX: inst._left + offsetLeft,
-        translateY: inst._top + offsetTop
+      // Animate.
+      inst._animate.start({
+        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
       }, {
         duration: animDuration,
         easing: animEasing,
-        complete: finish,
-        queue: inst._muuri._animQueue
+        done: finish
       });
-
-      // Start the animation.
-      Velocity.Utilities.dequeue(inst._element, inst._muuri._animQueue);
 
     }
 
@@ -2096,7 +2184,7 @@ TODO v0.3.0
     var stn = inst._muuri._settings;
 
     // If item is visible.
-    if (!inst._isHidden && !inst._isShowing) {
+    if (!inst._hidden && !inst._showing) {
 
       // Call the callback and be done with it.
       if (typeof callback === 'function') {
@@ -2106,7 +2194,7 @@ TODO v0.3.0
     }
 
     // If item is animating to visible.
-    else if (!inst._isHidden) {
+    else if (!inst._hidden) {
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
@@ -2122,9 +2210,9 @@ TODO v0.3.0
       inst._muuri._itemHide.stop(inst);
 
       // Update states.
-      inst._isActive = true;
-      inst._isHidden = false;
-      inst._isShowing = inst._isHiding = false;
+      inst._active = true;
+      inst._hidden = false;
+      inst._showing = inst._hiding = false;
 
       // Update classes.
       addClass(inst._element, stn.shownClass);
@@ -2139,7 +2227,7 @@ TODO v0.3.0
       processQueue(inst._visibilityQueue, true, inst);
 
       // Update state.
-      inst._isShowing = true;
+      inst._showing = true;
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
@@ -2172,7 +2260,7 @@ TODO v0.3.0
     var stn = inst._muuri._settings;
 
     // If item is hidden.
-    if (inst._isHidden && !inst._isHiding) {
+    if (inst._hidden && !inst._hiding) {
 
       // Call the callback and be done with it.
       if (typeof callback === 'function') {
@@ -2182,7 +2270,7 @@ TODO v0.3.0
     }
 
     // If item is animating to hidden.
-    else if (inst._isHidden) {
+    else if (inst._hidden) {
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
@@ -2198,9 +2286,9 @@ TODO v0.3.0
       inst._muuri._itemShow.stop(inst);
 
       // Update states.
-      inst._isActive = false;
-      inst._isHidden = true;
-      inst._isShowing = inst._isHiding = false;
+      inst._active = false;
+      inst._hidden = true;
+      inst._showing = inst._hiding = false;
 
       // Update classes.
       addClass(inst._element, stn.hiddenClass);
@@ -2210,7 +2298,7 @@ TODO v0.3.0
       processQueue(inst._visibilityQueue, true, inst);
 
       // Update state.
-      inst._isHiding = true;
+      inst._hiding = true;
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
@@ -2273,6 +2361,10 @@ TODO v0.3.0
     if (this._hammer) {
       this._hammer.destroy();
     }
+
+    // Destroy animation handlers.
+    this._animate.destroy();
+    this._animateChild.destroy();
 
     // Remove all inline styles.
     element.removeAttribute('style');
@@ -2423,19 +2515,11 @@ TODO v0.3.0
     // Show/hide animations
     show: {
       duration: 300,
-      easing: 'ease-out',
-      styles: {
-        scale: 1,
-        opacity: 1
-      }
+      easing: 'ease-out'
     },
     hide: {
       duration: 300,
-      easing: 'ease-out',
-      styles: {
-        scale: 0.5,
-        opacity: 0
-      }
+      easing: 'ease-out'
     },
 
     // Layout
@@ -2544,15 +2628,15 @@ TODO v0.3.0
    * @param {...Object} sources
    * @returns {Object} Returns the destination object.
    */
-  function mergeOptions(dest) {
+  function mergeObjects(dest) {
 
     var len = arguments.length;
     var i;
 
     for (i = 1; i < len; i++) {
       Object.keys(arguments[i]).forEach(function (prop) {
-        if (prop !== 'styles' && isPlainObject(dest[prop]) && isPlainObject(this[prop])) {
-          mergeOptions(dest[prop], this[prop]);
+        if (isPlainObject(dest[prop]) && isPlainObject(this[prop])) {
+          mergeObjects(dest[prop], this[prop]);
         }
         else {
           dest[prop] = this[prop];
@@ -2621,6 +2705,20 @@ TODO v0.3.0
   }
 
   /**
+   * Returns the element's translateX/Y value as a float. Assumes that the
+   * translate value is defined as pixels.
+   *
+   * @param {HTMLElement} element
+   * @param {String} axis
+   * @returns {Number}
+   */
+  function getTranslateValue(element, axis) {
+
+    return parseFloat((getStyle(element, 'transform') || '').split('translate' + axis.toUpperCase() + '(')[1]) || 0;
+
+  }
+
+  /**
    * Returns the computed value of an element's style property transformed into
    * a float value.
    *
@@ -2645,20 +2743,6 @@ TODO v0.3.0
 
     Object.keys(styles).forEach(function (styleName) {
       element.style[styleName] = styles[styleName];
-    });
-
-  }
-
-  /**
-   * Set inline styles to an element with Velocity's hook method.
-   *
-   * @param {HTMLElement} element
-   * @param {Object} styles
-   */
-  function hookStyles(element, styles) {
-
-    Object.keys(styles).forEach(function (styleName) {
-      Velocity.hook(element, styleName, styles[styleName]);
     });
 
   }
@@ -2956,7 +3040,7 @@ TODO v0.3.0
    * @param {Boolean} [instant=false]
    * @param {Function} [callback]
    */
-  function setVisibility(inst, method, items, instant, callback) {
+  function toggleVisibility(inst, method, items, instant, callback) {
 
     var targetItems = inst.get(items);
     var cb = typeof instant === 'function' ? instant : callback;
@@ -2990,7 +3074,7 @@ TODO v0.3.0
       targetItems.forEach(function (item) {
 
         // Check if relayout or refresh is needed.
-        if ((isShow && !item._isActive) || (!isShow && item._isActive)) {
+        if ((isShow && !item._active) || (!isShow && item._active)) {
           needsRelayout = true;
           if (isShow) {
             item._noLayoutAnimation = true;
@@ -3033,46 +3117,60 @@ TODO v0.3.0
   }
 
   /**
-   * Returns an object which contains start and stop methods for item's
-   * show/hide process.
+   * Default item show/hide animation flow. Returns and object that contains
+   * the animation start and stop method.
    *
-   * @param {String} type
-   * @param {!Object} [opts]
-   * @param {Number} [opts.duration]
-   * @param {String} [opts.easing]
+   * @param {Object} opts
+   * @param {String} [type]
    * @returns {Object}
    */
-  function getItemVisbilityHandler(type, opts) {
+  function animateVisibility(opts, type) {
 
     var duration = parseInt(opts && opts.duration) || 0;
-    var isEnabled = duration > 0;
     var easing = (opts && opts.easing) || 'ease-out';
-    var styles = opts && isPlainObject(opts.styles) ? opts.styles : null;
+    var targetStyles;
 
-    return {
-      styles: styles,
-      start: function (item, instant, animDone) {
-        if (!isEnabled || !styles) {
-          animDone();
+    // If duration is zero or lower, we don't need any animations.
+    if (duration <= 0) {
+
+      return {
+        start: noop,
+        stop: noop
+      };
+
+    }
+
+    // If we have valid duration let's bind animations.
+    else {
+
+      targetStyles = type === 'show' ? {opacity: 1, transform: 'scale(1)'} : {opacity: 0, transform: 'scale(0.5)'};
+
+      return {
+
+        start: function (item, instant, animDone) {
+
+          if (instant) {
+            setStyles(item._child, targetStyles);
+          }
+          else {
+            item._animateChild.start(targetStyles, {
+              duration: duration,
+              easing: easing,
+              done: animDone
+            });
+          }
+
+        },
+
+        stop: function (item) {
+
+          item._animateChild.stop();
+
         }
-        else if (instant) {
-          hookStyles(item._child, styles);
-          animDone();
-        }
-        else {
-          Velocity(item._child, styles, {
-            duration: duration,
-            easing: easing,
-            queue: item._muuri._animQueue,
-            complete: animDone
-          });
-          Velocity.Utilities.dequeue(item._child, item._muuri._animQueue);
-        }
-      },
-      stop: function (item) {
-        Velocity(item._child, 'stop', item._muuri._animQueue);
-      }
-    };
+
+      };
+
+    }
 
   }
 
@@ -3130,7 +3228,7 @@ TODO v0.3.0
 
       }
       // Otherwise, if the item is active.
-      else if (item._isActive) {
+      else if (item._active) {
 
         // Get marginless item data.
         itemData = {

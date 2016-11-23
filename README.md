@@ -54,19 +54,19 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 ## Getting started
 
 Muuri depends on the following libraries:
-* [Velocity](https://github.com/julianshapiro/velocity) (1.2.x)
-* [Hammer.js](https://github.com/hammerjs/hammer.js) (2.0.x) optional, required only if you are using the dragging feature
+* [Mezr](https://github.com/niklasramo/mezr) (v0.6.0+)
+* [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
+* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) optional, required only if you are using the dragging feature
 
-**First, include Muuri and it's dependencies in your site.**
+**First, include Muuri and it's dependencies in the body element in your site.**
 
 ```html
+<script src="mezr.js"></script>
 <script src="velocity.js"></script>
 <script src="hammer.js"></script>
 <!-- Needs to be within in body element or have access to body element -->
 <script src="muuri.js"></script>
 ```
-
-An important note for including Muuri to your site is that it needs to have access to the `body` element when it's loaded. Muuri does some feature checking on init and might not work correctly if it does not have access to the `body` element.
 
 **Then, define your grid markup.**
 
@@ -146,18 +146,30 @@ var grid = new Muuri({
 * **`items`** &nbsp;&mdash;&nbsp; *array of elements*
   * Default value: `null`.
   * The initial item elements wrapped in an array. The elements must be children of the container element.
-* **`positionDuration`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `300`.
-  * The duration for item's positioning animation in milliseconds. Set to `0` to disable.
-* **`positionEasing`** &nbsp;&mdash;&nbsp; *string / array*
-  * Default value: `"ease-out"`.
-  * The easing for item's positioning animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
 * **`show`** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
-  * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable the animation.
+  * The object should contain *duration*, [*easing*](http://julian.com/research/velocity/#easing) and/or *style* properties. Set to *null* to disable the animation.
+* **`show.duration`** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `300`.
+  * *Show* animation duration in milliseconds.
+* **`show.easing`** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `ease-out`.
+  * *Show* animation [*easing*](http://julian.com/research/velocity/#easing).
+* **`show.styles`** &nbsp;&mdash;&nbsp; *object*
+  * Default value: `{opacity: 1, scale: 1}`.
+  * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for show animation.
 * **`hide`** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{duration: 300, easing: "ease-out"}`.
   * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable the animation.
+* **`hide.duration`** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `300`.
+  * *Hide* animation duration in milliseconds.
+* **`hide.easing`** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `ease-out`.
+  * *Hide* animation [*easing*](http://julian.com/research/velocity/#easing).
+* **`hide.styles`** &nbsp;&mdash;&nbsp; *object*
+  * Default value: `{opacity: 0, scale: 0.5}`.
+  * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for hide animation.
 * **`layout`** &nbsp;&mdash;&nbsp; *array / function / string*
   * Default value: `"firstFit"`.
   * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `"firstFit"`.
@@ -179,6 +191,12 @@ var grid = new Muuri({
 * **`layoutOnInit`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
   * Should Muuri trigger layout automatically on init?
+* **`layoutDuration`** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `300`.
+  * The duration for item's positioning animation in milliseconds. Set to `0` to disable.
+* **`layoutEasing`** &nbsp;&mdash;&nbsp; *string / array*
+  * Default value: `"ease-out"`.
+  * The easing for item's positioning animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Should items be draggable?
@@ -194,14 +212,17 @@ var grid = new Muuri({
 * **`dragSortInterval`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `50`.
   * When an item is dragged around the grid Muuri automatically checks if the item overlaps another item enough to move the item in it's place. The overlap check method is debounced and this option defines the debounce interval in milliseconds. In other words, this is option defines the amount of time the dragged item must be still before an overlap is checked.
-* **`dragSortTolerance`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `50`.
-  * Allowed values: `1` - `100`.
-  * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for the dragged item's replacement.
-* **`dragSortAction`** &nbsp;&mdash;&nbsp; *string*
+* **`dragSortPredicate`** &nbsp;&mdash;&nbsp; *function / object*
+  * Default value: `{action: 'move', tolerance: 50}`.
+  * Defines the logic for the sort procedure during dragging an item. If an object is provided the default sort handler will be used. It can be configured with the `action` and `tolerance` options (read below for more info). Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback receives one argument, which is the currently dragged Muuri.Item instance. The callback should return a *falsy* value if it sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties: `action` ("move" or "swap"), `from` (the index of the Muuri.Item to be moved/swapped), `to` (the index the item should be moved to / swapped with). E.g returning `{action: 'move', from: 0, to: 1}` would move the first item as the second item.
+* **`dragSortPredicate.action`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"move"`.
   * Allowed values: `"move"`, `"swap"`.
   * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
+* **`dragSortPredicate.tolerance`** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `50`.
+  * Allowed values: `1` - `100`.
+  * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for the dragged item's replacement.
 * **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * The duration for item's drag release animation. Set to `0` to disable.
@@ -249,8 +270,8 @@ var defaults = {
 
     // Items
     items: [],
-    positionDuration: 300,
-    positionEasing: 'ease-out',
+
+    // Show/hide animations
     show: {
       duration: 300,
       easing: 'ease-out'
@@ -264,6 +285,8 @@ var defaults = {
     layout: 'firstFit',
     layoutOnResize: 100,
     layoutOnInit: true,
+    layoutDuration: 300,
+    layoutEasing: 'ease-out',
 
     // Drag & Drop
     dragEnabled: false,
@@ -271,8 +294,10 @@ var defaults = {
     dragPredicate: null,
     dragSort: true,
     dragSortInterval: 50,
-    dragSortTolerance: 50,
-    dragSortAction: 'move',
+    dragSortPredicate: {
+      tolerance: 50,
+      action: 'move'
+    },
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease-out',
 

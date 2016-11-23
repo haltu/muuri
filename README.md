@@ -274,11 +274,19 @@ var defaults = {
     // Show/hide animations
     show: {
       duration: 300,
-      easing: 'ease-out'
+      easing: 'ease-out',
+      styles: {
+        scale: 1,
+        opacity: 1
+      }
     },
     hide: {
       duration: 300,
-      easing: 'ease-out'
+      easing: 'ease-out',
+      styles: {
+        scale: 0.5,
+        opacity: 0
+      }
     },
 
     // Layout

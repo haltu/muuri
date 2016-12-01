@@ -1,5 +1,5 @@
 /*!
- * mezr v0.6.0
+ * mezr v0.6.1
  * https://github.com/niklasramo/mezr
  * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
  * Released under the MIT license
@@ -57,6 +57,9 @@
     border: 4,
     margin: 5
   };
+
+  // CSS display values which make it impossible for an element to have a scrollbar.
+  var unscrollableDisplayValues = ['inline', 'table-column', 'table-column-group'];
 
   // Temporary bounding client rect data.
   var tempBCR;
@@ -909,13 +912,13 @@
     var innerDimension = 'inner' + dimensionCapitalized;
     var clientDimension = 'client' + dimensionCapitalized;
     var scrollDimension = 'scroll' + dimensionCapitalized;
+    var sbSize = 0;
     var edgeA;
     var edgeB;
     var borderA;
     var borderB;
     var marginA;
     var marginB;
-    var sbSize;
 
     if (el.self === win.self) {
 
@@ -950,7 +953,7 @@
           sbSize = win[innerDimension] - root[clientDimension];
 
         }
-        else {
+        else if (unscrollableDisplayValues.indexOf(getStyle(el, 'display')) < 0) {
 
           borderA = getStyleAsFloat(el, 'border-' + edgeA + '-width');
           borderB = getStyleAsFloat(el, 'border-' + edgeB + '-width');
@@ -987,7 +990,7 @@
 
     }
 
-    return ret;
+    return ret > 0 ? ret : 0;
 
   }
 

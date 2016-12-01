@@ -28,40 +28,42 @@ TODO v0.3.0
 ===========
 * [x] Review/refactor the codebase to be less prone to errors.
       - [x] Move variables to the top of the function scope.
-      - [x] Use native array methods instead of for loops where reasonable.
-      - [x] Use .push() instead of arr[arr.length] = 'foo'.
       - [x] Optimize all functions where arguments is used.
-* [x] Bring in Mezr 0.6.0 as a hard dependency.
 * [x] When dragging items, don't count margins as part of the item.
 * [x] Allow defining custom drag predicate.
 * [x] Fix broken hide/show methods (if no hide/show animationduration is defined
       muuri will break).
 * [x] Allow defining hide/show styles.
-* [-] Animation adapter (with default bindings to Velocity.js). Muuri should be
-      able to do all the positioning without Velocity's help. Basically we need
-      to create an alternative version of Velocity's hook method.
-* [ ] Reset method which safely updates options. Main use case is making it
-      possible to toggle drag on and off.
+* [ ] UMD module definition.
+* [ ] No dependencies:
+      - [x] Replace Velocity dependency by providing animation engine adapter,
+            which defaults to built-in CSS Transforms animation engine.
+      - [*] Try to build tiny custom functions to replace mezr.
+      - [ ] Provide an adapter API for drag interactions instead of having hard
+            coded support for Hammer. How about our own little touch event
+            library?
 * [ ] Create an ESLint config for the project.
 * [ ] Allow dropping on empty slots (gaps).
 * [ ] Optional drag placeholder.
+* [ ] Reset method which safely updates options. Main use case is making it
+      possible to toggle drag on and off.
 * [ ] Stagger option(s) to achieve similar animations as shuffle.js.
 * [ ] More unit tests.
 * [ ] Perf optimizations.
-     - [ ] If array's size is known use new Array(size) to initialize array.
-     - [ ] No more for in loops.
+     - https://medium.com/@xilefmai/efficient-javascript-14a11651d563#.49gifamju
+     - https://github.com/petkaantonov/bluebird/wiki/Optimization-killers
+
 */
 
 (function (global, factory) {
 
   var libName = 'Muuri';
   var mezr = global.mezr;
-  var Velocity = typeof jQuery === 'function' ? jQuery.Velocity : global.Velocity;
   var Hammer = global.Hammer;
 
-  global[libName] = factory(global, mezr, Velocity, Hammer);
+  global[libName] = factory(global, mezr, Hammer);
 
-}(this, function (global, mezr, Velocity, Hammer, undefined) {
+}(this, function (global, mezr, Hammer, undefined) {
 
   'use strict';
 
@@ -72,12 +74,9 @@ TODO v0.3.0
     throw Error('[' + libName + '] required dependency mezr is not defined.');
   }
 
-  // Check that we have Velocity.
-  if (!Velocity) {
-    throw Error('[' + libName + '] required dependency Velocity is not defined.');
-  }
-
   var uuid = 0;
+  var transform = getSupportedStyle('transform');
+  var transition = getSupportedStyle('transition');
   var raf = global.requestAnimationFrame ||
             global.webkitRequestAnimationFrame ||
             global.mozRequestAnimationFrame ||
@@ -135,7 +134,7 @@ TODO v0.3.0
     var events = this._events = this._events || {};
     var listeners = events[event] || [];
 
-    listeners.push(listener);
+    listeners[listeners.length] = listener;
     events[event] = listeners;
 
     return this;
@@ -207,6 +206,174 @@ TODO v0.3.0
   };
 
   /**
+   * Muuri's internal animation engine. Uses CSS Transitions.
+   *
+   * @private
+   * @param {Element} elem
+   */
+  function Animate(elem) {
+
+    this._element = elem;
+    this._isAnimating = false;
+    this._props = [];
+    this._callback = null;
+
+  }
+
+  /**
+   * Start instance's animation. Automatically stops current animation if it is
+   * running.
+   *
+   * @private
+   * @memberof Animate.prototype
+   * @param {Object} props
+   * @param {Object} [options]
+   * @param {Number} [options.duration=400]
+   * @param {Number} [options.delay=400]
+   * @param {String} [options.easing='ease']
+   */
+  Animate.prototype.start = function (props, opts) {
+
+    var inst = this;
+    var elem = inst._element;
+    var styles = props || {};
+    var options = opts || {};
+    var done = options.done;
+    var transPropName = transition.propName;
+
+    // If transitions are not supported, keep it simple.
+    if (!transition) {
+
+      setStyles(elem, styles);
+
+      if (typeof done === 'function') {
+        done();
+      }
+
+      return;
+
+    }
+
+    // Stop current animation.
+    inst.stop();
+
+    // Set as animating.
+    inst._isAnimating = true;
+
+    // Store animated styles.
+    inst._props = Object.keys(styles);
+
+    // Add transition styles to target styles.
+    if (transition) {
+      styles[transPropName + 'Property'] = inst._props.join(',');
+      styles[transPropName + 'Duration'] = (options.duration || 400) + 'ms';
+      styles[transPropName + 'Delay'] = (options.delay || 0) + 'ms';
+      styles[transPropName + 'Easing'] = options.easing || 'ease';
+    }
+
+    // Create callback.
+    inst._callback = function (e) {
+      if (e.target === elem) {
+        inst.stop();
+        if (typeof done === 'function') {
+          done();
+        }
+      }
+    };
+
+    // Bind callback.
+    elem.addEventListener('transitionend', inst._callback, true);
+
+    // Make sure the current styles are applied before applying new styles.
+    elem.offsetWidth;
+
+    // Set target styles.
+    setStyles(elem, styles);
+
+  };
+
+  /**
+   * Stop instance's current animation if running.
+   *
+   * @private
+   * @memberof Animate.prototype
+   */
+  Animate.prototype.stop = function () {
+
+    // If transitions are not supported, keep it simple.
+    if (!transition) {
+      return;
+    }
+
+    var inst = this;
+    var elem = inst._element;
+    var callback = inst._callback;
+    var props = inst._props;
+    var transPropName = transition.propName;
+    var styles = {};
+    var i;
+
+    // If is animating.
+    if (inst._isAnimating) {
+
+      // Unbind transitionend listener.
+      if (typeof callback === 'function') {
+        elem.removeEventListener('transitionend', callback, true);
+        inst._callback = null;
+      }
+
+      // Get current values of all animated styles.
+      for (i = 0; i < props.length; i++) {
+        styles[props[i]] = getStyle(elem, props[i]);
+      }
+
+      // Reset transition props (add to styles object).
+      styles[transPropName + 'Property'] = '';
+      styles[transPropName + 'Duration'] = '';
+      styles[transPropName + 'Delay'] = '';
+      styles[transPropName + 'Easing'] = '';
+
+      // Set styles.
+      setStyles(elem, styles);
+
+      // Set animating state as false.
+      inst._isAnimating = false;
+
+    }
+
+  };
+
+  /**
+   * Is the instance currently animating?
+   *
+   * @private
+   * @memberof Animate.prototype
+   * @returns {Boolean}
+   */
+  Animate.prototype.isAnimating = function () {
+
+    return this._isAnimating;
+
+  };
+
+  /**
+   * Destroy the instance and stop current animation if it is running.
+   *
+   * @private
+   * @memberof Animate.prototype
+   * @returns {Boolean}
+   */
+  Animate.prototype.destroy = function () {
+
+    this.stop();
+    this._element = null;
+    this._isAnimating = null;
+    this._props = null;
+    this._callback = null;
+
+  };
+
+  /**
    * LayoutFirstFit v0.3.0
    * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
    * Released under the MIT license
@@ -219,6 +386,10 @@ TODO v0.3.0
   function LayoutFirstFit(settings) {
 
     var layout = this;
+    var slotIds;
+    var slot;
+    var item;
+    var i;
 
     // Empty slots data.
     var emptySlots = [];
@@ -228,10 +399,6 @@ TODO v0.3.0
     var isHorizontal = settings.horizontal ? true : false;
     var alignRight = settings.alignRight ? true : false;
     var alignBottom = settings.alignBottom ? true : false;
-
-    // Round container width and height.
-    layout.width = Math.round(layout.width);
-    layout.height = Math.round(layout.height);
 
     // Set horizontal/vertical mode.
     if (isHorizontal) {
@@ -249,9 +416,10 @@ TODO v0.3.0
     }
 
     // Find slots for items.
-    layout.items.forEach(function (item) {
+    for (i = 0; i < layout.items.length; i++) {
 
-      var slot = LayoutFirstFit.getSlot(layout, emptySlots, item._width, item._height, !isHorizontal, fillGaps);
+      item = layout.items[i];
+      slot = LayoutFirstFit.getSlot(layout, emptySlots, item._width, item._height, !isHorizontal, fillGaps);
 
       // Update layout height.
       if (isHorizontal) {
@@ -264,14 +432,17 @@ TODO v0.3.0
       // Add slot to slots data.
       layout.slots[item._id] = slot;
 
-    });
+    }
 
     // If the alignment is set to right or bottom, we need to adjust the
     // results.
     if (alignRight || alignBottom) {
-      Object.keys(layout.slots).forEach(function (slotId) {
 
-        var slot = layout.slots[slotId];
+      slotIds = Object.keys(layout.slots);
+
+      for (i = 0; i < slotIds.length; i++) {
+
+        slot = layout.slots[slotIds[i]];
 
         if (alignRight) {
           slot.left = layout.width - (slot.left + slot.width);
@@ -281,7 +452,8 @@ TODO v0.3.0
           slot.top = layout.height - (slot.top + slot.height);
         }
 
-      });
+      }
+
     }
 
   }
@@ -310,11 +482,11 @@ TODO v0.3.0
       width: itemWidth,
       height: itemHeight
     };
-    var i;
-    var ii;
     var slot;
     var potentialSlots;
     var ignoreCurrentSlots;
+    var i;
+    var ii;
 
     // Try to find a slot for the item.
     for (i = 0; i < currentSlots.length; i++) {
@@ -347,22 +519,22 @@ TODO v0.3.0
 
       // If item is not aligned to the left edge, create a new slot.
       if (item.left > 0) {
-        newSlots.push({
+        newSlots[newSlots.length] = {
           left: 0,
           top: layout.height,
           width: item.left,
           height: Infinity
-        });
+        };
       }
 
       // If item is not aligned to the right edge, create a new slot.
       if ((item.left + item.width) < layout.width) {
-        newSlots.push({
+        newSlots[newSlots.length] = {
           left: item.left + item.width,
           top: layout.height,
           width: layout.width - item.left - item.width,
           height: Infinity
-        });
+        };
       }
 
       // Update grid height.
@@ -375,22 +547,22 @@ TODO v0.3.0
 
       // If item is not aligned to the top, create a new slot.
       if (item.top > 0) {
-        newSlots.push({
+        newSlots[newSlots.length] = {
           left: layout.width,
           top: 0,
           width: Infinity,
           height: item.top
-        });
+        };
       }
 
       // If item is not aligned to the bottom, create a new slot.
       if ((item.top + item.height) < layout.height) {
-        newSlots.push({
+        newSlots[newSlots.length] = {
           left: layout.width,
           top: item.top + item.height,
           width: Infinity,
           height: layout.height - item.top - item.height
-        });
+        };
       }
 
       // Update grid width.
@@ -406,7 +578,7 @@ TODO v0.3.0
       for (ii = 0; ii < potentialSlots.length; ii++) {
         slot = potentialSlots[ii];
         if (slot.width > 0 && slot.height > 0 && ((vertical && slot.top < layout.height) || (!vertical && slot.left < layout.width))) {
-          newSlots.push(slot);
+          newSlots[newSlots.length] = slot;
         }
       }
     }
@@ -530,42 +702,42 @@ TODO v0.3.0
 
       // Left split.
       if (a.left < b.left) {
-        ret.push({
+        ret[ret.length] = {
           left: a.left,
           top: a.top,
           width: b.left - a.left,
           height: a.height
-        });
+        };
       }
 
       // Right split.
       if ((a.left + a.width) > (b.left + b.width)) {
-        ret.push({
+        ret[ret.length] = {
           left: b.left + b.width,
           top: a.top,
           width: (a.left + a.width) - (b.left + b.width),
           height: a.height
-        });
+        };
       }
 
       // Top split.
       if (a.top < b.top) {
-        ret.push({
+        ret[ret.length] = {
           left: a.left,
           top: a.top,
           width: a.width,
           height: b.top - a.top
-        });
+        };
       }
 
       // Bottom split.
       if ((a.top + a.height) > (b.top + b.height)) {
-        ret.push({
+        ret[ret.length] = {
           left: a.left,
           top: b.top + b.height,
           width: a.width,
           height: (a.top + a.height) - (b.top + b.height)
-        });
+        };
       }
 
     }
@@ -626,7 +798,7 @@ TODO v0.3.0
     inst._dragSort = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : dragSortHandler;
 
     // Setup initial items.
-    inst._items = [].concat(stn.items).map(function (elem) {
+    inst._items = Array.prototype.slice.call(stn.items).map(function (elem) {
       return new Muuri.Item(inst, elem);
     });
 
@@ -759,13 +931,12 @@ TODO v0.3.0
    */
   Muuri.prototype.refresh = function (items) {
 
-    // Get items.
     var targetItems = this.get(items || 'active');
+    var i;
 
-    // Refresh dimensions.
-    targetItems.forEach(function (item) {
-      item._refresh();
-    });
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._refresh();
+    }
 
     // Emit refresh event.
     this._emitter.emit(evRefresh, targetItems);
@@ -787,10 +958,16 @@ TODO v0.3.0
    */
   Muuri.prototype.get = function (targets, state) {
 
+    // TODO: Allow targets being a live nodeList. Gotta get rid of concat.
+
     var hasTargets = targets && typeof targets !== 'string';
     var targetItems = hasTargets ? [].concat(targets) : null;
     var targetState = !hasTargets ? targets : state;
     var ret = [];
+    var isActive;
+    var isInactive;
+    var item;
+    var i;
 
     // Sanitize target state.
     targetState = typeof targetState === 'string' ? targetState : null;
@@ -798,12 +975,16 @@ TODO v0.3.0
     // If target state or target items are defined return filtered results.
     if (targetState || targetItems) {
 
-      (targetItems || this._items).forEach(function (val) {
-        var item = hasTargets ? this._getItem(val) : val;
-        if (item && (!targetState || (targetState === 'active' && item._isActive) || (targetState === 'inactive' && !item._isActive))) {
-          ret.push(item);
+      targetItems = targetItems || this._items;
+      isActive = targetState === 'active';
+      isInactive = targetState === 'inactive';
+
+      for (i = 0; i < targetItems.length; i++) {
+        item = hasTargets ? this._getItem(targetItems[i]) : targetItems[i];
+        if (item && (!targetState || (isActive && item._isActive) || (isInactive && !item._isActive))) {
+          ret[ret.length] = item;
         }
-      }, this);
+      }
 
       return ret;
 
@@ -839,42 +1020,45 @@ TODO v0.3.0
    */
   Muuri.prototype.add = function (elements, index) {
 
+    var targetElements = [].concat(elements);
     var newItems = [];
+    var items = this._items;
     var needsRelayout = false;
-
-    // Make sure elements is an array.
-    elements = [].concat(elements);
+    var targetIndex;
+    var elemIndex;
+    var item;
+    var i;
 
     // Filter out all elements that exist already in current instance.
-    this._items.forEach(function (item) {
-      var elemIndex = elements.indexOf(item._element);
+    for (i = 0; i < items.length; i++) {
+      elemIndex = targetElements.indexOf(items[i]._element);
       if (elemIndex > -1) {
-        elements.splice(elemIndex, 1);
+        targetElements.splice(elemIndex, 1);
       }
-    });
+    }
 
     // Return early if there are no valid items.
-    if (!elements.length) {
+    if (!targetElements.length) {
       return newItems;
     }
 
     // Create new items.
-    elements.forEach(function (elem) {
-      var item = new Muuri.Item(this, elem);
-      newItems.push(item);
+    for (i = 0; i < targetElements.length; i++) {
+      item = new Muuri.Item(this, targetElements[i]);
+      newItems[newItems.length] = item;
       if (item._isActive) {
         needsRelayout = true;
         item._noLayoutAnimation = true;
       }
-    }, this);
+    }
 
     // Normalize the index for the splice apply hackery so that value of -1
     // appends the new items to the current items.
-    index = typeof index === 'number' ? index : -1;
-    index = index < 0 ? this._items.length - index + 1 : index;
+    targetIndex = typeof index === 'number' ? index : -1;
+    targetIndex = targetIndex < 0 ? items.length - targetIndex + 1 : targetIndex;
 
     // Add the new items to the items collection to correct index.
-    this._items.splice.apply(this._items, [index, 0].concat(newItems));
+    items.splice.apply(items, [targetIndex, 0].concat(newItems));
 
     // If relayout is needed.
     if (needsRelayout) {
@@ -900,22 +1084,20 @@ TODO v0.3.0
    */
   Muuri.prototype.remove = function (items, removeElement) {
 
+    var targetItems = this.get(items);
     var indices = [];
     var needsRelayout = false;
+    var item;
+    var i;
 
-    this.get(items).forEach(function (item) {
-
-      // Check if refresh is needed.
+    for (i = 0; i < targetItems.length; i++) {
+      item = targetItems[i];
       if (item._isActive) {
         needsRelayout = true;
       }
+      indices[indices.length] = item._destroy(removeElement);
+    }
 
-      // Remove item.
-      indices.push(item._destroy(removeElement));
-
-    });
-
-    // If relayout is needed.
     if (needsRelayout) {
       this.layout();
     }
@@ -937,11 +1119,17 @@ TODO v0.3.0
    */
   Muuri.prototype.synchronize = function () {
 
-    this._items.forEach(function (item) {
-      if (item._element.parentNode === this._element) {
-        this._element.appendChild(item._element);
+    var container = this._element;
+    var items = this._items;
+    var elem;
+    var i;
+
+    for (i = 0; i < items.length; i++) {
+      elem = items[i]._element;
+      if (elem.parentNode === container) {
+        container.appendChild(elem);
       }
-    }, this);
+    }
 
     this._emitter.emit(evSynchronize);
 
@@ -969,23 +1157,22 @@ TODO v0.3.0
 
       // Push all items to the completed items array which were not interrupted.
       if (!interrupted) {
-        completed.push(item);
+        completed[completed.length] = item;
       }
 
-      // If container and all items have finished their animations (if any).
+      // If container and all items have finished their animations (if any),
+      // call callback and emit layoutend event.
       if (++counter === itemsLength) {
-
-        // Call callback.
         if (typeof cb === 'function') {
           cb(completed, layout);
         }
-
-        // Emit layoutend event.
         emitter.emit(evLayoutEnd, completed, layout);
-
       }
 
     };
+    var item;
+    var position;
+    var i;
 
     // Emit layoutstart event.
     emitter.emit(evLayoutStart, layout.items, layout);
@@ -1013,9 +1200,10 @@ TODO v0.3.0
     // If there are items let's position them.
     else {
 
-      layout.items.forEach(function (item) {
+      for (i = 0; i < layout.items.length; i++) {
 
-        var position = layout.slots[item._id];
+        item = layout.items[i];
+        position = layout.slots[item._id];
 
         // Update item's position.
         item._left = position.left;
@@ -1029,7 +1217,7 @@ TODO v0.3.0
           item._layout(isInstant, tryFinish);
         }
 
-      });
+      }
 
     }
 
@@ -1155,36 +1343,42 @@ TODO v0.3.0
    */
   Muuri.prototype.destroy = function () {
 
+    var container = this._element;
+    var items = this._items.concat();
+    var emitter = this._emitter;
+    var props = Object.keys(this).concat(Object.keys(Muuri.prototype));
+    var emitterEvents;
+    var i;
+
     // Unbind window resize event listener.
     if (this._resizeHandler) {
       global.removeEventListener('resize', this._resizeHandler);
     }
 
     // Destroy items.
-    this._items.concat().forEach(function (item) {
-      item._destroy();
-    });
+    for (i = 0; i < items.length; i++) {
+      items[i]._destroy();
+    }
 
     // Restore container.
-    removeClass(this._element, this._settings.containerClass);
-    setStyles(this._element, {
+    removeClass(container, this._settings.containerClass);
+    setStyles(container, {
       height: ''
     });
 
     // Emit destroy event.
-    this._emitter.emit(evDestroy);
+    emitter.emit(evDestroy);
 
     // Remove all event listeners.
-    if (this._emitter._events) {
-      Object.keys(this._emitter._events).forEach(function (eventName) {
-        this._emitter._events[eventName].length = 0;
-      }, this);
+    emitterEvents = Object.keys(emitter._events || {});
+    for (i = 0; i < emitterEvents.length; i++) {
+      emitter._events[emitterEvents[i]].length = 0;
     }
 
     // Render the instance unusable -> nullify all Muuri related properties.
-    Object.keys(this).concat(Object.keys(Muuri.prototype)).forEach(function (propName) {
-      this[propName] = null;
-    }, this);
+    for (i = 0; i < props.length; i++) {
+      this[props[i]] = null;
+    }
 
   };
 
@@ -1228,6 +1422,10 @@ TODO v0.3.0
     this._element = element;
     this._child = element.children[0];
 
+    // Initiate item's animation controllers.
+    this._animate = new Animate(element);
+    this._animateChild = new Animate(this._child);
+
     // Set item class.
     addClass(element, stn.itemClass);
 
@@ -1259,11 +1457,10 @@ TODO v0.3.0
     this._layoutQueue = [];
 
     // Set element's initial position.
-    hookStyles(this._element, {
+    setStyles(this._element, {
       left: '0',
       top: '0',
-      translateX: '0px',
-      translateY: '0px'
+      transform: 'translateX(0px) translateY(0px)'
     });
 
     // Set hidden/shown class.
@@ -1272,7 +1469,7 @@ TODO v0.3.0
     // Set hidden/shown styles for the child element.
     visibilityStyles = muuri[isHidden ? '_itemHide' : '_itemShow'].styles;
     if (visibilityStyles) {
-      hookStyles(this._child, visibilityStyles);
+      setStyles(this._child, visibilityStyles);
     }
 
     // Enforce display "block" if element is visible.
@@ -1493,6 +1690,7 @@ TODO v0.3.0
     var dragContainer;
     var offsetDiff;
     var elemGbcr;
+    var i;
 
     // If item is not active, don't start the drag.
     if (!this._isActive) {
@@ -1521,8 +1719,8 @@ TODO v0.3.0
     drag.element = this._element;
 
     // Get element's current position.
-    currentLeft = parseFloat(Velocity.hook(drag.element, 'translateX')) || 0;
-    currentTop = parseFloat(Velocity.hook(drag.element, 'translateY')) || 0;
+    currentLeft = getTranslateAsFloat(drag.element, 'x');
+    currentTop = getTranslateAsFloat(drag.element, 'y');
 
     // Get container references.
     muuriContainer = this._muuri._element;
@@ -1576,9 +1774,8 @@ TODO v0.3.0
         drag.top = currentTop + drag.containerDiffY;
 
         // Fix position to account for the append procedure.
-        hookStyles(drag.element, {
-          translateX: drag.left + 'px',
-          translateY: drag.top + 'px'
+        setStyles(drag.element, {
+          transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
         });
 
       }
@@ -1597,9 +1794,9 @@ TODO v0.3.0
     }
 
     // Bind scroll listeners.
-    drag.scrollParents.forEach(function (scrollParent) {
-      scrollParent.addEventListener('scroll', drag.onScroll);
-    });
+    for (i = 0; i < drag.scrollParents.length; i++) {
+      drag.scrollParents[i].addEventListener('scroll', drag.onScroll);
+    }
 
     // Set drag class.
     addClass(drag.element, stn.draggingClass);
@@ -1645,9 +1842,8 @@ TODO v0.3.0
     drag.elemClientY += yDiff;
 
     // Update element's translateX/Y values.
-    hookStyles(drag.element, {
-      translateX: drag.left + 'px',
-      translateY: drag.top + 'px'
+    setStyles(drag.element, {
+      transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
     });
 
     // Overlap handling.
@@ -1696,9 +1892,8 @@ TODO v0.3.0
     drag.gridY = drag.top - drag.containerDiffY;
 
     // Update element's translateX/Y values.
-    hookStyles(drag.element, {
-      translateX: drag.left + 'px',
-      translateY: drag.top + 'px'
+    setStyles(drag.element, {
+      transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
     });
 
     // Overlap handling.
@@ -1722,6 +1917,7 @@ TODO v0.3.0
     var drag = this._drag;
     var stn = this._muuri._settings;
     var release = this._release;
+    var i;
 
     // If item is not active, reset drag.
     if (!this._isActive) {
@@ -1735,9 +1931,9 @@ TODO v0.3.0
     }
 
     // Remove scroll listeners.
-    drag.scrollParents.forEach(function (scrollParent) {
-      scrollParent.removeEventListener('scroll', drag.onScroll);
-    });
+    for (i = 0; i < drag.scrollParents.length; i++) {
+      drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
+    }
 
     // Remove drag classname from element.
     removeClass(drag.element, stn.draggingClass);
@@ -1775,9 +1971,9 @@ TODO v0.3.0
     var stn = this._muuri._settings;
 
     // Remove scroll listeners.
-    drag.scrollParents.forEach(function (scrollParent) {
-      scrollParent.removeEventListener('scroll', drag.onScroll);
-    });
+    for (i = 0; i < drag.scrollParents.length; i++) {
+      drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
+    }
 
     // Cancel overlap check.
     drag.checkOverlap('cancel');
@@ -1854,9 +2050,8 @@ TODO v0.3.0
     // and adjust position accordingly.
     if (release.element.parentNode !== this._muuri._element) {
       this._muuri._element.appendChild(release.element);
-      hookStyles(release.element, {
-        translateX: this._left + 'px',
-        translateY: this._top + 'px'
+      setStyles(release.element, {
+        transform: 'translateX(' + this._left + 'px) translateY(' + this._top + 'px)'
       });
     }
 
@@ -1931,7 +2126,7 @@ TODO v0.3.0
     if (this._isPositioning) {
 
       // Stop animation.
-      Velocity(this._element, 'stop', this._muuri._animQueue);
+      this._animate.stop();
 
       // Remove visibility classes.
       removeClass(this._element, stn.positioningClass);
@@ -1954,13 +2149,29 @@ TODO v0.3.0
    */
   Muuri.Item.prototype._refresh = function () {
 
-    if (!this._isHidden) {
-      this._width = Math.round(mezr.width(this._element, 'margin'));
-      this._height = Math.round(mezr.height(this._element, 'margin'));
-      this._margin = {};
-      ['left', 'right', 'top', 'bottom'].forEach(function (val) {
-        this._margin[val] = Math.round(getStyleAsFloat(this._element, 'margin-' + val));
-      }, this);
+    var inst = this;
+    var elem = inst._element;
+    var elemGBCR;
+    var marginEdges;
+    var margins;
+    var margin;
+    var i;
+
+    if (!inst._isHidden) {
+
+      // Calculate margins (ignore negative margins).
+      marginEdges = ['left', 'right', 'top', 'bottom'];
+      inst._margin = margins = {};
+      for (i = 0; i < 4; i++) {
+        margin = getStyleAsFloat(elem, 'margin-' + marginEdges[i]);
+        margins[marginEdges[i]] = margin > 0 ? margin : 0;
+      }
+
+      // Calculate width and height (including margins).
+      elemGBCR = elem.getBoundingClientRect();
+      inst._width = elemGBCR.width + margins.left + margins.right;
+      inst._height = elemGBCR.height + margins.top + margins.bottom;
+
     }
 
   };
@@ -2010,7 +2221,7 @@ TODO v0.3.0
 
     // Push the callback to the callback queue.
     if (typeof callback === 'function') {
-      inst._layoutQueue.push(callback);
+      inst._layoutQueue[inst._layoutQueue.length] = callback;
     }
 
     // Mark release positiong as started.
@@ -2031,9 +2242,8 @@ TODO v0.3.0
         inst._noLayoutAnimation = false;
       }
 
-      hookStyles(inst._element, {
-        translateX: (inst._left + offsetLeft) + 'px',
-        translateY: (inst._top + offsetTop) + 'px'
+      setStyles(inst._element, {
+        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
       });
 
       finish();
@@ -2046,8 +2256,8 @@ TODO v0.3.0
       // Get current (relative) left and top position. Meaning that the
       // drga container's offset (if applicable) is subtracted from the current
       // translate values.
-      currentLeft = (parseFloat(Velocity.hook(inst._element, 'translateX')) || 0) - offsetLeft;
-      currentTop = (parseFloat(Velocity.hook(inst._element, 'translateY')) || 0) - offsetTop;
+      currentLeft = getTranslateAsFloat(inst._element, 'x') - offsetLeft;
+      currentTop = getTranslateAsFloat(inst._element, 'y') - offsetTop;
 
       // If the item is already in correct position there's no need to animate
       // it.
@@ -2064,19 +2274,14 @@ TODO v0.3.0
         addClass(inst._element, stn.positioningClass);
       }
 
-      // Set up the animation.
-      Velocity(inst._element, {
-        translateX: inst._left + offsetLeft,
-        translateY: inst._top + offsetTop
+      // Animate.
+      inst._animate.start({
+        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
       }, {
         duration: animDuration,
         easing: animEasing,
-        complete: finish,
-        queue: inst._muuri._animQueue
+        done: finish
       });
-
-      // Start the animation.
-      Velocity.Utilities.dequeue(inst._element, inst._muuri._animQueue);
 
     }
 
@@ -2110,7 +2315,7 @@ TODO v0.3.0
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._visibilityQueue.push(callback);
+        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
     }
@@ -2143,7 +2348,7 @@ TODO v0.3.0
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._visibilityQueue.push(callback);
+        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
       // Animate child element.
@@ -2186,7 +2391,7 @@ TODO v0.3.0
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._visibilityQueue.push(callback);
+        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
     }
@@ -2214,7 +2419,7 @@ TODO v0.3.0
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
-        inst._visibilityQueue.push(callback);
+        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
       // Animate child element.
@@ -2247,6 +2452,8 @@ TODO v0.3.0
     var stn = muuri._settings;
     var element = this._element;
     var index = muuri._items.indexOf(this);
+    var props = Object.keys(this).concat(Object.keys(Muuri.Item.prototype));
+    var i;
 
     // Stop animations.
     this._stopLayout();
@@ -2274,6 +2481,10 @@ TODO v0.3.0
       this._hammer.destroy();
     }
 
+    // Destroy animation handlers.
+    this._animate.destroy();
+    this._animateChild.destroy();
+
     // Remove all inline styles.
     element.removeAttribute('style');
     this._child.removeAttribute('style');
@@ -2300,10 +2511,10 @@ TODO v0.3.0
       element.parentNode.removeChild(element);
     }
 
-    // Render the instance unusable -> nullify all Muuri related properties.
-    Object.keys(this).concat(Object.keys(Muuri.Item.prototype)).forEach(function (propName) {
-      this[propName] = null;
-    }, this);
+    // Nullify all properties.
+    for (i = 0; i < props.length; i++) {
+      this[props[i]] = null;
+    }
 
   };
 
@@ -2319,20 +2530,21 @@ TODO v0.3.0
   Muuri.Layout = function (muuri, items) {
 
     var stn = muuri._settings.layout;
+    var elem = muuri._element;
+    var elemGBCR;
     var noSettingsProvided;
     var methodName;
 
     this.muuri = muuri;
     this.items = items ? items.concat() : muuri.get('active');
     this.slots = {};
-    this.width = 0;
-    this.height = 0;
     this.setWidth = false;
     this.setHeight = false;
 
     // Calculate the current width and height of the container.
-    this.width = mezr.width(muuri._element, 'padding');
-    this.height = mezr.height(muuri._element, 'padding');
+    elemGBCR = elem.getBoundingClientRect();
+    this.width = elemGBCR.width - getStyleAsFloat(elem, 'border-left-width') - getStyleAsFloat(elem, 'border-right-width');
+    this.height = elemGBCR.height - getStyleAsFloat(elem, 'border-top-width') - getStyleAsFloat(elem, 'border-bottom-width');
 
     // If the user has provided custom function as a layout method invoke it.
     if (typeof stn === 'function') {
@@ -2383,17 +2595,13 @@ TODO v0.3.0
    * @memberof Muuri
    * @property {HTMLElement} container
    * @property {Array} items
-   * @property {Number} layoutDuration
-   * @property {Array|String} layoutEasing
    * @property {!Function|Object} show
-   * @property {Number} [show.duration=300]
-   * @property {String} [show.easing='ease-out']
    * @property {!Function|Object} hide
-   * @property {Number} [hide.duration=300]
-   * @property {String} [hide.easing='ease-out']
    * @property {Array|String} layout
    * @property {!Number} layoutOnResize
    * @property {Boolean} layoutOnInit
+   * @property {Number} layoutDuration
+   * @property {Array|String} layoutEasing
    * @property {Boolean} dragEnabled
    * @property {!HtmlElement} dragContainer
    * @property {!Function} dragPredicate
@@ -2423,18 +2631,18 @@ TODO v0.3.0
     // Show/hide animations
     show: {
       duration: 300,
-      easing: 'ease-out',
+      easing: 'ease',
       styles: {
-        scale: 1,
-        opacity: 1
+        opacity: 1,
+        transform: 'scale(1)'
       }
     },
     hide: {
       duration: 300,
-      easing: 'ease-out',
+      easing: 'ease',
       styles: {
-        scale: 0.5,
-        opacity: 0
+        opacity: 0,
+        transform: 'scale(0.5)'
       }
     },
 
@@ -2443,7 +2651,7 @@ TODO v0.3.0
     layoutOnResize: 100,
     layoutOnInit: true,
     layoutDuration: 300,
-    layoutEasing: 'ease-out',
+    layoutEasing: 'ease',
 
     // Drag & Drop
     dragEnabled: false,
@@ -2456,7 +2664,7 @@ TODO v0.3.0
       action: 'move'
     },
     dragReleaseDuration: 300,
-    dragReleaseEasing: 'ease-out',
+    dragReleaseEasing: 'ease',
 
     // Classnames
     containerClass: 'muuri',
@@ -2511,12 +2719,17 @@ TODO v0.3.0
   function arrayUnique(array) {
 
     var ret = [];
+    var len = array.length;
+    var i;
 
-    array.forEach(function (val) {
-      if (ret.indexOf(val) < 0) {
-        ret.push(val);
+    if (len) {
+      ret[0] = array[0];
+      for (i = 1; i < len; i++) {
+        if (ret.indexOf(array[i]) < 0) {
+          ret[ret.length] = array[i];
+        }
       }
-    });
+    }
 
     return ret;
 
@@ -2616,6 +2829,10 @@ TODO v0.3.0
    */
   function getStyle(element, style) {
 
+    style = style === 'transform' ? transform.styleName || style :
+            style === 'transition' ? transition.styleName || style :
+            style;
+
     return global.getComputedStyle(element, null).getPropertyValue(style);
 
   }
@@ -2636,6 +2853,21 @@ TODO v0.3.0
   }
 
   /**
+   * Returns the element's computed translateX/Y value as a float. Assumes that
+   * the translate value is defined as pixels.
+   *
+   * @param {HTMLElement} element
+   * @param {String} axis
+   *   - "x" or "y".
+   * @returns {Number}
+   */
+  function getTranslateAsFloat(element, axis) {
+
+    return parseFloat((getStyle(element, 'transform') || '').replace('matrix(', '').split(',')[axis === 'x' ? 4 : 5]) || 0;
+
+  }
+
+  /**
    * Set inline styles to an element.
    *
    * @param {HTMLElement} element
@@ -2643,23 +2875,27 @@ TODO v0.3.0
    */
   function setStyles(element, styles) {
 
-    Object.keys(styles).forEach(function (styleName) {
-      element.style[styleName] = styles[styleName];
-    });
+    var props = Object.keys(styles);
+    var prop;
+    var val;
+    var i;
 
-  }
+    for (i = 0; i < props.length; i++) {
 
-  /**
-   * Set inline styles to an element with Velocity's hook method.
-   *
-   * @param {HTMLElement} element
-   * @param {Object} styles
-   */
-  function hookStyles(element, styles) {
+      prop = props[i];
+      val = styles[prop];
 
-    Object.keys(styles).forEach(function (styleName) {
-      Velocity.hook(element, styleName, styles[styleName]);
-    });
+      if (prop === 'transform' && transform) {
+        prop = transform.propName;
+      }
+
+      if (prop === 'transition' && transition) {
+        prop = transition.propName;
+      }
+
+      element.style[prop] = val;
+
+    }
 
   }
 
@@ -2710,6 +2946,47 @@ TODO v0.3.0
   }
 
   /**
+   * Returns the supported style property's prefix, property name and style name
+   * or null if the style property is not supported. This is used for getting
+   * the supported transform and transition.
+   *
+   * @private
+   * @param {String} style
+   * @returns {?Object}
+   */
+  function getSupportedStyle(style) {
+
+    var docElem = document.documentElement;
+    var styleCap = style.charAt(0).toUpperCase() + style.slice(1);
+    var prefixes = ['', 'Webkit', 'Moz', 'O', 'ms'];
+    var prefix;
+    var propName;
+    var i;
+
+    for (i = 0; i < prefixes.length; i++) {
+
+      prefix = prefixes[i];
+      propName = prefix ? prefix + styleCap : style;
+
+      if (docElem.style[propName] !== undefined) {
+
+        prefix = prefix.toLowerCase();
+
+        return {
+          prefix: prefix,
+          propName: propName,
+          styleName: prefix ? '-' + prefix + '-' + style : style
+        };
+
+      }
+
+    }
+
+    return null;
+
+  }
+
+  /**
    * Returns true if element is transformed, false if not. In practice the element's display value
    * must be anything else than "none" or "inline" as well as have a valid transform value applied
    * in order to be counted as a transformed element.
@@ -2723,7 +3000,7 @@ TODO v0.3.0
    */
   function isTransformed(el) {
 
-    var transform = getStyle(el, mezr._settings.transform.styleName);
+    var transform = getStyle(el, 'transform');
     var display = getStyle(el, 'display');
 
     return transform !== 'none' && display !== 'inline' && display !== 'none';
@@ -2739,6 +3016,8 @@ TODO v0.3.0
    * @returns {PlaceData}
    */
   function getOffsetDiff(target, anchor) {
+
+    // @todo Calculate this without Mezr and this baby gets fast.
 
     return mezr.offset([anchor, 'padding'], [mezr.containingBlock(target) || document, 'padding']);
 
@@ -2770,7 +3049,7 @@ TODO v0.3.0
       // Find scroll parents.
       while (parent && parent !== document && parent !== document.documentElement) {
         if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
-          ret.push(parent);
+          ret[ret.length] = parent;
         }
         parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
       }
@@ -2778,7 +3057,7 @@ TODO v0.3.0
       // If parent is not fixed element, add window object as the last scroll
       // parent.
       if (parent !== null) {
-        ret.push(global);
+        ret[ret.length] = global;
       }
 
     }
@@ -2797,7 +3076,7 @@ TODO v0.3.0
 
         // Add the parent element to return items if it is scrollable.
         if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
-          ret.push(parent);
+          ret[ret.length] = parent;
         }
 
         // Update element and parent references.
@@ -2911,13 +3190,21 @@ TODO v0.3.0
    */
   function lockElementSize(data) {
 
+    var styleNames;
+    var styleName;
+    var i;
+
     // Don't override existing element styles.
     if (!data.elementStyles) {
+
+      styleNames = ['width', 'height', 'padding', 'margin'];
 
       // Reset element styles.
       data.elementStyles = {};
 
-      ['width', 'height', 'padding', 'margin'].forEach(function (styleName) {
+      for (i = 0; i < 4; i++) {
+
+        styleName = styleNames[i];
 
         // Store current inline style values.
         data.elementStyles[styleName] = data.element.style[styleName] || '';
@@ -2925,7 +3212,7 @@ TODO v0.3.0
         // Set effective values as inline styles.
         data.element.style[styleName] = getStyle(data.element, styleName);
 
-      });
+      }
 
     }
 
@@ -2938,10 +3225,17 @@ TODO v0.3.0
    */
   function unlockElementSize(data) {
 
+    var styleNames;
+    var styleName;
+    var i;
+
     if (data.elementStyles) {
-      Object.keys(data).forEach(function (styleName) {
+      styleNames = Object.keys(data.elementStyles);
+      for (i = 0; i < styleNames.length; i++) {
+        styleName = styleNames[i];
         data.element.style[styleName] = data.elementStyles[styleName];
-      });
+      }
+      data.elementStyles = null;
     }
 
   }
@@ -2968,6 +3262,8 @@ TODO v0.3.0
     var needsRelayout = false;
     var completed;
     var hiddenItems;
+    var item;
+    var i;
 
     // If there are no items call the callback, but don't emit any events.
     if (!counter) {
@@ -2987,14 +3283,16 @@ TODO v0.3.0
       inst._emitter.emit(startEvent, targetItems);
 
       // Show/hide items.
-      targetItems.forEach(function (item) {
+      for (i = 0; i < targetItems.length; i++) {
+
+        item = targetItems[i];
 
         // Check if relayout or refresh is needed.
         if ((isShow && !item._isActive) || (!isShow && item._isActive)) {
           needsRelayout = true;
           if (isShow) {
             item._noLayoutAnimation = true;
-            hiddenItems.push(item);
+            hiddenItems[hiddenItems.length] = item;
           }
         }
 
@@ -3004,7 +3302,7 @@ TODO v0.3.0
           // If the current item's animation was not interrupted add it to the
           // completed set.
           if (!interrupted) {
-            completed.push(item);
+            completed[completed.length] = item;
           }
 
           // If all items have finished their animations call the callback
@@ -3018,7 +3316,7 @@ TODO v0.3.0
 
         });
 
-      });
+      }
 
       // Relayout only if needed.
       if (needsRelayout) {
@@ -3046,7 +3344,7 @@ TODO v0.3.0
 
     var duration = parseInt(opts && opts.duration) || 0;
     var isEnabled = duration > 0;
-    var easing = (opts && opts.easing) || 'ease-out';
+    var easing = (opts && opts.easing) || 'ease';
     var styles = opts && isPlainObject(opts.styles) ? opts.styles : null;
 
     return {
@@ -3056,21 +3354,19 @@ TODO v0.3.0
           animDone();
         }
         else if (instant) {
-          hookStyles(item._child, styles);
+          setStyles(item._child, styles);
           animDone();
         }
         else {
-          Velocity(item._child, styles, {
+          item._animateChild.start(styles, {
             duration: duration,
             easing: easing,
-            queue: item._muuri._animQueue,
-            complete: animDone
+            done: animDone
           });
-          Velocity.Utilities.dequeue(item._child, item._muuri._animQueue);
         }
       },
       stop: function (item) {
-        Velocity(item._child, 'stop', item._muuri._animQueue);
+        item._animateChild.stop();
       }
     };
 
@@ -3086,9 +3382,12 @@ TODO v0.3.0
    */
   function processQueue(queue, interrupted, instance) {
 
-    queue.splice(0, queue.length).forEach(function (callback) {
-      callback(interrupted, instance);
-    });
+    var callbacks = queue.splice(0, queue.length);
+    var i;
+
+    for (i = 0; i < callbacks.length; i++) {
+      callbacks[i](interrupted, instance);
+    }
 
   }
 
@@ -3116,12 +3415,15 @@ TODO v0.3.0
     var targetIndex = 0;
     var bestMatchScore = null;
     var bestMatchIndex;
+    var itemData;
+    var overlap;
+    var item;
+    var i;
 
     // Find best match (the element with most overlap).
-    items.forEach(function (item, i) {
+    for (i = 0; i < items.length; i++) {
 
-      var itemData;
-      var overlap;
+      item = items[i];
 
       // If the item is the dragged item, save it's index.
       if (item === targetItem) {
@@ -3152,7 +3454,7 @@ TODO v0.3.0
 
       }
 
-    });
+    }
 
     // Check if the best match overlaps enough to justify a placement switch.
     if (bestMatchScore !== null && bestMatchScore >= tolerance) {

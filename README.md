@@ -4,11 +4,7 @@ Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, 
 
 Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
-Muuri uses [Velocity](https://github.com/julianshapiro/velocity) for animating the grid items (positioining/showing/hiding) and [Hammer.js](https://github.com/hammerjs/hammer.js) for handling the dragging. Hammer.js is an optional dependency that is only required if dragging is enabled, but Velocity is a hard dependency.
-
 And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
-
-**A word of warning.** Muuri is currently under active development and might be still a bit rough on the edges so production use is not recommended just yet. But when did that ever stop you ;)
 
 ## Table of contents
 
@@ -54,17 +50,15 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 ## Getting started
 
 Muuri depends on the following libraries:
-* [Mezr](https://github.com/niklasramo/mezr) (v0.6.0+)
-* [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
-* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) optional, required only if you are using the dragging feature
+* [Mezr](https://github.com/niklasramo/mezr) (v0.6.0+) *required*, needed for accurate layout calculations.
+* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) *optional*, required only if you are using the dragging. feature
 
 **First, include Muuri and it's dependencies in the body element in your site.**
 
 ```html
-<script src="mezr.js"></script>
-<script src="velocity.js"></script>
 <script src="hammer.js"></script>
 <!-- Needs to be within in body element or have access to body element -->
+<script src="mezr.js"></script>
 <script src="muuri.js"></script>
 ```
 
@@ -97,7 +91,7 @@ Muuri depends on the following libraries:
 
 * The grid element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*, unless of course the elements have their display set to *block* inherently.
-* The item elements must not have any CSS transitions or animations applied to them since it might conflict with Velocity's animations.
+* The item elements must not have any CSS transitions or animations applied to them since Muuri already applies CSS transitions to them internally.
 * You can control the gaps between the tiles by giving some margin to the item elements.
 
 ```css
@@ -147,36 +141,36 @@ var grid = new Muuri({
   * Default value: `null`.
   * The initial item elements wrapped in an array. The elements must be children of the container element.
 * **`show`** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{duration: 300, easing: "ease-out"}`.
-  * The object should contain *duration*, [*easing*](http://julian.com/research/velocity/#easing) and/or *style* properties. Set to *null* to disable the animation.
+  * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, transform: 'scale(1)'}}`.
+  * The object should contain *duration*, *easing* and/or *style* properties. Set to *null* to disable the animation.
 * **`show.duration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
-  * *Show* animation duration in milliseconds.
+  * Animation duration in milliseconds.
 * **`show.easing`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `ease-out`.
-  * *Show* animation [*easing*](http://julian.com/research/velocity/#easing).
+  * Default value: `'ease'`.
+  * Accepts any valid CSS transition easing value.
 * **`show.styles`** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{opacity: 1, scale: 1}`.
-  * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for show animation.
+  * Default value: `{opacity: 1, transform: 'scale(1)'}`.
+  * A hash of the animated style properties and their target values for show animation.
 * **`hide`** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{duration: 300, easing: "ease-out"}`.
-  * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable the animation.
+  * Default value: `{duration: 300, easing: 'ease-out', styles: {opacity: 0, transform: 'scale(0.5)'}}`.
+  * The object should contain *duration*, *easing* and/or *style* properties. Set to *null* to disable the animation.
 * **`hide.duration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
-  * *Hide* animation duration in milliseconds.
+  * Animation duration in milliseconds.
 * **`hide.easing`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `ease-out`.
-  * *Hide* animation [*easing*](http://julian.com/research/velocity/#easing).
+  * Default value: `'ease'`.
+  * Accepts any valid CSS transition easing value.
 * **`hide.styles`** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{opacity: 0, scale: 0.5}`.
-  * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for hide animation.
+  * Default value: `{opacity: 0, transform: 'scale(0.5)'}`.
+  * A hash of the animated style properties and their target values for show animation.
 * **`layout`** &nbsp;&mdash;&nbsp; *array / function / string*
-  * Default value: `"firstFit"`.
-  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `"firstFit"`.
-  * The array syntax is the only way to use the built-in layout methods and provide arguments for them. The first value should be a string (name of the method) and the second value (optional) should be a configuration object, e.g. `["firstFit", {horizontal: true}]`.
+  * Default value: `'firstFit'`.
+  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `'firstFit'`.
+  * The array syntax is the only way to use the built-in layout methods and provide arguments for them. The first value should be a string (name of the method) and the second value (optional) should be a configuration object, e.g. `['firstFit', {horizontal: true}]`.
   * You can always just provide a function which will receive a `Muuri.Layout` instance as it's context which you can manipulate as much as you want to get the items to the wanted positions. More info about rolling your own layout method is coming up later on, but in the meantime you can check the source code and see how the default method is implemented.
   * Available methods and related settings:
-    * `"firstFit"`
+    * `'firstFit'`
       * `horizontal` (type: *boolean*, default: `false`)
         *  When `true` the grid works in landscape mode (grid expands to the right). Use for horizontally scrolling sites. When `false` the grid works in "portrait" mode and expands downwards.
       * `alignRight` (type: *boolean*, default: `false`)
@@ -195,8 +189,8 @@ var grid = new Muuri({
   * Default value: `300`.
   * The duration for item's positioning animation in milliseconds. Set to `0` to disable.
 * **`layoutEasing`** &nbsp;&mdash;&nbsp; *string / array*
-  * Default value: `"ease-out"`.
-  * The easing for item's positioning animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
+  * Default value: `'ease'`.
+  * The easing for item's positioning animation. Accepts any valid CSS transition easing value.
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Should items be draggable?
@@ -216,8 +210,8 @@ var grid = new Muuri({
   * Default value: `{action: 'move', tolerance: 50}`.
   * Defines the logic for the sort procedure during dragging an item. If an object is provided the default sort handler will be used. It can be configured with the `action` and `tolerance` options (read below for more info). Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback receives one argument, which is the currently dragged Muuri.Item instance. The callback should return a *falsy* value if it sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties: `action` ("move" or "swap"), `from` (the index of the Muuri.Item to be moved/swapped), `to` (the index the item should be moved to / swapped with). E.g returning `{action: 'move', from: 0, to: 1}` would move the first item as the second item.
 * **`dragSortPredicate.action`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"move"`.
-  * Allowed values: `"move"`, `"swap"`.
+  * Default value: `'move'`.
+  * Allowed values: `'move'`, `'swap'`.
   * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
 * **`dragSortPredicate.tolerance`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `50`.
@@ -227,28 +221,28 @@ var grid = new Muuri({
   * Default value: `300`.
   * The duration for item's drag release animation. Set to `0` to disable.
 * **`dragReleaseEasing`** &nbsp;&mdash;&nbsp; *string / array*
-  * Default value: `"ease-out"`.
-  * The easing for item's drag release animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
+  * Default value: `'ease'`.
+  * The easing for item's drag release animation. Accepts any valid CSS transition easing value.
 * **`containerClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri"`.
+  * Default value: `'muuri'`.
   * Container element classname.
 * **`itemClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-item"`.
+  * Default value: `'muuri-item'`.
   * Item element classname.
 * **`shownClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-shown"`.
+  * Default value: `'muuri-shown'`.
   * Visible item classname.
 * **`hiddenClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-hidden"`.
+  * Default value: `'muuri-hidden'`.
   * Hidden item classname.
 * **`positioningClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-positioning"`.
+  * Default value: `'muuri-positioning'`.
   * This classname will be added to the item element for the duration of positioing.
 * **`draggingClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-dragging"`.
+  * Default value: `'muuri-dragging'`.
   * This classname will be added to the item element for the duration of drag.
 * **`releasingClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-releasing"`.
+  * Default value: `'muuri-releasing'`.
   * This classname will be added to the item element for the duration of release.
 
 **Modify default settings**
@@ -256,8 +250,8 @@ var grid = new Muuri({
 The default settings are stored in `Muuri.defaultSettings` object.
 
 ```javascript
-Muuri.defaultSettings.containerDuration = 400;
-Muuri.defaultSettings.dragOverlapAction = 'swap';
+Muuri.defaultSettings.show.duration = 400;
+Muuri.defaultSettings.hide.duration = 400;
 ```
 
 **Quick reference**
@@ -409,8 +403,8 @@ Get all items. Optionally you can provide specific targets (indices or elements)
 * **state** &nbsp;&mdash;&nbsp; *string*
   * Optional.
   * Default value: `undefined`.
-  * Allowed values: `"active"`, `"inactive"`.
-  * Filter the returned array by the items' state. For example, if set to `"active"` all *inactive* items will be removed from the returned array.
+  * Allowed values: `'active'`, `'inactive'`.
+  * Filter the returned array by the items' state. For example, if set to `'active'` all *inactive* items will be removed from the returned array.
 
 **Returns** &nbsp;&mdash;&nbsp; *array*
 
@@ -911,7 +905,7 @@ Triggered when dragging of an item begins.
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
   * **data.type** &nbsp;&mdash;&nbsp; *String*
-    *  `"dragstart"`
+    *  `'dragstart'`
   * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.
   * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
@@ -942,7 +936,7 @@ Triggered when an item is dragged.
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
   * **data.type** &nbsp;&mdash;&nbsp; *String*
-    *  `"dragmove"`
+    *  `'dragmove'`
   * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.
   * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
@@ -973,7 +967,7 @@ Triggered when any of the scroll parents of a dragged item is scrolled.
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
   * **data.type** &nbsp;&mdash;&nbsp; *String*
-    *  `"dragscroll"`
+    *  `'dragscroll'`
   * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  Th scroll event.
   * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
@@ -1004,7 +998,7 @@ Triggered after item dragging ends.
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
   * **data.type** &nbsp;&mdash;&nbsp; *String*
-    *  `"dragend"`
+    *  `'dragend'`
   * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.
   * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*

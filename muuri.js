@@ -3102,50 +3102,6 @@ TODO v0.3.0
    */
 
   /**
-   * Calculate how many percent the intersection area of two items is from the
-   * maximum potential intersection area between the items.
-   *
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Object}
-   *   - An object with two properties: "score" and "intersection". The score is
-   *     a number between 0-100. The intersection is an object containing the
-   *     data for the intersection area.
-   */
-  function getSortOverlapData(a, b) {
-
-    var ret = {
-      intersection: mezr.intersection(a, b),
-      score: 0
-    };
-
-    if (!ret.intersection) {
-      return ret;
-    }
-
-    var aNonPositioned = {
-      width: a.width,
-      height: a.height,
-      left: 0,
-      top: 0
-    };
-
-    var bNonPositioned = {
-      width: b.width,
-      height: b.height,
-      left: 0,
-      top: 0
-    };
-
-    var maxIntersection = mezr.intersection(aNonPositioned, bNonPositioned);
-
-    ret.score = (ret.intersection.width * ret.intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
-
-    return ret;
-
-  }
-
-  /**
    * Return parsed drag event data.
    *
    * @param {String} type
@@ -3415,8 +3371,8 @@ TODO v0.3.0
     var targetIndex = 0;
     var bestMatchScore = null;
     var bestMatchIndex;
+    var overlapScore;
     var itemData;
-    var overlap;
     var item;
     var i;
 
@@ -3443,12 +3399,12 @@ TODO v0.3.0
         };
 
         // Get marginless overlap data.
-        overlap = getSortOverlapData(instData, itemData);
+        overlapScore = getOverlapScore(instData, itemData);
 
         // Update best match if the overlap score is higher than the current
         // best match.
-        if (bestMatchScore === null || overlap.score > bestMatchScore) {
-          bestMatchScore = overlap.score;
+        if (bestMatchScore === null || overlapScore > bestMatchScore) {
+          bestMatchScore = overlapScore;
           bestMatchIndex = i;
         }
 
@@ -3468,6 +3424,34 @@ TODO v0.3.0
     }
 
     return false;
+
+  }
+
+  /**
+   * Calculate how many percent the intersection area of two items is from the
+   * maximum potential intersection area between the items.
+   *
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Number}
+   *   - A number between 0-100.
+   */
+  function getOverlapScore(a, b) {
+
+    // Return 0 immediately if the rectangles do not overlap.
+    if ((a.left + a.width) <= b.left || (b.left + b.width) <= a.left || (a.top + a.height) <= b.top || (b.top + b.height) <= a.top) {
+      return 0;
+    }
+
+    // Calculate inersection area width and height.
+    var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+    var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+
+    // Calculate maximum intersection area width and height.
+    var maxWidth = Math.min(a.width, b.width);
+    var maxHeight = Math.min(a.height, b.height);
+
+    return (width * height) / (maxWidth * maxHeight) * 100;
 
   }
 

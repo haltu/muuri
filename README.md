@@ -49,16 +49,14 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 
 ## Getting started
 
-Muuri depends on the following libraries:
-* [Mezr](https://github.com/niklasramo/mezr) (v0.6.0+) *required*, needed for accurate layout calculations.
-* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) *optional*, required only if you are using the dragging. feature
+Muuri has an optional dependency on Hammer.js (required only if you are using the dragging feature):
+* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
 
 **First, include Muuri and it's dependencies in the body element in your site.**
 
 ```html
 <script src="hammer.js"></script>
 <!-- Needs to be within in body element or have access to body element -->
-<script src="mezr.js"></script>
 <script src="muuri.js"></script>
 ```
 

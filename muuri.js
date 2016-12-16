@@ -38,35 +38,46 @@ TODO v0.3.0
 * [x] Replace Velocity dependency by providing animation engine adapter,
       which defaults to built-in CSS Transforms animation engine.
 * [x] Try to build tiny custom functions to replace mezr.
-* [ ] Bug in IE Edge: sometimes the items are laid out wrong after dragging.
+* [x] Create an ESLint config for the project.
+* [x] UMD module definition.
+* [?] Bug in Edge: sometimes the items are laid out wrong after dragging.
       Seems to be related to the animation engine since it occurs also when
-      resizing the screen.
-* [ ] Use element.animate if available.
-* [ ] Handle drag initiation similar to Packery. The drag events can be
-      bound/unbound on specific items. All in all, the drag handling stuff
-      shold be separated into it's own section since it's optional.
-* [ ] Layout engine refactoring -> Make it easier to use. Simplify.
-* [ ] Perf optimizations.
-     - https://medium.com/@xilefmai/efficient-javascript-14a11651d563#.49gifamju
-     - https://github.com/petkaantonov/bluebird/wiki/Optimization-killers
+      resizing the screen. (needs more testing and a reduced test case).
+* [x] Idea make items attach to the container's padding edge. This way the
+      container's padding can be used to create spacing. No need to add extra
+      wrappers. While you're at it, cache container element's and item elements'
+      dimensions and offsets. Should there be separate refresh event for items
+      and the container element?
+* [ ] Should we drop the automatic layout after hide/show/remove/add? This way
+      the user would have more control over the UI.
+* [ ] Refactor the shit out of the codebase. Remove bloat -> streamline.
+* [ ] Stress test: 1000 items -> dragging should be smooth and layout
+      calculations fast. Compare to similar libraries and see how they perform.
+      Should be buttery smooth, but it's not... yet.
+      * [ ] Perf optimizations.
+            - https://medium.com/@xilefmai/efficient-javascript-14a11651d563#.49gifamju
+            - https://github.com/petkaantonov/bluebird/wiki/Optimization-killers
+      * [ ] Sluggish dragging on Firefox when items are transitioning. Caused by
+            the CSS Transitions. With Velocity.js this issue did not exist. How
+            to make CSS Transitions faster..?
+* [ ] Review the predicate and make sure it has all the data necessary for
+      smart handling. At the same time keeping it as simple as possible. Also
+      account for async resolving. If it supports async resolving there should
+      be methods for checking if the predicate is resolved/rejected.
+* [ ] Review API and simplify if necessary. Peer review would be coold too.
 * [ ] More unit tests.
-* [ ] Create an ESLint config for the project.
-* [ ] UMD module definition.
 
 TODO v0.4.0
 ===========
+* [ ] Handle drag initiation similar to Packery. The drag events can be
+      bound/unbound on specific items. All in all, the drag handling stuff
+      shold be separated into it's own section since it's optional.
 * [ ] Allow dropping on empty slots (gaps).
 * [ ] Optional drag placeholder.
 * [ ] Stagger option(s) to achieve similar delayed animations as shuffle.js.
-
-TODO v0.5.0
-===========
 * [ ] How to connect two or more Muuri instances o that items can be dragged
       from an instance to another. Check out draggable.js and dragula.js, they
       have implmented it.
-
-TODO v0.6.0
-===========
 * [ ] How to use this with popular frameworks: React, Vue, Angular2, Ember,
       Meteor, etc...?
 
@@ -75,15 +86,22 @@ TODO v0.6.0
 (function (global, factory) {
 
   var libName = 'Muuri';
-  var Hammer = global.Hammer;
 
-  global[libName] = factory(global, Hammer);
+  if (typeof define === 'function' && define.amd) {
+    define(['Hammer'], function (Hammer) {
+      return factory(global, libName, Hammer);
+    });
+  }
+  else if (typeof module === 'object' && module.exports) {
+    module.exports = factory(global, libName, require('Hammer'));
+  }
+  else {
+    global[libName] = factory(global, libName, global.Hammer);
+  }
 
-}(this, function (global, Hammer, undefined) {
+}(this, function (global, libName, Hammer, undefined) {
 
   'use strict';
-
-  var libName = 'Muuri';
 
   // Id which is used for Muuri instances and Item instances. Incremented every
   // time it is used.
@@ -92,14 +110,7 @@ TODO v0.6.0
   // Get the supported transform and transition style properties.
   var transform = getSupportedStyle('transform');
   var transition = getSupportedStyle('transition');
-
-  // Get the correct requestAnimatinoFrame method.
-  var raf = global.requestAnimationFrame ||
-            global.webkitRequestAnimationFrame ||
-            global.mozRequestAnimationFrame ||
-            global.msRequestAnimationFrame ||
-            global.oRequestAnimationFrame ||
-            null;
+  var transitionend = getTransitionEnd();
 
   // Do transformed elements leak fixed elements? According W3C specification
   // (about transform rendering) a transformed element should contain fixed
@@ -108,6 +119,7 @@ TODO v0.6.0
 
   // Event names.
   var evRefresh = 'refresh';
+  var evRefreshItems = 'refreshitems';
   var evSynchronize = 'synchronize';
   var evLayoutStart = 'layoutstart';
   var evLayoutEnd = 'layoutend';
@@ -138,12 +150,38 @@ TODO v0.6.0
    * @public
    * @class
    * @param {Object} settings
-   *
-   * @example
-   * var grid = new Muuri({
-   *   container: document.getElementyId('grid'),
-   *   items: document.getElementsByClassName('item')
-   * });
+   * @param {HTMLElement} settings.container
+   * @param {Array|NodeList} settings.items
+   * @param {!Function|Object} [settings.show]
+   * @param {Number} [settings.show.duration=300]
+   * @param {String} [settings.show.easing="ease"]
+   * @param {Object} [settings.show.styles]
+   * @param {!Function|Object} [settings.hide]
+   * @param {Number} [settings.hide.duration=300]
+   * @param {String} [settings.hide.easing="ease"]
+   * @param {Object} [settings.hide.styles]
+   * @param {Array|Function|String} [settings.layout="firstfit"]
+   * @param {!Number} [settings.layoutOnResize=100]
+   * @param {Boolean} [settings.layoutOnInit=true]
+   * @param {Number} [settings.layoutDuration=300]
+   * @param {String} [settings.layoutEasing="ease"]
+   * @param {Boolean} [settings.dragEnabled=false]
+   * @param {!HtmlElement} [settings.dragContainer=null]
+   * @param {!Function} [settings.dragStartPredicate=null]
+   * @param {Boolean} [settings.dragSort=true]
+   * @param {Number} [settings.dragSortInterval=50]
+   * @param {!Function|Object} [settings.dragSortPredicate]
+   * @param {Number} [settings.dragSortPredicate.tolerance=50]
+   * @param {String} [settings.dragSortPredicate.action="move"]
+   * @param {Number} [settings.dragReleaseDuration=300]
+   * @param {String} [settings.dragReleaseEasing="ease"]
+   * @param {String} [settings.containerClass="muuri"]
+   * @param {String} [settings.itemClass="muuri-item"]
+   * @param {String} [settings.itemVisibleClass="muuri-item-visible"]
+   * @param {String} [settings.itemHiddenClass="muuri-item-hidden"]
+   * @param {String} [settings.itemPositioningClass="muuri-item-positioning"]
+   * @param {String} [settings.itemDraggingClass="muuri-item-dragging"]
+   * @param {String} [settings.itemReleasingClass="muuri-item-releasing"]
    */
   function Muuri(settings) {
 
@@ -165,15 +203,17 @@ TODO v0.6.0
     // Instance id.
     inst._id = ++uuid;
 
-    // Create private eventize instance.
+    // Create private Emitter instance.
     inst._emitter = new Emitter();
 
     // Setup show and hide animations for items.
-    inst._itemShow = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
-    inst._itemHide = typeof stn.hide === 'function' ? stn.hide() : getItemVisbilityHandler('hide', stn.hide);
+    inst._itemShowHandler = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
+    inst._itemHideHandler = typeof stn.hide === 'function' ? stn.hide() : getItemVisbilityHandler('hide', stn.hide);
 
-    // Setup drag sort handler.
-    inst._dragSort = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : dragSortHandler;
+    // Calculate element's dimensions and offset. We intentionally call the
+    // private refresh method because we don't want an event emitted for the
+    // initial calculations.
+    inst.refresh();
 
     // Setup initial items.
     inst._items = Array.prototype.slice.call(stn.items).map(function (element) {
@@ -184,8 +224,7 @@ TODO v0.6.0
     if (stn.layoutOnResize || stn.layoutOnResize === 0) {
 
       debounced = debounce(function () {
-        inst.refresh();
-        inst.layout();
+        inst.refresh().refreshItems().layout();
       }, stn.layoutOnResize);
 
       inst._resizeHandler = function () {
@@ -205,6 +244,7 @@ TODO v0.6.0
 
   // Add all core constructors as static properties to Muuri constructor.
   Muuri.Item = Item;
+  Muuri.ItemDrag = ItemDrag;
   Muuri.Layout = Layout;
   Muuri.Animate = Animate;
   Muuri.Emitter = Emitter;
@@ -214,32 +254,6 @@ TODO v0.6.0
    *
    * @public
    * @memberof Muuri
-   * @property {HTMLElement} container
-   * @property {Array} items
-   * @property {!Function|Object} show
-   * @property {!Function|Object} hide
-   * @property {Array|String} layout
-   * @property {!Number} layoutOnResize
-   * @property {Boolean} layoutOnInit
-   * @property {Number} layoutDuration
-   * @property {Array|String} layoutEasing
-   * @property {Boolean} dragEnabled
-   * @property {!HtmlElement} dragContainer
-   * @property {!Function} dragPredicate
-   * @property {Boolean} dragSort
-   * @property {Number} dragSortInterval
-   * @property {!Function|Object} dragSortHandler
-   * @property {Number} dragSortHandler.tolerance
-   * @property {String} dragSortHandler.action
-   * @property {Number} dragReleaseDuration
-   * @property {Array|String} dragReleaseEasing
-   * @property {String} containerClass
-   * @property {String} itemClass
-   * @property {String} shownClass
-   * @property {String} hiddenClass
-   * @property {String} positioningClass
-   * @property {String} draggingClass
-   * @property {String} releasingClass
    */
   Muuri.defaultSettings = {
 
@@ -268,7 +282,7 @@ TODO v0.6.0
     },
 
     // Layout
-    layout: 'firstFit',
+    layout: 'firstfit',
     layoutOnResize: 100,
     layoutOnInit: true,
     layoutDuration: 300,
@@ -277,7 +291,7 @@ TODO v0.6.0
     // Drag & Drop
     dragEnabled: false,
     dragContainer: null,
-    dragPredicate: null,
+    dragStartPredicate: null,
     dragSort: true,
     dragSortInterval: 50,
     dragSortPredicate: {
@@ -290,11 +304,11 @@ TODO v0.6.0
     // Classnames
     containerClass: 'muuri',
     itemClass: 'muuri-item',
-    shownClass: 'muuri-shown',
-    hiddenClass: 'muuri-hidden',
-    positioningClass: 'muuri-positioning',
-    draggingClass: 'muuri-dragging',
-    releasingClass: 'muuri-releasing'
+    itemVisibleClass: 'muuri-item-shown',
+    itemHiddenClass: 'muuri-item-hidden',
+    itemPositioningClass: 'muuri-item-positioning',
+    itemDraggingClass: 'muuri-item-dragging',
+    itemReleasingClass: 'muuri-item-releasing'
 
   };
 
@@ -304,7 +318,7 @@ TODO v0.6.0
    * exists within related Muuri instance. If nothing is found with the
    * provided target null is returned.
    *
-   * @public
+   * @protected
    * @memberof Muuri.prototype
    * @param {HTMLElement|Item|Number} [target=0]
    * @returns {!Item}
@@ -362,62 +376,6 @@ TODO v0.6.0
   };
 
   /**
-   * Bind an event listener.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {String} event
-   * @param {Function} listener
-   * @returns {Muuri} returns the Muuri instance.
-   */
-  Muuri.prototype.on = function (event, listener) {
-
-    this._emitter.on(event, listener);
-
-    return this;
-
-  };
-
-  /**
-   * Unbind an event listener.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {String} event
-   * @param {Function} listener
-   * @returns {Muuri} returns the Muuri instance.
-   */
-  Muuri.prototype.off = function (event, listener) {
-
-    this._emitter.off(event, listener);
-
-    return this;
-
-  };
-
-  /**
-   * Recalculate the width and height of the provided targets. If no targets are
-   * provided all active items will be refreshed.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Item|Number} [items]
-   */
-  Muuri.prototype.refresh = function (items) {
-
-    var targetItems = this.get(items || 'active');
-    var i;
-
-    for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._refresh();
-    }
-
-    // Emit refresh event.
-    this._emitter.emit(evRefresh, targetItems);
-
-  };
-
-  /**
    * Get all items. Optionally you can provide specific targets (indices or
    * elements) and filter the results by the items' state (active/inactive).
    * Note that the returned array is not the same object used by the instance so
@@ -426,17 +384,15 @@ TODO v0.6.0
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Item|Number} [targets]
+   * @param {Array|HTMLElement|Item|NodeList|Number} [targets]
    * @param {String} [state]
    * @returns {Array} Array of Muuri item instances.
    */
-  Muuri.prototype.get = function (targets, state) {
-
-    // TODO: Allow targets being a live nodeList. Gotta get rid of concat.
+  Muuri.prototype.getItems = function (targets, state) {
 
     var inst = this;
     var hasTargets = targets && typeof targets !== 'string';
-    var targetItems = hasTargets ? [].concat(targets) : null;
+    var targetItems = !hasTargets ? null : isNodeList(targets) ? Array.prototype.slice.call(targets) : [].concat(targets);
     var targetState = !hasTargets ? targets : state;
     var ret = [];
     var isActive;
@@ -471,6 +427,102 @@ TODO v0.6.0
       return ret.concat(inst._items);
 
     }
+
+  };
+
+  /**
+   * Bind an event listener.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @param {String} event
+   * @param {Function} listener
+   * @returns {Muuri} returns the Muuri instance.
+   */
+  Muuri.prototype.on = function (event, listener) {
+
+    this._emitter.on(event, listener);
+
+    return this;
+
+  };
+
+  /**
+   * Unbind an event listener.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @param {String} event
+   * @param {Function} listener
+   * @returns {Muuri} returns the Muuri instance.
+   */
+  Muuri.prototype.off = function (event, listener) {
+
+    this._emitter.off(event, listener);
+
+    return this;
+
+  };
+
+  /**
+   * Calculate and cache the container element's dimensions and offset.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @returns {Muuri} returns the Muuri instance.
+   */
+  Muuri.prototype.refresh = function () {
+
+    var inst = this;
+    var element = inst._element;
+    var sides = ['left', 'right', 'top', 'bottom'];
+    var rect = element.getBoundingClientRect();
+    var border = inst._border = inst._border || {};
+    var padding = inst._padding = inst._padding || {};
+    var offset = inst._offset = inst._offset || {};
+    var side;
+    var i;
+
+    for (i = 0; i < sides.length; i++) {
+      side = sides[i];
+      border[side] = Math.round(getStyleAsFloat(element, 'border-' + side + '-width'));
+      padding[side] = Math.round(getStyleAsFloat(element, 'padding-' + side));
+    }
+
+    inst._width = Math.round(rect.width);
+    inst._height = Math.round(rect.height);
+    inst._offset.left = Math.round(rect.left);
+    inst._offset.top = Math.round(rect.top);
+
+    inst._emitter.emit(evRefresh);
+
+    return inst;
+
+  };
+
+  /**
+   * Recalculate the width and height of the provided targets. If no targets are
+   * provided all active items will be refreshed.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @param {Array|HTMLElement|Item|Number} [items]
+   * @returns {Muuri} returns the Muuri instance.
+   */
+  Muuri.prototype.refreshItems = function (items) {
+
+    var inst = this;
+    var targetItems = inst.getItems(items || 'active');
+    var i;
+
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._refresh();
+    }
+
+    // Emit refresh event.
+    inst._emitter.emit(evRefreshItems, targetItems);
+
+    return inst;
 
   };
 
@@ -561,7 +613,7 @@ TODO v0.6.0
   Muuri.prototype.remove = function (items, removeElement) {
 
     var inst = this;
-    var targetItems = inst.get(items);
+    var targetItems = inst.getItems(items);
     var indices = [];
     var needsRelayout = false;
     var item;
@@ -593,6 +645,7 @@ TODO v0.6.0
    *
    * @public
    * @memberof Muuri.prototype
+   * @returns {Muuri} returns the Muuri instance.
    */
   Muuri.prototype.synchronize = function () {
 
@@ -611,6 +664,8 @@ TODO v0.6.0
 
     inst._emitter.emit(evSynchronize);
 
+    return inst;
+
   };
 
   /**
@@ -620,6 +675,7 @@ TODO v0.6.0
    * @memberof Muuri.prototype
    * @param {Boolean} [instant=false]
    * @param {Function} [callback]
+   * @returns {Muuri} returns the Muuri instance.
    */
   Muuri.prototype.layout = function (instant, callback) {
 
@@ -669,6 +725,12 @@ TODO v0.6.0
       });
     }
 
+    // Update container's cached width/height, if needed.
+    if (layout.setWidth || layout.setHeight) {
+      // TODO: Optimize, update only the stuff that needs changing.
+      inst.refresh();
+    }
+
     // If there are now items let's finish quickly.
     if (!itemsLength) {
 
@@ -684,11 +746,11 @@ TODO v0.6.0
         position = layout.slots[item._id];
 
         // Update item's position.
-        item._left = position.left;
-        item._top = position.top;
+        item._left = position.left + inst._padding.left;
+        item._top = position.top + inst._padding.top;
 
         // Layout non-dragged items.
-        if (item._drag.active) {
+        if (item._drag && item._drag._drag.isActive) {
           tryFinish(false, item);
         }
         else {
@@ -698,6 +760,8 @@ TODO v0.6.0
       }
 
     }
+
+    return inst;
 
   };
 
@@ -709,10 +773,13 @@ TODO v0.6.0
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Boolean} [instant=false]
    * @param {Function} [callback]
+   * @returns {Muuri} returns the Muuri instance.
    */
   Muuri.prototype.show = function (items, instant, callback) {
 
     setVisibility(this, 'show', items, instant, callback);
+
+    return this;
 
   };
 
@@ -724,10 +791,13 @@ TODO v0.6.0
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Boolean} [instant=false]
    * @param {Function} [callback]
+   * @returns {Muuri} returns the Muuri instance.
    */
   Muuri.prototype.hide = function (items, instant, callback) {
 
     setVisibility(this, 'hide', items, instant, callback);
+
+    return this;
 
   };
 
@@ -780,6 +850,7 @@ TODO v0.6.0
    * @memberof Muuri.prototype
    * @param {HTMLElement|Item|Number} targetFrom
    * @param {HTMLElement|Item|Number} targetTo
+   * @returns {Muuri} returns the Muuri instance.
    */
   Muuri.prototype.move = function (targetFrom, targetTo) {
 
@@ -792,6 +863,8 @@ TODO v0.6.0
       inst._emitter.emit(evMove, targetFrom, targetTo);
     }
 
+    return inst;
+
   };
 
   /**
@@ -801,6 +874,7 @@ TODO v0.6.0
    * @memberof Muuri.prototype
    * @param {HTMLElement|Item|Number} targetA
    * @param {HTMLElement|Item|Number} targetB
+   * @returns {Muuri} returns the Muuri instance.
    */
   Muuri.prototype.swap = function (targetA, targetB) {
 
@@ -812,6 +886,8 @@ TODO v0.6.0
       arraySwap(inst._items, inst._items.indexOf(targetA), inst._items.indexOf(targetB));
       inst._emitter.emit(evSwap, targetA, targetB);
     }
+
+    return inst;
 
   };
 
@@ -885,7 +961,7 @@ TODO v0.6.0
 
     // Make sure the item element is not a parent of the grid container element.
     if (element.contains(muuri._element)) {
-      throw new Error('Item element must not be a parent of the grid container element');
+      throw new Error('Item element must be within the grid container element');
     }
 
     // If the provided item element is not a direct child of the grid container
@@ -941,14 +1017,14 @@ TODO v0.6.0
     setStyles(inst._element, {
       left: '0',
       top: '0',
-      transform: 'translateX(0px) translateY(0px)'
+      transform: 'matrix(1,0,0,1,0,0)'
     });
 
     // Set hidden/shown class.
-    addClass(element, isHidden ? stn.hiddenClass : stn.shownClass);
+    addClass(element, isHidden ? stn.itemHiddenClass : stn.itemVisibleClass);
 
     // Set hidden/shown styles for the child element.
-    visibilityStyles = muuri[isHidden ? '_itemHide' : '_itemShow'].styles;
+    visibilityStyles = muuri[isHidden ? '_itemHideHandler' : '_itemShowHandler'].styles;
     if (visibilityStyles) {
       setStyles(inst._child, visibilityStyles);
     }
@@ -965,12 +1041,8 @@ TODO v0.6.0
     inst._left = 0;
     inst._top = 0;
 
-    // Set up drag & drop.
-    inst._drag = {active: false};
-    inst._release = {active: false};
-    if (muuri._settings.dragEnabled) {
-      inst._initDrag();
-    }
+    // Set up drag handler.
+    inst._drag = stn.dragEnabled ? new ItemDrag(inst) : null;
 
   }
 
@@ -979,6 +1051,7 @@ TODO v0.6.0
    *
    * @protected
    * @memberof Item.prototype
+   * @returns {Object}
    */
   Item.prototype.getData = function () {
 
@@ -988,618 +1061,18 @@ TODO v0.6.0
       element: inst._element,
       width: inst._width,
       height: inst._height,
-      margin: {
-        left: inst._margin.left,
-        top: inst._margin.top,
-        right: inst._margin.right,
-        bottom: inst._margin.bottom
-      },
+      outerWidth: inst._outerWidth,
+      outerHeight: inst._outerHeight,
       left: inst._left,
       top: inst._top,
-      active: inst._isActive,
-      positioning: inst._isPositioning,
-      dragging: inst._drag.active,
-      releasing: inst._release.active,
-      visibility: inst._isHiding ? 'hiding' :
-                  inst._isShowing ? 'showing' :
-                  inst._isHidden ? 'hidden' : 'shown'
+      isActive: inst._isActive,
+      isPositioning: inst._isPositioning,
+      isDragging: inst._drag && inst._drag._drag.isActive,
+      isReleasing: inst._drag && inst._drag._release.isActive,
+      isVisible: !inst._isHidden,
+      isShowing: inst._isShowing,
+      isHiding: inst._isHiding
     };
-
-  };
-
-  /**
-   * Make the item draggable with Hammer.js.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._initDrag = function () {
-
-    // Check that we have Hammer.
-    if (!Hammer) {
-      throw Error('[' + libName + '] required dependency Hammer is not defined.');
-    }
-
-    var inst = this;
-    var stn = inst._muuri._settings;
-    var drag = inst._drag;
-    var predicateResolved = false;
-    var hammer = inst._hammer = new Hammer.Manager(inst._element);
-
-    // Add drag recognizer to hammer.
-    hammer.add(new Hammer.Pan({
-      event: 'drag',
-      pointers: 1,
-      threshold: 0,
-      direction: Hammer.DIRECTION_ALL
-    }));
-
-    // Add draginit recognizer to hammer.
-    hammer.add(new Hammer.Press({
-      event: 'draginit',
-      pointers: 1,
-      threshold: 100,
-      time: 0
-    }));
-
-    // This is not ideal, but saves us from a LOT of hacks. Let's try to keep
-    // the default drag setup consistent across devices.
-    hammer.set({touchAction: 'none'});
-
-    // Setup initial release data.
-    inst._resetReleaseData();
-
-    // Setup initial drag data.
-    inst._resetDragData();
-
-    // Add overlap checker function to drag data.
-    drag.checkOverlap = debounce(function () {
-      if (drag.active) {
-        inst._checkOverlap();
-      }
-    }, stn.dragSortInterval);
-
-    // Add predicate related data to drag data.
-    drag.predicate = typeof stn.dragPredicate === 'function' ? stn.dragPredicate : dragPredicate;
-    drag.predicateData = {};
-    drag.isPredicateResolved = function () {
-      return predicateResolved;
-    };
-    drag.resolvePredicate = function (e) {
-      if (!predicateResolved && e.type !== 'draginitup' && e.type !== 'dragend' && e.type !== 'dragcancel') {
-        predicateResolved = true;
-        inst._onDragStart(e);
-      }
-    };
-
-    // Add drag sroll handler.
-    drag.onScroll = function (e) {
-      if (raf) {
-        raf(function () {
-          inst._onDragScroll(e);
-        });
-      }
-      else {
-        inst._onDragScroll(e);
-      }
-    };
-
-    // Bind drag events.
-    hammer
-    .on('draginit', function (e) {
-      drag.predicateData = {};
-      predicateResolved = false;
-      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
-    })
-    .on('dragstart dragmove', function (e) {
-      if (predicateResolved && drag.active) {
-        inst._onDragMove(e);
-      }
-      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
-    })
-    .on('dragend dragcancel draginitup', function (e) {
-      if (predicateResolved && drag.active) {
-        inst._onDragEnd(e);
-      }
-      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
-    });
-
-  };
-
-  /**
-   * Reset drag data.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._resetDragData = function () {
-
-    var drag = this._drag;
-
-    // Is the drag active or not?
-    drag.active = false;
-
-    // Hammer event data.
-    drag.start = null;
-    drag.lastMove = null;
-    drag.move = null;
-
-    // The dragged Item reference.
-    drag.item = null;
-
-    // The element that is currently dragged (instance element or it's clone).
-    drag.element = null;
-
-    // Dragged element's inline styles stored for graceful teardown.
-    drag.elementStyles = null;
-
-    // Scroll parents of the dragged element and muuri container.
-    drag.scrollParents = [];
-
-    // The current translateX/translateY position.
-    drag.left = 0;
-    drag.top = 0;
-
-    // Dragged element's current position within the grid.
-    drag.gridX = 0;
-    drag.gridY = 0;
-
-    // Dragged element's current offset from window's northwest corner. Does not
-    // account for element's margins.
-    drag.elementClientX = 0;
-    drag.elementClientY = 0;
-
-    // Offset difference between the dragged element's temporary drag container
-    // and it's original container.
-    drag.containerDiffX = 0;
-    drag.containerDiffY = 0;
-
-  };
-
-  /**
-   * Drag start handler.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._onDragStart = function (e) {
-
-    var inst = this;
-    var drag = inst._drag;
-    var stn = inst._muuri._settings;
-    var isReleased = inst._release.active;
-    var currentLeft;
-    var currentTop;
-    var muuriContainer;
-    var dragContainer;
-    var offsetDiff;
-    var elementGBCR;
-    var i;
-
-    // If item is not active, don't start the drag.
-    if (!inst._isActive) {
-      return;
-    }
-
-    // Stop current positioning animation.
-    if (inst._isPositioning) {
-      inst._stopLayout();
-    }
-
-    // If item is being released reset release data, remove release class and
-    // import the current elementStyles to drag object.
-    if (isReleased) {
-      drag.elementStyles = inst._release.elementStyles;
-      removeClass(inst._element, stn.releasingClass);
-      inst._resetReleaseData();
-    }
-
-    // Setup drag data.
-    drag.active = true;
-    drag.start = e;
-    drag.lastMove = e;
-    drag.move = e;
-    drag.item = inst;
-    drag.element = inst._element;
-
-    // Get element's current position.
-    currentLeft = getTranslateAsFloat(drag.element, 'x');
-    currentTop = getTranslateAsFloat(drag.element, 'y');
-
-    // Get container references.
-    muuriContainer = inst._muuri._element;
-    dragContainer = stn.dragContainer;
-
-    // Set initial left/top drag value.
-    drag.left = drag.gridX = currentLeft;
-    drag.top = drag.gridY = currentTop;
-
-    // If a specific drag container is set and it is different from the
-    // default muuri container we need to cast some extra spells.
-    if (dragContainer && dragContainer !== muuriContainer) {
-
-      // If dragged element is already in drag container.
-      if (drag.element.parentNode === dragContainer) {
-
-        // Get offset diff.
-        offsetDiff = getOffsetDiff(drag.element, muuriContainer);
-
-        // Store the container offset diffs to drag data.
-        drag.containerDiffX = offsetDiff.left;
-        drag.containerDiffY = offsetDiff.top;
-
-        // Set up relative drag position data.
-        drag.gridX = currentLeft - drag.containerDiffX;
-        drag.gridY = currentTop - drag.containerDiffY;
-
-      }
-
-      // If dragged element is not within the correct container.
-      else {
-
-        // Lock element's width, height, padding and margin before appending
-        // to the temporary container because otherwise the element might
-        // enlarge or shrink after the append procedure if the some of the
-        // properties are defined in relative sizes.
-        lockElementSize(drag);
-
-        // Append element into correct container.
-        dragContainer.appendChild(drag.element);
-
-        // Get offset diff.
-        offsetDiff = getOffsetDiff(drag.element, muuriContainer);
-
-        // Store the container offset diffs to drag data.
-        drag.containerDiffX = offsetDiff.left;
-        drag.containerDiffY = offsetDiff.top;
-
-        // Set up drag position data.
-        drag.left = currentLeft + drag.containerDiffX;
-        drag.top = currentTop + drag.containerDiffY;
-
-        // Fix position to account for the append procedure.
-        setStyles(drag.element, {
-          transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
-        });
-
-      }
-
-    }
-
-    // Get and store element's current offset from window's northwest corner.
-    elementGBCR = drag.element.getBoundingClientRect();
-    drag.elementClientX = elementGBCR.left;
-    drag.elementClientY = elementGBCR.top;
-
-    // Get drag scroll parents.
-    drag.scrollParents = getScrollParents(drag.element);
-    if (dragContainer && dragContainer !== muuriContainer) {
-      drag.scrollParents = arrayUnique(drag.scrollParents.concat(getScrollParents(muuriContainer)));
-    }
-
-    // Bind scroll listeners.
-    for (i = 0; i < drag.scrollParents.length; i++) {
-      drag.scrollParents[i].addEventListener('scroll', drag.onScroll);
-    }
-
-    // Set drag class.
-    addClass(drag.element, stn.draggingClass);
-
-    // Emit dragstart event.
-    inst._muuri._emitter.emit(evDragStart, inst, generateDragEvent('dragstart', e, drag));
-
-  };
-
-  /**
-   * Drag move handler.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._onDragMove = function (e) {
-
-    var inst = this;
-    var drag = inst._drag;
-    var stn = inst._muuri._settings;
-    var xDiff;
-    var yDiff;
-
-    // If item is not active, reset drag.
-    if (!inst._isActive) {
-      inst._resetDrag();
-      return;
-    }
-
-    // Get delta difference from last dragmove event.
-    xDiff = e.deltaX - drag.move.deltaX;
-    yDiff = e.deltaY - drag.move.deltaY;
-
-    // Update move events.
-    drag.lastMove = drag.move;
-    drag.move = e;
-
-    // Update position data.
-    drag.left += xDiff;
-    drag.top += yDiff;
-    drag.gridX += xDiff;
-    drag.gridY += yDiff;
-    drag.elementClientX += xDiff;
-    drag.elementClientY += yDiff;
-
-    // Update element's translateX/Y values.
-    setStyles(drag.element, {
-      transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
-    });
-
-    // Overlap handling.
-    if (stn.dragSort) {
-      drag.checkOverlap();
-    }
-
-    // Emit item-dragmove event.
-    inst._muuri._emitter.emit(evDragMove, inst, generateDragEvent('dragmove', e, drag));
-
-  };
-
-  /**
-   * Drag scroll handler.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._onDragScroll = function (e) {
-
-    var inst = this;
-    var drag = inst._drag;
-    var stn = inst._muuri._settings;
-    var muuriContainer = inst._muuri._element;
-    var dragContainer = stn.dragContainer;
-    var elementGBCR = drag.element.getBoundingClientRect();
-    var xDiff = drag.elementClientX - elementGBCR.left;
-    var yDiff = drag.elementClientY - elementGBCR.top;
-    var offsetDiff;
-
-    // Update container diff.
-    if (dragContainer && dragContainer !== muuriContainer) {
-
-      // Get offset diff.
-      offsetDiff = getOffsetDiff(drag.element, muuriContainer);
-
-      // Store the container offset diffs to drag data.
-      drag.containerDiffX = offsetDiff.left;
-      drag.containerDiffY = offsetDiff.top;
-
-    }
-
-    // Update position data.
-    drag.left += xDiff;
-    drag.top += yDiff;
-    drag.gridX = drag.left - drag.containerDiffX;
-    drag.gridY = drag.top - drag.containerDiffY;
-
-    // Update element's translateX/Y values.
-    setStyles(drag.element, {
-      transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
-    });
-
-    // Overlap handling.
-    if (stn.dragSort) {
-      drag.checkOverlap();
-    }
-
-    // Emit item-dragscroll event.
-    inst._muuri._emitter.emit(evDragScroll, inst, generateDragEvent('dragscroll', e, drag));
-
-  };
-
-  /**
-   * Drag end handler.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._onDragEnd = function (e) {
-
-    var inst = this;
-    var drag = inst._drag;
-    var stn = inst._muuri._settings;
-    var release = inst._release;
-    var i;
-
-    // If item is not active, reset drag.
-    if (!inst._isActive) {
-      inst._resetDrag();
-      return;
-    }
-
-    // Finish currently queued overlap check.
-    if (stn.dragSort) {
-      drag.checkOverlap('finish');
-    }
-
-    // Remove scroll listeners.
-    for (i = 0; i < drag.scrollParents.length; i++) {
-      drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
-    }
-
-    // Remove drag classname from element.
-    removeClass(drag.element, stn.draggingClass);
-
-    // Flag drag as inactive.
-    drag.active = false;
-
-    // Emit item-dragend event.
-    inst._muuri._emitter.emit(evDragEnd, inst, generateDragEvent('dragend', e, drag));
-
-    // Setup release data.
-    release.item = drag.item;
-    release.containerDiffX = drag.containerDiffX;
-    release.containerDiffY = drag.containerDiffY;
-    release.element = drag.element;
-    release.elementStyles = drag.elementStyles;
-
-    // Reset drag data.
-    inst._resetDragData();
-
-    // Start the release process.
-    inst._startRelease();
-
-  };
-
-  /**
-   * Reset drag data and cancel any ongoing drag activity.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._resetDrag = function () {
-
-    var inst = this;
-    var drag = inst._drag;
-    var stn = inst._muuri._settings;
-
-    // Remove scroll listeners.
-    for (i = 0; i < drag.scrollParents.length; i++) {
-      drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
-    }
-
-    // Cancel overlap check.
-    drag.checkOverlap('cancel');
-
-    // Remove draggin class.
-    removeClass(drag.element, stn.draggingClass);
-
-    // Remove dragged element's inline styles.
-    unlockElementSize(drag);
-
-    inst._resetDragData();
-
-  };
-
-  /**
-   * Reset release data.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._resetReleaseData = function () {
-
-    var release = this._release;
-    release.active = false;
-    release.item = null;
-    release.positioningStarted = false;
-    release.containerDiffX = 0;
-    release.containerDiffY = 0;
-    release.element = null;
-    release.elementStyles = null;
-
-  };
-
-  /**
-   * Start the release process of an item.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._startRelease = function () {
-
-    var inst = this;
-    var stn = inst._muuri._settings;
-    var release = inst._release;
-
-    // Flag release as active.
-    release.active = true;
-
-    // Add release classname to released element.
-    addClass(release.element, stn.releasingClass);
-
-    // Emit releasestart event.
-    inst._muuri._emitter.emit(evReleaseStart, inst);
-
-    // Position the released item.
-    inst._layout(false);
-
-  };
-
-  /**
-   * End the release process of an item.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._endRelease = function () {
-
-    var inst = this;
-    var stn = inst._muuri._settings;
-    var release = inst._release;
-
-    // Remove release classname from the released element.
-    removeClass(release.element, stn.releasingClass);
-
-    // If the released element is outside the muuri container put it back there
-    // and adjust position accordingly.
-    if (release.element.parentNode !== inst._muuri._element) {
-      inst._muuri._element.appendChild(release.element);
-      setStyles(release.element, {
-        transform: 'translateX(' + inst._left + 'px) translateY(' + inst._top + 'px)'
-      });
-    }
-
-    // Unlock temporary inlined styles.
-    unlockElementSize(release);
-
-    // Reset release data.
-    inst._resetReleaseData();
-
-    // Emit releaseend event.
-    inst._muuri._emitter.emit(evReleaseEnd, inst);
-
-  };
-
-  /**
-   * Check (during drag) if an item is overlapping other items and based on
-   * the configuration do a relayout.
-   *
-   * @todo
-   * - Optimize for all layout methods which's order is guaranteed (no empty gap
-   *   filling). Do the check only for those items which overlap the dragged
-   *   item.
-   *
-   * @protected
-   * @memberof Item.prototype
-   */
-  Item.prototype._checkOverlap = function () {
-
-    var muuri = this._muuri;
-    var sortResult = muuri._dragSort(this);
-    var items;
-    var action;
-    var from;
-    var to;
-    var elementFrom;
-    var elementTo;
-
-    if (sortResult) {
-
-      items = muuri._items;
-      action = sortResult.action || 'move';
-      from = sortResult.from;
-      to = sortResult.to;
-      elementFrom = items[from]._element;
-      elementTo = items[to]._element;
-
-      if (action === 'swap') {
-        arraySwap(items, from, to);
-        muuri._emitter.emit(evSwap, elementFrom, elementTo);
-      }
-      else {
-        arrayMove(items, from, to);
-        muuri._emitter.emit(evMove, elementFrom, elementTo);
-      }
-
-      muuri.layout();
-
-    }
 
   };
 
@@ -1608,6 +1081,7 @@ TODO v0.6.0
    *
    * @protected
    * @memberof Item.prototype
+   * @returns {Item} returns the Item instance.
    */
   Item.prototype._stopLayout = function () {
 
@@ -1620,7 +1094,7 @@ TODO v0.6.0
       inst._animate.stop();
 
       // Remove visibility classes.
-      removeClass(inst._element, stn.positioningClass);
+      removeClass(inst._element, stn.itemPositioningClass);
 
       // Reset state.
       inst._isPositioning = false;
@@ -1630,6 +1104,8 @@ TODO v0.6.0
 
     }
 
+    return inst;
+
   };
 
   /**
@@ -1637,33 +1113,38 @@ TODO v0.6.0
    *
    * @public
    * @memberof Item.prototype
+   * @returns {Item} returns the Item instance.
    */
   Item.prototype._refresh = function () {
 
     var inst = this;
     var element = inst._element;
-    var elementGBCR;
-    var marginEdges;
-    var margins;
+    var rect;
+    var sides;
+    var side;
     var margin;
     var i;
 
     if (!inst._isHidden) {
 
       // Calculate margins (ignore negative margins).
-      marginEdges = ['left', 'right', 'top', 'bottom'];
-      inst._margin = margins = {};
+      sides = ['left', 'right', 'top', 'bottom'];
+      margin = inst._margin = inst._margin || {};
       for (i = 0; i < 4; i++) {
-        margin = getStyleAsFloat(element, 'margin-' + marginEdges[i]);
-        margins[marginEdges[i]] = margin > 0 ? margin : 0;
+        side = Math.round(getStyleAsFloat(element, 'margin-' + sides[i]));
+        margin[sides[i]] = side > 0 ? side : 0;
       }
 
       // Calculate width and height (including margins).
-      elementGBCR = element.getBoundingClientRect();
-      inst._width = elementGBCR.width + margins.left + margins.right;
-      inst._height = elementGBCR.height + margins.top + margins.bottom;
+      rect = element.getBoundingClientRect();
+      inst._width = Math.round(rect.width);
+      inst._height = Math.round(rect.height);
+      inst._outerWidth = inst._width + margin.left + margin.right;
+      inst._outerHeight = inst._height + margin.top + margin.bottom;
 
     }
+
+    return inst;
 
   };
 
@@ -1674,13 +1155,14 @@ TODO v0.6.0
    * @memberof Item.prototype
    * @param {Boolean} instant
    * @param {Function} [callback]
+   * @returns {Item} returns the Item instance.
    */
   Item.prototype._layout = function (instant, callback) {
 
     var inst = this;
     var stn = inst._muuri._settings;
-    var release = inst._release;
-    var isJustReleased = release.active && release.positioningStarted === false;
+    var release = inst._drag ? inst._drag._release : {};
+    var isJustReleased = release.isActive && release.isPositioningStarted === false;
     var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.layoutDuration;
     var animEasing = isJustReleased ? stn.dragReleaseEasing : stn.layoutEasing;
     var animEnabled = instant === true || inst._noLayoutAnimation ? false : animDuration > 0;
@@ -1692,14 +1174,14 @@ TODO v0.6.0
     var finish = function () {
 
       // Remove positioning classes.
-      removeClass(inst._element, stn.positioningClass);
+      removeClass(inst._element, stn.itemPositioningClass);
 
       // Mark the item as not positioning.
       inst._isPositioning = false;
 
       // Finish up release.
-      if (release.active) {
-        inst._endRelease();
+      if (release.isActive) {
+        inst._drag._endRelease();
       }
 
       // Process the callback queue.
@@ -1717,14 +1199,14 @@ TODO v0.6.0
 
     // Mark release positiong as started.
     if (isJustReleased) {
-      release.positioningStarted = true;
+      release.isPositioningStarted = true;
     }
 
     // Get item container offset. This applies only for release handling in the
     // scenario where the released element is not currently within the muuri
     // container.
-    offsetLeft = inst._release.active ? inst._release.containerDiffX : 0;
-    offsetTop = inst._release.active ? inst._release.containerDiffY : 0;
+    offsetLeft = release.isActive ? release.containerDiffX : 0;
+    offsetTop = release.isActive ? release.containerDiffY : 0;
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
@@ -1734,7 +1216,7 @@ TODO v0.6.0
       }
 
       setStyles(inst._element, {
-        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
+        transform: 'matrix(1,0,0,1,' + (inst._left + offsetLeft) + ',' + (inst._top + offsetTop) + ')'
       });
 
       finish();
@@ -1745,7 +1227,7 @@ TODO v0.6.0
     else {
 
       // Get current (relative) left and top position. Meaning that the
-      // drga container's offset (if applicable) is subtracted from the current
+      // container's offset (if applicable) is subtracted from the current
       // translate values.
       currentLeft = getTranslateAsFloat(inst._element, 'x') - offsetLeft;
       currentTop = getTranslateAsFloat(inst._element, 'y') - offsetTop;
@@ -1762,12 +1244,12 @@ TODO v0.6.0
 
       // Add positioning class if necessary.
       if (!isPositioning) {
-        addClass(inst._element, stn.positioningClass);
+        addClass(inst._element, stn.itemPositioningClass);
       }
 
       // Animate.
       inst._animate.start({
-        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
+        transform: 'matrix(1,0,0,1,' + (inst._left + offsetLeft) + ',' + (inst._top + offsetTop) + ')'
       }, {
         duration: animDuration,
         easing: animEasing,
@@ -1775,6 +1257,8 @@ TODO v0.6.0
       });
 
     }
+
+    return inst;
 
   };
 
@@ -1785,6 +1269,7 @@ TODO v0.6.0
    * @memberof Item.prototype
    * @param {Boolean} instant
    * @param {Function} [callback]
+   * @returns {Item} returns the Item instance.
    */
   Item.prototype._show = function (instant, callback) {
 
@@ -1815,7 +1300,7 @@ TODO v0.6.0
     else {
 
       // Stop animation.
-      inst._muuri._itemHide.stop(inst);
+      inst._muuri._itemHideHandler.stop(inst);
 
       // Update states.
       inst._isActive = true;
@@ -1823,8 +1308,8 @@ TODO v0.6.0
       inst._isShowing = inst._isHiding = false;
 
       // Update classes.
-      addClass(inst._element, stn.shownClass);
-      removeClass(inst._element, stn.hiddenClass);
+      addClass(inst._element, stn.itemVisibleClass);
+      removeClass(inst._element, stn.itemHiddenClass);
 
       // Set element's display style.
       setStyles(inst._element, {
@@ -1843,7 +1328,7 @@ TODO v0.6.0
       }
 
       // Animate child element.
-      inst._muuri._itemShow.start(inst, instant, function () {
+      inst._muuri._itemShowHandler.start(inst, instant, function () {
 
         // Process callback queue.
         processQueue(inst._visibilityQueue, false, inst);
@@ -1851,6 +1336,8 @@ TODO v0.6.0
       });
 
     }
+
+    return inst;
 
   };
 
@@ -1861,6 +1348,7 @@ TODO v0.6.0
    * @memberof Item.prototype
    * @param {Boolean} instant
    * @param {Function} [callback]
+   * @returns {Item} returns the Item instance.
    */
   Item.prototype._hide = function (instant, callback) {
 
@@ -1891,7 +1379,7 @@ TODO v0.6.0
     else {
 
       // Stop animation.
-      inst._muuri._itemShow.stop(inst);
+      inst._muuri._itemShowHandler.stop(inst);
 
       // Update states.
       inst._isActive = false;
@@ -1899,8 +1387,8 @@ TODO v0.6.0
       inst._isShowing = inst._isHiding = false;
 
       // Update classes.
-      addClass(inst._element, stn.hiddenClass);
-      removeClass(inst._element, stn.shownClass);
+      addClass(inst._element, stn.itemHiddenClass);
+      removeClass(inst._element, stn.itemVisibleClass);
 
       // Process current callback queue.
       processQueue(inst._visibilityQueue, true, inst);
@@ -1914,7 +1402,7 @@ TODO v0.6.0
       }
 
       // Animate child element.
-      inst._muuri._itemHide.start(inst, instant, function () {
+      inst._muuri._itemHideHandler.start(inst, instant, function () {
 
         // Hide element.
         setStyles(inst._element, {
@@ -1927,6 +1415,8 @@ TODO v0.6.0
       });
 
     }
+
+    return inst;
 
   };
 
@@ -1949,23 +1439,12 @@ TODO v0.6.0
 
     // Stop animations.
     inst._stopLayout();
-    muuri._itemShow.stop(inst);
-    muuri._itemHide.stop(inst);
+    muuri._itemShowHandler.stop(inst);
+    muuri._itemHideHandler.stop(inst);
 
-    // If item is being released, stop it gracefully.
-    if (inst._release.active) {
-      if (element.parentNode !== muuri._element) {
-        muuri._element.appendChild(element);
-      }
-      inst._resetReleaseData();
-    }
-
-    // If item is being dragged, stop it gracefully.
-    if (inst._drag.active) {
-      if (element.parentNode !== muuri._element) {
-        muuri._element.appendChild(element);
-      }
-      inst._resetDrag();
+    // If item is being dragged or released, stop it gracefully.
+    if (inst._drag) {
+      inst._drag.destroy();
     }
 
     // Destroy Hammer instance and custom touch listeners.
@@ -1986,12 +1465,12 @@ TODO v0.6.0
     processQueue(inst._visibilityQueue, true, inst);
 
     // Remove Muuri specific classes.
-    removeClass(element, stn.positioningClass);
-    removeClass(element, stn.draggingClass);
-    removeClass(element, stn.releasingClass);
+    removeClass(element, stn.itemPositioningClass);
+    removeClass(element, stn.itemDraggingClass);
+    removeClass(element, stn.itemReleasingClass);
     removeClass(element, stn.itemClass);
-    removeClass(element, stn.shownClass);
-    removeClass(element, stn.hiddenClass);
+    removeClass(element, stn.itemVisibleClass);
+    removeClass(element, stn.itemHiddenClass);
 
     // Remove item from Muuri instance if it still exists there.
     if (index > -1) {
@@ -2027,20 +1506,20 @@ TODO v0.6.0
 
     var inst = this;
     var stn = muuri._settings.layout;
-    var element = muuri._element;
-    var elementGBCR = element.getBoundingClientRect();
+    var padding = muuri._padding;
+    var border = muuri._border;
     var noSettingsProvided;
     var methodName;
 
     inst.muuri = muuri;
-    inst.items = items ? items.concat() : muuri.get('active');
+    inst.items = items ? items.concat() : muuri.getItems('active');
     inst.slots = {};
     inst.setWidth = false;
     inst.setHeight = false;
 
     // Calculate the current width and height of the container.
-    inst.width = elementGBCR.width - getStyleAsFloat(element, 'border-left-width') - getStyleAsFloat(element, 'border-right-width');
-    inst.height = elementGBCR.height - getStyleAsFloat(element, 'border-top-width') - getStyleAsFloat(element, 'border-bottom-width');
+    inst.width = muuri._width - border.left - border.right - padding.left - padding.right;
+    inst.height = muuri._height - border.top - border.bottom - padding.top - padding.bottom;
 
     // If the user has provided custom function as a layout method invoke it.
     if (typeof stn === 'function') {
@@ -2074,7 +1553,7 @@ TODO v0.6.0
    * @memberof Layout
    */
   Layout.methods = {
-    firstFit: LayoutFirstFit
+    firstfit: LayoutFirstFit
   };
 
   /**
@@ -2212,56 +1691,60 @@ TODO v0.6.0
     var styles = props || {};
     var options = opts || {};
     var done = options.done;
+    var transitionStyles = {};
     var transPropName = transition.propName;
 
     // If transitions are not supported, keep it simple.
     if (!transition) {
 
       setStyles(element, styles);
-
       if (typeof done === 'function') {
         done();
       }
 
-      return;
-
     }
 
-    // Stop current animation.
-    inst.stop();
+    // If transitions are supported.
+    else {
 
-    // Set as animating.
-    inst._isAnimating = true;
+      // Stop current animation.
+      inst.stop();
 
-    // Store animated styles.
-    inst._props = Object.keys(styles);
+      // Set as animating.
+      inst._isAnimating = true;
 
-    // Add transition styles to target styles.
-    if (transition) {
-      styles[transPropName + 'Property'] = inst._props.join(',');
-      styles[transPropName + 'Duration'] = (options.duration || 400) + 'ms';
-      styles[transPropName + 'Delay'] = (options.delay || 0) + 'ms';
-      styles[transPropName + 'Easing'] = options.easing || 'ease';
-    }
+      // Store animated styles.
+      inst._props = Object.keys(styles);
 
-    // Create callback.
-    inst._callback = function (e) {
-      if (e.target === element) {
-        inst.stop();
-        if (typeof done === 'function') {
-          done();
+      // Create transition styles.
+      transitionStyles[transPropName + 'Property'] = inst._props.join(',');
+      transitionStyles[transPropName + 'Duration'] = (options.duration || 400) + 'ms';
+      transitionStyles[transPropName + 'Delay'] = (options.delay || 0) + 'ms';
+      transitionStyles[transPropName + 'Easing'] = options.easing || 'ease';
+
+      // Create callback.
+      inst._callback = function (e) {
+        if (e.target === element) {
+          inst.stop();
+          if (typeof done === 'function') {
+            done();
+          }
         }
-      }
-    };
+      };
 
-    // Bind callback.
-    element.addEventListener('transitionend', inst._callback, true);
+      // Bind callback.
+      element.addEventListener(transitionend, inst._callback, true);
 
-    // Make sure the current styles are applied before applying new styles.
-    element.offsetWidth;
+      // Set transition styles.
+      setStyles(element, transitionStyles);
 
-    // Set target styles.
-    setStyles(element, styles);
+      // Make sure the current styles are applied before applying new styles.
+      element.offsetWidth;
+
+      // Set target styles.
+      setStyles(element, styles);
+
+    }
 
   };
 
@@ -2283,6 +1766,7 @@ TODO v0.6.0
     var callback = inst._callback;
     var props = inst._props;
     var transPropName = transition.propName;
+    var transitionStyles = {};
     var styles = {};
     var i;
 
@@ -2291,7 +1775,7 @@ TODO v0.6.0
 
       // Unbind transitionend listener.
       if (typeof callback === 'function') {
-        element.removeEventListener('transitionend', callback, true);
+        element.removeEventListener(transitionend, callback, true);
         inst._callback = null;
       }
 
@@ -2300,14 +1784,21 @@ TODO v0.6.0
         styles[props[i]] = getStyle(element, props[i]);
       }
 
-      // Reset transition props (add to styles object).
-      styles[transPropName + 'Property'] = '';
-      styles[transPropName + 'Duration'] = '';
-      styles[transPropName + 'Delay'] = '';
-      styles[transPropName + 'Easing'] = '';
+      // Reset transition props.
+      transitionStyles[transPropName + 'Property'] = 'none';
+      transitionStyles[transPropName + 'Duration'] = '';
+      transitionStyles[transPropName + 'Delay'] = '';
+      transitionStyles[transPropName + 'Easing'] = '';
 
-      // Set styles.
+      // Set final styles.
       setStyles(element, styles);
+
+      // Make sure the current styles are applied before removing the transition
+      // styles.
+      element.offsetWidth;
+
+      // Remove transition styles.
+      setStyles(element, transitionStyles);
 
       // Set animating state as false.
       inst._isAnimating = false;
@@ -2331,6 +1822,790 @@ TODO v0.6.0
     inst._isAnimating = null;
     inst._props = null;
     inst._callback = null;
+
+  };
+
+  /**
+   * Bind Hammer touch interaction to an item.
+   *
+   * @class
+   * @private
+   * @param {Item} item
+   */
+  function ItemDrag(item) {
+
+    // Check that we have Hammer.
+    if (!Hammer) {
+      throw Error('[' + libName + '] required dependency Hammer is not defined.');
+    }
+
+    var inst = this;
+    var stn = item._muuri._settings;
+    var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : ItemDrag._defaultDragStartPredicate;
+    var predicate = {
+      event: null,
+      isResolved: false,
+      isRejected: false,
+      reject: function () {
+        if (!predicate.isRejected && !predicate.isResolved) {
+          predicate.isRejected = true;
+        }
+      },
+      resolve: function (e) {
+        if (e === predicate.event && !predicate.isRejected && !predicate.isResolved) {
+          predicate.isResolved = true;
+          inst._onDragStart(e);
+        }
+      }
+    };
+    var hammer;
+
+    inst._item = item;
+    inst._hammer = hammer = new Hammer.Manager(item._element);
+
+    // Setup item's drag data.
+    inst._setupDragData();
+
+    // Setup item's release data.
+    inst._setupReleaseData();
+
+    // Setup overlap checker function.
+    inst._checkSortOverlap = debounce(function () {
+      if (inst._drag.isActive) {
+        inst._checkOverlap();
+      }
+    }, stn.dragSortInterval);
+
+    // Setup sort predicate.
+    inst._sortPredicate = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : ItemDrag._defaultSortPredicate;
+
+    // Setup drag scroll handler.
+    inst._scrollHandler = function (e) {
+      inst._onDragScroll(e);
+    };
+
+    // Add drag recognizer to hammer.
+    hammer.add(new Hammer.Pan({
+      event: 'drag',
+      pointers: 1,
+      threshold: 0,
+      direction: Hammer.DIRECTION_ALL
+    }));
+
+    // Add draginit recognizer to hammer.
+    hammer.add(new Hammer.Press({
+      event: 'draginit',
+      pointers: 1,
+      threshold: 100,
+      time: 0
+    }));
+
+    // This is not ideal, but saves us from a LOT of hacks. Let's try to keep
+    // the default drag setup consistent across devices.
+    hammer.set({touchAction: 'none'});
+
+    // Bind drag events.
+    hammer
+    .on('draginit', function (e) {
+
+      // Reset predicate.
+      predicate.isResolved = false;
+      predicate.isRejected = false;
+      predicate.event = e;
+
+      // Check predicate.
+      checkPredicate.call(item, e, predicate.resolve, predicate.reject);
+
+    })
+    .on('dragstart dragmove', function (e) {
+
+      // If predicate is rejected or drag is not active, return immediately.
+      if (predicate.isRejected || !inst._drag.isActive) {
+        return;
+      }
+
+      // If predicate is resolved, do the move.
+      if (predicate.isResolved) {
+        inst._onDragMove(e);
+      }
+      // Otherwise, check the predicate.
+      else {
+        predicate.event = e;
+        checkPredicate.call(item, e, predicate.resolve, predicate.reject);
+      }
+
+    })
+    .on('dragend dragcancel draginitup', function (e) {
+
+      // If predicate is resolved and dragging is active, do the end.
+      if (predicate.isResolved && inst._drag.isActive) {
+        inst._onDragEnd(e);
+      }
+
+    });
+
+  }
+
+  /**
+   * Default drag start predicate handler.
+   *
+   * @protected
+   * @memberof ItemDrag
+   * @param {Object} event
+   * @param {Function} resolve
+   * @param {Function} reject
+   */
+  ItemDrag._defaultDragStartPredicate = function (event, resolve, reject) {
+
+    resolve(event);
+
+  };
+
+  /**
+   * Default drag sort predicate.
+   *
+   * @protected
+   * @memberof ItemDrag
+   * @param {Item} targetItem
+   */
+  ItemDrag._defaultSortPredicate = function (targetItem) {
+
+    var muuri = targetItem._muuri;
+    var stn = muuri._settings;
+    var config = stn.dragSortPredicate || {};
+    var tolerance = config.tolerance || 50;
+    var action = config.action || 'move';
+    var items = muuri._items;
+    var drag = targetItem._drag;
+    var instData = {
+      width: drag._item._width,
+      height: drag._item._height,
+      left: Math.round(drag._drag.gridX) + drag._item._margin.left,
+      top: Math.round(drag._drag.gridY) + drag._item._margin.top
+    };
+    var targetIndex = 0;
+    var bestMatchScore = null;
+    var bestMatchIndex;
+    var overlapScore;
+    var itemData;
+    var item;
+    var i;
+
+    // Find best match (the element with most overlap).
+    for (i = 0; i < items.length; i++) {
+
+      item = items[i];
+
+      // If the item is the dragged item, save it's index.
+      if (item === targetItem) {
+
+        targetIndex = i;
+
+      }
+      // Otherwise, if the item is active.
+      else if (item._isActive) {
+
+        // Get marginless item data.
+        itemData = {
+          width: item._width,
+          height: item._height,
+          left: Math.round(item._left) + item._margin.left,
+          top: Math.round(item._top) + item._margin.top
+        };
+
+        // Get marginless overlap data.
+        overlapScore = getOverlapScore(instData, itemData);
+
+        // Update best match if the overlap score is higher than the current
+        // best match.
+        if (bestMatchScore === null || overlapScore > bestMatchScore) {
+          bestMatchScore = overlapScore;
+          bestMatchIndex = i;
+        }
+
+      }
+
+    }
+
+    // Check if the best match overlaps enough to justify a placement switch.
+    if (bestMatchScore !== null && bestMatchScore >= tolerance) {
+
+      return {
+        action: action,
+        from: targetIndex,
+        to: bestMatchIndex
+      };
+
+    }
+
+    return false;
+
+  };
+
+  /**
+   * Setup/reset drag data.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._setupDragData = function () {
+
+    // Create drag data object if it does not exist yet.
+    var drag = this._drag = this._drag || {};
+
+    // Is item being dragged?
+    drag.isActive = false;
+
+    // Hammer event data.
+    drag.startEvent = null;
+    drag.currentEvent = null;
+
+    // Dragged element's inline styles stored for graceful teardown.
+    drag.elementStyles = null;
+
+    // Scroll parents of the dragged element and muuri container.
+    drag.scrollParents = [];
+
+    // The current translateX/translateY position.
+    drag.left = 0;
+    drag.top = 0;
+
+    // Dragged element's current position within the grid.
+    drag.gridX = 0;
+    drag.gridY = 0;
+
+    // Dragged element's current offset from window's northwest corner. Does
+    // not account for element's margins.
+    drag.elementClientX = 0;
+    drag.elementClientY = 0;
+
+    // Offset difference between the dragged element's temporary drag
+    // container and it's original container.
+    drag.containerDiffX = 0;
+    drag.containerDiffY = 0;
+
+    return drag;
+
+  };
+
+  /**
+   * Setup/reset release data.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._setupReleaseData = function () {
+
+    // Create drag data object if it does not exist yet.
+    var release = this._release = this._release || {};
+
+    release.isActive = false;
+    release.isPositioningStarted = false;
+    release.containerDiffX = 0;
+    release.containerDiffY = 0;
+    release.element = null;
+    release.elementStyles = null;
+
+    return release;
+
+  };
+
+  /**
+   * Check (during drag) if an item is overlapping other items and based on
+   * the configuration do a relayout.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._checkOverlap = function () {
+
+    var result = this._sortPredicate(this._item);
+
+    if (result) {
+      this._item._muuri[result.action || 'move'](result.from, result.to);
+      this._item._muuri.layout();
+    }
+
+  };
+
+  /**
+   * Freeze dragged element's dimensions.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   * @param {Object} data
+   */
+  ItemDrag.prototype._freezeElement = function (data) {
+
+    var styleNames;
+    var styleName;
+    var i;
+
+    // Don't override existing element styles.
+    if (!data.elementStyles) {
+
+      styleNames = ['width', 'height', 'padding', 'margin'];
+
+      // Reset element styles.
+      data.elementStyles = {};
+
+      for (i = 0; i < 4; i++) {
+
+        styleName = styleNames[i];
+
+        // Store current inline style values.
+        data.elementStyles[styleName] = data.element.style[styleName] || '';
+
+        // Set effective values as inline styles.
+        data.element.style[styleName] = getStyle(data.element, styleName);
+
+      }
+
+    }
+
+  };
+
+  /**
+   * Unfreeze dragged element's dimensions.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   * @param {Object} data
+   */
+  ItemDrag.prototype._unfreezeElement = function (data) {
+
+    var styleNames;
+    var styleName;
+    var i;
+
+    if (data.elementStyles) {
+      styleNames = Object.keys(data.elementStyles);
+      for (i = 0; i < styleNames.length; i++) {
+        styleName = styleNames[i];
+        data.element.style[styleName] = data.elementStyles[styleName];
+      }
+      data.elementStyles = null;
+    }
+
+  };
+
+  /**
+   * Reset drag data and cancel any ongoing drag activity.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._resetDrag = function () {
+
+    var inst = this;
+    var item = inst._item;
+    var drag = inst._drag;
+    var stn = item._muuri._settings;
+    var i;
+
+    if (drag.isActive) {
+
+      // Remove scroll listeners.
+      for (i = 0; i < drag.scrollParents.length; i++) {
+        drag.scrollParents[i].removeEventListener('scroll', inst._scrollHandler);
+      }
+
+      // Cancel overlap check.
+      inst._checkSortOverlap('cancel');
+
+      // Remove draggin class.
+      removeClass(drag.element, stn.itemDraggingClass);
+
+      // Remove dragged element's inline styles.
+      inst._unfreezeElement(drag);
+
+      // Reset drag data.
+      inst._setupDragData();
+
+    }
+
+  };
+
+  /**
+   * Start the release process of an item.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._startRelease = function () {
+
+    var inst = this;
+    var item = inst._item;
+    var muuri = item._muuri;
+    var stn = muuri._settings;
+    var release = inst._release;
+
+    // Flag release as active.
+    release.isActive = true;
+
+    // Add release classname to released element.
+    addClass(release.element, stn.itemReleasingClass);
+
+    // Emit releasestart event.
+    muuri._emitter.emit(evReleaseStart, item);
+
+    // Position the released item.
+    item._layout(false);
+
+  };
+
+  /**
+   * End the release process of an item.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._endRelease = function () {
+
+    var inst = this;
+    var item = inst._item;
+    var muuri = item._muuri;
+    var stn = muuri._settings;
+    var release = inst._release;
+
+    // Remove release classname from the released element.
+    removeClass(release.element, stn.itemReleasingClass);
+
+    // If the released element is outside the muuri container put it back there
+    // and adjust position accordingly.
+    if (release.element.parentNode !== muuri._element) {
+      muuri._element.appendChild(release.element);
+      setStyles(release.element, {
+        transform: 'matrix(1,0,0,1,' + item._left + ',' + item._top + ')'
+      });
+    }
+
+    // Unlock temporary inlined styles.
+    inst._unfreezeElement(release);
+
+    // Reset release data.
+    inst._setupReleaseData();
+
+    // Emit releaseend event.
+    muuri._emitter.emit(evReleaseEnd, item);
+
+  };
+
+  /**
+   * Drag start handler.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._onDragStart = function (e) {
+
+    var inst = this;
+    var item = inst._item;
+    var muuri = item._muuri;
+    var stn = muuri._settings;
+    var drag = inst._drag;
+    var release = inst._release;
+    var currentLeft;
+    var currentTop;
+    var muuriContainer;
+    var dragContainer;
+    var offsetDiff;
+    var elementGBCR;
+    var i;
+
+    // If item is not active, don't start the drag.
+    if (!item._isActive) {
+      return;
+    }
+
+    // Stop current positioning animation.
+    if (item._isPositioning) {
+      item._stopLayout();
+    }
+
+    // If item is being released reset release data, remove release class and
+    // import the element styles from release data to drag data.
+    if (release.isActive) {
+      drag.elementStyles = release.elementStyles;
+      removeClass(item._element, stn.itemReleasingClass);
+      inst._setupReleaseData();
+    }
+
+    // Setup drag data.
+    drag.isActive = true;
+    drag.startEvent = e;
+    drag.currentEvent = e;
+    drag.element = item._element;
+
+    // Get element's current position.
+    currentLeft = getTranslateAsFloat(drag.element, 'x');
+    currentTop = getTranslateAsFloat(drag.element, 'y');
+
+    // Get container references.
+    muuriContainer = muuri._element;
+    dragContainer = stn.dragContainer;
+
+    // Set initial left/top drag value.
+    drag.left = drag.gridX = currentLeft;
+    drag.top = drag.gridY = currentTop;
+
+    // If a specific drag container is set and it is different from the
+    // default muuri container we need to cast some extra spells.
+    if (dragContainer && dragContainer !== muuriContainer) {
+
+      // If dragged element is already in drag container.
+      if (drag.element.parentNode === dragContainer) {
+
+        // Get offset diff.
+        offsetDiff = getContainerOffsetDiff(drag.element, muuriContainer);
+
+        // Store the container offset diffs to drag data.
+        drag.containerDiffX = offsetDiff.left;
+        drag.containerDiffY = offsetDiff.top;
+
+        // Set up relative drag position data.
+        drag.gridX = currentLeft - drag.containerDiffX;
+        drag.gridY = currentTop - drag.containerDiffY;
+
+      }
+
+      // If dragged element is not within the correct container.
+      else {
+
+        // Lock element's width, height, padding and margin before appending
+        // to the temporary container because otherwise the element might
+        // enlarge or shrink after the append procedure if the some of the
+        // properties are defined in relative sizes.
+        inst._freezeElement(drag);
+
+        // Append element into correct container.
+        dragContainer.appendChild(drag.element);
+
+        // Get offset diff.
+        offsetDiff = getContainerOffsetDiff(drag.element, muuriContainer);
+
+        // Store the container offset diffs to drag data.
+        drag.containerDiffX = offsetDiff.left;
+        drag.containerDiffY = offsetDiff.top;
+
+        // Set up drag position data.
+        drag.left = currentLeft + drag.containerDiffX;
+        drag.top = currentTop + drag.containerDiffY;
+
+        // Fix position to account for the append procedure.
+        setStyles(drag.element, {
+          transform: 'matrix(1,0,0,1,' + drag.left + ',' + drag.top + ')'
+        });
+
+      }
+
+    }
+
+    // Get and store element's current offset from window's northwest corner.
+    elementGBCR = drag.element.getBoundingClientRect();
+    drag.elementClientX = elementGBCR.left;
+    drag.elementClientY = elementGBCR.top;
+
+    // Get drag scroll parents.
+    drag.scrollParents = getScrollParents(drag.element);
+    if (dragContainer && dragContainer !== muuriContainer) {
+      drag.scrollParents = arrayUnique(drag.scrollParents.concat(getScrollParents(muuriContainer)));
+    }
+
+    // Bind scroll listeners.
+    for (i = 0; i < drag.scrollParents.length; i++) {
+      drag.scrollParents[i].addEventListener('scroll', inst._scrollHandler);
+    }
+
+    // Set drag class.
+    addClass(drag.element, stn.itemDraggingClass);
+
+    // Emit dragstart event.
+    muuri._emitter.emit(evDragStart, item);
+
+  };
+
+  /**
+   * Drag move handler.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._onDragMove = function (e) {
+
+    var inst = this;
+    var item = inst._item;
+    var muuri = item._muuri;
+    var stn = muuri._settings;
+    var drag = inst._drag;
+    var xDiff;
+    var yDiff;
+
+    // If item is not active, reset drag.
+    if (!item._isActive) {
+      inst._resetDrag();
+      return;
+    }
+
+    // Get delta difference from last dragmove event.
+    xDiff = e.deltaX - drag.currentEvent.deltaX;
+    yDiff = e.deltaY - drag.currentEvent.deltaY;
+
+    // Update current event.
+    drag.currentEvent = e;
+
+    // Update position data.
+    drag.left += xDiff;
+    drag.top += yDiff;
+    drag.gridX += xDiff;
+    drag.gridY += yDiff;
+    drag.elementClientX += xDiff;
+    drag.elementClientY += yDiff;
+
+    // Update element's translateX/Y values.
+    setStyles(drag.element, {
+      transform: 'matrix(1,0,0,1,' + drag.left + ',' + drag.top + ')'
+    });
+
+    // Overlap handling.
+    if (stn.dragSort) {
+      inst._checkSortOverlap();
+    }
+
+    // Emit item-dragmove event.
+    muuri._emitter.emit(evDragMove, item);
+
+  };
+
+  /**
+   * Drag scroll handler.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._onDragScroll = function () {
+
+    var inst = this;
+    var item = inst._item;
+    var muuri = item._muuri;
+    var stn = muuri._settings;
+    var drag = inst._drag;
+    var muuriContainer = muuri._element;
+    var dragContainer = stn.dragContainer;
+    var elementGBCR = drag.element.getBoundingClientRect();
+    var xDiff = drag.elementClientX - elementGBCR.left;
+    var yDiff = drag.elementClientY - elementGBCR.top;
+    var offsetDiff;
+
+    // Update container diff.
+    if (dragContainer && dragContainer !== muuriContainer) {
+
+      // Get offset diff.
+      offsetDiff = getContainerOffsetDiff(drag.element, muuriContainer);
+
+      // Store the container offset diffs to drag data.
+      drag.containerDiffX = offsetDiff.left;
+      drag.containerDiffY = offsetDiff.top;
+
+    }
+
+    // Update position data.
+    drag.left += xDiff;
+    drag.top += yDiff;
+    drag.gridX = drag.left - drag.containerDiffX;
+    drag.gridY = drag.top - drag.containerDiffY;
+
+    // Update element's translateX/Y values.
+    setStyles(drag.element, {
+      transform: 'matrix(1,0,0,1,' + drag.left + ',' + drag.top + ')'
+    });
+
+    // Overlap handling.
+    if (stn.dragSort) {
+      inst._checkSortOverlap();
+    }
+
+    // Emit item-dragscroll event.
+    muuri._emitter.emit(evDragScroll, item);
+
+  };
+
+  /**
+   * Drag end handler.
+   *
+   * @protected
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._onDragEnd = function () {
+
+    var inst = this;
+    var item = inst._item;
+    var muuri = item._muuri;
+    var stn = muuri._settings;
+    var drag = inst._drag;
+    var release = inst._release;
+    var i;
+
+    // If item is not active, reset drag.
+    if (!item._isActive) {
+      inst._resetDrag();
+      return;
+    }
+
+    // Finish currently queued overlap check.
+    if (stn.dragSort) {
+      inst._checkSortOverlap('finish');
+    }
+
+    // Remove scroll listeners.
+    for (i = 0; i < drag.scrollParents.length; i++) {
+      drag.scrollParents[i].removeEventListener('scroll', inst._scrollHandler);
+    }
+
+    // Remove drag classname from element.
+    removeClass(drag.element, stn.itemDraggingClass);
+
+    // Emit item-dragend event.
+    muuri._emitter.emit(evDragEnd, item);
+
+    // Setup release data.
+    release.containerDiffX = drag.containerDiffX;
+    release.containerDiffY = drag.containerDiffY;
+    release.element = drag.element;
+    release.elementStyles = drag.elementStyles;
+
+    // Reset drag data.
+    inst._setupDragData();
+
+    // Start the release process.
+    inst._startRelease();
+
+  };
+
+  /**
+   * Destroy instance.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype.destroy = function () {
+
+    var inst = this;
+    var item = inst._item;
+    var drag = inst._drag;
+    var release = inst._release;
+
+    // Append item element to the muuri container if it's not it's child.
+    if (release.isActive || drag.isActive) {
+      if (item._element.parentNode !== muuri._element) {
+        muuri._element.appendChild(item._element);
+      }
+    }
+
+    inst._setupReleaseData();
+    inst._resetDrag();
+
+    return inst;
 
   };
 
@@ -2380,9 +2655,9 @@ TODO v0.6.0
     for (i = 0; i < layout.items.length; i++) {
 
       item = layout.items[i];
-      slot = LayoutFirstFit.getSlot(layout, emptySlots, item._width, item._height, !isHorizontal, fillGaps);
+      slot = LayoutFirstFit.getSlot(layout, emptySlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
 
-      // Update layout height.
+      // Update layout width/height.
       if (isHorizontal) {
         layout.width = Math.max(layout.width, slot.left + slot.width);
       }
@@ -2715,6 +2990,7 @@ TODO v0.6.0
   /**
    * Swap array items.
    *
+   * @private
    * @param {Array} array
    * @param {Number} indexA
    * @param {Number} indexB
@@ -2730,6 +3006,7 @@ TODO v0.6.0
   /**
    * Move array item to another index.
    *
+   * @private
    * @param {Array} array
    * @param {Number} fromIndex
    * @param {Number} toIndex
@@ -2743,6 +3020,7 @@ TODO v0.6.0
   /**
    * Returns a new duplicate free version of the provided array.
    *
+   * @private
    * @param {Array} array
    * @returns {Array}
    */
@@ -2768,6 +3046,7 @@ TODO v0.6.0
   /**
    * Check if a value is a plain object.
    *
+   * @private
    * @param {*} val
    * @returns {Boolean}
    */
@@ -2778,11 +3057,26 @@ TODO v0.6.0
   }
 
   /**
+   * Check if a value is a node list
+   *
+   * @private
+   * @param {*} val
+   * @returns {Boolean}
+   */
+  function isNodeList(val) {
+
+    var type = Object.prototype.toString.call(val);
+    return type === '[object HTMLCollection]' || type === '[object NodeList]';
+
+  }
+
+  /**
    * Merge properties of provided objects. The first argument is considered as
    * the destination object which inherits the properties of the
    * following argument objects. Merges object properties recursively if the
    * property's type is object in destination object and the source object.
    *
+   * @private
    * @param {Object} dest
    * @param {...Object} sources
    * @returns {Object} Returns the destination object.
@@ -2815,6 +3109,7 @@ TODO v0.6.0
    * waiting to be called, and when being "cancel" cancels the currently queued
    * function call.
    *
+   * @private
    * @param {Function} fn
    * @param {Number} wait
    * @returns {Function}
@@ -2853,6 +3148,7 @@ TODO v0.6.0
   /**
    * Returns the computed value of an element's style property as a string.
    *
+   * @private
    * @param {HTMLElement} element
    * @param {String} style
    * @returns {String}
@@ -2886,6 +3182,7 @@ TODO v0.6.0
    * Returns the element's computed translateX/Y value as a float. Assumes that
    * the translate value is defined as pixels.
    *
+   * @private
    * @param {HTMLElement} element
    * @param {String} axis
    *   - "x" or "y".
@@ -2900,6 +3197,7 @@ TODO v0.6.0
   /**
    * Set inline styles to an element.
    *
+   * @private
    * @param {HTMLElement} element
    * @param {Object} styles
    */
@@ -2932,6 +3230,7 @@ TODO v0.6.0
   /**
    * Check if an element has a specific class name.
    *
+   * @private
    * @param {HTMLElement} element
    * @param {String} className
    * @returns {Boolean}
@@ -2945,6 +3244,7 @@ TODO v0.6.0
   /**
    * Add class to an element.
    *
+   * @private
    * @param {HTMLElement} element
    * @param {String} className
    */
@@ -2962,7 +3262,9 @@ TODO v0.6.0
   /**
    * Remove class name from an element.
    *
+   * @private
    * @param {HTMLElement} element
+   * @param {String} className
    */
   function removeClass(element, className) {
 
@@ -3017,21 +3319,59 @@ TODO v0.6.0
   }
 
   /**
-   * Calculate the offset difference between target's containing block and the
-   * anchor.
+   * Returns the supported transition end event name.
    *
-   * @param {HTMLElement} target
+   * @private
+   * @returns {?String}
+   */
+  function getTransitionEnd() {
+
+    var events = [
+      ['WebkitTransition', 'webkitTransitionEnd'],
+      ['MozTransition', 'transitionend'],
+      ['OTransition', 'oTransitionEnd otransitionend'],
+      ['transition', 'transitionend']
+    ];
+
+    for (var i = 0; i < 4; i++) {
+      if (document.body.style[events[i][0]] !== undefined) {
+        return events[i][1];
+      }
+    }
+
+    return null;
+
+  }
+
+  /**
+   * Calculate the offset difference between an element's containing block
+   * element and another element.
+   *
+   * @private
+   * @param {HTMLElement} element
    * @param {HTMLElement} anchor
    * @returns {PlaceData}
    */
-  function getOffsetDiff(target, anchor) {
+  function getContainerOffsetDiff(element, anchor) {
 
-    var anchorOffset = getOffsetFromDocument(anchor, 'margin');
-    var targetOffset = getOffsetFromDocument(getContainingBlock(target) || document, 'padding');
+    var container = getContainingBlock(element) || document;
+    var ret = {
+      left: 0,
+      top: 0
+    };
+    var containerOffset;
+    var anchorOffset;
+
+    if (container === anchor) {
+      return ret;
+    }
+
+    containerOffset = getOffsetFromDocument(container, 'padding');
+    anchorOffset = getOffsetFromDocument(anchor, 'padding');
 
     return {
-      left: anchorOffset.left - targetOffset.left,
-      top: anchorOffset.top - targetOffset.top
+      left: anchorOffset.left - containerOffset.left,
+      top: anchorOffset.top - containerOffset.top
     };
 
   }
@@ -3047,6 +3387,7 @@ TODO v0.6.0
    * Borrowed from jQuery UI library (and heavily modified):
    * https://github.com/jquery/jquery-ui/blob/63448148a217da7e64c04b21a04982f0d64aabaa/ui/scroll-parent.js
    *
+   * @private
    * @param {HTMLElement} element
    * @returns {Array}
    */
@@ -3127,7 +3468,8 @@ TODO v0.6.0
    *
    * @private
    * @returns {Boolean}
-   *   - Returns true if transformed elements leak fixed elements, false otherwise.
+   *   - Returns true if transformed elements leak fixed elements, false
+   *     otherwise.
    */
   function doesTransformLeakFixed() {
 
@@ -3166,7 +3508,7 @@ TODO v0.6.0
     outer.appendChild(inner);
     document.body.appendChild(outer);
     leftNotTransformed = inner.getBoundingClientRect().left;
-    outer.style[transform.propName] = 'translateX(0)';
+    outer.style[transform.propName] = 'scaleX(1)';
     leftTransformed = inner.getBoundingClientRect().left;
     document.body.removeChild(outer);
 
@@ -3201,7 +3543,7 @@ TODO v0.6.0
    * Borrowed from Mezr (v0.6.1):
    * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L274
    *
-   * @public
+   * @private
    * @param {Document|HTMLElement|Window} element
    * @returns {?Document|HTMLElement|Window}
    */
@@ -3276,7 +3618,7 @@ TODO v0.6.0
    * Borrowed from Mezr (v0.6.1):
    * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L1006
    *
-   * @public
+   * @private
    * @param {Document|HTMLElement|Window} element
    * @param {Edge} [edge='border']
    * @returns {Object}
@@ -3343,101 +3685,6 @@ TODO v0.6.0
    */
 
   /**
-   * Return parsed drag event data.
-   *
-   * @param {String} type
-   * @param {Object} event
-   * @param {Object} drag
-   * @returns {Object}
-   */
-  function generateDragEvent(type, event, drag) {
-
-    return {
-      type: type,
-      event: event,
-      currentLeft: drag.left,
-      currentTop: drag.top,
-      gridLeft: drag.gridX,
-      gridTop: drag.gridY
-    };
-
-  }
-
-  /**
-   * Default drag start predicate handler. The context of the function is
-   * always a temporary object which is gets reset on each draginit event.
-   *
-   * @param {Object} e
-   * @param {Item} item
-   * @param {Function} resolve
-   */
-  function dragPredicate(e, item, resolve) {
-
-    if (!this.isResolved) {
-      this.isResolved = true;
-      resolve(e);
-    }
-
-  }
-
-  /**
-   * Lock dragged element's dimensions.
-   *
-   * @param {Object} data
-   */
-  function lockElementSize(data) {
-
-    var styleNames;
-    var styleName;
-    var i;
-
-    // Don't override existing element styles.
-    if (!data.elementStyles) {
-
-      styleNames = ['width', 'height', 'padding', 'margin'];
-
-      // Reset element styles.
-      data.elementStyles = {};
-
-      for (i = 0; i < 4; i++) {
-
-        styleName = styleNames[i];
-
-        // Store current inline style values.
-        data.elementStyles[styleName] = data.element.style[styleName] || '';
-
-        // Set effective values as inline styles.
-        data.element.style[styleName] = getStyle(data.element, styleName);
-
-      }
-
-    }
-
-  }
-
-  /**
-   * Unlock dragged element's dimensions.
-   *
-   * @param {Object} data
-   */
-  function unlockElementSize(data) {
-
-    var styleNames;
-    var styleName;
-    var i;
-
-    if (data.elementStyles) {
-      styleNames = Object.keys(data.elementStyles);
-      for (i = 0; i < styleNames.length; i++) {
-        styleName = styleNames[i];
-        data.element.style[styleName] = data.elementStyles[styleName];
-      }
-      data.elementStyles = null;
-    }
-
-  }
-
-  /**
    * Show or hide Muuri instance's items.
    *
    * @private
@@ -3449,7 +3696,7 @@ TODO v0.6.0
    */
   function setVisibility(inst, method, items, instant, callback) {
 
-    var targetItems = inst.get(items);
+    var targetItems = inst.getItems(items);
     var cb = typeof instant === 'function' ? instant : callback;
     var counter = targetItems.length;
     var isShow = method === 'show';
@@ -3518,7 +3765,7 @@ TODO v0.6.0
       // Relayout only if needed.
       if (needsRelayout) {
         if (hiddenItems.length) {
-          inst.refresh(hiddenItems);
+          inst.refreshItems(hiddenItems);
         }
         inst.layout();
       }
@@ -3589,89 +3836,10 @@ TODO v0.6.0
   }
 
   /**
-   * Default handler for drag sort event.
-   *
-   * @private
-   * @param {Item} targetItem
-   */
-  function dragSortHandler(targetItem) {
-
-    var muuri = targetItem._muuri;
-    var stn = muuri._settings;
-    var config = stn.dragSortPredicate || {};
-    var tolerance = config.tolerance || 50;
-    var action = config.action || 'move';
-    var items = muuri._items;
-    var drag = targetItem._drag;
-    var instData = {
-      width: drag.item._width - drag.item._margin.left - drag.item._margin.right,
-      height: drag.item._height - drag.item._margin.top - drag.item._margin.bottom,
-      left: drag.gridX + drag.item._margin.left,
-      top: drag.gridY + drag.item._margin.top
-    };
-    var targetIndex = 0;
-    var bestMatchScore = null;
-    var bestMatchIndex;
-    var overlapScore;
-    var itemData;
-    var item;
-    var i;
-
-    // Find best match (the element with most overlap).
-    for (i = 0; i < items.length; i++) {
-
-      item = items[i];
-
-      // If the item is the dragged item, save it's index.
-      if (item === targetItem) {
-
-        targetIndex = i;
-
-      }
-      // Otherwise, if the item is active.
-      else if (item._isActive) {
-
-        // Get marginless item data.
-        itemData = {
-          width: item._width - item._margin.left - item._margin.right,
-          height: item._height - item._margin.top - item._margin.bottom,
-          left: item._left + item._margin.left,
-          top: item._top + item._margin.top
-        };
-
-        // Get marginless overlap data.
-        overlapScore = getOverlapScore(instData, itemData);
-
-        // Update best match if the overlap score is higher than the current
-        // best match.
-        if (bestMatchScore === null || overlapScore > bestMatchScore) {
-          bestMatchScore = overlapScore;
-          bestMatchIndex = i;
-        }
-
-      }
-
-    }
-
-    // Check if the best match overlaps enough to justify a placement switch.
-    if (bestMatchScore !== null && bestMatchScore >= tolerance) {
-
-      return {
-        action: action,
-        from: targetIndex,
-        to: bestMatchIndex
-      };
-
-    }
-
-    return false;
-
-  }
-
-  /**
    * Calculate how many percent the intersection area of two items is from the
    * maximum potential intersection area between the items.
    *
+   * @private
    * @param {Object} a
    * @param {Object} b
    * @returns {Number}

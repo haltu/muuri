@@ -27,7 +27,7 @@
   "devDependencies": {
     "dotenv": "^2.0.0",
     "gulp": "^3.9.1",
-    "gulp-jscs": "^3.0.0",
+    "gulp-eslint": "^3.0.1",
     "gulp-rename": "^1.2.2",
     "gulp-size": "^2.1.0",
     "gulp-uglify": "^1.5.3",

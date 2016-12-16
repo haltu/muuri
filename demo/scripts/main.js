@@ -61,8 +61,9 @@ $(function () {
       grid = new Muuri({
         container: $grid.get(0),
         items: generateElements(20),
+        layoutDuration: 0,
+        dragReleaseDuration: 0,
         dragEnabled: true,
-        dragReleaseEasing: 'ease-in',
         dragContainer: document.body
       });
 
@@ -95,7 +96,7 @@ $(function () {
   function show() {
 
     if (grid) {
-      grid.show(grid.get('inactive').slice(0, 5), function (items) {
+      grid.show(grid.getItems('inactive').slice(0, 5), function (items) {
         console.log('CALLBACK: Hide ' + items.length + ' items');
       });
     }
@@ -105,7 +106,7 @@ $(function () {
   function hide() {
 
     if (grid) {
-      grid.hide(grid.get('active').slice(0, 5), function (items) {
+      grid.hide(grid.getItems('active').slice(0, 5), function (items) {
         console.log('CALLBACK: Hide ' + items.length + ' items');
       });
     }
@@ -129,7 +130,7 @@ $(function () {
   function remove() {
 
     if (grid) {
-      grid.hide(grid.get('active').slice(0, 5), function (items) {
+      grid.hide(grid.getItems('active').slice(0, 5), function (items) {
         grid.remove(items, true);
         console.log('CALLBACK: Removed ' + items.length + ' items');
       });

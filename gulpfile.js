@@ -1,7 +1,7 @@
 var package = require('./package.json');
 var fs = require('fs');
 var gulp = require('gulp');
-var jscs = require('gulp-jscs');
+var eslint = require('gulp-eslint');
 var karma = require('karma');
 var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
@@ -21,12 +21,13 @@ if (fileExists('./.env')) {
   require('dotenv').load();
 }
 
-gulp.task('validate', function () {
+gulp.task('lint', function () {
 
   return gulp
   .src(package.main)
-  .pipe(jscs())
-  .pipe(jscs.reporter());
+  .pipe(eslint())
+  .pipe(eslint.format())
+  .pipe(eslint.failAfterError());
 
 });
 
@@ -69,10 +70,10 @@ gulp.task('clean', function (cb) {
 gulp.task('default', function (done) {
 
   if (process.env.CI) {
-    runSequence('validate', 'compress', 'test', 'clean', done);
+    runSequence('lint', 'compress', 'test', 'clean', done);
   }
   else {
-    runSequence('validate', 'compress', 'test', done);
+    runSequence('lint', 'compress', 'test', done);
   }
 
 });

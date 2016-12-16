@@ -16,6 +16,7 @@ html.dragging body {
 .grid {
   position: relative;
   margin: 20px 0;
+  padding: 0 5px 5px 0;
   border: 5px solid #ff0000;
   -moz-box-sizing: content-box;
   -webkit-box-sizing: content-box;
@@ -23,10 +24,10 @@ html.dragging body {
 }
 .item {
   position: absolute;
-  width: 100px;
-  height: 100px;
-  line-height: 100px;
-  margin: 5px;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  margin: 5px 0 0 5px;
   z-index: 1;
 }
 .item.muuri-dragging,
@@ -40,11 +41,11 @@ html.dragging body {
   z-index: 0;
 }
 .item.h2 {
-  height: 210px;
-  line-height: 210px;
+  height: 85px;
+  line-height: 85px;
 }
 .item.w2 {
-  width: 210px;
+  width: 85px;
 }
 .item-content {
   position: relative;
@@ -61,22 +62,7 @@ html.dragging body {
   font-size: 24px;
   background: #000;
   color: #fff;
-  -moz-transform: scale(1) translateZ(0);
-  -webkit-transform: scale(1) translateZ(0);
-  -o-transform: scale(1) translateZ(0);
-  -ms-transform: scale(1) translateZ(0);
-  transform: scale(1) translateZ(0);
-  -webkit-transition: -webkit-transform 0.2s ease-out, background-color 0.2s ease-out;
-  -moz-transition: -moz-transform 0.2s ease-out, background-color 0.2s ease-out;
-  -ms-transition: -ms-transform 0.2s ease-out, background-color 0.2s ease-out;
-  -o-transition: -o-transform 0.2s ease-out, background-color 0.2s ease-out;
-  transition: transform 0.2s ease-out, background-color 0.2s ease-out;
 }
-.item.muuri-dragging .item-stuff {
+.item.muuri-item-dragging .item-stuff {
   background: #ff0000;
-  -moz-transform: scale(1.1) translateZ(0);
-  -webkit-transform: scale(1.1) translateZ(0);
-  -o-transform: scale(1.1) translateZ(0);
-  -ms-transform: scale(1.1) translateZ(0);
-  transform: scale(1.1) translateZ(0);
 }

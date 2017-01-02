@@ -11,39 +11,41 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 * [Getting started](#getting-started)
 * [Options](#options)
 * [Methods](#methods)
-  * [muuri.on( event, listener )](#muurion-event-listener-)
-  * [muuri.off( eventName, listener )](#muurioff-eventname-listener-)
-  * [muuri.refresh( [targets] )](#muurirefresh-targets-)
-  * [muuri.get( [targets], [state] )](#muuriget-targets-state-)
-  * [muuri.add( elements, [index] )](#muuriadd-elements-index-)
-  * [muuri.remove( targets, [removeElement] )](#muuriremove-targets-removeelement-)
-  * [muuri.synchronize()](#muurisynchronize)
-  * [muuri.layout( [instant], [callback] )](#muurilayout-instant-callback-)
-  * [muuri.show( targets, [instant], [callback] )](#muurishow-targets-instant-callback-)
-  * [muuri.hide( targets, [instant], [callback] )](#muurihide-targets-instant-callback-)
-  * [muuri.indexOf( target )](#muuriindexof-target-)
-  * [muuri.move( targetFrom, targetTo )](#muurimove-targetfrom-targetto-)
-  * [muuri.swap( targetA, targetB )](#muuriswap-targeta-targetb-)
-  * [muuri.destroy()](#muuridestroy)
+  * [on](#on)
+  * [off](#off)
+  * [refresh](#refresh)
+  * [refreshItems](#refreshitems)
+  * [layoutItems](#layoutitems)
+  * [synchronizeItems](#synchronizeitems)
+  * [getItems](#getitems)
+  * [getItemIndex](#getitemindex)
+  * [addItems](#additems)
+  * [removeItems](#removeitems)
+  * [showItems](#showitems)
+  * [hideItems](#hideitems)
+  * [moveItem](#moveitem)
+  * [swapItem](#swapitem)
+  * [destroy](#muuridestroy)
 * [Events](#events)
   * [refresh](#refresh)
-  * [synchronize](#synchronize)
-  * [layoutstart](#layoutstart)
-  * [layoutend](#layoutend)
-  * [showstart](#showstart)
-  * [showend](#showend)
-  * [hidestart](#hidestart)
-  * [hideend](#hideend)
-  * [move](#move)
-  * [swap](#swap)
-  * [add](#add)
-  * [remove](#remove)
-  * [dragstart](#dragstart)
-  * [dragmove](#dragmove)
-  * [dragscroll](#dragscroll)
-  * [dragend](#dragend)
-  * [releasestart](#releasestart)
-  * [releaseend](#releaseend)
+  * [refreshItems](#refreshitems)
+  * [layoutItemsStart](#layoutitemsstart)
+  * [layoutItemsEnd](#layoutitemsend)
+  * [synchronizeItems](#synchronizeitems)
+  * [addItems](#additems)
+  * [removeItems](#removeitems)
+  * [showItemsStart](#showitemsstart)
+  * [showItemsEnd](#showitemsend)
+  * [hideItemsStart](#hideitemsstart)
+  * [hideItemsEnd](#hideitemsend)
+  * [moveItem](#moveitem)
+  * [swapItem](#swapitem)
+  * [dragItemStart](#dragsitemtart)
+  * [dragItemMove](#dragitemmove)
+  * [dragItemScroll](#dragitemscroll)
+  * [dragItemEnd](#dragitemend)
+  * [releaseItemStart](#releaseitemstart)
+  * [releaseItemEnd](#releaseitemend)
   * [destroy](#destroy)
 * [License](#license)
 
@@ -91,6 +93,7 @@ Muuri has an optional dependency on Hammer.js (required only if you are using th
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*, unless of course the elements have their display set to *block* inherently.
 * The item elements must not have any CSS transitions or animations applied to them since Muuri already applies CSS transitions to them internally.
 * You can control the gaps between the tiles by giving some margin to the item elements.
+* Normally an absolutely positioned element is positioned relative to the containing element's content with padding included, but Muuri's items are positioned relative to the grid element's content with padding excluded (intentionally) to allow more control over the items' gutter spacing.
 
 ```css
 .grid {
@@ -135,9 +138,9 @@ var grid = new Muuri({
 * **`container`** &nbsp;&mdash;&nbsp; *element*
   * Default value: `null`.
   * The container element. Must be always defined.
-* **`items`** &nbsp;&mdash;&nbsp; *array of elements*
+* **`items`** &nbsp;&mdash;&nbsp; *array of elements* / *node list*
   * Default value: `null`.
-  * The initial item elements wrapped in an array. The elements must be children of the container element.
+  * The initial item elements wrapped in an array. The elements must be children of the container element. Can also be a live node list, Muuri automatically converts it to an array.
 * **`show`** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, transform: 'scale(1)'}}`.
   * The object should contain *duration*, *easing* and/or *style* properties. Set to *null* to disable the animation.
@@ -151,7 +154,7 @@ var grid = new Muuri({
   * Default value: `{opacity: 1, transform: 'scale(1)'}`.
   * A hash of the animated style properties and their target values for show animation.
 * **`hide`** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{duration: 300, easing: 'ease-out', styles: {opacity: 0, transform: 'scale(0.5)'}}`.
+  * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 0, transform: 'scale(0.5)'}}`.
   * The object should contain *duration*, *easing* and/or *style* properties. Set to *null* to disable the animation.
 * **`hide.duration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
@@ -162,20 +165,16 @@ var grid = new Muuri({
 * **`hide.styles`** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{opacity: 0, transform: 'scale(0.5)'}`.
   * A hash of the animated style properties and their target values for show animation.
-* **`layout`** &nbsp;&mdash;&nbsp; *array / function / string*
-  * Default value: `'firstFit'`.
-  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `'firstFit'`.
-  * The array syntax is the only way to use the built-in layout methods and provide arguments for them. The first value should be a string (name of the method) and the second value (optional) should be a configuration object, e.g. `['firstFit', {horizontal: true}]`.
-  * You can always just provide a function which will receive a `Muuri.Layout` instance as it's context which you can manipulate as much as you want to get the items to the wanted positions. More info about rolling your own layout method is coming up later on, but in the meantime you can check the source code and see how the default method is implemented.
-  * Available methods and related settings:
-    * `'firstFit'`
-      * `horizontal` (type: *boolean*, default: `false`)
+* **`layout`** &nbsp;&mdash;&nbsp; *function / object*
+  * Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
+  * Configure the default layout algorithm or provide your own layout algorithm with a function.
+      * `layout.horizontal` (type: *boolean*, default: `false`)
         *  When `true` the grid works in landscape mode (grid expands to the right). Use for horizontally scrolling sites. When `false` the grid works in "portrait" mode and expands downwards.
-      * `alignRight` (type: *boolean*, default: `false`)
+      * `layout.alignRight` (type: *boolean*, default: `false`)
         * When `true` the items are aligned from right to left.
-      * `alignBottom` (type: *boolean*, default: `false`)
+      * `layout.alignBottom` (type: *boolean*, default: `false`)
         * When `true` the items are aligned from the bottom up.
-      * `fillGaps` (type: *boolean*, default: `false`)
+      * `layout.fillGaps` (type: *boolean*, default: `false`)
         * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this options is `false` which basically means that the following condition will be always true when calculating the layout (assuming `alignRight` and `alignBottom` are `false`): `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
 * **`layoutOnResize`** &nbsp;&mdash;&nbsp; *null / number*
   * Default value: `100`.
@@ -186,7 +185,7 @@ var grid = new Muuri({
 * **`layoutDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * The duration for item's positioning animation in milliseconds. Set to `0` to disable.
-* **`layoutEasing`** &nbsp;&mdash;&nbsp; *string / array*
+* **`layoutEasing`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `'ease'`.
   * The easing for item's positioning animation. Accepts any valid CSS transition easing value.
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
@@ -195,9 +194,15 @@ var grid = new Muuri({
 * **`dragContainer`** &nbsp;&mdash;&nbsp; *null / element*
   * Default value: `null`.
   * Which item should the dragged item be appended to for the duration of the drag? If `null` is provided the item's muuri container element will be used.
-* **`dragPredicate`** &nbsp;&mdash;&nbsp; *null / function*
+* **`dragStartPredicate`** &nbsp;&mdash;&nbsp; *null / function*
   * Default value: `null`.
   * A function that determines when dragging should start. Set to null to use the default predicate.
+  * The predicate function receives four arguments:
+    * **item** - the item instance that's being dragged
+    * **event** - the drag event (Hammer.js event).
+    * **resolve** - the resolve function that should be called when dragging is allowed to begin.
+    * **reject** - the reject function that should be called when you know for sure that dragging can't start anymore during the current drag procedure. This prevents item dragging starting during current drag procedure.
+  * Here's an example predicate that allows an item to be a link that can be clicked and also dragged.
 * **`dragSort`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
   * Should the items be sorted during drag?

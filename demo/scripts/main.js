@@ -38,10 +38,12 @@ $(function () {
       innerDiv.setAttribute('class', 'item-content');
       innerDiv.appendChild(stuffDiv);
 
-      var outerDiv = document.createElement('div');
+      var outerDiv = document.createElement('a');
       var width = Math.floor(Math.random() * 2) + 1;
       var height = Math.floor(Math.random() * 2) + 1;
       outerDiv.setAttribute('class', 'item h' + height + ' w' + width);
+      outerDiv.setAttribute('href', 'http://google.com');
+      outerDiv.setAttribute('target', '_blank');
       outerDiv.appendChild(innerDiv);
 
       ret.push(outerDiv);
@@ -61,21 +63,33 @@ $(function () {
       grid = new Muuri({
         container: $grid.get(0),
         items: generateElements(20),
-        layoutDuration: 0,
-        dragReleaseDuration: 0,
         dragEnabled: true,
-        dragContainer: document.body
+        dragContainer: document.body,
+        dragStartPredicate: function (item, event, predicate) {
+          var isLastEvent = event.type === 'draginitup' || event.type === 'dragend' || event.type === 'dragcancel';
+          if (isLastEvent && !predicate.isResolved()) {
+            window.location.href = item._element.getAttribute('href');
+          }
+          else if (event.distance > 5 || item._drag._release.isActive) {
+            predicate.resolve();
+          }
+        }
       });
 
       grid
-      .on('dragstart', function () {
+      .on('dragItemStart', function () {
         ++dragCounter;
         $root.addClass('dragging');
       })
-      .on('dragend', function () {
+      .on('dragItemEnd', function () {
         if (--dragCounter < 1) {
           $root.removeClass('dragging');
         }
+      });
+
+      // Don't follow links of items automatically.
+      $(document).on('click', '.item', function (e) {
+        e.preventDefault();
       });
 
     }
@@ -96,7 +110,7 @@ $(function () {
   function show() {
 
     if (grid) {
-      grid.show(grid.getItems('inactive').slice(0, 5), function (items) {
+      grid.showItems(grid.getItems('inactive').slice(0, 5), function (items) {
         console.log('CALLBACK: Hide ' + items.length + ' items');
       });
     }
@@ -106,7 +120,7 @@ $(function () {
   function hide() {
 
     if (grid) {
-      grid.hide(grid.getItems('active').slice(0, 5), function (items) {
+      grid.hideItems(grid.getItems('active').slice(0, 5), function (items) {
         console.log('CALLBACK: Hide ' + items.length + ' items');
       });
     }
@@ -120,7 +134,7 @@ $(function () {
       items.forEach(function (item) {
         item.style.display = 'none';
       });
-      grid.show(grid.add(items), function (items) {
+      grid.showItems(grid.addItems(items), function (items) {
         console.log('CALLBACK: Added ' + items.length + ' items');
       });
     }
@@ -130,8 +144,8 @@ $(function () {
   function remove() {
 
     if (grid) {
-      grid.hide(grid.getItems('active').slice(0, 5), function (items) {
-        grid.remove(items, true);
+      grid.hideItems(grid.getItems('active').slice(0, 5), function (items) {
+        grid.removeItems(items, true);
         console.log('CALLBACK: Removed ' + items.length + ' items');
       });
     }
@@ -141,7 +155,7 @@ $(function () {
   function layout() {
 
     if (grid) {
-      grid.layout(function () {
+      grid.layoutItems(function () {
         console.log('CALLBACK: Layout');
       });
     }
@@ -151,7 +165,7 @@ $(function () {
   function refresh() {
 
     if (grid) {
-      grid.refresh();
+      grid.refresh().refreshItems();
     }
 
   }
@@ -159,7 +173,7 @@ $(function () {
   function synchronize() {
 
     if (grid) {
-      grid.synchronize();
+      grid.synchronizeItems();
     }
 
   }

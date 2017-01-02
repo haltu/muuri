@@ -11,11 +11,17 @@ html.dragging body {
   user-select: none;
 }
 
+/* Controls */
+
+.controls {
+  margin: 20px;
+}
+
 /* Grid */
 
 .grid {
   position: relative;
-  margin: 20px 0;
+  margin: 20px;
   padding: 0 5px 5px 0;
   border: 5px solid #ff0000;
   -moz-box-sizing: content-box;
@@ -23,10 +29,11 @@ html.dragging body {
   box-sizing: content-box;
 }
 .item {
+  display: block;
   position: absolute;
-  width: 40px;
-  height: 40px;
-  line-height: 40px;
+  width: 80px;
+  height: 80px;
+  line-height: 80px;
   margin: 5px 0 0 5px;
   z-index: 1;
 }
@@ -41,11 +48,11 @@ html.dragging body {
   z-index: 0;
 }
 .item.h2 {
-  height: 85px;
-  line-height: 85px;
+  height: 165px;
+  line-height: 165px;
 }
 .item.w2 {
-  width: 85px;
+  width: 165px;
 }
 .item-content {
   position: relative;

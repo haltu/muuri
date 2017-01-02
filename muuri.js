@@ -40,46 +40,47 @@ TODO v0.3.0
 * [x] Try to build tiny custom functions to replace mezr.
 * [x] Create an ESLint config for the project.
 * [x] UMD module definition.
-* [?] Bug in Edge: sometimes the items are laid out wrong after dragging.
-      Seems to be related to the animation engine since it occurs also when
-      resizing the screen. (needs more testing and a reduced test case).
 * [x] Idea make items attach to the container's padding edge. This way the
       container's padding can be used to create spacing. No need to add extra
       wrappers. While you're at it, cache container element's and item elements'
       dimensions and offsets. Should there be separate refresh event for items
       and the container element?
-* [ ] Should we drop the automatic layout after hide/show/remove/add? This way
-      the user would have more control over the UI.
-* [ ] Refactor the shit out of the codebase. Remove bloat -> streamline.
-* [ ] Stress test: 1000 items -> dragging should be smooth and layout
-      calculations fast. Compare to similar libraries and see how they perform.
-      Should be buttery smooth, but it's not... yet.
-      * [ ] Perf optimizations.
-            - https://medium.com/@xilefmai/efficient-javascript-14a11651d563#.49gifamju
-            - https://github.com/petkaantonov/bluebird/wiki/Optimization-killers
-      * [ ] Sluggish dragging on Firefox when items are transitioning. Caused by
-            the CSS Transitions. With Velocity.js this issue did not exist. How
-            to make CSS Transitions faster..?
-* [ ] Review the predicate and make sure it has all the data necessary for
-      smart handling. At the same time keeping it as simple as possible. Also
-      account for async resolving. If it supports async resolving there should
-      be methods for checking if the predicate is resolved/rejected.
-* [ ] Review API and simplify if necessary. Peer review would be coold too.
-* [ ] More unit tests.
+* [x] Test the dragStartPredicate system and adjust it accordingly. Think about
+      using a constructor to create a new Predicate handler whenever the
+      dragging starts. This way we could have asynchronous resolving also. Also
+      think about using a predicate object which has resolve/reject methods as
+      well as isResolved and isRejected methods. The methods should allow
+      controlling the start flow without too much hassle.
+* [ ] Memory leak: JS heap size grows a bit after each drag.
+* [ ] Long frames detected (<60fps) due to forced reflow. I guess there
+      is no way around that with CSS transitions. However, we can utilize
+      (again) the Element.animate API for the browsers that support it. That
+      should allow using CSS transitions without forced reflow. Remember to
+      measure the difference. Optimize animation flow to be as fast as possible.
+* [ ] Should we merge swap method to move method? Move method could have an
+      extra argument that defines how the item is moved.
+* [x] Should we get rid of getItemIndex method? It's probably rarely needed.
+      Yep, let's do it.
+* [ ] Update docs.
+* [ ] Update website.
+* [ ] Update unit tests.
 
 TODO v0.4.0
 ===========
-* [ ] Handle drag initiation similar to Packery. The drag events can be
-      bound/unbound on specific items. All in all, the drag handling stuff
-      shold be separated into it's own section since it's optional.
 * [ ] Allow dropping on empty slots (gaps).
-* [ ] Optional drag placeholder.
-* [ ] Stagger option(s) to achieve similar delayed animations as shuffle.js.
 * [ ] How to connect two or more Muuri instances o that items can be dragged
       from an instance to another. Check out draggable.js and dragula.js, they
       have implmented it.
+* [ ] Optional drag placeholder.
+* [ ] Stagger option(s) to achieve similar delayed animations as shuffle.js.
+* [ ] Speed optimization heuristics. Try to make layout/overlap check as fast
+      as possible by using smart heuristics. For example change the algorithm
+      based on the item sizes. If all items same size the algorithm can be
+      simplified. Do heavy lifting only when necessary.
 * [ ] How to use this with popular frameworks: React, Vue, Angular2, Ember,
       Meteor, etc...?
+* [ ] Format the codebase to use a strict codig style that can be easily
+      linted. This is needed for making it easier to contribute to the project.
 
 */
 
@@ -87,12 +88,7 @@ TODO v0.4.0
 
   var libName = 'Muuri';
 
-  if (typeof define === 'function' && define.amd) {
-    define(['Hammer'], function (Hammer) {
-      return factory(global, libName, Hammer);
-    });
-  }
-  else if (typeof module === 'object' && module.exports) {
+  if (typeof module === 'object' && module.exports) {
     module.exports = factory(global, libName, require('Hammer'));
   }
   else {
@@ -112,6 +108,9 @@ TODO v0.4.0
   var transition = getSupportedStyle('transition');
   var transitionend = getTransitionEnd();
 
+  // Check if the browser supports Element.animate method.
+  var supportsElementAnimate = typeof document.body.animate === 'function';
+
   // Do transformed elements leak fixed elements? According W3C specification
   // (about transform rendering) a transformed element should contain fixed
   // elements, but not every browser follows the spec. So we need to test it.
@@ -119,24 +118,24 @@ TODO v0.4.0
 
   // Event names.
   var evRefresh = 'refresh';
-  var evRefreshItems = 'refreshitems';
-  var evSynchronize = 'synchronize';
-  var evLayoutStart = 'layoutstart';
-  var evLayoutEnd = 'layoutend';
-  var evShowStart = 'showstart';
-  var evShowEnd = 'showend';
-  var evHideStart = 'hidestart';
-  var evHideEnd = 'hideend';
-  var evMove = 'move';
-  var evSwap = 'swap';
-  var evAdd = 'add';
-  var evRemove = 'remove';
-  var evDragStart = 'dragstart';
-  var evDragMove = 'dragmove';
-  var evDragScroll = 'dragscroll';
-  var evDragEnd = 'dragend';
-  var evReleaseStart = 'releasestart';
-  var evReleaseEnd = 'releaseend';
+  var evRefreshItems = 'refreshItems';
+  var evSynchronizeItems = 'synchronizeItems';
+  var evLayoutItemsStart = 'layoutItemsStart';
+  var evLayoutItemsEnd = 'layoutItemsEnd';
+  var evShowItemsStart = 'showItemsStart';
+  var evShowItemsEnd = 'showItemsEnd';
+  var evHideItemsStart = 'hideItemsStart';
+  var evHideItemsEnd = 'hideItemsEnd';
+  var evMoveItem = 'moveItem';
+  var evSwapItem = 'swapItem';
+  var evAddItems = 'addItems';
+  var evRemoveItems = 'removeItems';
+  var evDragItemStart = 'dragItemStart';
+  var evDragItemMove = 'dragItemMove';
+  var evDragItemScroll = 'dragItemScroll';
+  var evDragItemEnd = 'dragItemEnd';
+  var evReleaseItemStart = 'releaseItemStart';
+  var evReleaseItemEnd = 'releaseItemEnd';
   var evDestroy = 'destroy';
 
   /**
@@ -160,7 +159,11 @@ TODO v0.4.0
    * @param {Number} [settings.hide.duration=300]
    * @param {String} [settings.hide.easing="ease"]
    * @param {Object} [settings.hide.styles]
-   * @param {Array|Function|String} [settings.layout="firstfit"]
+   * @param {Function|Object} [settings.layout]
+   * @param {Boolean} [settings.layout.fillGaps=false]
+   * @param {Boolean} [settings.layout.horizontal=false]
+   * @param {Boolean} [settings.layout.alignRight=false]
+   * @param {Boolean} [settings.layout.alignBottom=false]
    * @param {!Number} [settings.layoutOnResize=100]
    * @param {Boolean} [settings.layoutOnInit=true]
    * @param {Number} [settings.layoutDuration=300]
@@ -224,7 +227,7 @@ TODO v0.4.0
     if (stn.layoutOnResize || stn.layoutOnResize === 0) {
 
       debounced = debounce(function () {
-        inst.refresh().refreshItems().layout();
+        inst.refresh().refreshItems().layoutItems();
       }, stn.layoutOnResize);
 
       inst._resizeHandler = function () {
@@ -237,14 +240,14 @@ TODO v0.4.0
 
     // Layout on init if enabled.
     if (stn.layoutOnInit) {
-      inst.layout(true);
+      inst.layoutItems(true);
     }
 
   }
 
   // Add all core constructors as static properties to Muuri constructor.
   Muuri.Item = Item;
-  Muuri.ItemDrag = ItemDrag;
+  Muuri.Drag = Drag;
   Muuri.Layout = Layout;
   Muuri.Animate = Animate;
   Muuri.Emitter = Emitter;
@@ -282,7 +285,12 @@ TODO v0.4.0
     },
 
     // Layout
-    layout: 'firstfit',
+    layout: {
+      fillGaps: false,
+      horizontal: false,
+      alignRight: false,
+      alignBottom: false
+    },
     layoutOnResize: 100,
     layoutOnInit: true,
     layoutDuration: 300,
@@ -494,6 +502,7 @@ TODO v0.4.0
     inst._offset.left = Math.round(rect.left);
     inst._offset.top = Math.round(rect.top);
 
+    // Emit refresh event.
     inst._emitter.emit(evRefresh);
 
     return inst;
@@ -519,7 +528,7 @@ TODO v0.4.0
       targetItems[i]._refresh();
     }
 
-    // Emit refresh event.
+    // Emit refreshitems event.
     inst._emitter.emit(evRefreshItems, targetItems);
 
     return inst;
@@ -535,7 +544,7 @@ TODO v0.4.0
    * process. As long as the item is inactive it will not be part of the layout,
    * but it will retain it's index. You can activate items at any point
    * with muuri.show() method. This method will automatically call
-   * muuri.layout() if one or more of the added elements are visible. If only
+   * muuri.layoutItems() if one or more of the added elements are visible. If only
    * hidden items are added no layout will be called. All the new visible items
    * are positioned without animation during their first layout.
    *
@@ -545,14 +554,13 @@ TODO v0.4.0
    * @param {Number} [index=-1]
    * @returns {Array}
    */
-  Muuri.prototype.add = function (elements, index) {
+  Muuri.prototype.addItems = function (elements, index) {
 
     var inst = this;
     var targetElements = [].concat(elements);
     var newItems = [];
     var items = inst._items;
     var needsRelayout = false;
-    var targetIndex;
     var elementIndex;
     var item;
     var i;
@@ -580,21 +588,16 @@ TODO v0.4.0
       }
     }
 
-    // Normalize the index for the splice apply hackery so that value of -1
-    // appends the new items to the current items.
-    targetIndex = typeof index === 'number' ? index : -1;
-    targetIndex = targetIndex < 0 ? items.length - targetIndex + 1 : targetIndex;
-
     // Add the new items to the items collection to correct index.
-    items.splice.apply(items, [targetIndex, 0].concat(newItems));
+    insertItemsToArray(items, newItems, index);
 
     // If relayout is needed.
     if (needsRelayout) {
-      inst.layout();
+      inst.layoutItems();
     }
 
     // Emit add event.
-    inst._emitter.emit(evAdd, newItems);
+    inst._emitter.emit(evAddItems, newItems);
 
     // Return new items.
     return newItems;
@@ -602,7 +605,7 @@ TODO v0.4.0
   };
 
   /**
-   * Remove items from muuri instances.
+   * Remove items from the instance.
    *
    * @public
    * @memberof Muuri.prototype
@@ -610,7 +613,7 @@ TODO v0.4.0
    * @param {Boolean} [removeElement=false]
    * @returns {Array} The indices of removed items.
    */
-  Muuri.prototype.remove = function (items, removeElement) {
+  Muuri.prototype.removeItems = function (items, removeElement) {
 
     var inst = this;
     var targetItems = inst.getItems(items);
@@ -619,6 +622,7 @@ TODO v0.4.0
     var item;
     var i;
 
+    // Remove the individual items.
     for (i = 0; i < targetItems.length; i++) {
       item = targetItems[i];
       if (item._isActive) {
@@ -627,11 +631,13 @@ TODO v0.4.0
       indices[indices.length] = item._destroy(removeElement);
     }
 
+    // If relayout is needed.
     if (needsRelayout) {
-      inst.layout();
+      inst.layoutItems();
     }
 
-    inst._emitter.emit(evRemove, indices);
+    // Emit remove event.
+    inst._emitter.emit(evRemoveItems, indices);
 
     return indices;
 
@@ -647,22 +653,31 @@ TODO v0.4.0
    * @memberof Muuri.prototype
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.synchronize = function () {
+  Muuri.prototype.synchronizeItems = function () {
 
     var inst = this;
     var container = inst._element;
     var items = inst._items;
+    var fragment;
     var element;
     var i;
 
-    for (i = 0; i < items.length; i++) {
-      element = items[i]._element;
-      if (element.parentNode === container) {
-        container.appendChild(element);
+    // Append all elements in order to the container element.
+    if (items.length) {
+      for (i = 0; i < items.length; i++) {
+        element = items[i]._element;
+        if (element.parentNode === container) {
+          fragment = fragment || document.createDocumentFragment();
+          fragment.appendChild(element);
+        }
+      }
+      if (fragment) {
+        container.appendChild(fragment);
       }
     }
 
-    inst._emitter.emit(evSynchronize);
+    // Emit synchronize event.
+    inst._emitter.emit(evSynchronizeItems);
 
     return inst;
 
@@ -677,7 +692,7 @@ TODO v0.4.0
    * @param {Function} [callback]
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.layout = function (instant, callback) {
+  Muuri.prototype.layoutItems = function (instant, callback) {
 
     var inst = this;
     var emitter = inst._emitter;
@@ -687,7 +702,12 @@ TODO v0.4.0
     var counter = -1;
     var itemsLength = layout.items.length;
     var completed = [];
-    var tryFinish = function (interrupted, item) {
+    var item;
+    var position;
+    var i;
+
+    // Try to finish the layout procedure.
+    function tryFinish(interrupted, item) {
 
       // Push all items to the completed items array which were not interrupted.
       if (!interrupted) {
@@ -700,22 +720,20 @@ TODO v0.4.0
         if (typeof cb === 'function') {
           cb(completed, layout);
         }
-        emitter.emit(evLayoutEnd, completed, layout);
+        emitter.emit(evLayoutItemsEnd, completed, layout);
       }
 
-    };
-    var item;
-    var position;
-    var i;
+    }
 
     // Emit layoutstart event.
-    emitter.emit(evLayoutStart, layout.items, layout);
+    emitter.emit(evLayoutItemsStart, layout.items, layout);
 
     // Set container's height if needed.
     if (layout.setHeight) {
       setStyles(inst._element, {
         height: layout.height + 'px'
       });
+      inst._height = layout.height;
     }
 
     // Set container's width if needed.
@@ -723,12 +741,7 @@ TODO v0.4.0
       setStyles(inst._element, {
         width: layout.width + 'px'
       });
-    }
-
-    // Update container's cached width/height, if needed.
-    if (layout.setWidth || layout.setHeight) {
-      // TODO: Optimize, update only the stuff that needs changing.
-      inst.refresh();
+      inst._width = layout.width;
     }
 
     // If there are now items let's finish quickly.
@@ -775,7 +788,7 @@ TODO v0.4.0
    * @param {Function} [callback]
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.show = function (items, instant, callback) {
+  Muuri.prototype.showItems = function (items, instant, callback) {
 
     setVisibility(this, 'show', items, instant, callback);
 
@@ -793,53 +806,11 @@ TODO v0.4.0
    * @param {Function} [callback]
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.hide = function (items, instant, callback) {
+  Muuri.prototype.hideItems = function (items, instant, callback) {
 
     setVisibility(this, 'hide', items, instant, callback);
 
     return this;
-
-  };
-
-  /**
-   * Get item's index. Returns -1 if the item is not found.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {HTMLElement|Item|Number} item
-   * @returns {Number}
-   */
-  Muuri.prototype.indexOf = function (item) {
-
-    var items = this._items;
-    var i;
-
-    // If item is a number assume it is an index and verify that an item exits
-    // in that index. If it exists, return the index. Otherwise return -1.
-    if (typeof item === 'number') {
-
-      return item <= (items.length - 1) ? item : -1;
-
-    }
-
-    // If the item is a Muuri item get it's index or return -1 if the item
-    // does not exist in the Muuri instance.
-    else if (item instanceof Item) {
-
-      return items.indexOf(item);
-
-    }
-    else {
-
-      for (i = 0; i < items.length; i++) {
-        if (items[i]._element === item) {
-          return i;
-        }
-      }
-
-      return -1;
-
-    }
 
   };
 
@@ -852,15 +823,16 @@ TODO v0.4.0
    * @param {HTMLElement|Item|Number} targetTo
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.move = function (targetFrom, targetTo) {
+  Muuri.prototype.moveItem = function (targetFrom, targetTo) {
 
     var inst = this;
-    targetFrom = inst._getItem(targetFrom);
-    targetTo = inst._getItem(targetTo);
+    var items = inst._items;
+    var from = inst._getItem(targetFrom);
+    var to = inst._getItem(targetTo);
 
-    if (targetFrom && targetTo && (targetFrom !== targetTo)) {
-      arrayMove(inst._items, inst._items.indexOf(targetFrom), inst._items.indexOf(targetTo));
-      inst._emitter.emit(evMove, targetFrom, targetTo);
+    if (from && to && (from !== to)) {
+      arrayMove(items, items.indexOf(from), items.indexOf(to));
+      inst._emitter.emit(evMoveItem, from, to);
     }
 
     return inst;
@@ -876,15 +848,16 @@ TODO v0.4.0
    * @param {HTMLElement|Item|Number} targetB
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.swap = function (targetA, targetB) {
+  Muuri.prototype.swapItem = function (targetA, targetB) {
 
     var inst = this;
-    targetA = inst._getItem(targetA);
-    targetB = inst._getItem(targetB);
+    var items = inst._items;
+    var a = inst._getItem(targetA);
+    var b = inst._getItem(targetB);
 
-    if (targetA && targetB && (targetA !== targetB)) {
-      arraySwap(inst._items, inst._items.indexOf(targetA), inst._items.indexOf(targetB));
-      inst._emitter.emit(evSwap, targetA, targetB);
+    if (a && b && (a !== b)) {
+      arraySwap(items, items.indexOf(a), items.indexOf(b));
+      inst._emitter.emit(evSwapItem, a, b);
     }
 
     return inst;
@@ -923,7 +896,8 @@ TODO v0.4.0
       height: ''
     });
 
-    // Emit destroy event.
+    // Emit destroy event. We need to do this before unbinding all the events
+    // and nullifying the instance.
     emitter.emit(evDestroy);
 
     // Remove all event listeners.
@@ -1042,7 +1016,7 @@ TODO v0.4.0
     inst._top = 0;
 
     // Set up drag handler.
-    inst._drag = stn.dragEnabled ? new ItemDrag(inst) : null;
+    inst._drag = stn.dragEnabled ? new Drag(inst) : null;
 
   }
 
@@ -1327,12 +1301,9 @@ TODO v0.4.0
         inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
-      // Animate child element.
+      // Animate child element and process callback queue.
       inst._muuri._itemShowHandler.start(inst, instant, function () {
-
-        // Process callback queue.
         processQueue(inst._visibilityQueue, false, inst);
-
       });
 
     }
@@ -1526,35 +1497,12 @@ TODO v0.4.0
       stn.call(inst);
     }
 
-    // Otherwise parse the layout mode and settings from provided options and
-    // do the calculations.
+    // Otherwise invoke the default layout method.
     else {
-
-      // Parse the layout method name and settings from muuri settings.
-      noSettingsProvided = typeof stn === 'string';
-      methodName = noSettingsProvided ? stn : stn[0];
-
-      // Make sure the provided layout method exists.
-      if (typeof Layout.methods[methodName] !== 'function') {
-        throw new Error('Layout method "' + methodName + '" does not exist.');
-      }
-
-      // Invoke the layout method.
-      Layout.methods[methodName].call(inst, noSettingsProvided ? {} : stn[1]);
-
+      LayoutFirstFit.call(inst, isPlainObject(stn) ? stn : {});
     }
 
   }
-
-  /**
-   * Available layout methods.
-   *
-   * @public
-   * @memberof Layout
-   */
-  Layout.methods = {
-    firstfit: LayoutFirstFit
-  };
 
   /**
    * Emitter
@@ -1668,7 +1616,21 @@ TODO v0.4.0
     inst._element = element;
     inst._isAnimating = false;
     inst._props = [];
+    inst._onDone = null;
     inst._callback = null;
+
+    // If transitions are available, bind transitionend callback.
+    if (transition && !supportsElementAnimate) {
+
+      inst._callback = function (e) {
+        if (e.target === this) {
+          inst.stop(true);
+        }
+      };
+
+      element.addEventListener(transitionend, inst._callback, false);
+
+    }
 
   }
 
@@ -1691,8 +1653,8 @@ TODO v0.4.0
     var styles = props || {};
     var options = opts || {};
     var done = options.done;
-    var transitionStyles = {};
     var transPropName = transition.propName;
+    var transitionStyles;
 
     // If transitions are not supported, keep it simple.
     if (!transition) {
@@ -1716,24 +1678,17 @@ TODO v0.4.0
       // Store animated styles.
       inst._props = Object.keys(styles);
 
+      // Store done callback.
+      if (typeof done === 'function') {
+        inst._onDone = done;
+      }
+
       // Create transition styles.
+      transitionStyles = {};
       transitionStyles[transPropName + 'Property'] = inst._props.join(',');
       transitionStyles[transPropName + 'Duration'] = (options.duration || 400) + 'ms';
       transitionStyles[transPropName + 'Delay'] = (options.delay || 0) + 'ms';
       transitionStyles[transPropName + 'Easing'] = options.easing || 'ease';
-
-      // Create callback.
-      inst._callback = function (e) {
-        if (e.target === element) {
-          inst.stop();
-          if (typeof done === 'function') {
-            done();
-          }
-        }
-      };
-
-      // Bind callback.
-      element.addEventListener(transitionend, inst._callback, true);
 
       // Set transition styles.
       setStyles(element, transitionStyles);
@@ -1753,8 +1708,9 @@ TODO v0.4.0
    *
    * @private
    * @memberof Animate.prototype
+   * @param {Boolean} callDone
    */
-  Animate.prototype.stop = function () {
+  Animate.prototype.stop = function (callDone) {
 
     // If transitions are not supported, keep it simple.
     if (!transition) {
@@ -1763,32 +1719,31 @@ TODO v0.4.0
 
     var inst = this;
     var element = inst._element;
-    var callback = inst._callback;
     var props = inst._props;
     var transPropName = transition.propName;
-    var transitionStyles = {};
-    var styles = {};
+    var transitionStyles;
+    var styles;
     var i;
 
     // If is animating.
     if (inst._isAnimating) {
 
-      // Unbind transitionend listener.
-      if (typeof callback === 'function') {
-        element.removeEventListener(transitionend, callback, true);
-        inst._callback = null;
+      // If done callback should be called before resetting.
+      if (callDone && typeof inst._onDone === 'function') {
+        inst._onDone();
       }
 
+      // Reset done callback.
+      inst._onDone = null;
+
+      // Reset props.
+      inst._props = null;
+
       // Get current values of all animated styles.
+      styles = {};
       for (i = 0; i < props.length; i++) {
         styles[props[i]] = getStyle(element, props[i]);
       }
-
-      // Reset transition props.
-      transitionStyles[transPropName + 'Property'] = 'none';
-      transitionStyles[transPropName + 'Duration'] = '';
-      transitionStyles[transPropName + 'Delay'] = '';
-      transitionStyles[transPropName + 'Easing'] = '';
 
       // Set final styles.
       setStyles(element, styles);
@@ -1798,6 +1753,11 @@ TODO v0.4.0
       element.offsetWidth;
 
       // Remove transition styles.
+      transitionStyles = {};
+      transitionStyles[transPropName + 'Property'] = 'none';
+      transitionStyles[transPropName + 'Duration'] = '';
+      transitionStyles[transPropName + 'Delay'] = '';
+      transitionStyles[transPropName + 'Easing'] = '';
       setStyles(element, transitionStyles);
 
       // Set animating state as false.
@@ -1817,10 +1777,20 @@ TODO v0.4.0
   Animate.prototype.destroy = function () {
 
     var inst = this;
+
+    // Stop current animation.
     inst.stop();
+
+    // If transitions are available, unbind transitionend callback.
+    if (transition) {
+      inst._element.removeEventListener(transitionend, inst._callback, false);
+    }
+
+    // Nullify props.
     inst._element = null;
     inst._isAnimating = null;
     inst._props = null;
+    inst._onDone = null;
     inst._callback = null;
 
   };
@@ -1832,7 +1802,7 @@ TODO v0.4.0
    * @private
    * @param {Item} item
    */
-  function ItemDrag(item) {
+  function Drag(item) {
 
     // Check that we have Hammer.
     if (!Hammer) {
@@ -1841,23 +1811,9 @@ TODO v0.4.0
 
     var inst = this;
     var stn = item._muuri._settings;
-    var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : ItemDrag._defaultDragStartPredicate;
-    var predicate = {
-      event: null,
-      isResolved: false,
-      isRejected: false,
-      reject: function () {
-        if (!predicate.isRejected && !predicate.isResolved) {
-          predicate.isRejected = true;
-        }
-      },
-      resolve: function (e) {
-        if (e === predicate.event && !predicate.isRejected && !predicate.isResolved) {
-          predicate.isResolved = true;
-          inst._onDragStart(e);
-        }
-      }
-    };
+    var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : Drag._defaultDragStartPredicate;
+    var predicate = null;
+    var predicateEvent = null;
     var hammer;
 
     inst._item = item;
@@ -1877,7 +1833,7 @@ TODO v0.4.0
     }, stn.dragSortInterval);
 
     // Setup sort predicate.
-    inst._sortPredicate = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : ItemDrag._defaultSortPredicate;
+    inst._sortPredicate = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : Drag._defaultSortPredicate;
 
     // Setup drag scroll handler.
     inst._scrollHandler = function (e) {
@@ -1896,7 +1852,7 @@ TODO v0.4.0
     hammer.add(new Hammer.Press({
       event: 'draginit',
       pointers: 1,
-      threshold: 100,
+      threshold: 1000,
       time: 0
     }));
 
@@ -1906,41 +1862,46 @@ TODO v0.4.0
 
     // Bind drag events.
     hammer
-    .on('draginit', function (e) {
+    .on('draginit dragstart dragmove', function (e) {
 
-      // Reset predicate.
-      predicate.isResolved = false;
-      predicate.isRejected = false;
-      predicate.event = e;
+      // Always update the predicate event.
+      predicateEvent = e;
 
-      // Check predicate.
-      checkPredicate.call(item, e, predicate.resolve, predicate.reject);
-
-    })
-    .on('dragstart dragmove', function (e) {
-
-      // If predicate is rejected or drag is not active, return immediately.
-      if (predicate.isRejected || !inst._drag.isActive) {
-        return;
+      // Create predicate if it does not exist yet.
+      if (!predicate) {
+        predicate = new Predicate(function () {
+          if (predicate === this) {
+            inst._onDragStart(predicateEvent);
+          }
+        });
       }
 
-      // If predicate is resolved, do the move.
-      if (predicate.isResolved) {
+      // If predicate is resolved and dragging is active, do the move.
+      if (predicate._isResolved && inst._drag.isActive) {
         inst._onDragMove(e);
       }
+
       // Otherwise, check the predicate.
-      else {
-        predicate.event = e;
-        checkPredicate.call(item, e, predicate.resolve, predicate.reject);
+      else if (!predicate._isRejected && !predicate._isResolved) {
+        checkPredicate.call(item._muuri, item, e, predicate);
       }
 
     })
     .on('dragend dragcancel draginitup', function (e) {
 
       // If predicate is resolved and dragging is active, do the end.
-      if (predicate.isResolved && inst._drag.isActive) {
+      if (predicate._isResolved && inst._drag.isActive) {
         inst._onDragEnd(e);
       }
+
+      // Do final predicate check to allow unbinding stuff for the current drag
+      // procedure within the predicate callback.
+      checkPredicate.call(item._muuri, item, e, predicate);
+
+      // Nullify predicate reference.
+      predicate.reject();
+      predicate = null;
+      predicateEvent = null;
 
     });
 
@@ -1950,14 +1911,14 @@ TODO v0.4.0
    * Default drag start predicate handler.
    *
    * @protected
-   * @memberof ItemDrag
+   * @memberof Drag
+   * @param {Item} item
    * @param {Object} event
-   * @param {Function} resolve
-   * @param {Function} reject
+   * @param {Predicate} predicate
    */
-  ItemDrag._defaultDragStartPredicate = function (event, resolve, reject) {
+  Drag._defaultDragStartPredicate = function (item, event, predicate) {
 
-    resolve(event);
+    predicate.resolve();
 
   };
 
@@ -1965,10 +1926,10 @@ TODO v0.4.0
    * Default drag sort predicate.
    *
    * @protected
-   * @memberof ItemDrag
+   * @memberof Drag
    * @param {Item} targetItem
    */
-  ItemDrag._defaultSortPredicate = function (targetItem) {
+  Drag._defaultSortPredicate = function (targetItem) {
 
     var muuri = targetItem._muuri;
     var stn = muuri._settings;
@@ -1987,7 +1948,6 @@ TODO v0.4.0
     var bestMatchScore = null;
     var bestMatchIndex;
     var overlapScore;
-    var itemData;
     var item;
     var i;
 
@@ -2005,16 +1965,13 @@ TODO v0.4.0
       // Otherwise, if the item is active.
       else if (item._isActive) {
 
-        // Get marginless item data.
-        itemData = {
+        // Get marginless overlap data.
+        overlapScore = getOverlapScore(instData, {
           width: item._width,
           height: item._height,
           left: Math.round(item._left) + item._margin.left,
           top: Math.round(item._top) + item._margin.top
-        };
-
-        // Get marginless overlap data.
-        overlapScore = getOverlapScore(instData, itemData);
+        });
 
         // Update best match if the overlap score is higher than the current
         // best match.
@@ -2046,9 +2003,9 @@ TODO v0.4.0
    * Setup/reset drag data.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._setupDragData = function () {
+  Drag.prototype._setupDragData = function () {
 
     // Create drag data object if it does not exist yet.
     var drag = this._drag = this._drag || {};
@@ -2092,9 +2049,9 @@ TODO v0.4.0
    * Setup/reset release data.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._setupReleaseData = function () {
+  Drag.prototype._setupReleaseData = function () {
 
     // Create drag data object if it does not exist yet.
     var release = this._release = this._release || {};
@@ -2115,15 +2072,15 @@ TODO v0.4.0
    * the configuration do a relayout.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._checkOverlap = function () {
+  Drag.prototype._checkOverlap = function () {
 
     var result = this._sortPredicate(this._item);
 
     if (result) {
-      this._item._muuri[result.action || 'move'](result.from, result.to);
-      this._item._muuri.layout();
+      this._item._muuri[(result.action || 'move') + 'Item'](result.from, result.to);
+      this._item._muuri.layoutItems();
     }
 
   };
@@ -2132,10 +2089,10 @@ TODO v0.4.0
    * Freeze dragged element's dimensions.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    * @param {Object} data
    */
-  ItemDrag.prototype._freezeElement = function (data) {
+  Drag.prototype._freezeElement = function (data) {
 
     var styleNames;
     var styleName;
@@ -2169,10 +2126,10 @@ TODO v0.4.0
    * Unfreeze dragged element's dimensions.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    * @param {Object} data
    */
-  ItemDrag.prototype._unfreezeElement = function (data) {
+  Drag.prototype._unfreezeElement = function (data) {
 
     var styleNames;
     var styleName;
@@ -2193,9 +2150,9 @@ TODO v0.4.0
    * Reset drag data and cancel any ongoing drag activity.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._resetDrag = function () {
+  Drag.prototype._resetDrag = function () {
 
     var inst = this;
     var item = inst._item;
@@ -2230,9 +2187,9 @@ TODO v0.4.0
    * Start the release process of an item.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._startRelease = function () {
+  Drag.prototype._startRelease = function () {
 
     var inst = this;
     var item = inst._item;
@@ -2247,7 +2204,7 @@ TODO v0.4.0
     addClass(release.element, stn.itemReleasingClass);
 
     // Emit releasestart event.
-    muuri._emitter.emit(evReleaseStart, item);
+    muuri._emitter.emit(evReleaseItemStart, item);
 
     // Position the released item.
     item._layout(false);
@@ -2258,9 +2215,9 @@ TODO v0.4.0
    * End the release process of an item.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._endRelease = function () {
+  Drag.prototype._endRelease = function () {
 
     var inst = this;
     var item = inst._item;
@@ -2287,7 +2244,7 @@ TODO v0.4.0
     inst._setupReleaseData();
 
     // Emit releaseend event.
-    muuri._emitter.emit(evReleaseEnd, item);
+    muuri._emitter.emit(evReleaseItemEnd, item);
 
   };
 
@@ -2295,9 +2252,9 @@ TODO v0.4.0
    * Drag start handler.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._onDragStart = function (e) {
+  Drag.prototype._onDragStart = function (e) {
 
     var inst = this;
     var item = inst._item;
@@ -2421,7 +2378,7 @@ TODO v0.4.0
     addClass(drag.element, stn.itemDraggingClass);
 
     // Emit dragstart event.
-    muuri._emitter.emit(evDragStart, item);
+    muuri._emitter.emit(evDragItemStart, item);
 
   };
 
@@ -2429,9 +2386,9 @@ TODO v0.4.0
    * Drag move handler.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._onDragMove = function (e) {
+  Drag.prototype._onDragMove = function (e) {
 
     var inst = this;
     var item = inst._item;
@@ -2473,7 +2430,7 @@ TODO v0.4.0
     }
 
     // Emit item-dragmove event.
-    muuri._emitter.emit(evDragMove, item);
+    muuri._emitter.emit(evDragItemMove, item);
 
   };
 
@@ -2481,9 +2438,9 @@ TODO v0.4.0
    * Drag scroll handler.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._onDragScroll = function () {
+  Drag.prototype._onDragScroll = function () {
 
     var inst = this;
     var item = inst._item;
@@ -2526,7 +2483,7 @@ TODO v0.4.0
     }
 
     // Emit item-dragscroll event.
-    muuri._emitter.emit(evDragScroll, item);
+    muuri._emitter.emit(evDragItemScroll, item);
 
   };
 
@@ -2534,9 +2491,9 @@ TODO v0.4.0
    * Drag end handler.
    *
    * @protected
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype._onDragEnd = function () {
+  Drag.prototype._onDragEnd = function () {
 
     var inst = this;
     var item = inst._item;
@@ -2566,7 +2523,7 @@ TODO v0.4.0
     removeClass(drag.element, stn.itemDraggingClass);
 
     // Emit item-dragend event.
-    muuri._emitter.emit(evDragEnd, item);
+    muuri._emitter.emit(evDragItemEnd, item);
 
     // Setup release data.
     release.containerDiffX = drag.containerDiffX;
@@ -2586,9 +2543,9 @@ TODO v0.4.0
    * Destroy instance.
    *
    * @public
-   * @memberof ItemDrag.prototype
+   * @memberof Drag.prototype
    */
-  ItemDrag.prototype.destroy = function () {
+  Drag.prototype.destroy = function () {
 
     var inst = this;
     var item = inst._item;
@@ -2618,6 +2575,10 @@ TODO v0.4.0
    *
    * @private
    * @param {object} settings
+   * @param {Boolean} [settings.fillGaps=false]
+   * @param {Boolean} [settings.horizontal=false]
+   * @param {Boolean} [settings.alignRight=false]
+   * @param {Boolean} [settings.alignBottom=false]
    */
   function LayoutFirstFit(settings) {
 
@@ -2983,6 +2944,84 @@ TODO v0.4.0
   };
 
   /**
+   * Generic predicate constructor.
+   *
+   * @private
+   * @param {Function} [onResolved]
+   * @param {Function} [onRejected]
+   */
+  function Predicate(onResolved, onRejected) {
+
+    this._isResolved = false;
+    this._isRejected = false;
+    this._onResolved = onResolved;
+    this._onRejected = onRejected;
+
+  }
+
+  /**
+   * Check if predicate is resolved.
+   *
+   * @private
+   * @memberof Predicate.prototype
+   * returns {Boolean}
+   */
+  Predicate.prototype.isResolved = function () {
+
+    return this._isResolved;
+
+  };
+
+  /**
+   * Check if predicate is rejected.
+   *
+   * @private
+   * @memberof Predicate.prototype
+   * returns {Boolean}
+   */
+  Predicate.prototype.isRejected = function () {
+
+    return this._isRejected;
+
+  };
+
+  /**
+   * Resolve predicate.
+   *
+   * @private
+   * @memberof Predicate.prototype
+   */
+  Predicate.prototype.resolve = function () {
+
+    if (!this._isRejected && !this._isResolved) {
+      this._isResolved = true;
+      if (typeof this._onResolved === 'function') {
+        this._onResolved.call(this);
+      }
+      this._onResolved = this._onRejected = null;
+    }
+
+  };
+
+  /**
+   * Reject predicate.
+   *
+   * @private
+   * @memberof Predicate.prototype
+   */
+  Predicate.prototype.reject = function () {
+
+    if (!this._isRejected && !this._isResolved) {
+      this._isRejected = true;
+      if (typeof this._onRejected === 'function') {
+        this._onRejected.call(this);
+      }
+      this._onResolved = this._onRejected = null;
+    }
+
+  };
+
+  /**
    * Helpers - Generic
    * *****************
    */
@@ -3066,6 +3105,7 @@ TODO v0.4.0
   function isNodeList(val) {
 
     var type = Object.prototype.toString.call(val);
+
     return type === '[object HTMLCollection]' || type === '[object NodeList]';
 
   }
@@ -3237,7 +3277,14 @@ TODO v0.4.0
    */
   function hasClass(element, className) {
 
-    return (' ' + element.className).indexOf(' ' + className) > -1;
+    return (
+      element.matches ||
+      element.matchesSelector ||
+      element.msMatchesSelector ||
+      element.mozMatchesSelector ||
+      element.webkitMatchesSelector ||
+      element.oMatchesSelector
+    ).call(element, '.' + className);
 
   }
 
@@ -3340,6 +3387,23 @@ TODO v0.4.0
     }
 
     return null;
+
+  }
+
+  /**
+   * Insert an item or an array of items to array to a specified index. Mutates
+   * the array. The index can be negative in which case the items will be added
+   * to the end of the array.
+   *
+   * @private
+   * @param {Array} array
+   * @param {*} items
+   * @param {Number} [index=-1]
+   */
+  function insertItemsToArray(array, items, index) {
+
+    var targetIndex = typeof index === 'number' ? index : -1;
+    array.splice.apply(array, [targetIndex < 0 ? array.length - targetIndex + 1 : targetIndex, 0].concat(items));
 
   }
 
@@ -3700,8 +3764,8 @@ TODO v0.4.0
     var cb = typeof instant === 'function' ? instant : callback;
     var counter = targetItems.length;
     var isShow = method === 'show';
-    var startEvent = isShow ? evShowStart : evHideStart;
-    var endEvent = isShow ? evShowEnd : evHideEnd;
+    var startEvent = isShow ? evShowItemsStart : evHideItemsStart;
+    var endEvent = isShow ? evShowItemsEnd : evHideItemsEnd;
     var isInstant = instant === true;
     var needsRelayout = false;
     var completed;
@@ -3767,7 +3831,7 @@ TODO v0.4.0
         if (hiddenItems.length) {
           inst.refreshItems(hiddenItems);
         }
-        inst.layout();
+        inst.layoutItems();
       }
 
     }

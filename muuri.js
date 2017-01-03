@@ -51,19 +51,23 @@ TODO v0.3.0
       think about using a predicate object which has resolve/reject methods as
       well as isResolved and isRejected methods. The methods should allow
       controlling the start flow without too much hassle.
-* [ ] Memory leak: JS heap size grows a bit after each drag.
-* [ ] Long frames detected (<60fps) due to forced reflow. I guess there
-      is no way around that with CSS transitions. However, we can utilize
-      (again) the Element.animate API for the browsers that support it. That
-      should allow using CSS transitions without forced reflow. Remember to
-      measure the difference. Optimize animation flow to be as fast as possible.
-* [ ] Should we merge swap method to move method? Move method could have an
-      extra argument that defines how the item is moved.
-* [x] Should we get rid of getItemIndex method? It's probably rarely needed.
-      Yep, let's do it.
+* [x] Merge swap method to move method.
+* [x] Remove getItemIndex method.
 * [ ] Update docs.
 * [ ] Update website.
 * [ ] Update unit tests.
+
+TODO v0.3.1
+===========
+* [ ] Memory leak: JS heap size grows a bit after each drag.
+* [ ] Speed optimization heuristics. Try to make layout/overlap check as fast
+      as possible by using smart heuristics. For example change the algorithm
+      based on the item sizes. If all items same size the algorithm can be
+      simplified. Do heavy lifting only when necessary.
+* [ ] Format the codebase to use a more strict coding style so that contributing
+      to the library would be easier.
+* [ ] How to use this with popular frameworks: React, Vue, Angular2, Ember,
+      Meteor, etc...?
 
 TODO v0.4.0
 ===========
@@ -73,14 +77,6 @@ TODO v0.4.0
       have implmented it.
 * [ ] Optional drag placeholder.
 * [ ] Stagger option(s) to achieve similar delayed animations as shuffle.js.
-* [ ] Speed optimization heuristics. Try to make layout/overlap check as fast
-      as possible by using smart heuristics. For example change the algorithm
-      based on the item sizes. If all items same size the algorithm can be
-      simplified. Do heavy lifting only when necessary.
-* [ ] How to use this with popular frameworks: React, Vue, Angular2, Ember,
-      Meteor, etc...?
-* [ ] Format the codebase to use a strict codig style that can be easily
-      linted. This is needed for making it easier to contribute to the project.
 
 */
 
@@ -108,9 +104,6 @@ TODO v0.4.0
   var transition = getSupportedStyle('transition');
   var transitionend = getTransitionEnd();
 
-  // Check if the browser supports Element.animate method.
-  var supportsElementAnimate = typeof document.body.animate === 'function';
-
   // Do transformed elements leak fixed elements? According W3C specification
   // (about transform rendering) a transformed element should contain fixed
   // elements, but not every browser follows the spec. So we need to test it.
@@ -118,24 +111,23 @@ TODO v0.4.0
 
   // Event names.
   var evRefresh = 'refresh';
-  var evRefreshItems = 'refreshItems';
-  var evSynchronizeItems = 'synchronizeItems';
-  var evLayoutItemsStart = 'layoutItemsStart';
-  var evLayoutItemsEnd = 'layoutItemsEnd';
-  var evShowItemsStart = 'showItemsStart';
-  var evShowItemsEnd = 'showItemsEnd';
-  var evHideItemsStart = 'hideItemsStart';
-  var evHideItemsEnd = 'hideItemsEnd';
-  var evMoveItem = 'moveItem';
-  var evSwapItem = 'swapItem';
-  var evAddItems = 'addItems';
-  var evRemoveItems = 'removeItems';
-  var evDragItemStart = 'dragItemStart';
-  var evDragItemMove = 'dragItemMove';
-  var evDragItemScroll = 'dragItemScroll';
-  var evDragItemEnd = 'dragItemEnd';
-  var evReleaseItemStart = 'releaseItemStart';
-  var evReleaseItemEnd = 'releaseItemEnd';
+  var evRefreshItems = 'refreshitems';
+  var evSynchronizeItems = 'synchronizeitems';
+  var evLayoutItemsStart = 'layoutitemsstart';
+  var evLayoutItemsEnd = 'layoutitemsend';
+  var evShowItemsStart = 'showitemsstart';
+  var evShowItemsEnd = 'showitemsend';
+  var evHideItemsStart = 'hideitemsstart';
+  var evHideItemsEnd = 'hideitemsend';
+  var evMoveItem = 'moveitem';
+  var evAddItems = 'additems';
+  var evRemoveItems = 'removeitems';
+  var evDragItemStart = 'dragitemstart';
+  var evDragItemMove = 'dragitemmove';
+  var evDragItemScroll = 'dragitemscroll';
+  var evDragItemEnd = 'dragitemend';
+  var evReleaseItemStart = 'releaseitemstart';
+  var evReleaseItemEnd = 'releaseitemend';
   var evDestroy = 'destroy';
 
   /**
@@ -151,11 +143,11 @@ TODO v0.4.0
    * @param {Object} settings
    * @param {HTMLElement} settings.container
    * @param {Array|NodeList} settings.items
-   * @param {!Function|Object} [settings.show]
+   * @param {?Function|Object} [settings.show]
    * @param {Number} [settings.show.duration=300]
    * @param {String} [settings.show.easing="ease"]
    * @param {Object} [settings.show.styles]
-   * @param {!Function|Object} [settings.hide]
+   * @param {?Function|Object} [settings.hide]
    * @param {Number} [settings.hide.duration=300]
    * @param {String} [settings.hide.easing="ease"]
    * @param {Object} [settings.hide.styles]
@@ -164,16 +156,16 @@ TODO v0.4.0
    * @param {Boolean} [settings.layout.horizontal=false]
    * @param {Boolean} [settings.layout.alignRight=false]
    * @param {Boolean} [settings.layout.alignBottom=false]
-   * @param {!Number} [settings.layoutOnResize=100]
+   * @param {?Number} [settings.layoutOnResize=100]
    * @param {Boolean} [settings.layoutOnInit=true]
    * @param {Number} [settings.layoutDuration=300]
    * @param {String} [settings.layoutEasing="ease"]
    * @param {Boolean} [settings.dragEnabled=false]
-   * @param {!HtmlElement} [settings.dragContainer=null]
-   * @param {!Function} [settings.dragStartPredicate=null]
+   * @param {?HtmlElement} [settings.dragContainer=null]
+   * @param {?Function} [settings.dragStartPredicate=null]
    * @param {Boolean} [settings.dragSort=true]
    * @param {Number} [settings.dragSortInterval=50]
-   * @param {!Function|Object} [settings.dragSortPredicate]
+   * @param {?Function|Object} [settings.dragSortPredicate]
    * @param {Number} [settings.dragSortPredicate.tolerance=50]
    * @param {String} [settings.dragSortPredicate.action="move"]
    * @param {Number} [settings.dragReleaseDuration=300]
@@ -213,9 +205,7 @@ TODO v0.4.0
     inst._itemShowHandler = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
     inst._itemHideHandler = typeof stn.hide === 'function' ? stn.hide() : getItemVisbilityHandler('hide', stn.hide);
 
-    // Calculate element's dimensions and offset. We intentionally call the
-    // private refresh method because we don't want an event emitted for the
-    // initial calculations.
+    // Calculate element's dimensions and offset.
     inst.refresh();
 
     // Setup initial items.
@@ -238,7 +228,7 @@ TODO v0.4.0
 
     }
 
-    // Layout on init if enabled.
+    // Do initial layout if necessary.
     if (stn.layoutOnInit) {
       inst.layoutItems(true);
     }
@@ -329,7 +319,7 @@ TODO v0.4.0
    * @protected
    * @memberof Muuri.prototype
    * @param {HTMLElement|Item|Number} [target=0]
-   * @returns {!Item}
+   * @returns {?Item}
    */
   Muuri.prototype._getItem = function (target) {
 
@@ -821,43 +811,27 @@ TODO v0.4.0
    * @memberof Muuri.prototype
    * @param {HTMLElement|Item|Number} targetFrom
    * @param {HTMLElement|Item|Number} targetTo
+   * @param {String} [method="move"]
+   *   - Accepts either "move" or "swap". "move" moves item in place of another
+   *     item and "swap" swaps position of items.
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.moveItem = function (targetFrom, targetTo) {
+  Muuri.prototype.moveItem = function (targetFrom, targetTo, method) {
 
     var inst = this;
     var items = inst._items;
     var from = inst._getItem(targetFrom);
     var to = inst._getItem(targetTo);
+    var isSwap = method === 'swap';
 
     if (from && to && (from !== to)) {
-      arrayMove(items, items.indexOf(from), items.indexOf(to));
-      inst._emitter.emit(evMoveItem, from, to);
-    }
-
-    return inst;
-
-  };
-
-  /**
-   * Swap positions of two items.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {HTMLElement|Item|Number} targetA
-   * @param {HTMLElement|Item|Number} targetB
-   * @returns {Muuri} returns the Muuri instance.
-   */
-  Muuri.prototype.swapItem = function (targetA, targetB) {
-
-    var inst = this;
-    var items = inst._items;
-    var a = inst._getItem(targetA);
-    var b = inst._getItem(targetB);
-
-    if (a && b && (a !== b)) {
-      arraySwap(items, items.indexOf(a), items.indexOf(b));
-      inst._emitter.emit(evSwapItem, a, b);
+      if (isSwap) {
+        arraySwap(items, items.indexOf(from), items.indexOf(to));
+      }
+      else {
+        arrayMove(items, items.indexOf(from), items.indexOf(to));
+      }
+      inst._emitter.emit(evMoveItem, from, to, isSwap ? 'swap' : 'move');
     }
 
     return inst;
@@ -1479,8 +1453,6 @@ TODO v0.4.0
     var stn = muuri._settings.layout;
     var padding = muuri._padding;
     var border = muuri._border;
-    var noSettingsProvided;
-    var methodName;
 
     inst.muuri = muuri;
     inst.items = items ? items.concat() : muuri.getItems('active');
@@ -1620,7 +1592,7 @@ TODO v0.4.0
     inst._callback = null;
 
     // If transitions are available, bind transitionend callback.
-    if (transition && !supportsElementAnimate) {
+    if (transition) {
 
       inst._callback = function (e) {
         if (e.target === this) {
@@ -1688,7 +1660,7 @@ TODO v0.4.0
       transitionStyles[transPropName + 'Property'] = inst._props.join(',');
       transitionStyles[transPropName + 'Duration'] = (options.duration || 400) + 'ms';
       transitionStyles[transPropName + 'Delay'] = (options.delay || 0) + 'ms';
-      transitionStyles[transPropName + 'Easing'] = options.easing || 'ease';
+      transitionStyles[transPropName + 'TimingFunction'] = options.easing || 'ease';
 
       // Set transition styles.
       setStyles(element, transitionStyles);
@@ -1757,7 +1729,7 @@ TODO v0.4.0
       transitionStyles[transPropName + 'Property'] = 'none';
       transitionStyles[transPropName + 'Duration'] = '';
       transitionStyles[transPropName + 'Delay'] = '';
-      transitionStyles[transPropName + 'Easing'] = '';
+      transitionStyles[transPropName + 'TimingFunction'] = '';
       setStyles(element, transitionStyles);
 
       // Set animating state as false.
@@ -2079,7 +2051,7 @@ TODO v0.4.0
     var result = this._sortPredicate(this._item);
 
     if (result) {
-      this._item._muuri[(result.action || 'move') + 'Item'](result.from, result.to);
+      this._item._muuri.moveItem(result.from, result.to, result.action || 'move');
       this._item._muuri.layoutItems();
     }
 
@@ -2378,7 +2350,7 @@ TODO v0.4.0
     addClass(drag.element, stn.itemDraggingClass);
 
     // Emit dragstart event.
-    muuri._emitter.emit(evDragItemStart, item);
+    muuri._emitter.emit(evDragItemStart, item, e);
 
   };
 
@@ -2430,7 +2402,7 @@ TODO v0.4.0
     }
 
     // Emit item-dragmove event.
-    muuri._emitter.emit(evDragItemMove, item);
+    muuri._emitter.emit(evDragItemMove, item, e);
 
   };
 
@@ -2493,7 +2465,7 @@ TODO v0.4.0
    * @protected
    * @memberof Drag.prototype
    */
-  Drag.prototype._onDragEnd = function () {
+  Drag.prototype._onDragEnd = function (e) {
 
     var inst = this;
     var item = inst._item;
@@ -2523,7 +2495,7 @@ TODO v0.4.0
     removeClass(drag.element, stn.itemDraggingClass);
 
     // Emit item-dragend event.
-    muuri._emitter.emit(evDragItemEnd, item);
+    muuri._emitter.emit(evDragItemEnd, item, e);
 
     // Setup release data.
     release.containerDiffX = drag.containerDiffX;
@@ -3843,7 +3815,7 @@ TODO v0.4.0
    * show/hide process.
    *
    * @param {String} type
-   * @param {!Object} [opts]
+   * @param {?Object} [opts]
    * @param {Number} [opts.duration]
    * @param {String} [opts.easing]
    * @returns {Object}

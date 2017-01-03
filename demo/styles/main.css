@@ -37,14 +37,14 @@ html.dragging body {
   margin: 5px 0 0 5px;
   z-index: 1;
 }
-.item.muuri-dragging,
-.item.muuri-releasing {
+.item.muuri-item-dragging,
+.item.muuri-item-releasing {
   z-index: 9999;
 }
-.item.muuri-dragging {
+.item.muuri-item-dragging {
   cursor: move;
 }
-.item.muuri-hidden {
+.item.muuri-item-hidden {
   z-index: 0;
 }
 .item.h2 {

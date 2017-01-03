@@ -73,6 +73,9 @@ $(function () {
           else if (event.distance > 5 || item._drag._release.isActive) {
             predicate.resolve();
           }
+        },
+        dragSortPredicate: {
+          action: 'swap'
         }
       });
 

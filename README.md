@@ -493,22 +493,22 @@ Returns an array of `Muuri.Item` instances.
 
 ```javascript
 // Get all items, active and inactive.
-var allItems = muuri.get();
+var allItems = muuri.getItems();
 
 // Get all active items.
-var activeItems = muuri.get('active');
+var activeItems = muuri.getItems('active');
 
 // Get all inactive items.
-var inactiveItems = muuri.get('inactive');
+var inactiveItems = muuri.getItems('inactive');
 
 // Get the first item.
-var firstItem = muuri.get(0)[0];
+var firstItem = muuri.getItems(0)[0];
 
 // Get specific items by their elements.
-var items = muuri.get([elemA, elemB]);
+var items = muuri.getItems([elemA, elemB]);
 
 // Get specific inactive items.
-var items = muuri.get([elemA, elemB], 'inactive');
+var items = muuri.getItems([elemA, elemB], 'inactive');
 ```
 
 ### `muuri.addItems( elements, [index] )`
@@ -536,10 +536,10 @@ Returns an array of `Muuri.Item` instances.
 
 ```javascript
 // Add two new items to the beginning.
-muuri.add([elemA, elemB]);
+muuri.addItems([elemA, elemB]);
 
 // Add two new items to the end.
-muuri.add([elemA, elemB], -1);
+muuri.addItems([elemA, elemB], -1);
 ```
 
 ### `muuri.removeItems( targets, [removeElement] )`
@@ -563,10 +563,10 @@ Returns the indices of the removed items.
 
 ```javascript
 // Remove the first item, but keep the element in the DOM.
-muuri.remove(0);
+muuri.removeItems(0);
 
 // Remove items and the associated elements.
-muuri.remove([elemA, elemB], true);
+muuri.removeItems([elemA, elemB], true);
 ```
 
 ### `muuri.synchronizeItems()`
@@ -576,7 +576,7 @@ Order the item elements to match the order of the items. If the item's element i
 **Examples**
 
 ```javascript
-muuri.synchronize();
+muuri.synchronizeItems();
 ```
 
 ### `muuri.layoutItems( [instant], [callback] )`
@@ -597,13 +597,13 @@ Calculate item positions and move items to their calculated positions unless the
 
 ```javascript
 // Layout with animations (if any).
-muuri.layout();
+muuri.layoutItems();
 
 // Layout instantly without animations.
-muuri.layout(true);
+muuri.layoutItems(true);
 
 // Layout with callback (and with animations if any).
-muuri.layout(function (items, layoutData) {
+muuri.layoutItems(function (items, layoutData) {
   console.log('layout done!');
 });
 ```
@@ -628,13 +628,13 @@ Show the targeted items.
 
 ```javascript
 // Show items with animation (if any).
-muuri.show([elemA, elemB]);
+muuri.showItems([elemA, elemB]);
 
 // Show items instantly without animations.
-muuri.show([elemA, elemB], true);
+muuri.showItems([elemA, elemB], true);
 
 // Show items with callback (and with animations if any).
-muuri.show([elemA, elemB], function (items) {
+muuri.showItems([elemA, elemB], function (items) {
   console.log('items shown!');
 });
 ```
@@ -659,13 +659,13 @@ Hide the targeted items.
 
 ```javascript
 // Hide items with animation (if any).
-muuri.hide([elemA, elemB]);
+muuri.hideItems([elemA, elemB]);
 
 // Hide items instantly without animations.
-muuri.hide([elemA, elemB], true);
+muuri.hideItems([elemA, elemB], true);
 
 // Hide items with callback (and with animations if any).
-muuri.hide([elemA, elemB], function (items) {
+muuri.hideItems([elemA, elemB], function (items) {
   console.log('items hidden!');
 });
 ```
@@ -690,16 +690,16 @@ Move item to another index or in place of another item.
 ```javascript
 
 // Move elemA to the index of elemB.
-muuri.move(elemA, elemB);
+muuri.moveItem(elemA, elemB);
 
 // Move first item as last.
-muuri.move(0, -1);
+muuri.moveItem(0, -1);
 
 // Swap positions of elemA and elemB.
-muuri.move(elemA, elemB, 'swap');
+muuri.moveItem(elemA, elemB, 'swap');
 
 // Swap positions of the first and the last item.
-muuri.move(0, -1, 'swap');
+muuri.moveItem(0, -1, 'swap');
 ```
 
 ### `muuri.destroy()`

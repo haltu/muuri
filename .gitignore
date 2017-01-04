@@ -1,4 +1,5 @@
 node_modules
+website
 /coverage
 *.log
 *.env

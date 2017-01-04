@@ -135,7 +135,9 @@ An important note for including Muuri to your site is that it needs to have acce
 ```javascript
 var grid = new Muuri({
   container: document.getElementsByClassName('grid')[0],
-  items: document.getElementsByClassName('item')
+  // Muuri does not convert a node list to array automatically
+  // so we have to do it manually.
+  items: [].slice.call(document.getElementsByClassName('item'))
 });
 ```
 
@@ -145,7 +147,7 @@ var grid = new Muuri({
   * Default value: `null`.
   * The container element. Must be always defined.
 * **`items`** &nbsp;&mdash;&nbsp; *array of elements*
-  * Default value: `null`.
+  * Default value: `[]`.
   * The initial item elements wrapped in an array. The elements must be children of the container element.
 * **`positionDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
@@ -183,32 +185,32 @@ var grid = new Muuri({
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Should items be draggable?
+* **`dragContainer`** &nbsp;&mdash;&nbsp; *null / element*
+  * Default value: `null`.
+  * Which item should the dragged item be appended to for the duration of the drag? If `null` is provided the item's muuri container element will be used.
 * **`dragPredicate`** &nbsp;&mdash;&nbsp; *null / function*
   * Default value: `null`.
   * A function that determines when dragging should start. Set to null to use the default predicate.
 * **`dragSort`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
   * Should the items be sorted during drag?
-* **`dragContainer`** &nbsp;&mdash;&nbsp; *null / element*
-  * Default value: `null`.
-  * Which item should the dragged item be appended to for the duration of the drag? If `null` is provided the item's muuri container element will be used.
+* **`dragSortInterval`** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `50`.
+  * When an item is dragged around the grid Muuri automatically checks if the item overlaps another item enough to move the item in it's place. The overlap check method is debounced and this option defines the debounce interval in milliseconds. In other words, this is option defines the amount of time the dragged item must be still before the overlap is checked.
+* **`dragSortTolerance`** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `50`.
+  * Allowed values: `1` - `100`.
+  * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for sorting to occur.
+* **`dragSortAction`** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `"move"`.
+  * Allowed values: `"move"`, `"swap"`.
+  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
 * **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * The duration for item's drag release animation. Set to `0` to disable.
 * **`dragReleaseEasing`** &nbsp;&mdash;&nbsp; *string / array*
   * Default value: `"ease-out"`.
   * The easing for item's drag release animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
-* **`dragOverlapInterval`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `50`.
-  * When an item is dragged around the grid Muuri automatically checks if the item overlaps another item enough to move the item in it's place. The overlap check method is debounced and this option defines the debounce interval in milliseconds. In other words, this is option defines the amount of time the dragged item must be still before an overlap is checked.
-* **`dragOverlapTolerance`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `50`.
-  * Allowed values: `1` - `100`.
-  * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for the dragged item's replacement.
-* **`dragOverlapAction`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"move"`.
-  * Allowed values: `"move"`, `"swap"`.
-  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
 * **`containerClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `"muuri"`.
   * Container element classname.
@@ -236,8 +238,8 @@ var grid = new Muuri({
 The default settings are stored in `Muuri.defaultSettings` object.
 
 ```javascript
-Muuri.defaultSettings.containerDuration = 400;
-Muuri.defaultSettings.dragOverlapAction = 'swap';
+Muuri.defaultSettings.positionDuration = 400;
+Muuri.defaultSettings.dragSortAction = 'swap';
 ```
 
 **Quick reference**
@@ -268,14 +270,14 @@ var defaults = {
 
     // Drag & Drop
     dragEnabled: false,
+    dragContainer: null,
     dragPredicate: null,
     dragSort: true,
-    dragContainer: null,
+    dragSortInterval: 50,
+    dragSortTolerance: 50,
+    dragSortAction: 'move',
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease-out',
-    dragOverlapInterval: 50,
-    dragOverlapTolerance: 50,
-    dragOverlapAction: 'move',
 
     // Classnames
     containerClass: 'muuri',
@@ -314,7 +316,7 @@ muuri.on('layoutend', function (items) {
 
 &nbsp;
 
-### `muuri.off( eventName, listener )`
+### `muuri.off( event, listener )`
 
 Unbind an event from the Muuri instance.
 
@@ -751,7 +753,7 @@ Triggered when `muuri.show()` method is called, after the items are shown (with 
 **Listener parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully shown without interruptions. If an item is already visible when the `muuri.show()` method is called it is cosidered as successfully shown.
+  * An array of `Muuri.Item` instances that were succesfully shown without interruptions. If an item is already visible when the `muuri.show()` method is called it is considered as successfully shown.
 
 **Examples**
 
@@ -785,7 +787,7 @@ Triggered when `muuri.hide()` method is called, after the items are hidden (with
 **Listener parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully hidden without interruptions. If an item is already hidden when the `muuri.show()` method is called it is cosidered as successfully hidden.
+  * An array of `Muuri.Item` instances that were succesfully hidden without interruptions. If an item is already hidden when the `muuri.hide()` method is called it is considered as successfully hidden.
 
 **Examples**
 
@@ -801,9 +803,9 @@ Triggered after `muuri.move()` method is called.
 
 **Listener parameters**
 
-* **targetFrom** &nbsp;&mdash;&nbsp; *array*
+* **targetFrom** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that was moved.
-* **targetTo** &nbsp;&mdash;&nbsp; *array*
+* **targetTo** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance to which's index the *targetFrom* item was moved to.
 
 **Examples**
@@ -821,15 +823,15 @@ Triggered after `muuri.swap()` method is called.
 
 **Listener parameters**
 
-* **targetA** &nbsp;&mdash;&nbsp; *array*
+* **targetA** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that was swapped with *targetB*.
-* **targetB** &nbsp;&mdash;&nbsp; *array*
+* **targetB** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that was swapped with *targetA*.
 
 **Examples**
 
 ```javascript
-muuri.on('move', function (targetA, targetB) {
+muuri.on('swap', function (targetA, targetB) {
   console.log(targetA);
   console.log(targetB);
 });
@@ -878,7 +880,7 @@ Triggered when dragging of an item begins.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.type** &nbsp;&mdash;&nbsp; *String*
+  * **data.type** &nbsp;&mdash;&nbsp; *string*
     *  `"dragstart"`
   * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.
@@ -909,7 +911,7 @@ Triggered when an item is dragged.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.type** &nbsp;&mdash;&nbsp; *String*
+  * **data.type** &nbsp;&mdash;&nbsp; *string*
     *  `"dragmove"`
   * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.
@@ -940,7 +942,7 @@ Triggered when any of the scroll parents of a dragged item is scrolled.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.type** &nbsp;&mdash;&nbsp; *String*
+  * **data.type** &nbsp;&mdash;&nbsp; *string*
     *  `"dragscroll"`
   * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  Th scroll event.
@@ -971,7 +973,7 @@ Triggered after item dragging ends.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * `Muuri.Item` instance that is being dragged.
 * **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.type** &nbsp;&mdash;&nbsp; *String*
+  * **data.type** &nbsp;&mdash;&nbsp; *string*
     *  `"dragend"`
   * **data.event** &nbsp;&mdash;&nbsp; *object*
     *  The hammer event for the drag start event.

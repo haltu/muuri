@@ -1,7 +1,8 @@
 language: node_js
 node_js:
-  - "4"
+  - "6"
 env:
   global:
-    - secure: VUU14zf9WKf/lRHKJInITvdvgppXDgrM0UYSxe3EvO5ElQKCivB/lHddIIUA8mdwQz5i5GCizrePssLr1OR0dfF98s33pYIuN4Enrpkyq7X90pKr7ru3ZrwrqLH2PC5U6ta4GppVsrgFYmRHpuwhGlm0Fpf0obGweTGXwsZtCBQ=
-    - secure: lsrw8vXXY6eOHxEGh3oB57zEtUlw1tt0CnJ8PLRGb2twumDpzKeeAKXSJjvbb13csGZvJbesOgpufdXtFIoT9LraGLA14xBBS7xVTPuhr0NCEC/MEpsXVvNkS10Vd+VsEtNMvPpMe4a0vRkNge+IlhQY4pRpnME14kaniF9BiCE=
+    - secure: bDVeC8Sy6fC7OOG+Q27G2aZ6Yjcn5s3A+5ZgNQbpnV46Dq7+9nP+69KqtHsfUaDiunDA6n6CdvOXdWNG66nHMUE36nZg13h+mRHHxKehXcJN1QAbY9ZEXplCeAXDlTAsO54H3R9Cp8OmRMNtUC47MgygkmZqDDud+3iMyFqT+9U=
+    - secure: lzqfZleLwkf8OHvADsLidmOY0l1yQZZ0iqEn2XI5/pgBwfUbEXp00ysvhy6/+wbcpn7Y7lM9q955V1b0igYQ9Z8mY3KvdSsNfvF/HZFkgLNuaMaYZ2tCKUjdL5gI8N5yYW3e91EoDnQs8B9alqTnwuwilqVjz2SUuZBe50i/loE=
+  email: false

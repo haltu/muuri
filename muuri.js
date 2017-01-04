@@ -1247,35 +1247,36 @@ TODO v0.4.0
     // If item is hidden or animating to hidden.
     else {
 
-      // Stop animation.
-      inst._muuri._itemHideHandler.stop(inst);
+      // Stop ongoing hide animation.
+      if (inst._isHiding) {
+        inst._muuri._itemHideHandler.stop(inst);
+      }
 
-      // Update states.
-      inst._isActive = true;
-      inst._isHidden = false;
-      inst._isShowing = inst._isHiding = false;
+      // Activate item and set showing state to true.
+      inst._isActive = inst._isShowing = true;
 
-      // Update classes.
+      // Set hidden and hiding states to false.
+      inst._isHidden = inst._isHiding = false;
+
+      // Update item classes.
       addClass(inst._element, stn.itemVisibleClass);
       removeClass(inst._element, stn.itemHiddenClass);
 
-      // Set element's display style.
+      // Set item element's display style to block.
       setStyles(inst._element, {
         display: 'block'
       });
 
-      // Process current callback queue.
+      // Process the visibility callback queue with the interrupted flag active.
       processQueue(inst._visibilityQueue, true, inst);
 
-      // Update state.
-      inst._isShowing = true;
-
-      // Push the callback to callback queue.
+      // Push the callback to the visibility callback queue.
       if (typeof callback === 'function') {
         inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }
 
-      // Animate child element and process callback queue.
+      // Animate child element and process the visibility callback queue after
+      // succesful animation.
       inst._muuri._itemShowHandler.start(inst, instant, function () {
         processQueue(inst._visibilityQueue, false, inst);
       });
@@ -1323,25 +1324,25 @@ TODO v0.4.0
     // If item is visible or animating to visible.
     else {
 
-      // Stop animation.
-      inst._muuri._itemShowHandler.stop(inst);
+      // Stop ongoing show animation.
+      if (inst._isShowing) {
+        inst._muuri._itemShowHandler.stop(inst);
+      }
 
-      // Update states.
-      inst._isActive = false;
-      inst._isHidden = true;
-      inst._isShowing = inst._isHiding = false;
+      // Set hidden and hiding states to true.
+      inst._isHidden = inst._isHiding = true;
 
-      // Update classes.
+      // Disable item and set showing to false.
+      inst._isActive = inst._isShowing = false;
+
+      // Update item classes.
       addClass(inst._element, stn.itemHiddenClass);
       removeClass(inst._element, stn.itemVisibleClass);
 
-      // Process current callback queue.
+      // Process the visibility callback queue with the interrupted flag active.
       processQueue(inst._visibilityQueue, true, inst);
 
-      // Update state.
-      inst._isHiding = true;
-
-      // Push the callback to callback queue.
+      // Push the callback to the visibility callback queue.
       if (typeof callback === 'function') {
         inst._visibilityQueue[inst._visibilityQueue.length] = callback;
       }

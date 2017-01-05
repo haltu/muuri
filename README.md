@@ -17,7 +17,7 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 * [Options](#options)
 * [Methods](#methods)
   * [muuri.on( event, listener )](#muurion-event-listener-)
-  * [muuri.off( eventName, listener )](#muurioff-eventname-listener-)
+  * [muuri.off( event, listener )](#muurioff-event-listener-)
   * [muuri.refresh( [targets] )](#muurirefresh-targets-)
   * [muuri.get( [targets], [state] )](#muuriget-targets-state-)
   * [muuri.add( elements, [index] )](#muuriadd-elements-index-)

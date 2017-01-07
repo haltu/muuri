@@ -11,19 +11,19 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 * [Getting started](#getting-started)
 * [Options](#options)
 * [Methods](#methods)
-  * [.on()](#muurion)
-  * [.off()](#muurioff)
-  * [.refresh()](#muurirefresh)
-  * [.refreshItems()](#muurirefreshitems)
-  * [.layoutItems()](#muurilayoutitems)
-  * [.synchronizeItems()](#muurisynchronizeitems)
-  * [.getItems()](#muurigetitems)
-  * [.addItems()](#muuriadditems)
-  * [.removeItems()](#muuriremoveitems)
-  * [.showItems()](#muurishowitems)
-  * [.hideItems()](#muurihideitems)
-  * [.moveItem()](#muurimoveitem)
-  * [.destroy()](#muuridestroy)
+  * [muuri.on( event, listener )](#muurion-event-listener-)
+  * [muuri.off( event, listener )](#muurioff-event-listener-)
+  * [muuri.refresh()](#muurirefresh)
+  * [muuri.refreshItems( [targets] )](#muurirefresh-targets-)
+  * [muuri.layoutItems( [instant], [callback] )](#muurilayoutitems-instant-callback-)
+  * [muuri.synchronizeItems()](#muurisynchronizeitems)
+  * [muuri.getItems( [targets], [state] )](#muurigetitems-targets-state-)
+  * [muuri.addItems( elements, [index] )](#muuriadditems-elements-index-)
+  * [muuri.removeItems( targets, [removeElement] )](#muuriremoveitems-targets-removeelement-)
+  * [muuri.showItems( targets, [instant], [callback] )](#muurishowitems-targets-instant-callback-)
+  * [muuri.hideItems( targets, [instant], [callback] )](#muurihideitems-targets-instant-callback-)
+  * [muuri.moveItem( targetFrom, targetTo, method )](#muurimoveitem-targetfrom-targetto-method-)
+  * [muuri.destroy()](#muuridestroy)
 * [Events](#events)
   * [refresh](#refresh)
   * [refreshitems](#refreshitems)
@@ -200,7 +200,7 @@ var grid = new Muuri({
   * Provide an object to configure the default layout algorithm with the following properties:
       * **`layout.fillGaps`** &nbsp;&mdash;&nbsp; *boolean*
         * Default value: `false`.
-        * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this options is `false` which basically means that the following condition will be always true when calculating the layout (assuming `alignRight` and `alignBottom` are `false`): `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
+        * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this option is `false` which basically means that the following condition will be always true when calculating the layout (assuming `alignRight` and `alignBottom` are `false`): `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
       * **`layout.horizontal`** &nbsp;&mdash;&nbsp; *boolean*
         * Default value: `false`.
         *  When `true` the grid works in landscape mode (grid expands to the right). Use for horizontally scrolling sites. When `false` the grid works in "portrait" mode and expands downwards.
@@ -227,18 +227,18 @@ var grid = new Muuri({
       * The current width of the container element (without margin, border and padding).
     * **`height`** &nbsp;&mdash;&nbsp; *number*
       * The current height of the container element (without margin, border and padding).
- * **`layoutOnResize`** &nbsp;&mdash;&nbsp; *null / number*
+ * **`layoutOnResize`** &nbsp;&mdash;&nbsp; *boolean / number*
    * Default value: `100`.
-   * Should Muuri automatically trigger layout on window resize? Set to `null` to disable. When a number (`0` or greater) is provided Muuri will automatically trigger layout when window is resized. The provided number equals to the amount of time (in milliseconds) that is waited before the layout is triggered after each resize event. The layout method is wrapped in a debouned function in order to avoid unnecessary layout calls.
+   * Should Muuri automatically trigger `layoutItems` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically lay out the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are laid out after each window resize event.
 * **`layoutOnInit`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
-  * Should Muuri trigger layout automatically on init?
+  * Should Muuri trigger `layoutItems` method automatically on init?
 * **`layoutDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
-  * The duration for item's positioning animation in milliseconds. Set to `0` to disable.
+  * The duration for item's layout animation in milliseconds. Set to `0` to disable.
 * **`layoutEasing`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `'ease'`.
-  * The easing for item's positioning animation. Accepts any valid [transition timing function](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-timing-function).
+  * The easing for item's layout animation. Accepts any valid [transition timing function](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-timing-function).
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Should items be draggable?
@@ -268,19 +268,19 @@ var grid = new Muuri({
   * Should the items be sorted during drag?
 * **`dragSortInterval`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `50`.
-  * When an item is dragged around the grid Muuri automatically checks if the item overlaps another item enough to move the item in it's place. The overlap check method is debounced and this option defines the debounce interval in milliseconds. In other words, this is option defines the amount of time the dragged item must be still before an overlap is checked.
+  * Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty intense which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is definitely not recommended).
 * **`dragSortPredicate`** &nbsp;&mdash;&nbsp; *function / object*
   * Default value: `{action: 'move', tolerance: 50}`.
   * Defines the logic for the sort procedure during dragging an item.
-  * If an object is provided the default sort handler will be used. You can define the following properties:
+  * If an object is provided the default sort predicate handler will be used. You can define the following properties:
     * **`dragSortPredicate.action`** &nbsp;&mdash;&nbsp; *string*
       * Default value: `'move'`.
       * Allowed values: `'move'`, `'swap'`.
       * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
-    * **`dragSortPredicate.tolerance`** &nbsp;&mdash;&nbsp; *number*
+    * **`dragSortPredicate.threshold`** &nbsp;&mdash;&nbsp; *number*
       * Default value: `50`.
       * Allowed values: `1` - `100`.
-      * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for the dragged item's replacement.
+      * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the items before sorting is triggered.
   * Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback receives one argument, which is the currently dragged Muuri.Item instance. The callback should return a *falsy* value if it sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties: `action` ("move" or "swap"), `from` (the index of the Muuri.Item to be moved/swapped), `to` (the index the item should be moved to / swapped with). E.g returning `{action: 'move', from: 0, to: 1}` would move the first item as the second item.
 * **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
@@ -470,105 +470,6 @@ muuri.refreshItems([elemA, elemB]);
 muuri.refreshItems([itemA, itemB]);
 ```
 
-### `muuri.getItems( [targets], [state] )`
-
-Get all items. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state (active/inactive). Note that the returned array is not the same object used by the instance so modifying it will not affect instance's items. All items that are not found are omitted from the returned array.
-
-**Parameters**
-
-* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * Optional.
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-* **state** &nbsp;&mdash;&nbsp; *string*
-  * Optional.
-  * Default value: `undefined`.
-  * Allowed values: `'active'`, `'inactive'`.
-  * Filter the returned array by the items' state. For example, if set to `'active'` all *inactive* items will be removed from the returned array.
-
-**Returns** &nbsp;&mdash;&nbsp; *array*
-
-Returns an array of `Muuri.Item` instances.
-
-**Examples**
-
-```javascript
-// Get all items, active and inactive.
-var allItems = muuri.getItems();
-
-// Get all active items.
-var activeItems = muuri.getItems('active');
-
-// Get all inactive items.
-var inactiveItems = muuri.getItems('inactive');
-
-// Get the first item.
-var firstItem = muuri.getItems(0)[0];
-
-// Get specific items by their elements.
-var items = muuri.getItems([elemA, elemB]);
-
-// Get specific inactive items.
-var items = muuri.getItems([elemA, elemB], 'inactive');
-```
-
-### `muuri.addItems( elements, [index] )`
-
-Add new items by providing the elements you wish to add to the instance and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container.
-
-If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `muuri.show()` method.
-
-This method will automatically call `muuri.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
-
-**Parameters**
-
-* **elements** &nbsp;&mdash;&nbsp; *array / element*
-  * An array of DOM elements.
-* **index** &nbsp;&mdash;&nbsp; *number*
-  * Optional.
-  * Default value: `0`.
-  * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `muuri.synchronize()` method to arrange the DOM elments to the same order as the items.
-
-**Returns** &nbsp;&mdash;&nbsp; *array*
-
-Returns an array of `Muuri.Item` instances.
-
-**Examples**
-
-```javascript
-// Add two new items to the beginning.
-muuri.addItems([elemA, elemB]);
-
-// Add two new items to the end.
-muuri.addItems([elemA, elemB], -1);
-```
-
-### `muuri.removeItems( targets, [removeElement] )`
-
-Remove items from the instance.
-
-**Parameters**
-
-* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-* **removeElement** &nbsp;&mdash;&nbsp; *boolean*
-  * Optional.
-  * Default value: `false`.
-  * Should the associated DOM element be removed or not?
-
-**Returns** &nbsp;&mdash;&nbsp; *array*
-
-Returns the indices of the removed items.
-
-**Examples**
-
-```javascript
-// Remove the first item, but keep the element in the DOM.
-muuri.removeItems(0);
-
-// Remove items and the associated elements.
-muuri.removeItems([elemA, elemB], true);
-```
-
 ### `muuri.synchronizeItems()`
 
 Order the item elements to match the order of the items. If the item's element is not a child of the container it is ignored and left untouched. This comes handy if you need to keep the DOM structure matched with the order of the items.
@@ -596,17 +497,118 @@ Calculate item positions and move items to their calculated positions unless the
 **Examples**
 
 ```javascript
-// Layout with animations (if any).
+// Layout items.
 muuri.layoutItems();
 
-// Layout instantly without animations.
+// Layout items instantly (without animations).
 muuri.layoutItems(true);
 
-// Layout with callback (and with animations if any).
+// Layout all items and define a callback that will be called
+// after all items have been animated to their positions.
 muuri.layoutItems(function (items, layoutData) {
   console.log('layout done!');
 });
 ```
+
+### `muuri.getItems( [targets], [state] )`
+
+Get all items. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state (active/inactive). Note that the returned array is not the same object used by the instance so modifying it will not affect instance's items. All items that are not found are omitted from the returned array.
+
+**Parameters**
+
+* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * Optional.
+  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
+* **state** &nbsp;&mdash;&nbsp; *string*
+  * Optional.
+  * Default value: `undefined`.
+  * Allowed values: `'active'`, `'inactive'`.
+  * Filter the returned array by the items' state. For example, if set to `'active'` all *inactive* items will be removed from the returned array.
+
+**Returns** &nbsp;&mdash;&nbsp; *array*
+
+Returns an array of `Muuri.Item` instances.
+
+**Examples**
+
+```javascript
+// Get all items, both active and inactive.
+var allItems = muuri.getItems();
+
+// Get all active (visible) items.
+var activeItems = muuri.getItems('active');
+
+// Get all inactive (hidden) items.
+var inactiveItems = muuri.getItems('inactive');
+
+// Get the first item (active or inactive).
+var firstItem = muuri.getItems(0)[0];
+
+// Get specific items by their elements (inactive or active).
+var items = muuri.getItems([elemA, elemB]);
+
+// Get specific inactive items.
+var items = muuri.getItems([elemA, elemB], 'inactive');
+```
+
+### `muuri.addItems( elements, [index] )`
+
+Add new items by providing the elements you wish to add to the instance and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container.
+
+If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `muuri.showItems()` method.
+
+This method will automatically call `muuri.layoutItems()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
+
+**Parameters**
+
+* **elements** &nbsp;&mdash;&nbsp; *array / element*
+  * An array of DOM elements.
+* **index** &nbsp;&mdash;&nbsp; *number*
+  * Optional.
+  * Default value: `0`.
+  * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `muuri.synchronizeItems()` method to arrange the DOM elments to the same order as the items.
+
+**Returns** &nbsp;&mdash;&nbsp; *array*
+
+Returns an array of `Muuri.Item` instances.
+
+**Examples**
+
+```javascript
+// Add two new items to the beginning.
+muuri.addItems([elemA, elemB]);
+
+// Add two new items to the end.
+muuri.addItems([elemA, elemB], -1);
+```
+
+### `muuri.removeItems( targets, [removeElement] )`
+
+Remove items from the instance.
+
+**Parameters**
+
+* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
+* **removeElement** &nbsp;&mdash;&nbsp; *boolean*
+  * Optional.
+  * Default value: `false`.
+  * Should the associated DOM element be removed from the DOM?
+
+**Returns** &nbsp;&mdash;&nbsp; *array*
+
+Returns the indices of the removed items.
+
+**Examples**
+
+```javascript
+// Remove the first item, but keep the element in the DOM.
+muuri.removeItems(0);
+
+// Remove items and the associated elements.
+muuri.removeItems([elemA, elemB], true);
+```
+
 
 ### `muuri.showItems( targets, [instant], [callback] )`
 
@@ -658,13 +660,14 @@ Hide the targeted items.
 **Examples**
 
 ```javascript
-// Hide items with animation (if any).
+// Hide items with animation.
 muuri.hideItems([elemA, elemB]);
 
 // Hide items instantly without animations.
 muuri.hideItems([elemA, elemB], true);
 
-// Hide items with callback (and with animations if any).
+// Hide items and call the callback function after
+// all items are hidden.
 muuri.hideItems([elemA, elemB], function (items) {
   console.log('items hidden!');
 });
@@ -681,9 +684,11 @@ Move item to another index or in place of another item.
 * **targetTo** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
   * DOM element or `Muuri.Item` instance or index of the item as an integer.
 * **method** &nbsp;&mdash;&nbsp; *string*
-  * Defaults to "move".
+  * Defaults value: `'move'`.
   * Optional.
-  * Accepts either "move" or "swap": "move" moves item in place of another item and "swap" swaps position of items.
+  * Accepts the following values:
+    * `'move'`: moves item in place of another item.
+    * `'swap'`: swaps position of items.
 
 **Examples**
 

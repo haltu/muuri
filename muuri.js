@@ -40,22 +40,28 @@ TODO v0.3.0
 * [x] Try to build tiny custom functions to replace mezr.
 * [x] Create an ESLint config for the project.
 * [x] UMD module definition.
-* [x] Idea make items attach to the container's padding edge. This way the
+* [x] Make items attach to the container's padding edge. This way the
       container's padding can be used to create spacing. No need to add extra
       wrappers. While you're at it, cache container element's and item elements'
-      dimensions and offsets. Should there be separate refresh event for items
-      and the container element?
-* [x] Test the dragStartPredicate system and adjust it accordingly. Think about
-      using a constructor to create a new Predicate handler whenever the
-      dragging starts. This way we could have asynchronous resolving also. Also
-      think about using a predicate object which has resolve/reject methods as
-      well as isResolved and isRejected methods. The methods should allow
-      controlling the start flow without too much hassle.
+      dimensions and offsets.
 * [x] Merge swap method to move method.
 * [x] Remove getItemIndex method.
+* [ ] Split Item.prototype.getData to smaller public getter methods and document
+      them.
+* [ ] Add muuri.getElement() and muuri.getRect().
+* [ ] Optimize the internal animation engine to be as fast as possible.
+* [ ] Allow dropping on empty slots (gaps).
+* [ ] When dragging an item sometimes it flickers as if it did not have the
+      dragging class. Make sure that the dragged item always has dragging class.
 * [ ] Update docs.
 * [ ] Update website.
 * [ ] Update unit tests.
+* [ ] Tutorials/guides on:
+      - How to use custom hide/show animations?
+      - How to replace the default animation engine with for example Velocity?
+      - How to use custom layout algorithm?
+      - How to use drag start predicate?
+      - How to use drag sort predicate?
 
 TODO v0.3.1
 ===========
@@ -71,7 +77,10 @@ TODO v0.3.1
 
 TODO v0.4.0
 ===========
-* [ ] Allow dropping on empty slots (gaps).
+* [ ] Make it possible to disable/enable drag, drag sort and some other options
+      after init. What kind of mechanism should we use? Specific methods or some
+      sort of "reinit" method, or just manipulating the settings object
+      directly?
 * [ ] How to connect two or more Muuri instances o that items can be dragged
       from an instance to another. Check out draggable.js and dragula.js, they
       have implmented it.
@@ -156,7 +165,7 @@ TODO v0.4.0
    * @param {Boolean} [settings.layout.horizontal=false]
    * @param {Boolean} [settings.layout.alignRight=false]
    * @param {Boolean} [settings.layout.alignBottom=false]
-   * @param {?Number} [settings.layoutOnResize=100]
+   * @param {Boolean|Number} [settings.layoutOnResize=100]
    * @param {Boolean} [settings.layoutOnInit=true]
    * @param {Number} [settings.layoutDuration=300]
    * @param {String} [settings.layoutEasing="ease"]
@@ -166,7 +175,7 @@ TODO v0.4.0
    * @param {Boolean} [settings.dragSort=true]
    * @param {Number} [settings.dragSortInterval=50]
    * @param {?Function|Object} [settings.dragSortPredicate]
-   * @param {Number} [settings.dragSortPredicate.tolerance=50]
+   * @param {Number} [settings.dragSortPredicate.threshold=50]
    * @param {String} [settings.dragSortPredicate.action="move"]
    * @param {Number} [settings.dragReleaseDuration=300]
    * @param {String} [settings.dragReleaseEasing="ease"]
@@ -181,7 +190,7 @@ TODO v0.4.0
   function Muuri(settings) {
 
     var inst = this;
-    var debounced;
+    var debouncedLayout;
 
     // Merge user settings with default settings.
     var stn = inst._settings = mergeOptions({}, Muuri.defaultSettings, settings || {});
@@ -205,7 +214,7 @@ TODO v0.4.0
     inst._itemShowHandler = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
     inst._itemHideHandler = typeof stn.hide === 'function' ? stn.hide() : getItemVisbilityHandler('hide', stn.hide);
 
-    // Calculate element's dimensions and offset.
+    // Calculate container element's initial dimensions and offset.
     inst.refresh();
 
     // Setup initial items.
@@ -213,15 +222,15 @@ TODO v0.4.0
       return new Item(inst, element);
     });
 
-    // Relayout on window resize if enabled.
-    if (stn.layoutOnResize || stn.layoutOnResize === 0) {
+    // Layout on window resize if the layoutOnResize option is enabled.
+    if (typeof stn.layoutOnResize === 'number' || stn.layoutOnResize === true) {
 
-      debounced = debounce(function () {
+      debouncedLayout = debounce(function () {
         inst.refresh().refreshItems().layoutItems();
-      }, stn.layoutOnResize);
+      }, Math.max(0, parseInt(stn.layoutOnResize) || 0));
 
       inst._resizeHandler = function () {
-        debounced();
+        debouncedLayout();
       };
 
       global.addEventListener('resize', inst._resizeHandler);
@@ -234,6 +243,11 @@ TODO v0.4.0
     }
 
   }
+
+  /**
+   * Muuri - Public properties
+   * *************************
+   */
 
   // Add all core constructors as static properties to Muuri constructor.
   Muuri.Item = Item;
@@ -293,7 +307,7 @@ TODO v0.4.0
     dragSort: true,
     dragSortInterval: 50,
     dragSortPredicate: {
-      tolerance: 50,
+      threshold: 50,
       action: 'move'
     },
     dragReleaseDuration: 300,
@@ -311,65 +325,43 @@ TODO v0.4.0
   };
 
   /**
-   * Get instance's item by element or by index. Target can also be a
-   * Muuri item instance in which case the function returns the item if it
-   * exists within related Muuri instance. If nothing is found with the
-   * provided target null is returned.
-   *
-   * @protected
-   * @memberof Muuri.prototype
-   * @param {HTMLElement|Item|Number} [target=0]
-   * @returns {?Item}
+   * Muuri - Public methods
+   * **********************
    */
-  Muuri.prototype._getItem = function (target) {
 
-    var inst = this;
-    var index;
-    var ret;
-    var item;
-    var i;
+  /**
+   * Get instance's element.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @returns {HTMLElement}
+   */
+  Muuri.prototype.getElement = function () {
 
-    // If no target is specified, return the first item or null.
-    if (!target) {
+    return this._element;
 
-      return inst._items[0] || null;
+  };
 
-    }
-    // If the target is instance of Item return it if it is attached to this
-    // Muuri instance, otherwise return null.
-    else if (target instanceof Item) {
+  /**
+   * Get instance's cached rect data: width, height, left, right, top, bottom.
+   * It's basically the same data as provided by element.getBoundingClientRect()
+   * method, just cached. This data is subject to change after layout and after
+   * refresh method is called.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @returns {Object}
+   */
+  Muuri.prototype.getRect = function () {
 
-      return target._muuri === inst ? target : null;
-
-    }
-    // If target is number return the item in that index. If the number is lower
-    // than zero look for the item starting from the end of the items array. For
-    // example -1 for the last item, -2 for the second last item, etc.
-    else if (typeof target === 'number') {
-
-      index = target > -1 ? target : inst._items.length + target;
-
-      return inst._items[index] || null;
-
-    }
-    // In other cases let's assume that the target is an element, so let's try
-    // to find an item that matches the element and return it. If item is not
-    // found return null.
-    else {
-
-      ret = null;
-
-      for (i = 0; i < inst._items.length; i++) {
-        item = inst._items[i];
-        if (item._element === target) {
-          ret = item;
-          break;
-        }
-      }
-
-      return ret;
-
-    }
+    return {
+      width: this._width,
+      height: this._height,
+      left: this._offset.left,
+      right: this._offset.left + this._width,
+      top: this._offset.top,
+      bottom: this._offset.top + this._height
+    };
 
   };
 
@@ -888,6 +880,74 @@ TODO v0.4.0
   };
 
   /**
+   * Muuri - Protected methods
+   * *************************
+   */
+
+  /**
+   * Get instance's item by element or by index. Target can also be a
+   * Muuri item instance in which case the function returns the item if it
+   * exists within related Muuri instance. If nothing is found with the
+   * provided target null is returned.
+   *
+   * @protected
+   * @memberof Muuri.prototype
+   * @param {HTMLElement|Item|Number} [target=0]
+   * @returns {?Item}
+   */
+  Muuri.prototype._getItem = function (target) {
+
+    var inst = this;
+    var index;
+    var ret;
+    var item;
+    var i;
+
+    // If no target is specified, return the first item or null.
+    if (!target) {
+
+      return inst._items[0] || null;
+
+    }
+    // If the target is instance of Item return it if it is attached to this
+    // Muuri instance, otherwise return null.
+    else if (target instanceof Item) {
+
+      return target._muuri === inst ? target : null;
+
+    }
+    // If target is number return the item in that index. If the number is lower
+    // than zero look for the item starting from the end of the items array. For
+    // example -1 for the last item, -2 for the second last item, etc.
+    else if (typeof target === 'number') {
+
+      index = target > -1 ? target : inst._items.length + target;
+
+      return inst._items[index] || null;
+
+    }
+    // In other cases let's assume that the target is an element, so let's try
+    // to find an item that matches the element and return it. If item is not
+    // found return null.
+    else {
+
+      ret = null;
+
+      for (i = 0; i < inst._items.length; i++) {
+        item = inst._items[i];
+        if (item._element === target) {
+          ret = item;
+          break;
+        }
+      }
+
+      return ret;
+
+    }
+
+  };
+
+  /**
    * Item
    * ****
    */
@@ -995,34 +1055,182 @@ TODO v0.4.0
   }
 
   /**
-   * Get instance's data.
+   * Item - Public methods
+   * *********************
+   */
+
+  /**
+   * Get instance's element.
    *
-   * @protected
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.getElement = function () {
+
+    return this._element;
+
+  };
+
+  /**
+   * Get instance element's cached width.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Number}
+   */
+  Item.prototype.getWidth = function () {
+
+    return this._width;
+
+  };
+
+  /**
+   * Get instance element's cached height.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Number}
+   */
+  Item.prototype.getHeight = function () {
+
+    return this._height;
+
+  };
+
+  /**
+   * Get instance element's cached margins.
+   *
+   * @public
    * @memberof Item.prototype
    * @returns {Object}
+   *   - The returned object contains left, right, top and bottom properties
+   *     which indicate the item element's cached margins.
    */
-  Item.prototype.getData = function () {
-
-    var inst = this;
+  Item.prototype.getMargin = function () {
 
     return {
-      element: inst._element,
-      width: inst._width,
-      height: inst._height,
-      outerWidth: inst._outerWidth,
-      outerHeight: inst._outerHeight,
-      left: inst._left,
-      top: inst._top,
-      isActive: inst._isActive,
-      isPositioning: inst._isPositioning,
-      isDragging: inst._drag && inst._drag._drag.isActive,
-      isReleasing: inst._drag && inst._drag._release.isActive,
-      isVisible: !inst._isHidden,
-      isShowing: inst._isShowing,
-      isHiding: inst._isHiding
+      left: this._margin.left,
+      right: this._margin.right,
+      top: this._margin.top,
+      bottom: this._margin.bottom
     };
 
   };
+
+  /**
+   * Get instance element's cached position.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Object}
+   *   - The returned object contains left and top properties which indicate the
+   *     item element's cached position in the grid.
+   */
+  Item.prototype.getPosition = function () {
+
+    return {
+      left: this._left,
+      top: this._top
+    };
+
+  };
+
+  /**
+   * Is the item active?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isActive = function () {
+
+    return this._isActive;
+
+  };
+
+  /**
+   * Is the item visible?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isVisible = function () {
+
+    return !this._isHidden;
+
+  };
+
+  /**
+   * Is the item being animated to visible?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isShowing = function () {
+
+    return this._isShowing;
+
+  };
+
+  /**
+   * Is the item being animated to hidden?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isHiding = function () {
+
+    return this._isHiding;
+
+  };
+
+  /**
+   * Is the item positioning?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isPositioning = function () {
+
+    return this._isPositioning;
+
+  };
+
+  /**
+   * Is the item being dragged?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isDragging = function () {
+
+    return this._drag && this._drag._drag.isActive;
+
+  };
+
+  /**
+   * Is the item being released?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isReleasing = function () {
+
+    return this._drag && this._drag._release.isActive;
+
+  };
+
+  /**
+   * Item - Protected methods
+   * ************************
+   */
 
   /**
    * Stop item's position animation if it is currently animating.
@@ -1059,7 +1267,7 @@ TODO v0.4.0
   /**
    * Recalculate item's dimensions.
    *
-   * @public
+   * @protected
    * @memberof Item.prototype
    * @returns {Item} returns the Item instance.
    */
@@ -1099,7 +1307,7 @@ TODO v0.4.0
   /**
    * Position item based on it's current data.
    *
-   * @public
+   * @protected
    * @memberof Item.prototype
    * @param {Boolean} instant
    * @param {Function} [callback]
@@ -1213,7 +1421,7 @@ TODO v0.4.0
   /**
    * Show item.
    *
-   * @public
+   * @protected
    * @memberof Item.prototype
    * @param {Boolean} instant
    * @param {Function} [callback]
@@ -1290,7 +1498,7 @@ TODO v0.4.0
   /**
    * Hide item.
    *
-   * @public
+   * @protected
    * @memberof Item.prototype
    * @param {Boolean} instant
    * @param {Function} [callback]
@@ -1369,7 +1577,7 @@ TODO v0.4.0
   /**
    * Destroy item instance.
    *
-   * @public
+   * @protected
    * @memberof Item.prototype
    * @param {Boolean} [removeElement=false]
    */
@@ -1467,15 +1675,397 @@ TODO v0.4.0
 
     // If the user has provided custom function as a layout method invoke it.
     if (typeof stn === 'function') {
-      stn.call(inst);
+      stn(inst);
     }
 
     // Otherwise invoke the default layout method.
     else {
-      LayoutFirstFit.call(inst, isPlainObject(stn) ? stn : {});
+      layoutFirstFit(inst, isPlainObject(stn) ? stn : {});
     }
 
   }
+
+  /**
+   * Layout - Default layout method
+   * ******************************
+   */
+
+  /**
+   * LayoutFirstFit v0.3.0-dev
+   * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
+   * Released under the MIT license
+   *
+   * The default Muuri layout method.
+   *
+   * @private
+   * @param {Layout} layout
+   * @param {Object} settings
+   * @param {Boolean} [settings.fillGaps=false]
+   * @param {Boolean} [settings.horizontal=false]
+   * @param {Boolean} [settings.alignRight=false]
+   * @param {Boolean} [settings.alignBottom=false]
+   */
+  function layoutFirstFit(layout, settings) {
+
+    var slotIds;
+    var slot;
+    var item;
+    var i;
+
+    // Empty slots data.
+    var emptySlots = [];
+
+    // Normalize settings.
+    var fillGaps = settings.fillGaps ? true : false;
+    var isHorizontal = settings.horizontal ? true : false;
+    var alignRight = settings.alignRight ? true : false;
+    var alignBottom = settings.alignBottom ? true : false;
+
+    // Set horizontal/vertical mode.
+    if (isHorizontal) {
+      layout.setWidth = true;
+      layout.width = 0;
+    }
+    else {
+      layout.setHeight = true;
+      layout.height = 0;
+    }
+
+    // No need to go further if items do not exist.
+    if (!layout.items.length) {
+      return;
+    }
+
+    // Find slots for items.
+    for (i = 0; i < layout.items.length; i++) {
+
+      item = layout.items[i];
+      slot = layoutFirstFit.getSlot(layout, emptySlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
+
+      // Update layout width/height.
+      if (isHorizontal) {
+        layout.width = Math.max(layout.width, slot.left + slot.width);
+      }
+      else {
+        layout.height = Math.max(layout.height, slot.top + slot.height);
+      }
+
+      // Add slot to slots data.
+      layout.slots[item._id] = slot;
+
+    }
+
+    // If the alignment is set to right or bottom, we need to adjust the
+    // results.
+    if (alignRight || alignBottom) {
+
+      slotIds = Object.keys(layout.slots);
+
+      for (i = 0; i < slotIds.length; i++) {
+
+        slot = layout.slots[slotIds[i]];
+
+        if (alignRight) {
+          slot.left = layout.width - (slot.left + slot.width);
+        }
+
+        if (alignBottom) {
+          slot.top = layout.height - (slot.top + slot.height);
+        }
+
+      }
+
+    }
+
+  }
+
+  /**
+   * Calculate position for the layout item. Returns the left and top position
+   * of the item in pixels.
+   *
+   * @private
+   * @memberof layoutFirstFit
+   * @param {Layout} layout
+   * @param {Array} slots
+   * @param {Number} itemWidth
+   * @param {Number} itemHeight
+   * @param {Boolean} vertical
+   * @param {Boolean} fillGaps
+   * @returns {Object}
+   */
+  layoutFirstFit.getSlot = function (layout, slots, itemWidth, itemHeight, vertical, fillGaps) {
+
+    var currentSlots = slots[0] || [];
+    var newSlots = [];
+    var item = {
+      left: null,
+      top: null,
+      width: itemWidth,
+      height: itemHeight
+    };
+    var slot;
+    var potentialSlots;
+    var ignoreCurrentSlots;
+    var i;
+    var ii;
+
+    // Try to find a slot for the item.
+    for (i = 0; i < currentSlots.length; i++) {
+      slot = currentSlots[i];
+      if (item.width <= slot.width && item.height <= slot.height) {
+        item.left = slot.left;
+        item.top = slot.top;
+        break;
+      }
+    }
+
+    // If no slot was found for the item.
+    if (item.left === null) {
+
+      // Position the item in to the bottom left (vertical mode) or top right
+      // (horizontal mode) of the grid.
+      item.left = vertical ? 0 : layout.width;
+      item.top = vertical ? layout.height : 0;
+
+      // If gaps don't needs filling do not add any current slots to the new
+      // slots array.
+      if (!fillGaps) {
+        ignoreCurrentSlots = true;
+      }
+
+    }
+
+    // In vertical mode, if the item's bottom overlaps the grid's bottom.
+    if (vertical && (item.top + item.height) > layout.height) {
+
+      // If item is not aligned to the left edge, create a new slot.
+      if (item.left > 0) {
+        newSlots[newSlots.length] = {
+          left: 0,
+          top: layout.height,
+          width: item.left,
+          height: Infinity
+        };
+      }
+
+      // If item is not aligned to the right edge, create a new slot.
+      if ((item.left + item.width) < layout.width) {
+        newSlots[newSlots.length] = {
+          left: item.left + item.width,
+          top: layout.height,
+          width: layout.width - item.left - item.width,
+          height: Infinity
+        };
+      }
+
+      // Update grid height.
+      layout.height = item.top + item.height;
+
+    }
+
+    // In horizontal mode, if the item's right overlaps the grid's right edge.
+    if (!vertical && (item.left + item.width) > layout.width) {
+
+      // If item is not aligned to the top, create a new slot.
+      if (item.top > 0) {
+        newSlots[newSlots.length] = {
+          left: layout.width,
+          top: 0,
+          width: Infinity,
+          height: item.top
+        };
+      }
+
+      // If item is not aligned to the bottom, create a new slot.
+      if ((item.top + item.height) < layout.height) {
+        newSlots[newSlots.length] = {
+          left: layout.width,
+          top: item.top + item.height,
+          width: Infinity,
+          height: layout.height - item.top - item.height
+        };
+      }
+
+      // Update grid width.
+      layout.width = item.left + item.width;
+
+    }
+
+    // Clean up the current slots making sure there are no old slots that
+    // overlap with the item. If an old slot overlaps with the item, split it
+    // into smaller slots if necessary.
+    for (i = fillGaps ? 0 : ignoreCurrentSlots ? currentSlots.length : i; i < currentSlots.length; i++) {
+      potentialSlots = layoutFirstFit.splitRect(currentSlots[i], item);
+      for (ii = 0; ii < potentialSlots.length; ii++) {
+        slot = potentialSlots[ii];
+        if (slot.width > 0 && slot.height > 0 && ((vertical && slot.top < layout.height) || (!vertical && slot.left < layout.width))) {
+          newSlots[newSlots.length] = slot;
+        }
+      }
+    }
+
+    // Remove redundant slots and sort the new slots.
+    layoutFirstFit.purgeSlots(newSlots).sort(vertical ? layoutFirstFit.sortRectsTopLeft : layoutFirstFit.sortRectsLeftTop);
+
+    // Update the slots data.
+    slots[0] = newSlots;
+
+    // Return the item.
+    return item;
+
+  };
+
+  /**
+   * Sort rectangles with top-left gravity. Assumes that objects with
+   * properties left, top, width and height are being sorted.
+   *
+   * @private
+   * @memberof layoutFirstFit
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Number}
+   */
+  layoutFirstFit.sortRectsTopLeft = function (a, b) {
+
+    return a.top < b.top ? -1 : (a.top > b.top ? 1 : (a.left < b.left ? -1 : (a.left > b.left ? 1 : 0)));
+
+  };
+
+  /**
+   * Sort rectangles with left-top gravity. Assumes that objects with
+   * properties left, top, width and height are being sorted.
+   *
+   * @private
+   * @memberof layoutFirstFit
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Number}
+   */
+  layoutFirstFit.sortRectsLeftTop = function (a, b) {
+
+    return a.left < b.left ? -1 : (a.left > b.left ? 1 : (a.top < b.top ? -1 : (a.top > b.top ? 1 : 0)));
+
+  };
+
+  /**
+   * Check if a rectabgle is fully within another rectangle. Assumes that the
+   * rectangle object has the following properties: left, top, width and height.
+   *
+   * @private
+   * @memberof layoutFirstFit
+   * @param {Object} a
+   * @param {Object} b
+   * @returns {Boolean}
+   */
+  layoutFirstFit.isRectWithinRect = function (a, b) {
+
+    return a.left >= b.left && a.top >= b.top && (a.left + a.width) <= (b.left + b.width) && (a.top + a.height) <= (b.top + b.height);
+
+  };
+
+  /**
+   * Loops through an array of slots and removes all slots that are fully within
+   * another slot in the array.
+   *
+   * @private
+   * @memberof layoutFirstFit
+   * @param {Array} slots
+   */
+  layoutFirstFit.purgeSlots = function (slots) {
+
+    var i = slots.length;
+    var ii;
+    var slotA;
+    var slotB;
+
+    while (i--) {
+      slotA = slots[i];
+      ii = slots.length;
+      while (ii--) {
+        slotB = slots[ii];
+        if (i !== ii && layoutFirstFit.isRectWithinRect(slotA, slotB)) {
+          slots.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    return slots;
+
+  };
+
+  /**
+   * Compares a rectangle to another and splits it to smaller pieces (the parts
+   * that exceed the other rectangles edges). At maximum generates four smaller
+   * rectangles.
+   *
+   * @private
+   * @memberof layoutFirstFit
+   * @param {Object} a
+   * @param {Object} b
+   * returns {Array}
+   */
+  layoutFirstFit.splitRect = function (a, b) {
+
+    var ret = [];
+    var overlap = !(b.left > (a.left + a.width) || (b.left + b.width) < a.left || b.top > (a.top + a.height) || (b.top + b.height) < a.top);
+
+    // If rect a does not overlap with rect b add rect a to the return data as
+    // is.
+    if (!overlap) {
+
+      ret[0] = a;
+
+    }
+    // If rect a overlaps with rect b split rect a into smaller rectangles and
+    // add them to the return data.
+    else {
+
+      // Left split.
+      if (a.left < b.left) {
+        ret[ret.length] = {
+          left: a.left,
+          top: a.top,
+          width: b.left - a.left,
+          height: a.height
+        };
+      }
+
+      // Right split.
+      if ((a.left + a.width) > (b.left + b.width)) {
+        ret[ret.length] = {
+          left: b.left + b.width,
+          top: a.top,
+          width: (a.left + a.width) - (b.left + b.width),
+          height: a.height
+        };
+      }
+
+      // Top split.
+      if (a.top < b.top) {
+        ret[ret.length] = {
+          left: a.left,
+          top: a.top,
+          width: a.width,
+          height: b.top - a.top
+        };
+      }
+
+      // Bottom split.
+      if ((a.top + a.height) > (b.top + b.height)) {
+        ret[ret.length] = {
+          left: a.left,
+          top: b.top + b.height,
+          width: a.width,
+          height: (a.top + a.height) - (b.top + b.height)
+        };
+      }
+
+    }
+
+    return ret;
+
+  };
 
   /**
    * Emitter
@@ -1488,14 +2078,20 @@ TODO v0.4.0
    * This is a simplified version of jvent.js event emitter library:
    * https://github.com/pazguille/jvent/blob/0.2.0/dist/jvent.js
    *
-   * @private
+   * @public
+   * @class
    */
   function Emitter() {}
 
   /**
+   * Emitter - Public methods
+   * ************************
+   */
+
+  /**
    * Bind an event listener.
    *
-   * @private
+   * @public
    * @memberof Emitter.prototype
    * @param {String} event
    * @param {Function} listener
@@ -1516,7 +2112,7 @@ TODO v0.4.0
   /**
    * Unbind all event listeners that match the provided listener function.
    *
-   * @private
+   * @public
    * @memberof Emitter.prototype
    * @param {String} event
    * @param {Function} listener
@@ -1543,7 +2139,7 @@ TODO v0.4.0
   /**
    * Emit all listeners in a specified event with the provided arguments.
    *
-   * @private
+   * @public
    * @memberof Emitter.prototype
    * @param {String} event
    * @param {*} [arg1]
@@ -1578,9 +2174,15 @@ TODO v0.4.0
   };
 
   /**
+   * Animate
+   * *******
+   */
+
+  /**
    * Muuri's internal animation engine. Uses CSS Transitions.
    *
-   * @private
+   * @public
+   * @class
    * @param {HTMLElement} element
    */
   function Animate(element) {
@@ -1608,15 +2210,20 @@ TODO v0.4.0
   }
 
   /**
+   * Animate - Public methods
+   * ************************
+   */
+
+  /**
    * Start instance's animation. Automatically stops current animation if it is
    * running.
    *
-   * @private
+   * @public
    * @memberof Animate.prototype
    * @param {Object} props
    * @param {Object} [options]
-   * @param {Number} [options.duration=400]
-   * @param {Number} [options.delay=400]
+   * @param {Number} [options.duration=300]
+   * @param {Number} [options.delay=0]
    * @param {String} [options.easing='ease']
    */
   Animate.prototype.start = function (props, opts) {
@@ -1627,7 +2234,6 @@ TODO v0.4.0
     var options = opts || {};
     var done = options.done;
     var transPropName = transition.propName;
-    var transitionStyles;
 
     // If transitions are not supported, keep it simple.
     if (!transition) {
@@ -1657,16 +2263,12 @@ TODO v0.4.0
       }
 
       // Create transition styles.
-      transitionStyles = {};
-      transitionStyles[transPropName + 'Property'] = inst._props.join(',');
-      transitionStyles[transPropName + 'Duration'] = (options.duration || 400) + 'ms';
-      transitionStyles[transPropName + 'Delay'] = (options.delay || 0) + 'ms';
-      transitionStyles[transPropName + 'TimingFunction'] = options.easing || 'ease';
+      styles[transPropName + 'Property'] = inst._props.join(',');
+      styles[transPropName + 'Duration'] = (options.duration || 300) + 'ms';
+      styles[transPropName + 'Delay'] = (options.delay || 0) + 'ms';
+      styles[transPropName + 'TimingFunction'] = options.easing || 'ease';
 
-      // Set transition styles.
-      setStyles(element, transitionStyles);
-
-      // Make sure the current styles are applied before applying new styles.
+      // Force reflow.
       element.offsetWidth;
 
       // Set target styles.
@@ -1679,11 +2281,11 @@ TODO v0.4.0
   /**
    * Stop instance's current animation if running.
    *
-   * @private
+   * @public
    * @memberof Animate.prototype
-   * @param {Boolean} callDone
+   * @param {Boolean} isFinished
    */
-  Animate.prototype.stop = function (callDone) {
+  Animate.prototype.stop = function (isFinished) {
 
     // If transitions are not supported, keep it simple.
     if (!transition) {
@@ -1693,8 +2295,6 @@ TODO v0.4.0
     var inst = this;
     var element = inst._element;
     var props = inst._props;
-    var transPropName = transition.propName;
-    var transitionStyles;
     var styles;
     var i;
 
@@ -1702,7 +2302,7 @@ TODO v0.4.0
     if (inst._isAnimating) {
 
       // If done callback should be called before resetting.
-      if (callDone && typeof inst._onDone === 'function') {
+      if (isFinished && typeof inst._onDone === 'function') {
         inst._onDone();
       }
 
@@ -1718,20 +2318,11 @@ TODO v0.4.0
         styles[props[i]] = getStyle(element, props[i]);
       }
 
+      // Disable transition.
+      styles[transition.propName + 'Property'] = 'none';
+
       // Set final styles.
       setStyles(element, styles);
-
-      // Make sure the current styles are applied before removing the transition
-      // styles.
-      element.offsetWidth;
-
-      // Remove transition styles.
-      transitionStyles = {};
-      transitionStyles[transPropName + 'Property'] = 'none';
-      transitionStyles[transPropName + 'Duration'] = '';
-      transitionStyles[transPropName + 'Delay'] = '';
-      transitionStyles[transPropName + 'TimingFunction'] = '';
-      setStyles(element, transitionStyles);
 
       // Set animating state as false.
       inst._isAnimating = false;
@@ -1743,7 +2334,7 @@ TODO v0.4.0
   /**
    * Destroy the instance and stop current animation if it is running.
    *
-   * @private
+   * @public
    * @memberof Animate.prototype
    * @returns {Boolean}
    */
@@ -1769,6 +2360,11 @@ TODO v0.4.0
   };
 
   /**
+   * Drag
+   * ****
+   */
+
+  /**
    * Bind Hammer touch interaction to an item.
    *
    * @class
@@ -1784,7 +2380,7 @@ TODO v0.4.0
 
     var inst = this;
     var stn = item._muuri._settings;
-    var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : Drag._defaultDragStartPredicate;
+    var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : Drag.defaultStartPredicate;
     var predicate = null;
     var predicateEvent = null;
     var hammer;
@@ -1806,12 +2402,16 @@ TODO v0.4.0
     }, stn.dragSortInterval);
 
     // Setup sort predicate.
-    inst._sortPredicate = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : Drag._defaultSortPredicate;
+    inst._sortPredicate = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : Drag.defaultSortPredicate;
 
     // Setup drag scroll handler.
     inst._scrollHandler = function (e) {
       inst._onDragScroll(e);
     };
+
+    // Set element's draggable attribute to false to prevent "ghost image" in
+    // certain browsers, which breaks the drag flow.
+    item._element.setAttribute('draggable', 'false');
 
     // Add drag recognizer to hammer.
     hammer.add(new Hammer.Pan({
@@ -1881,15 +2481,23 @@ TODO v0.4.0
   }
 
   /**
+   * Drag - Public properties
+   * ************************
+   */
+
+  /**
    * Default drag start predicate handler.
    *
-   * @protected
+   * @public
    * @memberof Drag
    * @param {Item} item
+   *   - Related Muuri.Item instance.
    * @param {Object} event
+   *   - Hammer event object.
    * @param {Predicate} predicate
+   *   - Predicate instance.
    */
-  Drag._defaultDragStartPredicate = function (item, event, predicate) {
+  Drag.defaultStartPredicate = function (item, event, predicate) {
 
     predicate.resolve();
 
@@ -1898,16 +2506,16 @@ TODO v0.4.0
   /**
    * Default drag sort predicate.
    *
-   * @protected
+   * @public
    * @memberof Drag
    * @param {Item} targetItem
    */
-  Drag._defaultSortPredicate = function (targetItem) {
+  Drag.defaultSortPredicate = function (targetItem) {
 
     var muuri = targetItem._muuri;
     var stn = muuri._settings;
     var config = stn.dragSortPredicate || {};
-    var tolerance = config.tolerance || 50;
+    var threshold = config.threshold || 50;
     var action = config.action || 'move';
     var items = muuri._items;
     var drag = targetItem._drag;
@@ -1958,7 +2566,7 @@ TODO v0.4.0
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
-    if (bestMatchScore !== null && bestMatchScore >= tolerance) {
+    if (bestMatchScore !== null && bestMatchScore >= threshold) {
 
       return {
         action: action,
@@ -1971,6 +2579,43 @@ TODO v0.4.0
     return false;
 
   };
+
+  /**
+   * Drag - Public methods
+   * *********************
+   */
+
+  /**
+   * Destroy instance.
+   *
+   * @public
+   * @memberof Drag.prototype
+   */
+  Drag.prototype.destroy = function () {
+
+    var inst = this;
+    var item = inst._item;
+    var drag = inst._drag;
+    var release = inst._release;
+
+    // Append item element to the muuri container if it's not it's child.
+    if (release.isActive || drag.isActive) {
+      if (item._element.parentNode !== muuri._element) {
+        muuri._element.appendChild(item._element);
+      }
+    }
+
+    inst._setupReleaseData();
+    inst._resetDrag();
+
+    return inst;
+
+  };
+
+  /**
+   * Drag - Protected methods
+   * ************************
+   */
 
   /**
    * Setup/reset drag data.
@@ -2513,413 +3158,15 @@ TODO v0.4.0
   };
 
   /**
-   * Destroy instance.
-   *
-   * @public
-   * @memberof Drag.prototype
+   * Predicate
+   * *********
    */
-  Drag.prototype.destroy = function () {
-
-    var inst = this;
-    var item = inst._item;
-    var drag = inst._drag;
-    var release = inst._release;
-
-    // Append item element to the muuri container if it's not it's child.
-    if (release.isActive || drag.isActive) {
-      if (item._element.parentNode !== muuri._element) {
-        muuri._element.appendChild(item._element);
-      }
-    }
-
-    inst._setupReleaseData();
-    inst._resetDrag();
-
-    return inst;
-
-  };
-
-  /**
-   * LayoutFirstFit v0.3.0
-   * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
-   * Released under the MIT license
-   *
-   * The default Muuri layout method.
-   *
-   * @private
-   * @param {object} settings
-   * @param {Boolean} [settings.fillGaps=false]
-   * @param {Boolean} [settings.horizontal=false]
-   * @param {Boolean} [settings.alignRight=false]
-   * @param {Boolean} [settings.alignBottom=false]
-   */
-  function LayoutFirstFit(settings) {
-
-    var layout = this;
-    var slotIds;
-    var slot;
-    var item;
-    var i;
-
-    // Empty slots data.
-    var emptySlots = [];
-
-    // Normalize settings.
-    var fillGaps = settings.fillGaps ? true : false;
-    var isHorizontal = settings.horizontal ? true : false;
-    var alignRight = settings.alignRight ? true : false;
-    var alignBottom = settings.alignBottom ? true : false;
-
-    // Set horizontal/vertical mode.
-    if (isHorizontal) {
-      layout.setWidth = true;
-      layout.width = 0;
-    }
-    else {
-      layout.setHeight = true;
-      layout.height = 0;
-    }
-
-    // No need to go further if items do not exist.
-    if (!layout.items.length) {
-      return;
-    }
-
-    // Find slots for items.
-    for (i = 0; i < layout.items.length; i++) {
-
-      item = layout.items[i];
-      slot = LayoutFirstFit.getSlot(layout, emptySlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
-
-      // Update layout width/height.
-      if (isHorizontal) {
-        layout.width = Math.max(layout.width, slot.left + slot.width);
-      }
-      else {
-        layout.height = Math.max(layout.height, slot.top + slot.height);
-      }
-
-      // Add slot to slots data.
-      layout.slots[item._id] = slot;
-
-    }
-
-    // If the alignment is set to right or bottom, we need to adjust the
-    // results.
-    if (alignRight || alignBottom) {
-
-      slotIds = Object.keys(layout.slots);
-
-      for (i = 0; i < slotIds.length; i++) {
-
-        slot = layout.slots[slotIds[i]];
-
-        if (alignRight) {
-          slot.left = layout.width - (slot.left + slot.width);
-        }
-
-        if (alignBottom) {
-          slot.top = layout.height - (slot.top + slot.height);
-        }
-
-      }
-
-    }
-
-  }
-
-  /**
-   * Calculate position for the layout item. Returns the left and top position
-   * of the item in pixels.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Layout} layout
-   * @param {Array} slots
-   * @param {Number} itemWidth
-   * @param {Number} itemHeight
-   * @param {Boolean} vertical
-   * @param {Boolean} fillGaps
-   * @returns {Object}
-   */
-  LayoutFirstFit.getSlot = function (layout, slots, itemWidth, itemHeight, vertical, fillGaps) {
-
-    var currentSlots = slots[0] || [];
-    var newSlots = [];
-    var item = {
-      left: null,
-      top: null,
-      width: itemWidth,
-      height: itemHeight
-    };
-    var slot;
-    var potentialSlots;
-    var ignoreCurrentSlots;
-    var i;
-    var ii;
-
-    // Try to find a slot for the item.
-    for (i = 0; i < currentSlots.length; i++) {
-      slot = currentSlots[i];
-      if (item.width <= slot.width && item.height <= slot.height) {
-        item.left = slot.left;
-        item.top = slot.top;
-        break;
-      }
-    }
-
-    // If no slot was found for the item.
-    if (item.left === null) {
-
-      // Position the item in to the bottom left (vertical mode) or top right
-      // (horizontal mode) of the grid.
-      item.left = vertical ? 0 : layout.width;
-      item.top = vertical ? layout.height : 0;
-
-      // If gaps don't needs filling do not add any current slots to the new
-      // slots array.
-      if (!fillGaps) {
-        ignoreCurrentSlots = true;
-      }
-
-    }
-
-    // In vertical mode, if the item's bottom overlaps the grid's bottom.
-    if (vertical && (item.top + item.height) > layout.height) {
-
-      // If item is not aligned to the left edge, create a new slot.
-      if (item.left > 0) {
-        newSlots[newSlots.length] = {
-          left: 0,
-          top: layout.height,
-          width: item.left,
-          height: Infinity
-        };
-      }
-
-      // If item is not aligned to the right edge, create a new slot.
-      if ((item.left + item.width) < layout.width) {
-        newSlots[newSlots.length] = {
-          left: item.left + item.width,
-          top: layout.height,
-          width: layout.width - item.left - item.width,
-          height: Infinity
-        };
-      }
-
-      // Update grid height.
-      layout.height = item.top + item.height;
-
-    }
-
-    // In horizontal mode, if the item's right overlaps the grid's right edge.
-    if (!vertical && (item.left + item.width) > layout.width) {
-
-      // If item is not aligned to the top, create a new slot.
-      if (item.top > 0) {
-        newSlots[newSlots.length] = {
-          left: layout.width,
-          top: 0,
-          width: Infinity,
-          height: item.top
-        };
-      }
-
-      // If item is not aligned to the bottom, create a new slot.
-      if ((item.top + item.height) < layout.height) {
-        newSlots[newSlots.length] = {
-          left: layout.width,
-          top: item.top + item.height,
-          width: Infinity,
-          height: layout.height - item.top - item.height
-        };
-      }
-
-      // Update grid width.
-      layout.width = item.left + item.width;
-
-    }
-
-    // Clean up the current slots making sure there are no old slots that
-    // overlap with the item. If an old slot overlaps with the item, split it
-    // into smaller slots if necessary.
-    for (i = fillGaps ? 0 : ignoreCurrentSlots ? currentSlots.length : i; i < currentSlots.length; i++) {
-      potentialSlots = LayoutFirstFit.splitRect(currentSlots[i], item);
-      for (ii = 0; ii < potentialSlots.length; ii++) {
-        slot = potentialSlots[ii];
-        if (slot.width > 0 && slot.height > 0 && ((vertical && slot.top < layout.height) || (!vertical && slot.left < layout.width))) {
-          newSlots[newSlots.length] = slot;
-        }
-      }
-    }
-
-    // Remove redundant slots and sort the new slots.
-    LayoutFirstFit.purgeSlots(newSlots).sort(vertical ? LayoutFirstFit.sortRectsTopLeft : LayoutFirstFit.sortRectsLeftTop);
-
-    // Update the slots data.
-    slots[0] = newSlots;
-
-    // Return the item.
-    return item;
-
-  };
-
-  /**
-   * Sort rectangles with top-left gravity. Assumes that objects with
-   * properties left, top, width and height are being sorted.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   */
-  LayoutFirstFit.sortRectsTopLeft = function (a, b) {
-
-    return a.top < b.top ? -1 : (a.top > b.top ? 1 : (a.left < b.left ? -1 : (a.left > b.left ? 1 : 0)));
-
-  };
-
-  /**
-   * Sort rectangles with left-top gravity. Assumes that objects with
-   * properties left, top, width and height are being sorted.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   */
-  LayoutFirstFit.sortRectsLeftTop = function (a, b) {
-
-    return a.left < b.left ? -1 : (a.left > b.left ? 1 : (a.top < b.top ? -1 : (a.top > b.top ? 1 : 0)));
-
-  };
-
-  /**
-   * Check if a rectabgle is fully within another rectangle. Assumes that the
-   * rectangle object has the following properties: left, top, width and height.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Boolean}
-   */
-  LayoutFirstFit.isRectWithinRect = function (a, b) {
-
-    return a.left >= b.left && a.top >= b.top && (a.left + a.width) <= (b.left + b.width) && (a.top + a.height) <= (b.top + b.height);
-
-  };
-
-  /**
-   * Loops through an array of slots and removes all slots that are fully within
-   * another slot in the array.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Array} slots
-   */
-  LayoutFirstFit.purgeSlots = function (slots) {
-
-    var i = slots.length;
-    var ii;
-    var slotA;
-    var slotB;
-
-    while (i--) {
-      slotA = slots[i];
-      ii = slots.length;
-      while (ii--) {
-        slotB = slots[ii];
-        if (i !== ii && LayoutFirstFit.isRectWithinRect(slotA, slotB)) {
-          slots.splice(i, 1);
-          break;
-        }
-      }
-    }
-
-    return slots;
-
-  };
-
-  /**
-   * Compares a rectangle to another and splits it to smaller pieces (the parts
-   * that exceed the other rectangles edges). At maximum generates four smaller
-   * rectangles.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * returns {Array}
-   */
-  LayoutFirstFit.splitRect = function (a, b) {
-
-    var ret = [];
-    var overlap = !(b.left > (a.left + a.width) || (b.left + b.width) < a.left || b.top > (a.top + a.height) || (b.top + b.height) < a.top);
-
-    // If rect a does not overlap with rect b add rect a to the return data as
-    // is.
-    if (!overlap) {
-
-      ret[0] = a;
-
-    }
-    // If rect a overlaps with rect b split rect a into smaller rectangles and
-    // add them to the return data.
-    else {
-
-      // Left split.
-      if (a.left < b.left) {
-        ret[ret.length] = {
-          left: a.left,
-          top: a.top,
-          width: b.left - a.left,
-          height: a.height
-        };
-      }
-
-      // Right split.
-      if ((a.left + a.width) > (b.left + b.width)) {
-        ret[ret.length] = {
-          left: b.left + b.width,
-          top: a.top,
-          width: (a.left + a.width) - (b.left + b.width),
-          height: a.height
-        };
-      }
-
-      // Top split.
-      if (a.top < b.top) {
-        ret[ret.length] = {
-          left: a.left,
-          top: a.top,
-          width: a.width,
-          height: b.top - a.top
-        };
-      }
-
-      // Bottom split.
-      if ((a.top + a.height) > (b.top + b.height)) {
-        ret[ret.length] = {
-          left: a.left,
-          top: b.top + b.height,
-          width: a.width,
-          height: (a.top + a.height) - (b.top + b.height)
-        };
-      }
-
-    }
-
-    return ret;
-
-  };
 
   /**
    * Generic predicate constructor.
    *
    * @private
+   * @class
    * @param {Function} [onResolved]
    * @param {Function} [onRejected]
    */
@@ -2933,9 +3180,14 @@ TODO v0.4.0
   }
 
   /**
+   * Predicate - Public properties
+   * *****************************
+   */
+
+  /**
    * Check if predicate is resolved.
    *
-   * @private
+   * @public
    * @memberof Predicate.prototype
    * returns {Boolean}
    */
@@ -2948,7 +3200,7 @@ TODO v0.4.0
   /**
    * Check if predicate is rejected.
    *
-   * @private
+   * @public
    * @memberof Predicate.prototype
    * returns {Boolean}
    */
@@ -2961,7 +3213,7 @@ TODO v0.4.0
   /**
    * Resolve predicate.
    *
-   * @private
+   * @public
    * @memberof Predicate.prototype
    */
   Predicate.prototype.resolve = function () {
@@ -2979,7 +3231,7 @@ TODO v0.4.0
   /**
    * Reject predicate.
    *
-   * @private
+   * @public
    * @memberof Predicate.prototype
    */
   Predicate.prototype.reject = function () {
@@ -3115,6 +3367,23 @@ TODO v0.4.0
   }
 
   /**
+   * Insert an item or an array of items to array to a specified index. Mutates
+   * the array. The index can be negative in which case the items will be added
+   * to the end of the array.
+   *
+   * @private
+   * @param {Array} array
+   * @param {*} items
+   * @param {Number} [index=-1]
+   */
+  function insertItemsToArray(array, items, index) {
+
+    var targetIndex = typeof index === 'number' ? index : -1;
+    array.splice.apply(array, [targetIndex < 0 ? array.length - targetIndex + 1 : targetIndex, 0].concat(items));
+
+  }
+
+  /**
    * Returns a function, that, as long as it continues to be invoked, will not
    * be triggered. The function will be called after it stops being called for
    * N milliseconds. The returned function accepts one argument which, when
@@ -3133,7 +3402,7 @@ TODO v0.4.0
     var actionCancel = 'cancel';
     var actionFinish = 'finish';
 
-    return function (action) {
+    return wait > 0 ? function (action) {
 
       if (timeout !== undefined) {
         timeout = global.clearTimeout(timeout);
@@ -3147,6 +3416,12 @@ TODO v0.4.0
           timeout = undefined;
           fn();
         }, wait);
+      }
+
+    } : function (action) {
+
+      if (action !== actionCancel) {
+        fn();
       }
 
     };
@@ -3364,23 +3639,6 @@ TODO v0.4.0
   }
 
   /**
-   * Insert an item or an array of items to array to a specified index. Mutates
-   * the array. The index can be negative in which case the items will be added
-   * to the end of the array.
-   *
-   * @private
-   * @param {Array} array
-   * @param {*} items
-   * @param {Number} [index=-1]
-   */
-  function insertItemsToArray(array, items, index) {
-
-    var targetIndex = typeof index === 'number' ? index : -1;
-    array.splice.apply(array, [targetIndex < 0 ? array.length - targetIndex + 1 : targetIndex, 0].concat(items));
-
-  }
-
-  /**
    * Calculate the offset difference between an element's containing block
    * element and another element.
    *
@@ -3414,8 +3672,8 @@ TODO v0.4.0
   }
 
   /**
-   * Helpers borrowed/forked from other libraries
-   * ********************************************
+   * Helpers - Borrowed/forked from other libraries
+   * **********************************************
    */
 
   /**
@@ -3741,7 +3999,7 @@ TODO v0.4.0
     var endEvent = isShow ? evShowItemsEnd : evHideItemsEnd;
     var isInstant = instant === true;
     var needsRelayout = false;
-    var completed;
+    var completedItems;
     var hiddenItems;
     var item;
     var i;
@@ -3757,7 +4015,7 @@ TODO v0.4.0
     // If we have some items let's dig in.
     else {
 
-      completed = [];
+      completedItems = [];
       hiddenItems = [];
 
       // Emit showstart event.
@@ -3781,18 +4039,18 @@ TODO v0.4.0
         item['_' + method](isInstant, function (interrupted, item) {
 
           // If the current item's animation was not interrupted add it to the
-          // completed set.
+          // completedItems array.
           if (!interrupted) {
-            completed[completed.length] = item;
+            completedItems[completedItems.length] = item;
           }
 
           // If all items have finished their animations call the callback
           // and emit the event.
           if (--counter < 1) {
             if (typeof cb === 'function') {
-              cb(completed);
+              cb(completedItems);
             }
-            inst._emitter.emit(endEvent, completed);
+            inst._emitter.emit(endEvent, completedItems);
           }
 
         });

@@ -11,18 +11,20 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 * [Getting started](#getting-started)
 * [Options](#options)
 * [Methods](#methods)
-  * [muuri.on( event, listener )](#muurion-event-listener-)
-  * [muuri.off( event, listener )](#muurioff-event-listener-)
-  * [muuri.refresh()](#muurirefresh)
-  * [muuri.refreshItems( [targets] )](#muurirefresh-targets-)
-  * [muuri.layoutItems( [instant], [callback] )](#muurilayoutitems-instant-callback-)
-  * [muuri.synchronizeItems()](#muurisynchronizeitems)
+  * [muuri.getElement()](#muurigetelement)
+  * [muuri.getRect()](#muurigetrect)
   * [muuri.getItems( [targets], [state] )](#muurigetitems-targets-state-)
+  * [muuri.layoutItems( [instant], [callback] )](#muurilayoutitems-instant-callback-)
+  * [muuri.refreshItems( [targets] )](#muurirefresh-targets-)
+  * [muuri.synchronizeItems()](#muurisynchronizeitems)
   * [muuri.addItems( elements, [index] )](#muuriadditems-elements-index-)
   * [muuri.removeItems( targets, [removeElement] )](#muuriremoveitems-targets-removeelement-)
   * [muuri.showItems( targets, [instant], [callback] )](#muurishowitems-targets-instant-callback-)
   * [muuri.hideItems( targets, [instant], [callback] )](#muurihideitems-targets-instant-callback-)
-  * [muuri.moveItem( targetFrom, targetTo, method )](#muurimoveitem-targetfrom-targetto-method-)
+  * [muuri.moveItem( targetFrom, targetTo, method )](#muurimoveitem-targetfrom-targetto-[method]-)
+  * [muuri.on( event, listener )](#muurion-event-listener-)
+  * [muuri.off( event, listener )](#muurioff-event-listener-)
+  * [muuri.refresh()](#muurirefresh)
   * [muuri.destroy()](#muuridestroy)
 * [Events](#events)
   * [refresh](#refresh)
@@ -324,190 +326,104 @@ Muuri.defaultSettings.hide.duration = 400;
 ```javascript
 var defaults = {
 
-    // Container
-    container: null,
+  // Container
+  container: null,
 
-    // Items
-    items: [],
+  // Items
+  items: [],
 
-    // Show/hide animations
-    show: {
-      duration: 300,
-      easing: 'ease',
-      styles: {
-        opacity: 1,
-        transform: 'scale(1)'
-      }
-    },
-    hide: {
-      duration: 300,
-      easing: 'ease',
-      styles: {
-        opacity: 0,
-        transform: 'scale(0.5)'
-      }
-    },
+  // Show/hide animations
+  show: {
+    duration: 300,
+    easing: 'ease',
+    styles: {
+      opacity: 1,
+      transform: 'scale(1)'
+    }
+  },
+  hide: {
+    duration: 300,
+    easing: 'ease',
+    styles: {
+      opacity: 0,
+      transform: 'scale(0.5)'
+    }
+  },
 
-    // Layout
-    layout: {
-      fillGaps: false,
-      horizontal: false,
-      alignRight: false,
-      alignBottom: false
-    },
-    layoutOnResize: 100,
-    layoutOnInit: true,
-    layoutDuration: 300,
-    layoutEasing: 'ease',
+  // Layout
+  layout: {
+    fillGaps: false,
+    horizontal: false,
+    alignRight: false,
+    alignBottom: false
+  },
+  layoutOnResize: 100,
+  layoutOnInit: true,
+  layoutDuration: 300,
+  layoutEasing: 'ease',
 
-    // Drag & Drop
-    dragEnabled: false,
-    dragContainer: null,
-    dragStartPredicate: null,
-    dragSort: true,
-    dragSortInterval: 50,
-    dragSortPredicate: {
-      tolerance: 50,
-      action: 'move'
-    },
-    dragReleaseDuration: 300,
-    dragReleaseEasing: 'ease',
+  // Drag & Drop
+  dragEnabled: false,
+  dragContainer: null,
+  dragStartPredicate: null,
+  dragSort: true,
+  dragSortInterval: 50,
+  dragSortPredicate: {
+    threshold: 50,
+    action: 'move'
+  },
+  dragReleaseDuration: 300,
+  dragReleaseEasing: 'ease',
 
-    // Classnames
-    containerClass: 'muuri',
-    itemClass: 'muuri-item',
-    itemVisibleClass: 'muuri-item-shown',
-    itemHiddenClass: 'muuri-item-hidden',
-    itemPositioningClass: 'muuri-item-positioning',
-    itemDraggingClass: 'muuri-item-dragging',
-    itemReleasingClass: 'muuri-item-releasing'
+  // Classnames
+  containerClass: 'muuri',
+  itemClass: 'muuri-item',
+  itemVisibleClass: 'muuri-item-shown',
+  itemHiddenClass: 'muuri-item-hidden',
+  itemPositioningClass: 'muuri-item-positioning',
+  itemDraggingClass: 'muuri-item-dragging',
+  itemReleasingClass: 'muuri-item-releasing'
 
 };
 ```
 
 ## Methods
 
-### `muuri.on( event, listener )`
+### `muuri.getElement()`
 
-Bind an event on the Muuri instance.
+Get the instance element.
 
-**Parameters**
+**Returns** &nbsp;&mdash;&nbsp; *element*
 
-* **event** &nbsp;&mdash;&nbsp; *string*
-* **listener** &nbsp;&mdash;&nbsp; *function*
+**Examples**
+
+```javascript
+var elem = muuri.getElement();
+```
+
+### `muuri.getRect()`
+
+Get instance's cached dimensions and offsets. Basically the same data as provided by [element.getBoundingClientRect()](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect) method, just cached. The cached dimensions and offsets are subject to change whenever [layoutItems](#muurilayoutitems-instant-callback-) or [refresh](#muurirefresh) method is called. Note that Muuri uses rounded values (`Math.round(val)`) in all calculations.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 
-Returns the instance.
+* **obj.width** &nbsp;&mdash;&nbsp; *number*
+  * The instance element's width in pixels (rounded).
+* **obj.height** &nbsp;&mdash;&nbsp; *number*
+  * The instance element's height in pixels (rounded).
+* **obj.left** &nbsp;&mdash;&nbsp; *number*
+  * The instance element's left offset in pixels (rounded).
+* **obj.right** &nbsp;&mdash;&nbsp; *number*
+  * The instance element's left offset + width in pixels (rounded).
+* **obj.top** &nbsp;&mdash;&nbsp; *number*
+  * The instance element's top offset in pixels (rounded).
+* **obj.bottom** &nbsp;&mdash;&nbsp; *number*
+  * The instance element's top offset + height in pixels (rounded).
 
 **Examples**
 
 ```javascript
-muuri.on('layoutitemsend', function (items) {
-  console.log(items);
-});
-```
-
-&nbsp;
-
-### `muuri.off( event, listener )`
-
-Unbind an event from the Muuri instance.
-
-**Parameters**
-
-* **event** &nbsp;&mdash;&nbsp; *string*
-* **listener** &nbsp;&mdash;&nbsp; *function*
-
-**Returns** &nbsp;&mdash;&nbsp; *object*
-
-Returns the instance.
-
-**Examples**
-
-```javascript
-var listener = function (items) {
-  console.log(items);
-};
-
-muuri
-.on('layoutitemsend', listener)
-.off('layoutitemsend', listener);
-```
-### `muuri.refresh()`
-
-Recalculate the width and height of the container element.
-
-**Examples**
-
-```javascript
-muuri.refresh();
-```
-
-### `muuri.refreshItems( [targets] )`
-
-Recalculate the width and height of the provided targets. If no targets are provided all *active* items will be refreshed.
-
-**Parameters**
-
-* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * Optional.
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-
-**Examples**
-
-```javascript
-// Refresh all active items
-muuri.refreshItems();
-
-// Refresh the first item.
-muuri.refreshItems(0);
-
-// Refresh all items which match the provided DOM elements.
-muuri.refreshItems([elemA, elemB]);
-
-// Refresh specific items (instances of Muuri.Item).
-muuri.refreshItems([itemA, itemB]);
-```
-
-### `muuri.synchronizeItems()`
-
-Order the item elements to match the order of the items. If the item's element is not a child of the container it is ignored and left untouched. This comes handy if you need to keep the DOM structure matched with the order of the items.
-
-**Examples**
-
-```javascript
-muuri.synchronizeItems();
-```
-
-### `muuri.layoutItems( [instant], [callback] )`
-
-Calculate item positions and move items to their calculated positions unless they are already positioned correctly. The container's height is also adjusted according to the position of the items.
-
-**Parameters**
-
-* **instant** &nbsp;&mdash;&nbsp; *boolean*
-  * Optional.
-  * Default value: `false`.
-  * Should the items be positioned instantly without any possible animation?
-* **callback** &nbsp;&mdash;&nbsp; *function*
-  * Optional.
-  * A callback function that is called after the items have positioned. Receives two arguments. The first one is an array of all the items that were successfully positioned without interruptions and the second is a layout data object.
-
-**Examples**
-
-```javascript
-// Layout items.
-muuri.layoutItems();
-
-// Layout items instantly (without animations).
-muuri.layoutItems(true);
-
-// Layout all items and define a callback that will be called
-// after all items have been animated to their positions.
-muuri.layoutItems(function (items, layoutData) {
-  console.log('layout done!');
-});
+var rectData = muuri.getRect();
 ```
 
 ### `muuri.getItems( [targets], [state] )`
@@ -549,6 +465,72 @@ var items = muuri.getItems([elemA, elemB]);
 
 // Get specific inactive items.
 var items = muuri.getItems([elemA, elemB], 'inactive');
+```
+
+### `muuri.layoutItems( [instant], [callback] )`
+
+Calculate item positions and move items to their calculated positions unless they are already positioned correctly. The container's height is also adjusted according to the position of the items.
+
+**Parameters**
+
+* **instant** &nbsp;&mdash;&nbsp; *boolean*
+  * Optional.
+  * Default value: `false`.
+  * Should the items be positioned instantly without any possible animation?
+* **callback** &nbsp;&mdash;&nbsp; *function*
+  * Optional.
+  * A callback function that is called after the items have positioned. Receives two arguments. The first one is an array of all the items that were successfully positioned without interruptions and the second is a layout data object.
+
+**Examples**
+
+```javascript
+// Layout items.
+muuri.layoutItems();
+
+// Layout items instantly (without animations).
+muuri.layoutItems(true);
+
+// Layout all items and define a callback that will be called
+// after all items have been animated to their positions.
+muuri.layoutItems(function (items, layoutData) {
+  console.log('layout done!');
+});
+```
+
+### `muuri.refreshItems( [targets] )`
+
+Recalculate the width and height of the provided targets. If no targets are provided all *active* items will be refreshed.
+
+**Parameters**
+
+* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * Optional.
+  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
+
+**Examples**
+
+```javascript
+// Refresh all active items
+muuri.refreshItems();
+
+// Refresh the first item.
+muuri.refreshItems(0);
+
+// Refresh all items which match the provided DOM elements.
+muuri.refreshItems([elemA, elemB]);
+
+// Refresh specific items (instances of Muuri.Item).
+muuri.refreshItems([itemA, itemB]);
+```
+
+### `muuri.synchronizeItems()`
+
+Order the item elements to match the order of the items. If the item's element is not a child of the container it is ignored and left untouched. This comes handy if you need to keep the DOM structure matched with the order of the items.
+
+**Examples**
+
+```javascript
+muuri.synchronizeItems();
 ```
 
 ### `muuri.addItems( elements, [index] )`
@@ -673,7 +655,7 @@ muuri.hideItems([elemA, elemB], function (items) {
 });
 ```
 
-### `muuri.moveItem( targetFrom, targetTo, [ method ] )`
+### `muuri.moveItem( targetFrom, targetTo, [method] )`
 
 Move item to another index or in place of another item.
 
@@ -684,8 +666,8 @@ Move item to another index or in place of another item.
 * **targetTo** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
   * DOM element or `Muuri.Item` instance or index of the item as an integer.
 * **method** &nbsp;&mdash;&nbsp; *string*
-  * Defaults value: `'move'`.
   * Optional.
+  * Default value: `'move'`.
   * Accepts the following values:
     * `'move'`: moves item in place of another item.
     * `'swap'`: swaps position of items.
@@ -705,6 +687,64 @@ muuri.moveItem(elemA, elemB, 'swap');
 
 // Swap positions of the first and the last item.
 muuri.moveItem(0, -1, 'swap');
+```
+
+### `muuri.on( event, listener )`
+
+Bind an event on the Muuri instance.
+
+**Parameters**
+
+* **event** &nbsp;&mdash;&nbsp; *string*
+* **listener** &nbsp;&mdash;&nbsp; *function*
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the instance.
+
+**Examples**
+
+```javascript
+muuri.on('layoutitemsend', function (items) {
+  console.log(items);
+});
+```
+
+&nbsp;
+
+### `muuri.off( event, listener )`
+
+Unbind an event from the Muuri instance.
+
+**Parameters**
+
+* **event** &nbsp;&mdash;&nbsp; *string*
+* **listener** &nbsp;&mdash;&nbsp; *function*
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the instance.
+
+**Examples**
+
+```javascript
+var listener = function (items) {
+  console.log(items);
+};
+
+muuri
+.on('layoutitemsend', listener)
+.off('layoutitemsend', listener);
+```
+
+### `muuri.refresh()`
+
+Calculate and cache the dimensions and offsets of the container element.
+
+**Examples**
+
+```javascript
+muuri.refresh();
 ```
 
 ### `muuri.destroy()`

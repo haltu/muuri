@@ -46,10 +46,13 @@ TODO v0.3.0
       dimensions and offsets.
 * [x] Merge swap method to move method.
 * [x] Remove getItemIndex method.
+* [x] Add muuri.getElement() and muuri.getRect() and document them.
+* [x] requestAnimationFrame to drag events: https://www.html5rocks.com/en/tutorials/speed/animations/
+* [ ] Animation overwrite system.
 * [ ] Split Item.prototype.getData to smaller public getter methods and document
       them.
-* [ ] Add muuri.getElement() and muuri.getRect().
-* [ ] Optimize the internal animation engine to be as fast as possible.
+* [ ] Reconsider dropping automatic layout from add/remove/hide/show methods.
+      It does not make sense if move method does not have auto layout.
 * [ ] Allow dropping on empty slots (gaps).
 * [ ] When dragging an item sometimes it flickers as if it did not have the
       dragging class. Make sure that the dragged item always has dragging class.
@@ -94,13 +97,13 @@ TODO v0.4.0
   var libName = 'Muuri';
 
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(global, libName, require('Hammer'));
+    module.exports = factory(global, libName, require('Velocity'), require('Hammer'));
   }
   else {
-    global[libName] = factory(global, libName, global.Hammer);
+    global[libName] = factory(global, libName, typeof global.jQuery === 'function' ? global.jQuery.Velocity : global.Velocity, global.Hammer);
   }
 
-}(this, function (global, libName, Hammer, undefined) {
+}(this, function (global, libName, Velocity, Hammer, undefined) {
 
   'use strict';
 
@@ -108,10 +111,22 @@ TODO v0.4.0
   // time it is used.
   var uuid = 0;
 
-  // Get the supported transform and transition style properties.
+  // Get supported requestAnimationFrame.
+  var raf = global.requestAnimationFrame ||
+            global.msRequestAnimationFrame ||
+            global.mozRequestAnimationFrame ||
+            global.webkitRequestAniationFrame ||
+            global.oRequestAnimationFrame;
+
+  // Get supported cancelAnimationFrame.
+  var rafCancel = global.cancelAnimationFrame ||
+                  global.msCancelAnimationFrame ||
+                  global.mozCancelAnimationFrame ||
+                  global.webkitCancelAnimationFrame ||
+                  global.oCancelAnimationFrame;
+
+  // Get the supported transform style property.
   var transform = getSupportedStyle('transform');
-  var transition = getSupportedStyle('transition');
-  var transitionend = getTransitionEnd();
 
   // Do transformed elements leak fixed elements? According W3C specification
   // (about transform rendering) a transformed element should contain fixed
@@ -249,11 +264,29 @@ TODO v0.4.0
    * *************************
    */
 
-  // Add all core constructors as static properties to Muuri constructor.
+  /**
+   * @see Item
+   */
   Muuri.Item = Item;
+
+  /**
+   * @see Drag
+   */
   Muuri.Drag = Drag;
+
+  /**
+   * @see Layout
+   */
   Muuri.Layout = Layout;
+
+  /**
+   * @see Animate
+   */
   Muuri.Animate = Animate;
+
+  /**
+   * @see Emitter
+   */
   Muuri.Emitter = Emitter;
 
   /**
@@ -276,7 +309,7 @@ TODO v0.4.0
       easing: 'ease',
       styles: {
         opacity: 1,
-        transform: 'scale(1)'
+        scale: 1
       }
     },
     hide: {
@@ -284,7 +317,7 @@ TODO v0.4.0
       easing: 'ease',
       styles: {
         opacity: 0,
-        transform: 'scale(0.5)'
+        scale: 0.5
       }
     },
 
@@ -330,7 +363,7 @@ TODO v0.4.0
    */
 
   /**
-   * Get instance's element.
+   * Get the instance element.
    *
    * @public
    * @memberof Muuri.prototype
@@ -343,10 +376,11 @@ TODO v0.4.0
   };
 
   /**
-   * Get instance's cached rect data: width, height, left, right, top, bottom.
-   * It's basically the same data as provided by element.getBoundingClientRect()
-   * method, just cached. This data is subject to change after layout and after
-   * refresh method is called.
+   * Get instance's cached dimensions and offsets. Basically the same data as
+   * provided by element.getBoundingClientRect() method, just cached. The cached
+   * dimensions and offsets are subject to change whenever layoutItems or
+   * refresh method is called. Note that Muuri uses rounded values in all
+   * calculations.
    *
    * @public
    * @memberof Muuri.prototype
@@ -455,7 +489,7 @@ TODO v0.4.0
   };
 
   /**
-   * Calculate and cache the container element's dimensions and offset.
+   * Calculate and cache the dimensions and offsets of the container element.
    *
    * @public
    * @memberof Muuri.prototype
@@ -467,22 +501,27 @@ TODO v0.4.0
     var element = inst._element;
     var sides = ['left', 'right', 'top', 'bottom'];
     var rect = element.getBoundingClientRect();
-    var border = inst._border = inst._border || {};
-    var padding = inst._padding = inst._padding || {};
-    var offset = inst._offset = inst._offset || {};
     var side;
     var i;
 
-    for (i = 0; i < sides.length; i++) {
-      side = sides[i];
-      border[side] = Math.round(getStyleAsFloat(element, 'border-' + side + '-width'));
-      padding[side] = Math.round(getStyleAsFloat(element, 'padding-' + side));
-    }
+    inst._offset = inst._offset || {};
+    inst._border = inst._border || {};
+    inst._padding = inst._padding || {};
 
+    // Update width and height.
     inst._width = Math.round(rect.width);
     inst._height = Math.round(rect.height);
+
+    // Update offset.
     inst._offset.left = Math.round(rect.left);
     inst._offset.top = Math.round(rect.top);
+
+    // Update borders and paddings.
+    for (i = 0; i < sides.length; i++) {
+      side = sides[i];
+      inst._border[side] = Math.round(getStyleAsFloat(element, 'border-' + side + '-width'));
+      inst._padding[side] = Math.round(getStyleAsFloat(element, 'padding-' + side));
+    }
 
     // Emit refresh event.
     inst._emitter.emit(evRefresh);
@@ -964,6 +1003,7 @@ TODO v0.4.0
 
     var inst = this;
     var stn = muuri._settings;
+    var initialStyles;
     var isHidden;
     var visibilityStyles;
 
@@ -990,9 +1030,6 @@ TODO v0.4.0
     // Initiate item's animation controllers.
     inst._animate = new Animate(element);
     inst._animateChild = new Animate(inst._child);
-
-    // Set item class.
-    addClass(element, stn.itemClass);
 
     // Set up active state (defines if the item is considered part of the layout
     // or not).
@@ -1021,33 +1058,37 @@ TODO v0.4.0
     // argument as true if the animation was interrupted.
     inst._layoutQueue = [];
 
-    // Set element's initial position.
-    setStyles(inst._element, {
-      left: '0',
-      top: '0',
-      transform: 'matrix(1,0,0,1,0,0)'
-    });
+    // Set up initial positions.
+    inst._left = 0;
+    inst._top = 0;
 
-    // Set hidden/shown class.
+    // Set classnames.
+    addClass(element, stn.itemClass);
     addClass(element, isHidden ? stn.itemHiddenClass : stn.itemVisibleClass);
 
-    // Set hidden/shown styles for the child element.
-    visibilityStyles = muuri[isHidden ? '_itemHideHandler' : '_itemShowHandler'].styles;
-    if (visibilityStyles) {
-      setStyles(inst._child, visibilityStyles);
-    }
+    // Define initial styles.
+    initialStyles = {
+      left: '0',
+      top: '0',
+      transform: 'translateX(0px) translateY(0px)'
+    };
 
     // Enforce display "block" if element is visible.
     if (!isHidden) {
-      setStyles(inst._element, {
-        display: 'block'
-      });
+      initialStyles['display'] = 'block';
     }
 
-    // Set up initial dimensions and positions.
+    // Set element's initial styles.
+    setStyles(inst._element, initialStyles);
+
+    // Set initial styles for the child element.
+    visibilityStyles = muuri[isHidden ? '_itemHideHandler' : '_itemShowHandler'].styles;
+    if (visibilityStyles) {
+      hookStyles(inst._child, visibilityStyles);
+    }
+
+    // Calculate and set up up initial dimensions.
     inst._refresh();
-    inst._left = 0;
-    inst._top = 0;
 
     // Set up drag handler.
     inst._drag = stn.dragEnabled ? new Drag(inst) : null;
@@ -1060,11 +1101,11 @@ TODO v0.4.0
    */
 
   /**
-   * Get instance's element.
+   * Get the instance element.
    *
    * @public
    * @memberof Item.prototype
-   * @returns {Boolean}
+   * @returns {HTMLElement}
    */
   Item.prototype.getElement = function () {
 
@@ -1237,9 +1278,10 @@ TODO v0.4.0
    *
    * @protected
    * @memberof Item.prototype
+   * @param {Boolean} [processLayoutQueue=false]
    * @returns {Item} returns the Item instance.
    */
-  Item.prototype._stopLayout = function () {
+  Item.prototype._stopLayout = function (processLayoutQueue) {
 
     var inst = this;
     var stn = inst._muuri._settings;
@@ -1249,14 +1291,16 @@ TODO v0.4.0
       // Stop animation.
       inst._animate.stop();
 
-      // Remove visibility classes.
+      // Remove positioning class.
       removeClass(inst._element, stn.itemPositioningClass);
 
       // Reset state.
       inst._isPositioning = false;
 
       // Process callback queue.
-      processQueue(inst._layoutQueue, true, inst);
+      if (processLayoutQueue) {
+        processQueue(inst._layoutQueue, true, inst);
+      }
 
     }
 
@@ -1329,11 +1373,11 @@ TODO v0.4.0
     var currentTop;
     var finish = function () {
 
-      // Remove positioning classes.
-      removeClass(inst._element, stn.itemPositioningClass);
-
-      // Mark the item as not positioning.
-      inst._isPositioning = false;
+      // Mark the item as not positioning and remove positioning classes.
+      if (inst._isPositioning) {
+        inst._isPositioning = false;
+        removeClass(inst._element, stn.itemPositioningClass);
+      }
 
       // Finish up release.
       if (release.isActive) {
@@ -1345,17 +1389,20 @@ TODO v0.4.0
 
     };
 
-    // Stop currently running animation, if any.
-    inst._stopLayout();
+    // Process current layout callback queue with interrupted flag on if the
+    // item is currently positioning.
+    if (isPositioning) {
+      processQueue(inst._layoutQueue, true, inst);
+    }
+
+    // Mark release positioning as started.
+    if (isJustReleased) {
+      release.isPositioningStarted = true;
+    }
 
     // Push the callback to the callback queue.
     if (typeof callback === 'function') {
       inst._layoutQueue[inst._layoutQueue.length] = callback;
-    }
-
-    // Mark release positiong as started.
-    if (isJustReleased) {
-      release.isPositioningStarted = true;
     }
 
     // Get item container offset. This applies only for release handling in the
@@ -1367,12 +1414,11 @@ TODO v0.4.0
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
 
-      if (inst._noLayoutAnimation) {
-        inst._noLayoutAnimation = false;
-      }
+      inst._stopLayout();
+      inst._noLayoutAnimation = false;
 
       setStyles(inst._element, {
-        transform: 'matrix(1,0,0,1,' + (inst._left + offsetLeft) + ',' + (inst._top + offsetTop) + ')'
+        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
       });
 
       finish();
@@ -1385,27 +1431,36 @@ TODO v0.4.0
       // Get current (relative) left and top position. Meaning that the
       // container's offset (if applicable) is subtracted from the current
       // translate values.
-      currentLeft = getTranslateAsFloat(inst._element, 'x') - offsetLeft;
-      currentTop = getTranslateAsFloat(inst._element, 'y') - offsetTop;
+      if (isPositioning) {
+        currentLeft = parseFloat(Velocity.hook(inst._element, 'translateX')) - offsetLeft;
+        currentTop = parseFloat(Velocity.hook(inst._element, 'translateY')) - offsetTop;
+      }
+      else {
+        currentLeft = getTranslateAsFloat(inst._element, 'x') - offsetLeft;
+        currentTop = getTranslateAsFloat(inst._element, 'y') - offsetTop;
+      }
 
       // If the item is already in correct position there's no need to animate
       // it.
       if (inst._left === currentLeft && inst._top === currentTop) {
+        inst._stopLayout();
         finish();
         return;
       }
 
-      // Mark as positioning.
-      inst._isPositioning = true;
-
-      // Add positioning class if necessary.
+      // Mark as positioning and add positioning class if necessary.
       if (!isPositioning) {
+        inst._isPositioning = true;
         addClass(inst._element, stn.itemPositioningClass);
       }
 
       // Animate.
       inst._animate.start({
-        transform: 'matrix(1,0,0,1,' + (inst._left + offsetLeft) + ',' + (inst._top + offsetTop) + ')'
+        translateX: (release.isActive ? currentLeft + offsetLeft : currentLeft) + 'px',
+        translateY: (release.isActive ? currentTop + offsetTop : currentTop) + 'px'
+      }, {
+        translateX: inst._left + offsetLeft,
+        translateY: inst._top + offsetTop
       }, {
         duration: animDuration,
         easing: animEasing,
@@ -1592,18 +1647,13 @@ TODO v0.4.0
     var i;
 
     // Stop animations.
-    inst._stopLayout();
+    inst._stopLayout(true);
     muuri._itemShowHandler.stop(inst);
     muuri._itemHideHandler.stop(inst);
 
     // If item is being dragged or released, stop it gracefully.
     if (inst._drag) {
       inst._drag.destroy();
-    }
-
-    // Destroy Hammer instance and custom touch listeners.
-    if (inst._hammer) {
-      inst._hammer.destroy();
     }
 
     // Destroy animation handlers.
@@ -2179,7 +2229,7 @@ TODO v0.4.0
    */
 
   /**
-   * Muuri's internal animation engine. Uses CSS Transitions.
+   * Muuri's internal animation engine. Uses Velocity.
    *
    * @public
    * @class
@@ -2187,25 +2237,9 @@ TODO v0.4.0
    */
   function Animate(element) {
 
-    var inst = this;
-    inst._element = element;
-    inst._isAnimating = false;
-    inst._props = [];
-    inst._onDone = null;
-    inst._callback = null;
-
-    // If transitions are available, bind transitionend callback.
-    if (transition) {
-
-      inst._callback = function (e) {
-        if (e.target === this) {
-          inst.stop(true);
-        }
-      };
-
-      element.addEventListener(transitionend, inst._callback, false);
-
-    }
+    this._element = element;
+    this._queue = libName + '-' + (++uuid);
+    this._isAnimating = false;
 
   }
 
@@ -2226,55 +2260,41 @@ TODO v0.4.0
    * @param {Number} [options.delay=0]
    * @param {String} [options.easing='ease']
    */
-  Animate.prototype.start = function (props, opts) {
+  Animate.prototype.start = function (propsCurrent, propsTarget, opts) {
 
     var inst = this;
-    var element = inst._element;
-    var styles = props || {};
     var options = opts || {};
-    var done = options.done;
-    var transPropName = transition.propName;
+    var callback = typeof options.done === 'function' ? options.done : null;
+    var velocityOpts = {
+      duration: options.duration || 300,
+      delay: options.delay || 0,
+      easing: options.easing || 'ease',
+      queue: inst._queue
+    };
 
-    // If transitions are not supported, keep it simple.
-    if (!transition) {
-
-      setStyles(element, styles);
-      if (typeof done === 'function') {
-        done();
-      }
-
-    }
-
-    // If transitions are supported.
-    else {
-
-      // Stop current animation.
+    // Stop current animation, if running.
+    if (inst._isAnimating) {
       inst.stop();
-
-      // Set as animating.
-      inst._isAnimating = true;
-
-      // Store animated styles.
-      inst._props = Object.keys(styles);
-
-      // Store done callback.
-      if (typeof done === 'function') {
-        inst._onDone = done;
-      }
-
-      // Create transition styles.
-      styles[transPropName + 'Property'] = inst._props.join(',');
-      styles[transPropName + 'Duration'] = (options.duration || 300) + 'ms';
-      styles[transPropName + 'Delay'] = (options.delay || 0) + 'ms';
-      styles[transPropName + 'TimingFunction'] = options.easing || 'ease';
-
-      // Force reflow.
-      element.offsetWidth;
-
-      // Set target styles.
-      setStyles(element, styles);
-
     }
+
+    // Otherwise if current props exist force feed current values to Velocity.
+    if (propsCurrent) {
+      hookStyles(inst._element, propsCurrent);
+    }
+
+    // Set as animating.
+    inst._isAnimating = true;
+
+    // Add callback if it exists.
+    if (callback) {
+      velocityOpts.complete = function () {
+        callback();
+      }
+    }
+
+    // Set up and start the animation.
+    Velocity(inst._element, propsTarget, velocityOpts);
+    Velocity.Utilities.dequeue(inst._element, inst._queue);
 
   };
 
@@ -2283,50 +2303,12 @@ TODO v0.4.0
    *
    * @public
    * @memberof Animate.prototype
-   * @param {Boolean} isFinished
    */
-  Animate.prototype.stop = function (isFinished) {
+  Animate.prototype.stop = function () {
 
-    // If transitions are not supported, keep it simple.
-    if (!transition) {
-      return;
-    }
-
-    var inst = this;
-    var element = inst._element;
-    var props = inst._props;
-    var styles;
-    var i;
-
-    // If is animating.
-    if (inst._isAnimating) {
-
-      // If done callback should be called before resetting.
-      if (isFinished && typeof inst._onDone === 'function') {
-        inst._onDone();
-      }
-
-      // Reset done callback.
-      inst._onDone = null;
-
-      // Reset props.
-      inst._props = null;
-
-      // Get current values of all animated styles.
-      styles = {};
-      for (i = 0; i < props.length; i++) {
-        styles[props[i]] = getStyle(element, props[i]);
-      }
-
-      // Disable transition.
-      styles[transition.propName + 'Property'] = 'none';
-
-      // Set final styles.
-      setStyles(element, styles);
-
-      // Set animating state as false.
-      inst._isAnimating = false;
-
+    if (this._isAnimating) {
+      this._isAnimating = false;
+      Velocity(this._element, 'stop', this._queue);
     }
 
   };
@@ -2340,22 +2322,13 @@ TODO v0.4.0
    */
   Animate.prototype.destroy = function () {
 
-    var inst = this;
-
     // Stop current animation.
-    inst.stop();
-
-    // If transitions are available, unbind transitionend callback.
-    if (transition) {
-      inst._element.removeEventListener(transitionend, inst._callback, false);
-    }
+    this.stop();
 
     // Nullify props.
-    inst._element = null;
-    inst._isAnimating = null;
-    inst._props = null;
-    inst._onDone = null;
-    inst._callback = null;
+    this._element = null;
+    this._isAnimating = null;
+    this._queue = null;
 
   };
 
@@ -2384,6 +2357,7 @@ TODO v0.4.0
     var predicate = null;
     var predicateEvent = null;
     var hammer;
+    var rafHandler = new RafHandler();
 
     inst._item = item;
     inst._hammer = hammer = new Hammer.Manager(item._element);
@@ -2406,7 +2380,9 @@ TODO v0.4.0
 
     // Setup drag scroll handler.
     inst._scrollHandler = function (e) {
-      inst._onDragScroll(e);
+      rafHandler.request(function () {
+        inst._onDragScroll(e);
+      });
     };
 
     // Set element's draggable attribute to false to prevent "ghost image" in
@@ -2451,16 +2427,23 @@ TODO v0.4.0
 
       // If predicate is resolved and dragging is active, do the move.
       if (predicate._isResolved && inst._drag.isActive) {
-        inst._onDragMove(e);
+        rafHandler.request(function () {
+          inst._onDragMove(e);
+        });
       }
 
       // Otherwise, check the predicate.
       else if (!predicate._isRejected && !predicate._isResolved) {
-        checkPredicate.call(item._muuri, item, e, predicate);
+        rafHandler.request(function () {
+          checkPredicate.call(item._muuri, item, e, predicate);
+        });
       }
 
     })
     .on('dragend dragcancel draginitup', function (e) {
+
+      // Cancel current raf request.
+      rafHandler.cancel();
 
       // If predicate is resolved and dragging is active, do the end.
       if (predicate._isResolved && inst._drag.isActive) {
@@ -2595,6 +2578,7 @@ TODO v0.4.0
 
     var inst = this;
     var item = inst._item;
+    var muuri = item._muuri;
     var drag = inst._drag;
     var release = inst._release;
 
@@ -2694,11 +2678,12 @@ TODO v0.4.0
    */
   Drag.prototype._checkOverlap = function () {
 
-    var result = this._sortPredicate(this._item);
+    var inst = this;
+    var result = inst._sortPredicate(inst._item);
 
     if (result) {
-      this._item._muuri.moveItem(result.from, result.to, result.action || 'move');
-      this._item._muuri.layoutItems();
+      inst._item._muuri.moveItem(result.from, result.to, result.action || 'move');
+      inst._item._muuri.layoutItems();
     }
 
   };
@@ -2850,8 +2835,8 @@ TODO v0.4.0
     // and adjust position accordingly.
     if (release.element.parentNode !== muuri._element) {
       muuri._element.appendChild(release.element);
-      setStyles(release.element, {
-        transform: 'matrix(1,0,0,1,' + item._left + ',' + item._top + ')'
+      setStyles(item._element, {
+        transform: 'translateX(' + item._left + 'px) translateY(' + item._top + 'px)'
       });
     }
 
@@ -2895,7 +2880,7 @@ TODO v0.4.0
 
     // Stop current positioning animation.
     if (item._isPositioning) {
-      item._stopLayout();
+      item._stopLayout(true);
     }
 
     // If item is being released reset release data, remove release class and
@@ -2969,7 +2954,7 @@ TODO v0.4.0
 
         // Fix position to account for the append procedure.
         setStyles(drag.element, {
-          transform: 'matrix(1,0,0,1,' + drag.left + ',' + drag.top + ')'
+          transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
         });
 
       }
@@ -3039,7 +3024,7 @@ TODO v0.4.0
 
     // Update element's translateX/Y values.
     setStyles(drag.element, {
-      transform: 'matrix(1,0,0,1,' + drag.left + ',' + drag.top + ')'
+      transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
     });
 
     // Overlap handling.
@@ -3092,7 +3077,7 @@ TODO v0.4.0
 
     // Update element's translateX/Y values.
     setStyles(drag.element, {
-      transform: 'matrix(1,0,0,1,' + drag.left + ',' + drag.top + ')'
+      transform: 'translateX(' + drag.left + 'px) translateY(' + drag.top + 'px)'
     });
 
     // Overlap handling.
@@ -3242,6 +3227,71 @@ TODO v0.4.0
         this._onRejected.call(this);
       }
       this._onResolved = this._onRejected = null;
+    }
+
+  };
+
+  /**
+   * RafHandler
+   * **********
+   */
+
+  /**
+   * A utility contructor for handling requestAnimationFrame calls.
+   *
+   * @private
+   * @class
+   */
+  function RafHandler() {
+
+    this._id = null;
+
+  }
+
+  /**
+   * RafHandler - Public properties
+   * ******************************
+   */
+
+  /**
+   * Request animation frame.
+   *
+   * @public
+   * @memberof RafHandler.prototype
+   * @param {Function} fn
+   */
+  RafHandler.prototype.request = function (fn) {
+
+    var inst = this;
+
+    if (raf) {
+      if (inst._id) {
+        rafCancel(inst._id);
+      }
+      inst._id = raf(function () {
+        inst._id = null;
+        fn();
+      });
+    }
+    else {
+      fn();
+    }
+
+  };
+
+  /**
+   * Cancel animation frame.
+   *
+   * @public
+   * @memberof RafHandler.prototype
+   */
+  RafHandler.prototype.cancel = function () {
+
+    var inst = this;
+
+    if (raf && inst._id) {
+      rafCancel(inst._id);
+      inst._id = null;
     }
 
   };
@@ -3443,11 +3493,7 @@ TODO v0.4.0
    */
   function getStyle(element, style) {
 
-    style = style === 'transform' ? transform.styleName || style :
-            style === 'transition' ? transition.styleName || style :
-            style;
-
-    return global.getComputedStyle(element, null).getPropertyValue(style);
+    return global.getComputedStyle(element, null).getPropertyValue(style === 'transform' ? transform.styleName || style : style);
 
   }
 
@@ -3505,12 +3551,26 @@ TODO v0.4.0
         prop = transform.propName;
       }
 
-      if (prop === 'transition' && transition) {
-        prop = transition.propName;
-      }
-
       element.style[prop] = val;
 
+    }
+
+  }
+
+  /**
+   * Set inline styles to an element using Velocity's hook method.
+   *
+   * @private
+   * @param {HTMLElement} element
+   * @param {Object} styles
+   */
+  function hookStyles(element, styles) {
+
+    var props = Object.keys(styles);
+    var i;
+
+    for (i = 0; i < props.length; i++) {
+      Velocity.hook(element, props[i], styles[props[i]]);
     }
 
   }
@@ -3575,7 +3635,7 @@ TODO v0.4.0
   /**
    * Returns the supported style property's prefix, property name and style name
    * or null if the style property is not supported. This is used for getting
-   * the supported transform and transition.
+   * the supported transform.
    *
    * @private
    * @param {String} style
@@ -3607,31 +3667,6 @@ TODO v0.4.0
 
       }
 
-    }
-
-    return null;
-
-  }
-
-  /**
-   * Returns the supported transition end event name.
-   *
-   * @private
-   * @returns {?String}
-   */
-  function getTransitionEnd() {
-
-    var events = [
-      ['WebkitTransition', 'webkitTransitionEnd'],
-      ['MozTransition', 'transitionend'],
-      ['OTransition', 'oTransitionEnd otransitionend'],
-      ['transition', 'transitionend']
-    ];
-
-    for (var i = 0; i < 4; i++) {
-      if (document.body.style[events[i][0]] !== undefined) {
-        return events[i][1];
-      }
     }
 
     return null;
@@ -4093,11 +4128,11 @@ TODO v0.4.0
           animDone();
         }
         else if (instant) {
-          setStyles(item._child, styles);
+          hookStyles(item._child, styles);
           animDone();
         }
         else {
-          item._animateChild.start(styles, {
+          item._animateChild.start(null, styles, {
             duration: duration,
             easing: easing,
             done: animDone

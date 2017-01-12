@@ -63,8 +63,10 @@ $(function () {
       grid = new Muuri({
         container: $grid.get(0),
         items: generateElements(20),
+        layoutDuration: 1000,
         dragEnabled: true,
         dragContainer: document.body,
+        dragReleaseDuration: 1000,
         dragStartPredicate: function (item, event, predicate) {
           var isLastEvent = event.type === 'draginitup' || event.type === 'dragend' || event.type === 'dragcancel';
           if (isLastEvent && !predicate.isResolved()) {
@@ -74,8 +76,9 @@ $(function () {
             predicate.resolve();
           }
         },
+        dragSortInterval: 40,
         dragSortPredicate: {
-          action: 'swap'
+          action: 'move'
         }
       });
 
@@ -93,6 +96,11 @@ $(function () {
       // Don't follow links of items automatically.
       $(document).on('click', '.item', function (e) {
         e.preventDefault();
+      });
+
+      // Prevent native link dragging on firefox.
+      $(document).on('dragstart', '.item', function() {
+        return false;
       });
 
     }

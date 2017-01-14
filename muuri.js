@@ -48,7 +48,7 @@ TODO v0.3.0
 * [x] Remove getItemIndex method.
 * [x] Add muuri.getElement() and muuri.getRect() and document them.
 * [x] requestAnimationFrame to drag events: https://www.html5rocks.com/en/tutorials/speed/animations/
-* [ ] Animation overwrite system.
+* [ ] Animation overwrite system. (almost done)
 * [ ] Split Item.prototype.getData to smaller public getter methods and document
       them.
 * [ ] Reconsider dropping automatic layout from add/remove/hide/show methods.
@@ -223,7 +223,7 @@ TODO v0.4.0
     inst._id = ++uuid;
 
     // Create private Emitter instance.
-    inst._emitter = new Emitter();
+    inst._emitter = new Muuri.Emitter();
 
     // Setup show and hide animations for items.
     inst._itemShowHandler = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
@@ -234,7 +234,7 @@ TODO v0.4.0
 
     // Setup initial items.
     inst._items = Array.prototype.slice.call(stn.items).map(function (element) {
-      return new Item(inst, element);
+      return new Muuri.Item(inst, element);
     });
 
     // Layout on window resize if the layoutOnResize option is enabled.
@@ -282,7 +282,12 @@ TODO v0.4.0
   /**
    * @see Animate
    */
-  Muuri.Animate = Animate;
+  Muuri.AnimateLayout = Animate;
+
+  /**
+   * @see Animate
+   */
+  Muuri.AnimateVisibility = Animate;
 
   /**
    * @see Emitter
@@ -601,7 +606,7 @@ TODO v0.4.0
 
     // Create new items.
     for (i = 0; i < targetElements.length; i++) {
-      item = new Item(inst, targetElements[i]);
+      item = new Muuri.Item(inst, targetElements[i]);
       newItems[newItems.length] = item;
       if (item._isActive) {
         needsRelayout = true;
@@ -719,7 +724,7 @@ TODO v0.4.0
     var emitter = inst._emitter;
     var cb = typeof instant === 'function' ? instant : callback;
     var isInstant = instant === true;
-    var layout = new Layout(inst);
+    var layout = new Muuri.Layout(inst);
     var counter = -1;
     var itemsLength = layout.items.length;
     var completed = [];
@@ -1005,7 +1010,6 @@ TODO v0.4.0
     var stn = muuri._settings;
     var initialStyles;
     var isHidden;
-    var visibilityStyles;
 
     // Make sure the item element is not a parent of the grid container element.
     if (element.contains(muuri._element)) {
@@ -1018,8 +1022,14 @@ TODO v0.4.0
       muuri._element.appendChild(element);
     }
 
+    // Set item class.
+    addClass(element, stn.itemClass);
+
     // Check if the element is hidden.
     isHidden = getStyle(element, 'display') === 'none';
+
+    // Set visible/hidden class.
+    addClass(element, isHidden ? stn.itemHiddenClass : stn.itemVisibleClass);
 
     // Instance id.
     inst._id = ++uuid;
@@ -1028,8 +1038,8 @@ TODO v0.4.0
     inst._child = element.children[0];
 
     // Initiate item's animation controllers.
-    inst._animate = new Animate(element);
-    inst._animateChild = new Animate(inst._child);
+    inst._animate = new Muuri.AnimateLayout(inst, element);
+    inst._animateChild = new Muuri.AnimateVisibility(inst, inst._child);
 
     // Set up active state (defines if the item is considered part of the layout
     // or not).
@@ -1062,10 +1072,6 @@ TODO v0.4.0
     inst._left = 0;
     inst._top = 0;
 
-    // Set classnames.
-    addClass(element, stn.itemClass);
-    addClass(element, isHidden ? stn.itemHiddenClass : stn.itemVisibleClass);
-
     // Define initial styles.
     initialStyles = {
       left: '0',
@@ -1074,6 +1080,9 @@ TODO v0.4.0
     };
 
     // Enforce display "block" if element is visible.
+    // TODO: Is this necessary? There might be cases where the user needs the
+    // element to another display type and everything should work fine unless
+    // the display type is not "inline" or similar.
     if (!isHidden) {
       initialStyles['display'] = 'block';
     }
@@ -1081,17 +1090,19 @@ TODO v0.4.0
     // Set element's initial styles.
     setStyles(inst._element, initialStyles);
 
-    // Set initial styles for the child element.
-    visibilityStyles = muuri[isHidden ? '_itemHideHandler' : '_itemShowHandler'].styles;
-    if (visibilityStyles) {
-      hookStyles(inst._child, visibilityStyles);
-    }
-
-    // Calculate and set up up initial dimensions.
+    // Calculate and set up initial dimensions.
     inst._refresh();
 
+    // Set initial styles for the child element.
+    if (isHidden) {
+      muuri._itemHideHandler.start(inst, true);
+    }
+    else {
+      muuri._itemShowHandler.start(inst, true);
+    }
+
     // Set up drag handler.
-    inst._drag = stn.dragEnabled ? new Drag(inst) : null;
+    inst._drag = stn.dragEnabled ? new Muuri.Drag(inst) : null;
 
   }
 
@@ -1417,9 +1428,16 @@ TODO v0.4.0
       inst._stopLayout();
       inst._noLayoutAnimation = false;
 
-      setStyles(inst._element, {
-        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
-      });
+      // Set the styles only if they are not set later on. If an item is being
+      // released after drag and the drag container is something else than the
+      // Muuri container these styles will be set after the item has been
+      // moved back to the Muuri container, which also means that setting the
+      // styles here in that scenario is a waste of resources.
+      if (!(release.isActive && release.element.parentNode !== inst._muuri._element)) {
+        setStyles(inst._element, {
+          transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
+        });
+      }
 
       finish();
 
@@ -2233,9 +2251,10 @@ TODO v0.4.0
    *
    * @public
    * @class
+   * @param {Item} item
    * @param {HTMLElement} element
    */
-  function Animate(element) {
+  function Animate(item, element) {
 
     this._element = element;
     this._queue = libName + '-' + (++uuid);
@@ -2254,21 +2273,22 @@ TODO v0.4.0
    *
    * @public
    * @memberof Animate.prototype
-   * @param {Object} props
+   * @param {?Object} propsCurrent
+   * @param {Object} propsTarget
    * @param {Object} [options]
    * @param {Number} [options.duration=300]
    * @param {Number} [options.delay=0]
    * @param {String} [options.easing='ease']
    */
-  Animate.prototype.start = function (propsCurrent, propsTarget, opts) {
+  Animate.prototype.start = function (propsCurrent, propsTarget, options) {
 
     var inst = this;
-    var options = opts || {};
-    var callback = typeof options.done === 'function' ? options.done : null;
+    var opts = options || {};
+    var callback = typeof opts.done === 'function' ? opts.done : null;
     var velocityOpts = {
-      duration: options.duration || 300,
-      delay: options.delay || 0,
-      easing: options.easing || 'ease',
+      duration: opts.duration || 300,
+      delay: opts.delay || 0,
+      easing: opts.easing || 'ease',
       queue: inst._queue
     };
 
@@ -4122,14 +4142,17 @@ TODO v0.4.0
     var styles = opts && isPlainObject(opts.styles) ? opts.styles : null;
 
     return {
-      styles: styles,
       start: function (item, instant, animDone) {
         if (!isEnabled || !styles) {
-          animDone();
+          if (animDone) {
+            animDone();
+          }
         }
         else if (instant) {
           hookStyles(item._child, styles);
-          animDone();
+          if (animDone) {
+            animDone();
+          }
         }
         else {
           item._animateChild.start(null, styles, {

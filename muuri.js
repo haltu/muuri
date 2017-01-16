@@ -48,8 +48,8 @@ TODO v0.3.0
 * [x] Remove getItemIndex method.
 * [x] Add muuri.getElement() and muuri.getRect() and document them.
 * [x] requestAnimationFrame to drag events: https://www.html5rocks.com/en/tutorials/speed/animations/
-* [ ] Animation overwrite system. (almost done)
-* [ ] Split Item.prototype.getData to smaller public getter methods and document
+* [x] Animation overwrite system.
+* [x] Split Item.prototype.getData to smaller public getter methods and document
       them.
 * [ ] Reconsider dropping automatic layout from add/remove/hide/show methods.
       It does not make sense if move method does not have auto layout.
@@ -95,12 +95,25 @@ TODO v0.4.0
 (function (global, factory) {
 
   var libName = 'Muuri';
+  var Velocity;
+  var Hammer;
 
-  if (typeof module === 'object' && module.exports) {
-    module.exports = factory(global, libName, require('Velocity'), require('Hammer'));
+  if (typeof define === 'function' && define.amd) {
+    define(function (require) {
+      Velocity = require.defined && require.defined('velocity') ? require('velocity') : undefined;
+      Hammer = require.defined && require.defined('hammer') ? require('hammer') : undefined;
+      return factory(global, libName, Velocity, Hammer);
+    });
+  }
+  else if (typeof module === 'object' && module.exports) {
+    try { Velocity = require('velocity-animate'); } catch (e) {}
+    try { Hammer = require('hammerjs'); } catch (e) {}
+    module.exports = factory(global, libName, Velocity, Hammer);
   }
   else {
-    global[libName] = factory(global, libName, typeof global.jQuery === 'function' ? global.jQuery.Velocity : global.Velocity, global.Hammer);
+    Velocity = typeof global.jQuery === 'function' ? global.jQuery.Velocity : global.Velocity;
+    Hammer = global.Hammer;
+    global[libName] = factory(global, libName, Velocity, Hammer);
   }
 
 }(this, function (global, libName, Velocity, Hammer, undefined) {
@@ -363,8 +376,8 @@ TODO v0.4.0
   };
 
   /**
-   * Muuri - Public methods
-   * **********************
+   * Muuri - Public prototype methods
+   * ********************************
    */
 
   /**
@@ -924,8 +937,8 @@ TODO v0.4.0
   };
 
   /**
-   * Muuri - Protected methods
-   * *************************
+   * Muuri - Protected prototype methods
+   * ***********************************
    */
 
   /**
@@ -1041,6 +1054,10 @@ TODO v0.4.0
     inst._animate = new Muuri.AnimateLayout(inst, element);
     inst._animateChild = new Muuri.AnimateVisibility(inst, inst._child);
 
+    // Check if default animation engine is used.
+    inst._isDefaultAnimate = inst._animate instanceof Animate;
+    inst._isDefaultChildAnimate = inst._animateChild instanceof Animate;
+
     // Set up active state (defines if the item is considered part of the layout
     // or not).
     inst._isActive = isHidden ? false : true;
@@ -1107,8 +1124,8 @@ TODO v0.4.0
   }
 
   /**
-   * Item - Public methods
-   * *********************
+   * Item - Public prototype methods
+   * *******************************
    */
 
   /**
@@ -1280,8 +1297,8 @@ TODO v0.4.0
   };
 
   /**
-   * Item - Protected methods
-   * ************************
+   * Item - Protected prototype methods
+   * **********************************
    */
 
   /**
@@ -1449,7 +1466,7 @@ TODO v0.4.0
       // Get current (relative) left and top position. Meaning that the
       // container's offset (if applicable) is subtracted from the current
       // translate values.
-      if (isPositioning) {
+      if (isPositioning && inst._isDefaultAnimate) {
         currentLeft = parseFloat(Velocity.hook(inst._element, 'translateX')) - offsetLeft;
         currentTop = parseFloat(Velocity.hook(inst._element, 'translateY')) - offsetTop;
       }
@@ -2152,8 +2169,8 @@ TODO v0.4.0
   function Emitter() {}
 
   /**
-   * Emitter - Public methods
-   * ************************
+   * Emitter - Public prototype methods
+   * **********************************
    */
 
   /**
@@ -2263,8 +2280,8 @@ TODO v0.4.0
   }
 
   /**
-   * Animate - Public methods
-   * ************************
+   * Animate - Public prototype methods
+   * **********************************
    */
 
   /**
@@ -2484,8 +2501,8 @@ TODO v0.4.0
   }
 
   /**
-   * Drag - Public properties
-   * ************************
+   * Drag - Public methods
+   * *********************
    */
 
   /**
@@ -2542,10 +2559,9 @@ TODO v0.4.0
 
       // If the item is the dragged item, save it's index.
       if (item === targetItem) {
-
         targetIndex = i;
-
       }
+
       // Otherwise, if the item is active.
       else if (item._isActive) {
 
@@ -2584,8 +2600,8 @@ TODO v0.4.0
   };
 
   /**
-   * Drag - Public methods
-   * *********************
+   * Drag - Public prototype methods
+   * *******************************
    */
 
   /**
@@ -2617,8 +2633,8 @@ TODO v0.4.0
   };
 
   /**
-   * Drag - Protected methods
-   * ************************
+   * Drag - Protected prototype methods
+   * **********************************
    */
 
   /**
@@ -3185,8 +3201,8 @@ TODO v0.4.0
   }
 
   /**
-   * Predicate - Public properties
-   * *****************************
+   * Predicate - Public prototype methods
+   * ************************************
    */
 
   /**
@@ -3269,8 +3285,8 @@ TODO v0.4.0
   }
 
   /**
-   * RafHandler - Public properties
-   * ******************************
+   * RafHandler - Public prototype methods
+   * *************************************
    */
 
   /**
@@ -4143,27 +4159,51 @@ TODO v0.4.0
 
     return {
       start: function (item, instant, animDone) {
+
+        var animateOpts;
+
         if (!isEnabled || !styles) {
+
           if (animDone) {
             animDone();
           }
+
         }
         else if (instant) {
-          hookStyles(item._child, styles);
+
+          if (item._isDefaultChildAnimate) {
+            hookStyles(item._child, styles);
+          }
+          else {
+            setStyles(item._child, styles);
+          }
+
           if (animDone) {
             animDone();
           }
+
         }
         else {
-          item._animateChild.start(null, styles, {
+
+          animateOpts = {
             duration: duration,
             easing: easing,
             done: animDone
-          });
+          };
+
+          if (item._isDefaultChildAnimate) {
+            item._animateChild.start(null, styles, animateOpts);
+          }
+          else {
+            item._animateChild.start(styles, animateOpts);
+          }
+
         }
       },
       stop: function (item) {
+
         item._animateChild.stop();
+
       }
     };
 

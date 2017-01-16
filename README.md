@@ -1,6 +1,6 @@
 # Muuri
 
-Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
+Muuri allows you to create responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
 
 Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
@@ -26,6 +26,19 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
   * [muuri.off( event, listener )](#muurioff-event-listener-)
   * [muuri.refresh()](#muurirefresh)
   * [muuri.destroy()](#muuridestroy)
+* [Item methods](#methods)
+  * [item.getElement()](#itemgetelement)
+  * [item.getWidth()](#itemgetwidth)
+  * [item.getHeight()](#itemgetheight)
+  * [item.getMargin()](#itemgetmargin)
+  * [item.getPosition()](#itemgetposition)
+  * [item.isActive()](#itemisactive)
+  * [item.isVisible()](#itemisvisible)
+  * [item.isShowing()](#itemisshowing)
+  * [item.isHiding()](#itemishiding)
+  * [item.isPositioning()](#itemispositioning)
+  * [item.isDragging()](#itemisdragging)
+  * [item.isReleasing()](#itemisreleasing)
 * [Events](#events)
   * [refresh](#refresh)
   * [refreshitems](#refreshitems)
@@ -142,21 +155,19 @@ var grid = new Muuri({
   * Default value: `null`.
   * The initial item elements wrapped in an array. The elements must be children of the container element. Can also be a node list which Muuri will automatically convert to an array.
 * **`show`** &nbsp;&mdash;&nbsp; *function* / *null* / *object*
-  * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, transform: 'scale(1)'}}`.
+  * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, scale: 1}}`.
   * Set to `null` to disable the animation.
-  * When an object is provided Muuri's built-in animation engine (that uses CSS transitions) is used and the object is used for configuring the animation. The object allows configuring the following properties:
+  * When an object is provided Muuri's built-in animation engine (that uses Velocity.js) is used and the object is used for configuring the animation. The object allows configuring the following properties:
     * **`show.duration`** &nbsp;&mdash;&nbsp; *number*
       * Default value: `300`.
       * Animation duration in milliseconds.
     * **`show.easing`** &nbsp;&mdash;&nbsp; *string*
       * Default value: `'ease'`.
-      * Accepts any valid [transition timing function](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-timing-function).
+      * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
     * **`show.styles`** &nbsp;&mdash;&nbsp; *object*
-      * Default value: `{opacity: 1, transform: 'scale(1)'}`.
-      * A hash of the animated style properties and their target values for the animation.
-  * By providing a function you can define a fully customized animation. The function should return an object that contains the following properties:
-    * **`styles`** &nbsp;&mdash;&nbsp; *object*
-      * A hash of the animated style properties and their target values for the animation. This object is used internally to set the animated item's styles for the *show* state.
+      * Default value: `{opacity: 1, scale: 1}`.
+      * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for the animation.
+  * By providing a function you can define a fully customized animation. The function should return an object that contains the following methods:
     * **`start`** &nbsp;&mdash;&nbsp; *function*
       * A function that starts the animation. Receives three arguments:
       * **`item`** &nbsp;&mdash;&nbsp; *Muuri.Item*
@@ -170,7 +181,7 @@ var grid = new Muuri({
       * **`item`** &nbsp;&mdash;&nbsp; *Muuri.Item*
         * The Muuri.Item instance that is being animated.
 * **`hide`** &nbsp;&mdash;&nbsp; *function* / *null* / *object*
-  * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 0, transform: 'scale(0.5)'}}`.
+  * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 0, scale: 0.5}}`.
   * Set to `null` to disable the animation.
   * When an object is provided Muuri's built-in animation engine (that uses CSS transitions) is used and the object is used for configuring the animation. The object allows configuring the following properties:
     * **`hide.duration`** &nbsp;&mdash;&nbsp; *number*
@@ -178,13 +189,11 @@ var grid = new Muuri({
       * Animation duration in milliseconds.
     * **`hide.easing`** &nbsp;&mdash;&nbsp; *string*
       * Default value: `'ease'`.
-      * Accepts any valid [transition timing function](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-timing-function).
+      * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
     * **`hide.styles`** &nbsp;&mdash;&nbsp; *object*
-      * Default value: `{opacity: 0, transform: 'scale(0.5)'}`.
-      * A hash of the animated style properties and their target values for the animation.
-  * By providing a function you can define a fully customized animation. The function should return an object that contains the following properties:
-    * **`styles`** &nbsp;&mdash;&nbsp; *object*
-      * A hash of the animated style properties and their target values for the animation. This object is used internally to set the animated item's styles for the *hide* state.
+      * Default value: `{opacity: 0, scale: 0.5}`.
+      * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for the animation.
+  * By providing a function you can define a fully customized animation. The function should return an object that contains the following methods:
     * **`start`** &nbsp;&mdash;&nbsp; *function*
       * A function that starts the animation. Receives three arguments:
       * **`item`** &nbsp;&mdash;&nbsp; *Muuri.Item*
@@ -240,7 +249,7 @@ var grid = new Muuri({
   * The duration for item's layout animation in milliseconds. Set to `0` to disable.
 * **`layoutEasing`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `'ease'`.
-  * The easing for item's layout animation. Accepts any valid [transition timing function](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-timing-function).
+  * The easing for item's layout animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 * **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Should items be draggable?
@@ -289,7 +298,7 @@ var grid = new Muuri({
   * The duration for item's drag release animation. Set to `0` to disable.
 * **`dragReleaseEasing`** &nbsp;&mdash;&nbsp; *string / array*
   * Default value: `'ease'`.
-  * The easing for item's drag release animation. Accepts any valid [transition timing function](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-timing-function).
+  * The easing for item's drag release animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 * **`containerClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `'muuri'`.
   * Container element classname.
@@ -338,7 +347,7 @@ var defaults = {
     easing: 'ease',
     styles: {
       opacity: 1,
-      transform: 'scale(1)'
+      scale: 1
     }
   },
   hide: {
@@ -346,7 +355,7 @@ var defaults = {
     easing: 'ease',
     styles: {
       opacity: 0,
-      transform: 'scale(0.5)'
+      scale: 0.5
     }
   },
 

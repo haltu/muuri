@@ -26,7 +26,7 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
   * [muuri.off( event, listener )](#muurioff-event-listener-)
   * [muuri.refresh()](#muurirefresh)
   * [muuri.destroy()](#muuridestroy)
-* [Item methods](#itemmethods)
+* [Item methods](#item-methods)
   * [item.getElement()](#itemgetelement)
   * [item.getWidth()](#itemgetwidth)
   * [item.getHeight()](#itemgetheight)

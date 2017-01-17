@@ -7,6 +7,7 @@ Muuri's layout system allows positioning the grid items within the container in 
 And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 ## Table of contents
+---
 
 * [Getting started](#getting-started)
 * [Options](#options)
@@ -26,7 +27,7 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
   * [muuri.off( event, listener )](#muurioff-event-listener-)
   * [muuri.refresh()](#muurirefresh)
   * [muuri.destroy()](#muuridestroy)
-* [Item methods](#methods)
+* [Item methods](#itemmethods)
   * [item.getElement()](#itemgetelement)
   * [item.getWidth()](#itemgetwidth)
   * [item.getHeight()](#itemgetheight)
@@ -62,6 +63,7 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 * [License](#license)
 
 ## Getting started
+---
 
 Muuri has an optional dependency on Hammer.js (required only if you are using the dragging feature):
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
@@ -147,6 +149,7 @@ var grid = new Muuri({
 ```
 
 ## Options
+---
 
 * **`container`** &nbsp;&mdash;&nbsp; *element*
   * Default value: `null`.
@@ -397,6 +400,7 @@ var defaults = {
 ```
 
 ## Methods
+---
 
 ### `muuri.getElement()`
 
@@ -766,7 +770,175 @@ Destroy the instance.
 muuri.destroy();
 ```
 
+## Item methods
+---
+
+### `item.getElement()`
+
+Get the instance element.
+
+**Returns** &nbsp;&mdash;&nbsp; *element*
+
+**Examples**
+
+```javascript
+// Get the element of the first item in the muuri instance.
+var elem = muuri.getItems(0).getElement();
+```
+
+### `item.getWidth()`
+
+Get instance element's cached width. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *number*
+
+**Examples**
+
+```javascript
+// Get the width of the first item in the muuri instance.
+var elem = muuri.getItems(0).getWidth();
+```
+
+### `item.getHeight()`
+
+Get instance element's cached height. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *number*
+
+**Examples**
+
+```javascript
+// Get the height of the first item in the muuri instance.
+var elem = muuri.getItems(0).getHeight();
+```
+
+### `item.getMargin()`
+
+Get instance element's cached margins. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+* **obj.left** &nbsp;&mdash;&nbsp; *number*
+* **obj.right** &nbsp;&mdash;&nbsp; *number*
+* **obj.top** &nbsp;&mdash;&nbsp; *number*
+* **obj.bottom** &nbsp;&mdash;&nbsp; *number*
+
+**Examples**
+
+```javascript
+// Get the height of the first item in the muuri instance.
+var elem = muuri.getItems(0).getHeight();
+```
+
+### `item.getPosition()`
+
+Get instance element's cached position (relative to the container element).
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+* **obj.left** &nbsp;&mdash;&nbsp; *number*
+* **obj.top** &nbsp;&mdash;&nbsp; *number*
+
+**Examples**
+
+```javascript
+// Get the position of the first item in the muuri instance.
+var elem = muuri.getItems(0).getPosition();
+```
+
+### `item.isActive()`
+
+Check if the item is currently *active*. Only active items are considered to be part of the layout.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+// Check if the first item in the muuri instance is active.
+var isActive = muuri.getItems(0)[0].isActive();
+```
+
+### `item.isVisible()`
+
+Check if the item is currently *visible*.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+// Check if the first item in the muuri instance is visible.
+var isVisible = muuri.getItems(0)[0].isVisible();
+```
+
+### `item.isShowing()`
+
+Check if the item is currently animating to visible.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+// Check if the first item in the muuri instance is animating to visible.
+var isShowing = muuri.getItems(0)[0].isShowing();
+```
+
+### `item.isHiding()`
+
+Check if the item is currently animating to hidden.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+// Check if the first item in the muuri instance is animating to hidden.
+var isHiding = muuri.getItems(0)[0].isHiding();
+```
+
+### `item.isPositioning()`
+
+Check if the item is currently being positioned.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+// Check if the first item in the muuri instance is being positioned.
+var isPositioning = muuri.getItems(0)[0].isPositioning();
+```
+
+### `item.isDragging()`
+
+Check if the item is currently being dragged.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+// Check if the first item in the muuri instance is being dragged.
+var isDragging = muuri.getItems(0)[0].isDragging();
+```
+
+### `item.isReleasing()`
+
+Check if the item is currently being released.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+// Check if the first item in the muuri instance is being released.
+var isReleasing = muuri.getItems(0)[0].isReleasing();
+```
+
 ## Events
+---
 
 ### `refresh`
 
@@ -1118,6 +1290,7 @@ muuri.on('destroy', function () {
 ```
 
 ## License
+---
 
 Copyright &copy; 2015 Haltu Oy. Licensed under **[the MIT license](LICENSE.md)**.
 

@@ -7,7 +7,6 @@ Muuri's layout system allows positioning the grid items within the container in 
 And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 ## Table of contents
----
 
 * [Getting started](#getting-started)
 * [Options](#options)
@@ -63,7 +62,6 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 * [License](#license)
 
 ## Getting started
----
 
 Muuri has an optional dependency on Hammer.js (required only if you are using the dragging feature):
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
@@ -149,7 +147,6 @@ var grid = new Muuri({
 ```
 
 ## Options
----
 
 * **`container`** &nbsp;&mdash;&nbsp; *element*
   * Default value: `null`.
@@ -400,7 +397,6 @@ var defaults = {
 ```
 
 ## Methods
----
 
 ### `muuri.getElement()`
 
@@ -771,7 +767,6 @@ muuri.destroy();
 ```
 
 ## Item methods
----
 
 ### `item.getElement()`
 
@@ -938,7 +933,6 @@ var isReleasing = muuri.getItems(0)[0].isReleasing();
 ```
 
 ## Events
----
 
 ### `refresh`
 
@@ -1290,7 +1284,6 @@ muuri.on('destroy', function () {
 ```
 
 ## License
----
 
 Copyright &copy; 2015 Haltu Oy. Licensed under **[the MIT license](LICENSE.md)**.
 

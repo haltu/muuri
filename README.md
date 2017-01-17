@@ -4,6 +4,8 @@ Muuri allows you to create responsive, sortable, filterable and draggable grid l
 
 Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
+Muuri uses [Velocity.js](http://velocityjs.org/) for animating the grid items (positioining/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging.
+
 And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 ## Table of contents

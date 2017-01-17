@@ -51,11 +51,9 @@ TODO v0.3.0
 * [x] Animation overwrite system.
 * [x] Split Item.prototype.getData to smaller public getter methods and document
       them.
-* [ ] Reconsider dropping automatic layout from add/remove/hide/show methods.
-      It does not make sense if move method does not have auto layout.
-* [ ] Allow dropping on empty slots (gaps).
-* [ ] When dragging an item sometimes it flickers as if it did not have the
-      dragging class. Make sure that the dragged item always has dragging class.
+* [ ] Format the codebase to use a more strict coding style so that contributing
+      to the library would be easier.
+* [ ] Add drag hacks so the user does not need to worry about them.
 * [ ] Update docs.
 * [ ] Update website.
 * [ ] Update unit tests.
@@ -68,13 +66,10 @@ TODO v0.3.0
 
 TODO v0.3.1
 ===========
-* [ ] Memory leak: JS heap size grows a bit after each drag.
 * [ ] Speed optimization heuristics. Try to make layout/overlap check as fast
       as possible by using smart heuristics. For example change the algorithm
       based on the item sizes. If all items same size the algorithm can be
       simplified. Do heavy lifting only when necessary.
-* [ ] Format the codebase to use a more strict coding style so that contributing
-      to the library would be easier.
 * [ ] How to use this with popular frameworks: React, Vue, Angular2, Ember,
       Meteor, etc...?
 
@@ -738,7 +733,7 @@ TODO v0.4.0
     var cb = typeof instant === 'function' ? instant : callback;
     var isInstant = instant === true;
     var layout = new Muuri.Layout(inst);
-    var counter = -1;
+    var counter = 0;
     var itemsLength = layout.items.length;
     var completed = [];
     var item;
@@ -753,8 +748,8 @@ TODO v0.4.0
         completed[completed.length] = item;
       }
 
-      // If container and all items have finished their animations (if any),
-      // call callback and emit layoutend event.
+      // After all items have finished their animations call callback and emit
+      // layoutend event.
       if (++counter === itemsLength) {
         if (typeof cb === 'function') {
           cb(completed, layout);
@@ -783,12 +778,13 @@ TODO v0.4.0
       inst._width = layout.width;
     }
 
-    // If there are now items let's finish quickly.
+    // If there are no items let's finish quickly.
     if (!itemsLength) {
 
       tryFinish(true);
 
     }
+
     // If there are items let's position them.
     else {
 
@@ -880,7 +876,7 @@ TODO v0.4.0
       else {
         arrayMove(items, items.indexOf(from), items.indexOf(to));
       }
-      inst._emitter.emit(evMoveItem, from, to, isSwap ? 'swap' : 'move');
+      inst.layoutItems()._emitter.emit(evMoveItem, from, to, isSwap ? 'swap' : 'move');
     }
 
     return inst;
@@ -2719,7 +2715,6 @@ TODO v0.4.0
 
     if (result) {
       inst._item._muuri.moveItem(result.from, result.to, result.action || 'move');
-      inst._item._muuri.layoutItems();
     }
 
   };

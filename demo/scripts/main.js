@@ -83,14 +83,20 @@ $(function () {
       });
 
       grid
-      .on('dragItemStart', function () {
+      .on('dragitemstart', function () {
         ++dragCounter;
         $root.addClass('dragging');
       })
-      .on('dragItemEnd', function () {
+      .on('dragitemend', function () {
         if (--dragCounter < 1) {
           $root.removeClass('dragging');
         }
+      })
+      .on('layoutitemsend', function () {
+        console.log('layoutend');
+      })
+      .on('releaseitemend', function () {
+        console.log('releaseend');
       });
 
       // Don't follow links of items automatically.

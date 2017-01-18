@@ -51,30 +51,28 @@ TODO v0.3.0
 * [x] Animation overwrite system.
 * [x] Split Item.prototype.getData to smaller public getter methods and document
       them.
-* [ ] Format the codebase to use a more strict coding style so that contributing
-      to the library would be easier.
-* [ ] Add drag hacks so the user does not need to worry about them.
-* [ ] Update docs.
-* [ ] Update website.
-* [ ] Update unit tests.
-* [ ] Tutorials/guides on:
-      - How to use custom hide/show animations?
-      - How to replace the default animation engine with for example Velocity?
-      - How to use custom layout algorithm?
-      - How to use drag start predicate?
-      - How to use drag sort predicate?
-
-TODO v0.3.1
-===========
+* [x] Cache the current layout so that we can add some heuristics to increase
+      performance in certain situations.
+* [x] BUG: Dragged item flickers sometimes as if the dragging class was removed
+      and added quickly. It seems that dragend event is called by hammer
+      sometimes when not intended, but it may have been the mouse also that was
+      bugging out. Could not reproduce this issue when the mouse button was
+      pressed doẃn firmly.
+* [ ] Include drag hacks so the user does not need to worry about them.
+* [ ] Optimize requestAnimationFrame usage.
 * [ ] Speed optimization heuristics. Try to make layout/overlap check as fast
       as possible by using smart heuristics. For example change the algorithm
       based on the item sizes. If all items same size the algorithm can be
       simplified. Do heavy lifting only when necessary.
-* [ ] How to use this with popular frameworks: React, Vue, Angular2, Ember,
-      Meteor, etc...?
+* [ ] Update docs.
+* [ ] Update website.
+* [ ] Add more unit tests.
+* [ ] Test usage on node and bower. Make sure everything works as advertised.
 
-TODO v0.4.0
-===========
+Backlog
+=======
+* [ ] Format the codebase to use a more strict coding style so that contributing
+      to the library would be easier.
 * [ ] Make it possible to disable/enable drag, drag sort and some other options
       after init. What kind of mechanism should we use? Specific methods or some
       sort of "reinit" method, or just manipulating the settings object
@@ -84,6 +82,14 @@ TODO v0.4.0
       have implmented it.
 * [ ] Optional drag placeholder.
 * [ ] Stagger option(s) to achieve similar delayed animations as shuffle.js.
+* [ ] How to use this with popular frameworks: React, Vue, Angular2, Ember,
+      Meteor, etc...?
+* [ ] Tutorials/guides on:
+      - How to use custom hide/show animations?
+      - How to replace the default animation engine?
+      - How to use custom layout algorithms?
+      - How to use drag start predicate?
+      - How to use drag sort predicate?
 
 */
 
@@ -140,6 +146,13 @@ TODO v0.4.0
   // (about transform rendering) a transformed element should contain fixed
   // elements, but not every browser follows the spec. So we need to test it.
   var transformLeaksFixed = doesTransformLeakFixed();
+
+  // A generic prevent default handler.
+  var fnPreventDefault = function (e) {
+    if (e.preventDefault) {
+      e.preventDefault();
+    }
+  };
 
   // Event names.
   var evRefresh = 'refresh';
@@ -229,6 +242,9 @@ TODO v0.4.0
 
     // Instance id.
     inst._id = ++uuid;
+
+    // Reference to the currently used Layout instance.
+    inst._layout = null;
 
     // Create private Emitter instance.
     inst._emitter = new Muuri.Emitter();
@@ -578,9 +594,9 @@ TODO v0.4.0
    * process. As long as the item is inactive it will not be part of the layout,
    * but it will retain it's index. You can activate items at any point
    * with muuri.show() method. This method will automatically call
-   * muuri.layoutItems() if one or more of the added elements are visible. If only
-   * hidden items are added no layout will be called. All the new visible items
-   * are positioned without animation during their first layout.
+   * muuri.layoutItems() if one or more of the added elements are visible. If
+   * only hidden items are added no layout will be called. All the new visible
+   * items are positioned without animation during their first layout.
    *
    * @public
    * @memberof Muuri.prototype
@@ -752,15 +768,18 @@ TODO v0.4.0
       // layoutend event.
       if (++counter === itemsLength) {
         if (typeof cb === 'function') {
-          cb(completed, layout);
+          cb(completed);
         }
-        emitter.emit(evLayoutItemsEnd, completed, layout);
+        emitter.emit(evLayoutItemsEnd, completed);
       }
 
     }
 
+    // Update the current layout data reference.
+    inst._layout = layout;
+
     // Emit layoutstart event.
-    emitter.emit(evLayoutItemsStart, layout.items, layout);
+    emitter.emit(evLayoutItemsStart, layout.items);
 
     // Set container's height if needed.
     if (layout.setHeight) {
@@ -2418,10 +2437,6 @@ TODO v0.4.0
       });
     };
 
-    // Set element's draggable attribute to false to prevent "ghost image" in
-    // certain browsers, which breaks the drag flow.
-    item._element.setAttribute('draggable', 'false');
-
     // Add drag recognizer to hammer.
     hammer.add(new Hammer.Pan({
       event: 'drag',
@@ -2493,6 +2508,24 @@ TODO v0.4.0
       predicateEvent = null;
 
     });
+
+    //
+    // Usability hacks
+    //
+
+    // Set element's draggable attribute to false to prevent "ghost image" in
+    // certain browsers, which breaks the drag flow.
+    item._element.setAttribute('draggable', 'false');
+
+    // Prevent native link dragging on firefox for the element.
+    if (item._element.tagName.toLowerCase() === 'a') {
+      item._element.addEventListener('dragstart', fnPreventDefault, false);
+    }
+
+    // Prevent native link dragging on firefox for the child element.
+    if (item._child.tagName.toLowerCase() === 'a') {
+      item._child.addEventListener('dragstart', fnPreventDefault, false);
+    }
 
   }
 
@@ -2623,6 +2656,14 @@ TODO v0.4.0
 
     inst._setupReleaseData();
     inst._resetDrag();
+
+    if (item._element.tagName.toLowerCase() === 'a') {
+      item._element.removeEventListener('dragstart', fnPreventDefault, false);
+    }
+
+    if (item._child.tagName.toLowerCase() === 'a') {
+      item._child.removeEventListener('dragstart', fnPreventDefault, false);
+    }
 
     return inst;
 

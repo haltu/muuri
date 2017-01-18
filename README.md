@@ -4,7 +4,7 @@ Muuri allows you to create responsive, sortable, filterable and draggable grid l
 
 Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
-Muuri uses [Velocity.js](http://velocityjs.org/) for animating the grid items (positioining/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging.
+Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioining/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging.
 
 And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
@@ -65,19 +65,51 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 
 ## Getting started
 
-Muuri has an optional dependency on Hammer.js (required only if you are using the dragging feature):
-* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
+### 1. Get Muuri
 
-**First, include Muuri and it's dependencies inside the body element in your site.**
+Download from GitHub:
+* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.3.0/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.3.0/muuri.min.js) - for production (minified, no comments).
+
+Or link directly via CDNJS:
 
 ```html
-<!-- Only needed if you are using the dragging feature -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.0/muuri.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.0/muuri.min.js"></script>
+```
+
+Or install with [npm](https://www.npmjs.com/):
+
+```bash
+npm install muuri
+```
+
+Or install with [bower](http://bower.io):
+
+```bash
+bower install muuri
+```
+
+### 2. Get the dependencies
+
+Muuri depends on the following libraries:
+* [Velocity](https://github.com/julianshapiro/velocity) (v1.0.0+)
+  * By default Muuri users Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting `Muuri.AnimateLayout` and `Muuri.AnimateVisibility` constructors. If you overwrite those constructors with your own implementation Muuri detects it and Velocity is no longer required as a dependency.
+* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
+  * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.Drag` constructor, which is instantiated for each item, so if you really need customize the drag behaviour beyond what is available via options you can replace the `Muuri.Drag` constructor with your own implementation.
+
+### 3. Add the script tags
+
+Include Muuri inside the *body* element in your site and make sure to include the dependencies before Muuri. Muuri has to be inside the body element because it does some feature checking during initiation and might not work correctly if it does not have access to `document.body`.
+
+```html
+<script src="velocity.js"></script>
 <script src="hammer.js"></script>
-<!-- Needs to be within in body element or have access to body element -->
+<!-- Muuri needs to have access to document.body when initiated -->
 <script src="muuri.js"></script>
 ```
 
-**Then, define your grid markup.**
+### 4. Add the markup
 
 * Every grid must have a container element and item element(s) within the container element.
 * A grid item must always consist of at least two elements. The outer element is used for positioning the item and the inner element (first direct child) is used for animating the item's visibility (show/hide methods). You can insert any markup you wish inside the inner item element.
@@ -102,13 +134,13 @@ Muuri has an optional dependency on Hammer.js (required only if you are using th
 </div>
 ```
 
-**Next, let's apply some styles.**
+### 5. Add the styles
 
 * The grid element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
-* The item elements must have their CSS position set to *absolute* and their display property set to *block*, unless of course the elements have their display set to *block* inherently.
-* The item elements must not have any CSS transitions or animations applied to them since Muuri already applies CSS transitions to them internally.
+* The item elements must have their CSS position set to *absolute* and their display property set to *block*, unless of course the elements have their display set to *block* inherently. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements.
+* The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations.
 * You can control the gaps between the tiles by giving some margin to the item elements.
-* Normally an absolutely positioned element is positioned relative to the containing element's content with padding included, but Muuri's items are positioned relative to the grid element's content with padding excluded (intentionally) to allow more control over the items' gutter spacing.
+* Normally an absolutely positioned element is positioned relative to the containing element's content with padding included, but Muuri's items are positioned relative to the grid element's content with padding excluded (intentionally) to provide more control over the gutter spacing.
 
 ```css
 .grid {
@@ -136,7 +168,7 @@ Muuri has an optional dependency on Hammer.js (required only if you are using th
 }
 ```
 
-**Finally, initiate a Muuri instance.**
+### 6. Fire it up
 
 * The bare minimum configuration is demonstrated below. You must always provide Muuri with the container element and the initial item elements.
 * Be sure to check out the all the available [options](#options), [methods](#methods) and [events](#events).
@@ -223,7 +255,7 @@ var grid = new Muuri({
       * **`layout.alignBottom`** &nbsp;&mdash;&nbsp; *boolean*
         * Default value: `false`.
         * When `true` the items are aligned from the bottom up.
-  * Alternatively you can provide a function to define a custom layout algorithm. The function will receive the `Layout` instance as its context. A `Layout` instance has the following properties:
+  * Alternatively you can provide a function to define a custom layout algorithm. The function will receive the `Muuri.Layout` instance as its context. A `Muuri.Layout` instance has the following properties:
     * **`muuri`** &nbsp;&mdash;&nbsp; *Muuri*
       * The related `Muuri` instance.
     * **`items`** &nbsp;&mdash;&nbsp; *array*
@@ -323,19 +355,12 @@ var grid = new Muuri({
   * Default value: `'muuri-item-releasing'`.
   * This classname will be added to the item element for the duration of release.
 
-**Modify default settings**
+### Default options
 
-The default settings are stored in `Muuri.defaultSettings` object.
-
-```javascript
-Muuri.defaultSettings.show.duration = 400;
-Muuri.defaultSettings.hide.duration = 400;
-```
-
-**Quick reference**
+The default options are stored in `Muuri.defaultSettings` object, which in it's default state contains the following data:
 
 ```javascript
-var defaults = {
+{
 
   // Container
   container: null,
@@ -395,7 +420,14 @@ var defaults = {
   itemDraggingClass: 'muuri-item-dragging',
   itemReleasingClass: 'muuri-item-releasing'
 
-};
+}
+```
+
+You can modify the default options easily:
+
+```javascript
+Muuri.defaultSettings.show.duration = 400;
+Muuri.defaultSettings.dragSortPredicate.action = 'swap';
 ```
 
 ## Methods
@@ -490,7 +522,7 @@ Calculate item positions and move items to their calculated positions unless the
   * Should the items be positioned instantly without any possible animation?
 * **callback** &nbsp;&mdash;&nbsp; *function*
   * Optional.
-  * A callback function that is called after the items have positioned. Receives two arguments. The first one is an array of all the items that were successfully positioned without interruptions and the second is a layout data object.
+  * A callback function that is called after the items have positioned. Receives one argument: an array of all the items that were successfully positioned without interruptions.
 
 **Examples**
 
@@ -503,7 +535,7 @@ muuri.layoutItems(true);
 
 // Layout all items and define a callback that will be called
 // after all items have been animated to their positions.
-muuri.layoutItems(function (items, layoutData) {
+muuri.layoutItems(function (items) {
   console.log('layout done!');
 });
 ```
@@ -780,7 +812,7 @@ Get the instance element.
 
 ```javascript
 // Get the element of the first item in the muuri instance.
-var elem = muuri.getItems(0).getElement();
+var elem = muuri.getItems(0)[0].getElement();
 ```
 
 ### `item.getWidth()`
@@ -793,7 +825,7 @@ Get instance element's cached width. The returned value includes the element's p
 
 ```javascript
 // Get the width of the first item in the muuri instance.
-var elem = muuri.getItems(0).getWidth();
+var elem = muuri.getItems(0)[0].getWidth();
 ```
 
 ### `item.getHeight()`
@@ -806,7 +838,7 @@ Get instance element's cached height. The returned value includes the element's 
 
 ```javascript
 // Get the height of the first item in the muuri instance.
-var elem = muuri.getItems(0).getHeight();
+var elem = muuri.getItems(0)[0].getHeight();
 ```
 
 ### `item.getMargin()`
@@ -824,7 +856,7 @@ Get instance element's cached margins. Note that the values are rounded with `Ma
 
 ```javascript
 // Get the height of the first item in the muuri instance.
-var elem = muuri.getItems(0).getHeight();
+var elem = muuri.getItems(0)[0].getHeight();
 ```
 
 ### `item.getPosition()`
@@ -840,7 +872,7 @@ Get instance element's cached position (relative to the container element).
 
 ```javascript
 // Get the position of the first item in the muuri instance.
-var elem = muuri.getItems(0).getPosition();
+var elem = muuri.getItems(0)[0].getPosition();
 ```
 
 ### `item.isActive()`
@@ -985,25 +1017,12 @@ Triggered when `muuri.layoutItems()` method is called, just before the items are
 
 * **items** &nbsp;&mdash;&nbsp; *array*
   * An array of `Muuri.Item` instances that are about to be positioned.
-* **layout** &nbsp;&mdash;&nbsp; *object*
-  * A `Muuri.Layout` instance.
-  * **layout.muuri** &nbsp;&mdash;&nbsp; *Muuri*
-    * A `Muuri` instance for which the layout was generated.
-  * **layout.items** &nbsp;&mdash;&nbsp; *array*
-      * An array of `Muuri.Item` instances that were positioned.
-  * **layout.slots** &nbsp;&mdash;&nbsp; *object*
-    * An object containing the positions of the `layout.items`. Indexed with the ids of the items. For example, to get the first item's position you would do `layout.slots[layout.items[0]._id]`. Each slot contains the the item's *width*, *height*, *left* and *top* values (in pixels).
-  * **layout.width** &nbsp;&mdash;&nbsp; *number*
-    * The width of the grid.
-  * **layout.height** &nbsp;&mdash;&nbsp; *number*
-    * The height of the grid.
 
 **Examples**
 
 ```javascript
-muuri.on('layoutitemsstart', function (items, layout) {
+muuri.on('layoutitemsstart', function (items) {
   console.log(items);
-  console.log(layout);
 });
 ```
 
@@ -1015,25 +1034,12 @@ Triggered when `muuri.layoutItems()` method is called, after the items have posi
 
 * **items** &nbsp;&mdash;&nbsp; *array*
   * An array of `Muuri.Item` instances that were succesfully positioned.
-* **layout** &nbsp;&mdash;&nbsp; *object*
-  * A `Muuri.Layout` instance.
-  * **layout.muuri** &nbsp;&mdash;&nbsp; *Muuri*
-    * A `Muuri` instance for which the layout was generated.
-  * **layout.items** &nbsp;&mdash;&nbsp; *array*
-      * An array of `Muuri.Item` instances that were positioned.
-  * **layout.slots** &nbsp;&mdash;&nbsp; *object*
-    * An object containing the positions of the `layout.items`. Indexed with the ids of the items. For example, to get the first item's position you would do `layout.slots[layout.items[0]._id]`. Each slot contains the the item's *width*, *height*, *left* and *top*.
-  * **layout.width** &nbsp;&mdash;&nbsp; *number*
-    * The width of the grid.
-  * **layout.height** &nbsp;&mdash;&nbsp; *number*
-    * The height of the grid.
 
 **Examples**
 
 ```javascript
-muuri.on('layoutitemsend', function (items, layout) {
+muuri.on('layoutitemsend', function (items) {
   console.log(items);
-  console.log(layout);
 });
 ```
 

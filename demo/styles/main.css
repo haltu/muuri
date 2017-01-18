@@ -36,7 +36,6 @@ html.dragging body {
   line-height: 80px;
   margin: 5px 0 0 5px;
   z-index: 1;
-  will-change: transform;
 }
 .item.muuri-item-releasing {
   z-index: 9998;

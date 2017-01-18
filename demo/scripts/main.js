@@ -104,11 +104,6 @@ $(function () {
         e.preventDefault();
       });
 
-      // Prevent native link dragging on firefox.
-      $(document).on('dragstart', '.item', function() {
-        return false;
-      });
-
     }
 
   }

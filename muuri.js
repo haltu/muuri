@@ -2509,23 +2509,11 @@ Backlog
 
     });
 
-    //
-    // Usability hacks
-    //
-
-    // Set element's draggable attribute to false to prevent "ghost image" in
-    // certain browsers, which breaks the drag flow.
-    item._element.setAttribute('draggable', 'false');
-
-    // Prevent native link dragging on firefox for the element.
-    if (item._element.tagName.toLowerCase() === 'a') {
-      item._element.addEventListener('dragstart', fnPreventDefault, false);
-    }
-
-    // Prevent native link dragging on firefox for the child element.
-    if (item._child.tagName.toLowerCase() === 'a') {
-      item._child.addEventListener('dragstart', fnPreventDefault, false);
-    }
+    // Prevent native link/image dragging for the item and ite's child element.
+    // Consider providing a public interface for this so the user can call this
+    // method for all descendant elements.
+    preventNativeDrag(item._element);
+    preventNativeDrag(item._child);
 
   }
 
@@ -2657,13 +2645,8 @@ Backlog
     inst._setupReleaseData();
     inst._resetDrag();
 
-    if (item._element.tagName.toLowerCase() === 'a') {
-      item._element.removeEventListener('dragstart', fnPreventDefault, false);
-    }
-
-    if (item._child.tagName.toLowerCase() === 'a') {
-      item._child.removeEventListener('dragstart', fnPreventDefault, false);
-    }
+    removeNativeDragPrevention(item._element);
+    removeNativeDragPrevention(item._child);
 
     return inst;
 
@@ -4078,6 +4061,42 @@ Backlog
     }
 
     return ret;
+
+  }
+
+  /**
+   * Browsers allow dragging links and images by creating a "ghost image", which
+   * interferes with Muuri's drag flow. This function prevents that from
+   * happening.
+   *
+   * @todo consider applying the hack to all descendant links and images too.
+   * Would probably make life easier for the user, not needing to manually apply
+   * the hacks. Maype this could be optional also.
+   *
+   * @private
+   * @param {HTMLElement} element
+   */
+  function preventNativeDrag(element) {
+
+    var tagName = element.tagName.toLowerCase();
+    if (tagName === 'a' || tagName === 'img') {
+      element.addEventListener('dragstart', fnPreventDefault, false);
+    }
+
+  }
+
+  /**
+   * Removes native image/link drag prevention hacks from an element.
+   *
+   * @private
+   * @param {HTMLElement} element
+   */
+  function removeNativeDragPrevention(element) {
+
+    var tagName = element.tagName.toLowerCase();
+    if (tagName === 'a' || tagName === 'img') {
+      element.removeEventListener('dragstart', fnPreventDefault, false);
+    }
 
   }
 

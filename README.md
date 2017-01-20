@@ -698,7 +698,7 @@ muuri.hideItems([elemA, elemB], function (items) {
 });
 ```
 
-### `muuri.moveItem( targetFrom, targetTo, [method] )`
+### `muuri.moveItem( targetFrom, targetTo, [action] )`
 
 Move item to another index or in place of another item.
 
@@ -708,7 +708,7 @@ Move item to another index or in place of another item.
   * DOM element or `Muuri.Item` instance or index of the item as an integer.
 * **targetTo** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
   * DOM element or `Muuri.Item` instance or index of the item as an integer.
-* **method** &nbsp;&mdash;&nbsp; *string*
+* **action** &nbsp;&mdash;&nbsp; *string*
   * Optional.
   * Default value: `'move'`.
   * Accepts the following values:
@@ -1121,16 +1121,16 @@ Triggered after `muuri.moveItem()` method is called.
   * `Muuri.Item` instance that was moved.
 * **targetTo** &nbsp;&mdash;&nbsp; *array*
   * `Muuri.Item` instance to which's index the *targetFrom* item was moved to.
-* **method** &nbsp;&mdash;&nbsp; *string*
+* **action** &nbsp;&mdash;&nbsp; *string*
   * "move" or "swap".
 
 **Examples**
 
 ```javascript
-muuri.on('moveitem', function (targetFrom, targetTo, method) {
+muuri.on('moveitem', function (targetFrom, targetTo, action) {
   console.log(targetFrom);
   console.log(targetTo);
-  console.log(method);
+  console.log(action);
 });
 ```
 

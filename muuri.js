@@ -26,70 +26,14 @@
 
 TODO v0.3.0
 ===========
-* [x] Review/refactor the codebase to be less prone to errors.
-      - [x] Move variables to the top of the function scope.
-      - [x] Optimize all functions where arguments is used.
-      - [x] Attach all Helper constructors to Muuri as static properties.
-* [x] When dragging items, don't count margins as part of the item.
-* [x] Allow defining custom drag predicate.
-* [x] Fix broken hide/show methods (if no hide/show animationduration is defined
-      muuri will break).
-* [x] Allow defining hide/show styles.
-* [x] Replace Velocity dependency by providing animation engine adapter,
-      which defaults to built-in CSS Transforms animation engine.
-* [x] Try to build tiny custom functions to replace mezr.
-* [x] Create an ESLint config for the project.
-* [x] UMD module definition.
-* [x] Make items attach to the container's padding edge. This way the
-      container's padding can be used to create spacing. No need to add extra
-      wrappers. While you're at it, cache container element's and item elements'
-      dimensions and offsets.
-* [x] Merge swap method to move method.
-* [x] Remove getItemIndex method.
-* [x] Add muuri.getElement() and muuri.getRect() and document them.
-* [x] requestAnimationFrame to drag events: https://www.html5rocks.com/en/tutorials/speed/animations/
-* [x] Animation overwrite system.
-* [x] Split Item.prototype.getData to smaller public getter methods and document
-      them.
-* [x] Cache the current layout so that we can add some heuristics to increase
-      performance in certain situations.
-* [x] BUG: Dragged item flickers sometimes as if the dragging class was removed
-      and added quickly. It seems that dragend event is called by hammer
-      sometimes when not intended, but it may have been the mouse also that was
-      bugging out. Could not reproduce this issue when the mouse button was
-      pressed doẃn firmly.
-* [ ] Include drag hacks so the user does not need to worry about them.
-* [ ] Optimize requestAnimationFrame usage.
-* [ ] Speed optimization heuristics. Try to make layout/overlap check as fast
-      as possible by using smart heuristics. For example change the algorithm
-      based on the item sizes. If all items same size the algorithm can be
-      simplified. Do heavy lifting only when necessary.
+* [ ] Connected Muuri instance. (working on...)
+* [ ] Test how form elements work inside items.
+* [ ] Drop item on empty slot.
+* [ ] Autoscroll container(s) on drag.
 * [ ] Update docs.
-* [ ] Update website.
 * [ ] Add more unit tests.
 * [ ] Test usage on node and bower. Make sure everything works as advertised.
-
-Backlog
-=======
-* [ ] Format the codebase to use a more strict coding style so that contributing
-      to the library would be easier.
-* [ ] Make it possible to disable/enable drag, drag sort and some other options
-      after init. What kind of mechanism should we use? Specific methods or some
-      sort of "reinit" method, or just manipulating the settings object
-      directly?
-* [ ] How to connect two or more Muuri instances o that items can be dragged
-      from an instance to another. Check out draggable.js and dragula.js, they
-      have implmented it.
-* [ ] Optional drag placeholder.
-* [ ] Stagger option(s) to achieve similar delayed animations as shuffle.js.
-* [ ] How to use this with popular frameworks: React, Vue, Angular2, Ember,
-      Meteor, etc...?
-* [ ] Tutorials/guides on:
-      - How to use custom hide/show animations?
-      - How to replace the default animation engine?
-      - How to use custom layout algorithms?
-      - How to use drag start predicate?
-      - How to use drag sort predicate?
+* [ ] Update website.
 
 */
 
@@ -125,20 +69,6 @@ Backlog
   // time it is used.
   var uuid = 0;
 
-  // Get supported requestAnimationFrame.
-  var raf = global.requestAnimationFrame ||
-            global.msRequestAnimationFrame ||
-            global.mozRequestAnimationFrame ||
-            global.webkitRequestAniationFrame ||
-            global.oRequestAnimationFrame;
-
-  // Get supported cancelAnimationFrame.
-  var rafCancel = global.cancelAnimationFrame ||
-                  global.msCancelAnimationFrame ||
-                  global.mozCancelAnimationFrame ||
-                  global.webkitCancelAnimationFrame ||
-                  global.oCancelAnimationFrame;
-
   // Get the supported transform style property.
   var transform = getSupportedStyle('transform');
 
@@ -146,13 +76,6 @@ Backlog
   // (about transform rendering) a transformed element should contain fixed
   // elements, but not every browser follows the spec. So we need to test it.
   var transformLeaksFixed = doesTransformLeakFixed();
-
-  // A generic prevent default handler.
-  var fnPreventDefault = function (e) {
-    if (e.preventDefault) {
-      e.preventDefault();
-    }
-  };
 
   // Event names.
   var evRefresh = 'refresh';
@@ -873,20 +796,29 @@ Backlog
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {HTMLElement|Item|Number} targetFrom
-   * @param {HTMLElement|Item|Number} targetTo
-   * @param {String} [method="move"]
+   * @param {HTMLElement|Item|Number} item
+   * @param {HTMLElement|Item|Number} position
+   * @param {String} [action="move"]
    *   - Accepts either "move" or "swap". "move" moves item in place of another
    *     item and "swap" swaps position of items.
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.moveItem = function (targetFrom, targetTo, method) {
+  Muuri.prototype.moveItem = function (item, position, action) {
 
     var inst = this;
     var items = inst._items;
-    var from = inst._getItem(targetFrom);
-    var to = inst._getItem(targetTo);
-    var isSwap = method === 'swap';
+    var from;
+    var to;
+    var isSwap;
+
+    // Return immediately, if moving item is not possible.
+    if (items.length < 2) {
+      return inst;
+    }
+
+    from = inst._getItem(item);
+    to = inst._getItem(position);
+    isSwap = action === 'swap';
 
     if (from && to && (from !== to)) {
       if (isSwap) {
@@ -897,6 +829,60 @@ Backlog
       }
       inst.layoutItems()._emitter.emit(evMoveItem, from, to, isSwap ? 'swap' : 'move');
     }
+
+    return inst;
+
+  };
+
+  /**
+   * Send item to another Muuri instance.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @param {HTMLElement|Item|Number} item
+   * @param {Muuri} muuri
+   * @param {HTMLElement|Item|Number} [position=0]
+   * @returns {Muuri} returns the Muuri instance.
+   */
+  Muuri.prototype.sendItem = function (item, muuri, position) {
+
+    var inst = this;
+    var targetItem;
+    var currentIndex;
+    var toIndex;
+
+    // Do nothing if container is the current instance.
+    if (muuri === inst) {
+      return inst;
+    }
+
+    // Get target item.
+    targetItem = inst._getItem(item);
+
+    // If target item does not exist return immediately.
+    if (!targetItem) {
+      return;
+    }
+
+    currentIndex = inst._items.indexOf(targetItem);
+    toIndex = typeof position === 'number' ? position : (position ? muuri._items.indexOf(muuri._getItem(position)) : 0);
+
+    // TODO: We need to destroy the target item from the current instance and
+    // add it properly to the next. This will be the hard part...
+
+    // Remove target item from current muuri.
+    inst._items.splice(currentIndex, 1);
+
+    // Add the target item to target muuri.
+    insertItemsToArray(muuri._items, targetItem, toIndex);
+
+    // Do layout for both containers.
+    inst.layoutItems();
+    muuri.layoutItems();
+
+    // Emit events.
+    inst._emitter.emit(evSendItem, muuri, targetItem, toIndex);
+    muuri._emitter.emit(evReceiveItem, inst, targetItem, toIndex);
 
     return inst;
 
@@ -2409,7 +2395,6 @@ Backlog
     var predicate = null;
     var predicateEvent = null;
     var hammer;
-    var rafHandler = new RafHandler();
 
     inst._item = item;
     inst._hammer = hammer = new Hammer.Manager(item._element);
@@ -2432,9 +2417,7 @@ Backlog
 
     // Setup drag scroll handler.
     inst._scrollHandler = function (e) {
-      rafHandler.request(function () {
-        inst._onDragScroll(e);
-      });
+      inst._onDragScroll(e);
     };
 
     // Add drag recognizer to hammer.
@@ -2475,23 +2458,16 @@ Backlog
 
       // If predicate is resolved and dragging is active, do the move.
       if (predicate._isResolved && inst._drag.isActive) {
-        rafHandler.request(function () {
-          inst._onDragMove(e);
-        });
+        inst._onDragMove(e);
       }
 
       // Otherwise, check the predicate.
       else if (!predicate._isRejected && !predicate._isResolved) {
-        rafHandler.request(function () {
-          checkPredicate.call(item._muuri, item, e, predicate);
-        });
+        checkPredicate.call(item._muuri, item, e, predicate);
       }
 
     })
     .on('dragend dragcancel draginitup', function (e) {
-
-      // Cancel current raf request.
-      rafHandler.cancel();
 
       // If predicate is resolved and dragging is active, do the end.
       if (predicate._isResolved && inst._drag.isActive) {
@@ -3287,71 +3263,6 @@ Backlog
   };
 
   /**
-   * RafHandler
-   * **********
-   */
-
-  /**
-   * A utility contructor for handling requestAnimationFrame calls.
-   *
-   * @private
-   * @class
-   */
-  function RafHandler() {
-
-    this._id = null;
-
-  }
-
-  /**
-   * RafHandler - Public prototype methods
-   * *************************************
-   */
-
-  /**
-   * Request animation frame.
-   *
-   * @public
-   * @memberof RafHandler.prototype
-   * @param {Function} fn
-   */
-  RafHandler.prototype.request = function (fn) {
-
-    var inst = this;
-
-    if (raf) {
-      if (inst._id) {
-        rafCancel(inst._id);
-      }
-      inst._id = raf(function () {
-        inst._id = null;
-        fn();
-      });
-    }
-    else {
-      fn();
-    }
-
-  };
-
-  /**
-   * Cancel animation frame.
-   *
-   * @public
-   * @memberof RafHandler.prototype
-   */
-  RafHandler.prototype.cancel = function () {
-
-    var inst = this;
-
-    if (raf && inst._id) {
-      rafCancel(inst._id);
-      inst._id = null;
-    }
-
-  };
-
-  /**
    * Helpers - Generic
    * *****************
    */
@@ -4080,7 +3991,7 @@ Backlog
 
     var tagName = element.tagName.toLowerCase();
     if (tagName === 'a' || tagName === 'img') {
-      element.addEventListener('dragstart', fnPreventDefault, false);
+      element.addEventListener('dragstart', preventDefault, false);
     }
 
   }
@@ -4095,7 +4006,7 @@ Backlog
 
     var tagName = element.tagName.toLowerCase();
     if (tagName === 'a' || tagName === 'img') {
-      element.removeEventListener('dragstart', fnPreventDefault, false);
+      element.removeEventListener('dragstart', preventDefault, false);
     }
 
   }
@@ -4309,6 +4220,20 @@ Backlog
     var maxHeight = Math.min(a.height, b.height);
 
     return (width * height) / (maxWidth * maxHeight) * 100;
+
+  }
+
+  /**
+   * Prevent default.
+   *
+   * @private
+   * @param {Object} e
+   */
+  function preventDefault(e) {
+
+    if (e.preventDefault) {
+      e.preventDefault();
+    }
 
   }
 

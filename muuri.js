@@ -26,7 +26,7 @@
 
 TODO v0.3.0
 ===========
-* [ ] Connected Muuri instance. (working on...)
+* [ ] Connected Muuri instance. (WIP)
 * [ ] Test how form elements work inside items.
 * [ ] Drop item on empty slot.
 * [ ] Autoscroll container(s) on drag.
@@ -88,6 +88,8 @@ TODO v0.3.0
   var evHideItemsStart = 'hideitemsstart';
   var evHideItemsEnd = 'hideitemsend';
   var evMoveItem = 'moveitem';
+  var evSendItem = 'senditem';
+  var evReceiveItem = 'receiveitem';
   var evAddItems = 'additems';
   var evRemoveItems = 'removeitems';
   var evDragItemStart = 'dragitemstart';
@@ -846,13 +848,28 @@ TODO v0.3.0
    */
   Muuri.prototype.sendItem = function (item, muuri, position) {
 
-    var inst = this;
-    var targetItem;
-    var currentIndex;
-    var toIndex;
+    // TODO: Account for the release scenario. When item is released into
+    // another muuri instance we need to set the element as releasing for the
+    // new container also. However, what to do if drag is disabled for the
+    // receiving container?
 
-    // Do nothing if container is the current instance.
-    if (muuri === inst) {
+    var currentMuuri = this;
+    var currentMuuriStn = currentMuuri._settings;
+    var targetMuuri = muuri;
+    var targetMuuriStn = targetMuuri._settings;
+    var targetItem;
+    var targetElement;
+    var currentIndex;
+    var newIndex;
+    var isPositioning;
+    var isVisible;
+    var isShowing;
+    var isHiding;
+    var isDragging;
+    var isReleasing;
+
+    // Do nothing if current muuri instance is the target muuri instance.
+    if (currentMuuri === targetMuuri) {
       return inst;
     }
 
@@ -864,27 +881,80 @@ TODO v0.3.0
       return;
     }
 
+    // Get target item's element and state data.
+    targetElement = targetItem._element;
+    isPositioning = targetItem.isPositioning();
+    isVisible = targetItem.isVisible();
+    isShowing = targetItem.isShowing();
+    isHiding = targetItem.isHiding();
+    isDragging = targetItem.isDragging();
+    isReleasing = targetItem.isReleasing();
+
+    // Get current index and target index.
     currentIndex = inst._items.indexOf(targetItem);
-    toIndex = typeof position === 'number' ? position : (position ? muuri._items.indexOf(muuri._getItem(position)) : 0);
+    newIndex = typeof position === 'number' ? position : (position ? targetMuuri._items.indexOf(targetMuuri._getItem(position)) : 0);
 
-    // TODO: We need to destroy the target item from the current instance and
-    // add it properly to the next. This will be the hard part...
+    // Unset current item data.
+    targetItem._stopLayout(true);
+    currentMuuri._itemShowHandler.stop(targetItem);
+    currentMuuri._itemHideHandler.stop(targetItem);
+    targetItem._drag.destroy();
+    targetItem._animate.destroy();
+    targetItem._animateChild.destroy();
+    processQueue(targetItem._visibilityQueue, true, targetItem);
+    removeClass(targetElement, currentMuuriStn.itemClass);
+    removeClass(targetElement, currentMuuriStn.itemVisibleClass);
+    removeClass(targetElement, currentMuuriStn.itemHiddenClass);
 
-    // Remove target item from current muuri.
-    inst._items.splice(currentIndex, 1);
+    // Move item instance from current muuri to target muuri.
+    currentMuuri._items.splice(currentIndex, 1);
+    insertItemsToArray(targetMuuri._items, targetItem, newIndex);
 
-    // Add the target item to target muuri.
-    insertItemsToArray(muuri._items, targetItem, toIndex);
+    // Update item's muuri reference.
+    targetItem._muuri = targetMuuri;
+
+    // Add target muuri related classnames.
+    addClass(targetElement, targetMuuriStn.itemClass);
+    addClass(targetElement, isVisible ? targetMuuriStn.itemVisibleClass : targetMuuriStn.itemHiddenClass);
+
+    // Move item element to correct container.
+    if (element.parentNode !== targetMuuri._element) {
+      targetMuuri._element.appendChild(targetElement);
+      // TODO: Here we need to update the translate values also.
+    }
+
+    // Initiate item's new animation controllers.
+    targetItem._animate = new Muuri.AnimateLayout(targetItem, targetElement);
+    targetItem._animateChild = new Muuri.AnimateVisibility(targetItem, targetItem._child);
+
+    // Check if default animation engine is used.
+    targetItem._isDefaultAnimate = targetItem._animate instanceof Animate;
+    targetItem._isDefaultChildAnimate = targetItem._animateChild instanceof Animate;
+
+    // Refresh item's dimensions, because they might have changed with the
+    // addition of the new classnames.
+    targetItem._refresh();
+
+    // Update child element's styles to reflect the current visibility state.
+    if (isVisible) {
+      targetMuuri._itemShowHandler.start(targetItem, true);
+    }
+    else {
+      targetMuuri._itemHideHandler.start(inst, true);
+    }
+
+    // Update item's drag handler.
+    targetItem._drag = targetMuuriStn.dragEnabled ? new Muuri.Drag(targetItem) : null;
 
     // Do layout for both containers.
-    inst.layoutItems();
-    muuri.layoutItems();
+    currentMuuri.layoutItems();
+    targetMuuri.layoutItems();
 
     // Emit events.
-    inst._emitter.emit(evSendItem, muuri, targetItem, toIndex);
-    muuri._emitter.emit(evReceiveItem, inst, targetItem, toIndex);
+    currentMuuri._emitter.emit(evSendItem, targetItem, targetMuuri, newIndex);
+    targetMuuri._emitter.emit(evReceiveItem, targetItem, currentMuuri, newIndex);
 
-    return inst;
+    return currentMuuri;
 
   };
 
@@ -1026,12 +1096,16 @@ TODO v0.3.0
     var isHidden;
 
     // Make sure the item element is not a parent of the grid container element.
+    // TODO: Is this necessary? Should we just let this be the user's
+    // responsibility instead of enforcing it.
     if (element.contains(muuri._element)) {
       throw new Error('Item element must be within the grid container element');
     }
 
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container.
+    // TODO: Is this necessary? Should we just let this be the user's
+    // responsibility instead of enforcing it.
     if (element.parentNode !== muuri._element) {
       muuri._element.appendChild(element);
     }

@@ -154,7 +154,7 @@ TODO v0.3.0
     var debouncedLayout;
 
     // Merge user settings with default settings.
-    var stn = inst._settings = mergeOptions({}, Muuri.defaultSettings, settings || {});
+    var stn = inst._settings = mergeSettings(Muuri.defaultSettings, settings);
 
     // Make sure a valid container element is provided before going continuing.
     if (!document.body.contains(stn.container)) {
@@ -2562,8 +2562,8 @@ TODO v0.3.0
     // Prevent native link/image dragging for the item and ite's child element.
     // Consider providing a public interface for this so the user can call this
     // method for all descendant elements.
-    preventNativeDrag(item._element);
-    preventNativeDrag(item._child);
+    disableNativeDrag(item._element);
+    disableNativeDrag(item._child);
 
   }
 
@@ -2695,8 +2695,8 @@ TODO v0.3.0
     inst._setupReleaseData();
     inst._resetDrag();
 
-    removeNativeDragPrevention(item._element);
-    removeNativeDragPrevention(item._child);
+    enableNativeDrag(item._element);
+    enableNativeDrag(item._child);
 
     return inst;
 
@@ -3342,18 +3342,58 @@ TODO v0.3.0
    */
 
   /**
+   * Normalize array index. Basically this function makes sure that the provided
+   * array index is within the bounds of the provided array and also transforms
+   * negative index to the matching positive index.
+   *
+   * @private
+   * @param {Array} array
+   * @param {Number} index
+   */
+  function normalizeArrayIndex(array, index) {
+
+    var length = array.length;
+    var maxIndex = length - 1;
+
+    if (index > maxIndex) {
+      return maxIndex;
+    }
+    else if (index < 0) {
+      return Math.max(length + index, 0);
+    }
+
+    return index;
+
+  }
+
+  /**
    * Swap array items.
    *
    * @private
    * @param {Array} array
-   * @param {Number} indexA
-   * @param {Number} indexB
+   * @param {Number} index
+   *   - Index (positive or negative) of the item that will be swapped.
+   * @param {Number} withIndex
+   *   - Index (positive or negative) of the other item that will be swapped.
    */
-  function arraySwap(array, indexA, indexB) {
+  function arraySwap(array, index, withIndex) {
 
-    var temp = array[indexA];
-    array[indexA] = array[indexB];
-    array[indexB] = temp;
+    // Make sure the array has two or more items.
+    if (array.length < 2) {
+      return;
+    }
+
+    // Normalize the indices.
+    var indexA = normalizeArrayIndex(array, index);
+    var indexB = normalizeArrayIndex(array, withIndex);
+    var temp;
+
+    // Swap the items.
+    if (indexA !== indexB) {
+      temp = array[indexA];
+      array[indexA] = array[indexB];
+      array[indexB] = temp;
+    }
 
   }
 
@@ -3363,11 +3403,25 @@ TODO v0.3.0
    * @private
    * @param {Array} array
    * @param {Number} fromIndex
+   *   - Index (positive or negative) of the item that will be moved.
    * @param {Number} toIndex
+   *   - Index (positive or negative) where the item should be moved to.
    */
   function arrayMove(array, fromIndex, toIndex) {
 
-    array.splice(toIndex, 0, array.splice(fromIndex, 1)[0]);
+    // Make sure the array has two or more items.
+    if (array.length < 2) {
+      return;
+    }
+
+    // Normalize the indices.
+    var from = normalizeArrayIndex(array, fromIndex);
+    var to = normalizeArrayIndex(array, toIndex);
+
+    // Add target item to the new position.
+    if (from !== to) {
+      array.splice(to, 0, array.splice(from, 1)[0]);
+    }
 
   }
 
@@ -3426,33 +3480,97 @@ TODO v0.3.0
   }
 
   /**
-   * Merge properties of provided objects. The first argument is considered as
-   * the destination object which inherits the properties of the
-   * following argument objects. Merges object properties recursively if the
-   * property's type is object in destination object and the source object.
+   * Merge two objects recursively (deep merge). The source object's properties
+   * are merged to the target object.
    *
    * @private
-   * @param {Object} dest
-   * @param {...Object} sources
-   * @returns {Object} Returns the destination object.
+   * @param {Object} target
+   *   - The target object.
+   * @param {Object} source
+   *   - The source object.
+   * @returns {Object} Returns the target object.
    */
-  function mergeOptions(dest) {
+  function mergeObjects(target, source) {
 
-    var len = arguments.length;
-    var i;
+    // Loop through the surce object's props.
+    Object.keys(source).forEach(function (propName) {
 
-    for (i = 1; i < len; i++) {
-      Object.keys(arguments[i]).forEach(function (prop) {
-        if (prop !== 'styles' && isPlainObject(dest[prop]) && isPlainObject(this[prop])) {
-          mergeOptions(dest[prop], this[prop]);
-        }
-        else {
-          dest[prop] = this[prop];
-        }
-      }, arguments[i]);
+      var isObject = isPlainObject(source[propName]);
+
+      // If target and source values are both objects, merge the objects and
+      // assign the merged value to the target property.
+      if (isPlainObject(target[propName]) && isObject) {
+        target[propName] = mergeObjects({}, target[propName]);
+        target[propName] = mergeObjects(target[propName], source[propName]);
+      }
+      // Otherwise set the source object's value to target object and make sure
+      // that object and array values are cloned and directly assigned.
+      else {
+        target[propName] = isObject ? mergeObjects({}, source[propName]) :
+                           Array.isArray(source[propName]) ? source[propName].slice(0) :
+                           source[propName];
+      }
+
+    });
+
+    return target;
+
+  }
+
+  /**
+   * Sanitizes styles definition object within settings. Basically just removes
+   * all properties that have a value of null or undefined.
+   *
+   * @private
+   * @param {Object} styles
+   * @returns {Object} Returns a new object.
+   */
+  function sanitizeStyleSettings(styles) {
+
+    var ret = {};
+
+    Object.keys(styles).forEach(function (prop) {
+      var val = styles[prop];
+      if (val !== undefined && val !== null) {
+        ret[prop] = val;
+      }
+    });
+
+    return ret;
+
+  }
+
+  /**
+   * Merge default settings with user settings. The returned object is a new
+   * object with merged values. The merging is a deep merge meaning that all
+   * objects and arrays within the provided settings objects will be also merged
+   * so that modifying the values of the settings object will have no effect on
+   * the returned object.
+   *
+   * @private
+   * @param {Object} defaultSettings
+   * @param {Object} [userSettings]
+   * @returns {Object} Returns a new object.
+   */
+  function mergeSettings(defaultSettings, userSettings) {
+
+    // Create a fresh copy of default settings.
+    var ret = mergeObjects({}, defaultSettings);
+
+    // Merge user settings to default settings.
+    ret = userSettings ? mergeObjects(ret, userSettings) : ret;
+
+    // Sanitize show styles (if they exist).
+    if (ret.show && ret.show.styles) {
+      ret.show.styles = sanitizeStyleSettings(ret.show.styles);
     }
 
-    return dest;
+    // Sanitize hide styles (if they exist).
+    if (ret.hide && ret.hide.styles) {
+      ret.hide.styles = sanitizeStyleSettings(ret.hide.styles);
+    }
+
+    return ret;
 
   }
 
@@ -4054,14 +4172,10 @@ TODO v0.3.0
    * interferes with Muuri's drag flow. This function prevents that from
    * happening.
    *
-   * @todo consider applying the hack to all descendant links and images too.
-   * Would probably make life easier for the user, not needing to manually apply
-   * the hacks. Maype this could be optional also.
-   *
    * @private
    * @param {HTMLElement} element
    */
-  function preventNativeDrag(element) {
+  function disableNativeDrag(element) {
 
     var tagName = element.tagName.toLowerCase();
     if (tagName === 'a' || tagName === 'img') {
@@ -4076,7 +4190,7 @@ TODO v0.3.0
    * @private
    * @param {HTMLElement} element
    */
-  function removeNativeDragPrevention(element) {
+  function enableNativeDrag(element) {
 
     var tagName = element.tagName.toLowerCase();
     if (tagName === 'a' || tagName === 'img') {

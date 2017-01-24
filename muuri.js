@@ -851,10 +851,15 @@ TODO v0.3.0
    */
   Muuri.prototype.sendItem = function (options) {
 
-    // TODO: Account for the release scenario. When item is released into
-    // another muuri instance we need to set the element as releasing for the
-    // new container also. However, what to do if drag is disabled for the
-    // receiving container?
+    // NOTES: We need to have a lot different flow for connected drag sort
+    // muuri instances, so this method can be optimized to stopping all current
+    // actions and sending the item to another instance. Let's handle the
+    // connected drag & dropping with another flow. I believe this method will
+    // also be pretty useful as it is. Consider using destroy and add methods
+    // in place of all this hackery. The magic this method shuould do is
+    // stop the element in it's current position and animate it to the correct
+    // position in the new container. Also try to optimize this so that the
+    // there would be as few as possible dom manipulations.
 
     var inst = this;
     var instStn = inst._settings;
@@ -865,10 +870,11 @@ TODO v0.3.0
     var layoutContainer = options.layoutContainer || document.body;
     var position = options.position;
     var element = item._element;
+    var isActive = item.isActive();
     var isVisible = item.isVisible();
     var currentIndex = inst._items.indexOf(item);
     var newIndex = typeof position === 'number' ? position : (position ? target._items.indexOf(target._getItem(position)) : 0);
-    var offsetDiff = {left: 0, top: 0};
+    var offsetDiff;
     var translateX;
     var translateY;
 
@@ -880,7 +886,9 @@ TODO v0.3.0
     inst._itemHideHandler.stop(item);
 
     // Destroy current drag.
-    item._drag.destroy();
+    if (item._drag) {
+      item._drag.destroy();
+    }
 
     // Destroy current animation handlers.
     item._animate.destroy();
@@ -915,13 +923,16 @@ TODO v0.3.0
     // visually in the same position.
     if (element.parentNode !== layoutContainer) {
       offsetDiff = getContainerOffsetDiff(element, layoutContainer);
+      translateX += offsetDiff.left;
+      translateY += offsetDiff.top;
       layoutContainer.appendChild(element);
     }
 
-    // Remove all inline styles and set updated translate styles.
+    // Remove all inline styles and set translate/display styles.
     element.removeAttribute('style');
     setStyles(inst._element, {
-      transform: 'translateX(' + (translateX - offsetDiff.left) + 'px) translateY(' + (translateY - offsetDiff.top) + 'px)'
+      transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)',
+      display: isVisible ? 'block' : 'hidden'
     });
 
     // Initiate new animation controllers.
@@ -947,10 +958,11 @@ TODO v0.3.0
     // Recreate item's drag handler.
     item._drag = targetStn.dragEnabled ? new Muuri.Drag(item) : null;
 
-    // Do layout for both containers.
-    // TODO: Should we skip autolayout here?
-    inst.layoutItems(isInstant);
-    target.layoutItems(isInstant);
+    // Do layout for both containers if the item is active.
+    if (isActive) {
+      inst.layoutItems(isInstant);
+      target.layoutItems(isInstant);
+    }
 
     // Emit events.
     // TODO: Rethink what the arguments for these should be and should we call
@@ -958,7 +970,7 @@ TODO v0.3.0
     inst._emitter.emit(evSendItem, item, target, newIndex);
     target._emitter.emit(evReceiveItem, item, inst, newIndex);
 
-    return currentMuuri;
+    return inst;
 
   };
 
@@ -974,7 +986,6 @@ TODO v0.3.0
     var container = inst._element;
     var items = inst._items.concat();
     var emitter = inst._emitter;
-    var props = Object.keys(inst).concat(Object.keys(Muuri.prototype));
     var emitterEvents;
     var i;
 
@@ -1004,10 +1015,8 @@ TODO v0.3.0
       emitter._events[emitterEvents[i]].length = 0;
     }
 
-    // Render the instance unusable -> nullify all Muuri related properties.
-    for (i = 0; i < props.length; i++) {
-      inst[props[i]] = null;
-    }
+    // Nullify instance properties.
+    nullifyInstance(inst, Muuri);
 
   };
 
@@ -1488,7 +1497,7 @@ TODO v0.3.0
 
       // Finish up release.
       if (release.isActive) {
-        inst._drag._endRelease();
+        inst._drag._stopRelease();
       }
 
       // Process the callback queue.
@@ -1757,8 +1766,6 @@ TODO v0.3.0
     var stn = muuri._settings;
     var element = inst._element;
     var index = muuri._items.indexOf(inst);
-    var props = Object.keys(inst).concat(Object.keys(Item.prototype));
-    var i;
 
     // Stop animations.
     inst._stopLayout(true);
@@ -1800,10 +1807,8 @@ TODO v0.3.0
       element.parentNode.removeChild(element);
     }
 
-    // Nullify all properties.
-    for (i = 0; i < props.length; i++) {
-      inst[props[i]] = null;
-    }
+    // Nullify instance properties.
+    nullifyInstance(inst, Item);
 
   };
 
@@ -2441,10 +2446,8 @@ TODO v0.3.0
     // Stop current animation.
     this.stop();
 
-    // Nullify props.
-    this._element = null;
-    this._isAnimating = null;
-    this._queue = null;
+    // Nullify instance properties.
+    nullifyInstance(this, Animate);
 
   };
 
@@ -2600,8 +2603,13 @@ TODO v0.3.0
    * @public
    * @memberof Drag
    * @param {Item} targetItem
+   * @returns {Boolean|Object}
+   *   - Returns false if no valid index was found. Otherwise returns an object
+   *     that has three properties: action (string), from (number), to (number).
    */
   Drag.defaultSortPredicate = function (targetItem) {
+
+    // TODO: Account for connected muuri instances.
 
     var muuri = targetItem._muuri;
     var stn = muuri._settings;
@@ -2684,23 +2692,22 @@ TODO v0.3.0
   Drag.prototype.destroy = function () {
 
     var inst = this;
-    var item = inst._item;
-    var muuri = item._muuri;
-    var drag = inst._drag;
-    var release = inst._release;
 
-    // Append item element to the muuri container if it's not it's child.
-    if (release.isActive || drag.isActive) {
-      if (item._element.parentNode !== muuri._element) {
-        muuri._element.appendChild(item._element);
-      }
+    // Abort drag.
+    if (inst._drag.isActive) {
+      inst._stopDrag();
+    }
+    // Abort release.
+    else if (inst._release.isActive) {
+      inst._stopRelease(true);
     }
 
-    inst._setupReleaseData();
-    inst._resetDrag();
+    // Remove native drag prevention bindings.
+    enableNativeDrag(inst._item._element);
+    enableNativeDrag(inst._item._child);
 
-    enableNativeDrag(item._element);
-    enableNativeDrag(item._child);
+    // Nullify instance properties.
+    nullifyInstance(inst, Drag);
 
     return inst;
 
@@ -2859,16 +2866,17 @@ TODO v0.3.0
   };
 
   /**
-   * Reset drag data and cancel any ongoing drag activity.
+   * Abort dragging and reset drag data.
    *
    * @protected
    * @memberof Drag.prototype
    */
-  Drag.prototype._resetDrag = function () {
+  Drag.prototype._stopDrag = function () {
 
     var inst = this;
     var item = inst._item;
     var drag = inst._drag;
+    var muuri = item._muuri;
     var stn = item._muuri._settings;
     var i;
 
@@ -2882,7 +2890,17 @@ TODO v0.3.0
       // Cancel overlap check.
       inst._checkSortOverlap('cancel');
 
-      // Remove draggin class.
+      // Append item element to the muuri container if it's not it's child. Also
+      // make sure the translate values are adjusted to account for the DOM
+      // shift.
+      if (drag.element.parentNode !== muuri._element) {
+        muuri._element.appendChild(drag.element);
+        setStyles(drag.element, {
+          transform: 'translateX(' + drag.gridX + 'px) translateY(' + drag.gridY + 'px)'
+        });
+      }
+
+      // Remove dragging class.
       removeClass(drag.element, stn.itemDraggingClass);
 
       // Remove dragged element's inline styles.
@@ -2909,54 +2927,73 @@ TODO v0.3.0
     var stn = muuri._settings;
     var release = inst._release;
 
-    // Flag release as active.
-    release.isActive = true;
+    if (!release.isActive) {
 
-    // Add release classname to released element.
-    addClass(release.element, stn.itemReleasingClass);
+      // Flag release as active.
+      release.isActive = true;
 
-    // Emit releasestart event.
-    muuri._emitter.emit(evReleaseItemStart, item);
+      // Add release classname to released element.
+      addClass(release.element, stn.itemReleasingClass);
 
-    // Position the released item.
-    item._layout(false);
+      // Emit releasestart event.
+      muuri._emitter.emit(evReleaseItemStart, item);
+
+      // Position the released item.
+      item._layout(false);
+
+    }
 
   };
 
   /**
-   * End the release process of an item.
+   * End the release process of an item. This method can be used to abort an
+   * ongoing release process (animation) or finish the release process.
    *
    * @protected
    * @memberof Drag.prototype
+   * @param {Boolean} [abort=false]
+   *  - Should the release be aborted? When true, the release end event won't be
+   *    emitted. Set to true only when you need to abort the release process
+   *    while the item is animating to it's position.
    */
-  Drag.prototype._endRelease = function () {
+  Drag.prototype._stopRelease = function (abort) {
 
     var inst = this;
     var item = inst._item;
     var muuri = item._muuri;
     var stn = muuri._settings;
     var release = inst._release;
+    var translateX;
+    var translateY;
 
-    // Remove release classname from the released element.
-    removeClass(release.element, stn.itemReleasingClass);
+    if (release.isActive) {
 
-    // If the released element is outside the muuri container put it back there
-    // and adjust position accordingly.
-    if (release.element.parentNode !== muuri._element) {
-      muuri._element.appendChild(release.element);
-      setStyles(item._element, {
-        transform: 'translateX(' + item._left + 'px) translateY(' + item._top + 'px)'
-      });
+      // Remove release classname from the released element.
+      removeClass(release.element, stn.itemReleasingClass);
+
+      // If the released element is outside the muuri container put it back there
+      // and adjust position accordingly.
+      if (release.element.parentNode !== muuri._element) {
+        translateX = abort ? getTranslateAsFloat(release.element, 'x') - release.containerDiffX : item._left;
+        translateY = abort ? getTranslateAsFloat(release.element, 'y') - release.containerDiffY : item._top;
+        muuri._element.appendChild(release.element);
+        setStyles(release.element, {
+          transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
+        });
+      }
+
+      // Unlock temporary inlined styles.
+      inst._unfreezeElement(release);
+
+      // Reset release data.
+      inst._setupReleaseData();
+
+      // Emit releaseend event.
+      if (!abort) {
+        muuri._emitter.emit(evReleaseItemEnd, item);
+      }
+
     }
-
-    // Unlock temporary inlined styles.
-    inst._unfreezeElement(release);
-
-    // Reset release data.
-    inst._setupReleaseData();
-
-    // Emit releaseend event.
-    muuri._emitter.emit(evReleaseItemEnd, item);
 
   };
 
@@ -3112,7 +3149,7 @@ TODO v0.3.0
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      inst._resetDrag();
+      inst._stopDrag();
       return;
     }
 
@@ -3217,7 +3254,7 @@ TODO v0.3.0
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      inst._resetDrag();
+      inst._stopDrag();
       return;
     }
 
@@ -4425,6 +4462,24 @@ TODO v0.3.0
 
     if (e.preventDefault) {
       e.preventDefault();
+    }
+
+  }
+
+  /**
+   * Nullify an instance's own and prototype properties.
+   *
+   * @private
+   * @param {Object} instance
+   * @param {Object} Constructor
+   */
+  function nullifyInstance(instance, Constructor) {
+
+    var props = Object.keys(instance).concat(Object.keys(Constructor.prototype));
+    var i;
+
+    for (i = 0; i < props.length; i++) {
+      instance[props[i]] = null;
     }
 
   }

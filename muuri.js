@@ -841,118 +841,122 @@ TODO v0.3.0
    *
    * @public
    * @memberof Muuri.prototype
-   * @param {HTMLElement|Item|Number} item
-   * @param {Muuri} muuri
-   * @param {HTMLElement|Item|Number} [position=0]
+   * @param {Object} options
+   * @param {HTMLElement|Item|Number} options.item
+   * @param {Muuri} options.target
+   * @param {HTMLElement|Item|Number} [options.position=0]
+   * @param {Boolean} [options.instant=false]
+   * @param {Boolean} [options.layoutContainer=document.body]
    * @returns {Muuri} returns the Muuri instance.
    */
-  Muuri.prototype.sendItem = function (item, muuri, position) {
+  Muuri.prototype.sendItem = function (options) {
 
     // TODO: Account for the release scenario. When item is released into
     // another muuri instance we need to set the element as releasing for the
     // new container also. However, what to do if drag is disabled for the
     // receiving container?
 
-    var currentMuuri = this;
-    var currentMuuriStn = currentMuuri._settings;
-    var targetMuuri = muuri;
-    var targetMuuriStn = targetMuuri._settings;
-    var targetItem;
-    var targetElement;
-    var currentIndex;
-    var newIndex;
-    var isPositioning;
-    var isVisible;
-    var isShowing;
-    var isHiding;
-    var isDragging;
-    var isReleasing;
+    var inst = this;
+    var instStn = inst._settings;
+    var target = options.target;
+    var targetStn = target._settings;
+    var item = inst._getItem(options.item);
+    var isInstant = !!options.instant;
+    var layoutContainer = options.layoutContainer || document.body;
+    var position = options.position;
+    var element = item._element;
+    var isVisible = item.isVisible();
+    var currentIndex = inst._items.indexOf(item);
+    var newIndex = typeof position === 'number' ? position : (position ? target._items.indexOf(target._getItem(position)) : 0);
+    var offsetDiff = {left: 0, top: 0};
+    var translateX;
+    var translateY;
 
-    // Do nothing if current muuri instance is the target muuri instance.
-    if (currentMuuri === targetMuuri) {
-      return inst;
-    }
+    // Stop current layout animation.
+    item._stopLayout(true);
 
-    // Get target item.
-    targetItem = inst._getItem(item);
+    // Stop current visibility animations.
+    inst._itemShowHandler.stop(item);
+    inst._itemHideHandler.stop(item);
 
-    // If target item does not exist return immediately.
-    if (!targetItem) {
-      return;
-    }
+    // Destroy current drag.
+    item._drag.destroy();
 
-    // Get target item's element and state data.
-    targetElement = targetItem._element;
-    isPositioning = targetItem.isPositioning();
-    isVisible = targetItem.isVisible();
-    isShowing = targetItem.isShowing();
-    isHiding = targetItem.isHiding();
-    isDragging = targetItem.isDragging();
-    isReleasing = targetItem.isReleasing();
+    // Destroy current animation handlers.
+    item._animate.destroy();
+    item._animateChild.destroy();
 
-    // Get current index and target index.
-    currentIndex = inst._items.indexOf(targetItem);
-    newIndex = typeof position === 'number' ? position : (position ? targetMuuri._items.indexOf(targetMuuri._getItem(position)) : 0);
+    // Process current visibility animation queue.
+    processQueue(item._visibilityQueue, true, item);
 
-    // Unset current item data.
-    targetItem._stopLayout(true);
-    currentMuuri._itemShowHandler.stop(targetItem);
-    currentMuuri._itemHideHandler.stop(targetItem);
-    targetItem._drag.destroy();
-    targetItem._animate.destroy();
-    targetItem._animateChild.destroy();
-    processQueue(targetItem._visibilityQueue, true, targetItem);
-    removeClass(targetElement, currentMuuriStn.itemClass);
-    removeClass(targetElement, currentMuuriStn.itemVisibleClass);
-    removeClass(targetElement, currentMuuriStn.itemHiddenClass);
+    // Remove current classnames.
+    removeClass(element, instStn.itemClass);
+    removeClass(element, instStn.itemVisibleClass);
+    removeClass(element, instStn.itemHiddenClass);
+
+    // Add new classnames.
+    addClass(element, targetStn.itemClass);
+    addClass(element, isVisible ? targetStn.itemVisibleClass : targetStn.itemHiddenClass);
 
     // Move item instance from current muuri to target muuri.
-    currentMuuri._items.splice(currentIndex, 1);
-    insertItemsToArray(targetMuuri._items, targetItem, newIndex);
+    inst._items.splice(currentIndex, 1);
+    insertItemsToArray(target._items, item, newIndex);
 
     // Update item's muuri reference.
-    targetItem._muuri = targetMuuri;
+    item._muuri = target;
 
-    // Add target muuri related classnames.
-    addClass(targetElement, targetMuuriStn.itemClass);
-    addClass(targetElement, isVisible ? targetMuuriStn.itemVisibleClass : targetMuuriStn.itemHiddenClass);
+    // Get current translate values.
+    translateX = getTranslateAsFloat(element, 'x');
+    translateY = getTranslateAsFloat(element, 'y');
 
-    // Move item element to correct container.
-    if (element.parentNode !== targetMuuri._element) {
-      targetMuuri._element.appendChild(targetElement);
-      // TODO: Here we need to update the translate values also.
+    // If the item is currently not inside the correct layout container, we need
+    // to move the element inside the layout container and calculate how much
+    // the translate value needs to be modified in order for the item remain
+    // visually in the same position.
+    if (element.parentNode !== layoutContainer) {
+      offsetDiff = getContainerOffsetDiff(element, layoutContainer);
+      layoutContainer.appendChild(element);
     }
 
-    // Initiate item's new animation controllers.
-    targetItem._animate = new Muuri.AnimateLayout(targetItem, targetElement);
-    targetItem._animateChild = new Muuri.AnimateVisibility(targetItem, targetItem._child);
+    // Remove all inline styles and set updated translate styles.
+    element.removeAttribute('style');
+    setStyles(inst._element, {
+      transform: 'translateX(' + (translateX - offsetDiff.left) + 'px) translateY(' + (translateY - offsetDiff.top) + 'px)'
+    });
 
-    // Check if default animation engine is used.
-    targetItem._isDefaultAnimate = targetItem._animate instanceof Animate;
-    targetItem._isDefaultChildAnimate = targetItem._animateChild instanceof Animate;
-
-    // Refresh item's dimensions, because they might have changed with the
-    // addition of the new classnames.
-    targetItem._refresh();
+    // Initiate new animation controllers.
+    item._animate = new Muuri.AnimateLayout(item, element);
+    item._animateChild = new Muuri.AnimateVisibility(item, item._child);
+    item._isDefaultAnimate = item._animate instanceof Animate;
+    item._isDefaultChildAnimate = item._animateChild instanceof Animate;
 
     // Update child element's styles to reflect the current visibility state.
     if (isVisible) {
-      targetMuuri._itemShowHandler.start(targetItem, true);
+      target._itemShowHandler.start(item, true);
     }
     else {
-      targetMuuri._itemHideHandler.start(inst, true);
+      target._itemHideHandler.start(item, true);
     }
 
-    // Update item's drag handler.
-    targetItem._drag = targetMuuriStn.dragEnabled ? new Muuri.Drag(targetItem) : null;
+    // Refresh item's dimensions, because they might have changed with the
+    // addition of the new classnames.
+    if (isVisible) {
+      item._refresh();
+    }
+
+    // Recreate item's drag handler.
+    item._drag = targetStn.dragEnabled ? new Muuri.Drag(item) : null;
 
     // Do layout for both containers.
-    currentMuuri.layoutItems();
-    targetMuuri.layoutItems();
+    // TODO: Should we skip autolayout here?
+    inst.layoutItems(isInstant);
+    target.layoutItems(isInstant);
 
     // Emit events.
-    currentMuuri._emitter.emit(evSendItem, targetItem, targetMuuri, newIndex);
-    targetMuuri._emitter.emit(evReceiveItem, targetItem, currentMuuri, newIndex);
+    // TODO: Rethink what the arguments for these should be and should we call
+    // start and end events, or only start/end event.
+    inst._emitter.emit(evSendItem, item, target, newIndex);
+    target._emitter.emit(evReceiveItem, item, inst, newIndex);
 
     return currentMuuri;
 

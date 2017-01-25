@@ -845,8 +845,9 @@ TODO v0.3.0
    * @param {HTMLElement|Item|Number} options.item
    * @param {Muuri} options.target
    * @param {HTMLElement|Item|Number} [options.position=0]
-   * @param {Boolean} [options.instant=false]
    * @param {Boolean} [options.layoutContainer=document.body]
+   * @param {Boolean} [options.instant=false]
+   * @param {Boolean|HTMLElement} [options.clone=false]
    * @returns {Muuri} returns the Muuri instance.
    */
   Muuri.prototype.sendItem = function (options) {
@@ -861,17 +862,20 @@ TODO v0.3.0
     // position in the new container. Also try to optimize this so that the
     // there would be as few as possible dom manipulations.
 
+    // TODO: Add option to send a clone of the item.
+
     var inst = this;
     var instStn = inst._settings;
     var target = options.target;
     var targetStn = target._settings;
     var item = inst._getItem(options.item);
-    var isInstant = !!options.instant;
-    var layoutContainer = options.layoutContainer || document.body;
-    var position = options.position;
     var element = item._element;
     var isActive = item.isActive();
     var isVisible = item.isVisible();
+    var clone = options.clone === true ? element.cloneNode(true) : options.clone;
+    var isInstant = !!options.instant;
+    var layoutContainer = options.layoutContainer || document.body;
+    var position = options.position;
     var currentIndex = inst._items.indexOf(item);
     var newIndex = typeof position === 'number' ? position : (position ? target._items.indexOf(target._getItem(position)) : 0);
     var offsetDiff;
@@ -913,6 +917,12 @@ TODO v0.3.0
     // Update item's muuri reference.
     item._muuri = target;
 
+    // Instantiate new animation controllers.
+    item._animate = new Muuri.AnimateLayout(item, element);
+    item._animateChild = new Muuri.AnimateVisibility(item, item._child);
+    item._isDefaultAnimate = item._animate instanceof Animate;
+    item._isDefaultChildAnimate = item._animateChild instanceof Animate;
+
     // Get current translate values.
     translateX = getTranslateAsFloat(element, 'x');
     translateY = getTranslateAsFloat(element, 'y');
@@ -928,20 +938,14 @@ TODO v0.3.0
       layoutContainer.appendChild(element);
     }
 
-    // Remove all inline styles and set translate/display styles.
-    element.removeAttribute('style');
+    // Set translate/display styles.
     setStyles(inst._element, {
       transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)',
       display: isVisible ? 'block' : 'hidden'
     });
 
-    // Initiate new animation controllers.
-    item._animate = new Muuri.AnimateLayout(item, element);
-    item._animateChild = new Muuri.AnimateVisibility(item, item._child);
-    item._isDefaultAnimate = item._animate instanceof Animate;
-    item._isDefaultChildAnimate = item._animateChild instanceof Animate;
-
     // Update child element's styles to reflect the current visibility state.
+    inst._child.removeAttribute('style');
     if (isVisible) {
       target._itemShowHandler.start(item, true);
     }
@@ -951,9 +955,7 @@ TODO v0.3.0
 
     // Refresh item's dimensions, because they might have changed with the
     // addition of the new classnames.
-    if (isVisible) {
-      item._refresh();
-    }
+    item._refresh();
 
     // Recreate item's drag handler.
     item._drag = targetStn.dragEnabled ? new Muuri.Drag(item) : null;
@@ -1105,7 +1107,6 @@ TODO v0.3.0
 
     var inst = this;
     var stn = muuri._settings;
-    var initialStyles;
     var isHidden;
 
     // Make sure the item element is not a parent of the grid container element.
@@ -1177,23 +1178,13 @@ TODO v0.3.0
     inst._left = 0;
     inst._top = 0;
 
-    // Define initial styles.
-    initialStyles = {
+    // Set element's initial styles.
+    setStyles(inst._element, {
       left: '0',
       top: '0',
-      transform: 'translateX(0px) translateY(0px)'
-    };
-
-    // Enforce display "block" if element is visible.
-    // TODO: Is this necessary? There might be cases where the user needs the
-    // element to another display type and everything should work fine unless
-    // the display type is not "inline" or similar.
-    if (!isHidden) {
-      initialStyles['display'] = 'block';
-    }
-
-    // Set element's initial styles.
-    setStyles(inst._element, initialStyles);
+      transform: 'translateX(0px) translateY(0px)',
+      display: isHidden ? 'none' : 'block'
+    });
 
     // Calculate and set up initial dimensions.
     inst._refresh();

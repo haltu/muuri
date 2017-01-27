@@ -26,7 +26,10 @@
 
 TODO v0.3.0
 ===========
-* [ ] Connected Muuri instance. (WIP)
+* [x] BUG: When container has box-sizing border box the dimensions are not
+      visually correct.
+* [x] muuri.sendItem()
+* [ ] Drag item between instances.
 * [ ] Test how form elements work inside items.
 * [ ] Drop item on empty slot.
 * [ ] Autoscroll container(s) on drag.
@@ -89,7 +92,8 @@ TODO v0.3.0
   var evHideItemsEnd = 'hideitemsend';
   var evMoveItem = 'moveitem';
   var evSendItem = 'senditem';
-  var evReceiveItem = 'receiveitem';
+  var evReceiveItemStart = 'receiveitemstart';
+  var evReceiveItemEnd = 'receiveitemend';
   var evAddItems = 'additems';
   var evRemoveItems = 'removeitems';
   var evDragItemStart = 'dragitemstart';
@@ -477,6 +481,9 @@ TODO v0.3.0
       inst._padding[side] = Math.round(getStyleAsFloat(element, 'padding-' + side));
     }
 
+    // Update box-sizing.
+    inst._boxSizing = getStyle(element, 'box-sizing');
+
     // Emit refresh event.
     inst._emitter.emit(evRefresh);
 
@@ -566,13 +573,13 @@ TODO v0.3.0
     // Add the new items to the items collection to correct index.
     insertItemsToArray(items, newItems, index);
 
+    // Emit add event.
+    inst._emitter.emit(evAddItems, newItems);
+
     // If relayout is needed.
     if (needsRelayout) {
       inst.layoutItems();
     }
-
-    // Emit add event.
-    inst._emitter.emit(evAddItems, newItems);
 
     // Return new items.
     return newItems;
@@ -606,13 +613,13 @@ TODO v0.3.0
       indices[indices.length] = item._destroy(removeElement);
     }
 
+    // Emit remove event.
+    inst._emitter.emit(evRemoveItems, indices);
+
     // If relayout is needed.
     if (needsRelayout) {
       inst.layoutItems();
     }
-
-    // Emit remove event.
-    inst._emitter.emit(evRemoveItems, indices);
 
     return indices;
 
@@ -708,18 +715,40 @@ TODO v0.3.0
 
     // Set container's height if needed.
     if (layout.setHeight) {
+
+      // Instance height should always equal what elem.getBoundingClientRect()
+      // would return, so therefore we need to add the instance's paddings and
+      // margins to the height.
+      inst._height = layout.height + inst._padding.top + inst._padding.bottom + inst._border.top + inst._border.bottom;
+
+      // When setting the height to the element itself we need to be careful
+      // with box-sizing since it can cause the UI to break if not accounted
+      // for. If box-sizing is border-box we need to set the height with
+      // paddings and margins included, otherwise we set the height without the
+      // margins and paddings.
       setStyles(inst._element, {
-        height: layout.height + 'px'
+        height: (inst._boxSizing === 'border-box' ? inst._height : layout.height) + 'px'
       });
-      inst._height = layout.height;
+
     }
 
     // Set container's width if needed.
     if (layout.setWidth) {
+
+      // Instance width should always equal what elem.getBoundingClientRect()
+      // would return, so therefore we need to add the instance's paddings and
+      // margins to the width.
+      inst._width = layout.width + inst._padding.left + inst._padding.right + inst._border.left + inst._border.right;
+
+      // When setting the width to the element itself we need to be careful
+      // with box-sizing since it can cause the UI to break if not accounted
+      // for. If box-sizing is border-box we need to set the width with paddings
+      // and margins included, otherwise we set the width without the margins
+      // and paddings.
       setStyles(inst._element, {
-        width: layout.width + 'px'
+        width: (inst._boxSizing === 'border-box' ? inst._width : layout.width) + 'px'
       });
-      inst._width = layout.width;
+
     }
 
     // If there are no items let's finish quickly.
@@ -839,6 +868,9 @@ TODO v0.3.0
   /**
    * Send item to another Muuri instance.
    *
+   * @todo Check that the item exists and that the containers are not equal.
+   * @todo Add option to allow creating and sending a clone of the item.
+   *
    * @public
    * @memberof Muuri.prototype
    * @param {Object} options
@@ -847,43 +879,34 @@ TODO v0.3.0
    * @param {HTMLElement|Item|Number} [options.position=0]
    * @param {Boolean} [options.layoutContainer=document.body]
    * @param {Boolean} [options.instant=false]
-   * @param {Boolean|HTMLElement} [options.clone=false]
    * @returns {Muuri} returns the Muuri instance.
    */
   Muuri.prototype.sendItem = function (options) {
-
-    // NOTES: We need to have a lot different flow for connected drag sort
-    // muuri instances, so this method can be optimized to stopping all current
-    // actions and sending the item to another instance. Let's handle the
-    // connected drag & dropping with another flow. I believe this method will
-    // also be pretty useful as it is. Consider using destroy and add methods
-    // in place of all this hackery. The magic this method shuould do is
-    // stop the element in it's current position and animate it to the correct
-    // position in the new container. Also try to optimize this so that the
-    // there would be as few as possible dom manipulations.
-
-    // TODO: Add option to send a clone of the item.
 
     var inst = this;
     var instStn = inst._settings;
     var target = options.target;
     var targetStn = target._settings;
     var item = inst._getItem(options.item);
+    var migrate = item._migrate;
     var element = item._element;
     var isActive = item.isActive();
-    var isVisible = item.isVisible();
-    var clone = options.clone === true ? element.cloneNode(true) : options.clone;
+    var isVisible = (item.isVisible() || item.isShowing()) && !item.isHiding();
     var isInstant = !!options.instant;
     var layoutContainer = options.layoutContainer || document.body;
     var position = options.position;
     var currentIndex = inst._items.indexOf(item);
     var newIndex = typeof position === 'number' ? position : (position ? target._items.indexOf(target._getItem(position)) : 0);
+    var currentContainingBlock;
     var offsetDiff;
     var translateX;
     var translateY;
 
     // Stop current layout animation.
     item._stopLayout(true);
+
+    // Stop current migration.
+    item._stopMigrate(true);
 
     // Stop current visibility animations.
     inst._itemShowHandler.stop(item);
@@ -923,29 +946,46 @@ TODO v0.3.0
     item._isDefaultAnimate = item._animate instanceof Animate;
     item._isDefaultChildAnimate = item._animateChild instanceof Animate;
 
-    // Get current translate values.
-    translateX = getTranslateAsFloat(element, 'x');
-    translateY = getTranslateAsFloat(element, 'y');
-
     // If the item is currently not inside the correct layout container, we need
     // to move the element inside the layout container and calculate how much
     // the translate value needs to be modified in order for the item remain
-    // visually in the same position.
-    if (element.parentNode !== layoutContainer) {
-      offsetDiff = getContainerOffsetDiff(element, layoutContainer);
+    // visually in the same position. Note that we assume here that the item
+    // is currently within the current muuri instance's element.
+    if (inst._element !== layoutContainer) {
+
+      // Get current translate values.
+      translateX = getTranslateAsFloat(element, 'x');
+      translateY = getTranslateAsFloat(element, 'y');
+
+      // Move the item inside the new container.
+      layoutContainer.appendChild(element);
+
+      // Calculate how much offset difference the new container has with the
+      // old container and adjust the translate value accordingly.
+      offsetDiff = getContainerOffsetDiff(element, inst._element);
       translateX += offsetDiff.left;
       translateY += offsetDiff.top;
-      layoutContainer.appendChild(element);
+
+      // Calculate how much offset difference there is between the new container
+      // and the target container and store the results to migration data.
+      offsetDiff = getContainerOffsetDiff(element, target._element);
+      migrate.containerDiffX = offsetDiff.left;
+      migrate.containerDiffY = offsetDiff.top;
+
+      // Update translate styles.
+      setStyles(element, {
+        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
+      });
+
     }
 
-    // Set translate/display styles.
-    setStyles(inst._element, {
-      transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)',
+    // Update display styles.
+    setStyles(element, {
       display: isVisible ? 'block' : 'hidden'
     });
 
     // Update child element's styles to reflect the current visibility state.
-    inst._child.removeAttribute('style');
+    item._child.removeAttribute('style');
     if (isVisible) {
       target._itemShowHandler.start(item, true);
     }
@@ -960,17 +1000,21 @@ TODO v0.3.0
     // Recreate item's drag handler.
     item._drag = targetStn.dragEnabled ? new Muuri.Drag(item) : null;
 
+    // Setup migration data.
+    migrate.isActive = true;
+    migrate.container = layoutContainer;
+    migrate.index = newIndex;
+    migrate.sender = inst;
+
+    // Emit events.
+    inst._emitter.emit(evSendItem, item, target, newIndex);
+    target._emitter.emit(evReceiveItemStart, item, inst, newIndex);
+
     // Do layout for both containers if the item is active.
     if (isActive) {
       inst.layoutItems(isInstant);
       target.layoutItems(isInstant);
     }
-
-    // Emit events.
-    // TODO: Rethink what the arguments for these should be and should we call
-    // start and end events, or only start/end event.
-    inst._emitter.emit(evSendItem, item, target, newIndex);
-    target._emitter.emit(evReceiveItem, item, inst, newIndex);
 
     return inst;
 
@@ -981,8 +1025,9 @@ TODO v0.3.0
    *
    * @public
    * @memberof Muuri.prototype
+   * @param {Boolean} [removeElement=false]
    */
-  Muuri.prototype.destroy = function () {
+  Muuri.prototype.destroy = function (removeElement) {
 
     var inst = this;
     var container = inst._element;
@@ -998,7 +1043,7 @@ TODO v0.3.0
 
     // Destroy items.
     for (i = 0; i < items.length; i++) {
-      items[i]._destroy();
+      items[i]._destroy(removeElement);
     }
 
     // Restore container.
@@ -1200,6 +1245,16 @@ TODO v0.3.0
     // Set up drag handler.
     inst._drag = stn.dragEnabled ? new Muuri.Drag(inst) : null;
 
+    // Set up migration handler.
+    inst._migrate = {
+      isActive: false,
+      container: null,
+      containerDiffX: 0,
+      containerDiffY: 0,
+      sender: null,
+      index: 0
+    };
+
   }
 
   /**
@@ -1376,6 +1431,19 @@ TODO v0.3.0
   };
 
   /**
+   * Is the item being migrated?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isMigrating = function () {
+
+    return this._migrate.isActive;
+
+  };
+
+  /**
    * Item - Protected prototype methods
    * **********************************
    */
@@ -1458,6 +1526,8 @@ TODO v0.3.0
   /**
    * Position item based on it's current data.
    *
+   * @todo  Special flow for doing layout for send items.
+   *
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} instant
@@ -1467,13 +1537,15 @@ TODO v0.3.0
   Item.prototype._layout = function (instant, callback) {
 
     var inst = this;
-    var stn = inst._muuri._settings;
+    var muuri = inst._muuri;
+    var stn = muuri._settings;
     var release = inst._drag ? inst._drag._release : {};
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
     var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.layoutDuration;
     var animEasing = isJustReleased ? stn.dragReleaseEasing : stn.layoutEasing;
     var animEnabled = instant === true || inst._noLayoutAnimation ? false : animDuration > 0;
     var isPositioning = inst._isPositioning;
+    var migrate = inst._migrate;
     var offsetLeft;
     var offsetTop;
     var currentLeft;
@@ -1489,6 +1561,11 @@ TODO v0.3.0
       // Finish up release.
       if (release.isActive) {
         inst._drag._stopRelease();
+      }
+
+      // Finish up migration.
+      if (migrate.isActive) {
+        inst._stopMigrate();
       }
 
       // Process the callback queue.
@@ -1515,8 +1592,8 @@ TODO v0.3.0
     // Get item container offset. This applies only for release handling in the
     // scenario where the released element is not currently within the muuri
     // container.
-    offsetLeft = release.isActive ? release.containerDiffX : 0;
-    offsetTop = release.isActive ? release.containerDiffY : 0;
+    offsetLeft = release.isActive ? release.containerDiffX : migrate.isActive ? migrate.containerDiffX : 0;
+    offsetTop = release.isActive ? release.containerDiffY : migrate.isActive ? migrate.containerDiffY : 0;
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
@@ -1529,7 +1606,7 @@ TODO v0.3.0
       // Muuri container these styles will be set after the item has been
       // moved back to the Muuri container, which also means that setting the
       // styles here in that scenario is a waste of resources.
-      if (!(release.isActive && release.element.parentNode !== inst._muuri._element)) {
+      if (!(release.isActive && release.element.parentNode !== muuri._element) || !(migrate.isActive && migrate.container !== muuri._element)) {
         setStyles(inst._element, {
           transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
         });
@@ -1570,8 +1647,8 @@ TODO v0.3.0
 
       // Animate.
       inst._animate.start({
-        translateX: (release.isActive ? currentLeft + offsetLeft : currentLeft) + 'px',
-        translateY: (release.isActive ? currentTop + offsetTop : currentTop) + 'px'
+        translateX: (currentLeft + offsetLeft) + 'px',
+        translateY: (currentTop + offsetTop) + 'px'
       }, {
         translateX: inst._left + offsetLeft,
         translateY: inst._top + offsetTop
@@ -1744,6 +1821,61 @@ TODO v0.3.0
   };
 
   /**
+   * End the migration process of an item. This method can be used to abort an
+   * ongoing migration process animation or finish the migration process.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @param {Boolean} [abort=false]
+   */
+  Item.prototype._stopMigrate = function (abort) {
+
+    var inst = this;
+    var muuri = inst._muuri;
+    var migrate = inst._migrate;
+    var translateX;
+    var translateY;
+    var sender;
+    var newIndex;
+
+    if (migrate.isActive) {
+
+      // If the element is outside the muuri container put it back there and
+      // adjust position accordingly.
+      if (migrate.container !== muuri._element) {
+        translateX = abort ? getTranslateAsFloat(inst._element, 'x') - migrate.containerDiffX : inst._left;
+        translateY = abort ? getTranslateAsFloat(inst._element, 'y') - migrate.containerDiffY : inst._top;
+        muuri._element.appendChild(inst._element);
+        setStyles(inst._element, {
+          transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
+        });
+      }
+
+      // Cache sender instance and target index so they can be provided to the
+      // end event after the migration data is reset.
+      if (!abort) {
+        sender = migrate.sender;
+        newIndex = migrate.index;
+      }
+
+      // Reset migration data.
+      migrate.isActive = false;
+      migrate.container = null;
+      migrate.containerDiffX = 0;
+      migrate.containerDiffY = 0;
+      migrate.sender = null;
+      migrate.index = 0;
+
+      // Emit receiveitemend event.
+      if (!abort) {
+        muuri._emitter.emit(evReceiveItemEnd, inst, sender, newIndex);
+      }
+
+    }
+
+  };
+
+  /**
    * Destroy item instance.
    *
    * @protected
@@ -1762,6 +1894,9 @@ TODO v0.3.0
     inst._stopLayout(true);
     muuri._itemShowHandler.stop(inst);
     muuri._itemHideHandler.stop(inst);
+
+    // Stop migration.
+    inst._stopMigrate(true);
 
     // If item is being dragged or released, stop it gracefully.
     if (inst._drag) {
@@ -2541,17 +2676,17 @@ TODO v0.3.0
     })
     .on('dragend dragcancel draginitup', function (e) {
 
+      // Do final predicate check to allow unbinding stuff for the current drag
+      // procedure within the predicate callback.
+      predicate.reject();
+      checkPredicate.call(item._muuri, item, e, predicate);
+
       // If predicate is resolved and dragging is active, do the end.
       if (predicate._isResolved && inst._drag.isActive) {
         inst._onDragEnd(e);
       }
 
-      // Do final predicate check to allow unbinding stuff for the current drag
-      // procedure within the predicate callback.
-      checkPredicate.call(item._muuri, item, e, predicate);
-
       // Nullify predicate reference.
-      predicate.reject();
       predicate = null;
       predicateEvent = null;
 
@@ -2692,6 +2827,9 @@ TODO v0.3.0
     else if (inst._release.isActive) {
       inst._stopRelease(true);
     }
+
+    // Destroy hammer.
+    inst._hammer.destroy();
 
     // Remove native drag prevention bindings.
     enableNativeDrag(inst._item._element);
@@ -3020,6 +3158,11 @@ TODO v0.3.0
       item._stopLayout(true);
     }
 
+    // Stop current migration animation.
+    if (item._migrate.isActive) {
+      item._stopMigrate(true);
+    }
+
     // If item is being released reset release data, remove release class and
     // import the element styles from release data to drag data.
     if (release.isActive) {
@@ -3198,6 +3341,8 @@ TODO v0.3.0
     if (dragContainer && dragContainer !== muuriContainer) {
 
       // Get offset diff.
+      // TODO: This can be optimized a bit, we already know the drag element's
+      // containing block so we should probably cache it.
       offsetDiff = getContainerOffsetDiff(drag.element, muuriContainer);
 
       // Store the container offset diffs to drag data.

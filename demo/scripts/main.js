@@ -1,13 +1,13 @@
 $(function () {
 
   var m = {};
-  var $grid = $('.grid');
   var $root = $('html');
+  var $grid1 = $('.grid-1');
+  var $grid2 = $('.grid-2');
   var uuid = 0;
-  var grid = null;
 
   // Bind events.
-  $('.demo-init').on('click', init);
+  $('.demo-init').on('click', initGrids);
   $('.demo-destroy').on('click', destroy);
   $('.demo-show').on('click', show);
   $('.demo-hide').on('click', hide);
@@ -16,9 +16,10 @@ $(function () {
   $('.demo-refresh').on('click', refresh);
   $('.demo-layout').on('click', layout);
   $('.demo-synchronize').on('click', synchronize);
+  $('.demo-send').on('click', send);
 
   // Init.
-  init();
+  initGrids();
 
   //
   // Helper utilities
@@ -54,13 +55,20 @@ $(function () {
 
   }
 
-  function init() {
+  function initGrids() {
 
-    if (!grid) {
+    init($grid1);
+    init($grid2);
+
+  }
+
+  function init($grid) {
+
+    if (!$grid.data('muuri')) {
 
       var dragCounter = 0;
 
-      grid = new Muuri({
+      var muuri = new Muuri({
         container: $grid.get(0),
         items: generateElements(20),
         layoutDuration: 1000,
@@ -72,7 +80,7 @@ $(function () {
           if (isLastEvent && !predicate.isResolved()) {
             window.location.href = item._element.getAttribute('href');
           }
-          else if (event.distance > 5 || item._drag._release.isActive) {
+          else if (event.distance > 5 || item.isReleasing()) {
             predicate.resolve();
           }
         },
@@ -82,24 +90,8 @@ $(function () {
         }
       });
 
-      grid
-      .on('dragitemstart', function () {
-        ++dragCounter;
-        $root.addClass('dragging');
-      })
-      .on('dragitemend', function () {
-        if (--dragCounter < 1) {
-          $root.removeClass('dragging');
-        }
-      })
-      .on('layoutitemsend', function () {
-        console.log('layoutend');
-      })
-      .on('releaseitemend', function () {
-        console.log('releaseend');
-      });
+      $grid.data('muuri', muuri);
 
-      // Don't follow links of items automatically.
       $(document).on('click', '.item', function (e) {
         e.preventDefault();
       });
@@ -110,82 +102,151 @@ $(function () {
 
   function destroy() {
 
-    if (grid) {
-      grid.destroy();
-      $grid.empty();
-      grid = null;
-      uuid = 0;
-    }
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.destroy(true);
+        $grid.removeData('muuri');
+      }
+
+    });
 
   }
 
   function show() {
 
-    if (grid) {
-      grid.showItems(grid.getItems('inactive').slice(0, 5), function (items) {
-        console.log('CALLBACK: Hide ' + items.length + ' items');
-      });
-    }
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.showItems(muuri.getItems('inactive').slice(0, 5), function (items) {
+          console.log('CALLBACK: Hide ' + items.length + ' items');
+        });
+      }
+
+    });
 
   }
 
   function hide() {
 
-    if (grid) {
-      grid.hideItems(grid.getItems('active').slice(0, 5), function (items) {
-        console.log('CALLBACK: Hide ' + items.length + ' items');
-      });
-    }
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.hideItems(muuri.getItems('active').slice(0, 5), function (items) {
+          console.log('CALLBACK: Hide ' + items.length + ' items');
+        });
+      }
+
+    });
 
   }
 
   function add() {
 
-    if (grid) {
-      var items = generateElements(5);
-      items.forEach(function (item) {
-        item.style.display = 'none';
-      });
-      grid.showItems(grid.addItems(items), function (items) {
-        console.log('CALLBACK: Added ' + items.length + ' items');
-      });
-    }
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        var items = generateElements(5);
+        items.forEach(function (item) {
+          item.style.display = 'none';
+        });
+        muuri.showItems(muuri.addItems(items), function (items) {
+          console.log('CALLBACK: Added ' + items.length + ' items');
+        });
+      }
+
+    });
 
   }
 
   function remove() {
 
-    if (grid) {
-      grid.hideItems(grid.getItems('active').slice(0, 5), function (items) {
-        grid.removeItems(items, true);
-        console.log('CALLBACK: Removed ' + items.length + ' items');
-      });
-    }
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.hideItems(muuri.getItems('active').slice(0, 5), function (items) {
+          muuri.removeItems(items, true);
+          console.log('CALLBACK: Removed ' + items.length + ' items');
+        });
+      }
+
+    });
 
   }
 
   function layout() {
 
-    if (grid) {
-      grid.layoutItems(function () {
-        console.log('CALLBACK: Layout');
-      });
-    }
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.layoutItems(function () {
+          console.log('CALLBACK: Layout');
+        });
+      }
+
+    });
 
   }
 
   function refresh() {
 
-    if (grid) {
-      grid.refresh().refreshItems();
-    }
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.refresh().refreshItems();
+      }
+
+    });
 
   }
 
   function synchronize() {
 
-    if (grid) {
-      grid.synchronizeItems();
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.synchronizeItems();
+      }
+
+    });
+
+  }
+
+  function send() {
+
+    var grid1 = $grid1.data('muuri');
+    var grid2 = $grid2.data('muuri');
+
+    if (grid1 && grid2) {
+      grid1.sendItem({
+        item: 0,
+        target: grid2,
+        position: 0
+      });
     }
 
   }

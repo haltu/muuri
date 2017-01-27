@@ -19,14 +19,24 @@ html.dragging body {
 
 /* Grid */
 
-.grid {
+.grids {
   position: relative;
-  margin: 20px;
+}
+.grid {
+  position: absolute;
+  top: 0;
+  width: 50%;
   padding: 0 5px 5px 0;
   border: 5px solid #ff0000;
-  -moz-box-sizing: content-box;
-  -webkit-box-sizing: content-box;
-  box-sizing: content-box;
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+.grid-1 {
+  left: 0;
+}
+.grid-2 {
+  right: 0;
 }
 .item {
   display: block;
@@ -74,4 +84,15 @@ html.dragging body {
 }
 .item.muuri-item-dragging .item-stuff {
   background: #ff0000;
+}
+
+/* Utils */
+
+.cf:before,
+.cf:after {
+  content: " ";
+  display: table;
+}
+.cf:after {
+  clear: both;
 }

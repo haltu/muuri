@@ -68,6 +68,9 @@ TODO v0.3.0
 
   'use strict';
 
+  // Container object for storing keeping track of the drag sort groups.
+  var sortGroups = {};
+
   // Id which is used for Muuri instances and Item instances. Incremented every
   // time it is used.
   var uuid = 0;
@@ -142,6 +145,7 @@ TODO v0.3.0
    * @param {?Function|Object} [settings.dragSortPredicate]
    * @param {Number} [settings.dragSortPredicate.threshold=50]
    * @param {String} [settings.dragSortPredicate.action="move"]
+   * @param {?Object|String} [settings.dragSortGroup=null]
    * @param {Number} [settings.dragReleaseDuration=300]
    * @param {String} [settings.dragReleaseEasing="ease"]
    * @param {String} [settings.containerClass="muuri"]
@@ -181,6 +185,13 @@ TODO v0.3.0
     // Setup show and hide animations for items.
     inst._itemShowHandler = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
     inst._itemHideHandler = typeof stn.hide === 'function' ? stn.hide() : getItemVisbilityHandler('hide', stn.hide);
+
+    // TODO: Handle sort group bindings.
+    if (stn.dragSortGroup) {
+
+
+
+    }
 
     // Calculate container element's initial dimensions and offset.
     inst.refresh();
@@ -301,6 +312,7 @@ TODO v0.3.0
       threshold: 50,
       action: 'move'
     },
+    dragSortGroup: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
 
@@ -868,7 +880,6 @@ TODO v0.3.0
   /**
    * Send item to another Muuri instance.
    *
-   * @todo Check that the item exists and that the containers are not equal.
    * @todo Add option to allow creating and sending a clone of the item.
    *
    * @public
@@ -1154,17 +1165,8 @@ TODO v0.3.0
     var stn = muuri._settings;
     var isHidden;
 
-    // Make sure the item element is not a parent of the grid container element.
-    // TODO: Is this necessary? Should we just let this be the user's
-    // responsibility instead of enforcing it.
-    if (element.contains(muuri._element)) {
-      throw new Error('Item element must be within the grid container element');
-    }
-
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container.
-    // TODO: Is this necessary? Should we just let this be the user's
-    // responsibility instead of enforcing it.
     if (element.parentNode !== muuri._element) {
       muuri._element.appendChild(element);
     }
@@ -1525,8 +1527,6 @@ TODO v0.3.0
 
   /**
    * Position item based on it's current data.
-   *
-   * @todo  Special flow for doing layout for send items.
    *
    * @protected
    * @memberof Item.prototype
@@ -2734,8 +2734,6 @@ TODO v0.3.0
    *     that has three properties: action (string), from (number), to (number).
    */
   Drag.defaultSortPredicate = function (targetItem) {
-
-    // TODO: Account for connected muuri instances.
 
     var muuri = targetItem._muuri;
     var stn = muuri._settings;

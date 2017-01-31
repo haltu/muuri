@@ -145,7 +145,8 @@ TODO v0.3.0
    * @param {?Function|Object} [settings.dragSortPredicate]
    * @param {Number} [settings.dragSortPredicate.threshold=50]
    * @param {String} [settings.dragSortPredicate.action="move"]
-   * @param {?Object|String} [settings.dragSortGroup=null]
+   * @param {?String} [settings.dragSortGroup=null]
+   * @param {?Array} [settings.dragSortConnections=null]
    * @param {Number} [settings.dragReleaseDuration=300]
    * @param {String} [settings.dragReleaseEasing="ease"]
    * @param {String} [settings.containerClass="muuri"]
@@ -186,12 +187,11 @@ TODO v0.3.0
     inst._itemShowHandler = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
     inst._itemHideHandler = typeof stn.hide === 'function' ? stn.hide() : getItemVisbilityHandler('hide', stn.hide);
 
-    // TODO: Handle sort group bindings.
-    if (stn.dragSortGroup) {
+    // Setup instance's sort group.
+    inst._setSortGroup(stn.dragSortGroup);
 
-
-
-    }
+    // Setup instance's sort connections.
+    inst._sortConnections = Array.isArray(stn.dragSortConnections) && stn.dragSortConnections.length ? stn.dragSortConnections : null;
 
     // Calculate container element's initial dimensions and offset.
     inst.refresh();
@@ -313,6 +313,7 @@ TODO v0.3.0
       action: 'move'
     },
     dragSortGroup: null,
+    dragSortConnections: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
 
@@ -1043,8 +1044,6 @@ TODO v0.3.0
     var inst = this;
     var container = inst._element;
     var items = inst._items.concat();
-    var emitter = inst._emitter;
-    var emitterEvents;
     var i;
 
     // Unbind window resize event listener.
@@ -1057,21 +1056,17 @@ TODO v0.3.0
       items[i]._destroy(removeElement);
     }
 
+    // Unset sort group.
+    inst._unsetSortGroup();
+
     // Restore container.
     removeClass(container, inst._settings.containerClass);
     setStyles(container, {
       height: ''
     });
 
-    // Emit destroy event. We need to do this before unbinding all the events
-    // and nullifying the instance.
-    emitter.emit(evDestroy);
-
-    // Remove all event listeners.
-    emitterEvents = Object.keys(emitter._events || {});
-    for (i = 0; i < emitterEvents.length; i++) {
-      emitter._events[emitterEvents[i]].length = 0;
-    }
+    // Emit destroy event and unbind all events.
+    inst._emitter.emit(evDestroy).destroy();
 
     // Nullify instance properties.
     nullifyInstance(inst, Muuri);
@@ -1143,6 +1138,96 @@ TODO v0.3.0
       return ret;
 
     }
+
+  };
+
+  /**
+   * Set instance's drag sort group.
+   *
+   * @protected
+   * @memberof Muuri.prototype
+   * @param {?String} sortGroup
+   * @returns {Muuri}
+   */
+  Muuri.prototype._setSortGroup = function (sortGroup) {
+
+    var inst = this;
+
+    inst._sortGroup = null;
+    if (sortGroup && typeof sortGroup === 'string') {
+      inst._sortGroup = sortGroup;
+      if (!sortGroups[sortGroup]) {
+        sortGroups[sortGroup] = [];
+      }
+      sortGroups[sortGroup].push(inst);
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Unset instance's drag sort group.
+   *
+   * @protected
+   * @memberof Muuri.prototype
+   * @returns {Muuri}
+   */
+  Muuri.prototype._unsetSortGroup = function () {
+
+    var inst = this;
+    var sortGroup = inst._sortGroup;
+    var sortGroupItems;
+    var i;
+
+    if (sortGroup) {
+      sortGroupItems = sortGroups[sortGroup];
+      for (i = 0; i < sortGroupItems.length; i++) {
+        if (sortGroupItems[i] === inst) {
+          sortGroupItems.splice(i, 1);
+          break;
+        }
+      }
+      inst._sortGroup = null;
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Get instance's connected items.
+   *
+   * @protected
+   * @memberof Muuri.prototype
+   * @param {Boolean} [includeOwnItems=false]
+   * @returns {Array}
+   */
+  Muuri.prototype._getConnectedItems = function (includeOwnItems) {
+
+    var inst = this;
+    var connections = inst._sortConnections;
+    var items = includeOwnItems ? inst._items.slice(0) : [];
+    var groupName;
+    var groupItems;
+    var ii;
+    var i;
+
+    if (connections) {
+      for (i = 0; i < connections.length; i++) {
+        groupName = connections[i];
+        groupItems = sortGroups[groupName];
+        if (groupItems && groupItems.length) {
+          for (ii = 0; ii < groupItems.length; ii++) {
+            if (groupItems[ii] !== inst) {
+              items = items.concat(groupItems[ii]._items);
+            }
+          }
+        }
+      }
+    }
+
+    return items;
 
   };
 
@@ -2469,6 +2554,28 @@ TODO v0.3.0
   };
 
   /**
+   * Destrory emitter instance. Basically just removes all bound listeners.
+   *
+   * @public
+   * @memberof Emitter.prototype
+   * @returns {Emitter} returns the Emitter instance.
+   */
+  Emitter.prototype.destroy = function () {
+
+    var events = this._events || {};
+    var eventNames = Object.keys(events);
+    var i;
+
+    for (i = 0; i < eventNames.length; i++) {
+      events[eventNames[i]].length = 0;
+      events[eventNames[i]] = null;
+    }
+
+    return this;
+
+  };
+
+  /**
    * Animate
    * *******
    */
@@ -2726,6 +2833,8 @@ TODO v0.3.0
   /**
    * Default drag sort predicate.
    *
+   * @todo refactor to supported connected muuri instances.
+   *
    * @public
    * @memberof Drag
    * @param {Item} targetItem
@@ -2740,7 +2849,7 @@ TODO v0.3.0
     var config = stn.dragSortPredicate || {};
     var threshold = config.threshold || 50;
     var action = config.action || 'move';
-    var items = muuri._items;
+    var items = muuri._getConnectedItems(true);
     var drag = targetItem._drag;
     var instData = {
       width: drag._item._width,

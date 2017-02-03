@@ -124,8 +124,8 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.showItems(muuri.getItems('inactive').slice(0, 5), function (items) {
-          console.log('CALLBACK: Hide ' + items.length + ' items');
+        muuri.showItems(muuri.getItems('hidden').slice(0, 5), function (items) {
+          console.log('CALLBACK: Show ' + items.length + ' items');
         });
       }
 
@@ -141,7 +141,7 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.hideItems(muuri.getItems('active').slice(0, 5), function (items) {
+        muuri.hideItems(muuri.getItems('visible').slice(0, 5), function (items) {
           console.log('CALLBACK: Hide ' + items.length + ' items');
         });
       }

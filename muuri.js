@@ -29,10 +29,16 @@ TODO v0.3.0
 * [x] BUG: When container has box-sizing border box the dimensions are not
       visually correct.
 * [x] muuri.sendItem()
+* [x] muuri.sortItems()
+* [x] muuri.filterItems()
+* [x] Improve muuri.getItems() to support filtering items by all available
+      states.
+* [x] Improve the the visibility handler method logic. If an item is already
+      visible and muuri.showItems() is called for it, there should be no event
+      triggered. The same applies to hidden items and muuri.hideItems() method.
 * [ ] Drag item between instances.
-* [ ] Test how form elements work inside items.
-* [ ] Drop item on empty slot.
-* [ ] Autoscroll container(s) on drag.
+* [ ] Drop item on empty slot. This is especially needed when dragging an item
+      from a container to an empty container.
 * [ ] Update docs.
 * [ ] Add more unit tests.
 * [ ] Test usage on node and bower. Make sure everything works as advertised.
@@ -74,6 +80,15 @@ TODO v0.3.0
   // Id which is used for Muuri instances and Item instances. Incremented every
   // time it is used.
   var uuid = 0;
+
+  // Get the supported element.matches method.
+  var elementMatches = (function () {
+    var p = Element.prototype;
+    var f = p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector;
+    return function (el, selector) {
+      return f.call(el, selector);
+    };
+  });
 
   // Get the supported transform style property.
   var transform = getSupportedStyle('transform');
@@ -381,6 +396,9 @@ TODO v0.3.0
    * @memberof Muuri.prototype
    * @param {Array|HTMLElement|Item|NodeList|Number} [targets]
    * @param {String} [state]
+   *   - Allowed values are: "active", "inactive", "visible", "hidden",
+   *     "showing", "hiding", "positioning", "dragging", "releasing" and
+   *     "migrating".
    * @returns {Array} Array of Muuri item instances.
    */
   Muuri.prototype.getItems = function (targets, state) {
@@ -390,8 +408,6 @@ TODO v0.3.0
     var targetItems = !hasTargets ? null : isNodeList(targets) ? Array.prototype.slice.call(targets) : [].concat(targets);
     var targetState = !hasTargets ? targets : state;
     var ret = [];
-    var isActive;
-    var isInactive;
     var item;
     var i;
 
@@ -402,12 +418,10 @@ TODO v0.3.0
     if (targetState || targetItems) {
 
       targetItems = targetItems || inst._items;
-      isActive = targetState === 'active';
-      isInactive = targetState === 'inactive';
 
       for (i = 0; i < targetItems.length; i++) {
         item = hasTargets ? inst._getItem(targetItems[i]) : targetItems[i];
-        if (item && (!targetState || (isActive && item._isActive) || (isInactive && !item._isActive))) {
+        if (item && (!targetState || isItemInState(item, targetState))) {
           ret[ret.length] = item;
         }
       }
@@ -832,6 +846,87 @@ TODO v0.3.0
     setVisibility(this, 'hide', items, instant, callback);
 
     return this;
+
+  };
+
+  /**
+   * Sort items with a compare function. Works identically to
+   * Array.prototype.sort().
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @param {Function} compareFn
+   * @returns {Muuri} returns the Muuri instance.
+   */
+  Muuri.prototype.sortItems = function (compareFn) {
+
+    var items = this._items;
+
+    if (items.length > 1) {
+      items.sort(compareFn);
+    }
+
+    return this;
+
+  };
+
+  /**
+   * Filter items. Expects one argument which should be either a function or a
+   * string. A function filter is executed for every item in the instance. If
+   * the return value of the function is truthy the item in question will be
+   * shown and otherwise hidden. The filter function receives two arguments: the
+   * item instance and the related element. If the filter is a string it is
+   * considered to be a selector and it is checked against every item element in
+   * the instance with the native element.matches() method. All the items which
+   * the selector matches will be shown and other hidden.
+   *
+   * @public
+   * @memberof Muuri.prototype
+   * @param {Function|String} filter
+   * @param {Boolean} [instant=false]
+   * @returns {Muuri} returns the Muuri instance.
+   */
+  Muuri.prototype.filterItems = function (filter, instant) {
+
+    var inst = this;
+    var items = inst._items;
+    var filterType = typeof filter;
+    var isFilterString = filterType === 'string';
+    var isFilterFn = filterType === 'function';
+    var itemsToShow = [];
+    var itemsToHide = [];
+    var item;
+    var i;
+
+    // Return immediately if there are no items.
+    if (!items.length) {
+      return inst;
+    }
+
+    // Check which items need to be shown and which hidden.
+    if (isFilterFn || isFilterString) {
+      for (i = 0; i < items.length; i++) {
+        item = items[i];
+        if (isFilterFn ? filter(item, item._element) : elementMatches(item._element, filter)) {
+          itemsToShow.push(item);
+        }
+        else {
+          itemsToHide.push(item);
+        }
+      }
+    }
+
+    // Show items that need to be shown.
+    if (itemsToShow.length) {
+      inst.showItems(itemsToShow, instant);
+    }
+
+    // Hide items that need to be hidden.
+    if (itemsToHide.length) {
+      inst.hideItems(itemsToHide, instant);
+    }
+
+    return inst;
 
   };
 
@@ -1773,8 +1868,8 @@ TODO v0.3.0
 
     }
 
-    // If item is animating to visible.
-    else if (!inst._isHidden) {
+    // If item is animating to visible and instant flag is not on.
+    else if (!inst._isHidden && !instant) {
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
@@ -1785,6 +1880,9 @@ TODO v0.3.0
 
     // If item is hidden or animating to hidden.
     else {
+
+      // TODO: Handle scenario where the item is animating to visible and
+      // instant is on. Or at least check if needs special handling...
 
       // Stop ongoing hide animation.
       if (inst._isHiding) {
@@ -1851,7 +1949,7 @@ TODO v0.3.0
     }
 
     // If item is animating to hidden.
-    else if (inst._isHidden) {
+    else if (inst._isHidden && !instant) {
 
       // Push the callback to callback queue.
       if (typeof callback === 'function') {
@@ -1862,6 +1960,9 @@ TODO v0.3.0
 
     // If item is visible or animating to visible.
     else {
+
+      // TODO: Handle scenario where the item is animating to hidden and
+      // instant is on. Or at least check if needs special handling...
 
       // Stop ongoing show animation.
       if (inst._isShowing) {
@@ -4018,27 +4119,6 @@ TODO v0.3.0
   }
 
   /**
-   * Check if an element has a specific class name.
-   *
-   * @private
-   * @param {HTMLElement} element
-   * @param {String} className
-   * @returns {Boolean}
-   */
-  function hasClass(element, className) {
-
-    return (
-      element.matches ||
-      element.matchesSelector ||
-      element.msMatchesSelector ||
-      element.mozMatchesSelector ||
-      element.webkitMatchesSelector ||
-      element.oMatchesSelector
-    ).call(element, '.' + className);
-
-  }
-
-  /**
    * Add class to an element.
    *
    * @private
@@ -4050,7 +4130,7 @@ TODO v0.3.0
     if (element.classList) {
       element.classList.add(className);
     }
-    else if (hasClass(element, className)) {
+    else if (!elementMatches(element, '.' + className)) {
       element.className += ' ' + className;
     }
 
@@ -4068,7 +4148,7 @@ TODO v0.3.0
     if (element.classList) {
       element.classList.remove(className);
     }
-    else if (hasClass(element, className)) {
+    else if (elementMatches(element, '.' + className)) {
       element.className = (' ' + element.className + ' ').replace(' ' + className + ' ', ' ').trim();
     }
 
@@ -4508,32 +4588,43 @@ TODO v0.3.0
     var endEvent = isShow ? evShowItemsEnd : evHideItemsEnd;
     var isInstant = instant === true;
     var needsRelayout = false;
-    var completedItems;
-    var hiddenItems;
+    var validItems = [];
+    var completedItems = [];
+    var hiddenItems = [];
     var item;
     var i;
+
+    // Get valid items -> filter out items which will not be affected by this
+    // method at their current state.
+    for (i = 0; i < targetItems.length; i++) {
+      item = targetItems[i];
+      // Omg... this is a monster. No liner like one-liner.
+      if (isShow ? (item._isHidden || item._isHiding || (item._isShowing && isInstant)) : (!item.isHidden || item._isShowing || (item._isHiding && isInstant))) {
+        validItems[validItems.length] = item;
+      }
+    }
+
+    // Set up counter based on valid items.
+    counter = validItems.length;
 
     // If there are no items call the callback, but don't emit any events.
     if (!counter) {
 
-      if (typeof callback === 'function') {
-        callback(targetItems);
+      if (typeof cb === 'function') {
+        cb(validItems);
       }
 
     }
     // If we have some items let's dig in.
     else {
 
-      completedItems = [];
-      hiddenItems = [];
-
       // Emit showstart event.
-      inst._emitter.emit(startEvent, targetItems);
+      inst._emitter.emit(startEvent, validItems);
 
       // Show/hide items.
-      for (i = 0; i < targetItems.length; i++) {
+      for (i = 0; i < validItems.length; i++) {
 
-        item = targetItems[i];
+        item = validItems[i];
 
         // Check if relayout or refresh is needed.
         if ((isShow && !item._isActive) || (!isShow && item._isActive)) {
@@ -4692,6 +4783,30 @@ TODO v0.3.0
     var maxHeight = Math.min(a.height, b.height);
 
     return (width * height) / (maxWidth * maxHeight) * 100;
+
+  }
+
+  /**
+   * Check if item is in specific state.
+   *
+   * @private
+   * @param {Item} item
+   * @param {String} state
+   * Returns {Boolean}
+   */
+  function isItemInState(item, state) {
+
+    return state === 'active' ? item._isActive :
+           state === 'inactive' ? !item._isActive :
+           state === 'visible' ? !item._isHiding :
+           state === 'hidden' ? item._isHiding :
+           state === 'showing' ? item._isShowing :
+           state === 'hiding' ? item._isHiding :
+           state === 'positioning' ? item._isPositioning :
+           state === 'dragging' ? item._drag && item._drag._drag.isActive :
+           state === 'releasing' ? item._drag && item._drag._release.isActive :
+           state === 'migrating' ? item._migrate.isActive :
+           false;
 
   }
 

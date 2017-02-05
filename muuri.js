@@ -74,7 +74,13 @@ TODO v0.3.0
 
   'use strict';
 
-  // Container object for storing keeping track of the drag sort groups.
+  // Container object for keeping track of Muuri instances.
+  var muuriInstances = {};
+
+  // Container object for keeping track of Item instances.
+  var itemInstances = {};
+
+  // Container object for keeping track of the drag sort groups.
   var sortGroups = {};
 
   // Id which is used for Muuri instances and Item instances. Incremented every
@@ -185,12 +191,13 @@ TODO v0.3.0
       throw new Error('Container must be an existing DOM element');
     }
 
+    // Create instance id and store it to the muuri instances collection.
+    inst._id = ++uuid;
+    muuriInstances[String(inst._id)] = inst;
+
     // Setup container element.
     inst._element = stn.container;
     addClass(stn.container, stn.containerClass);
-
-    // Instance id.
-    inst._id = ++uuid;
 
     // Reference to the currently used Layout instance.
     inst._layout = null;
@@ -1044,8 +1051,8 @@ TODO v0.3.0
     inst._items.splice(currentIndex, 1);
     insertItemsToArray(target._items, item, newIndex);
 
-    // Update item's muuri reference.
-    item._muuri = target;
+    // Update item's muuri id reference.
+    item._muuriId = target._id;
 
     // Instantiate new animation controllers.
     item._animate = new Muuri.AnimateLayout(item, element);
@@ -1163,6 +1170,9 @@ TODO v0.3.0
     // Emit destroy event and unbind all events.
     inst._emitter.emit(evDestroy).destroy();
 
+    // Remove reference from the muuri instances collection.
+    muuriInstances[String(inst._id)] = undefined;
+
     // Nullify instance properties.
     nullifyInstance(inst, Muuri);
 
@@ -1202,7 +1212,7 @@ TODO v0.3.0
     // Muuri instance, otherwise return null.
     else if (target instanceof Item) {
 
-      return target._muuri === inst ? target : null;
+      return target._muuriId === inst._id ? target : null;
 
     }
     // If target is number return the item in that index. If the number is lower
@@ -1345,6 +1355,10 @@ TODO v0.3.0
     var stn = muuri._settings;
     var isHidden;
 
+    // Create instance id and add item to the itemInstances collection.
+    inst._id = ++uuid;
+    itemInstances[String(inst._id)] = inst;
+
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container.
     if (element.parentNode !== muuri._element) {
@@ -1360,9 +1374,10 @@ TODO v0.3.0
     // Set visible/hidden class.
     addClass(element, isHidden ? stn.itemHiddenClass : stn.itemVisibleClass);
 
-    // Instance id.
-    inst._id = ++uuid;
-    inst._muuri = muuri;
+    // Refrence to connected Muuri instance's id.
+    inst._muuriId = muuri._id;
+
+    // The elements.
     inst._element = element;
     inst._child = element.children[0];
 
@@ -1443,6 +1458,19 @@ TODO v0.3.0
    * Item - Public prototype methods
    * *******************************
    */
+
+  /**
+   * Get the instance muuri reference.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Muuri}
+   */
+  Item.prototype.getMuuri = function () {
+
+    return muuriInstances[String(this._muuriId)];
+
+  };
 
   /**
    * Get the instance element.
@@ -1641,7 +1669,7 @@ TODO v0.3.0
   Item.prototype._stopLayout = function (processLayoutQueue) {
 
     var inst = this;
-    var stn = inst._muuri._settings;
+    var stn = inst.getMuuri()._settings;
 
     if (inst._isPositioning) {
 
@@ -1717,7 +1745,7 @@ TODO v0.3.0
   Item.prototype._layout = function (instant, callback) {
 
     var inst = this;
-    var muuri = inst._muuri;
+    var muuri = inst.getMuuri();
     var stn = muuri._settings;
     var release = inst._drag ? inst._drag._release : {};
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
@@ -1856,7 +1884,8 @@ TODO v0.3.0
   Item.prototype._show = function (instant, callback) {
 
     var inst = this;
-    var stn = inst._muuri._settings;
+    var muuri = inst.getMuuri();
+    var stn = muuri._settings;
 
     // If item is visible.
     if (!inst._isHidden && !inst._isShowing) {
@@ -1886,7 +1915,7 @@ TODO v0.3.0
 
       // Stop ongoing hide animation.
       if (inst._isHiding) {
-        inst._muuri._itemHideHandler.stop(inst);
+        muuri._itemHideHandler.stop(inst);
       }
 
       // Activate item and set showing state to true.
@@ -1914,7 +1943,7 @@ TODO v0.3.0
 
       // Animate child element and process the visibility callback queue after
       // succesful animation.
-      inst._muuri._itemShowHandler.start(inst, instant, function () {
+      muuri._itemShowHandler.start(inst, instant, function () {
         processQueue(inst._visibilityQueue, false, inst);
       });
 
@@ -1936,7 +1965,8 @@ TODO v0.3.0
   Item.prototype._hide = function (instant, callback) {
 
     var inst = this;
-    var stn = inst._muuri._settings;
+    var muuri = inst.getMuuri();
+    var stn = muuri._settings;
 
     // If item is hidden.
     if (inst._isHidden && !inst._isHiding) {
@@ -1966,7 +1996,7 @@ TODO v0.3.0
 
       // Stop ongoing show animation.
       if (inst._isShowing) {
-        inst._muuri._itemShowHandler.stop(inst);
+        muuri._itemShowHandler.stop(inst);
       }
 
       // Set hidden and hiding states to true.
@@ -1988,7 +2018,7 @@ TODO v0.3.0
       }
 
       // Animate child element.
-      inst._muuri._itemHideHandler.start(inst, instant, function () {
+      muuri._itemHideHandler.start(inst, instant, function () {
 
         // Hide element.
         setStyles(inst._element, {
@@ -2017,7 +2047,7 @@ TODO v0.3.0
   Item.prototype._stopMigrate = function (abort) {
 
     var inst = this;
-    var muuri = inst._muuri;
+    var muuri = inst.getMuuri();
     var migrate = inst._migrate;
     var translateX;
     var translateY;
@@ -2071,7 +2101,7 @@ TODO v0.3.0
   Item.prototype._destroy = function (removeElement) {
 
     var inst = this;
-    var muuri = inst._muuri;
+    var muuri = inst.getMuuri();
     var stn = muuri._settings;
     var element = inst._element;
     var index = muuri._items.indexOf(inst);
@@ -2119,6 +2149,9 @@ TODO v0.3.0
       element.parentNode.removeChild(element);
     }
 
+    // Remove item instance from the item instances collection.
+    itemInstances[String(inst._id)] = undefined;
+
     // Nullify instance properties.
     nullifyInstance(inst, Item);
 
@@ -2144,7 +2177,6 @@ TODO v0.3.0
     var padding = muuri._padding;
     var border = muuri._border;
 
-    inst.muuri = muuri;
     inst.items = items ? items.concat() : muuri.getItems('active');
     inst.slots = {};
     inst.setWidth = false;
@@ -2805,13 +2837,13 @@ TODO v0.3.0
     }
 
     var inst = this;
-    var stn = item._muuri._settings;
+    var stn = item.getMuuri()._settings;
     var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : Drag.defaultStartPredicate;
     var predicate = null;
     var predicateEvent = null;
     var hammer;
 
-    inst._item = item;
+    inst._itemId = item._id;
     inst._hammer = hammer = new Hammer.Manager(item._element);
 
     // Setup item's drag data.
@@ -2878,7 +2910,7 @@ TODO v0.3.0
 
       // Otherwise, check the predicate.
       else if (!predicate._isRejected && !predicate._isResolved) {
-        checkPredicate.call(item._muuri, item, e, predicate);
+        checkPredicate.call(inst.getItem().getMuuri(), inst.getItem(), e, predicate);
       }
 
     })
@@ -2887,7 +2919,7 @@ TODO v0.3.0
       // Do final predicate check to allow unbinding stuff for the current drag
       // procedure within the predicate callback.
       predicate.reject();
-      checkPredicate.call(item._muuri, item, e, predicate);
+      checkPredicate.call(inst.getItem().getMuuri(), inst.getItem(), e, predicate);
 
       // If predicate is resolved and dragging is active, do the end.
       if (predicate._isResolved && inst._drag.isActive) {
@@ -2945,25 +2977,45 @@ TODO v0.3.0
    */
   Drag.defaultSortPredicate = function (targetItem) {
 
-    var muuri = targetItem._muuri;
+    var muuri = targetItem.getMuuri();
     var stn = muuri._settings;
     var config = stn.dragSortPredicate || {};
     var threshold = config.threshold || 50;
     var action = config.action || 'move';
-    var items = muuri._getConnectedItems(true);
-    var drag = targetItem._drag;
-    var instData = {
-      width: drag._item._width,
-      height: drag._item._height,
-      left: Math.round(drag._drag.gridX) + drag._item._margin.left,
-      top: Math.round(drag._drag.gridY) + drag._item._margin.top
+    var containers = (muuri._sortConnections || []).concat(muuri);
+    var targetRect = {
+      width: targetItem._width,
+      height: targetItem._height,
+      left: Math.round(targetItem._drag._drag.gridX) + targetItem._margin.left,
+      top: Math.round(targetItem._drag._drag.gridY) + targetItem._margin.top
     };
     var targetIndex = 0;
     var bestMatchScore = null;
+    var items = muuri._items;
     var bestMatchIndex;
     var overlapScore;
     var item;
     var i;
+
+    // Find the most suitable container (the one which overlaps the dragged item
+    // most).
+    for (i = 0; i < containers.length; i++) {
+
+      // Dragged item data:
+      // Remember to check if the clientX is from the edge of margin or the
+      // border...
+      // targetItem._width
+      // targetItem._height
+      // targetItem._drag._drag.elementClientX
+      // targetItem._drag._drag.elementClientY
+
+      // Container data:
+      // containers[i]._width (remember to account for border-box)
+      // containers[i]._height (remember to account for border-box)
+      // containers[i]._offset.left (remember to account for border-box)
+      // containers[i]._offset.top (remember to account for border-box)
+
+    }
 
     // Find best match (the element with most overlap).
     for (i = 0; i < items.length; i++) {
@@ -2979,7 +3031,7 @@ TODO v0.3.0
       else if (item._isActive) {
 
         // Get marginless overlap data.
-        overlapScore = getOverlapScore(instData, {
+        overlapScore = getOverlapScore(targetRect, {
           width: item._width,
           height: item._height,
           left: Math.round(item._left) + item._margin.left,
@@ -3018,6 +3070,19 @@ TODO v0.3.0
    */
 
   /**
+   * Get Item instance.
+   *
+   * @public
+   * @memberof Drag.prototype
+   * @returns {?Item}
+   */
+  Drag.prototype.getItem = function () {
+
+    return itemInstances[String(this._itemId)] || null;
+
+  };
+
+  /**
    * Destroy instance.
    *
    * @public
@@ -3040,8 +3105,8 @@ TODO v0.3.0
     inst._hammer.destroy();
 
     // Remove native drag prevention bindings.
-    enableNativeDrag(inst._item._element);
-    enableNativeDrag(inst._item._child);
+    enableNativeDrag(inst.getItem()._element);
+    enableNativeDrag(inst.getItem()._child);
 
     // Nullify instance properties.
     nullifyInstance(inst, Drag);
@@ -3133,10 +3198,10 @@ TODO v0.3.0
   Drag.prototype._checkOverlap = function () {
 
     var inst = this;
-    var result = inst._sortPredicate(inst._item);
+    var result = inst._sortPredicate(inst.getItem());
 
     if (result) {
-      inst._item._muuri.moveItem(result.from, result.to, result.action || 'move');
+      inst.getItem().getMuuri().moveItem(result.from, result.to, result.action || 'move');
     }
 
   };
@@ -3211,13 +3276,13 @@ TODO v0.3.0
   Drag.prototype._stopDrag = function () {
 
     var inst = this;
-    var item = inst._item;
     var drag = inst._drag;
-    var muuri = item._muuri;
-    var stn = item._muuri._settings;
+    var muuri;
     var i;
 
     if (drag.isActive) {
+
+      muuri = inst.getItem().getMuuri();
 
       // Remove scroll listeners.
       for (i = 0; i < drag.scrollParents.length; i++) {
@@ -3238,7 +3303,7 @@ TODO v0.3.0
       }
 
       // Remove dragging class.
-      removeClass(drag.element, stn.itemDraggingClass);
+      removeClass(drag.element, muuri._settings.itemDraggingClass);
 
       // Remove dragged element's inline styles.
       inst._unfreezeElement(drag);
@@ -3259,18 +3324,20 @@ TODO v0.3.0
   Drag.prototype._startRelease = function () {
 
     var inst = this;
-    var item = inst._item;
-    var muuri = item._muuri;
-    var stn = muuri._settings;
     var release = inst._release;
+    var item;
+    var muuri;
 
     if (!release.isActive) {
+
+      item = inst.getItem();
+      muuri = item.getMuuri();
 
       // Flag release as active.
       release.isActive = true;
 
       // Add release classname to released element.
-      addClass(release.element, stn.itemReleasingClass);
+      addClass(release.element, muuri._settings.itemReleasingClass);
 
       // Emit releasestart event.
       muuri._emitter.emit(evReleaseItemStart, item);
@@ -3296,17 +3363,19 @@ TODO v0.3.0
   Drag.prototype._stopRelease = function (abort) {
 
     var inst = this;
-    var item = inst._item;
-    var muuri = item._muuri;
-    var stn = muuri._settings;
     var release = inst._release;
+    var item;
+    var muuri;
     var translateX;
     var translateY;
 
     if (release.isActive) {
 
+      item = inst.getItem();
+      muuri = item.getMuuri();
+
       // Remove release classname from the released element.
-      removeClass(release.element, stn.itemReleasingClass);
+      removeClass(release.element, muuri._settings.itemReleasingClass);
 
       // If the released element is outside the muuri container put it back there
       // and adjust position accordingly.
@@ -3343,8 +3412,8 @@ TODO v0.3.0
   Drag.prototype._onDragStart = function (e) {
 
     var inst = this;
-    var item = inst._item;
-    var muuri = item._muuri;
+    var item = inst.getItem();
+    var muuri = item.getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var release = inst._release;
@@ -3482,8 +3551,8 @@ TODO v0.3.0
   Drag.prototype._onDragMove = function (e) {
 
     var inst = this;
-    var item = inst._item;
-    var muuri = item._muuri;
+    var item = inst.getItem();
+    var muuri = item.getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var xDiff;
@@ -3534,8 +3603,8 @@ TODO v0.3.0
   Drag.prototype._onDragScroll = function () {
 
     var inst = this;
-    var item = inst._item;
-    var muuri = item._muuri;
+    var item = inst.getItem();
+    var muuri = item.getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var muuriContainer = muuri._element;
@@ -3589,8 +3658,8 @@ TODO v0.3.0
   Drag.prototype._onDragEnd = function (e) {
 
     var inst = this;
-    var item = inst._item;
-    var muuri = item._muuri;
+    var item = inst.getItem();
+    var muuri = item.getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var release = inst._release;

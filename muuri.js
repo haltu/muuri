@@ -37,6 +37,9 @@ TODO v0.3.0
       visible and muuri.showItems() is called for it, there should be no event
       triggered. The same applies to hidden items and muuri.hideItems() method.
 * [ ] Drag item between instances.
+* [ ] When setting the width/height of container account for min-width/height
+      and max-width/height.
+* [ ] Drop item on empty container.
 * [ ] Drop item on empty slot. This is especially needed when dragging an item
       from a container to an empty container.
 * [ ] Update docs.
@@ -87,14 +90,8 @@ TODO v0.3.0
   // time it is used.
   var uuid = 0;
 
-  // Get the supported element.matches method.
-  var elementMatches = (function () {
-    var p = Element.prototype;
-    var f = p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector;
-    return function (el, selector) {
-      return f.call(el, selector);
-    };
-  });
+  // Get the supported element.matches().
+  var elementMatches = getSupportedElementMatches();
 
   // Get the supported transform style property.
   var transform = getSupportedStyle('transform');
@@ -1297,42 +1294,6 @@ TODO v0.3.0
     }
 
     return inst;
-
-  };
-
-  /**
-   * Get instance's connected items.
-   *
-   * @protected
-   * @memberof Muuri.prototype
-   * @param {Boolean} [includeOwnItems=false]
-   * @returns {Array}
-   */
-  Muuri.prototype._getConnectedItems = function (includeOwnItems) {
-
-    var inst = this;
-    var connections = inst._sortConnections;
-    var items = includeOwnItems ? inst._items.slice(0) : [];
-    var groupName;
-    var groupItems;
-    var ii;
-    var i;
-
-    if (connections) {
-      for (i = 0; i < connections.length; i++) {
-        groupName = connections[i];
-        groupItems = sortGroups[groupName];
-        if (groupItems && groupItems.length) {
-          for (ii = 0; ii < groupItems.length; ii++) {
-            if (groupItems[ii] !== inst) {
-              items = items.concat(groupItems[ii]._items);
-            }
-          }
-        }
-      }
-    }
-
-    return items;
 
   };
 
@@ -2687,7 +2648,7 @@ TODO v0.3.0
   };
 
   /**
-   * Destrory emitter instance. Basically just removes all bound listeners.
+   * Destroy emitter instance. Basically just removes all bound listeners.
    *
    * @public
    * @memberof Emitter.prototype
@@ -2970,79 +2931,112 @@ TODO v0.3.0
    *
    * @public
    * @memberof Drag
-   * @param {Item} targetItem
+   * @param {Item} item
    * @returns {Boolean|Object}
    *   - Returns false if no valid index was found. Otherwise returns an object
-   *     that has three properties: action (string), from (number), to (number).
+   *     that has five properties: action (string), from (number), to (number),
+   *     fromContainer (Muuri), toContainer (Muuri).
    */
-  Drag.defaultSortPredicate = function (targetItem) {
+  Drag.defaultSortPredicate = function (item) {
 
-    var muuri = targetItem.getMuuri();
-    var stn = muuri._settings;
-    var config = stn.dragSortPredicate || {};
-    var threshold = config.threshold || 50;
-    var action = config.action || 'move';
-    var containers = (muuri._sortConnections || []).concat(muuri);
-    var targetRect = {
-      width: targetItem._width,
-      height: targetItem._height,
-      left: Math.round(targetItem._drag._drag.gridX) + targetItem._margin.left,
-      top: Math.round(targetItem._drag._drag.gridY) + targetItem._margin.top
+    var fromContainer = item.getMuuri();
+    var config = fromContainer._settings.dragSortPredicate || {};
+    var containers = (fromContainer._sortConnections || []).concat(fromContainer);
+    var itemRect = {
+      width: item._width,
+      height: item._height,
+      left: Math.round(item._drag._drag.elementClientX),
+      top: Math.round(item._drag._drag.elementClientY)
     };
-    var targetIndex = 0;
-    var bestMatchScore = null;
-    var items = muuri._items;
-    var bestMatchIndex;
+    var containerOffsetLeft = 0;
+    var containerOffsetTop = 0;
+    var matchScore = null;
+    var matchIndex;
+    var itemIndex;
     var overlapScore;
-    var item;
+    var toContainer;
+    var toContainerItems;
+    var toContainerItem;
+    var container;
+    var padding;
+    var border;
     var i;
 
-    // Find the most suitable container (the one which overlaps the dragged item
-    // most).
+    // First step is checking out which container the dragged item overlaps
+    // the most currently.
     for (i = 0; i < containers.length; i++) {
 
-      // Dragged item data:
-      // Remember to check if the clientX is from the edge of margin or the
-      // border...
-      // targetItem._width
-      // targetItem._height
-      // targetItem._drag._drag.elementClientX
-      // targetItem._drag._drag.elementClientY
+      // Check how much dragged element overlaps the container.
+      container = containers[i]
+      padding = container._padding;
+      border = container._border;
+      overlapScore = getOverlapScore(itemRect, {
+        width: containers._width - border.left - border.right - padding.left - padding.right,
+        height: containers._height - border.top - border.bottom - padding.top - padding.bottom,
+        left: containers._offset.left + border.left + padding.left,
+        top: containers._offset.top + border.top + border.left
+      });
 
-      // Container data:
-      // containers[i]._width (remember to account for border-box)
-      // containers[i]._height (remember to account for border-box)
-      // containers[i]._offset.left (remember to account for border-box)
-      // containers[i]._offset.top (remember to account for border-box)
+      // Update best match if the overlap score is higher than the current
+      // match.
+      if (matchScore === null || overlapScore > matchScore) {
+        matchScore = overlapScore;
+        matchIndex = i;
+      }
 
     }
 
-    // Find best match (the element with most overlap).
-    for (i = 0; i < items.length; i++) {
+    // If we found no container that overlaps the dragged item, return false
+    // immediately to indicate that no sorting should occur.
+    if (!matchScore) {
+      return false;
+    }
 
-      item = items[i];
+    // Reset the best match variables.
+    matchIndex = matchScore = null;
 
-      // If the item is the dragged item, save it's index.
-      if (item === targetItem) {
-        targetIndex = i;
-      }
+    // Get the sort container adn its's items.
+    toContainer = containers[matchIndex];
+    toContainerItems = toContainer._items;
 
-      // Otherwise, if the item is active.
-      else if (item._isActive) {
+    // Get item's index.
+    itemIndex = fromContainer._items.indexOf(item);
 
-        // Get marginless overlap data.
-        overlapScore = getOverlapScore(targetRect, {
-          width: item._width,
-          height: item._height,
-          left: Math.round(item._left) + item._margin.left,
-          top: Math.round(item._top) + item._margin.top
+    // If item is moved within it's current container adjust item's left and top
+    // props.
+    if (toContainer === fromContainer) {
+      itemRect.left = Math.round(item._drag._drag.gridX) + item._margin.left;
+      itemRect.top = Math.round(item._drag._drag.gridY) + item._margin.top;
+    }
+
+    // If item is moved to another container get container's offset (from the
+    // container's content edge).
+    else {
+      containerOffsetLeft = toContainer._offset.left + toContainer._border.left + toContainer._padding.left;
+      containerOffsetTop = toContainer._offset.top + toContainer._border.top + toContainer._padding.top;
+    }
+
+    // Loop through the items and try to find a match.
+    for (i = 0; i < toContainerItems.length; i++) {
+
+      toContainerItem = toContainerItems[i];
+
+      // If the item is active and is not the target item.
+      if (toContainerItem._isActive && toContainerItem !== item) {
+
+        // Get overlap data.
+        overlapScore = getOverlapScore(itemRect, {
+          width: toContainerItem._width,
+          height: toContainerItem._height,
+          left: Math.round(toContainerItem._left) + toContainerItem._margin.left + containerOffsetLeft,
+          top: Math.round(toContainerItem._top) + toContainerItem._margin.top + containerOffsetTop
         });
 
         // Update best match if the overlap score is higher than the current
         // best match.
-        if (bestMatchScore === null || overlapScore > bestMatchScore) {
-          bestMatchScore = overlapScore;
-          bestMatchIndex = i;
+        if (matchScore === null || overlapScore > matchScore) {
+          matchScore = overlapScore;
+          matchIndex = i;
         }
 
       }
@@ -3050,12 +3044,14 @@ TODO v0.3.0
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
-    if (bestMatchScore !== null && bestMatchScore >= threshold) {
+    if (matchScore !== null && matchScore >= (config.threshold || 50)) {
 
       return {
-        action: action,
-        from: targetIndex,
-        to: bestMatchIndex
+        action: config.action || 'move',
+        fromContainer: fromContainer,
+        toContainer: toContainer,
+        from: itemIndex,
+        to: matchIndex
       };
 
     }
@@ -3201,7 +3197,18 @@ TODO v0.3.0
     var result = inst._sortPredicate(inst.getItem());
 
     if (result) {
-      inst.getItem().getMuuri().moveItem(result.from, result.to, result.action || 'move');
+      if (result.fromContainer === result.toContainer) {
+        inst.getItem().getMuuri().moveItem(result.from, result.to, result.action || 'move');
+      }
+      else {
+        // TODO: Send item to another instance. And support swap. This is
+        // tricky... what if the receiving container has drag disabled? After
+        // the send process the drag should definitely continue, but should it
+        // use the drag options of the sending container or receiving container?
+        // Drop placeholder concept would be pretty awesome here, meaning that
+        // the item is attached to the originating container during the drag
+        // and on drop the send method is called.
+      }
     }
 
   };
@@ -4220,6 +4227,23 @@ TODO v0.3.0
     else if (elementMatches(element, '.' + className)) {
       element.className = (' ' + element.className + ' ').replace(' ' + className + ' ', ' ').trim();
     }
+
+  }
+
+  /**
+   * Checks the supported element.matches() method and returns a function that
+   * can be used to call the supported method.
+   *
+   * @private
+   * @returns {Function}
+   */
+  function getSupportedElementMatches() {
+
+    var p = Element.prototype;
+    var fn = p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector;
+    return function (el, selector) {
+      return fn.call(el, selector);
+    };
 
   }
 

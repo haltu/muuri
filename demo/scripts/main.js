@@ -75,6 +75,8 @@ $(function () {
         dragEnabled: true,
         dragContainer: document.body,
         dragReleaseDuration: 1000,
+        dragSortGroup: 'a',
+        dragSortConnections: ['a'],
         dragStartPredicate: function (item, event, predicate) {
           var isLastEvent = event.type === 'draginitup' || event.type === 'dragend' || event.type === 'dragcancel';
           if (isLastEvent && !predicate.isResolved()) {

@@ -36,9 +36,9 @@ TODO v0.3.0
 * [x] Improve the the visibility handler method logic. If an item is already
       visible and muuri.showItems() is called for it, there should be no event
       triggered. The same applies to hidden items and muuri.hideItems() method.
-* [ ] Drag item between instances.
-* [ ] When setting the width/height of container account for min-width/height
+* [x] When setting the width/height of container account for min-width/height
       and max-width/height.
+* [ ] Drag item between instances.
 * [ ] Drop item on empty container.
 * [ ] Drop item on empty slot. This is especially needed when dragging an item
       from a container to an empty container.
@@ -488,24 +488,24 @@ TODO v0.3.0
 
     var inst = this;
     var element = inst._element;
-    var sides = ['left', 'right', 'top', 'bottom'];
     var rect = element.getBoundingClientRect();
+    var sides;
     var side;
     var i;
-
-    inst._offset = inst._offset || {};
-    inst._border = inst._border || {};
-    inst._padding = inst._padding || {};
 
     // Update width and height.
     inst._width = Math.round(rect.width);
     inst._height = Math.round(rect.height);
 
     // Update offset.
+    inst._offset = inst._offset || {};
     inst._offset.left = Math.round(rect.left);
     inst._offset.top = Math.round(rect.top);
 
     // Update borders and paddings.
+    inst._border = inst._border || {};
+    inst._padding = inst._padding || {};
+    sides = ['left', 'right', 'top', 'bottom'];
     for (i = 0; i < sides.length; i++) {
       side = sides[i];
       inst._border[side] = Math.round(getStyleAsFloat(element, 'border-' + side + '-width'));
@@ -715,6 +715,10 @@ TODO v0.3.0
     var counter = 0;
     var itemsLength = layout.items.length;
     var completed = [];
+    var rect;
+    var padding;
+    var border;
+    var isBorderBox;
     var item;
     var position;
     var i;
@@ -744,41 +748,36 @@ TODO v0.3.0
     // Emit layoutstart event.
     emitter.emit(evLayoutItemsStart, layout.items);
 
-    // Set container's height if needed.
-    if (layout.setHeight) {
+    // If container's width or height was modified, we need refresh it's cached
+    // dimensions. Also keep in mind that container's cached width/height should
+    // always equal to what elem.getBoundingClientRect() would return, so
+    // therefore we need to add the container's paddings and margins to the
+    // dimensions if it's box-sizing is border-box.
+    if (layout.setWidth || layout.setHeight) {
 
-      // Instance height should always equal what elem.getBoundingClientRect()
-      // would return, so therefore we need to add the instance's paddings and
-      // margins to the height.
-      inst._height = layout.height + inst._padding.top + inst._padding.bottom + inst._border.top + inst._border.bottom;
+      padding = inst._padding;
+      border = inst._border;
+      isBorderBox = inst._boxSizing === 'border-box';
 
-      // When setting the height to the element itself we need to be careful
-      // with box-sizing since it can cause the UI to break if not accounted
-      // for. If box-sizing is border-box we need to set the height with
-      // paddings and margins included, otherwise we set the height without the
-      // margins and paddings.
-      setStyles(inst._element, {
-        height: (inst._boxSizing === 'border-box' ? inst._height : layout.height) + 'px'
-      });
+      // Set container's height if needed.
+      if (layout.setHeight) {
+        setStyles(inst._element, {
+          height: (isBorderBox ? layout.height + padding.top + padding.bottom + border.top + border.bottom : layout.height) + 'px'
+        });
+      }
 
-    }
+      // Set container's width if needed.
+      if (layout.setWidth) {
+        setStyles(inst._element, {
+          width: (isBorderBox ? layout.width + padding.left + padding.right + border.left + border.right : layout.width) + 'px'
+        });
+      }
 
-    // Set container's width if needed.
-    if (layout.setWidth) {
-
-      // Instance width should always equal what elem.getBoundingClientRect()
-      // would return, so therefore we need to add the instance's paddings and
-      // margins to the width.
-      inst._width = layout.width + inst._padding.left + inst._padding.right + inst._border.left + inst._border.right;
-
-      // When setting the width to the element itself we need to be careful
-      // with box-sizing since it can cause the UI to break if not accounted
-      // for. If box-sizing is border-box we need to set the width with paddings
-      // and margins included, otherwise we set the width without the margins
-      // and paddings.
-      setStyles(inst._element, {
-        width: (inst._boxSizing === 'border-box' ? inst._width : layout.width) + 'px'
-      });
+      // Get the instance's dimensions with elem.getBoundingClientRect() to
+      // account for the possible min/max-width/height.
+      rect = inst._element.getBoundingClientRect();
+      inst._width = Math.round(rect.width);
+      inst._height = Math.round(rect.height);
 
     }
 
@@ -1294,6 +1293,40 @@ TODO v0.3.0
     }
 
     return inst;
+
+  };
+
+  /**
+   * Get connected Muuri instances.
+   *
+   * @protected
+   * @memberof Muuri.prototype
+   * @param {Boolean} [includeSelf=false]
+   * @returns {Array}
+   */
+  Muuri.prototype._getSortConnections = function (includeSelf) {
+
+    var inst = this;
+    var ret = includeSelf ? [inst] : [];
+    var groups = inst._sortConnections;
+    var group;
+    var ii;
+    var i;
+
+    if (groups && groups.length) {
+      for (i = 0; i < groups.length; i++) {
+        group = sortGroups[groups[i]];
+        if (group && group.length) {
+          for (ii = 0; ii < group.length; ii++) {
+            if (group[ii] !== inst) {
+              ret.push(group[ii]);
+            }
+          }
+        }
+      }
+    }
+
+    return ret;
 
   };
 
@@ -2798,13 +2831,15 @@ TODO v0.3.0
     }
 
     var inst = this;
-    var stn = item.getMuuri()._settings;
+    var muuri = item.getMuuri();
+    var stn = muuri._settings;
     var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : Drag.defaultStartPredicate;
     var predicate = null;
     var predicateEvent = null;
     var hammer;
 
     inst._itemId = item._id;
+    inst._muuriId = muuri._id;
     inst._hammer = hammer = new Hammer.Manager(item._element);
 
     // Setup item's drag data.
@@ -2871,7 +2906,7 @@ TODO v0.3.0
 
       // Otherwise, check the predicate.
       else if (!predicate._isRejected && !predicate._isResolved) {
-        checkPredicate.call(inst.getItem().getMuuri(), inst.getItem(), e, predicate);
+        checkPredicate.call(inst.getMuuri(), inst.getItem(), e, predicate);
       }
 
     })
@@ -2880,7 +2915,7 @@ TODO v0.3.0
       // Do final predicate check to allow unbinding stuff for the current drag
       // procedure within the predicate callback.
       predicate.reject();
-      checkPredicate.call(inst.getItem().getMuuri(), inst.getItem(), e, predicate);
+      checkPredicate.call(inst.getMuuri(), inst.getItem(), e, predicate);
 
       // If predicate is resolved and dragging is active, do the end.
       if (predicate._isResolved && inst._drag.isActive) {
@@ -2940,8 +2975,9 @@ TODO v0.3.0
   Drag.defaultSortPredicate = function (item) {
 
     var fromContainer = item.getMuuri();
-    var config = fromContainer._settings.dragSortPredicate || {};
-    var containers = (fromContainer._sortConnections || []).concat(fromContainer);
+    var rootContainer = item._drag.getMuuri();
+    var config = rootContainer._settings.dragSortPredicate || {};
+    var containers = rootContainer._getSortConnections(true);
     var itemRect = {
       width: item._width,
       height: item._height,
@@ -2971,10 +3007,10 @@ TODO v0.3.0
       padding = container._padding;
       border = container._border;
       overlapScore = getOverlapScore(itemRect, {
-        width: containers._width - border.left - border.right - padding.left - padding.right,
-        height: containers._height - border.top - border.bottom - padding.top - padding.bottom,
-        left: containers._offset.left + border.left + padding.left,
-        top: containers._offset.top + border.top + border.left
+        width: container._width - border.left - border.right - padding.left - padding.right,
+        height: container._height - border.top - border.bottom - padding.top - padding.bottom,
+        left: container._offset.left + border.left + padding.left,
+        top: container._offset.top + border.top + border.left
       });
 
       // Update best match if the overlap score is higher than the current
@@ -2992,19 +3028,16 @@ TODO v0.3.0
       return false;
     }
 
-    // Reset the best match variables.
-    matchIndex = matchScore = null;
-
     // Get the sort container adn its's items.
     toContainer = containers[matchIndex];
     toContainerItems = toContainer._items;
 
-    // Get item's index.
+    // Get item's current index.
     itemIndex = fromContainer._items.indexOf(item);
 
     // If item is moved within it's current container adjust item's left and top
     // props.
-    if (toContainer === fromContainer) {
+    if (toContainer === rootContainer) {
       itemRect.left = Math.round(item._drag._drag.gridX) + item._margin.left;
       itemRect.top = Math.round(item._drag._drag.gridY) + item._margin.top;
     }
@@ -3015,6 +3048,9 @@ TODO v0.3.0
       containerOffsetLeft = toContainer._offset.left + toContainer._border.left + toContainer._padding.left;
       containerOffsetTop = toContainer._offset.top + toContainer._border.top + toContainer._padding.top;
     }
+
+    // Reset the best match variables.
+    matchIndex = matchScore = null;
 
     // Loop through the items and try to find a match.
     for (i = 0; i < toContainerItems.length; i++) {
@@ -3075,6 +3111,19 @@ TODO v0.3.0
   Drag.prototype.getItem = function () {
 
     return itemInstances[String(this._itemId)] || null;
+
+  };
+
+  /**
+   * Get Muuri instance.
+   *
+   * @public
+   * @memberof Drag.prototype
+   * @returns {?Item}
+   */
+  Drag.prototype.getMuuri = function () {
+
+    return muuriInstances[String(this._muuriId)] || null;
 
   };
 
@@ -3194,21 +3243,48 @@ TODO v0.3.0
   Drag.prototype._checkOverlap = function () {
 
     var inst = this;
-    var result = inst._sortPredicate(inst.getItem());
+    var item = inst.getItem();
+    var result = inst._sortPredicate(item);
+    var fromContainer;
+    var toContainer;
 
     if (result) {
+
+      // If the item was moved within it's current container.
       if (result.fromContainer === result.toContainer) {
-        inst.getItem().getMuuri().moveItem(result.from, result.to, result.action || 'move');
+
+        item.getMuuri().moveItem(result.from, result.to, result.action || 'move');
+
       }
+
+      // If the item was moved to another container.
       else {
-        // TODO: Send item to another instance. And support swap. This is
-        // tricky... what if the receiving container has drag disabled? After
-        // the send process the drag should definitely continue, but should it
-        // use the drag options of the sending container or receiving container?
-        // Drop placeholder concept would be pretty awesome here, meaning that
-        // the item is attached to the originating container during the drag
-        // and on drop the send method is called.
+
+        // Strategy
+        // ********
+        // 1. Move the item instance to the new container.
+        // 2. Change the item's muuriId to point to the new container.
+        // 3. Additionally store the item's current muuri id in a special
+        //    property, so methods can recognize that it's in a special state.
+        // 4. The item should be fully transferred to the new container on
+        //    release.
+
+        fromContainer = result.fromContainer;
+        toContainer = result.toContainer;
+
+        // Update item's muuri id reference.
+        item._muuriId = toContainer._id;
+
+        // Move item instance from current muuri to target muuri.
+        fromContainer._items.splice(result.from, 1);
+        insertItemsToArray(toContainer._items, item, result.to);
+
+        // Layout both containers.
+        fromContainer.layoutItems();
+        toContainer.layoutItems();
+
       }
+
     }
 
   };
@@ -3289,7 +3365,7 @@ TODO v0.3.0
 
     if (drag.isActive) {
 
-      muuri = inst.getItem().getMuuri();
+      muuri = inst.getMuuri();
 
       // Remove scroll listeners.
       for (i = 0; i < drag.scrollParents.length; i++) {
@@ -3338,7 +3414,7 @@ TODO v0.3.0
     if (!release.isActive) {
 
       item = inst.getItem();
-      muuri = item.getMuuri();
+      muuri = inst.getMuuri();
 
       // Flag release as active.
       release.isActive = true;
@@ -3379,7 +3455,7 @@ TODO v0.3.0
     if (release.isActive) {
 
       item = inst.getItem();
-      muuri = item.getMuuri();
+      muuri = inst.getMuuri();
 
       // Remove release classname from the released element.
       removeClass(release.element, muuri._settings.itemReleasingClass);
@@ -3420,7 +3496,7 @@ TODO v0.3.0
 
     var inst = this;
     var item = inst.getItem();
-    var muuri = item.getMuuri();
+    var muuri = inst.getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var release = inst._release;
@@ -3559,7 +3635,7 @@ TODO v0.3.0
 
     var inst = this;
     var item = inst.getItem();
-    var muuri = item.getMuuri();
+    var muuri = inst.getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var xDiff;
@@ -3611,7 +3687,7 @@ TODO v0.3.0
 
     var inst = this;
     var item = inst.getItem();
-    var muuri = item.getMuuri();
+    var muuri = inst.getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var muuriContainer = muuri._element;
@@ -3666,7 +3742,7 @@ TODO v0.3.0
 
     var inst = this;
     var item = inst.getItem();
-    var muuri = item.getMuuri();
+    var muuri = inst.getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var release = inst._release;

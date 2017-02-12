@@ -38,10 +38,11 @@ TODO v0.3.0
       triggered. The same applies to hidden items and muuri.hideItems() method.
 * [x] When setting the width/height of container account for min-width/height
       and max-width/height.
+* [ ] Use WeakMap for storing the instances in browsers that support WeakMap.
 * [ ] Drag item between instances.
-* [ ] Drop item on empty container.
-* [ ] Drop item on empty slot. This is especially needed when dragging an item
-      from a container to an empty container.
+      * [ ] Drop item on empty container.
+      * [ ] Drop item on empty slot. This is especially needed when dragging an item
+            from a container to an empty container.
 * [ ] Update docs.
 * [ ] Add more unit tests.
 * [ ] Test usage on node and bower. Make sure everything works as advertised.
@@ -184,13 +185,15 @@ TODO v0.3.0
     var stn = inst._settings = mergeSettings(Muuri.defaultSettings, settings);
 
     // Make sure a valid container element is provided before going continuing.
+    // TODO: Is this necessary? Should this be just documented and left for user
+    // to worry about.
     if (!document.body.contains(stn.container)) {
       throw new Error('Container must be an existing DOM element');
     }
 
     // Create instance id and store it to the muuri instances collection.
     inst._id = ++uuid;
-    muuriInstances[String(inst._id)] = inst;
+    muuriInstances[inst._id] = inst;
 
     // Setup container element.
     inst._element = stn.container;
@@ -1007,7 +1010,6 @@ TODO v0.3.0
     var position = options.position;
     var currentIndex = inst._items.indexOf(item);
     var newIndex = typeof position === 'number' ? position : (position ? target._items.indexOf(target._getItem(position)) : 0);
-    var currentContainingBlock;
     var offsetDiff;
     var translateX;
     var translateY;
@@ -1167,7 +1169,7 @@ TODO v0.3.0
     inst._emitter.emit(evDestroy).destroy();
 
     // Remove reference from the muuri instances collection.
-    muuriInstances[String(inst._id)] = undefined;
+    muuriInstances[inst._id] = undefined;
 
     // Nullify instance properties.
     nullifyInstance(inst, Muuri);
@@ -1260,7 +1262,7 @@ TODO v0.3.0
       if (!sortGroups[sortGroup]) {
         sortGroups[sortGroup] = [];
       }
-      sortGroups[sortGroup].push(inst);
+      sortGroups[sortGroup].push(inst._id);
     }
 
     return inst;
@@ -1284,7 +1286,7 @@ TODO v0.3.0
     if (sortGroup) {
       sortGroupItems = sortGroups[sortGroup];
       for (i = 0; i < sortGroupItems.length; i++) {
-        if (sortGroupItems[i] === inst) {
+        if (sortGroupItems[i] === inst._id) {
           sortGroupItems.splice(i, 1);
           break;
         }
@@ -1308,18 +1310,20 @@ TODO v0.3.0
 
     var inst = this;
     var ret = includeSelf ? [inst] : [];
-    var groups = inst._sortConnections;
-    var group;
+    var connections = inst._sortConnections;
+    var sortGroup;
+    var muuriId;
     var ii;
     var i;
 
-    if (groups && groups.length) {
-      for (i = 0; i < groups.length; i++) {
-        group = sortGroups[groups[i]];
-        if (group && group.length) {
-          for (ii = 0; ii < group.length; ii++) {
-            if (group[ii] !== inst) {
-              ret.push(group[ii]);
+    if (connections && connections.length) {
+      for (i = 0; i < connections.length; i++) {
+        sortGroup = sortGroups[connections[i]];
+        if (sortGroup && sortGroup.length) {
+          for (ii = 0; ii < sortGroup.length; ii++) {
+            muuriId = sortGroup[ii];
+            if (muuriId !== inst._id) {
+              ret.push(muuriInstances[muuriId]);
             }
           }
         }
@@ -1351,7 +1355,7 @@ TODO v0.3.0
 
     // Create instance id and add item to the itemInstances collection.
     inst._id = ++uuid;
-    itemInstances[String(inst._id)] = inst;
+    itemInstances[inst._id] = inst;
 
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container.
@@ -1462,7 +1466,7 @@ TODO v0.3.0
    */
   Item.prototype.getMuuri = function () {
 
-    return muuriInstances[String(this._muuriId)];
+    return muuriInstances[this._muuriId];
 
   };
 
@@ -2144,7 +2148,7 @@ TODO v0.3.0
     }
 
     // Remove item instance from the item instances collection.
-    itemInstances[String(inst._id)] = undefined;
+    itemInstances[inst._id] = undefined;
 
     // Nullify instance properties.
     nullifyInstance(inst, Item);
@@ -2841,6 +2845,7 @@ TODO v0.3.0
     inst._itemId = item._id;
     inst._muuriId = muuri._id;
     inst._hammer = hammer = new Hammer.Manager(item._element);
+    inst._isMigrating = false;
 
     // Setup item's drag data.
     inst._setupDragData();
@@ -2906,7 +2911,7 @@ TODO v0.3.0
 
       // Otherwise, check the predicate.
       else if (!predicate._isRejected && !predicate._isResolved) {
-        checkPredicate.call(inst.getMuuri(), inst.getItem(), e, predicate);
+        checkPredicate.call(inst._getMuuri(), inst._getItem(), e, predicate);
       }
 
     })
@@ -2915,7 +2920,7 @@ TODO v0.3.0
       // Do final predicate check to allow unbinding stuff for the current drag
       // procedure within the predicate callback.
       predicate.reject();
-      checkPredicate.call(inst.getMuuri(), inst.getItem(), e, predicate);
+      checkPredicate.call(inst._getMuuri(), inst._getItem(), e, predicate);
 
       // If predicate is resolved and dragging is active, do the end.
       if (predicate._isResolved && inst._drag.isActive) {
@@ -2962,8 +2967,6 @@ TODO v0.3.0
   /**
    * Default drag sort predicate.
    *
-   * @todo refactor to supported connected muuri instances.
-   *
    * @public
    * @memberof Drag
    * @param {Item} item
@@ -2975,7 +2978,7 @@ TODO v0.3.0
   Drag.defaultSortPredicate = function (item) {
 
     var fromContainer = item.getMuuri();
-    var rootContainer = item._drag.getMuuri();
+    var rootContainer = item._drag._getMuuri();
     var config = rootContainer._settings.dragSortPredicate || {};
     var containers = rootContainer._getSortConnections(true);
     var itemRect = {
@@ -3102,32 +3105,6 @@ TODO v0.3.0
    */
 
   /**
-   * Get Item instance.
-   *
-   * @public
-   * @memberof Drag.prototype
-   * @returns {?Item}
-   */
-  Drag.prototype.getItem = function () {
-
-    return itemInstances[String(this._itemId)] || null;
-
-  };
-
-  /**
-   * Get Muuri instance.
-   *
-   * @public
-   * @memberof Drag.prototype
-   * @returns {?Item}
-   */
-  Drag.prototype.getMuuri = function () {
-
-    return muuriInstances[String(this._muuriId)] || null;
-
-  };
-
-  /**
    * Destroy instance.
    *
    * @public
@@ -3150,8 +3127,8 @@ TODO v0.3.0
     inst._hammer.destroy();
 
     // Remove native drag prevention bindings.
-    enableNativeDrag(inst.getItem()._element);
-    enableNativeDrag(inst.getItem()._child);
+    enableNativeDrag(inst._getItem()._element);
+    enableNativeDrag(inst._getItem()._child);
 
     // Nullify instance properties.
     nullifyInstance(inst, Drag);
@@ -3164,6 +3141,32 @@ TODO v0.3.0
    * Drag - Protected prototype methods
    * **********************************
    */
+
+  /**
+   * Get Item instance.
+   *
+   * @protected
+   * @memberof Drag.prototype
+   * @returns {?Item}
+   */
+  Drag.prototype._getItem = function () {
+
+    return itemInstances[this._itemId] || null;
+
+  };
+
+  /**
+   * Get Muuri instance.
+   *
+   * @protected
+   * @memberof Drag.prototype
+   * @returns {?Item}
+   */
+  Drag.prototype._getMuuri = function () {
+
+    return muuriInstances[this._muuriId] || null;
+
+  };
 
   /**
    * Setup/reset drag data.
@@ -3243,7 +3246,7 @@ TODO v0.3.0
   Drag.prototype._checkOverlap = function () {
 
     var inst = this;
-    var item = inst.getItem();
+    var item = inst._getItem();
     var result = inst._sortPredicate(item);
     var fromContainer;
     var toContainer;
@@ -3260,20 +3263,14 @@ TODO v0.3.0
       // If the item was moved to another container.
       else {
 
-        // Strategy
-        // ********
-        // 1. Move the item instance to the new container.
-        // 2. Change the item's muuriId to point to the new container.
-        // 3. Additionally store the item's current muuri id in a special
-        //    property, so methods can recognize that it's in a special state.
-        // 4. The item should be fully transferred to the new container on
-        //    release.
-
         fromContainer = result.fromContainer;
         toContainer = result.toContainer;
 
         // Update item's muuri id reference.
         item._muuriId = toContainer._id;
+
+        // Update drag instances's migrating indicator.
+        inst._isMigrating = item._muuriId !== inst._muuriId;
 
         // Move item instance from current muuri to target muuri.
         fromContainer._items.splice(result.from, 1);
@@ -3351,6 +3348,121 @@ TODO v0.3.0
   };
 
   /**
+   * If item is dragged to another muuri instance, finish the migration process
+   * gracefully.
+   *
+   * @protected
+   * @memberof Drag.prototype
+   */
+  Drag.prototype._finishMigration = function () {
+
+    // TODO: Handle the item element dimension refreshing gracefully while
+    // keeping the current frozen styles active.
+
+    var drag = this;
+    var item = drag._getItem();
+    var element = item._element;
+    var origMuuri = drag._getMuuri();
+    var origMuuriStn = origMuuri._settings;
+    var targetMuuri = item.getMuuri();
+    var targetMuuriStn = targetMuuri._settings;
+    var layoutContainer = targetMuuriStn.dragEnabled && targetMuuriStn._dragContainer ? targetMuuriStn._dragContainer : targetMuuri._element;
+    var releaseData = {
+      containerDiffX: 0,
+      containerDiffY: 0,
+      element: element,
+      elementStyles: drag._release.elementStyles || drag._drag.elementStyles
+    };
+    var release;
+    var offsetDiff;
+    var translateX;
+    var translateY;
+
+    // Reset migrating indicator to avoid infinite loops.
+    drag._isMigrating = false;
+
+    // If drag is not currently active set the release as active (to fool the
+    // drag.destroy() method) so that drag.stopRelease() gets called.
+    if (!drag._drag.isActive) {
+      drag._release.isActive = true;
+    }
+
+    // Destroy current drag.
+    drag.destroy();
+
+    // Destroy current animation handlers.
+    item._animate.destroy();
+    item._animateChild.destroy();
+
+    // Remove current classnames.
+    removeClass(element, origMuuriStn.itemClass);
+    removeClass(element, origMuuriStn.itemVisibleClass);
+    removeClass(element, origMuuriStn.itemHiddenClass);
+
+    // Add new classnames.
+    addClass(element, targetMuuriStn.itemClass);
+    addClass(element, targetMuuriStn.itemVisibleClass);
+
+    // Instantiate new animation controllers.
+    item._animate = new Muuri.AnimateLayout(item, element);
+    item._animateChild = new Muuri.AnimateVisibility(item, item._child);
+    item._isDefaultAnimate = item._animate instanceof Animate;
+    item._isDefaultChildAnimate = item._animateChild instanceof Animate;
+
+    // Get current translate values.
+    translateX = getTranslateAsFloat(element, 'x');
+    translateY = getTranslateAsFloat(element, 'y');
+
+    // Move the item inside the new container.
+    layoutContainer.appendChild(element);
+
+    // Calculate how much offset difference the new container has with the
+    // old container and adjust the translate value accordingly.
+    offsetDiff = getContainerOffsetDiff(element, origMuuri._element);
+    translateX += offsetDiff.left;
+    translateY += offsetDiff.top;
+
+    // In the likely case that the layout container is not the target container
+    // we need to calculate how much offset difference there is between the
+    // containers and store it as offset difference to the release data.
+    if (layoutContainer !== targetMuuri._element) {
+      offsetDiff = getContainerOffsetDiff(element, targetMuuri._element);
+      releaseData.containerDiffX = offsetDiff.left;
+      releaseData.containerDiffY = offsetDiff.top;
+    }
+
+    // Update translate styles.
+    setStyles(element, {
+      transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
+    });
+
+    // Update child element's styles to reflect the current visibility state.
+    item._child.removeAttribute('style');
+    targetMuuri._itemShowHandler.start(item, true);
+
+    // Refresh item's dimensions, because they might have changed with the
+    // addition of the new classnames.
+    //item._refresh();
+
+    // Recreate item's drag handler.
+    item._drag = targetMuuriStn.dragEnabled ? new Muuri.Drag(item) : null;
+
+    // If the item has drag handling, start the release.
+    if (item._drag) {
+      release = item._drag._release;
+      release.containerDiffX = releaseData.containerDiffX;
+      release.containerDiffY = releaseData.containerDiffY;
+      release.element = releaseData.element;
+      item._drag._startRelease();
+    }
+    // Otherwise just do a layout.
+    else {
+      item._layout();
+    }
+
+  };
+
+  /**
    * Abort dragging and reset drag data.
    *
    * @protected
@@ -3365,7 +3477,14 @@ TODO v0.3.0
 
     if (drag.isActive) {
 
-      muuri = inst.getMuuri();
+      // If the item is being dropped into another muuri instance, finish it up
+      // and return immediately.
+      if (inst._isMigrating) {
+        inst._finishMigration();
+        return;
+      }
+
+      muuri = inst._getMuuri();
 
       // Remove scroll listeners.
       for (i = 0; i < drag.scrollParents.length; i++) {
@@ -3413,8 +3532,8 @@ TODO v0.3.0
 
     if (!release.isActive) {
 
-      item = inst.getItem();
-      muuri = inst.getMuuri();
+      item = inst._getItem();
+      muuri = inst._getMuuri();
 
       // Flag release as active.
       release.isActive = true;
@@ -3454,8 +3573,8 @@ TODO v0.3.0
 
     if (release.isActive) {
 
-      item = inst.getItem();
-      muuri = inst.getMuuri();
+      item = inst._getItem();
+      muuri = inst._getMuuri();
 
       // Remove release classname from the released element.
       removeClass(release.element, muuri._settings.itemReleasingClass);
@@ -3495,8 +3614,8 @@ TODO v0.3.0
   Drag.prototype._onDragStart = function (e) {
 
     var inst = this;
-    var item = inst.getItem();
-    var muuri = inst.getMuuri();
+    var item = inst._getItem();
+    var muuri = inst._getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var release = inst._release;
@@ -3634,8 +3753,8 @@ TODO v0.3.0
   Drag.prototype._onDragMove = function (e) {
 
     var inst = this;
-    var item = inst.getItem();
-    var muuri = inst.getMuuri();
+    var item = inst._getItem();
+    var muuri = inst._getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var xDiff;
@@ -3686,8 +3805,8 @@ TODO v0.3.0
   Drag.prototype._onDragScroll = function () {
 
     var inst = this;
-    var item = inst.getItem();
-    var muuri = inst.getMuuri();
+    var item = inst._getItem();
+    var muuri = inst._getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var muuriContainer = muuri._element;
@@ -3741,8 +3860,8 @@ TODO v0.3.0
   Drag.prototype._onDragEnd = function (e) {
 
     var inst = this;
-    var item = inst.getItem();
-    var muuri = inst.getMuuri();
+    var item = inst._getItem();
+    var muuri = inst._getMuuri();
     var stn = muuri._settings;
     var drag = inst._drag;
     var release = inst._release;
@@ -3779,8 +3898,14 @@ TODO v0.3.0
     // Reset drag data.
     inst._setupDragData();
 
-    // Start the release process.
-    inst._startRelease();
+    // Finish up the migration process if needed.
+    if (inst._isMigrating) {
+      inst._finishMigration();
+    }
+    // Otherwise start the release process.
+    else {
+      inst._startRelease();
+    }
 
   };
 

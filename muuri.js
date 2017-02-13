@@ -38,15 +38,19 @@ TODO v0.3.0
       triggered. The same applies to hidden items and muuri.hideItems() method.
 * [x] When setting the width/height of container account for min-width/height
       and max-width/height.
-* [ ] Use WeakMap for storing the instances in browsers that support WeakMap.
 * [ ] Drag item between instances.
-      * [ ] Drop item on empty container.
-      * [ ] Drop item on empty slot. This is especially needed when dragging an item
-            from a container to an empty container.
-* [ ] Update docs.
-* [ ] Add more unit tests.
-* [ ] Test usage on node and bower. Make sure everything works as advertised.
-* [ ] Update website.
+      * [x] Drop item on empty container.
+      * [ ] Don't support defining "from" index in sortPredicate.
+      * [ ] Get the related events and their arguments sorted out.
+      * [ ] Support swapping when dragging between containers, or at least try
+            to support it. If it seems too difficult, just document that when
+            item is dragged between containers the action is always "move".
+            Ideally one could define the sort action separately for the
+            container switch.
+* [ ] Review the event names and data.
+* [ ] Use WeakMap for storing the instances in browsers that support WeakMap.
+* [ ] Drop item on empty slot. This is especially needed when dragging an item
+      from a container to an empty container.
 
 */
 
@@ -104,26 +108,30 @@ TODO v0.3.0
 
   // Event names.
   var evRefresh = 'refresh';
-  var evRefreshItems = 'refreshitems';
-  var evSynchronizeItems = 'synchronizeitems';
-  var evLayoutItemsStart = 'layoutitemsstart';
-  var evLayoutItemsEnd = 'layoutitemsend';
-  var evShowItemsStart = 'showitemsstart';
-  var evShowItemsEnd = 'showitemsend';
-  var evHideItemsStart = 'hideitemsstart';
-  var evHideItemsEnd = 'hideitemsend';
-  var evMoveItem = 'moveitem';
-  var evSendItem = 'senditem';
-  var evReceiveItemStart = 'receiveitemstart';
-  var evReceiveItemEnd = 'receiveitemend';
-  var evAddItems = 'additems';
-  var evRemoveItems = 'removeitems';
-  var evDragItemStart = 'dragitemstart';
-  var evDragItemMove = 'dragitemmove';
-  var evDragItemScroll = 'dragitemscroll';
-  var evDragItemEnd = 'dragitemend';
-  var evReleaseItemStart = 'releaseitemstart';
-  var evReleaseItemEnd = 'releaseitemend';
+  var evRefreshItems = 'refreshItems';
+  var evSynchronizeItems = 'synchronizeItems';
+  var evLayoutItemsStart = 'layoutItemsStart';
+  var evLayoutItemsEnd = 'layoutItemsEnd';
+  var evShowItemsStart = 'showItemsStart';
+  var evShowItemsEnd = 'showItemsEnd';
+  var evHideItemsStart = 'hideItemsStart';
+  var evHideItemsEnd = 'hideItemsEnd';
+  var evMoveItem = 'moveItem';
+  var evSendItem = 'sendItem';
+  var evReceiveItemStart = 'receiveItemStart';
+  var evReceiveItemEnd = 'receiveItemEnd';
+  var evAddItems = 'addItems';
+  var evRemoveItems = 'removeItems';
+  var evDragStart = 'dragStart';
+  var evDragMove = 'dragMove';
+  var evDragScroll = 'dragScroll';
+  var evDragEnd = 'dragEnd';
+  var evDragSort = 'dragSort';
+  var evDragSend = 'dragSend';
+  var evDragReceive = 'dragReceive';
+  var evDragReceiveDrop = 'dragReceiveDrop';
+  var evDragReleaseStart = 'dragReleaseStart';
+  var evDragReleaseEnd = 'dragReleaseEnd';
   var evDestroy = 'destroy';
 
   /**
@@ -544,7 +552,7 @@ TODO v0.3.0
       targetItems[i]._refresh();
     }
 
-    // Emit refreshitems event.
+    // Emit refreshItems event.
     inst._emitter.emit(evRefreshItems, targetItems);
 
     return inst;
@@ -607,8 +615,8 @@ TODO v0.3.0
     // Add the new items to the items collection to correct index.
     insertItemsToArray(items, newItems, index);
 
-    // Emit add event.
-    inst._emitter.emit(evAddItems, newItems);
+    // Emit addItems event.
+    inst._emitter.emit(evAddItems, newItems.slice(0));
 
     // If relayout is needed.
     if (needsRelayout) {
@@ -647,8 +655,8 @@ TODO v0.3.0
       indices[indices.length] = item._destroy(removeElement);
     }
 
-    // Emit remove event.
-    inst._emitter.emit(evRemoveItems, indices);
+    // Emit removeItems event.
+    inst._emitter.emit(evRemoveItems, indices.slice(0));
 
     // If relayout is needed.
     if (needsRelayout) {
@@ -692,7 +700,7 @@ TODO v0.3.0
       }
     }
 
-    // Emit synchronize event.
+    // Emit synchronizeItems event.
     inst._emitter.emit(evSynchronizeItems);
 
     return inst;
@@ -738,9 +746,9 @@ TODO v0.3.0
       // layoutend event.
       if (++counter === itemsLength) {
         if (typeof cb === 'function') {
-          cb(completed);
+          cb(completed.slice(0));
         }
-        emitter.emit(evLayoutItemsEnd, completed);
+        emitter.emit(evLayoutItemsEnd, completed.slice(0));
       }
 
     }
@@ -748,8 +756,8 @@ TODO v0.3.0
     // Update the current layout data reference.
     inst._layout = layout;
 
-    // Emit layoutstart event.
-    emitter.emit(evLayoutItemsStart, layout.items);
+    // Emit layoutItemsStart event.
+    emitter.emit(evLayoutItemsStart, layout.items.slice(0));
 
     // If container's width or height was modified, we need refresh it's cached
     // dimensions. Also keep in mind that container's cached width/height should
@@ -952,8 +960,10 @@ TODO v0.3.0
 
     var inst = this;
     var items = inst._items;
-    var from;
-    var to;
+    var fromItem;
+    var toItem;
+    var fromIndex;
+    var toIndex;
     var isSwap;
 
     // Return immediately, if moving item is not possible.
@@ -961,18 +971,32 @@ TODO v0.3.0
       return inst;
     }
 
-    from = inst._getItem(item);
-    to = inst._getItem(position);
+    fromItem = inst._getItem(item);
+    toItem = inst._getItem(position);
     isSwap = action === 'swap';
+    action = isSwap ? 'swap' : 'move';
 
-    if (from && to && (from !== to)) {
-      if (isSwap) {
-        arraySwap(items, items.indexOf(from), items.indexOf(to));
-      }
-      else {
-        arrayMove(items, items.indexOf(from), items.indexOf(to));
-      }
-      inst.layoutItems()._emitter.emit(evMoveItem, from, to, isSwap ? 'swap' : 'move');
+    // Make sure the items exist and are not the same.
+    if (fromItem && toItem && (fromItem !== toItem)) {
+
+      // Get the indexes of the items.
+      fromIndex = items.indexOf(fromItem);
+      toIndex = items.indexOf(toItem);
+
+      // Do the move/swap.
+      (isSwap ? arraySwap : arrayMove)(items, fromIndex, toIndex);
+
+      // Emit moveItem event.
+      inst._emitter.emit(evMoveItem, {
+        item: fromItem,
+        fromIndex: fromIndex,
+        toIndex: toIndex,
+        action: action
+      });
+
+      // Layout items.
+      inst.layoutItems();
+
     }
 
     return inst;
@@ -1115,12 +1139,25 @@ TODO v0.3.0
     // Setup migration data.
     migrate.isActive = true;
     migrate.container = layoutContainer;
-    migrate.index = newIndex;
+    migrate.fromIndex = currentIndex;
+    migrate.toIndex = newIndex;
     migrate.sender = inst;
 
-    // Emit events.
-    inst._emitter.emit(evSendItem, item, target, newIndex);
-    target._emitter.emit(evReceiveItemStart, item, inst, newIndex);
+    // Emit sendItem event.
+    inst._emitter.emit(evSendItem, {
+      item: item,
+      to: target,
+      fromIndex: currentIndex,
+      toIndex: newIndex
+    });
+
+    // Emit receiveItemStart event.
+    target._emitter.emit(evReceiveItemStart, {
+      item: item,
+      from: inst,
+      fromIndex: currentIndex,
+      toIndex: newIndex
+    });
 
     // Do layout for both containers if the item is active.
     if (isActive) {
@@ -1440,14 +1477,15 @@ TODO v0.3.0
     // Set up drag handler.
     inst._drag = stn.dragEnabled ? new Muuri.Drag(inst) : null;
 
-    // Set up migration handler.
+    // Set up migration handler data.
     inst._migrate = {
       isActive: false,
       container: null,
       containerDiffX: 0,
       containerDiffY: 0,
       sender: null,
-      index: 0
+      fromIndex: 0,
+      toIndex: 0
     };
 
   }
@@ -2050,7 +2088,8 @@ TODO v0.3.0
     var translateX;
     var translateY;
     var sender;
-    var newIndex;
+    var fromIndex;
+    var toIndex;
 
     if (migrate.isActive) {
 
@@ -2069,7 +2108,8 @@ TODO v0.3.0
       // end event after the migration data is reset.
       if (!abort) {
         sender = migrate.sender;
-        newIndex = migrate.index;
+        fromIndex = migrate.fromIndex;
+        toIndex = migrate.toIndex;
       }
 
       // Reset migration data.
@@ -2078,11 +2118,17 @@ TODO v0.3.0
       migrate.containerDiffX = 0;
       migrate.containerDiffY = 0;
       migrate.sender = null;
-      migrate.index = 0;
+      migrate.fromIndex = 0;
+      migrate.toIndex = 0;
 
-      // Emit receiveitemend event.
+      // Emit receiveItemEnd event.
       if (!abort) {
-        muuri._emitter.emit(evReceiveItemEnd, inst, sender, newIndex);
+        muuri._emitter.emit(evReceiveItemEnd, {
+          item: inst,
+          from: sender,
+          fromIndex: fromIndex,
+          toIndex: toIndex
+        });
       }
 
     }
@@ -3031,7 +3077,7 @@ TODO v0.3.0
       return false;
     }
 
-    // Get the sort container adn its's items.
+    // Get the sort container and its's items.
     toContainer = containers[matchIndex];
     toContainerItems = toContainer._items;
 
@@ -3055,30 +3101,51 @@ TODO v0.3.0
     // Reset the best match variables.
     matchIndex = matchScore = null;
 
-    // Loop through the items and try to find a match.
-    for (i = 0; i < toContainerItems.length; i++) {
+    // If the target container has items.
+    if (toContainerItems.length) {
 
-      toContainerItem = toContainerItems[i];
+      // Loop through the items and try to find a match.
+      for (i = 0; i < toContainerItems.length; i++) {
 
-      // If the item is active and is not the target item.
-      if (toContainerItem._isActive && toContainerItem !== item) {
+        toContainerItem = toContainerItems[i];
 
-        // Get overlap data.
-        overlapScore = getOverlapScore(itemRect, {
-          width: toContainerItem._width,
-          height: toContainerItem._height,
-          left: Math.round(toContainerItem._left) + toContainerItem._margin.left + containerOffsetLeft,
-          top: Math.round(toContainerItem._top) + toContainerItem._margin.top + containerOffsetTop
-        });
+        // If the item is active and is not the target item.
+        if (toContainerItem._isActive && toContainerItem !== item) {
 
-        // Update best match if the overlap score is higher than the current
-        // best match.
-        if (matchScore === null || overlapScore > matchScore) {
-          matchScore = overlapScore;
-          matchIndex = i;
+          // Get overlap data.
+          overlapScore = getOverlapScore(itemRect, {
+            width: toContainerItem._width,
+            height: toContainerItem._height,
+            left: Math.round(toContainerItem._left) + toContainerItem._margin.left + containerOffsetLeft,
+            top: Math.round(toContainerItem._top) + toContainerItem._margin.top + containerOffsetTop
+          });
+
+          // Update best match if the overlap score is higher than the current
+          // best match.
+          if (matchScore === null || overlapScore > matchScore) {
+            matchScore = overlapScore;
+            matchIndex = i;
+          }
+
         }
 
       }
+
+    }
+
+    // Otherwise if the target container is empty compare the dragged item
+    // against the container itself.
+    else {
+
+      matchIndex = 0;
+      padding = toContainer._padding;
+      border = toContainer._border;
+      matchScore = getOverlapScore(itemRect, {
+        width: toContainer._width - border.left - border.right - padding.left - padding.right,
+        height: toContainer._height - border.top - border.bottom - padding.top - padding.bottom,
+        left: toContainer._offset.left + border.left + padding.left,
+        top: toContainer._offset.top + border.top + border.left
+      });
 
     }
 
@@ -3245,26 +3312,54 @@ TODO v0.3.0
    */
   Drag.prototype._checkOverlap = function () {
 
+    // TODO: Currently this function assumes that the result.from index is the
+    // current index of the dragged item, which might not always be the case if
+    // the user has provided a custom sortPredicate. We need to either support
+    // the use case where the result.from can be something else than the dragged
+    // item or change the API so that the user can not provide a from index at
+    // all. I'm inclined to go with the latter as it would simplify things a bit
+    // and this is already getting out of control.
+
     var inst = this;
     var item = inst._getItem();
     var result = inst._sortPredicate(item);
+    var dragEvent;
     var fromContainer;
     var toContainer;
+    var sortAction;
 
     if (result) {
 
-      // If the item was moved within it's current container.
-      if (result.fromContainer === result.toContainer) {
+      dragEvent = this._drag.currentEvent;
+      fromContainer = result.fromContainer;
+      toContainer = result.toContainer;
+      sortAction = result.action || 'move';
 
-        item.getMuuri().moveItem(result.from, result.to, result.action || 'move');
+      // If the item was moved within it's current container.
+      if (fromContainer === toContainer) {
+
+        // Do the sort.
+        (sortAction === 'swap' ? arraySwap : arrayMove)(fromContainer._items, result.from, result.to);
+
+        // Emit dragSort event.
+        fromContainer._emitter.emit(evDragSort, dragEvent, {
+          item: item,
+          fromIndex: result.from,
+          toIndex: result.to,
+          action: sortAction
+        });
+
+        // Layout the container.
+        fromContainer.layoutItems();
 
       }
 
       // If the item was moved to another container.
       else {
 
-        fromContainer = result.fromContainer;
-        toContainer = result.toContainer;
+        // TODO: Support swapping here too! The swapped item could be sent to
+        // the other container with send method. But how do we define the send
+        // methods options? Needs some thought...
 
         // Update item's muuri id reference.
         item._muuriId = toContainer._id;
@@ -3275,6 +3370,22 @@ TODO v0.3.0
         // Move item instance from current muuri to target muuri.
         fromContainer._items.splice(result.from, 1);
         insertItemsToArray(toContainer._items, item, result.to);
+
+        // Emit dragSend event.
+        fromContainer._emitter.emit(evDragSend, dragEvent, {
+          item: item,
+          to: toContainer,
+          fromIndex: result.from,
+          toIndex: result.to
+        });
+
+        // Emit dragReceive event.
+        toContainer._emitter.emit(evDragReceive, dragEvent, {
+          item: item,
+          from: fromContainer,
+          fromIndex: result.from,
+          toIndex: result.to
+        });
 
         // Layout both containers.
         fromContainer.layoutItems();
@@ -3447,6 +3558,11 @@ TODO v0.3.0
     // Recreate item's drag handler.
     item._drag = targetMuuriStn.dragEnabled ? new Muuri.Drag(item) : null;
 
+    // Emit dragReceiveDrop event.
+    // TODO: Needs some additional arguments (from which muuri was this dragged
+    // here and which muuri was the originator of the drag procedure?).
+    targetMuuri._emitter.emit(evDragReceiveDrop, item);
+
     // If the item has drag handling, start the release.
     if (item._drag) {
       release = item._drag._release;
@@ -3541,8 +3657,8 @@ TODO v0.3.0
       // Add release classname to released element.
       addClass(release.element, muuri._settings.itemReleasingClass);
 
-      // Emit releasestart event.
-      muuri._emitter.emit(evReleaseItemStart, item);
+      // Emit dragReleaseStart event.
+      muuri._emitter.emit(evDragReleaseStart, item);
 
       // Position the released item.
       item._layout(false);
@@ -3596,9 +3712,9 @@ TODO v0.3.0
       // Reset release data.
       inst._setupReleaseData();
 
-      // Emit releaseend event.
+      // Emit dragReleaseEnd event.
       if (!abort) {
-        muuri._emitter.emit(evReleaseItemEnd, item);
+        muuri._emitter.emit(evDragReleaseEnd, item);
       }
 
     }
@@ -3739,8 +3855,8 @@ TODO v0.3.0
     // Set drag class.
     addClass(drag.element, stn.itemDraggingClass);
 
-    // Emit dragstart event.
-    muuri._emitter.emit(evDragItemStart, item, e);
+    // Emit dragStart event.
+    muuri._emitter.emit(evDragStart, e, item);
 
   };
 
@@ -3791,8 +3907,8 @@ TODO v0.3.0
       inst._checkSortOverlap();
     }
 
-    // Emit item-dragmove event.
-    muuri._emitter.emit(evDragItemMove, item, e);
+    // Emit dragMove event.
+    muuri._emitter.emit(evDragMove, e, item);
 
   };
 
@@ -3846,8 +3962,10 @@ TODO v0.3.0
       inst._checkSortOverlap();
     }
 
-    // Emit item-dragscroll event.
-    muuri._emitter.emit(evDragItemScroll, item);
+    // Emit dragScroll event.
+    // TODO: For consistency, we should provide the scroll (or drag) event as
+    // the second argument here.
+    muuri._emitter.emit(evDragScroll, item);
 
   };
 
@@ -3886,8 +4004,8 @@ TODO v0.3.0
     // Remove drag classname from element.
     removeClass(drag.element, stn.itemDraggingClass);
 
-    // Emit item-dragend event.
-    muuri._emitter.emit(evDragItemEnd, item, e);
+    // Emit dragEnd event.
+    muuri._emitter.emit(evDragEnd, e, item);
 
     // Setup release data.
     release.containerDiffX = drag.containerDiffX;
@@ -4912,8 +5030,8 @@ TODO v0.3.0
     // If we have some items let's dig in.
     else {
 
-      // Emit showstart event.
-      inst._emitter.emit(startEvent, validItems);
+      // Emit showItemsStart/hideItemsStart event.
+      inst._emitter.emit(startEvent, validItems.slice(0));
 
       // Show/hide items.
       for (i = 0; i < validItems.length; i++) {
@@ -4939,12 +5057,12 @@ TODO v0.3.0
           }
 
           // If all items have finished their animations call the callback
-          // and emit the event.
+          // and emit showItemsEnd/hideItemsEnd event.
           if (--counter < 1) {
             if (typeof cb === 'function') {
-              cb(completedItems);
+              cb(completedItems.slice(0));
             }
-            inst._emitter.emit(endEvent, completedItems);
+            inst._emitter.emit(endEvent, completedItems.slice(0));
           }
 
         });

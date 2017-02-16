@@ -246,7 +246,7 @@ $(function () {
     if (grid1 && grid2) {
       grid1.sendItem({
         item: 0,
-        target: grid2,
+        container: grid2,
         position: 0
       });
     }

@@ -38,18 +38,19 @@ TODO v0.3.0
       triggered. The same applies to hidden items and muuri.hideItems() method.
 * [x] When setting the width/height of container account for min-width/height
       and max-width/height.
-* [ ] Drag item between instances.
+* [x] Drag item between instances.
       * [x] Drop item on empty container.
       * [x] Don't support defining "from" index in sortPredicate.
-      * [ ] Get the related events and their arguments sorted out.
-      * [ ] How to maintain the item's "frozen" dimensions during container
-            switch? Figure it out.
-* [ ] Always consider the dragged element to be the item element. Get rid of
+      * [x] Get the related events and their arguments sorted out.
+      * [x] Deprecate the builtin freeze/unfreeze methods -> let it for user
+            to solve since it's a fix for a specific scenario.
+* [x] Always consider the dragged element to be the item element. Get rid of
       the dragData.element and releaseData.element stuff.
-* [ ] Review the event names and data.
+* [x] Review the event names and data.
+* [ ] Review and test the show and hide methods.
+* [ ] Streamline codebase by trying to combine similar functions and methods
+      into smaller reusable functions.
 * [ ] Use WeakMap for storing the instances in browsers that support WeakMap.
-* [ ] Drop item on empty slot. This is especially needed when dragging an item
-      from a container to an empty container.
 * [ ] Review the codebase and comments with thought x 3.
 
 */
@@ -102,6 +103,7 @@ TODO v0.3.0
   var Array = global.Array;
   var Math = global.Math;
   var Error = global.Error;
+  var Element = global.Element;
 
   // Container object for keeping track of Container instances.
   var containerInstances = {};
@@ -133,6 +135,8 @@ TODO v0.3.0
   var evSynchronizeItems = 'synchronizeItems';
   var evLayoutItemsStart = 'layoutItemsStart';
   var evLayoutItemsEnd = 'layoutItemsEnd';
+  var evAddItems = 'addItems';
+  var evRemoveItems = 'removeItems';
   var evShowItemsStart = 'showItemsStart';
   var evShowItemsEnd = 'showItemsEnd';
   var evHideItemsStart = 'hideItemsStart';
@@ -141,16 +145,14 @@ TODO v0.3.0
   var evSendItem = 'sendItem';
   var evReceiveItemStart = 'receiveItemStart';
   var evReceiveItemEnd = 'receiveItemEnd';
-  var evAddItems = 'addItems';
-  var evRemoveItems = 'removeItems';
   var evDragStart = 'dragStart';
   var evDragMove = 'dragMove';
   var evDragScroll = 'dragScroll';
-  var evDragEnd = 'dragEnd';
   var evDragSort = 'dragSort';
   var evDragSend = 'dragSend';
   var evDragReceive = 'dragReceive';
   var evDragReceiveDrop = 'dragReceiveDrop';
+  var evDragEnd = 'dragEnd';
   var evDragReleaseStart = 'dragReleaseStart';
   var evDragReleaseEnd = 'dragReleaseEnd';
   var evDestroy = 'destroy';
@@ -383,6 +385,83 @@ TODO v0.3.0
    */
 
   /**
+   * Bind an event listener.
+   *
+   * @public
+   * @memberof Container.prototype
+   * @param {String} event
+   * @param {Function} listener
+   * @returns {Container}
+   */
+  Container.prototype.on = function (event, listener) {
+
+    this._emitter.on(event, listener);
+    return this;
+
+  };
+
+  /**
+   * Unbind an event listener.
+   *
+   * @public
+   * @memberof Container.prototype
+   * @param {String} event
+   * @param {Function} listener
+   * @returns {Container}
+   */
+  Container.prototype.off = function (event, listener) {
+
+    this._emitter.off(event, listener);
+    return this;
+
+  };
+
+  /**
+   * Calculate and cache the dimensions and offsets of the container element.
+   *
+   * @public
+   * @memberof Container.prototype
+   * @returns {Container}
+   */
+  Container.prototype.refresh = function () {
+
+    var inst = this;
+    var element = inst._element;
+    var rect = element.getBoundingClientRect();
+    var sides;
+    var side;
+    var i;
+
+    // Update width and height.
+    inst._width = Math.round(rect.width);
+    inst._height = Math.round(rect.height);
+
+    // Update offset.
+    inst._offset = inst._offset || {};
+    inst._offset.left = Math.round(rect.left);
+    inst._offset.top = Math.round(rect.top);
+
+    // Update borders and paddings.
+    inst._border = inst._border || {};
+    inst._padding = inst._padding || {};
+    sides = ['left', 'right', 'top', 'bottom'];
+    for (i = 0; i < sides.length; i++) {
+      side = sides[i];
+      inst._border[side] = Math.round(getStyleAsFloat(element, 'border-' + side + '-width'));
+      inst._padding[side] = Math.round(getStyleAsFloat(element, 'padding-' + side));
+    }
+
+    // Update box-sizing.
+    inst._boxSizing = getStyle(element, 'box-sizing');
+
+    // Emit refresh event.
+    inst._emitter.emit(evRefresh);
+
+    return inst;
+
+  };
+
+  /**
    * Get the instance element.
    *
    * @public
@@ -468,83 +547,6 @@ TODO v0.3.0
   };
 
   /**
-   * Bind an event listener.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @param {String} event
-   * @param {Function} listener
-   * @returns {Container}
-   */
-  Container.prototype.on = function (event, listener) {
-
-    this._emitter.on(event, listener);
-    return this;
-
-  };
-
-  /**
-   * Unbind an event listener.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @param {String} event
-   * @param {Function} listener
-   * @returns {Container}
-   */
-  Container.prototype.off = function (event, listener) {
-
-    this._emitter.off(event, listener);
-    return this;
-
-  };
-
-  /**
-   * Calculate and cache the dimensions and offsets of the container element.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @returns {Container}
-   */
-  Container.prototype.refresh = function () {
-
-    var inst = this;
-    var element = inst._element;
-    var rect = element.getBoundingClientRect();
-    var sides;
-    var side;
-    var i;
-
-    // Update width and height.
-    inst._width = Math.round(rect.width);
-    inst._height = Math.round(rect.height);
-
-    // Update offset.
-    inst._offset = inst._offset || {};
-    inst._offset.left = Math.round(rect.left);
-    inst._offset.top = Math.round(rect.top);
-
-    // Update borders and paddings.
-    inst._border = inst._border || {};
-    inst._padding = inst._padding || {};
-    sides = ['left', 'right', 'top', 'bottom'];
-    for (i = 0; i < sides.length; i++) {
-      side = sides[i];
-      inst._border[side] = Math.round(getStyleAsFloat(element, 'border-' + side + '-width'));
-      inst._padding[side] = Math.round(getStyleAsFloat(element, 'padding-' + side));
-    }
-
-    // Update box-sizing.
-    inst._boxSizing = getStyle(element, 'box-sizing');
-
-    // Emit refresh event.
-    inst._emitter.emit(evRefresh);
-
-    return inst;
-
-  };
-
-  /**
    * Recalculate the width and height of the provided targets. If no targets are
    * provided all active items will be refreshed.
    *
@@ -567,116 +569,6 @@ TODO v0.3.0
     inst._emitter.emit(evRefreshItems, targetItems);
 
     return inst;
-
-  };
-
-  /**
-   * Add new items by providing the elements you wish to add to the instance and
-   * optionally provide the index where you want the items to be inserted into.
-   * All elements that are not already children of the container element will be
-   * automatically appended to the container. If an element has it's CSS display
-   * property set to none it will be marked as inactive during the initiation
-   * process. As long as the item is inactive it will not be part of the layout,
-   * but it will retain it's index. You can activate items at any point
-   * with muuri.show() method. This method will automatically call
-   * muuri.layoutItems() if one or more of the added elements are visible. If
-   * only hidden items are added no layout will be called. All the new visible
-   * items are positioned without animation during their first layout.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @param {Array|HTMLElement} elements
-   * @param {Number} [index=-1]
-   * @returns {Array}
-   *   - Array of the new Item instances.
-   */
-  Container.prototype.addItems = function (elements, index) {
-
-    var inst = this;
-    var targetElements = [].concat(elements);
-    var newItems = [];
-    var items = inst._items;
-    var needsRelayout = false;
-    var elementIndex;
-    var item;
-    var i;
-
-    // Filter out all elements that exist already in current instance.
-    for (i = 0; i < items.length; i++) {
-      elementIndex = targetElements.indexOf(items[i]._element);
-      if (elementIndex > -1) {
-        targetElements.splice(elementIndex, 1);
-      }
-    }
-
-    // Return early if there are no valid items.
-    if (!targetElements.length) {
-      return newItems;
-    }
-
-    // Create new items.
-    for (i = 0; i < targetElements.length; i++) {
-      item = new Container.Item(inst, targetElements[i]);
-      newItems[newItems.length] = item;
-      if (item._isActive) {
-        needsRelayout = true;
-        item._noLayoutAnimation = true;
-      }
-    }
-
-    // Add the new items to the items collection to correct index.
-    insertItemsToArray(items, newItems, index);
-
-    // Emit addItems event.
-    inst._emitter.emit(evAddItems, newItems.concat());
-
-    // If relayout is needed.
-    if (needsRelayout) {
-      inst.layoutItems();
-    }
-
-    // Return new items.
-    return newItems;
-
-  };
-
-  /**
-   * Remove items from the instance.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @param {Array|HTMLElement|Item|Number} items
-   * @param {Boolean} [removeElement=false]
-   * @returns {Array}
-   *   - The indices of removed items.
-   */
-  Container.prototype.removeItems = function (items, removeElement) {
-
-    var inst = this;
-    var targetItems = inst.getItems(items);
-    var indices = [];
-    var needsRelayout = false;
-    var item;
-    var i;
-
-    // Remove the individual items.
-    for (i = 0; i < targetItems.length; i++) {
-      item = targetItems[i];
-      if (item._isActive) {
-        needsRelayout = true;
-      }
-      indices[indices.length] = item._destroy(removeElement);
-    }
-
-    // Emit removeItems event.
-    inst._emitter.emit(evRemoveItems, indices.concat());
-
-    // If relayout is needed.
-    if (needsRelayout) {
-      inst.layoutItems();
-    }
-
-    return indices;
 
   };
 
@@ -835,6 +727,116 @@ TODO v0.3.0
     }
 
     return inst;
+
+  };
+
+  /**
+   * Add new items by providing the elements you wish to add to the instance and
+   * optionally provide the index where you want the items to be inserted into.
+   * All elements that are not already children of the container element will be
+   * automatically appended to the container. If an element has it's CSS display
+   * property set to none it will be marked as inactive during the initiation
+   * process. As long as the item is inactive it will not be part of the layout,
+   * but it will retain it's index. You can activate items at any point
+   * with muuri.show() method. This method will automatically call
+   * muuri.layoutItems() if one or more of the added elements are visible. If
+   * only hidden items are added no layout will be called. All the new visible
+   * items are positioned without animation during their first layout.
+   *
+   * @public
+   * @memberof Container.prototype
+   * @param {Array|HTMLElement} elements
+   * @param {Number} [index=-1]
+   * @returns {Array}
+   *   - Array of the new Item instances.
+   */
+  Container.prototype.addItems = function (elements, index) {
+
+    var inst = this;
+    var targetElements = [].concat(elements);
+    var newItems = [];
+    var items = inst._items;
+    var needsRelayout = false;
+    var elementIndex;
+    var item;
+    var i;
+
+    // Filter out all elements that exist already in current instance.
+    for (i = 0; i < items.length; i++) {
+      elementIndex = targetElements.indexOf(items[i]._element);
+      if (elementIndex > -1) {
+        targetElements.splice(elementIndex, 1);
+      }
+    }
+
+    // Return early if there are no valid items.
+    if (!targetElements.length) {
+      return newItems;
+    }
+
+    // Create new items.
+    for (i = 0; i < targetElements.length; i++) {
+      item = new Container.Item(inst, targetElements[i]);
+      newItems[newItems.length] = item;
+      if (item._isActive) {
+        needsRelayout = true;
+        item._noLayoutAnimation = true;
+      }
+    }
+
+    // Add the new items to the items collection to correct index.
+    insertItemsToArray(items, newItems, index);
+
+    // Emit addItems event.
+    inst._emitter.emit(evAddItems, newItems.concat());
+
+    // If relayout is needed.
+    if (needsRelayout) {
+      inst.layoutItems();
+    }
+
+    // Return new items.
+    return newItems;
+
+  };
+
+  /**
+   * Remove items from the instance.
+   *
+   * @public
+   * @memberof Container.prototype
+   * @param {Array|HTMLElement|Item|Number} items
+   * @param {Boolean} [removeElement=false]
+   * @returns {Array}
+   *   - The indices of removed items.
+   */
+  Container.prototype.removeItems = function (items, removeElement) {
+
+    var inst = this;
+    var targetItems = inst.getItems(items);
+    var indices = [];
+    var needsRelayout = false;
+    var item;
+    var i;
+
+    // Remove the individual items.
+    for (i = 0; i < targetItems.length; i++) {
+      item = targetItems[i];
+      if (item._isActive) {
+        needsRelayout = true;
+      }
+      indices[indices.length] = item._destroy(removeElement);
+    }
+
+    // Emit removeItems event.
+    inst._emitter.emit(evRemoveItems, indices.concat());
+
+    // If relayout is needed.
+    if (needsRelayout) {
+      inst.layoutItems();
+    }
+
+    return indices;
 
   };
 
@@ -1019,7 +1021,7 @@ TODO v0.3.0
    * @memberof Container.prototype
    * @param {Object} options
    * @param {HTMLElement|Item|Number} options.item
-   * @param {Container} options.target
+   * @param {Container} options.container
    * @param {HTMLElement|Item|Number} [options.position=0]
    * @param {Boolean} [options.appendTo=document.body]
    * @param {Boolean} [options.instant=false]
@@ -1027,11 +1029,11 @@ TODO v0.3.0
    */
   Container.prototype.sendItem = function (options) {
 
-    var inst = this;
-    var instStn = inst._settings;
-    var target = options.target;
-    var targetStn = target._settings;
-    var item = inst._getItem(options.item);
+    var currentContainer = this;
+    var currentContainerStn = currentContainer._settings;
+    var targetContainer = options.container;
+    var targetContainerStn = targetContainer._settings;
+    var item = currentContainer._getItem(options.item);
     var migrate = item._migrate;
     var element = item._element;
     var isActive = item.isActive();
@@ -1039,8 +1041,8 @@ TODO v0.3.0
     var isInstant = !!options.instant;
     var appendTo = options.appendTo || document.body;
     var position = options.position;
-    var currentIndex = inst._items.indexOf(item);
-    var newIndex = typeof position === 'number' ? position : (position ? target._items.indexOf(target._getItem(position)) : 0);
+    var currentIndex = currentContainer._items.indexOf(item);
+    var newIndex = typeof position === 'number' ? position : (position ? targetContainer._items.indexOf(targetContainer._getItem(position)) : 0);
     var offsetDiff;
     var translateX;
     var translateY;
@@ -1052,8 +1054,8 @@ TODO v0.3.0
     item._stopMigrate(true);
 
     // Stop current visibility animations.
-    inst._itemShowHandler.stop(item);
-    inst._itemHideHandler.stop(item);
+    currentContainer._itemShowHandler.stop(item);
+    currentContainer._itemHideHandler.stop(item);
 
     // Destroy current drag.
     if (item._drag) {
@@ -1068,20 +1070,20 @@ TODO v0.3.0
     processQueue(item._visibilityQueue, true, item);
 
     // Remove current classnames.
-    removeClass(element, instStn.itemClass);
-    removeClass(element, instStn.itemVisibleClass);
-    removeClass(element, instStn.itemHiddenClass);
+    removeClass(element, currentContainerStn.itemClass);
+    removeClass(element, currentContainerStn.itemVisibleClass);
+    removeClass(element, currentContainerStn.itemHiddenClass);
 
     // Add new classnames.
-    addClass(element, targetStn.itemClass);
-    addClass(element, isVisible ? targetStn.itemVisibleClass : targetStn.itemHiddenClass);
+    addClass(element, targetContainerStn.itemClass);
+    addClass(element, isVisible ? targetContainerStn.itemVisibleClass : targetContainerStn.itemHiddenClass);
 
     // Move item instance from current container to target container.
-    inst._items.splice(currentIndex, 1);
-    insertItemsToArray(target._items, item, newIndex);
+    currentContainer._items.splice(currentIndex, 1);
+    insertItemsToArray(targetContainer._items, item, newIndex);
 
     // Update item's container id reference.
-    item._containerId = target._id;
+    item._containerId = targetContainer._id;
 
     // Instantiate new animation controllers.
     item._animate = new Container.AnimateLayout(item, element);
@@ -1094,7 +1096,7 @@ TODO v0.3.0
     // the translate value needs to be modified in order for the item remain
     // visually in the same position. Note that we assume here that the item
     // is currently within the current container instance's element.
-    if (inst._element !== appendTo) {
+    if (currentContainer._element !== appendTo) {
 
       // Get current translate values.
       translateX = getTranslateAsFloat(element, 'x');
@@ -1105,13 +1107,13 @@ TODO v0.3.0
 
       // Calculate how much offset difference the new container has with the
       // old container and adjust the translate value accordingly.
-      offsetDiff = getContainerOffsetDiff(element, inst._element);
+      offsetDiff = getContainerOffsetDiff(element, currentContainer._element);
       translateX += offsetDiff.left;
       translateY += offsetDiff.top;
 
       // Calculate how much offset difference there is between the new container
       // and the target container and store the results to migration data.
-      offsetDiff = getContainerOffsetDiff(element, target._element);
+      offsetDiff = getContainerOffsetDiff(element, targetContainer._element);
       migrate.containerDiffX = offsetDiff.left;
       migrate.containerDiffY = offsetDiff.top;
 
@@ -1129,10 +1131,10 @@ TODO v0.3.0
     // Update child element's styles to reflect the current visibility state.
     item._child.removeAttribute('style');
     if (isVisible) {
-      target._itemShowHandler.start(item, true);
+      targetContainer._itemShowHandler.start(item, true);
     }
     else {
-      target._itemHideHandler.start(item, true);
+      targetContainer._itemHideHandler.start(item, true);
     }
 
     // Refresh item's dimensions, because they might have changed with the
@@ -1140,38 +1142,38 @@ TODO v0.3.0
     item._refresh();
 
     // Recreate item's drag handler.
-    item._drag = targetStn.dragEnabled ? new Container.Drag(item) : null;
+    item._drag = targetContainerStn.dragEnabled ? new Container.Drag(item) : null;
 
     // Setup migration data.
     migrate.isActive = true;
     migrate.appendTo = appendTo;
-    migrate.fromContainer = inst;
+    migrate.fromContainer = currentContainer;
     migrate.fromIndex = currentIndex;
     migrate.toIndex = newIndex;
 
     // Emit sendItem event.
-    inst._emitter.emit(evSendItem, {
+    currentContainer._emitter.emit(evSendItem, {
       item: item,
       fromIndex: currentIndex,
-      toContainer: target,
+      toContainer: targetContainer,
       toIndex: newIndex
     });
 
     // Emit receiveItemStart event.
-    target._emitter.emit(evReceiveItemStart, {
+    targetContainer._emitter.emit(evReceiveItemStart, {
       item: item,
-      fromContainer: inst,
+      fromContainer: currentContainer,
       fromIndex: currentIndex,
       toIndex: newIndex
     });
 
     // Do layout for both containers if the item is active.
     if (isActive) {
-      inst.layoutItems(isInstant);
-      target.layoutItems(isInstant);
+      currentContainer.layoutItems(isInstant);
+      targetContainer.layoutItems(isInstant);
     }
 
-    return inst;
+    return currentContainer;
 
   };
 
@@ -1780,6 +1782,7 @@ TODO v0.3.0
   Item.prototype._layout = function (instant, callback) {
 
     var inst = this;
+    var element = inst._element;
     var container = inst.getContainer();
     var stn = container._settings;
     var release = inst._drag ? inst._drag._releaseData : {};
@@ -1798,7 +1801,7 @@ TODO v0.3.0
       // Mark the item as not positioning and remove positioning classes.
       if (inst._isPositioning) {
         inst._isPositioning = false;
-        removeClass(inst._element, stn.itemPositioningClass);
+        removeClass(element, stn.itemPositioningClass);
       }
 
       // Finish up release.
@@ -1849,8 +1852,8 @@ TODO v0.3.0
       // Container's element these styles will be set after the item has been
       // moved back to the Container's element, which also means that setting
       // the styles here in that scenario is a waste of resources.
-      if (!(release.isActive && release.element.parentNode !== container._element) || !(migrate.isActive && migrate.appendTo !== container._element)) {
-        setStyles(inst._element, {
+      if (!(release.isActive && element.parentNode !== container._element) || !(migrate.isActive && migrate.appendTo !== container._element)) {
+        setStyles(element, {
           transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
         });
       }
@@ -1866,12 +1869,12 @@ TODO v0.3.0
       // container's offset (if applicable) is subtracted from the current
       // translate values.
       if (isPositioning && inst._isDefaultAnimate) {
-        currentLeft = parseFloat(Velocity.hook(inst._element, 'translateX')) - offsetLeft;
-        currentTop = parseFloat(Velocity.hook(inst._element, 'translateY')) - offsetTop;
+        currentLeft = parseFloat(Velocity.hook(element, 'translateX')) - offsetLeft;
+        currentTop = parseFloat(Velocity.hook(element, 'translateY')) - offsetTop;
       }
       else {
-        currentLeft = getTranslateAsFloat(inst._element, 'x') - offsetLeft;
-        currentTop = getTranslateAsFloat(inst._element, 'y') - offsetTop;
+        currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
+        currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
       }
 
       // If the item is already in correct position there's no need to animate
@@ -1885,7 +1888,7 @@ TODO v0.3.0
       // Mark as positioning and add positioning class if necessary.
       if (!isPositioning) {
         inst._isPositioning = true;
-        addClass(inst._element, stn.itemPositioningClass);
+        addClass(element, stn.itemPositioningClass);
       }
 
       // Animate.
@@ -1919,62 +1922,73 @@ TODO v0.3.0
   Item.prototype._show = function (instant, callback) {
 
     var inst = this;
+    var element = inst._element;
+    var queue = inst._visibilityQueue;
     var container = inst.getContainer();
     var stn = container._settings;
+    var cb = typeof callback === 'function' ? callback : null;
 
-    // If item is visible call the callback and be done with it.
-    if (!inst._isHidden && !inst._isShowing) {
-      if (typeof callback === 'function') {
-        callback(false, inst);
+    // If item is showing.
+    if (inst._isShowing) {
+
+      // If instant flag is on, interrupt the current animation and set the
+      // visible styles.
+      if (instant) {
+        container._itemShowHandler.stop();
+        processQueue(queue, true, inst);
+        if (cb) {
+          queue[queue.length] = cb;
+        }
+        container._itemShowHandler.start(inst, instant, function () {
+          processQueue(queue, false, inst);
+        });
       }
+
+      // Otherwise just push the callback to the queue.
+      else if (cb) {
+        queue[queue.length] = cb;
+      }
+
     }
 
-    // Othewise if item is animating to visible and instant flag is not on push
-    // the callback to callback queue.
-    else if (!inst._isHidden && !instant) {
-      if (typeof callback === 'function') {
-        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
-      }
+    // Otherwise if item is visible call the callback and be done with it.
+    else if (!inst._isHidden) {
+      cb && cb(false, inst);
     }
 
-    // Finally if item is hidden or animating to hidden -> show it.
+    // Finally if item is hidden or hiding, show it.
     else {
-
-      // TODO: Handle scenario where the item is animating to visible and
-      // instant is on. Or at least check if needs special handling...
 
       // Stop ongoing hide animation.
       if (inst._isHiding) {
         container._itemHideHandler.stop(inst);
       }
 
-      // Activate item and set showing state to true.
+      // Update item's internal state.
       inst._isActive = inst._isShowing = true;
-
-      // Set hidden and hiding states to false.
       inst._isHidden = inst._isHiding = false;
 
       // Update item classes.
-      addClass(inst._element, stn.itemVisibleClass);
-      removeClass(inst._element, stn.itemHiddenClass);
+      addClass(element, stn.itemVisibleClass);
+      removeClass(element, stn.itemHiddenClass);
 
       // Set item element's display style to block.
-      setStyles(inst._element, {
+      setStyles(element, {
         display: 'block'
       });
 
       // Process the visibility callback queue with the interrupted flag active.
-      processQueue(inst._visibilityQueue, true, inst);
+      processQueue(queue, true, inst);
 
       // Push the callback to the visibility callback queue.
-      if (typeof callback === 'function') {
-        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
+      if (cb) {
+        queue[queue.length] = cb;
       }
 
       // Animate child element and process the visibility callback queue after
       // succesful animation.
       container._itemShowHandler.start(inst, instant, function () {
-        processQueue(inst._visibilityQueue, false, inst);
+        processQueue(queue, false, inst);
       });
 
     }
@@ -1995,60 +2009,74 @@ TODO v0.3.0
   Item.prototype._hide = function (instant, callback) {
 
     var inst = this;
+    var element = inst._element;
+    var queue = inst._visibilityQueue;
     var container = inst.getContainer();
     var stn = container._settings;
+    var cb = typeof callback === 'function' ? callback : null;
 
-    // If item is hidden call the callback and be done with it.
-    if (inst._isHidden && !inst._isHiding) {
-      if (typeof callback === 'function') {
-        callback(false, inst);
+    // If item is hiding.
+    if (inst._isHiding) {
+
+      // If instant flag is on, interrupt the current animation and set the
+      // hidden styles.
+      if (instant) {
+        container._itemHideHandler.stop();
+        processQueue(queue, true, inst);
+        if (cb) {
+          queue[queue.length] = cb;
+        }
+        container._itemHideHandler.start(inst, instant, function () {
+          setStyles(element, {
+            display: 'none'
+          });
+          processQueue(queue, false, inst);
+        });
       }
+
+      // Otherwise just push the callback to the queue.
+      else if (cb) {
+        queue[queue.length] = cb;
+      }
+
     }
 
-    // Othewise if item is animating to hidden and instant flag is not on push
-    // the callback to callback queue.
-    else if (inst._isHidden && !instant) {
-      if (typeof callback === 'function') {
-        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
-      }
+    // Otherwise if item is hidden call the callback and be done with it.
+    else if (inst._isHidden) {
+      cb && cb(false, inst);
     }
 
-    // Finally if item is visible or animating to visible -> hide it.
+    // Finally if item is visible or showing, hide it.
     else {
-
-      // TODO: Handle scenario where the item is animating to hidden and
-      // instant is on. Or at least check if needs special handling...
 
       // Stop ongoing show animation.
       if (inst._isShowing) {
         container._itemShowHandler.stop(inst);
       }
 
-      // Set hidden and hiding states to true.
+      // Update item's internal state.
       inst._isHidden = inst._isHiding = true;
-
-      // Disable item and set showing to false.
       inst._isActive = inst._isShowing = false;
 
       // Update item classes.
-      addClass(inst._element, stn.itemHiddenClass);
-      removeClass(inst._element, stn.itemVisibleClass);
+      addClass(element, stn.itemHiddenClass);
+      removeClass(element, stn.itemVisibleClass);
 
       // Process the visibility callback queue with the interrupted flag active.
-      processQueue(inst._visibilityQueue, true, inst);
+      processQueue(queue, true, inst);
 
       // Push the callback to the visibility callback queue.
       if (typeof callback === 'function') {
-        inst._visibilityQueue[inst._visibilityQueue.length] = callback;
+        queue[queue.length] = callback;
       }
 
       // Animate child element and process the visibility callback queue after
       // succesful animation.
       container._itemHideHandler.start(inst, instant, function () {
-        setStyles(inst._element, {
+        setStyles(element, {
           display: 'none'
         });
-        processQueue(inst._visibilityQueue, false, inst);
+        processQueue(queue, false, inst);
       });
 
     }
@@ -2070,6 +2098,7 @@ TODO v0.3.0
 
     var inst = this;
     var migrate = inst._migrate;
+    var element;
     var container;
     var translateX;
     var translateY;
@@ -2081,15 +2110,16 @@ TODO v0.3.0
       return inst;
     }
 
+    element = inst._element;
     container = inst.getContainer();
 
     // If the element is outside the container put it back there and
     // adjust position accordingly.
     if (migrate.appendTo !== container._element) {
-      translateX = abort ? getTranslateAsFloat(inst._element, 'x') - migrate.containerDiffX : inst._left;
-      translateY = abort ? getTranslateAsFloat(inst._element, 'y') - migrate.containerDiffY : inst._top;
-      container._element.appendChild(inst._element);
-      setStyles(inst._element, {
+      translateX = abort ? getTranslateAsFloat(element, 'x') - migrate.containerDiffX : inst._left;
+      translateY = abort ? getTranslateAsFloat(element, 'y') - migrate.containerDiffY : inst._top;
+      container._element.appendChild(element);
+      setStyles(element, {
         transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
     }
@@ -2757,6 +2787,7 @@ TODO v0.3.0
   Animate.prototype.start = function (propsCurrent, propsTarget, options) {
 
     var inst = this;
+    var element = inst._element;
     var opts = options || {};
     var callback = typeof opts.done === 'function' ? opts.done : null;
     var velocityOpts = {
@@ -2773,7 +2804,7 @@ TODO v0.3.0
 
     // Otherwise if current props exist force feed current values to Velocity.
     if (propsCurrent) {
-      hookStyles(inst._element, propsCurrent);
+      hookStyles(element, propsCurrent);
     }
 
     // Set as animating.
@@ -2787,8 +2818,8 @@ TODO v0.3.0
     }
 
     // Set up and start the animation.
-    Velocity(inst._element, propsTarget, velocityOpts);
-    Velocity.Utilities.dequeue(inst._element, inst._queue);
+    Velocity(element, propsTarget, velocityOpts);
+    Velocity.Utilities.dequeue(element, inst._queue);
 
   };
 
@@ -2840,6 +2871,7 @@ TODO v0.3.0
     }
 
     var drag = this;
+    var element = item._element;
     var container = item.getContainer();
     var stn = container._settings;
     var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : Drag.defaultStartPredicate;
@@ -2849,7 +2881,7 @@ TODO v0.3.0
 
     drag._itemId = item._id;
     drag._containerId = container._id;
-    drag._hammer = hammer = new Hammer.Manager(item._element);
+    drag._hammer = hammer = new Hammer.Manager(element);
     drag._isMigrating = false;
     drag._dragData = {};
     drag._releaseData = {};
@@ -2941,7 +2973,7 @@ TODO v0.3.0
     // Prevent native link/image dragging for the item and ite's child element.
     // Consider providing a public interface for this so the user can call this
     // method for all descendant elements.
-    disableNativeDrag(item._element);
+    disableNativeDrag(element);
     disableNativeDrag(item._child);
 
   }
@@ -3129,25 +3161,18 @@ TODO v0.3.0
   Drag.prototype.destroy = function () {
 
     var drag = this;
+    var item = drag._getItem();
 
-    // Abort drag.
     if (drag._dragData.isActive) {
       drag._stopDrag();
     }
-
-    // Abort release.
     else if (drag._releaseData.isActive) {
       drag._stopRelease(true);
     }
 
-    // Destroy hammer.
     drag._hammer.destroy();
-
-    // Remove native drag prevention bindings.
-    enableNativeDrag(drag._getItem()._element);
-    enableNativeDrag(drag._getItem()._child);
-
-    // Nullify instance properties.
+    enableNativeDrag(item._element);
+    enableNativeDrag(item._child);
     nullifyInstance(drag, Drag);
 
     return drag;
@@ -3204,9 +3229,6 @@ TODO v0.3.0
     dragData.startEvent = null;
     dragData.currentEvent = null;
 
-    // Dragged element's inline styles stored for graceful teardown.
-    dragData.elementStyles = null;
-
     // Scroll parents of the dragged element and container.
     dragData.scrollParents = [];
 
@@ -3248,8 +3270,6 @@ TODO v0.3.0
     release.isPositioningStarted = false;
     release.containerDiffX = 0;
     release.containerDiffY = 0;
-    release.element = null;
-    release.elementStyles = null;
 
     return drag;
 
@@ -3345,73 +3365,6 @@ TODO v0.3.0
   };
 
   /**
-   * Freeze dragged element's dimensions.
-   *
-   * @protected
-   * @memberof Drag.prototype
-   * @param {Object} data
-   * @returns {Drag}
-   */
-  Drag.prototype._freezeElement = function (data) {
-
-    var styleNames;
-    var styleName;
-    var i;
-
-    // Don't override existing element styles.
-    if (data.elementStyles) {
-      return this;
-    }
-
-    styleNames = ['width', 'height', 'padding', 'margin'];
-
-    // Reset element styles.
-    data.elementStyles = {};
-
-    // Store current inline style values and set effective values as inline
-    // styles.
-    for (i = 0; i < 4; i++) {
-      styleName = styleNames[i];
-      data.elementStyles[styleName] = data.element.style[styleName] || '';
-      data.element.style[styleName] = getStyle(data.element, styleName);
-    }
-
-    return this;
-
-  };
-
-  /**
-   * Unfreeze dragged element's dimensions.
-   *
-   * @protected
-   * @memberof Drag.prototype
-   * @param {Object} data
-   * @returns {Drag}
-   */
-  Drag.prototype._unfreezeElement = function (data) {
-
-    var styleNames;
-    var styleName;
-    var i;
-
-    if (!data.elementStyles) {
-      return this;
-    }
-
-    styleNames = Object.keys(data.elementStyles);
-
-    for (i = 0; i < styleNames.length; i++) {
-      styleName = styleNames[i];
-      data.element.style[styleName] = data.elementStyles[styleName];
-    }
-
-    data.elementStyles = null;
-
-    return this;
-
-  };
-
-  /**
    * If item is dragged to another container, finish the migration process
    * gracefully.
    *
@@ -3421,9 +3374,6 @@ TODO v0.3.0
    */
   Drag.prototype._finishMigration = function () {
 
-    // TODO: Handle the item element dimension refreshing gracefully while
-    // keeping the current frozen styles active.
-
     var drag = this;
     var item = drag._getItem();
     var element = item._element;
@@ -3432,12 +3382,8 @@ TODO v0.3.0
     var targetContainer = item.getContainer();
     var targetContainerStn = targetContainer._settings;
     var appendTo = targetContainerStn.dragEnabled && targetContainerStn._dragContainer ? targetContainerStn._dragContainer : targetContainer._element;
-    var releaseData = {
-      containerDiffX: 0,
-      containerDiffY: 0,
-      element: element,
-      elementStyles: drag._releaseData.elementStyles || drag._dragData.elementStyles
-    };
+    var releaseDiffX = 0;
+    var releaseDiffY = 0;
     var release;
     var offsetDiff;
     var translateX;
@@ -3492,8 +3438,8 @@ TODO v0.3.0
     // containers and store it as offset difference to the release data.
     if (appendTo !== targetContainer._element) {
       offsetDiff = getContainerOffsetDiff(element, targetContainer._element);
-      releaseData.containerDiffX = offsetDiff.left;
-      releaseData.containerDiffY = offsetDiff.top;
+      releaseDiffX = offsetDiff.left;
+      releaseDiffY = offsetDiff.top;
     }
 
     // Update translate styles.
@@ -3507,23 +3453,19 @@ TODO v0.3.0
 
     // Refresh item's dimensions, because they might have changed with the
     // addition of the new classnames.
-    // item._refresh();
+    item._refresh();
 
     // Recreate item's drag handler.
     item._drag = targetContainerStn.dragEnabled ? new Container.Drag(item) : null;
 
     // Emit dragReceiveDrop event.
-    // TODO: Needs some additional arguments. From which container was this
-    // dragged here and which container was the originator of the drag
-    // procedure?
     targetContainer._emitter.emit(evDragReceiveDrop, item);
 
     // If the item has drag handling, start the release.
     if (item._drag) {
       release = item._drag._releaseData;
-      release.containerDiffX = releaseData.containerDiffX;
-      release.containerDiffY = releaseData.containerDiffY;
-      release.element = releaseData.element;
+      release.containerDiffX = releaseDiffX;
+      release.containerDiffY = releaseDiffY;
       item._drag._startRelease();
     }
 
@@ -3547,6 +3489,7 @@ TODO v0.3.0
 
     var drag = this;
     var dragData = drag._dragData;
+    var element;
     var container;
     var i;
 
@@ -3561,6 +3504,7 @@ TODO v0.3.0
       return;
     }
 
+    element = drag._getItem()._element;
     container = drag._getContainer();
 
     // Remove scroll listeners.
@@ -3573,18 +3517,15 @@ TODO v0.3.0
 
     // Append item element to the container if it's not it's child. Also make
     // sure the translate values are adjusted to account for the DOM shift.
-    if (dragData.element.parentNode !== container._element) {
-      container._element.appendChild(dragData.element);
-      setStyles(dragData.element, {
+    if (element.parentNode !== container._element) {
+      container._element.appendChild(element);
+      setStyles(element, {
         transform: 'translateX(' + dragData.gridX + 'px) translateY(' + dragData.gridY + 'px)'
       });
     }
 
     // Remove dragging class.
-    removeClass(dragData.element, container._settings.itemDraggingClass);
-
-    // Remove dragged element's inline styles.
-    drag._unfreezeElement(dragData);
+    removeClass(element, container._settings.itemDraggingClass);
 
     // Reset drag data.
     drag._setupDragData();
@@ -3605,6 +3546,7 @@ TODO v0.3.0
     var drag = this;
     var releaseData = drag._releaseData;
     var item;
+    var element;
     var container;
 
     if (releaseData.isActive) {
@@ -3612,13 +3554,14 @@ TODO v0.3.0
     }
 
     item = drag._getItem();
+    element = item._element;
     container = drag._getContainer();
 
     // Flag release as active.
     releaseData.isActive = true;
 
     // Add release classname to released element.
-    addClass(releaseData.element, container._settings.itemReleasingClass);
+    addClass(element, container._settings.itemReleasingClass);
 
     // Emit dragReleaseStart event.
     container._emitter.emit(evDragReleaseStart, item);
@@ -3647,6 +3590,7 @@ TODO v0.3.0
     var drag = this;
     var releaseData = drag._releaseData;
     var item;
+    var element;
     var container;
     var translateX;
     var translateY;
@@ -3656,24 +3600,22 @@ TODO v0.3.0
     }
 
     item = drag._getItem();
+    element = item._element;
     container = drag._getContainer();
 
     // Remove release classname from the released element.
-    removeClass(releaseData.element, container._settings.itemReleasingClass);
+    removeClass(element, container._settings.itemReleasingClass);
 
     // If the released element is outside the container put it back there
     // and adjust position accordingly.
-    if (releaseData.element.parentNode !== container._element) {
-      translateX = abort ? getTranslateAsFloat(releaseData.element, 'x') - releaseData.containerDiffX : item._left;
-      translateY = abort ? getTranslateAsFloat(releaseData.element, 'y') - releaseData.containerDiffY : item._top;
-      container._element.appendChild(releaseData.element);
-      setStyles(releaseData.element, {
+    if (element.parentNode !== container._element) {
+      translateX = abort ? getTranslateAsFloat(element, 'x') - releaseData.containerDiffX : item._left;
+      translateY = abort ? getTranslateAsFloat(element, 'y') - releaseData.containerDiffY : item._top;
+      container._element.appendChild(element);
+      setStyles(element, {
         transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
     }
-
-    // Unlock temporary inlined styles.
-    drag._unfreezeElement(releaseData);
 
     // Reset release data.
     drag._setupReleaseData();
@@ -3698,10 +3640,11 @@ TODO v0.3.0
 
     var drag = this;
     var item = drag._getItem();
-    var container = drag._getContainer();
-    var stn = container._settings;
-    var dragData = drag._dragData;
-    var releaseData = drag._releaseData;
+    var element;
+    var container;
+    var stn;
+    var dragData;
+    var releaseData;
     var currentLeft;
     var currentTop;
     var containerElement;
@@ -3714,6 +3657,12 @@ TODO v0.3.0
     if (!item._isActive) {
       return;
     }
+
+    element = item._element;
+    container = drag._getContainer();
+    stn = container._settings;
+    dragData = drag._dragData;
+    releaseData = drag._releaseData;
 
     // Stop current positioning animation.
     if (item._isPositioning) {
@@ -3728,20 +3677,17 @@ TODO v0.3.0
     // If item is being released reset release data, remove release class and
     // import the element styles from release data to drag data.
     if (releaseData.isActive) {
-      dragData.elementStyles = releaseData.elementStyles;
-      removeClass(item._element, stn.itemReleasingClass);
+      removeClass(element, stn.itemReleasingClass);
       drag._setupReleaseData();
     }
 
     // Setup drag data.
     dragData.isActive = true;
-    dragData.startEvent = e;
-    dragData.currentEvent = e;
-    dragData.element = item._element;
+    dragData.startEvent = dragData.currentEvent = e;
 
     // Get element's current position.
-    currentLeft = getTranslateAsFloat(dragData.element, 'x');
-    currentTop = getTranslateAsFloat(dragData.element, 'y');
+    currentLeft = getTranslateAsFloat(element, 'x');
+    currentTop = getTranslateAsFloat(element, 'y');
 
     // Get container references.
     containerElement = container._element;
@@ -3756,10 +3702,10 @@ TODO v0.3.0
     if (dragContainer && dragContainer !== containerElement) {
 
       // If dragged element is already in drag container.
-      if (dragData.element.parentNode === dragContainer) {
+      if (element.parentNode === dragContainer) {
 
         // Get offset diff.
-        offsetDiff = getContainerOffsetDiff(dragData.element, containerElement);
+        offsetDiff = getContainerOffsetDiff(element, containerElement);
         // Store the container offset diffs to drag data.
         dragData.containerDiffX = offsetDiff.left;
         dragData.containerDiffY = offsetDiff.top;
@@ -3772,17 +3718,11 @@ TODO v0.3.0
       // If dragged element is not within the correct container.
       else {
 
-        // Lock element's width, height, padding and margin before appending
-        // to the temporary container because otherwise the element might
-        // enlarge or shrink after the append procedure if the some of the
-        // properties are defined in relative sizes.
-        drag._freezeElement(dragData);
-
         // Append element into correct container.
-        dragContainer.appendChild(dragData.element);
+        dragContainer.appendChild(element);
 
         // Get offset diff.
-        offsetDiff = getContainerOffsetDiff(dragData.element, containerElement);
+        offsetDiff = getContainerOffsetDiff(element, containerElement);
 
         // Store the container offset diffs to drag data.
         dragData.containerDiffX = offsetDiff.left;
@@ -3793,7 +3733,7 @@ TODO v0.3.0
         dragData.top = currentTop + dragData.containerDiffY;
 
         // Fix position to account for the append procedure.
-        setStyles(dragData.element, {
+        setStyles(element, {
           transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
         });
 
@@ -3802,12 +3742,12 @@ TODO v0.3.0
     }
 
     // Get and store element's current offset from window's northwest corner.
-    elementGBCR = dragData.element.getBoundingClientRect();
+    elementGBCR = element.getBoundingClientRect();
     dragData.elementClientX = elementGBCR.left;
     dragData.elementClientY = elementGBCR.top;
 
     // Get drag scroll parents.
-    dragData.scrollParents = getScrollParents(dragData.element);
+    dragData.scrollParents = getScrollParents(element);
     if (dragContainer && dragContainer !== containerElement) {
       dragData.scrollParents = arrayUnique(dragData.scrollParents.concat(getScrollParents(containerElement)));
     }
@@ -3818,7 +3758,7 @@ TODO v0.3.0
     }
 
     // Set drag class.
-    addClass(dragData.element, stn.itemDraggingClass);
+    addClass(element, stn.itemDraggingClass);
 
     // Emit dragStart event.
     container._emitter.emit(evDragStart, e, item);
@@ -3838,9 +3778,10 @@ TODO v0.3.0
 
     var drag = this;
     var item = drag._getItem();
-    var container = drag._getContainer();
-    var stn = container._settings;
-    var dragData = drag._dragData;
+    var element;
+    var container;
+    var stn;
+    var dragData;
     var xDiff;
     var yDiff;
 
@@ -3849,6 +3790,11 @@ TODO v0.3.0
       drag._stopDrag();
       return;
     }
+
+    element = item._element;
+    container = drag._getContainer();
+    stn = container._settings;
+    dragData = drag._dragData;
 
     // Get delta difference from last dragmove event.
     xDiff = e.deltaX - dragData.currentEvent.deltaX;
@@ -3866,7 +3812,7 @@ TODO v0.3.0
     dragData.elementClientY += yDiff;
 
     // Update element's translateX/Y values.
-    setStyles(dragData.element, {
+    setStyles(element, {
       transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
 
@@ -3895,21 +3841,20 @@ TODO v0.3.0
 
     var drag = this;
     var item = drag._getItem();
+    var element = item._element;
     var container = drag._getContainer();
     var stn = container._settings;
     var dragData = drag._dragData;
     var containerElement = container._element;
     var dragContainer = stn.dragContainer;
-    var elementGBCR = dragData.element.getBoundingClientRect();
+    var elementGBCR = element.getBoundingClientRect();
     var xDiff = dragData.elementClientX - elementGBCR.left;
     var yDiff = dragData.elementClientY - elementGBCR.top;
     var offsetDiff;
 
     // Update container diff.
-    // TODO: This can be optimized a bit, we already know the drag element's
-    // containing block so we should probably cache it.
     if (dragContainer && dragContainer !== containerElement) {
-      offsetDiff = getContainerOffsetDiff(dragData.element, containerElement);
+      offsetDiff = getContainerOffsetDiff(element, containerElement);
       dragData.containerDiffX = offsetDiff.left;
       dragData.containerDiffY = offsetDiff.top;
     }
@@ -3921,7 +3866,7 @@ TODO v0.3.0
     dragData.gridY = dragData.top - dragData.containerDiffY;
 
     // Update element's translateX/Y values.
-    setStyles(dragData.element, {
+    setStyles(element, {
       transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
 
@@ -3948,6 +3893,7 @@ TODO v0.3.0
 
     var drag = this;
     var item = drag._getItem();
+    var element = item._element;
     var container = drag._getContainer();
     var stn = container._settings;
     var dragData = drag._dragData;
@@ -3971,19 +3917,17 @@ TODO v0.3.0
     }
 
     // Remove drag classname from element.
-    removeClass(dragData.element, stn.itemDraggingClass);
-
-    // Emit dragEnd event.
-    container._emitter.emit(evDragEnd, e, item);
+    removeClass(element, stn.itemDraggingClass);
 
     // Setup release data.
     releaseData.containerDiffX = dragData.containerDiffX;
     releaseData.containerDiffY = dragData.containerDiffY;
-    releaseData.element = dragData.element;
-    releaseData.elementStyles = dragData.elementStyles;
 
     // Reset drag data.
     drag._setupDragData();
+
+    // Emit dragEnd event.
+    container._emitter.emit(evDragEnd, e, item);
 
     // Finish up the migration process if needed.
     if (drag._isMigrating) {
@@ -4525,7 +4469,7 @@ TODO v0.3.0
    */
   function getSupportedElementMatches() {
 
-    var p = global.Element.prototype;
+    var p = Element.prototype;
     var fn = p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector;
     return function (el, selector) {
       return fn.call(el, selector);

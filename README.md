@@ -123,7 +123,7 @@ Include Muuri inside the *body* element in your site and make sure to include th
 
 ### 4. Add the markup
 
-* Every grid must have a container element and item element(s) within the container element.
+* Every grid must have a container element. It can be empty or have item elements.
 * A grid item must always consist of at least two elements. The outer element is used for positioning the item and the inner element (first direct child) is used for animating the item's visibility (show/hide methods). You can insert any markup you wish inside the inner item element.
 
 ```html
@@ -148,11 +148,10 @@ Include Muuri inside the *body* element in your site and make sure to include th
 
 ### 5. Add the styles
 
-* The grid element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
-* The item elements must have their CSS position set to *absolute* and their display property set to *block*, unless of course the elements have their display set to *block* inherently. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements.
-* The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations.
-* You can control the gaps between the tiles by giving some margin to the item elements.
-* Normally an absolutely positioned element is positioned relative to the containing element's content with padding included, but Muuri's items are positioned relative to the grid element's content with padding excluded (intentionally) to provide more control over the gutter spacing.
+* The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
+* The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
+* The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
+* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the grid element's content with padding excluded (intentionally) to provide more control over the gutter spacing.  Normally an absolutely positioned element is positioned relative to the containing element's content with padding included.
 
 ```css
 .grid {
@@ -183,7 +182,7 @@ Include Muuri inside the *body* element in your site and make sure to include th
 ### 6. Fire it up
 
 * The bare minimum configuration is demonstrated below. You must always provide Muuri with the container element and the initial item elements.
-* Be sure to check out the all the available [options](#options), [methods](#methods) and [events](#events).
+* Be sure to check out the all the available [options](#options), [grid methods](#container-methods), [item methods](#item-methods) and [container events](#container-events).
 
 ```javascript
 var grid = new Muuri({

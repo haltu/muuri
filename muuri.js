@@ -47,6 +47,7 @@ TODO v0.3.0
 * [x] Always consider the dragged element to be the item element. Get rid of
       the dragData.element and releaseData.element stuff.
 * [x] Review the event names and data.
+* [ ] Support providing a selector to items option.
 * [ ] Review and test the show and hide methods.
 * [ ] Streamline codebase by trying to combine similar functions and methods
       into smaller reusable functions.
@@ -168,8 +169,8 @@ TODO v0.3.0
    * @public
    * @class
    * @param {Object} settings
-   * @param {HTMLElement} settings.container
-   * @param {Array|NodeList} settings.items
+   * @param {HTMLElement|String} settings.container
+   * @param {?Array|NodeList|String} [settings.items]
    * @param {?Function|Object} [settings.show]
    * @param {Number} [settings.show.duration=300]
    * @param {String} [settings.show.easing="ease"]
@@ -210,6 +211,7 @@ TODO v0.3.0
   function Container(settings) {
 
     var inst = this;
+    var items;
     var debouncedLayout;
 
     // Merge user settings with default settings.
@@ -225,7 +227,7 @@ TODO v0.3.0
     containerInstances[inst._id] = inst;
 
     // Setup container element.
-    inst._element = stn.container;
+    inst._element = typeof stn.container === 'string' ? document.querySelectorAll(stn.container)[0] : stn.container;
     addClass(stn.container, stn.containerClass);
 
     // Reference to the currently used Layout instance.
@@ -248,9 +250,10 @@ TODO v0.3.0
     inst.refresh();
 
     // Setup initial items.
-    inst._items = Array.prototype.slice.call(stn.items).map(function (element) {
+    items = typeof stn.items === 'string' ? inst._element.querySelectorAll(stn.items) : stn.items;
+    inst._items = isNodeList(items) || Array.isArray(items) ? Array.prototype.slice.call(items).map(function (element) {
       return new Container.Item(inst, element);
-    });
+    }) : [];
 
     // Layout on window resize if the layoutOnResize option is enabled.
     if (typeof stn.layoutOnResize === 'number' || stn.layoutOnResize === true) {

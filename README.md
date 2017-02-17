@@ -108,7 +108,7 @@ Muuri depends on the following libraries:
 * [Velocity](https://github.com/julianshapiro/velocity) (v1.0.0+)
   * By default Muuri users Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting `Muuri.AnimateLayout` and `Muuri.AnimateVisibility` constructors. If you overwrite those constructors with your own implementation Muuri detects it and Velocity is no longer required as a dependency.
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
-  * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.Drag` constructor, which is instantiated for each item, so if you really need customize the drag behaviour beyond what is available via options you can replace the `Muuri.Drag` constructor with your own implementation.
+  * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.Drag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.Drag` constructor with your own implementation (fingers crossed).
 
 ### 3. Add the script tags
 
@@ -131,15 +131,19 @@ Include Muuri inside the *body* element in your site and make sure to include th
 
   <div class="item">
     <div class="item-content">
+      <!-- Safe zone, enter your custom markup -->
       This can be anything.
+      <!-- Safe zone ends -->
     </div>
   </div>
 
   <div class="item">
     <div class="item-content">
+      <!-- Safe zone, enter your custom markup -->
       <div class="my-custom-content">
         Yippee!
       </div>
+      <!-- Safe zone ends -->
     </div>
   </div>
 
@@ -151,7 +155,7 @@ Include Muuri inside the *body* element in your site and make sure to include th
 * The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
 * The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
-* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the grid element's content with padding excluded (intentionally) to provide more control over the gutter spacing.  Normally an absolutely positioned element is positioned relative to the containing element's content with padding included.
+* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the container element's content with padding excluded (intentionally) to provide more control over the gutter spacing.  Normally an absolutely positioned element is positioned relative to the containing element's content with padding included.
 
 ```css
 .grid {
@@ -182,23 +186,24 @@ Include Muuri inside the *body* element in your site and make sure to include th
 ### 6. Fire it up
 
 * The bare minimum configuration is demonstrated below. You must always provide Muuri with the container element and the initial item elements.
-* Be sure to check out the all the available [options](#options), [grid methods](#container-methods), [item methods](#item-methods) and [container events](#container-events).
+* Be sure to check out the all the available [options](#options), [container methods](#container-methods), [item methods](#item-methods) and [container events](#container-events).
 
 ```javascript
 var grid = new Muuri({
-  container: document.getElementsByClassName('grid')[0],
-  items: document.getElementsByClassName('item')
+  container: '.grid',
+  items: '.item'
 });
 ```
 
 ## Options
 
-* **`container`** &nbsp;&mdash;&nbsp; *element*
+* **`container`** &nbsp;&mdash;&nbsp; *element* / *string*
   * Default value: `null`.
-  * The container element. Must be always defined.
-* **`items`** &nbsp;&mdash;&nbsp; *array of elements* / [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList)
+  * The container element. You can provide the element directly or a selector (string) which uses [Document.querySelectorAll()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelectorAll) internally.
+* **`items`** &nbsp;&mdash;&nbsp; *array of elements* / [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) / *string*
   * Default value: `null`.
-  * The initial item elements wrapped in an array. The elements must be children of the container element. Can also be a node list which Muuri will automatically convert to an array.
+  * The initial item elements, which ought to be children of the container element.
+  * You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector the elements are queried within the container element with [Element.querySelectorAll()](https://developer.mozilla.org/en-US/docs/Web/API/Element/querySelectorAll).
 * **`show`** &nbsp;&mdash;&nbsp; *function* / *null* / *object*
   * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, scale: 1}}`.
   * Set to `null` to disable the animation.
@@ -338,6 +343,13 @@ var grid = new Muuri({
       * Allowed values: `1` - `100`.
       * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the items before sorting is triggered.
   * Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback receives one argument, which is the currently dragged Muuri.Item instance. The callback should return a *falsy* value if it sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties: `action` ("move" or "swap"), `from` (the index of the Muuri.Item to be moved/swapped), `to` (the index the item should be moved to / swapped with). E.g returning `{action: 'move', from: 0, to: 1}` would move the first item as the second item.
+* **`dragSortGroup`** &nbsp;&mdash;&nbsp; *null* / *string*
+  * Default value: `null`.
+  * The container's sort group, e.g. "groupA".
+* **`dragSortConnections`** &nbsp;&mdash;&nbsp; *null* / *array*
+  * Default value: `null`.
+  * Defines which containers this container's items can be dragged to.
+  * Provide an array of sort groups (strings).
 * **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * The duration for item's drag release animation. Set to `0` to disable.
@@ -351,7 +363,7 @@ var grid = new Muuri({
   * Default value: `'muuri-item'`.
   * Item element classname.
 * **`itemVisibleClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `'muuri-item-visible'`.
+  * Default value: `'muuri-item-shown'`.
   * Visible item classname.
 * **`itemHiddenClass`** &nbsp;&mdash;&nbsp; *string*
   * Default value: `'muuri-item-hidden'`.

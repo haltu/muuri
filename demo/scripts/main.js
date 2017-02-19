@@ -68,8 +68,7 @@ $(function () {
 
       var dragCounter = 0;
 
-      var muuri = new Muuri({
-        container: $grid.get(0),
+      var muuri = new Muuri($grid.get(0), {
         items: generateElements(20),
         layoutDuration: 1000,
         dragEnabled: true,
@@ -126,7 +125,7 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.showItems(muuri.getItems('hidden').slice(0, 5), function (items) {
+        muuri.show(muuri.getItems('hidden').slice(0, 5), function (items) {
           console.log('CALLBACK: Show ' + items.length + ' items');
         });
       }
@@ -143,7 +142,7 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.hideItems(muuri.getItems('visible').slice(0, 5), function (items) {
+        muuri.hide(muuri.getItems('visible').slice(0, 5), function (items) {
           console.log('CALLBACK: Hide ' + items.length + ' items');
         });
       }
@@ -164,7 +163,7 @@ $(function () {
         items.forEach(function (item) {
           item.style.display = 'none';
         });
-        muuri.showItems(muuri.addItems(items), function (items) {
+        muuri.show(muuri.add(items), function (items) {
           console.log('CALLBACK: Added ' + items.length + ' items');
         });
       }
@@ -181,8 +180,8 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.hideItems(muuri.getItems('active').slice(0, 5), function (items) {
-          muuri.removeItems(items, true);
+        muuri.hide(muuri.getItems('active').slice(0, 5), function (items) {
+          muuri.remove(items, true);
           console.log('CALLBACK: Removed ' + items.length + ' items');
         });
       }
@@ -199,7 +198,7 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.layoutItems(function () {
+        muuri.layout(function () {
           console.log('CALLBACK: Layout');
         });
       }
@@ -231,7 +230,7 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.synchronizeItems();
+        muuri.synchronize();
       }
 
     });
@@ -244,9 +243,7 @@ $(function () {
     var grid2 = $grid2.data('muuri');
 
     if (grid1 && grid2) {
-      grid1.sendItem({
-        item: 0,
-        container: grid2,
+      grid1.send(0, grid2, {
         position: 0
       });
     }

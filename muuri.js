@@ -28,14 +28,14 @@ TODO v0.3.0
 ===========
 * [x] BUG: When container has box-sizing border box the dimensions are not
       visually correct.
-* [x] muuri.sendItem()
-* [x] muuri.sortItems()
-* [x] muuri.filterItems()
-* [x] Improve muuri.getItems() to support filtering items by all available
+* [x] grid.send()
+* [x] grid.sort()
+* [x] grid.filter()
+* [x] Improve grid.getItems() to support filtering items by all available
       states.
 * [x] Improve the the visibility handler method logic. If an item is already
-      visible and muuri.showItems() is called for it, there should be no event
-      triggered. The same applies to hidden items and muuri.hideItems() method.
+      visible and grid.show() is called for it, there should be no event
+      triggered. The same applies to hidden items and grid.hide() method.
 * [x] When setting the width/height of container account for min-width/height
       and max-width/height.
 * [x] Drag item between instances.
@@ -47,11 +47,28 @@ TODO v0.3.0
 * [x] Always consider the dragged element to be the item element. Get rid of
       the dragData.element and releaseData.element stuff.
 * [x] Review the event names and data.
-* [ ] Support providing a selector to items option.
-* [ ] Review and test the show and hide methods.
+* [x] Support providing a selector to items option.
+* [ ] Docs & API overhaul. Try make as little breaking changes as possible.
+      * [x] Container -> Grid (reflect the change throughout the API)
+      * [x] new Grid(opts) -> new Grid(element, opts)
+      * [x] Review the refresh logic and the need for two refresh methods. It's
+            not ideal at the moment and has some issues.
+* [ ] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
+* [ ] If no items are defined in grid options default to fetching the
+      container's children. And since the docs say that the items should always
+      be children of the container, why not just always getting the children
+      and allowing the user to filter them with the options?
+* [ ] Add "instant" options to move and sort methods, and maybe also to add
+      and remove methods.
+* [ ] Reconsider using "border-dimensions" for the container check in drag
+      overlpa check.
+* [ ] It is crucial to allow dropping on empty gaps and not having it is a
+      major annoyance when draggin from a grid to another. Imagine a big grid
+      with one item, and you're forced to drag over the item... :(
 * [ ] Streamline codebase by trying to combine similar functions and methods
       into smaller reusable functions.
 * [ ] Use WeakMap for storing the instances in browsers that support WeakMap.
+* [ ] Review and test the show and hide methods.
 * [ ] Review the codebase and comments with thought x 3.
 
 */
@@ -106,8 +123,8 @@ TODO v0.3.0
   var Error = global.Error;
   var Element = global.Element;
 
-  // Container object for keeping track of Container instances.
-  var containerInstances = {};
+  // Container object for keeping track of Grid instances.
+  var gridInstances = {};
 
   // Container object for keeping track of Item instances.
   var itemInstances = {};
@@ -133,19 +150,19 @@ TODO v0.3.0
   // Event names.
   var evRefresh = 'refresh';
   var evRefreshItems = 'refreshItems';
-  var evSynchronizeItems = 'synchronizeItems';
-  var evLayoutItemsStart = 'layoutItemsStart';
-  var evLayoutItemsEnd = 'layoutItemsEnd';
-  var evAddItems = 'addItems';
-  var evRemoveItems = 'removeItems';
-  var evShowItemsStart = 'showItemsStart';
-  var evShowItemsEnd = 'showItemsEnd';
-  var evHideItemsStart = 'hideItemsStart';
-  var evHideItemsEnd = 'hideItemsEnd';
-  var evMoveItem = 'moveItem';
-  var evSendItem = 'sendItem';
-  var evReceiveItemStart = 'receiveItemStart';
-  var evReceiveItemEnd = 'receiveItemEnd';
+  var evSynchronize = 'synchronize';
+  var evLayoutStart = 'layoutStart';
+  var evLayoutEnd = 'layoutEnd';
+  var evAdd = 'add';
+  var evRemove = 'remove';
+  var evShowStart = 'showStart';
+  var evShowEnd = 'showEnd';
+  var evHideStart = 'hideStart';
+  var evHideEnd = 'hideEnd';
+  var evMove = 'move';
+  var evSend = 'send';
+  var evReceiveStart = 'receiveStart';
+  var evReceiveEnd = 'receiveEnd';
   var evDragStart = 'dragStart';
   var evDragMove = 'dragMove';
   var evDragScroll = 'dragScroll';
@@ -159,108 +176,109 @@ TODO v0.3.0
   var evDestroy = 'destroy';
 
   /**
-   * Container
-   * *********
+   * Grid
+   * ****
    */
 
   /**
-   * Creates a new Container instance.
+   * Creates a new Grid instance.
    *
    * @public
    * @class
-   * @param {Object} settings
-   * @param {HTMLElement|String} settings.container
-   * @param {?Array|NodeList|String} [settings.items]
-   * @param {?Function|Object} [settings.show]
-   * @param {Number} [settings.show.duration=300]
-   * @param {String} [settings.show.easing="ease"]
-   * @param {Object} [settings.show.styles]
-   * @param {?Function|Object} [settings.hide]
-   * @param {Number} [settings.hide.duration=300]
-   * @param {String} [settings.hide.easing="ease"]
-   * @param {Object} [settings.hide.styles]
-   * @param {Function|Object} [settings.layout]
-   * @param {Boolean} [settings.layout.fillGaps=false]
-   * @param {Boolean} [settings.layout.horizontal=false]
-   * @param {Boolean} [settings.layout.alignRight=false]
-   * @param {Boolean} [settings.layout.alignBottom=false]
-   * @param {Boolean|Number} [settings.layoutOnResize=100]
-   * @param {Boolean} [settings.layoutOnInit=true]
-   * @param {Number} [settings.layoutDuration=300]
-   * @param {String} [settings.layoutEasing="ease"]
-   * @param {Boolean} [settings.dragEnabled=false]
-   * @param {?HtmlElement} [settings.dragContainer=null]
-   * @param {?Function} [settings.dragStartPredicate=null]
-   * @param {Boolean} [settings.dragSort=true]
-   * @param {Number} [settings.dragSortInterval=50]
-   * @param {?Function|Object} [settings.dragSortPredicate]
-   * @param {Number} [settings.dragSortPredicate.threshold=50]
-   * @param {String} [settings.dragSortPredicate.action="move"]
-   * @param {?String} [settings.dragSortGroup=null]
-   * @param {?Array} [settings.dragSortConnections=null]
-   * @param {Number} [settings.dragReleaseDuration=300]
-   * @param {String} [settings.dragReleaseEasing="ease"]
-   * @param {String} [settings.containerClass="muuri"]
-   * @param {String} [settings.itemClass="muuri-item"]
-   * @param {String} [settings.itemVisibleClass="muuri-item-visible"]
-   * @param {String} [settings.itemHiddenClass="muuri-item-hidden"]
-   * @param {String} [settings.itemPositioningClass="muuri-item-positioning"]
-   * @param {String} [settings.itemDraggingClass="muuri-item-dragging"]
-   * @param {String} [settings.itemReleasingClass="muuri-item-releasing"]
+   * @param {HTMLElement|String} element
+   * @param {Object} [options]
+   * @param {?Array|NodeList|String} [options.items]
+   * @param {?Function|Object} [options.show]
+   * @param {Number} [options.show.duration=300]
+   * @param {String} [options.show.easing="ease"]
+   * @param {Object} [options.show.styles]
+   * @param {?Function|Object} [options.hide]
+   * @param {Number} [options.hide.duration=300]
+   * @param {String} [options.hide.easing="ease"]
+   * @param {Object} [options.hide.styles]
+   * @param {Function|Object} [options.layout]
+   * @param {Boolean} [options.layout.fillGaps=false]
+   * @param {Boolean} [options.layout.horizontal=false]
+   * @param {Boolean} [options.layout.alignRight=false]
+   * @param {Boolean} [options.layout.alignBottom=false]
+   * @param {Boolean|Number} [options.layoutOnResize=100]
+   * @param {Boolean} [options.layoutOnInit=true]
+   * @param {Number} [options.layoutDuration=300]
+   * @param {String} [options.layoutEasing="ease"]
+   * @param {Boolean} [options.dragEnabled=false]
+   * @param {?HtmlElement} [options.dragContainer=null]
+   * @param {?Function} [options.dragStartPredicate=null]
+   * @param {Boolean} [options.dragSort=true]
+   * @param {Number} [options.dragSortInterval=50]
+   * @param {?Function|Object} [options.dragSortPredicate]
+   * @param {Number} [options.dragSortPredicate.threshold=50]
+   * @param {String} [options.dragSortPredicate.action="move"]
+   * @param {?String} [options.dragSortGroup=null]
+   * @param {?Array} [options.dragSortConnections=null]
+   * @param {Number} [options.dragReleaseDuration=300]
+   * @param {String} [options.dragReleaseEasing="ease"]
+   * @param {String} [options.containerClass="muuri"]
+   * @param {String} [options.itemClass="muuri-item"]
+   * @param {String} [options.itemVisibleClass="muuri-item-visible"]
+   * @param {String} [options.itemHiddenClass="muuri-item-hidden"]
+   * @param {String} [options.itemPositioningClass="muuri-item-positioning"]
+   * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
+   * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
    */
-  function Container(settings) {
+  function Grid(element, options) {
 
     var inst = this;
     var items;
     var debouncedLayout;
-
-    // Merge user settings with default settings.
-    var stn = inst._settings = mergeSettings(Container.defaultSettings, settings);
+    var settings;
 
     // Make sure a valid container element is provided before going continuing.
-    if (!document.body.contains(stn.container)) {
-      throw new Error('Container must be an existing DOM element');
+    if (!document.body.contains(element)) {
+      throw new Error('Container element must be an existing DOM element');
     }
 
-    // Create instance id and store it to the container instances collection.
+    // Create instance settings by merging options with default options.
+    settings = inst._settings = mergeSettings(Grid.defaultOptions, options);
+
+    // Create instance id and store it to the grid instances collection.
     inst._id = ++uuid;
-    containerInstances[inst._id] = inst;
+    gridInstances[inst._id] = inst;
 
     // Setup container element.
-    inst._element = typeof stn.container === 'string' ? document.querySelectorAll(stn.container)[0] : stn.container;
-    addClass(stn.container, stn.containerClass);
+    inst._element = typeof element === 'string' ? document.querySelectorAll(element)[0] : element;
+    addClass(element, settings.containerClass);
 
     // Reference to the currently used Layout instance.
     inst._layout = null;
 
     // Create private Emitter instance.
-    inst._emitter = new Container.Emitter();
+    inst._emitter = new Grid.Emitter();
 
     // Setup show and hide animations for items.
-    inst._itemShowHandler = typeof stn.show === 'function' ? stn.show() : getItemVisbilityHandler('show', stn.show);
-    inst._itemHideHandler = typeof stn.hide === 'function' ? stn.hide() : getItemVisbilityHandler('hide', stn.hide);
+    inst._itemShowHandler = typeof settings.show === 'function' ? settings.show() : getItemVisbilityHandler('show', settings.show);
+    inst._itemHideHandler = typeof settings.hide === 'function' ? settings.hide() : getItemVisbilityHandler('hide', settings.hide);
 
     // Setup instance's sort group.
-    inst._setSortGroup(stn.dragSortGroup);
+    inst._setSortGroup(settings.dragSortGroup);
 
     // Setup instance's sort connections.
-    inst._sortConnections = Array.isArray(stn.dragSortConnections) && stn.dragSortConnections.length ? stn.dragSortConnections : null;
+    inst._sortConnections = Array.isArray(settings.dragSortConnections) && settings.dragSortConnections.length ? settings.dragSortConnections : null;
 
     // Calculate container element's initial dimensions and offset.
     inst.refresh();
 
     // Setup initial items.
-    items = typeof stn.items === 'string' ? inst._element.querySelectorAll(stn.items) : stn.items;
+    items = typeof settings.items === 'string' ? inst._element.querySelectorAll(settings.items) : settings.items;
     inst._items = isNodeList(items) || Array.isArray(items) ? Array.prototype.slice.call(items).map(function (element) {
-      return new Container.Item(inst, element);
+      return new Grid.Item(inst, element);
     }) : [];
 
     // Layout on window resize if the layoutOnResize option is enabled.
-    if (typeof stn.layoutOnResize === 'number' || stn.layoutOnResize === true) {
+    if (typeof settings.layoutOnResize === 'number' || settings.layoutOnResize === true) {
 
       debouncedLayout = debounce(function () {
-        inst.refresh().refreshItems().layoutItems();
-      }, Math.max(0, parseInt(stn.layoutOnResize) || 0));
+        inst.refresh().refreshItems().layout();
+      }, Math.max(0, parseInt(settings.layoutOnResize) || 0));
 
       inst._resizeHandler = function () {
         debouncedLayout();
@@ -271,59 +289,56 @@ TODO v0.3.0
     }
 
     // Do initial layout if necessary.
-    if (stn.layoutOnInit) {
-      inst.layoutItems(true);
+    if (settings.layoutOnInit) {
+      inst.layout(true);
     }
 
   }
 
   /**
-   * Container - Public properties
-   * *****************************
+   * Grid - Public properties
+   * ************************
    */
 
   /**
    * @see Item
    */
-  Container.Item = Item;
+  Grid.Item = Item;
 
   /**
    * @see Drag
    */
-  Container.Drag = Drag;
+  Grid.Drag = Drag;
 
   /**
    * @see Layout
    */
-  Container.Layout = Layout;
+  Grid.Layout = Layout;
 
   /**
    * @see Animate
    */
-  Container.AnimateLayout = Animate;
+  Grid.AnimateLayout = Animate;
 
   /**
    * @see Animate
    */
-  Container.AnimateVisibility = Animate;
+  Grid.AnimateVisibility = Animate;
 
   /**
    * @see Emitter
    */
-  Container.Emitter = Emitter;
+  Grid.Emitter = Emitter;
 
   /**
-   * Default settings for Container instance.
+   * Default options for Grid instance.
    *
    * @public
-   * @memberof Container
+   * @memberof Grid
    */
-  Container.defaultSettings = {
+  Grid.defaultOptions = {
 
-    // Container
-    container: null,
-
-    // Items
+    // Item elements
     items: [],
 
     // Show/hide animations
@@ -383,20 +398,20 @@ TODO v0.3.0
   };
 
   /**
-   * Container - Public prototype methods
-   * ************************************
+   * Grid - Public prototype methods
+   * *******************************
    */
 
   /**
    * Bind an event listener.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {String} event
    * @param {Function} listener
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.on = function (event, listener) {
+  Grid.prototype.on = function (event, listener) {
 
     this._emitter.on(event, listener);
     return this;
@@ -407,12 +422,12 @@ TODO v0.3.0
    * Unbind an event listener.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {String} event
    * @param {Function} listener
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.off = function (event, listener) {
+  Grid.prototype.off = function (event, listener) {
 
     this._emitter.off(event, listener);
     return this;
@@ -420,13 +435,98 @@ TODO v0.3.0
   };
 
   /**
+   * Get the instance element.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @returns {HTMLElement}
+   */
+  Grid.prototype.getElement = function () {
+
+    return this._element;
+
+  };
+
+  /**
+   * Get instance's cached dimensions and offsets. Basically the same data as
+   * provided by element.getBoundingClientRect() method, just cached. The cached
+   * dimensions and offsets are subject to change whenever grid.layout() or
+   * refresh method is called. Note that all returned values are rounded.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @returns {Object}
+   */
+  Grid.prototype.getRect = function () {
+
+    return {
+      width: this._width,
+      height: this._height,
+      left: this._offset.left,
+      right: this._offset.left + this._width,
+      top: this._offset.top,
+      bottom: this._offset.top + this._height
+    };
+
+  };
+
+  /**
+   * Get all items. Optionally you can provide specific targets (indices or
+   * elements) and filter the results by the items' state (active/inactive).
+   * Note that the returned array is not the same object used by the instance so
+   * modifying it will not affect instance's items. All items that are not found
+   * are omitted from the returned array.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {Array|HTMLElement|Item|NodeList|Number} [targets]
+   * @param {String} [state]
+   *   - Allowed values are: "active", "inactive", "visible", "hidden",
+   *     "showing", "hiding", "positioning", "dragging", "releasing" and
+   *     "migrating".
+   * @returns {Array}
+   *   - Array of Item instances.
+   */
+  Grid.prototype.getItems = function (targets, state) {
+
+    var inst = this;
+    var hasTargets = targets && typeof targets !== 'string';
+    var targetItems = !hasTargets ? null : isNodeList(targets) ? Array.prototype.slice.call(targets) : [].concat(targets);
+    var targetState = !hasTargets ? targets : state;
+    var ret = [];
+    var item;
+    var i;
+
+    // Sanitize target state.
+    targetState = typeof targetState === 'string' ? targetState : null;
+
+    // If target state or target items are defined return filtered results.
+    if (targetState || targetItems) {
+      targetItems = targetItems || inst._items;
+      for (i = 0; i < targetItems.length; i++) {
+        item = hasTargets ? inst._getItem(targetItems[i]) : targetItems[i];
+        if (item && (!targetState || isItemInState(item, targetState))) {
+          ret[ret.length] = item;
+        }
+      }
+      return ret;
+    }
+
+    // Otherwise return all items.
+    else {
+      return ret.concat(inst._items);
+    }
+
+  };
+
+  /**
    * Calculate and cache the dimensions and offsets of the container element.
    *
    * @public
-   * @memberof Container.prototype
-   * @returns {Container}
+   * @memberof Grid.prototype
+   * @returns {Grid}
    */
-  Container.prototype.refresh = function () {
+  Grid.prototype.refresh = function () {
 
     var inst = this;
     var element = inst._element;
@@ -465,100 +565,15 @@ TODO v0.3.0
   };
 
   /**
-   * Get the instance element.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @returns {HTMLElement}
-   */
-  Container.prototype.getElement = function () {
-
-    return this._element;
-
-  };
-
-  /**
-   * Get instance's cached dimensions and offsets. Basically the same data as
-   * provided by element.getBoundingClientRect() method, just cached. The cached
-   * dimensions and offsets are subject to change whenever layoutItems or
-   * refresh method is called. Note that all returned values are rounded.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @returns {Object}
-   */
-  Container.prototype.getRect = function () {
-
-    return {
-      width: this._width,
-      height: this._height,
-      left: this._offset.left,
-      right: this._offset.left + this._width,
-      top: this._offset.top,
-      bottom: this._offset.top + this._height
-    };
-
-  };
-
-  /**
-   * Get all items. Optionally you can provide specific targets (indices or
-   * elements) and filter the results by the items' state (active/inactive).
-   * Note that the returned array is not the same object used by the instance so
-   * modifying it will not affect instance's items. All items that are not found
-   * are omitted from the returned array.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @param {Array|HTMLElement|Item|NodeList|Number} [targets]
-   * @param {String} [state]
-   *   - Allowed values are: "active", "inactive", "visible", "hidden",
-   *     "showing", "hiding", "positioning", "dragging", "releasing" and
-   *     "migrating".
-   * @returns {Array}
-   *   - Array of Item instances.
-   */
-  Container.prototype.getItems = function (targets, state) {
-
-    var inst = this;
-    var hasTargets = targets && typeof targets !== 'string';
-    var targetItems = !hasTargets ? null : isNodeList(targets) ? Array.prototype.slice.call(targets) : [].concat(targets);
-    var targetState = !hasTargets ? targets : state;
-    var ret = [];
-    var item;
-    var i;
-
-    // Sanitize target state.
-    targetState = typeof targetState === 'string' ? targetState : null;
-
-    // If target state or target items are defined return filtered results.
-    if (targetState || targetItems) {
-      targetItems = targetItems || inst._items;
-      for (i = 0; i < targetItems.length; i++) {
-        item = hasTargets ? inst._getItem(targetItems[i]) : targetItems[i];
-        if (item && (!targetState || isItemInState(item, targetState))) {
-          ret[ret.length] = item;
-        }
-      }
-      return ret;
-    }
-
-    // Otherwise return all items.
-    else {
-      return ret.concat(inst._items);
-    }
-
-  };
-
-  /**
    * Recalculate the width and height of the provided targets. If no targets are
    * provided all active items will be refreshed.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {Array|HTMLElement|Item|Number} [items]
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.refreshItems = function (items) {
+  Grid.prototype.refreshItems = function (items) {
 
     var inst = this;
     var targetItems = inst.getItems(items || 'active');
@@ -577,15 +592,15 @@ TODO v0.3.0
 
   /**
    * Order the item elements to match the order of the items. If the item's
-   * element is not a child of the container it is ignored and left untouched.
-   * This comes handy if you need to keep the DOM structure matched with the
-   * order of the items.
+   * element is not a child of the container element it is ignored and left
+   * untouched. This comes handy if you need to keep the DOM structure matched
+   * with the order of the items.
    *
    * @public
-   * @memberof Container.prototype
-   * @returns {Container}
+   * @memberof Grid.prototype
+   * @returns {Grid}
    */
-  Container.prototype.synchronizeItems = function () {
+  Grid.prototype.synchronize = function () {
 
     var inst = this;
     var container = inst._element;
@@ -608,29 +623,29 @@ TODO v0.3.0
       }
     }
 
-    // Emit synchronizeItems event.
-    inst._emitter.emit(evSynchronizeItems);
+    // Emit synchronize event.
+    inst._emitter.emit(evSynchronize);
 
     return inst;
 
   };
 
   /**
-   * Calculate and apply Container instance's item positions.
+   * Calculate and apply Grid instance's item positions.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {Boolean} [instant=false]
    * @param {Function} [callback]
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.layoutItems = function (instant, callback) {
+  Grid.prototype.layout = function (instant, callback) {
 
     var inst = this;
     var emitter = inst._emitter;
     var cb = typeof instant === 'function' ? instant : callback;
     var isInstant = instant === true;
-    var layout = new Container.Layout(inst);
+    var layout = new Grid.Layout(inst);
     var counter = 0;
     var itemsLength = layout.items.length;
     var completed = [];
@@ -656,7 +671,7 @@ TODO v0.3.0
         if (typeof cb === 'function') {
           cb(completed.concat());
         }
-        emitter.emit(evLayoutItemsEnd, completed.concat());
+        emitter.emit(evLayoutEnd, completed.concat());
       }
 
     }
@@ -664,13 +679,13 @@ TODO v0.3.0
     // Update the current layout data reference.
     inst._layout = layout;
 
-    // Emit layoutItemsStart event.
-    emitter.emit(evLayoutItemsStart, layout.items.concat());
+    // Emit layoutStart event.
+    emitter.emit(evLayoutStart, layout.items.concat());
 
-    // If container's width or height was modified, we need refresh it's cached
-    // dimensions. Also keep in mind that container's cached width/height should
+    // If grid's width or height was modified, we need refresh it's cached
+    // dimensions. Also keep in mind that grid's cached width/height should
     // always equal to what elem.getBoundingClientRect() would return, so
-    // therefore we need to add the container's paddings and margins to the
+    // therefore we need to add the grid element's paddings and margins to the
     // dimensions if it's box-sizing is border-box.
     if (layout.setWidth || layout.setHeight) {
 
@@ -678,14 +693,14 @@ TODO v0.3.0
       border = inst._border;
       isBorderBox = inst._boxSizing === 'border-box';
 
-      // Set container's height if needed.
+      // Set container element's height if needed.
       if (layout.setHeight) {
         setStyles(inst._element, {
           height: (isBorderBox ? layout.height + padding.top + padding.bottom + border.top + border.bottom : layout.height) + 'px'
         });
       }
 
-      // Set container's width if needed.
+      // Set container element's width if needed.
       if (layout.setWidth) {
         setStyles(inst._element, {
           width: (isBorderBox ? layout.width + padding.left + padding.right + border.left + border.right : layout.width) + 'px'
@@ -737,23 +752,23 @@ TODO v0.3.0
    * Add new items by providing the elements you wish to add to the instance and
    * optionally provide the index where you want the items to be inserted into.
    * All elements that are not already children of the container element will be
-   * automatically appended to the container. If an element has it's CSS display
-   * property set to none it will be marked as inactive during the initiation
-   * process. As long as the item is inactive it will not be part of the layout,
-   * but it will retain it's index. You can activate items at any point
-   * with muuri.show() method. This method will automatically call
-   * muuri.layoutItems() if one or more of the added elements are visible. If
-   * only hidden items are added no layout will be called. All the new visible
-   * items are positioned without animation during their first layout.
+   * automatically appended to the container element. If an element has it's CSS
+   * display property set to "none" it will be marked as inactive during the
+   * initiation process. As long as the item is inactive it will not be part of
+   * the layout, but it will retain it's index. You can activate items at any
+   * point with grid.show() method. This method will automatically call
+   * grid.layout() if one or more of the added elements are visible. If only
+   * hidden items are added no layout will be called. All the new visible items
+   * are positioned without animation during their first layout.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {Array|HTMLElement} elements
    * @param {Number} [index=-1]
    * @returns {Array}
    *   - Array of the new Item instances.
    */
-  Container.prototype.addItems = function (elements, index) {
+  Grid.prototype.add = function (elements, index) {
 
     var inst = this;
     var targetElements = [].concat(elements);
@@ -779,7 +794,7 @@ TODO v0.3.0
 
     // Create new items.
     for (i = 0; i < targetElements.length; i++) {
-      item = new Container.Item(inst, targetElements[i]);
+      item = new Grid.Item(inst, targetElements[i]);
       newItems[newItems.length] = item;
       if (item._isActive) {
         needsRelayout = true;
@@ -790,12 +805,12 @@ TODO v0.3.0
     // Add the new items to the items collection to correct index.
     insertItemsToArray(items, newItems, index);
 
-    // Emit addItems event.
-    inst._emitter.emit(evAddItems, newItems.concat());
+    // Emit add event.
+    inst._emitter.emit(evAdd, newItems.concat());
 
     // If relayout is needed.
     if (needsRelayout) {
-      inst.layoutItems();
+      inst.layout();
     }
 
     // Return new items.
@@ -807,13 +822,13 @@ TODO v0.3.0
    * Remove items from the instance.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Boolean} [removeElement=false]
    * @returns {Array}
    *   - The indices of removed items.
    */
-  Container.prototype.removeItems = function (items, removeElement) {
+  Grid.prototype.remove = function (items, removeElement) {
 
     var inst = this;
     var targetItems = inst.getItems(items);
@@ -831,12 +846,12 @@ TODO v0.3.0
       indices[indices.length] = item._destroy(removeElement);
     }
 
-    // Emit removeItems event.
-    inst._emitter.emit(evRemoveItems, indices.concat());
+    // Emit remove event.
+    inst._emitter.emit(evRemove, indices.concat());
 
     // If relayout is needed.
     if (needsRelayout) {
-      inst.layoutItems();
+      inst.layout();
     }
 
     return indices;
@@ -847,13 +862,13 @@ TODO v0.3.0
    * Show instance items.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Boolean} [instant=false]
    * @param {Function} [callback]
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.showItems = function (items, instant, callback) {
+  Grid.prototype.show = function (items, instant, callback) {
 
     setVisibility(this, 'show', items, instant, callback);
     return this;
@@ -864,13 +879,13 @@ TODO v0.3.0
    * Hide instance items.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Boolean} [instant=false]
    * @param {Function} [callback]
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.hideItems = function (items, instant, callback) {
+  Grid.prototype.hide = function (items, instant, callback) {
 
     setVisibility(this, 'hide', items, instant, callback);
     return this;
@@ -878,49 +893,29 @@ TODO v0.3.0
   };
 
   /**
-   * Sort items with a compare function. Works identically to
-   * Array.prototype.sort().
+   * Filter items. Expects at least one argument, a predicate, which should be
+   * either a function or a string. The predicate callback is executed for every
+   * item in the instance. If the return value of the predicate is truthy the
+   * item in question will be shown and otherwise hidden. The predicate callback
+   * receives two arguments: the item instance and the instance's element. If
+   * the predicate is a string it is considered to be a selector and it is
+   * checked against every item element in the instance with the native
+   * element.matches() method. All the matching items will be shown and others
+   * hidden.
    *
    * @public
-   * @memberof Container.prototype
-   * @param {Function} compareFn
-   * @returns {Container}
-   */
-  Container.prototype.sortItems = function (compareFn) {
-
-    var items = this._items;
-
-    if (items.length > 1) {
-      items.sort(compareFn);
-    }
-
-    return this;
-
-  };
-
-  /**
-   * Filter items. Expects one argument which should be either a function or a
-   * string. A function filter is executed for every item in the instance. If
-   * the return value of the function is truthy the item in question will be
-   * shown and otherwise hidden. The filter function receives two arguments: the
-   * item instance and the related element. If the filter is a string it is
-   * considered to be a selector and it is checked against every item element in
-   * the instance with the native element.matches() method. All the items which
-   * the selector matches will be shown and other hidden.
-   *
-   * @public
-   * @memberof Container.prototype
-   * @param {Function|String} filter
+   * @memberof Grid.prototype
+   * @param {Function|String} predicate
    * @param {Boolean} [instant=false]
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.filterItems = function (filter, instant) {
+  Grid.prototype.filter = function (predicate, instant) {
 
     var inst = this;
     var items = inst._items;
-    var filterType = typeof filter;
-    var isFilterString = filterType === 'string';
-    var isFilterFn = filterType === 'function';
+    var predicateType = typeof predicate;
+    var isFilterString = predicateType === 'string';
+    var isFilterFn = predicateType === 'function';
     var itemsToShow = [];
     var itemsToHide = [];
     var item;
@@ -935,7 +930,7 @@ TODO v0.3.0
     if (isFilterFn || isFilterString) {
       for (i = 0; i < items.length; i++) {
         item = items[i];
-        if (isFilterFn ? filter(item, item._element) : elementMatches(item._element, filter)) {
+        if (isFilterFn ? predicate(item, item._element) : elementMatches(item._element, predicate)) {
           itemsToShow.push(item);
         }
         else {
@@ -946,12 +941,12 @@ TODO v0.3.0
 
     // Show items that need to be shown.
     if (itemsToShow.length) {
-      inst.showItems(itemsToShow, instant);
+      inst.show(itemsToShow, instant);
     }
 
     // Hide items that need to be hidden.
     if (itemsToHide.length) {
-      inst.hideItems(itemsToHide, instant);
+      inst.hide(itemsToHide, instant);
     }
 
     return inst;
@@ -959,18 +954,39 @@ TODO v0.3.0
   };
 
   /**
+   * Sort items with a compare function. Works identically to
+   * Array.prototype.sort().
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {Function} compareFunction
+   * @returns {Grid}
+   */
+  Grid.prototype.sort = function (compareFunction) {
+
+    var items = this._items;
+
+    if (items.length > 1) {
+      items.sort(compareFunction);
+    }
+
+    return this;
+
+  };
+
+  /**
    * Move item to another index or in place of another item.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {HTMLElement|Item|Number} item
    * @param {HTMLElement|Item|Number} position
    * @param {String} [action="move"]
    *   - Accepts either "move" or "swap". "move" moves item in place of another
    *     item and "swap" swaps position of items.
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.moveItem = function (item, position, action) {
+  Grid.prototype.move = function (item, position, action) {
 
     var inst = this;
     var items = inst._items;
@@ -1000,8 +1016,8 @@ TODO v0.3.0
       // Do the move/swap.
       (isSwap ? arraySwap : arrayMove)(items, fromIndex, toIndex);
 
-      // Emit moveItem event.
-      inst._emitter.emit(evMoveItem, {
+      // Emit move event.
+      inst._emitter.emit(evMove, {
         item: fromItem,
         fromIndex: fromIndex,
         toIndex: toIndex,
@@ -1009,7 +1025,7 @@ TODO v0.3.0
       });
 
       // Layout items.
-      inst.layoutItems();
+      inst.layout();
 
     }
 
@@ -1018,105 +1034,106 @@ TODO v0.3.0
   };
 
   /**
-   * Send item to another Container instance.
+   * Send item to another Grid instance.
    *
    * @public
-   * @memberof Container.prototype
-   * @param {Object} options
-   * @param {HTMLElement|Item|Number} options.item
-   * @param {Container} options.container
+   * @memberof Grid.prototype
+   * @param {HTMLElement|Item|Number} item
+   * @param {Grid} grid
+   * @param {Object} [options]
    * @param {HTMLElement|Item|Number} [options.position=0]
-   * @param {Boolean} [options.appendTo=document.body]
+   * @param {HTMLElement} [options.appendTo=document.body]
    * @param {Boolean} [options.instant=false]
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype.sendItem = function (options) {
+  Grid.prototype.send = function (item, grid, options) {
 
-    var currentContainer = this;
-    var currentContainerStn = currentContainer._settings;
-    var targetContainer = options.container;
-    var targetContainerStn = targetContainer._settings;
-    var item = currentContainer._getItem(options.item);
-    var migrate = item._migrate;
-    var element = item._element;
-    var isActive = item.isActive();
-    var isVisible = (item.isVisible() || item.isShowing()) && !item.isHiding();
+    var currentGrid = this;
+    var currentGridStn = currentGrid._settings;
+    var targetGrid = grid;
+    var targetGridStn = targetGrid._settings;
+    var targetItem = currentGrid._getItem(item);
+    var migrate = targetItem._migrate;
+    var element = targetItem._element;
+    var isActive = targetItem.isActive();
+    var isVisible = (targetItem.isVisible() || targetItem.isShowing()) && !targetItem.isHiding();
     var isInstant = !!options.instant;
     var appendTo = options.appendTo || document.body;
     var position = options.position;
-    var currentIndex = currentContainer._items.indexOf(item);
-    var newIndex = typeof position === 'number' ? position : (position ? targetContainer._items.indexOf(targetContainer._getItem(position)) : 0);
+    var currentIndex = currentGrid._items.indexOf(targetItem);
+    var newIndex = typeof position === 'number' ? position : (position ? targetGrid._items.indexOf(targetGrid._getItem(position)) : 0);
     var offsetDiff;
     var translateX;
     var translateY;
 
     // Stop current layout animation.
-    item._stopLayout(true);
+    targetItem._stopLayout(true);
 
     // Stop current migration.
-    item._stopMigrate(true);
+    targetItem._stopMigrate(true);
 
     // Stop current visibility animations.
-    currentContainer._itemShowHandler.stop(item);
-    currentContainer._itemHideHandler.stop(item);
+    currentGrid._itemShowHandler.stop(targetItem);
+    currentGrid._itemHideHandler.stop(targetItem);
 
     // Destroy current drag.
-    if (item._drag) {
-      item._drag.destroy();
+    if (targetItem._drag) {
+      targetItem._drag.destroy();
     }
 
     // Destroy current animation handlers.
-    item._animate.destroy();
-    item._animateChild.destroy();
+    targetItem._animate.destroy();
+    targetItem._animateChild.destroy();
 
     // Process current visibility animation queue.
-    processQueue(item._visibilityQueue, true, item);
+    processQueue(targetItem._visibilityQueue, true, targetItem);
 
     // Remove current classnames.
-    removeClass(element, currentContainerStn.itemClass);
-    removeClass(element, currentContainerStn.itemVisibleClass);
-    removeClass(element, currentContainerStn.itemHiddenClass);
+    removeClass(element, currentGridStn.itemClass);
+    removeClass(element, currentGridStn.itemVisibleClass);
+    removeClass(element, currentGridStn.itemHiddenClass);
 
     // Add new classnames.
-    addClass(element, targetContainerStn.itemClass);
-    addClass(element, isVisible ? targetContainerStn.itemVisibleClass : targetContainerStn.itemHiddenClass);
+    addClass(element, targetGridStn.itemClass);
+    addClass(element, isVisible ? targetGridStn.itemVisibleClass : targetGridStn.itemHiddenClass);
 
-    // Move item instance from current container to target container.
-    currentContainer._items.splice(currentIndex, 1);
-    insertItemsToArray(targetContainer._items, item, newIndex);
+    // Move item instance from current grid to target grid.
+    currentGrid._items.splice(currentIndex, 1);
+    insertItemsToArray(targetGrid._items, targetItem, newIndex);
 
-    // Update item's container id reference.
-    item._containerId = targetContainer._id;
+    // Update item's grid id reference.
+    targetItem._gridId = targetGrid._id;
 
     // Instantiate new animation controllers.
-    item._animate = new Container.AnimateLayout(item, element);
-    item._animateChild = new Container.AnimateVisibility(item, item._child);
-    item._isDefaultAnimate = item._animate instanceof Animate;
-    item._isDefaultChildAnimate = item._animateChild instanceof Animate;
+    targetItem._animate = new Grid.AnimateLayout(targetItem, element);
+    targetItem._animateChild = new Grid.AnimateVisibility(targetItem, targetItem._child);
+    targetItem._isDefaultAnimate = targetItem._animate instanceof Animate;
+    targetItem._isDefaultChildAnimate = targetItem._animateChild instanceof Animate;
 
     // If the item is currently not inside the correct layout container, we need
     // to move the element inside the layout container and calculate how much
     // the translate value needs to be modified in order for the item remain
     // visually in the same position. Note that we assume here that the item
-    // is currently within the current container instance's element.
-    if (currentContainer._element !== appendTo) {
+    // is currently within the current grid instance's container element.
+    if (currentGrid._element !== appendTo) {
 
       // Get current translate values.
       translateX = getTranslateAsFloat(element, 'x');
       translateY = getTranslateAsFloat(element, 'y');
 
-      // Move the item inside the new container.
+      // Move the item inside the new container element.
       appendTo.appendChild(element);
 
-      // Calculate how much offset difference the new container has with the
-      // old container and adjust the translate value accordingly.
-      offsetDiff = getContainerOffsetDiff(element, currentContainer._element);
+      // Calculate how much offset difference the new container element has with
+      // the old container element and adjust the translate values accordingly.
+      offsetDiff = getContainerOffsetDiff(element, currentGrid._element);
       translateX += offsetDiff.left;
       translateY += offsetDiff.top;
 
       // Calculate how much offset difference there is between the new container
-      // and the target container and store the results to migration data.
-      offsetDiff = getContainerOffsetDiff(element, targetContainer._element);
+      // element and the target container element and store the results to
+      // migration data.
+      offsetDiff = getContainerOffsetDiff(element, targetGrid._element);
       migrate.containerDiffX = offsetDiff.left;
       migrate.containerDiffY = offsetDiff.top;
 
@@ -1132,51 +1149,51 @@ TODO v0.3.0
     });
 
     // Update child element's styles to reflect the current visibility state.
-    item._child.removeAttribute('style');
+    targetItem._child.removeAttribute('style');
     if (isVisible) {
-      targetContainer._itemShowHandler.start(item, true);
+      targetGrid._itemShowHandler.start(targetItem, true);
     }
     else {
-      targetContainer._itemHideHandler.start(item, true);
+      targetGrid._itemHideHandler.start(targetItem, true);
     }
 
     // Refresh item's dimensions, because they might have changed with the
     // addition of the new classnames.
-    item._refresh();
+    targetItem._refresh();
 
     // Recreate item's drag handler.
-    item._drag = targetContainerStn.dragEnabled ? new Container.Drag(item) : null;
+    targetItem._drag = targetGridStn.dragEnabled ? new Grid.Drag(targetItem) : null;
 
     // Setup migration data.
     migrate.isActive = true;
     migrate.appendTo = appendTo;
-    migrate.fromContainer = currentContainer;
+    migrate.fromGrid = currentGrid;
     migrate.fromIndex = currentIndex;
     migrate.toIndex = newIndex;
 
-    // Emit sendItem event.
-    currentContainer._emitter.emit(evSendItem, {
-      item: item,
+    // Emit send event.
+    currentGrid._emitter.emit(evSend, {
+      item: targetItem,
       fromIndex: currentIndex,
-      toContainer: targetContainer,
+      toGrid: targetGrid,
       toIndex: newIndex
     });
 
-    // Emit receiveItemStart event.
-    targetContainer._emitter.emit(evReceiveItemStart, {
-      item: item,
-      fromContainer: currentContainer,
+    // Emit receiveStart event.
+    targetGrid._emitter.emit(evReceiveStart, {
+      item: targetItem,
+      fromGrid: currentGrid,
       fromIndex: currentIndex,
       toIndex: newIndex
     });
 
-    // Do layout for both containers if the item is active.
+    // Do layout for both grids if the item is active.
     if (isActive) {
-      currentContainer.layoutItems(isInstant);
-      targetContainer.layoutItems(isInstant);
+      currentGrid.layout(isInstant);
+      targetGrid.layout(isInstant);
     }
 
-    return currentContainer;
+    return currentGrid;
 
   };
 
@@ -1184,10 +1201,10 @@ TODO v0.3.0
    * Destroy the instance.
    *
    * @public
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {Boolean} [removeElement=false]
    */
-  Container.prototype.destroy = function (removeElement) {
+  Grid.prototype.destroy = function (removeElement) {
 
     var inst = this;
     var container = inst._element;
@@ -1216,31 +1233,31 @@ TODO v0.3.0
     // Emit destroy event and unbind all events.
     inst._emitter.emit(evDestroy).destroy();
 
-    // Remove reference from the container instances collection.
-    containerInstances[inst._id] = undefined;
+    // Remove reference from the grid instances collection.
+    gridInstances[inst._id] = undefined;
 
     // Nullify instance properties.
-    nullifyInstance(inst, Container);
+    nullifyInstance(inst, Grid);
 
   };
 
   /**
-   * Container - Protected prototype methods
-   * ***************************************
+   * Grid - Protected prototype methods
+   * **********************************
    */
 
   /**
    * Get instance's item by element or by index. Target can also be an Item
    * instance in which case the function returns the item if it exists within
-   * related Container instance. If nothing is found with the provided target,
-   * null is returned.
+   * related Grid instance. If nothing is found with the provided target, null
+   * is returned.
    *
    * @protected
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {HTMLElement|Item|Number} [target=0]
    * @returns {?Item}
    */
-  Container.prototype._getItem = function (target) {
+  Grid.prototype._getItem = function (target) {
 
     var inst = this;
     var index;
@@ -1254,9 +1271,9 @@ TODO v0.3.0
     }
 
     // If the target is instance of Item return it if it is attached to this
-    // Container instance, otherwise return null.
+    // Grid instance, otherwise return null.
     else if (target instanceof Item) {
-      return target._containerId === inst._id ? target : null;
+      return target._gridId === inst._id ? target : null;
     }
 
     // If target is number return the item in that index. If the number is lower
@@ -1288,11 +1305,11 @@ TODO v0.3.0
    * Set instance's drag sort group.
    *
    * @protected
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {?String} sortGroup
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Container.prototype._setSortGroup = function (sortGroup) {
+  Grid.prototype._setSortGroup = function (sortGroup) {
 
     var inst = this;
 
@@ -1313,10 +1330,10 @@ TODO v0.3.0
    * Unset instance's drag sort group.
    *
    * @protected
-   * @memberof Container.prototype
-   * @returns {Container}
+   * @memberof Grid.prototype
+   * @returns {Grid}
    */
-  Container.prototype._unsetSortGroup = function () {
+  Grid.prototype._unsetSortGroup = function () {
 
     var inst = this;
     var sortGroup = inst._sortGroup;
@@ -1339,20 +1356,20 @@ TODO v0.3.0
   };
 
   /**
-   * Get connected Container instances.
+   * Get connected Grid instances.
    *
    * @protected
-   * @memberof Container.prototype
+   * @memberof Grid.prototype
    * @param {Boolean} [includeSelf=false]
    * @returns {Array}
    */
-  Container.prototype._getSortConnections = function (includeSelf) {
+  Grid.prototype._getSortConnections = function (includeSelf) {
 
     var inst = this;
     var ret = includeSelf ? [inst] : [];
     var connections = inst._sortConnections;
     var sortGroup;
-    var containerId;
+    var gridId;
     var ii;
     var i;
 
@@ -1361,9 +1378,9 @@ TODO v0.3.0
         sortGroup = sortGroups[connections[i]];
         if (sortGroup && sortGroup.length) {
           for (ii = 0; ii < sortGroup.length; ii++) {
-            containerId = sortGroup[ii];
-            if (containerId !== inst._id) {
-              ret.push(containerInstances[containerId]);
+            gridId = sortGroup[ii];
+            if (gridId !== inst._id) {
+              ret.push(gridInstances[gridId]);
             }
           }
         }
@@ -1380,17 +1397,17 @@ TODO v0.3.0
    */
 
   /**
-   * Creates a new Item instance for Container instance.
+   * Creates a new Item instance for a Grid instance.
    *
    * @public
    * @class
-   * @param {Container} container
+   * @param {Grid} grid
    * @param {HTMLElement} element
    */
-  function Item(container, element) {
+  function Item(grid, element) {
 
     var inst = this;
-    var stn = container._settings;
+    var settings = grid._settings;
     var isHidden;
 
     // Create instance id and add item to the itemInstances collection.
@@ -1399,29 +1416,29 @@ TODO v0.3.0
 
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container.
-    if (element.parentNode !== container._element) {
-      container._element.appendChild(element);
+    if (element.parentNode !== grid._element) {
+      grid._element.appendChild(element);
     }
 
     // Set item class.
-    addClass(element, stn.itemClass);
+    addClass(element, settings.itemClass);
 
     // Check if the element is hidden.
     isHidden = getStyle(element, 'display') === 'none';
 
     // Set visible/hidden class.
-    addClass(element, isHidden ? stn.itemHiddenClass : stn.itemVisibleClass);
+    addClass(element, isHidden ? settings.itemHiddenClass : settings.itemVisibleClass);
 
-    // Refrence to connected Container instance's id.
-    inst._containerId = container._id;
+    // Refrence to connected Grid instance's id.
+    inst._gridId = grid._id;
 
     // The elements.
     inst._element = element;
     inst._child = element.children[0];
 
     // Initiate item's animation controllers.
-    inst._animate = new Container.AnimateLayout(inst, element);
-    inst._animateChild = new Container.AnimateVisibility(inst, inst._child);
+    inst._animate = new Grid.AnimateLayout(inst, element);
+    inst._animateChild = new Grid.AnimateVisibility(inst, inst._child);
 
     // Check if default animation engine is used.
     inst._isDefaultAnimate = inst._animate instanceof Animate;
@@ -1471,14 +1488,14 @@ TODO v0.3.0
 
     // Set initial styles for the child element.
     if (isHidden) {
-      container._itemHideHandler.start(inst, true);
+      grid._itemHideHandler.start(inst, true);
     }
     else {
-      container._itemShowHandler.start(inst, true);
+      grid._itemShowHandler.start(inst, true);
     }
 
     // Set up drag handler.
-    inst._drag = stn.dragEnabled ? new Container.Drag(inst) : null;
+    inst._drag = settings.dragEnabled ? new Grid.Drag(inst) : null;
 
     // Set up migration handler data.
     inst._migrate = {
@@ -1486,7 +1503,7 @@ TODO v0.3.0
       appendTo: null,
       containerDiffX: 0,
       containerDiffY: 0,
-      fromContainer: null,
+      fromGrid: null,
       fromIndex: 0,
       toIndex: 0
     };
@@ -1499,15 +1516,15 @@ TODO v0.3.0
    */
 
   /**
-   * Get the instance container reference.
+   * Get the instance grid reference.
    *
    * @public
    * @memberof Item.prototype
-   * @returns {Container}
+   * @returns {Grid}
    */
-  Item.prototype.getContainer = function () {
+  Item.prototype.getGrid = function () {
 
-    return containerInstances[this._containerId];
+    return gridInstances[this._gridId];
 
   };
 
@@ -1717,7 +1734,7 @@ TODO v0.3.0
     inst._animate.stop();
 
     // Remove positioning class.
-    removeClass(inst._element, inst.getContainer()._settings.itemPositioningClass);
+    removeClass(inst._element, inst.getGrid()._settings.itemPositioningClass);
 
     // Reset state.
     inst._isPositioning = false;
@@ -1786,12 +1803,12 @@ TODO v0.3.0
 
     var inst = this;
     var element = inst._element;
-    var container = inst.getContainer();
-    var stn = container._settings;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
     var release = inst._drag ? inst._drag._releaseData : {};
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
-    var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.layoutDuration;
-    var animEasing = isJustReleased ? stn.dragReleaseEasing : stn.layoutEasing;
+    var animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
+    var animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
     var animEnabled = instant === true || inst._noLayoutAnimation ? false : animDuration > 0;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
@@ -1804,7 +1821,7 @@ TODO v0.3.0
       // Mark the item as not positioning and remove positioning classes.
       if (inst._isPositioning) {
         inst._isPositioning = false;
-        removeClass(element, stn.itemPositioningClass);
+        removeClass(element, settings.itemPositioningClass);
       }
 
       // Finish up release.
@@ -1840,7 +1857,7 @@ TODO v0.3.0
 
     // Get item container offset. This applies only for release handling in the
     // scenario where the released element is not currently within the
-    // container.
+    // grid container element.
     offsetLeft = release.isActive ? release.containerDiffX : migrate.isActive ? migrate.containerDiffX : 0;
     offsetTop = release.isActive ? release.containerDiffY : migrate.isActive ? migrate.containerDiffY : 0;
 
@@ -1852,10 +1869,10 @@ TODO v0.3.0
 
       // Set the styles only if they are not set later on. If an item is being
       // released after drag and the drag container is something else than the
-      // Container's element these styles will be set after the item has been
-      // moved back to the Container's element, which also means that setting
+      // Grid's container element these styles will be set after the item has
+      // been moved back to the Grid's element, which also means that setting
       // the styles here in that scenario is a waste of resources.
-      if (!(release.isActive && element.parentNode !== container._element) || !(migrate.isActive && migrate.appendTo !== container._element)) {
+      if (!(release.isActive && element.parentNode !== grid._element) || !(migrate.isActive && migrate.appendTo !== grid._element)) {
         setStyles(element, {
           transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
         });
@@ -1891,7 +1908,7 @@ TODO v0.3.0
       // Mark as positioning and add positioning class if necessary.
       if (!isPositioning) {
         inst._isPositioning = true;
-        addClass(element, stn.itemPositioningClass);
+        addClass(element, settings.itemPositioningClass);
       }
 
       // Animate.
@@ -1927,8 +1944,8 @@ TODO v0.3.0
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
-    var container = inst.getContainer();
-    var stn = container._settings;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
     var cb = typeof callback === 'function' ? callback : null;
 
     // If item is showing.
@@ -1937,12 +1954,12 @@ TODO v0.3.0
       // If instant flag is on, interrupt the current animation and set the
       // visible styles.
       if (instant) {
-        container._itemShowHandler.stop();
+        grid._itemShowHandler.stop();
         processQueue(queue, true, inst);
         if (cb) {
           queue[queue.length] = cb;
         }
-        container._itemShowHandler.start(inst, instant, function () {
+        grid._itemShowHandler.start(inst, instant, function () {
           processQueue(queue, false, inst);
         });
       }
@@ -1964,7 +1981,7 @@ TODO v0.3.0
 
       // Stop ongoing hide animation.
       if (inst._isHiding) {
-        container._itemHideHandler.stop(inst);
+        grid._itemHideHandler.stop(inst);
       }
 
       // Update item's internal state.
@@ -1972,8 +1989,8 @@ TODO v0.3.0
       inst._isHidden = inst._isHiding = false;
 
       // Update item classes.
-      addClass(element, stn.itemVisibleClass);
-      removeClass(element, stn.itemHiddenClass);
+      addClass(element, settings.itemVisibleClass);
+      removeClass(element, settings.itemHiddenClass);
 
       // Set item element's display style to block.
       setStyles(element, {
@@ -1990,7 +2007,7 @@ TODO v0.3.0
 
       // Animate child element and process the visibility callback queue after
       // succesful animation.
-      container._itemShowHandler.start(inst, instant, function () {
+      grid._itemShowHandler.start(inst, instant, function () {
         processQueue(queue, false, inst);
       });
 
@@ -2014,8 +2031,8 @@ TODO v0.3.0
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
-    var container = inst.getContainer();
-    var stn = container._settings;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
     var cb = typeof callback === 'function' ? callback : null;
 
     // If item is hiding.
@@ -2024,12 +2041,12 @@ TODO v0.3.0
       // If instant flag is on, interrupt the current animation and set the
       // hidden styles.
       if (instant) {
-        container._itemHideHandler.stop();
+        grid._itemHideHandler.stop();
         processQueue(queue, true, inst);
         if (cb) {
           queue[queue.length] = cb;
         }
-        container._itemHideHandler.start(inst, instant, function () {
+        grid._itemHideHandler.start(inst, instant, function () {
           setStyles(element, {
             display: 'none'
           });
@@ -2054,7 +2071,7 @@ TODO v0.3.0
 
       // Stop ongoing show animation.
       if (inst._isShowing) {
-        container._itemShowHandler.stop(inst);
+        grid._itemShowHandler.stop(inst);
       }
 
       // Update item's internal state.
@@ -2062,8 +2079,8 @@ TODO v0.3.0
       inst._isActive = inst._isShowing = false;
 
       // Update item classes.
-      addClass(element, stn.itemHiddenClass);
-      removeClass(element, stn.itemVisibleClass);
+      addClass(element, settings.itemHiddenClass);
+      removeClass(element, settings.itemVisibleClass);
 
       // Process the visibility callback queue with the interrupted flag active.
       processQueue(queue, true, inst);
@@ -2075,7 +2092,7 @@ TODO v0.3.0
 
       // Animate child element and process the visibility callback queue after
       // succesful animation.
-      container._itemHideHandler.start(inst, instant, function () {
+      grid._itemHideHandler.start(inst, instant, function () {
         setStyles(element, {
           display: 'none'
         });
@@ -2102,10 +2119,10 @@ TODO v0.3.0
     var inst = this;
     var migrate = inst._migrate;
     var element;
-    var container;
+    var grid;
     var translateX;
     var translateY;
-    var fromContainer;
+    var fromGrid;
     var fromIndex;
     var toIndex;
 
@@ -2114,23 +2131,23 @@ TODO v0.3.0
     }
 
     element = inst._element;
-    container = inst.getContainer();
+    grid = inst.getGrid();
 
-    // If the element is outside the container put it back there and
-    // adjust position accordingly.
-    if (migrate.appendTo !== container._element) {
+    // If the element is outside the grid's container element put it back there
+    // and adjust position accordingly.
+    if (migrate.appendTo !== grid._element) {
       translateX = abort ? getTranslateAsFloat(element, 'x') - migrate.containerDiffX : inst._left;
       translateY = abort ? getTranslateAsFloat(element, 'y') - migrate.containerDiffY : inst._top;
-      container._element.appendChild(element);
+      grid._element.appendChild(element);
       setStyles(element, {
         transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
     }
 
-    // Cache migration's container instance and target index so they can be
-    // provided to the end event after the migration data is reset.
+    // Cache some migration data temporarily so it can be provided to the end
+    // event after the migration data is reset.
     if (!abort) {
-      fromContainer = migrate.fromContainer;
+      fromGrid = migrate.fromGrid;
       fromIndex = migrate.fromIndex;
       toIndex = migrate.toIndex;
     }
@@ -2140,15 +2157,15 @@ TODO v0.3.0
     migrate.appendTo = null;
     migrate.containerDiffX = 0;
     migrate.containerDiffY = 0;
-    migrate.fromContainer = null;
+    migrate.fromGrid = null;
     migrate.fromIndex = 0;
     migrate.toIndex = 0;
 
-    // Emit receiveItemEnd event.
+    // Emit receiveEnd event.
     if (!abort) {
-      container._emitter.emit(evReceiveItemEnd, {
+      grid._emitter.emit(evReceiveEnd, {
         item: inst,
-        fromContainer: fromContainer,
+        fromGrid: fromGrid,
         fromIndex: fromIndex,
         toIndex: toIndex
       });
@@ -2168,15 +2185,15 @@ TODO v0.3.0
   Item.prototype._destroy = function (removeElement) {
 
     var inst = this;
-    var container = inst.getContainer();
-    var stn = container._settings;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
     var element = inst._element;
-    var index = container._items.indexOf(inst);
+    var index = grid._items.indexOf(inst);
 
     // Stop animations.
     inst._stopLayout(true);
-    container._itemShowHandler.stop(inst);
-    container._itemHideHandler.stop(inst);
+    grid._itemShowHandler.stop(inst);
+    grid._itemHideHandler.stop(inst);
 
     // Stop migration.
     inst._stopMigrate(true);
@@ -2199,16 +2216,16 @@ TODO v0.3.0
     processQueue(inst._visibilityQueue, true, inst);
 
     // Remove classes.
-    removeClass(element, stn.itemPositioningClass);
-    removeClass(element, stn.itemDraggingClass);
-    removeClass(element, stn.itemReleasingClass);
-    removeClass(element, stn.itemClass);
-    removeClass(element, stn.itemVisibleClass);
-    removeClass(element, stn.itemHiddenClass);
+    removeClass(element, settings.itemPositioningClass);
+    removeClass(element, settings.itemDraggingClass);
+    removeClass(element, settings.itemReleasingClass);
+    removeClass(element, settings.itemClass);
+    removeClass(element, settings.itemVisibleClass);
+    removeClass(element, settings.itemHiddenClass);
 
-    // Remove item from Container instance if it still exists there.
+    // Remove item from Grid instance if it still exists there.
     if (index > -1) {
-      container._items.splice(index, 1);
+      grid._items.splice(index, 1);
     }
 
     // Remove element from DOM.
@@ -2234,28 +2251,28 @@ TODO v0.3.0
    *
    * @public
    * @class
-   * @param {Container} container
+   * @param {Grid} grid
    * @param {Item[]} [items]
    */
-  function Layout(container, items) {
+  function Layout(grid, items) {
 
     var inst = this;
-    var stn = container._settings.layout;
-    var padding = container._padding;
-    var border = container._border;
+    var settings = grid._settings.layout;
+    var padding = grid._padding;
+    var border = grid._border;
 
-    inst.items = items ? items.concat() : container.getItems('active');
+    inst.items = items ? items.concat() : grid.getItems('active');
     inst.slots = {};
     inst.setWidth = false;
     inst.setHeight = false;
 
-    // Calculate the current width and height of the container.
-    inst.width = container._width - border.left - border.right - padding.left - padding.right;
-    inst.height = container._height - border.top - border.bottom - padding.top - padding.bottom;
+    // Calculate the current width and height of the container element.
+    inst.width = grid._width - border.left - border.right - padding.left - padding.right;
+    inst.height = grid._height - border.top - border.bottom - padding.top - padding.bottom;
 
     // If the user has provided custom function as a layout method invoke it.
     // Otherwise invoke the default layout method.
-    typeof stn === 'function' ? stn(inst) : layoutFirstFit(inst, isPlainObject(stn) ? stn : {});
+    typeof settings === 'function' ? settings(inst) : layoutFirstFit(inst, isPlainObject(settings) ? settings : {});
 
   }
 
@@ -2875,15 +2892,15 @@ TODO v0.3.0
 
     var drag = this;
     var element = item._element;
-    var container = item.getContainer();
-    var stn = container._settings;
-    var checkPredicate = typeof stn.dragStartPredicate === 'function' ? stn.dragStartPredicate : Drag.defaultStartPredicate;
+    var grid = item.getGrid();
+    var settings = grid._settings;
+    var checkPredicate = typeof settings.dragStartPredicate === 'function' ? settings.dragStartPredicate : Drag.defaultStartPredicate;
     var predicate = null;
     var predicateEvent = null;
     var hammer;
 
     drag._itemId = item._id;
-    drag._containerId = container._id;
+    drag._gridId = grid._id;
     drag._hammer = hammer = new Hammer.Manager(element);
     drag._isMigrating = false;
     drag._dragData = {};
@@ -2898,10 +2915,10 @@ TODO v0.3.0
       if (drag._dragData.isActive) {
         drag._checkOverlap();
       }
-    }, stn.dragSortInterval);
+    }, settings.dragSortInterval);
 
     // Setup sort predicate.
-    drag._sortPredicate = typeof stn.dragSortPredicate === 'function' ? stn.dragSortPredicate : Drag.defaultSortPredicate;
+    drag._sortPredicate = typeof settings.dragSortPredicate === 'function' ? settings.dragSortPredicate : Drag.defaultSortPredicate;
 
     // Setup drag scroll handler.
     drag._scrollHandler = function (e) {
@@ -2951,7 +2968,7 @@ TODO v0.3.0
 
       // Otherwise, check the predicate.
       else if (!predicate._isRejected && !predicate._isResolved) {
-        checkPredicate.call(drag._getContainer(), drag._getItem(), e, predicate);
+        checkPredicate.call(drag._getGrid(), drag._getItem(), e, predicate);
       }
 
     })
@@ -2960,7 +2977,7 @@ TODO v0.3.0
       // Do final predicate check to allow unbinding stuff for the current drag
       // procedure within the predicate callback.
       predicate.reject();
-      checkPredicate.call(drag._getContainer(), drag._getItem(), e, predicate);
+      checkPredicate.call(drag._getGrid(), drag._getItem(), e, predicate);
 
       // If predicate is resolved and dragging is active, do the end.
       if (predicate._isResolved && drag._dragData.isActive) {
@@ -3011,15 +3028,15 @@ TODO v0.3.0
    *   - Returns false if no valid index was found. Otherwise returns an object
    *     that has three properties as specified below.
    *   - @param {String} action - "move" or "swap".
-   *   - @param {Number} index - the new index.
-   *   - @param {?Container} [container=null] - the new container.
+   *   - @param {Number} index - target index.
+   *   - @param {?Grid} [grid=null] - target grid.
    */
   Drag.defaultSortPredicate = function (item) {
 
     var drag = item._drag;
-    var rootContainer = drag._getContainer();
-    var config = rootContainer._settings.dragSortPredicate || {};
-    var containers = rootContainer._getSortConnections(true);
+    var rootGrid = drag._getGrid();
+    var config = rootGrid._settings.dragSortPredicate || {};
+    var grids = rootGrid._getSortConnections(true);
     var itemRect = {
       width: item._width,
       height: item._height,
@@ -3031,27 +3048,27 @@ TODO v0.3.0
     var matchScore = null;
     var matchIndex;
     var overlapScore;
-    var toContainer;
-    var toContainerItems;
-    var toContainerItem;
-    var container;
+    var toGrid;
+    var toGridItems;
+    var toGridItem;
+    var grid;
     var padding;
     var border;
     var i;
 
-    // First step is checking out which container the dragged item overlaps
-    // the most currently.
-    for (i = 0; i < containers.length; i++) {
+    // First step is checking out which grid's container element the dragged
+    // item overlaps the most currently.
+    for (i = 0; i < grids.length; i++) {
 
-      // Check how much dragged element overlaps the container.
-      container = containers[i];
-      padding = container._padding;
-      border = container._border;
+      // Check how much dragged element overlaps the container element.
+      grid = grids[i];
+      padding = grid._padding;
+      border = grid._border;
       overlapScore = getOverlapScore(itemRect, {
-        width: container._width - border.left - border.right - padding.left - padding.right,
-        height: container._height - border.top - border.bottom - padding.top - padding.bottom,
-        left: container._offset.left + border.left + padding.left,
-        top: container._offset.top + border.top + border.left
+        width: grid._width - border.left - border.right - padding.left - padding.right,
+        height: grid._height - border.top - border.bottom - padding.top - padding.bottom,
+        left: grid._offset.left + border.left + padding.left,
+        top: grid._offset.top + border.top + border.left
       });
 
       // Update best match if the overlap score is higher than the current
@@ -3063,50 +3080,50 @@ TODO v0.3.0
 
     }
 
-    // If we found no container that overlaps the dragged item, return false
-    // immediately to indicate that no sorting should occur.
+    // If we found no grid container element that overlaps the dragged item,
+    // return false immediately to indicate that no sorting should occur.
     if (!matchScore) {
       return false;
     }
 
-    // Get the sort container and its's items.
-    toContainer = containers[matchIndex];
-    toContainerItems = toContainer._items;
+    // Get the target grid and its's items.
+    toGrid = grids[matchIndex];
+    toGridItems = toGrid._items;
 
-    // If item is moved within it's originating container adjust item's left and
-    // top props.
-    if (toContainer === rootContainer) {
+    // If item is moved within it's originating grid adjust item's left and top
+    // props.
+    if (toGrid === rootGrid) {
       itemRect.left = Math.round(drag._dragData.gridX) + item._margin.left;
       itemRect.top = Math.round(drag._dragData.gridY) + item._margin.top;
     }
 
-    // If item is moved to/within another container get container's offset (from
-    // the container's content edge).
+    // If item is moved to/within another grid get the container element's
+    // offset (from the element's content edge).
     else {
-      containerOffsetLeft = toContainer._offset.left + toContainer._border.left + toContainer._padding.left;
-      containerOffsetTop = toContainer._offset.top + toContainer._border.top + toContainer._padding.top;
+      containerOffsetLeft = toGrid._offset.left + toGrid._border.left + toGrid._padding.left;
+      containerOffsetTop = toGrid._offset.top + toGrid._border.top + toGrid._padding.top;
     }
 
     // Reset the best match variables.
     matchIndex = matchScore = null;
 
-    // If the target container has items.
-    if (toContainerItems.length) {
+    // If the target grid has items.
+    if (toGridItems.length) {
 
       // Loop through the items and try to find a match.
-      for (i = 0; i < toContainerItems.length; i++) {
+      for (i = 0; i < toGridItems.length; i++) {
 
-        toContainerItem = toContainerItems[i];
+        toGridItem = toGridItems[i];
 
         // If the item is active and is not the target item.
-        if (toContainerItem._isActive && toContainerItem !== item) {
+        if (toGridItem._isActive && toGridItem !== item) {
 
           // Get overlap data.
           overlapScore = getOverlapScore(itemRect, {
-            width: toContainerItem._width,
-            height: toContainerItem._height,
-            left: Math.round(toContainerItem._left) + toContainerItem._margin.left + containerOffsetLeft,
-            top: Math.round(toContainerItem._top) + toContainerItem._margin.top + containerOffsetTop
+            width: toGridItem._width,
+            height: toGridItem._height,
+            left: Math.round(toGridItem._left) + toGridItem._margin.left + containerOffsetLeft,
+            top: Math.round(toGridItem._top) + toGridItem._margin.top + containerOffsetTop
           });
 
           // Update best match if the overlap score is higher than the current
@@ -3122,24 +3139,24 @@ TODO v0.3.0
 
     }
 
-    // Otherwise if the target container is empty compare the dragged item
-    // against the container itself.
+    // Otherwise if the target grid is empty compare the dragged item against
+    // the grid's container element.
     else {
       matchIndex = 0;
-      padding = toContainer._padding;
-      border = toContainer._border;
+      padding = toGrid._padding;
+      border = toGrid._border;
       matchScore = getOverlapScore(itemRect, {
-        width: toContainer._width - border.left - border.right - padding.left - padding.right,
-        height: toContainer._height - border.top - border.bottom - padding.top - padding.bottom,
-        left: toContainer._offset.left + border.left + padding.left,
-        top: toContainer._offset.top + border.top + border.left
+        width: toGrid._width - border.left - border.right - padding.left - padding.right,
+        height: toGrid._height - border.top - border.bottom - padding.top - padding.bottom,
+        left: toGrid._offset.left + border.left + padding.left,
+        top: toGrid._offset.top + border.top + border.left
       });
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
     if (matchScore !== null && matchScore >= (config.threshold || 50)) {
       return {
-        container: toContainer,
+        grid: toGrid,
         index: matchIndex,
         action: config.action || 'move'
       };
@@ -3201,15 +3218,15 @@ TODO v0.3.0
   };
 
   /**
-   * Get Container instance.
+   * Get Grid instance.
    *
    * @protected
    * @memberof Drag.prototype
    * @returns {?Item}
    */
-  Drag.prototype._getContainer = function () {
+  Drag.prototype._getGrid = function () {
 
-    return containerInstances[this._containerId] || null;
+    return gridInstances[this._gridId] || null;
 
   };
 
@@ -3292,9 +3309,9 @@ TODO v0.3.0
     var item = drag._getItem();
     var result = drag._sortPredicate(item);
     var dragEvent;
-    var currentContainer;
+    var currentGrid;
     var currentIndex;
-    var targetContainer;
+    var targetGrid;
     var targetIndex;
     var sortAction;
 
@@ -3303,63 +3320,63 @@ TODO v0.3.0
     }
 
     dragEvent = drag._dragData.currentEvent;
-    currentContainer = item.getContainer();
-    currentIndex = currentContainer._items.indexOf(item);
-    targetContainer = result.container || currentContainer;
+    currentGrid = item.getGrid();
+    currentIndex = currentGrid._items.indexOf(item);
+    targetGrid = result.grid || currentGrid;
     targetIndex = result.index;
     sortAction = result.action || 'move';
 
-    // If the item was moved within it's current container.
-    if (currentContainer === targetContainer) {
+    // If the item was moved within it's current grid.
+    if (currentGrid === targetGrid) {
 
       // Do the sort.
-      (sortAction === 'swap' ? arraySwap : arrayMove)(currentContainer._items, currentIndex, targetIndex);
+      (sortAction === 'swap' ? arraySwap : arrayMove)(currentGrid._items, currentIndex, targetIndex);
 
       // Emit dragSort event.
-      currentContainer._emitter.emit(evDragSort, dragEvent, {
+      currentGrid._emitter.emit(evDragSort, dragEvent, {
         item: item,
         fromIndex: currentIndex,
         toIndex: targetIndex,
         action: sortAction
       });
 
-      // Layout the container.
-      currentContainer.layoutItems();
+      // Layout the grid.
+      currentGrid.layout();
 
     }
 
-    // If the item was moved to another container.
+    // If the item was moved to another grid.
     else {
 
-      // Update item's container id reference.
-      item._containerId = targetContainer._id;
+      // Update item's grid id reference.
+      item._gridId = targetGrid._id;
 
       // Update drag instances's migrating indicator.
-      drag._isMigrating = item._containerId !== drag._containerId;
+      drag._isMigrating = item._gridId !== drag._gridId;
 
-      // Move item instance from current container to target container.
-      currentContainer._items.splice(currentIndex, 1);
-      insertItemsToArray(targetContainer._items, item, targetIndex);
+      // Move item instance from current grid to target grid.
+      currentGrid._items.splice(currentIndex, 1);
+      insertItemsToArray(targetGrid._items, item, targetIndex);
 
       // Emit dragSend event.
-      currentContainer._emitter.emit(evDragSend, dragEvent, {
+      currentGrid._emitter.emit(evDragSend, dragEvent, {
         item: item,
         fromIndex: currentIndex,
-        toContainer: targetContainer,
+        toGrid: targetGrid,
         toIndex: targetIndex
       });
 
       // Emit dragReceive event.
-      targetContainer._emitter.emit(evDragReceive, dragEvent, {
+      targetGrid._emitter.emit(evDragReceive, dragEvent, {
         item: item,
-        fromContainer: currentContainer,
+        fromGrid: currentGrid,
         fromIndex: currentIndex,
         toIndex: targetIndex
       });
 
-      // Layout both containers.
-      currentContainer.layoutItems();
-      targetContainer.layoutItems();
+      // Layout both grids.
+      currentGrid.layout();
+      targetGrid.layout();
 
     }
 
@@ -3368,23 +3385,24 @@ TODO v0.3.0
   };
 
   /**
-   * If item is dragged to another container, finish the migration process
+   * If item is dragged into another grid, finish the migration process
    * gracefully.
    *
    * @protected
    * @memberof Drag.prototype
+   * @param {Object} currentEvent
    * @returns {Drag}
    */
-  Drag.prototype._finishMigration = function () {
+  Drag.prototype._finishMigration = function (currentEvent) {
 
     var drag = this;
     var item = drag._getItem();
     var element = item._element;
-    var origContainer = drag._getContainer();
-    var origContainerStn = origContainer._settings;
-    var targetContainer = item.getContainer();
-    var targetContainerStn = targetContainer._settings;
-    var appendTo = targetContainerStn.dragEnabled && targetContainerStn._dragContainer ? targetContainerStn._dragContainer : targetContainer._element;
+    var origGrid = drag._getGrid();
+    var origGridStn = origGrid._settings;
+    var targetGrid = item.getGrid();
+    var targetGridStn = targetGrid._settings;
+    var appendTo = targetGridStn.dragEnabled && targetGridStn._dragGrid ? targetGridStn._dragGrid : targetGrid._element;
     var releaseDiffX = 0;
     var releaseDiffY = 0;
     var release;
@@ -3409,17 +3427,17 @@ TODO v0.3.0
     item._animateChild.destroy();
 
     // Remove current classnames.
-    removeClass(element, origContainerStn.itemClass);
-    removeClass(element, origContainerStn.itemVisibleClass);
-    removeClass(element, origContainerStn.itemHiddenClass);
+    removeClass(element, origGridStn.itemClass);
+    removeClass(element, origGridStn.itemVisibleClass);
+    removeClass(element, origGridStn.itemHiddenClass);
 
     // Add new classnames.
-    addClass(element, targetContainerStn.itemClass);
-    addClass(element, targetContainerStn.itemVisibleClass);
+    addClass(element, targetGridStn.itemClass);
+    addClass(element, targetGridStn.itemVisibleClass);
 
     // Instantiate new animation controllers.
-    item._animate = new Container.AnimateLayout(item, element);
-    item._animateChild = new Container.AnimateVisibility(item, item._child);
+    item._animate = new Grid.AnimateLayout(item, element);
+    item._animateChild = new Grid.AnimateVisibility(item, item._child);
     item._isDefaultAnimate = item._animate instanceof Animate;
     item._isDefaultChildAnimate = item._animateChild instanceof Animate;
 
@@ -3432,15 +3450,15 @@ TODO v0.3.0
 
     // Calculate how much offset difference the new container has with the
     // old container and adjust the translate value accordingly.
-    offsetDiff = getContainerOffsetDiff(element, origContainer._element);
+    offsetDiff = getContainerOffsetDiff(element, origGrid._element);
     translateX += offsetDiff.left;
     translateY += offsetDiff.top;
 
     // In the likely case that the layout container is not the target container
     // we need to calculate how much offset difference there is between the
     // containers and store it as offset difference to the release data.
-    if (appendTo !== targetContainer._element) {
-      offsetDiff = getContainerOffsetDiff(element, targetContainer._element);
+    if (appendTo !== targetGrid._element) {
+      offsetDiff = getContainerOffsetDiff(element, targetGrid._element);
       releaseDiffX = offsetDiff.left;
       releaseDiffY = offsetDiff.top;
     }
@@ -3452,17 +3470,17 @@ TODO v0.3.0
 
     // Update child element's styles to reflect the current visibility state.
     item._child.removeAttribute('style');
-    targetContainer._itemShowHandler.start(item, true);
+    targetGrid._itemShowHandler.start(item, true);
 
     // Refresh item's dimensions, because they might have changed with the
     // addition of the new classnames.
     item._refresh();
 
     // Recreate item's drag handler.
-    item._drag = targetContainerStn.dragEnabled ? new Container.Drag(item) : null;
+    item._drag = targetGridStn.dragEnabled ? new Grid.Drag(item) : null;
 
     // Emit dragReceiveDrop event.
-    targetContainer._emitter.emit(evDragReceiveDrop, item);
+    targetGrid._emitter.emit(evDragReceiveDrop, currentEvent, item);
 
     // If the item has drag handling, start the release.
     if (item._drag) {
@@ -3493,22 +3511,22 @@ TODO v0.3.0
     var drag = this;
     var dragData = drag._dragData;
     var element;
-    var container;
+    var grid;
     var i;
 
     if (!dragData.isActive) {
       return drag;
     }
 
-    // If the item is being dropped into another container, finish it up and
-    // return immediately.
+    // If the item is being dropped into another grid, finish it up and return
+    // immediately.
     if (drag._isMigrating) {
-      drag._finishMigration();
+      drag._finishMigration(dragData.currentEvent);
       return;
     }
 
     element = drag._getItem()._element;
-    container = drag._getContainer();
+    grid = drag._getGrid();
 
     // Remove scroll listeners.
     for (i = 0; i < dragData.scrollParents.length; i++) {
@@ -3520,15 +3538,15 @@ TODO v0.3.0
 
     // Append item element to the container if it's not it's child. Also make
     // sure the translate values are adjusted to account for the DOM shift.
-    if (element.parentNode !== container._element) {
-      container._element.appendChild(element);
+    if (element.parentNode !== grid._element) {
+      grid._element.appendChild(element);
       setStyles(element, {
         transform: 'translateX(' + dragData.gridX + 'px) translateY(' + dragData.gridY + 'px)'
       });
     }
 
     // Remove dragging class.
-    removeClass(element, container._settings.itemDraggingClass);
+    removeClass(element, grid._settings.itemDraggingClass);
 
     // Reset drag data.
     drag._setupDragData();
@@ -3550,7 +3568,7 @@ TODO v0.3.0
     var releaseData = drag._releaseData;
     var item;
     var element;
-    var container;
+    var grid;
 
     if (releaseData.isActive) {
       return drag;
@@ -3558,16 +3576,16 @@ TODO v0.3.0
 
     item = drag._getItem();
     element = item._element;
-    container = drag._getContainer();
+    grid = drag._getGrid();
 
     // Flag release as active.
     releaseData.isActive = true;
 
     // Add release classname to released element.
-    addClass(element, container._settings.itemReleasingClass);
+    addClass(element, grid._settings.itemReleasingClass);
 
     // Emit dragReleaseStart event.
-    container._emitter.emit(evDragReleaseStart, item);
+    grid._emitter.emit(evDragReleaseStart, item);
 
     // Position the released item.
     item._layout(false);
@@ -3594,7 +3612,7 @@ TODO v0.3.0
     var releaseData = drag._releaseData;
     var item;
     var element;
-    var container;
+    var grid;
     var translateX;
     var translateY;
 
@@ -3604,17 +3622,17 @@ TODO v0.3.0
 
     item = drag._getItem();
     element = item._element;
-    container = drag._getContainer();
+    grid = drag._getGrid();
 
     // Remove release classname from the released element.
-    removeClass(element, container._settings.itemReleasingClass);
+    removeClass(element, grid._settings.itemReleasingClass);
 
-    // If the released element is outside the container put it back there
-    // and adjust position accordingly.
-    if (element.parentNode !== container._element) {
+    // If the released element is outside the grid's container element put it
+    // back there and adjust position accordingly.
+    if (element.parentNode !== grid._element) {
       translateX = abort ? getTranslateAsFloat(element, 'x') - releaseData.containerDiffX : item._left;
       translateY = abort ? getTranslateAsFloat(element, 'y') - releaseData.containerDiffY : item._top;
-      container._element.appendChild(element);
+      grid._element.appendChild(element);
       setStyles(element, {
         transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
@@ -3625,7 +3643,7 @@ TODO v0.3.0
 
     // Emit dragReleaseEnd event.
     if (!abort) {
-      container._emitter.emit(evDragReleaseEnd, item);
+      grid._emitter.emit(evDragReleaseEnd, item);
     }
 
     return drag;
@@ -3644,16 +3662,17 @@ TODO v0.3.0
     var drag = this;
     var item = drag._getItem();
     var element;
-    var container;
-    var stn;
+    var grid;
+    var settings;
     var dragData;
     var releaseData;
     var currentLeft;
     var currentTop;
-    var containerElement;
+    var gridContainer;
     var dragContainer;
     var offsetDiff;
     var elementGBCR;
+    var isWithinDragContainer;
     var i;
 
     // If item is not active, don't start the drag.
@@ -3662,8 +3681,8 @@ TODO v0.3.0
     }
 
     element = item._element;
-    container = drag._getContainer();
-    stn = container._settings;
+    grid = drag._getGrid();
+    settings = grid._settings;
     dragData = drag._dragData;
     releaseData = drag._releaseData;
 
@@ -3680,7 +3699,7 @@ TODO v0.3.0
     // If item is being released reset release data, remove release class and
     // import the element styles from release data to drag data.
     if (releaseData.isActive) {
-      removeClass(element, stn.itemReleasingClass);
+      removeClass(element, settings.itemReleasingClass);
       drag._setupReleaseData();
     }
 
@@ -3692,54 +3711,47 @@ TODO v0.3.0
     currentLeft = getTranslateAsFloat(element, 'x');
     currentTop = getTranslateAsFloat(element, 'y');
 
-    // Get container references.
-    containerElement = container._element;
-    dragContainer = stn.dragContainer;
+    // Get container element references.
+    gridContainer = grid._element;
+    dragContainer = settings.dragContainer;
 
     // Set initial left/top drag value.
     dragData.left = dragData.gridX = currentLeft;
     dragData.top = dragData.gridY = currentTop;
 
     // If a specific drag container is set and it is different from the
-    // container element we need to cast some extra spells.
-    if (dragContainer && dragContainer !== containerElement) {
+    // grid's container element we need to cast some extra spells.
+    if (dragContainer && dragContainer !== gridContainer) {
 
-      // If dragged element is already in drag container.
-      if (element.parentNode === dragContainer) {
+      // Check if dragged element is already a child of the drag container.
+      isWithinDragContainer = element.parentNode === dragContainer;
 
-        // Get offset diff.
-        offsetDiff = getContainerOffsetDiff(element, containerElement);
-        // Store the container offset diffs to drag data.
-        dragData.containerDiffX = offsetDiff.left;
-        dragData.containerDiffY = offsetDiff.top;
-        // Set up relative drag position data.
-        dragData.gridX = currentLeft - dragData.containerDiffX;
-        dragData.gridY = currentTop - dragData.containerDiffY;
-
+      // If dragged elment is not yet a child of the drag container our first
+      // job is to move it there.
+      if (!isWithinDragContainer) {
+        dragContainer.appendChild(element);
       }
 
-      // If dragged element is not within the correct container.
+      // Store the container offset diffs to drag data.
+      offsetDiff = getContainerOffsetDiff(element, gridContainer);
+      dragData.containerDiffX = offsetDiff.left;
+      dragData.containerDiffY = offsetDiff.top;
+
+      // If the dragged element is a child of the drag container all we need to
+      // do is setup the relative drag position data.
+      if (isWithinDragContainer) {
+        dragData.gridX = currentLeft - dragData.containerDiffX;
+        dragData.gridY = currentTop - dragData.containerDiffY;
+      }
+
+      // Otherwise, we need to setup the actual drag position data and adjust
+      // the element's translate values to account for the DOM position shift.
       else {
-
-        // Append element into correct container.
-        dragContainer.appendChild(element);
-
-        // Get offset diff.
-        offsetDiff = getContainerOffsetDiff(element, containerElement);
-
-        // Store the container offset diffs to drag data.
-        dragData.containerDiffX = offsetDiff.left;
-        dragData.containerDiffY = offsetDiff.top;
-
-        // Set up drag position data.
         dragData.left = currentLeft + dragData.containerDiffX;
         dragData.top = currentTop + dragData.containerDiffY;
-
-        // Fix position to account for the append procedure.
         setStyles(element, {
           transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
         });
-
       }
 
     }
@@ -3751,8 +3763,8 @@ TODO v0.3.0
 
     // Get drag scroll parents.
     dragData.scrollParents = getScrollParents(element);
-    if (dragContainer && dragContainer !== containerElement) {
-      dragData.scrollParents = arrayUnique(dragData.scrollParents.concat(getScrollParents(containerElement)));
+    if (dragContainer && dragContainer !== gridContainer) {
+      dragData.scrollParents = arrayUnique(dragData.scrollParents.concat(getScrollParents(gridContainer)));
     }
 
     // Bind scroll listeners.
@@ -3761,10 +3773,10 @@ TODO v0.3.0
     }
 
     // Set drag class.
-    addClass(element, stn.itemDraggingClass);
+    addClass(element, settings.itemDraggingClass);
 
     // Emit dragStart event.
-    container._emitter.emit(evDragStart, e, item);
+    grid._emitter.emit(evDragStart, e, item);
 
     return drag;
 
@@ -3782,8 +3794,8 @@ TODO v0.3.0
     var drag = this;
     var item = drag._getItem();
     var element;
-    var container;
-    var stn;
+    var grid;
+    var settings;
     var dragData;
     var xDiff;
     var yDiff;
@@ -3795,8 +3807,8 @@ TODO v0.3.0
     }
 
     element = item._element;
-    container = drag._getContainer();
-    stn = container._settings;
+    grid = drag._getGrid();
+    settings = grid._settings;
     dragData = drag._dragData;
 
     // Get delta difference from last dragmove event.
@@ -3820,12 +3832,12 @@ TODO v0.3.0
     });
 
     // Overlap handling.
-    if (stn.dragSort) {
+    if (settings.dragSort) {
       drag._checkSortOverlap();
     }
 
     // Emit dragMove event.
-    container._emitter.emit(evDragMove, e, item);
+    grid._emitter.emit(evDragMove, e, item);
 
     return drag;
 
@@ -3845,19 +3857,19 @@ TODO v0.3.0
     var drag = this;
     var item = drag._getItem();
     var element = item._element;
-    var container = drag._getContainer();
-    var stn = container._settings;
+    var grid = drag._getGrid();
+    var settings = grid._settings;
     var dragData = drag._dragData;
-    var containerElement = container._element;
-    var dragContainer = stn.dragContainer;
+    var gridContainer = grid._element;
+    var dragContainer = settings.dragContainer;
     var elementGBCR = element.getBoundingClientRect();
     var xDiff = dragData.elementClientX - elementGBCR.left;
     var yDiff = dragData.elementClientY - elementGBCR.top;
     var offsetDiff;
 
     // Update container diff.
-    if (dragContainer && dragContainer !== containerElement) {
-      offsetDiff = getContainerOffsetDiff(element, containerElement);
+    if (dragContainer && dragContainer !== gridContainer) {
+      offsetDiff = getContainerOffsetDiff(element, gridContainer);
       dragData.containerDiffX = offsetDiff.left;
       dragData.containerDiffY = offsetDiff.top;
     }
@@ -3874,12 +3886,12 @@ TODO v0.3.0
     });
 
     // Overlap handling.
-    if (stn.dragSort) {
+    if (settings.dragSort) {
       drag._checkSortOverlap();
     }
 
     // Emit dragScroll event.
-    container._emitter.emit(evDragScroll, e, item);
+    grid._emitter.emit(evDragScroll, e, item);
 
     return drag;
 
@@ -3897,8 +3909,8 @@ TODO v0.3.0
     var drag = this;
     var item = drag._getItem();
     var element = item._element;
-    var container = drag._getContainer();
-    var stn = container._settings;
+    var grid = drag._getGrid();
+    var settings = grid._settings;
     var dragData = drag._dragData;
     var releaseData = drag._releaseData;
     var i;
@@ -3910,7 +3922,7 @@ TODO v0.3.0
     }
 
     // Finish currently queued overlap check.
-    if (stn.dragSort) {
+    if (settings.dragSort) {
       drag._checkSortOverlap('finish');
     }
 
@@ -3920,7 +3932,7 @@ TODO v0.3.0
     }
 
     // Remove drag classname from element.
-    removeClass(element, stn.itemDraggingClass);
+    removeClass(element, settings.itemDraggingClass);
 
     // Setup release data.
     releaseData.containerDiffX = dragData.containerDiffX;
@@ -3930,11 +3942,11 @@ TODO v0.3.0
     drag._setupDragData();
 
     // Emit dragEnd event.
-    container._emitter.emit(evDragEnd, e, item);
+    grid._emitter.emit(evDragEnd, e, item);
 
     // Finish up the migration process if needed.
     if (drag._isMigrating) {
-      drag._finishMigration();
+      drag._finishMigration(e);
     }
 
     // Otherwise start the release process.
@@ -4695,9 +4707,10 @@ TODO v0.3.0
   }
 
   /**
-   * Returns true if element is transformed, false if not. In practice the element's display value
-   * must be anything else than "none" or "inline" as well as have a valid transform value applied
-   * in order to be counted as a transformed element.
+   * Returns true if element is transformed, false if not. In practice the
+   * element's display value must be anything else than "none" or "inline" as
+   * well as have a valid transform value applied in order to be counted as a
+   * transformed element.
    *
    * Borrowed from Mezr (v0.6.1):
    * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L661
@@ -4740,8 +4753,9 @@ TODO v0.3.0
       return document;
     }
 
-    // Now that we know we have an element in our hands, let's get it's position. Get element's
-    // current position value if a specific position is not provided.
+    // Now that we know we have an element in our hands, let's get it's
+    // position. Get element's current position value if a specific position is
+    // not provided.
     position = getStyle(element, 'position');
 
     // Relative element's container is always the element itself.
@@ -4749,25 +4763,28 @@ TODO v0.3.0
       return element;
     }
 
-    // If element is not positioned (static or an invalid position value), always return null.
+    // If element is not positioned (static or an invalid position value),
+    // always return null.
     if (position !== 'fixed' && position !== 'absolute') {
       return null;
     }
 
-    // If the element is fixed and transforms leak fixed elements, always return window.
+    // If the element is fixed and transforms leak fixed elements, always return
+    // window.
     if (position === 'fixed' && transformLeaksFixed) {
       return global;
     }
 
-    // Alrighty, so now fetch the element's parent (which is document for the root) and set it as
-    // the initial containing block. Fallback to null if everything else fails.
+    // Alrighty, so now fetch the element's parent (which is document for the
+    // root) and set it as the initial containing block. Fallback to null if
+    // everything else fails.
     ret = element === document.documentElement ? document : element.parentElement || null;
 
     // If element is fixed positioned.
     if (position === 'fixed') {
 
-      // As long as the containing block is an element and is not transformed, try to get the
-      // element's parent element and fallback to document.
+      // As long as the containing block is an element and is not transformed,
+      // try to get the element's parent element and fallback to document.
       while (ret && ret !== document && !isTransformed(ret)) {
         ret = ret.parentElement || document;
       }
@@ -4776,9 +4793,9 @@ TODO v0.3.0
 
     }
 
-    // If the element is absolute positioned. As long as the containing block is an element, is
-    // static and is not transformed, try to get the element's parent element and fallback to
-    // document.
+    // If the element is absolute positioned. As long as the containing block is
+    // an element, is static and is not transformed, try to get the element's
+    // parent element and fallback to document.
     while (ret && ret !== document && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
       ret = ret.parentElement || document;
     }
@@ -4821,8 +4838,9 @@ TODO v0.3.0
       return ret;
     }
 
-    // Now we know we are calculating an element's offsets so let's first get the element's
-    // bounding client rect. If it is not cached, then just fetch it.
+    // Now we know we are calculating an element's offsets so let's first get
+    // the element's bounding client rect. If it is not cached, then just fetch
+    // it.
     var gbcr = element.getBoundingClientRect();
 
     // Add bounding client rect's left/top values to the offsets.
@@ -4894,10 +4912,10 @@ TODO v0.3.0
    */
 
   /**
-   * Show or hide Container instance's items.
+   * Show or hide Grid instance's items.
    *
    * @private
-   * @param {Container} inst
+   * @param {Grid} inst
    * @param {String} method - "show" or "hide".
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Boolean} [instant=false]
@@ -4909,8 +4927,8 @@ TODO v0.3.0
     var cb = typeof instant === 'function' ? instant : callback;
     var counter = targetItems.length;
     var isShow = method === 'show';
-    var startEvent = isShow ? evShowItemsStart : evHideItemsStart;
-    var endEvent = isShow ? evShowItemsEnd : evHideItemsEnd;
+    var startEvent = isShow ? evShowStart : evHideStart;
+    var endEvent = isShow ? evShowEnd : evHideEnd;
     var isInstant = instant === true;
     var needsRelayout = false;
     var validItems = [];
@@ -4942,7 +4960,7 @@ TODO v0.3.0
     // Otherwise if we have some items let's dig in.
     else {
 
-      // Emit showItemsStart/hideItemsStart event.
+      // Emit showStart/hideStart event.
       inst._emitter.emit(startEvent, validItems.concat());
 
       // Show/hide items.
@@ -4969,7 +4987,7 @@ TODO v0.3.0
           }
 
           // If all items have finished their animations call the callback
-          // and emit showItemsEnd/hideItemsEnd event.
+          // and emit showEnd/hideEnd event.
           if (--counter < 1) {
             if (typeof cb === 'function') {
               cb(completedItems.concat());
@@ -4986,7 +5004,7 @@ TODO v0.3.0
         if (hiddenItems.length) {
           inst.refreshItems(hiddenItems);
         }
-        inst.layoutItems();
+        inst.layout();
       }
 
     }
@@ -5167,6 +5185,6 @@ TODO v0.3.0
    * Init
    */
 
-  return Container;
+  return Grid;
 
 }));

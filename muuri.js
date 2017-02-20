@@ -48,20 +48,20 @@ TODO v0.3.0
       the dragData.element and releaseData.element stuff.
 * [x] Review the event names and data.
 * [x] Support providing a selector to items option.
-* [ ] Docs & API overhaul. Try make as little breaking changes as possible.
+* [x] API overhaul. Try make as little breaking changes as possible.
       * [x] Container -> Grid (reflect the change throughout the API)
       * [x] new Grid(opts) -> new Grid(element, opts)
       * [x] Review the refresh logic and the need for two refresh methods. It's
             not ideal at the moment and has some issues.
+* [x] Items should always be children of the container element, so instead of
+      of using querySelectorAll in items options let's just get the children
+      and use elementMatches to filter the elements.
+* [x] Use "border-dimensions" for the container check in drag
+      overlap check. Justification? Well the items are also measured with
+      border, so there's that.
 * [ ] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
-* [ ] If no items are defined in grid options default to fetching the
-      container's children. And since the docs say that the items should always
-      be children of the container, why not just always getting the children
-      and allowing the user to filter them with the options?
-* [ ] Add "instant" options to move and sort methods, and maybe also to add
-      and remove methods.
-* [ ] Reconsider using "border-dimensions" for the container check in drag
-      overlpa check.
+* [ ] Think about (once again) dropping the auto-layout feature, since it may
+      do more harm than good in the end.
 * [ ] It is crucial to allow dropping on empty gaps and not having it is a
       major annoyance when draggin from a grid to another. Imagine a big grid
       with one item, and you're forced to drag over the item... :(
@@ -228,9 +228,9 @@ TODO v0.3.0
   function Grid(element, options) {
 
     var inst = this;
+    var settings;
     var items;
     var debouncedLayout;
-    var settings;
 
     // Make sure a valid container element is provided before going continuing.
     if (!document.body.contains(element)) {
@@ -268,10 +268,20 @@ TODO v0.3.0
     inst.refresh();
 
     // Setup initial items.
-    items = typeof settings.items === 'string' ? inst._element.querySelectorAll(settings.items) : settings.items;
-    inst._items = isNodeList(items) || Array.isArray(items) ? Array.prototype.slice.call(items).map(function (element) {
-      return new Grid.Item(inst, element);
-    }) : [];
+    inst._items = [];
+    items = settings.items;
+    if (typeof items === 'string') {
+      Array.prototype.slice.call(inst._element.children).forEach(function (itemElement) {
+        if (items === '*' || elementMatches(itemElement, items)) {
+          inst._items.push(new Grid.Item(inst, itemElement));
+        }
+      });
+    }
+    else if (Array.isArray(items) || isNodeList(items)) {
+      inst._items = Array.prototype.slice.call(items).map(function (itemElement) {
+        return new Grid.Item(inst, itemElement);
+      });
+    }
 
     // Layout on window resize if the layoutOnResize option is enabled.
     if (typeof settings.layoutOnResize === 'number' || settings.layoutOnResize === true) {
@@ -339,7 +349,7 @@ TODO v0.3.0
   Grid.defaultOptions = {
 
     // Item elements
-    items: [],
+    items: '*',
 
     // Show/hide animations
     show: {
@@ -3052,8 +3062,6 @@ TODO v0.3.0
     var toGridItems;
     var toGridItem;
     var grid;
-    var padding;
-    var border;
     var i;
 
     // First step is checking out which grid's container element the dragged
@@ -3062,13 +3070,11 @@ TODO v0.3.0
 
       // Check how much dragged element overlaps the container element.
       grid = grids[i];
-      padding = grid._padding;
-      border = grid._border;
       overlapScore = getOverlapScore(itemRect, {
-        width: grid._width - border.left - border.right - padding.left - padding.right,
-        height: grid._height - border.top - border.bottom - padding.top - padding.bottom,
-        left: grid._offset.left + border.left + padding.left,
-        top: grid._offset.top + border.top + border.left
+        width: grid._width,
+        height: grid._height,
+        left: grid._offset.left,
+        top: grid._offset.top
       });
 
       // Update best match if the overlap score is higher than the current
@@ -3143,13 +3149,11 @@ TODO v0.3.0
     // the grid's container element.
     else {
       matchIndex = 0;
-      padding = toGrid._padding;
-      border = toGrid._border;
       matchScore = getOverlapScore(itemRect, {
-        width: toGrid._width - border.left - border.right - padding.left - padding.right,
-        height: toGrid._height - border.top - border.bottom - padding.top - padding.bottom,
-        left: toGrid._offset.left + border.left + padding.left,
-        top: toGrid._offset.top + border.top + border.left
+        width: toGrid._width,
+        height: toGrid._height,
+        left: toGrid._offset.left,
+        top: toGrid._offset.top
       });
     }
 
@@ -3851,8 +3855,6 @@ TODO v0.3.0
    * @returns {Drag}
    */
   Drag.prototype._onDragScroll = function (e) {
-
-    console.log(e);
 
     var drag = this;
     var item = drag._getItem();

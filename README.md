@@ -186,7 +186,7 @@ Include Muuri inside the *body* element in your site and make sure to include th
 
 ### 6. Fire it up
 
-The bare minimum configuration is demonstrated below. You must always provide the container element, everything else is optional.
+The bare minimum configuration is demonstrated below. You must always provide the container element (or a selector so Muuri can fetch the element for you), everything else is optional.
 
 ```javascript
 var grid = new Muuri('.grid');
@@ -216,7 +216,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
 {
 
   // Items
-  items: [],
+  items: '*',
 
   // Show/hide animations
   show: {
@@ -298,10 +298,10 @@ var gridB = new Muuri('.grid-b', {
 
 ### items &nbsp;
 
-The initial item elements, which should be children of the container element. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector the elements are queried using [container.querySelectorAll(selector)](https://developer.mozilla.org/en-US/docs/Web/API/Element/querySelectorAll).
+The initial item elements, which should be children of the container element. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
 
   * Type: array (of elements), [node list](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or string.
-  * Default value: `null`.
+  * Default value: `'*'`.
 
 ### show &nbsp;
 

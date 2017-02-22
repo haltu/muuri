@@ -11,9 +11,9 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 ## Table of contents
 
 * [Getting started](#getting-started)
-* [Grid constructor](#grid-constructor)
-* [Grid options](#grid-options)
-* [Grid methods](#grid-methods)
+* [Constructor](#constructor)
+* [Options](#options)
+* [Methods](#methods)
   * [grid.getElement()](#gridgetelement)
   * [grid.getRect()](#gridgetrect)
   * [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
@@ -47,7 +47,7 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
   * [item.isDragging()](#itemisdragging)
   * [item.isReleasing()](#itemisreleasing)
   * [item.isMigrating()](#itemismigrating)
-* [Grid events](#grid-events)
+* [Events](#events)
   * [refresh](#refresh)
   * [refreshItems](#refreshitems)
   * [synchronize](#synchronize)
@@ -192,7 +192,7 @@ The bare minimum configuration is demonstrated below. You must always provide th
 var grid = new Muuri('.grid');
 ```
 
-## Grid constructor
+## Constructor
 
 `Muuri` is a constructor function and should be always instantiated with the `new` keyword. For the sake of clarity, we refer to a Muuri instance as *grid* throughout the documentation.
 
@@ -294,7 +294,7 @@ var gridB = new Muuri('.grid-b', {
 });
 ```
 
-## Grid Options
+## Options
 
 ### items &nbsp;
 
@@ -586,7 +586,7 @@ This classname will be added to the item element for the duration of release.
 * Type: string.
 * Default value: `'muuri-item-releasing'`.
 
-## Grid methods
+## Methods
 
 ### grid.getElement()
 

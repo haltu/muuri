@@ -59,9 +59,8 @@ TODO v0.3.0
 * [x] Use "border-dimensions" for the container check in drag
       overlap check. Justification? Well the items are also measured with
       border, so there's that.
-* [ ] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
-* [ ] Think about (once again) dropping the auto-layout feature, since it may
-      do more harm than good in the end.
+* [x] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
+* [x] Add auto-layout to grid.sort() method, was missing it while others had it.
 * [ ] It is crucial to allow dropping on empty gaps and not having it is a
       major annoyance when draggin from a grid to another. Imagine a big grid
       with one item, and you're forced to drag over the item... :(
@@ -271,19 +270,19 @@ TODO v0.3.0
     inst._items = [];
     items = settings.items;
     if (typeof items === 'string') {
-      Array.prototype.slice.call(inst._element.children).forEach(function (itemElement) {
+      nodeListToArray(inst._element.children).forEach(function (itemElement) {
         if (items === '*' || elementMatches(itemElement, items)) {
           inst._items.push(new Grid.Item(inst, itemElement));
         }
       });
     }
     else if (Array.isArray(items) || isNodeList(items)) {
-      inst._items = Array.prototype.slice.call(items).map(function (itemElement) {
+      inst._items = nodeListToArray(items).map(function (itemElement) {
         return new Grid.Item(inst, itemElement);
       });
     }
 
-    // Layout on window resize if the layoutOnResize option is enabled.
+    // Lay out on window resize if the layoutOnResize option is enabled.
     if (typeof settings.layoutOnResize === 'number' || settings.layoutOnResize === true) {
 
       debouncedLayout = debounce(function () {
@@ -298,7 +297,7 @@ TODO v0.3.0
 
     }
 
-    // Do initial layout if necessary.
+    // Lay out on init if necessary.
     if (settings.layoutOnInit) {
       inst.layout(true);
     }
@@ -501,7 +500,7 @@ TODO v0.3.0
 
     var inst = this;
     var hasTargets = targets && typeof targets !== 'string';
-    var targetItems = !hasTargets ? null : isNodeList(targets) ? Array.prototype.slice.call(targets) : [].concat(targets);
+    var targetItems = !hasTargets ? null : isNodeList(targets) ? nodeListToArray(targets) : [].concat(targets);
     var targetState = !hasTargets ? targets : state;
     var ret = [];
     var item;
@@ -667,7 +666,7 @@ TODO v0.3.0
     var position;
     var i;
 
-    // Try to finish the layout procedure.
+    // Try to finish the lay out procedure.
     function tryFinish(interrupted, item) {
 
       // Push all items to the completed items array which were not interrupted.
@@ -742,7 +741,7 @@ TODO v0.3.0
         item._left = position.left + inst._padding.left;
         item._top = position.top + inst._padding.top;
 
-        // Layout non-dragged items.
+        // Lay out non-dragged items.
         if (item._drag && item._drag._dragData.isActive) {
           tryFinish(false, item);
         }
@@ -769,7 +768,7 @@ TODO v0.3.0
    * point with grid.show() method. This method will automatically call
    * grid.layout() if one or more of the added elements are visible. If only
    * hidden items are added no layout will be called. All the new visible items
-   * are positioned without animation during their first layout.
+   * are positioned without animation during their first lay out.
    *
    * @public
    * @memberof Grid.prototype
@@ -784,7 +783,7 @@ TODO v0.3.0
     var targetElements = [].concat(elements);
     var newItems = [];
     var items = inst._items;
-    var needsRelayout = false;
+    var needsLayout = false;
     var elementIndex;
     var item;
     var i;
@@ -807,7 +806,7 @@ TODO v0.3.0
       item = new Grid.Item(inst, targetElements[i]);
       newItems[newItems.length] = item;
       if (item._isActive) {
-        needsRelayout = true;
+        needsLayout = true;
         item._noLayoutAnimation = true;
       }
     }
@@ -818,8 +817,8 @@ TODO v0.3.0
     // Emit add event.
     inst._emitter.emit(evAdd, newItems.concat());
 
-    // If relayout is needed.
-    if (needsRelayout) {
+    // If lay out is needed.
+    if (needsLayout) {
       inst.layout();
     }
 
@@ -843,7 +842,7 @@ TODO v0.3.0
     var inst = this;
     var targetItems = inst.getItems(items);
     var indices = [];
-    var needsRelayout = false;
+    var needsLayout = false;
     var item;
     var i;
 
@@ -851,7 +850,7 @@ TODO v0.3.0
     for (i = 0; i < targetItems.length; i++) {
       item = targetItems[i];
       if (item._isActive) {
-        needsRelayout = true;
+        needsLayout = true;
       }
       indices[indices.length] = item._destroy(removeElement);
     }
@@ -859,8 +858,8 @@ TODO v0.3.0
     // Emit remove event.
     inst._emitter.emit(evRemove, indices.concat());
 
-    // If relayout is needed.
-    if (needsRelayout) {
+    // If lay out is needed.
+    if (needsLayout) {
       inst.layout();
     }
 
@@ -964,8 +963,7 @@ TODO v0.3.0
   };
 
   /**
-   * Sort items with a compare function. Works identically to
-   * Array.prototype.sort().
+   * Sort items with a compare function. Works identically to native array sort.
    *
    * @public
    * @memberof Grid.prototype
@@ -979,6 +977,9 @@ TODO v0.3.0
     if (items.length > 1) {
       items.sort(compareFunction);
     }
+
+    // Lay out items.
+    inst.layout();
 
     return this;
 
@@ -1034,7 +1035,7 @@ TODO v0.3.0
         action: action
       });
 
-      // Layout items.
+      // Lay out items.
       inst.layout();
 
     }
@@ -1076,7 +1077,7 @@ TODO v0.3.0
     var translateX;
     var translateY;
 
-    // Stop current layout animation.
+    // Stop current lay out animation.
     targetItem._stopLayout(true);
 
     // Stop current migration.
@@ -1197,7 +1198,7 @@ TODO v0.3.0
       toIndex: newIndex
     });
 
-    // Do layout for both grids if the item is active.
+    // Lay out both grids if the item is active.
     if (isActive) {
       currentGrid.layout(isInstant);
       targetGrid.layout(isInstant);
@@ -1819,7 +1820,7 @@ TODO v0.3.0
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
     var animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
     var animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
-    var animEnabled = instant === true || inst._noLayoutAnimation ? false : animDuration > 0;
+    var animEnabled = !instant && !inst._noLayoutAnimation && animaDuration > 0;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
     var offsetLeft;
@@ -3301,7 +3302,7 @@ TODO v0.3.0
 
   /**
    * Check (during drag) if an item is overlapping other items and based on
-   * the configuration do a relayout.
+   * the configuration lay out the items.
    *
    * @protected
    * @memberof Drag.prototype
@@ -3344,7 +3345,7 @@ TODO v0.3.0
         action: sortAction
       });
 
-      // Layout the grid.
+      // Lay out the grid.
       currentGrid.layout();
 
     }
@@ -3378,7 +3379,7 @@ TODO v0.3.0
         toIndex: targetIndex
       });
 
-      // Layout both grids.
+      // Lay out both grids.
       currentGrid.layout();
       targetGrid.layout();
 
@@ -3494,7 +3495,7 @@ TODO v0.3.0
       item._drag._startRelease();
     }
 
-    // Otherwise just do a layout.
+    // Otherwise just lay out the item.
     else {
       item._layout();
     }
@@ -4478,6 +4479,19 @@ TODO v0.3.0
   }
 
   /**
+   * Convert nodeList to array.
+   *
+   * @private
+   * @param {NodeList} nodeList
+   * @returns {Array}
+   */
+  function nodeListToArray(nodeList) {
+
+    return [].slice.call(nodeList);
+
+  }
+
+  /**
    * Checks the supported element.matches() method and returns a function that
    * can be used to call the supported method.
    *
@@ -4932,7 +4946,7 @@ TODO v0.3.0
     var startEvent = isShow ? evShowStart : evHideStart;
     var endEvent = isShow ? evShowEnd : evHideEnd;
     var isInstant = instant === true;
-    var needsRelayout = false;
+    var needsLayout = false;
     var validItems = [];
     var completedItems = [];
     var hiddenItems = [];
@@ -4970,9 +4984,9 @@ TODO v0.3.0
 
         item = validItems[i];
 
-        // Check if relayout or refresh is needed.
+        // Check if lay out or refresh is needed.
         if ((isShow && !item._isActive) || (!isShow && item._isActive)) {
-          needsRelayout = true;
+          needsLayout = true;
           if (isShow) {
             item._noLayoutAnimation = true;
             hiddenItems[hiddenItems.length] = item;
@@ -5001,8 +5015,8 @@ TODO v0.3.0
 
       }
 
-      // Relayout only if needed.
-      if (needsRelayout) {
+      // Lay out if needed.
+      if (needsLayout) {
         if (hiddenItems.length) {
           inst.refreshItems(hiddenItems);
         }

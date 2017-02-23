@@ -300,22 +300,22 @@ var gridB = new Muuri('.grid-b', {
 
 The initial item elements, which should be children of the container element. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
 
-  * Type: array (of elements), [node list](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or string.
   * Default value: `'*'`.
+  * Accepted types: array (of elements), [node list](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), string, null.
 
 ### show &nbsp;
 
 Defines the show animation. Set to `null` to disable show animation completely.
 
-  * Type: function, null or object.
   * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, scale: 1}}`.
+  * Accepted types: function, object, null.
 
 When an object is provided Muuri's built-in animation engine is used and allows configuring the animation with following properties:
 
 * **duration** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * Animation duration in milliseconds.
-* **easing** &nbsp;&mdash;&nbsp; *string*
+* **easing** &nbsp;&mdash;&nbsp; *array* / *string*
   * Default value: `'ease'`.
   * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 * **show.styles** &nbsp;&mdash;&nbsp; *object*
@@ -341,15 +341,15 @@ By providing a function you can define a fully customized animation. The functio
 
 Defines the hide animation. Set to `null` to disable hide animation completely.
 
-  * Type: function, null, object.
   * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 0, scale: 0.5}}`.
+  * Accepted types: function, object, null.
 
 When an object is provided Muuri's built-in animation engine is used and allows configuring the animation with following properties:
 
 * **duration** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
   * Animation duration in milliseconds.
-* **easing** &nbsp;&mdash;&nbsp; *string*
+* **easing** &nbsp;&mdash;&nbsp; *array* / *string*
   * Default value: `'ease'`.
   * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 * **styles** &nbsp;&mdash;&nbsp; *object*
@@ -375,8 +375,8 @@ By providing a function you can define a fully customized animation. The functio
 
 Define how the items will be laid out.
 
-  * Type: function or object.
   * Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
+  * Accepted types: function, object.
 
 Provide an object to configure the default layout algorithm with the following properties:
 
@@ -415,50 +415,50 @@ Alternatively you can provide a function to define a custom layout algorithm. Th
 
 Should Muuri automatically trigger `layoutItems` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically lay out the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are laid out after each window resize event.
 
-* Type: boolean or number.
 * Default value: `100`.
+* Accepted types: boolean, number.
 
 ### layoutOnInit &nbsp;
 
 Should Muuri trigger `layout` method automatically on init?
 
-* Type: boolean.
 * Default value: `true`.
+* Accepted types: boolean.
 
 ### layoutDuration &nbsp;
 
 The duration for item's layout animation in milliseconds. Set to `0` to disable.
 
-* Type: number.
 * Default value: `300`.
+* Accepted types: number.
 
 ### layoutEasing &nbsp;
 
 The easing for item's layout animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 
-* Type: string.
 * Default value: `'ease'`.
+* Accepted types: string.
 
 ### dragEnabled &nbsp;
 
 Should items be draggable?
 
-* Type: boolean.
 * Default value: `false`.
+* Accepted types: boolean.
 
 ### dragContainer &nbsp;
 
 Which item the dragged item should be appended to for the duration of the drag? If `null` the container element will be used.
 
-* Type: null or element.
 * Default value: `null`.
+* Accepted types: element, null.
 
 ### dragStartPredicate &nbsp;
 
 A function that determines when dragging should start. If `null` the default predicate is used (dragging starts immediately).
 
-* Type: null or function.
 * Default value: `null`.
+* Accepted types: function, null.
 
 The predicate function receives three arguments:
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
@@ -475,34 +475,33 @@ The predicate function receives three arguments:
   * **predicate.isRejected** &nbsp;&mdash;&nbsp; *function*
     * Returns boolean. Check if the predicate is rejected.
 
-
 ### dragSort &nbsp;
 
 Should the items be sorted during drag?
 
-* Type: boolean.
 * Default value: `true`.
+* Accepted types: boolean.
 
 ### dragSortInterval &nbsp;
 
 Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty intense which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is definitely not recommended).
 
-* Type: number.
 * Default value: `50`.
+* Accepted types: number.
 
 ### dragSortPredicate &nbsp;
 
 Defines the logic for the sort procedure during dragging an item.
 
-* Type: function or object.
 * Default value: `{action: 'move', tolerance: 50}`.
+* Accepted types: function, object.
 
 If an object is provided the default sort predicate handler will be used. You can define the following properties:
-* **dragSortPredicate.action** &nbsp;&mdash;&nbsp; *string*
+* **action** &nbsp;&mdash;&nbsp; *string*
   * Default value: `'move'`.
   * Allowed values: `'move'`, `'swap'`.
   * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
-* **dragSortPredicate.threshold** &nbsp;&mdash;&nbsp; *number*
+* **threshold** &nbsp;&mdash;&nbsp; *number*
   * Default value: `50`.
   * Allowed values: `1` - `100`.
   * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the items before sorting is triggered.
@@ -513,78 +512,78 @@ Alternatively you can provide your own callback function where you can define yo
 
 The grid's sort group, e.g. "groupA".
 
-* Type: null or string.
 * Default value: `null`.
+* Accepted types: string, null.
 
 ### dragSortConnections &nbsp;
 
 Defines the sort groups that this instance's item's can be dragged to. Provide an array of sort groups (strings), e.g. `['groupA', 'groupC']`.
 
-* Type: null or array.
 * Default value: `null`.
+* Accepted types: array, null.
 
 ### dragReleaseDuration &nbsp;
 
 The duration for item's drag release animation. Set to `0` to disable.
 
-* Type: number.
 * Default value: `300`.
+* Accepted types: number.
 
 ### dragReleaseEasing &nbsp;
 
 The easing for item's drag release animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 
-* Type: string or array.
 * Default value: `'ease'`.
+* Accepted types: array, string.
 
 ### containerClass &nbsp;
 
 Container element's classname.
 
-* Type: string.
 * Default value: `'muuri'`.
+* Accepted types: string.
 
 ### itemClass &nbsp;
 
 Item element's classname.
 
-* Type: string.
 * Default value: `'muuri-item'`.
+* Accepted types: string.
 
 ### itemVisibleClass &nbsp;
 
 Visible item's classname.
 
-* Type: string
 * Default value: `'muuri-item-shown'`.
+* Accepted types: string.
 
 ### itemHiddenClass &nbsp;
 
 Hidden item's classname.
 
-* Type: string.
 * Default value: `'muuri-item-hidden'`.
+* Accepted types: string.
 
 ### itemPositioningClass &nbsp;
 
 This classname will be added to the item element for the duration of positioning.
 
-* Type: string.
 * Default value: `'muuri-item-positioning'`.
+* Accepted types: string.
 
 ### itemDraggingClass &nbsp;
 
 This classname will be added to the item element for the duration of drag.
 
-* Type: string.
 * Default value: `'muuri-item-dragging'`.
+* Accepted types: string.
 
 ### itemReleasingClass &nbsp;
 
 This classname will be added to the item element for the duration of release.
 
-* Type: string.
 * Default value: `'muuri-item-releasing'`.
+* Accepted types: string.
 
 ## Methods
 

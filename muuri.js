@@ -61,6 +61,7 @@ TODO v0.3.0
       border, so there's that.
 * [x] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
 * [x] Add auto-layout to grid.sort() method, was missing it while others had it.
+* [ ] Smarter system for noItemLayout hack.
 * [ ] It is crucial to allow dropping on empty gaps and not having it is a
       major annoyance when draggin from a grid to another. Imagine a big grid
       with one item, and you're forced to drag over the item... :(
@@ -122,17 +123,17 @@ TODO v0.3.0
   var Error = global.Error;
   var Element = global.Element;
 
-  // Container object for keeping track of Grid instances.
+  // Keep track of Grid instances.
   var gridInstances = {};
 
-  // Container object for keeping track of Item instances.
+  // Keep track of Item instances.
   var itemInstances = {};
 
-  // Container object for keeping track of the drag sort groups.
+  // Keep track of the drag sort groups.
   var sortGroups = {};
 
-  // Id which is used for Muuri instances and Item instances. Incremented every
-  // time it is used.
+  // Unique id which is used for Muuri instances and Item instances.
+  // Should be incremented every time when used.
   var uuid = 0;
 
   // Get the supported element.matches().
@@ -141,9 +142,7 @@ TODO v0.3.0
   // Get the supported transform style property.
   var transform = getSupportedStyle('transform');
 
-  // Do transformed elements leak fixed elements? According W3C specification
-  // (about transform rendering) a transformed element should contain fixed
-  // elements, but not every browser follows the spec. So we need to test it.
+  // Test if transformed elements leak fixed elements.
   var transformLeaksFixed = doesTransformLeakFixed();
 
   // Event names.
@@ -189,11 +188,11 @@ TODO v0.3.0
    * @param {?Array|NodeList|String} [options.items]
    * @param {?Function|Object} [options.show]
    * @param {Number} [options.show.duration=300]
-   * @param {String} [options.show.easing="ease"]
+   * @param {Array|String} [options.show.easing="ease"]
    * @param {Object} [options.show.styles]
    * @param {?Function|Object} [options.hide]
    * @param {Number} [options.hide.duration=300]
-   * @param {String} [options.hide.easing="ease"]
+   * @param {Array|String} [options.hide.easing="ease"]
    * @param {Object} [options.hide.styles]
    * @param {Function|Object} [options.layout]
    * @param {Boolean} [options.layout.fillGaps=false]
@@ -203,7 +202,7 @@ TODO v0.3.0
    * @param {Boolean|Number} [options.layoutOnResize=100]
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
-   * @param {String} [options.layoutEasing="ease"]
+   * @param {Array|String} [options.layoutEasing="ease"]
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?HtmlElement} [options.dragContainer=null]
    * @param {?Function} [options.dragStartPredicate=null]
@@ -215,7 +214,7 @@ TODO v0.3.0
    * @param {?String} [options.dragSortGroup=null]
    * @param {?Array} [options.dragSortConnections=null]
    * @param {Number} [options.dragReleaseDuration=300]
-   * @param {String} [options.dragReleaseEasing="ease"]
+   * @param {Array|String} [options.dragReleaseEasing="ease"]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
    * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -231,21 +230,20 @@ TODO v0.3.0
     var items;
     var debouncedLayout;
 
-    // Make sure a valid container element is provided before going continuing.
+    // Throw an error if the container element does not exist in the DOM.
     if (!document.body.contains(element)) {
       throw new Error('Container element must be an existing DOM element');
     }
 
-    // Create instance settings by merging options with default options.
+    // Create instance settings by merging the options with default options.
     settings = inst._settings = mergeSettings(Grid.defaultOptions, options);
+
+    // Get container element and store it.
+    inst._element = typeof element === 'string' ? document.querySelectorAll(element)[0] : element;
 
     // Create instance id and store it to the grid instances collection.
     inst._id = ++uuid;
     gridInstances[inst._id] = inst;
-
-    // Setup container element.
-    inst._element = typeof element === 'string' ? document.querySelectorAll(element)[0] : element;
-    addClass(element, settings.containerClass);
 
     // Reference to the currently used Layout instance.
     inst._layout = null;
@@ -253,20 +251,23 @@ TODO v0.3.0
     // Create private Emitter instance.
     inst._emitter = new Grid.Emitter();
 
-    // Setup show and hide animations for items.
-    inst._itemShowHandler = typeof settings.show === 'function' ? settings.show() : getItemVisbilityHandler('show', settings.show);
-    inst._itemHideHandler = typeof settings.hide === 'function' ? settings.hide() : getItemVisbilityHandler('hide', settings.hide);
-
     // Setup instance's sort group.
     inst._setSortGroup(settings.dragSortGroup);
 
     // Setup instance's sort connections.
     inst._sortConnections = Array.isArray(settings.dragSortConnections) && settings.dragSortConnections.length ? settings.dragSortConnections : null;
 
+    // Setup show and hide animations for items.
+    inst._itemShowHandler = typeof settings.show === 'function' ? settings.show() : getItemVisbilityHandler('show', settings.show);
+    inst._itemHideHandler = typeof settings.hide === 'function' ? settings.hide() : getItemVisbilityHandler('hide', settings.hide);
+
+    // Add container element's class name.
+    addClass(element, settings.containerClass);
+
     // Calculate container element's initial dimensions and offset.
     inst.refresh();
 
-    // Setup initial items.
+    // Create initial items.
     inst._items = [];
     items = settings.items;
     if (typeof items === 'string') {
@@ -444,7 +445,7 @@ TODO v0.3.0
   };
 
   /**
-   * Get the instance element.
+   * Get the container element.
    *
    * @public
    * @memberof Grid.prototype
@@ -457,14 +458,15 @@ TODO v0.3.0
   };
 
   /**
-   * Get instance's cached dimensions and offsets. Basically the same data as
-   * provided by element.getBoundingClientRect() method, just cached. The cached
-   * dimensions and offsets are subject to change whenever grid.layout() or
-   * refresh method is called. Note that all returned values are rounded.
+   * Get cached dimensions and offsets. Basically the same data as provided by
+   * element.getBoundingClientRect() method, just cached. The cached dimensions
+   * and offsets are subject to change whenever layout or refresh method
+   * is called. Note that all returned values are rounded.
    *
    * @public
    * @memberof Grid.prototype
    * @returns {Object}
+   *   - width, height, left, right, top, bottom.
    */
   Grid.prototype.getRect = function () {
 
@@ -480,11 +482,11 @@ TODO v0.3.0
   };
 
   /**
-   * Get all items. Optionally you can provide specific targets (indices or
-   * elements) and filter the results by the items' state (active/inactive).
-   * Note that the returned array is not the same object used by the instance so
-   * modifying it will not affect instance's items. All items that are not found
-   * are omitted from the returned array.
+   * Get all items. Optionally you can provide specific targets (elements and
+   * indices) and filter the results based on the state of the items. Note that
+   * the returned array is not the same object used by the instance so modifying
+   * it will not affect instance's items. All items that are not found are
+   * omitted from the returned array.
    *
    * @public
    * @memberof Grid.prototype
@@ -574,8 +576,7 @@ TODO v0.3.0
   };
 
   /**
-   * Recalculate the width and height of the provided targets. If no targets are
-   * provided all active items will be refreshed.
+   * Refresh instance's items (dimensions).
    *
    * @public
    * @memberof Grid.prototype
@@ -600,10 +601,9 @@ TODO v0.3.0
   };
 
   /**
-   * Order the item elements to match the order of the items. If the item's
-   * element is not a child of the container element it is ignored and left
-   * untouched. This comes handy if you need to keep the DOM structure matched
-   * with the order of the items.
+   * Synchronize the DOM order of the item elements to match the order of the
+   * items in the instance. If an item's element is not a child of the container
+   * element it is ignored and left untouched.
    *
    * @public
    * @memberof Grid.prototype

@@ -62,6 +62,7 @@ TODO v0.3.0
 * [x] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
 * [x] Add auto-layout to grid.sort() method, was missing it while others had it.
 * [ ] Smarter system for noItemLayout hack.
+* [ ] Rename "callbacks" to something more meaningful (onDone/onFinished etc.)
 * [ ] It is crucial to allow dropping on empty gaps and not having it is a
       major annoyance when draggin from a grid to another. Imagine a big grid
       with one item, and you're forced to drag over the item... :(
@@ -283,7 +284,7 @@ TODO v0.3.0
       });
     }
 
-    // Lay out on window resize if the layoutOnResize option is enabled.
+    // Layout on window resize if the layoutOnResize option is enabled.
     if (typeof settings.layoutOnResize === 'number' || settings.layoutOnResize === true) {
 
       debouncedLayout = debounce(function () {
@@ -298,7 +299,7 @@ TODO v0.3.0
 
     }
 
-    // Lay out on init if necessary.
+    // Layout on init if necessary.
     if (settings.layoutOnInit) {
       inst.layout(true);
     }
@@ -576,7 +577,7 @@ TODO v0.3.0
   };
 
   /**
-   * Refresh instance's items (dimensions).
+   * Refresh the dimensions of the instance's items.
    *
    * @public
    * @memberof Grid.prototype
@@ -640,7 +641,7 @@ TODO v0.3.0
   };
 
   /**
-   * Calculate and apply Grid instance's item positions.
+   * Calculate and apply item positions.
    *
    * @public
    * @memberof Grid.prototype
@@ -666,10 +667,9 @@ TODO v0.3.0
     var position;
     var i;
 
-    // Try to finish the lay out procedure.
     function tryFinish(interrupted, item) {
 
-      // Push all items to the completed items array which were not interrupted.
+      // Push all items, which were not interrupted, to the completed items.
       if (!interrupted) {
         completed[completed.length] = item;
       }
@@ -737,11 +737,16 @@ TODO v0.3.0
         item = layout.items[i];
         position = layout.slots[item._id];
 
-        // Update item's position.
+        // Update item's position. We add the padding to the value here because
+        // we want the position to be relative to the container elment's
+        // content edge, not padding edge (which would be default behaviour for
+        // absolute positioned elements). This way we provide more control over
+        // the gutter spacing via CSS styles. Otherwise the padding would be
+        // kind of wasted.
         item._left = position.left + inst._padding.left;
         item._top = position.top + inst._padding.top;
 
-        // Lay out non-dragged items.
+        // Layout non-dragged items.
         if (item._drag && item._drag._dragData.isActive) {
           tryFinish(false, item);
         }
@@ -768,19 +773,23 @@ TODO v0.3.0
    * point with grid.show() method. This method will automatically call
    * grid.layout() if one or more of the added elements are visible. If only
    * hidden items are added no layout will be called. All the new visible items
-   * are positioned without animation during their first lay out.
+   * are positioned without animation during their first layout.
    *
    * @public
    * @memberof Grid.prototype
    * @param {Array|HTMLElement} elements
-   * @param {Number} [index=-1]
+   * @param {Object} [options]
+   * @param {Number} [options.index=-1]
+   * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Array}
    *   - Array of the new Item instances.
    */
-  Grid.prototype.add = function (elements, index) {
+  Grid.prototype.add = function (elements, options) {
 
     var inst = this;
     var targetElements = [].concat(elements);
+    var opts = options || {};
+    var layout = opts.layout;
     var newItems = [];
     var items = inst._items;
     var needsLayout = false;
@@ -812,14 +821,14 @@ TODO v0.3.0
     }
 
     // Add the new items to the items collection to correct index.
-    insertItemsToArray(items, newItems, index);
+    insertItemsToArray(items, newItems, opts.index);
 
     // Emit add event.
     inst._emitter.emit(evAdd, newItems.concat());
 
-    // If lay out is needed.
-    if (needsLayout) {
-      inst.layout();
+    // If layout is needed.
+    if (needsLayout && layout) {
+      inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
     }
 
     // Return new items.
@@ -833,14 +842,18 @@ TODO v0.3.0
    * @public
    * @memberof Grid.prototype
    * @param {Array|HTMLElement|Item|Number} items
-   * @param {Boolean} [removeElement=false]
+   * @param {Object} [options]
+   * @param {Boolean} [options.removeElement=false]
+   * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Array}
    *   - The indices of removed items.
    */
-  Grid.prototype.remove = function (items, removeElement) {
+  Grid.prototype.remove = function (items, options) {
 
     var inst = this;
     var targetItems = inst.getItems(items);
+    var opts = options || {};
+    var layout = opts.layout;
     var indices = [];
     var needsLayout = false;
     var item;
@@ -852,15 +865,15 @@ TODO v0.3.0
       if (item._isActive) {
         needsLayout = true;
       }
-      indices[indices.length] = item._destroy(removeElement);
+      indices[indices.length] = item._destroy(opts.removeElement);
     }
 
     // Emit remove event.
     inst._emitter.emit(evRemove, indices.concat());
 
-    // If lay out is needed.
-    if (needsLayout) {
-      inst.layout();
+    // If layout is needed.
+    if (needsLayout && layout) {
+      inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
     }
 
     return indices;
@@ -873,14 +886,15 @@ TODO v0.3.0
    * @public
    * @memberof Grid.prototype
    * @param {Array|HTMLElement|Item|Number} items
-   * @param {Boolean} [instant=false]
-   * @param {Function} [callback]
+   * @param {Object} [options]
+   * @param {Boolean} [options.instant=false]
+   * @param {Function} [options.callback]
+   * @param {Boolean|Function|String} [options.layout=tue]
    * @returns {Grid}
    */
-  Grid.prototype.show = function (items, instant, callback) {
+  Grid.prototype.show = function (items, options) {
 
-    setVisibility(this, 'show', items, instant, callback);
-    return this;
+    return setVisibility(this, 'show', items, options);
 
   };
 
@@ -890,14 +904,15 @@ TODO v0.3.0
    * @public
    * @memberof Grid.prototype
    * @param {Array|HTMLElement|Item|Number} items
-   * @param {Boolean} [instant=false]
-   * @param {Function} [callback]
+   * @param {Object} [options]
+   * @param {Boolean} [options.instant=false]
+   * @param {Function} [options.callback]
+   * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.hide = function (items, instant, callback) {
+  Grid.prototype.hide = function (items, options) {
 
-    setVisibility(this, 'hide', items, instant, callback);
-    return this;
+    return setVisibility(this, 'hide', items, options);
 
   };
 
@@ -915,16 +930,24 @@ TODO v0.3.0
    * @public
    * @memberof Grid.prototype
    * @param {Function|String} predicate
-   * @param {Boolean} [instant=false]
+   * @oaram {Object} [options]
+   * @param {Boolean} [options.instant=false]
+   * @param {Function} [options.callback]
+   * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.filter = function (predicate, instant) {
+  Grid.prototype.filter = function (predicate, options) {
+
+    // TODO: Add callback for when items are filtered (hidden/shown). Args...?
 
     var inst = this;
     var items = inst._items;
     var predicateType = typeof predicate;
     var isFilterString = predicateType === 'string';
     var isFilterFn = predicateType === 'function';
+    var opts = options || {};
+    var isInstant = opts.instant === true;
+    var layout = opts.layout;
     var itemsToShow = [];
     var itemsToHide = [];
     var item;
@@ -950,12 +973,23 @@ TODO v0.3.0
 
     // Show items that need to be shown.
     if (itemsToShow.length) {
-      inst.show(itemsToShow, instant);
+      inst.show(itemsToShow, {
+        instant: isInstant,
+        layout: false
+      });
     }
 
     // Hide items that need to be hidden.
     if (itemsToHide.length) {
-      inst.hide(itemsToHide, instant);
+      inst.hide(itemsToHide, {
+        instant: isInstant,
+        layout: false
+      });
+    }
+
+    // If layout is needed.
+    if ((itemsToShow.length || itemsToHide.length) && layout) {
+      inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
     }
 
     return inst;
@@ -968,18 +1002,26 @@ TODO v0.3.0
    * @public
    * @memberof Grid.prototype
    * @param {Function} compareFunction
+   * @param {Object} [options]
+   * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.sort = function (compareFunction) {
+  Grid.prototype.sort = function (compareFunction, options) {
+
+    // TODO: Add "sort" event
 
     var items = this._items;
+    var opts = options || {};
+    var layout = opts.layout;
 
     if (items.length > 1) {
       items.sort(compareFunction);
     }
 
-    // Lay out items.
-    inst.layout();
+    // If layout is needed.
+    if (needsLayout && layout) {
+      inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+    }
 
     return this;
 
@@ -992,22 +1034,27 @@ TODO v0.3.0
    * @memberof Grid.prototype
    * @param {HTMLElement|Item|Number} item
    * @param {HTMLElement|Item|Number} position
-   * @param {String} [action="move"]
-   *   - Accepts either "move" or "swap". "move" moves item in place of another
-   *     item and "swap" swaps position of items.
+   * @param {Object} [options]
+   * @param {String} [options.action="move"]
+   *   - Accepts either "move" or "swap".
+   *   - "move" moves the item in place of the other item.
+   *   - "swap" swaps the position of the items.
+   * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.move = function (item, position, action) {
+  Grid.prototype.move = function (item, position, options) {
 
     var inst = this;
     var items = inst._items;
+    var opts = options || {};
+    var layout = opts.layout;
     var fromItem;
     var toItem;
     var fromIndex;
     var toIndex;
     var isSwap;
 
-    // Return immediately, if moving item is not possible.
+    // Return immediately, if moving an item is not possible.
     if (items.length < 2) {
       return inst;
     }
@@ -1020,7 +1067,7 @@ TODO v0.3.0
     // Make sure the items exist and are not the same.
     if (fromItem && toItem && (fromItem !== toItem)) {
 
-      // Get the indexes of the items.
+      // Get the indices of the items.
       fromIndex = items.indexOf(fromItem);
       toIndex = items.indexOf(toItem);
 
@@ -1035,8 +1082,10 @@ TODO v0.3.0
         action: action
       });
 
-      // Lay out items.
-      inst.layout();
+      // If layout is needed.
+      if (layout) {
+        inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      }
 
     }
 
@@ -1052,9 +1101,9 @@ TODO v0.3.0
    * @param {HTMLElement|Item|Number} item
    * @param {Grid} grid
    * @param {Object} [options]
-   * @param {HTMLElement|Item|Number} [options.position=0]
+   * @param {HTMLElement|Item|Number} [options.position=-1]
    * @param {HTMLElement} [options.appendTo=document.body]
-   * @param {Boolean} [options.instant=false]
+   * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.send = function (item, grid, options) {
@@ -1063,21 +1112,22 @@ TODO v0.3.0
     var currentGridStn = currentGrid._settings;
     var targetGrid = grid;
     var targetGridStn = targetGrid._settings;
+    var opts = options || {};
+    var appendTo = opts.appendTo || document.body;
+    var position = opts.position;
+    var layout = opts.layout;
     var targetItem = currentGrid._getItem(item);
     var migrate = targetItem._migrate;
     var element = targetItem._element;
     var isActive = targetItem.isActive();
     var isVisible = (targetItem.isVisible() || targetItem.isShowing()) && !targetItem.isHiding();
-    var isInstant = !!options.instant;
-    var appendTo = options.appendTo || document.body;
-    var position = options.position;
     var currentIndex = currentGrid._items.indexOf(targetItem);
-    var newIndex = typeof position === 'number' ? position : (position ? targetGrid._items.indexOf(targetGrid._getItem(position)) : 0);
+    var newIndex = typeof position === 'number' ? position : (position ? targetGrid._items.indexOf(targetGrid._getItem(position)) : -1);
     var offsetDiff;
     var translateX;
     var translateY;
 
-    // Stop current lay out animation.
+    // Stop current layout animation.
     targetItem._stopLayout(true);
 
     // Stop current migration.
@@ -1198,10 +1248,24 @@ TODO v0.3.0
       toIndex: newIndex
     });
 
-    // Lay out both grids if the item is active.
-    if (isActive) {
-      currentGrid.layout(isInstant);
-      targetGrid.layout(isInstant);
+    // If layout is defined and if the item is active and layout both grids.
+    if (isActive && layout) {
+      if (layout === 'instant') {
+        currentGrid.layout(true);
+        targetGrid.layout(true);
+      }
+      else if (typeof layout === 'function') {
+        currentGrid.layout(function (completed) {
+          layout(currentGrid, completed);
+        });
+        targetGrid.layout(function (completed) {
+          layout(targetGrid, completed);
+        });
+      }
+      else {
+        currentGrid.layout();
+        targetGrid.layout();
+      }
     }
 
     return currentGrid;
@@ -3302,7 +3366,7 @@ TODO v0.3.0
 
   /**
    * Check (during drag) if an item is overlapping other items and based on
-   * the configuration lay out the items.
+   * the configuration layout the items.
    *
    * @protected
    * @memberof Drag.prototype
@@ -3345,7 +3409,7 @@ TODO v0.3.0
         action: sortAction
       });
 
-      // Lay out the grid.
+      // Layout the grid.
       currentGrid.layout();
 
     }
@@ -3379,7 +3443,7 @@ TODO v0.3.0
         toIndex: targetIndex
       });
 
-      // Lay out both grids.
+      // Layout both grids.
       currentGrid.layout();
       targetGrid.layout();
 
@@ -3495,7 +3559,7 @@ TODO v0.3.0
       item._drag._startRelease();
     }
 
-    // Otherwise just lay out the item.
+    // Otherwise just layout the item.
     else {
       item._layout();
     }
@@ -4934,18 +4998,23 @@ TODO v0.3.0
    * @param {Grid} inst
    * @param {String} method - "show" or "hide".
    * @param {Array|HTMLElement|Item|Number} items
-   * @param {Boolean} [instant=false]
-   * @param {Function} [callback]
+   * @param {Object} [options]
+   * @param {Boolean} [options.instant=false]
+   * @param {Function} [options.callback]
+   * @param {Boolean|Function|String} [options.layout=true]
+   * @returns {Grid}
    */
-  function setVisibility(inst, method, items, instant, callback) {
+  function setVisibility(inst, method, items, options) {
 
     var targetItems = inst.getItems(items);
-    var cb = typeof instant === 'function' ? instant : callback;
+    var opts = options || {};
+    var isInstant = opts.instant === true;
+    var callback = opts.callback;
+    var layout = opts.layout;
     var counter = targetItems.length;
     var isShow = method === 'show';
     var startEvent = isShow ? evShowStart : evHideStart;
     var endEvent = isShow ? evShowEnd : evHideEnd;
-    var isInstant = instant === true;
     var needsLayout = false;
     var validItems = [];
     var completedItems = [];
@@ -4968,8 +5037,8 @@ TODO v0.3.0
 
     // If there are no items call the callback, but don't emit any events.
     if (!counter) {
-      if (typeof cb === 'function') {
-        cb(validItems);
+      if (typeof callback === 'function') {
+        callback(validItems);
       }
     }
 
@@ -4984,7 +5053,7 @@ TODO v0.3.0
 
         item = validItems[i];
 
-        // Check if lay out or refresh is needed.
+        // Check if layout or refresh is needed.
         if ((isShow && !item._isActive) || (!isShow && item._isActive)) {
           needsLayout = true;
           if (isShow) {
@@ -5005,8 +5074,8 @@ TODO v0.3.0
           // If all items have finished their animations call the callback
           // and emit showEnd/hideEnd event.
           if (--counter < 1) {
-            if (typeof cb === 'function') {
-              cb(completedItems.concat());
+            if (typeof callback === 'function') {
+              callback(completedItems.concat());
             }
             inst._emitter.emit(endEvent, completedItems.concat());
           }
@@ -5015,15 +5084,19 @@ TODO v0.3.0
 
       }
 
-      // Lay out if needed.
+      // Layout if needed.
       if (needsLayout) {
         if (hiddenItems.length) {
           inst.refreshItems(hiddenItems);
         }
-        inst.layout();
+        if (layout) {
+          inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+        }
       }
 
     }
+
+    return inst;
 
   }
 

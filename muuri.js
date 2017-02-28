@@ -61,8 +61,9 @@ TODO v0.3.0
       border, so there's that.
 * [x] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
 * [x] Add auto-layout to grid.sort() method, was missing it while others had it.
+* [x] Rename "callbacks" to something more meaningful -> onFinish
+* [ ] Smarter sort method.
 * [ ] Smarter system for noItemLayout hack.
-* [ ] Rename "callbacks" to something more meaningful (onDone/onFinished etc.)
 * [ ] It is crucial to allow dropping on empty gaps and not having it is a
       major annoyance when draggin from a grid to another. Imagine a big grid
       with one item, and you're forced to drag over the item... :(
@@ -158,6 +159,7 @@ TODO v0.3.0
   var evShowEnd = 'showEnd';
   var evHideStart = 'hideStart';
   var evHideEnd = 'hideEnd';
+  var evSort = 'sort';
   var evMove = 'move';
   var evSend = 'send';
   var evReceiveStart = 'receiveStart';
@@ -646,14 +648,14 @@ TODO v0.3.0
    * @public
    * @memberof Grid.prototype
    * @param {Boolean} [instant=false]
-   * @param {Function} [callback]
+   * @param {Function} [onFinish]
    * @returns {Grid}
    */
-  Grid.prototype.layout = function (instant, callback) {
+  Grid.prototype.layout = function (instant, onFinish) {
 
     var inst = this;
     var emitter = inst._emitter;
-    var cb = typeof instant === 'function' ? instant : callback;
+    var callback = typeof instant === 'function' ? instant : onFinish;
     var isInstant = instant === true;
     var layout = new Grid.Layout(inst);
     var counter = 0;
@@ -677,8 +679,8 @@ TODO v0.3.0
       // After all items have finished their animations call callback and emit
       // layoutend event.
       if (++counter === itemsLength) {
-        if (typeof cb === 'function') {
-          cb(completed.concat());
+        if (typeof callback === 'function') {
+          callback(completed.concat());
         }
         emitter.emit(evLayoutEnd, completed.concat());
       }
@@ -888,7 +890,7 @@ TODO v0.3.0
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {Function} [options.callback]
+   * @param {Function} [options.onFinish]
    * @param {Boolean|Function|String} [options.layout=tue]
    * @returns {Grid}
    */
@@ -906,7 +908,7 @@ TODO v0.3.0
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {Function} [options.callback]
+   * @param {Function} [options.onFinish]
    * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
@@ -932,7 +934,7 @@ TODO v0.3.0
    * @param {Function|String} predicate
    * @oaram {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {Function} [options.callback]
+   * @param {Function} [options.onFinish]
    * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
@@ -971,6 +973,11 @@ TODO v0.3.0
       }
     }
 
+    // TODO: Make sure that some item's visibility state will be changed before
+    // going further. If itemsToShow items are all visible already and
+    // itemsToHide items are hidden, then just return here. But do account for
+    // the instant option. it might make a difference.
+
     // Show items that need to be shown.
     if (itemsToShow.length) {
       inst.show(itemsToShow, {
@@ -997,33 +1004,81 @@ TODO v0.3.0
   };
 
   /**
-   * Sort items with a compare function. Works identically to native array sort.
+   * Sort items with a compare function. Works identically to native array sort,
+   * when a function is provided as the first argument. Alternatively you can
+   * provide a presorted array of items which will be used to sort the items.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Function} compareFunction
+   * @param {Array|Function|String} comparer
    * @param {Object} [options]
    * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.sort = function (compareFunction, options) {
+  Grid.prototype.sort = function (comparer, options) {
 
-    // TODO: Add "sort" event
-
-    var items = this._items;
+    var inst = this;
+    var items = inst._items;
     var opts = options || {};
     var layout = opts.layout;
+    var attributes;
+    var comparerType;
+    var prevItems;
+    var i;
 
-    if (items.length > 1) {
-      items.sort(compareFunction);
+    // Let's not sort if it has no effect.
+    if (items.length < 2) {
+      return inst;
     }
 
+    // Get comparer type.
+    comparerType = typeof comparer;
+
+    // Store the current items before sorting.
+    prevItems = items.concat();
+
+    // If function is provided do a native array sort.
+    if (comparerType === 'function') {
+      items.sort(comparer);
+    }
+
+    // Otherwise if we got a string, let's sort by the elements' attributes.
+    else if (comparerType === 'string') {
+      attributes = comparer.trim().split(' ').map(function (attr) {
+        return attr.split(':');
+      });
+      items.sort(function (a, b) {
+        return compareItemAttributes(a, b, attributes);
+      });
+    }
+
+    // Otherwise if we got an array, let's assume it's a presorted array of the
+    // items and order the items based on it.
+    else if (Array.isArray(comparer)) {
+      items.splice(0, items.length).concat(comparer);
+    }
+
+    // Otherwise, let's go home.
+    else {
+      return inst;
+    }
+
+    // Return immediately if nothing changed.
+    for (i = 0; i < items.length; i++) {
+      if (items[i] !== prevItems[i]) {
+        return inst;
+      }
+    }
+
+    // Emit sort event.
+    inst._emitter.emit(evSort, items.concat());
+
     // If layout is needed.
-    if (needsLayout && layout) {
+    if (layout) {
       inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -1256,10 +1311,10 @@ TODO v0.3.0
       }
       else if (typeof layout === 'function') {
         currentGrid.layout(function (completed) {
-          layout(currentGrid, completed);
+          layout(completed, currentGrid);
         });
         targetGrid.layout(function (completed) {
-          layout(targetGrid, completed);
+          layout(completed, targetGrid);
         });
       }
       else {
@@ -1871,10 +1926,10 @@ TODO v0.3.0
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} instant
-   * @param {Function} [callback]
+   * @param {Function} [onFinish]
    * @returns {Item} returns the Item instance.
    */
-  Item.prototype._layout = function (instant, callback) {
+  Item.prototype._layout = function (instant, onFinish) {
 
     var inst = this;
     var element = inst._element;
@@ -1891,7 +1946,7 @@ TODO v0.3.0
     var offsetTop;
     var currentLeft;
     var currentTop;
-    var finish = function () {
+    var finishLayout = function () {
 
       // Mark the item as not positioning and remove positioning classes.
       if (inst._isPositioning) {
@@ -1926,8 +1981,8 @@ TODO v0.3.0
     }
 
     // Push the callback to the callback queue.
-    if (typeof callback === 'function') {
-      inst._layoutQueue[inst._layoutQueue.length] = callback;
+    if (typeof onFinish === 'function') {
+      inst._layoutQueue[inst._layoutQueue.length] = onFinish;
     }
 
     // Get item container offset. This applies only for release handling in the
@@ -1953,7 +2008,7 @@ TODO v0.3.0
         });
       }
 
-      finish();
+      finishLayout();
 
     }
 
@@ -1976,7 +2031,7 @@ TODO v0.3.0
       // it.
       if (inst._left === currentLeft && inst._top === currentTop) {
         inst._stopLayout();
-        finish();
+        finishLayout();
         return;
       }
 
@@ -1996,7 +2051,7 @@ TODO v0.3.0
       }, {
         duration: animDuration,
         easing: animEasing,
-        done: finish
+        onFinish: finishLayout
       });
 
     }
@@ -2011,17 +2066,17 @@ TODO v0.3.0
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} instant
-   * @param {Function} [callback]
+   * @param {Function} [onFinish]
    * @returns {Item} returns the Item instance.
    */
-  Item.prototype._show = function (instant, callback) {
+  Item.prototype._show = function (instant, onFinish) {
 
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
     var grid = inst.getGrid();
     var settings = grid._settings;
-    var cb = typeof callback === 'function' ? callback : null;
+    var callback = typeof onFinish === 'function' ? onFinish : null;
 
     // If item is showing.
     if (inst._isShowing) {
@@ -2031,8 +2086,8 @@ TODO v0.3.0
       if (instant) {
         grid._itemShowHandler.stop();
         processQueue(queue, true, inst);
-        if (cb) {
-          queue[queue.length] = cb;
+        if (callback) {
+          queue[queue.length] = callback;
         }
         grid._itemShowHandler.start(inst, instant, function () {
           processQueue(queue, false, inst);
@@ -2040,15 +2095,15 @@ TODO v0.3.0
       }
 
       // Otherwise just push the callback to the queue.
-      else if (cb) {
-        queue[queue.length] = cb;
+      else if (callback) {
+        queue[queue.length] = callback;
       }
 
     }
 
     // Otherwise if item is visible call the callback and be done with it.
     else if (!inst._isHidden) {
-      cb && cb(false, inst);
+      callback && callback(false, inst);
     }
 
     // Finally if item is hidden or hiding, show it.
@@ -2076,8 +2131,8 @@ TODO v0.3.0
       processQueue(queue, true, inst);
 
       // Push the callback to the visibility callback queue.
-      if (cb) {
-        queue[queue.length] = cb;
+      if (callback) {
+        queue[queue.length] = callback;
       }
 
       // Animate child element and process the visibility callback queue after
@@ -2098,17 +2153,17 @@ TODO v0.3.0
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} instant
-   * @param {Function} [callback]
+   * @param {Function} [onFinish]
    * @returns {Item}
    */
-  Item.prototype._hide = function (instant, callback) {
+  Item.prototype._hide = function (instant, onFinish) {
 
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
     var grid = inst.getGrid();
     var settings = grid._settings;
-    var cb = typeof callback === 'function' ? callback : null;
+    var callback = typeof onFinish === 'function' ? onFinish : null;
 
     // If item is hiding.
     if (inst._isHiding) {
@@ -2118,8 +2173,8 @@ TODO v0.3.0
       if (instant) {
         grid._itemHideHandler.stop();
         processQueue(queue, true, inst);
-        if (cb) {
-          queue[queue.length] = cb;
+        if (callback) {
+          queue[queue.length] = callback;
         }
         grid._itemHideHandler.start(inst, instant, function () {
           setStyles(element, {
@@ -2130,15 +2185,15 @@ TODO v0.3.0
       }
 
       // Otherwise just push the callback to the queue.
-      else if (cb) {
-        queue[queue.length] = cb;
+      else if (callback) {
+        queue[queue.length] = callback;
       }
 
     }
 
     // Otherwise if item is hidden call the callback and be done with it.
     else if (inst._isHidden) {
-      cb && cb(false, inst);
+      callback && callback(false, inst);
     }
 
     // Finally if item is visible or showing, hide it.
@@ -2878,13 +2933,14 @@ TODO v0.3.0
    * @param {Number} [options.duration=300]
    * @param {Number} [options.delay=0]
    * @param {String} [options.easing='ease']
+   * @param {Function} [options.onFinish]
    */
   Animate.prototype.start = function (propsCurrent, propsTarget, options) {
 
     var inst = this;
     var element = inst._element;
     var opts = options || {};
-    var callback = typeof opts.done === 'function' ? opts.done : null;
+    var callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
     var velocityOpts = {
       duration: opts.duration || 300,
       delay: opts.delay || 0,
@@ -5000,7 +5056,7 @@ TODO v0.3.0
    * @param {Array|HTMLElement|Item|Number} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {Function} [options.callback]
+   * @param {Function} [options.onFinish]
    * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
@@ -5009,7 +5065,7 @@ TODO v0.3.0
     var targetItems = inst.getItems(items);
     var opts = options || {};
     var isInstant = opts.instant === true;
-    var callback = opts.callback;
+    var callback = opts.onFinish;
     var layout = opts.layout;
     var counter = targetItems.length;
     var isShow = method === 'show';
@@ -5235,6 +5291,24 @@ TODO v0.3.0
       state === 'releasing' ? item._drag && item._drag._releaseData.isActive :
       state === 'migrating' ? item._migrate.isActive :
       false;
+
+  }
+
+
+  /**
+   * Element attribute comparison function for grid's sort method.
+   *
+   * @private
+   * @param {Item} a
+   * @param {Item} b
+   * @param {Object} attributes
+   * @returns {Number}
+   */
+  function compareItemAttributes(a, b, attributes) {
+
+    var ret = 0;
+    // TODO!!!
+    return ret;
 
   }
 

@@ -125,8 +125,10 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.show(muuri.getItems('hidden').slice(0, 5), function (items) {
-          console.log('CALLBACK: Show ' + items.length + ' items');
+        muuri.show(muuri.getItems('hidden').slice(0, 5), {
+          onFinish: function (items) {
+            console.log('CALLBACK: Show ' + items.length + ' items');
+          }
         });
       }
 
@@ -142,8 +144,10 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.hide(muuri.getItems('visible').slice(0, 5), function (items) {
-          console.log('CALLBACK: Hide ' + items.length + ' items');
+        muuri.hide(muuri.getItems('visible').slice(0, 5), {
+          onFinish: function (items) {
+            console.log('CALLBACK: Hide ' + items.length + ' items');
+          }
         });
       }
 
@@ -159,12 +163,14 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        var items = generateElements(5);
-        items.forEach(function (item) {
+        var items = generateElements(5).map(function (item) {
           item.style.display = 'none';
+          return item;
         });
-        muuri.show(muuri.add(items), function (items) {
-          console.log('CALLBACK: Added ' + items.length + ' items');
+        muuri.show(muuri.add(items), {
+          onFinish: function (items) {
+            console.log('CALLBACK: Added ' + items.length + ' items');
+          }
         });
       }
 
@@ -180,9 +186,11 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.hide(muuri.getItems('active').slice(0, 5), function (items) {
-          muuri.remove(items, true);
-          console.log('CALLBACK: Removed ' + items.length + ' items');
+        muuri.hide(muuri.getItems('active').slice(0, 5), {
+          onFinish: function (items) {
+            muuri.remove(items, {removeElement: true});
+            console.log('CALLBACK: Removed ' + items.length + ' items');
+          }
         });
       }
 

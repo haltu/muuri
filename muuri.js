@@ -62,11 +62,18 @@ TODO v0.3.0
 * [x] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
 * [x] Add auto-layout to grid.sort() method, was missing it while others had it.
 * [x] Rename "callbacks" to something more meaningful -> onFinish
-* [ ] Smarter sort method.
+* [x] Smarter sort method (and make it stable).
+* [x] Filter method overhaul.
+* [ ] Layout system optimizations:
+      * [ ] Optimize the current system to work faster if all items are the same
+            size.
+      * [ ] Don't call layout if nothing has changed. Create a system for
+            checking this. Try to keep it fast, just a simple dirty check.
 * [ ] Smarter system for noItemLayout hack.
-* [ ] It is crucial to allow dropping on empty gaps and not having it is a
-      major annoyance when draggin from a grid to another. Imagine a big grid
-      with one item, and you're forced to drag over the item... :(
+* [ ] Allow dropping on gaps. It is crucial to allow dropping on empty gaps and
+      not having it is a major annoyance when draggin from a grid to another.
+      Imagine a big grid with one item, and you're forced to drag over the
+      item... :(
 * [ ] Streamline codebase by trying to combine similar functions and methods
       into smaller reusable functions.
 * [ ] Use WeakMap for storing the instances in browsers that support WeakMap.
@@ -134,6 +141,9 @@ TODO v0.3.0
   // Keep track of the drag sort groups.
   var sortGroups = {};
 
+  // No operation function.
+  var noop = function () {};
+
   // Unique id which is used for Muuri instances and Item instances.
   // Should be incremented every time when used.
   var uuid = 0;
@@ -150,6 +160,7 @@ TODO v0.3.0
   // Event names.
   var evRefresh = 'refresh';
   var evRefreshItems = 'refreshItems';
+  var evRefreshSortData = 'refreshSortData';
   var evSynchronize = 'synchronize';
   var evLayoutStart = 'layoutStart';
   var evLayoutEnd = 'layoutEnd';
@@ -206,6 +217,7 @@ TODO v0.3.0
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
    * @param {Array|String} [options.layoutEasing="ease"]
+   * @param {?Object} [options.sortData=null]
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?HtmlElement} [options.dragContainer=null]
    * @param {?Function} [options.dragStartPredicate=null]
@@ -583,7 +595,7 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Array|HTMLElement|Item|Number} [items]
+   * @param {Array|HTMLElement|Item|Number|String} [items]
    * @returns {Grid}
    */
   Grid.prototype.refreshItems = function (items) {
@@ -598,6 +610,31 @@ TODO v0.3.0
 
     // Emit refreshItems event.
     inst._emitter.emit(evRefreshItems, targetItems);
+
+    return inst;
+
+  };
+
+  /**
+   * Refresh the sort data of the instance's items.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {Array|HTMLElement|Item|Number|String} [items]
+   * @returns {Grid}
+   */
+  Grid.prototype.refreshSortData = function (items) {
+
+    var inst = this;
+    var targetItems = inst.getItems(items);
+    var i;
+
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._refreshSortData();
+    }
+
+    // Emit refreshSortData event.
+    inst._emitter.emit(evRefreshSortData, targetItems);
 
     return inst;
 
@@ -791,7 +828,7 @@ TODO v0.3.0
     var inst = this;
     var targetElements = [].concat(elements);
     var opts = options || {};
-    var layout = opts.layout;
+    var layout = opts.layout ? opts.layout : opts.layot === undefined;
     var newItems = [];
     var items = inst._items;
     var needsLayout = false;
@@ -855,7 +892,7 @@ TODO v0.3.0
     var inst = this;
     var targetItems = inst.getItems(items);
     var opts = options || {};
-    var layout = opts.layout;
+    var layout = opts.layout ? opts.layout : opts.layot === undefined;
     var indices = [];
     var needsLayout = false;
     var item;
@@ -940,18 +977,19 @@ TODO v0.3.0
    */
   Grid.prototype.filter = function (predicate, options) {
 
-    // TODO: Add callback for when items are filtered (hidden/shown). Args...?
-
     var inst = this;
     var items = inst._items;
     var predicateType = typeof predicate;
-    var isFilterString = predicateType === 'string';
-    var isFilterFn = predicateType === 'function';
+    var isPredicateString = predicateType === 'string';
+    var isPredicateFn = predicateType === 'function';
     var opts = options || {};
     var isInstant = opts.instant === true;
-    var layout = opts.layout;
+    var layout = opts.layout ? opts.layout : opts.layot === undefined;
+    var onFinish = typeof opts.onFinish === 'function' ? opts.onFinish : null;
     var itemsToShow = [];
     var itemsToHide = [];
+    var tryFinishCounter = -1;
+    var tryFinish;
     var item;
     var i;
 
@@ -960,11 +998,18 @@ TODO v0.3.0
       return inst;
     }
 
+    // Create finisher function.
+    tryFinish = !onFinish ? noop : function () {
+      if (++tryFinishCounter) {
+        onFinish(itemsToShow.concat(), itemsToHide.concat());
+      }
+    };
+
     // Check which items need to be shown and which hidden.
-    if (isFilterFn || isFilterString) {
+    if (isPredicateFn || isPredicateString) {
       for (i = 0; i < items.length; i++) {
         item = items[i];
-        if (isFilterFn ? predicate(item, item._element) : elementMatches(item._element, predicate)) {
+        if (isPredicateFn ? predicate(item, item._element) : elementMatches(item._element, predicate)) {
           itemsToShow.push(item);
         }
         else {
@@ -973,25 +1018,28 @@ TODO v0.3.0
       }
     }
 
-    // TODO: Make sure that some item's visibility state will be changed before
-    // going further. If itemsToShow items are all visible already and
-    // itemsToHide items are hidden, then just return here. But do account for
-    // the instant option. it might make a difference.
-
     // Show items that need to be shown.
     if (itemsToShow.length) {
       inst.show(itemsToShow, {
         instant: isInstant,
+        onFinish: tryFinish,
         layout: false
       });
+    }
+    else {
+      tryFinish();
     }
 
     // Hide items that need to be hidden.
     if (itemsToHide.length) {
       inst.hide(itemsToHide, {
         instant: isInstant,
+        onFinish: tryFinish,
         layout: false
       });
+    }
+    else {
+      tryFinish();
     }
 
     // If layout is needed.
@@ -1004,14 +1052,20 @@ TODO v0.3.0
   };
 
   /**
-   * Sort items with a compare function. Works identically to native array sort,
-   * when a function is provided as the first argument. Alternatively you can
-   * provide a presorted array of items which will be used to sort the items.
+   * Sort items. There are three ways to sort the items. The first is simply by
+   * providing a function as the comparer which works identically to native
+   * array sort. Alternatively you can sort by the sort data you have provided
+   * in the instance's options. Just provide the sort data key(s) as a string
+   * (separated by space) and the items will be sorted based on the provided
+   * sort data keys. Lastly you have the opportunity to provide a presorted
+   * array of items which will be used to sync the internal items array in the
+   * same order.
    *
    * @public
    * @memberof Grid.prototype
    * @param {Array|Function|String} comparer
    * @param {Object} [options]
+   * @param {Boolean} [options.descending=false]
    * @param {Boolean|Function|String} [options.layout=true]
    * @returns {Grid}
    */
@@ -1020,35 +1074,33 @@ TODO v0.3.0
     var inst = this;
     var items = inst._items;
     var opts = options || {};
-    var layout = opts.layout;
-    var attributes;
-    var comparerType;
-    var prevItems;
-    var i;
+    var isDescending = !!opts.descending;
+    var layout = opts.layout ? opts.layout : opts.layot === undefined;
+    var origItems;
+    var indexMap;
 
     // Let's not sort if it has no effect.
     if (items.length < 2) {
       return inst;
     }
 
-    // Get comparer type.
-    comparerType = typeof comparer;
-
-    // Store the current items before sorting.
-    prevItems = items.concat();
-
     // If function is provided do a native array sort.
-    if (comparerType === 'function') {
-      items.sort(comparer);
+    if (typeof comparer === 'function') {
+      origItems = items.concat();
+      items.sort(function (a, b) {
+        return comparer(a, b) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
+      });
     }
 
-    // Otherwise if we got a string, let's sort by the elements' attributes.
-    else if (comparerType === 'string') {
-      attributes = comparer.trim().split(' ').map(function (attr) {
-        return attr.split(':');
+    // Otherwise if we got a string, let's sort by the sort data as provided in
+    // the instance's options.
+    else if (typeof comparer === 'string') {
+      origItems = items.concat();
+      comparer = comparer.trim().split(' ').map(function (val) {
+        return val.split(':');
       });
       items.sort(function (a, b) {
-        return compareItemAttributes(a, b, attributes);
+        return compareItems(a, b, isDescending, comparer) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
       });
     }
 
@@ -1061,13 +1113,6 @@ TODO v0.3.0
     // Otherwise, let's go home.
     else {
       return inst;
-    }
-
-    // Return immediately if nothing changed.
-    for (i = 0; i < items.length; i++) {
-      if (items[i] !== prevItems[i]) {
-        return inst;
-      }
     }
 
     // Emit sort event.
@@ -1102,7 +1147,7 @@ TODO v0.3.0
     var inst = this;
     var items = inst._items;
     var opts = options || {};
-    var layout = opts.layout;
+    var layout = opts.layout ? opts.layout : opts.layot === undefined;
     var fromItem;
     var toItem;
     var fromIndex;
@@ -1170,7 +1215,7 @@ TODO v0.3.0
     var opts = options || {};
     var appendTo = opts.appendTo || document.body;
     var position = opts.position;
-    var layout = opts.layout;
+    var layout = opts.layout ? opts.layout : opts.layot === undefined;
     var targetItem = currentGrid._getItem(item);
     var migrate = targetItem._migrate;
     var element = targetItem._element;
@@ -1276,6 +1321,9 @@ TODO v0.3.0
     // Refresh item's dimensions, because they might have changed with the
     // addition of the new classnames.
     targetItem._refresh();
+
+    // Refresh item's sort data.
+    targetItem._refreshSortData();
 
     // Recreate item's drag handler.
     targetItem._drag = targetGridStn.dragEnabled ? new Grid.Drag(targetItem) : null;
@@ -1616,6 +1664,9 @@ TODO v0.3.0
     // Calculate and set up initial dimensions.
     inst._refresh();
 
+    // Get and set the initial sort data.
+    inst._refreshSortData();
+
     // Set initial styles for the child element.
     if (isHidden) {
       grid._itemHideHandler.start(inst, true);
@@ -1850,7 +1901,7 @@ TODO v0.3.0
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} [processLayoutQueue=false]
-   * @returns {Item} returns the Item instance.
+   * @returns {Item}
    */
   Item.prototype._stopLayout = function (processLayoutQueue) {
 
@@ -1883,7 +1934,7 @@ TODO v0.3.0
    *
    * @protected
    * @memberof Item.prototype
-   * @returns {Item} returns the Item instance.
+   * @returns {Item}
    */
   Item.prototype._refresh = function () {
 
@@ -1921,13 +1972,40 @@ TODO v0.3.0
   };
 
   /**
+   * Get and store item's sort data.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @returns {Item}
+   */
+  Item.prototype._refreshSortData = function () {
+
+    var inst = this;
+    var sortData = {};
+    var getters = inst.getGrid()._settings.sortData;
+
+    // Fetch sort data.
+    if (getters) {
+      Object.keys(getters).forEach(function (key) {
+        sortData[key] = getters[key](inst, inst._element);
+      });
+    }
+
+    // Store sort data to the instance.
+    inst._sortData = sortData;
+
+    return inst;
+
+  };
+
+  /**
    * Position item based on it's current data.
    *
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} instant
    * @param {Function} [onFinish]
-   * @returns {Item} returns the Item instance.
+   * @returns {Item}
    */
   Item.prototype._layout = function (instant, onFinish) {
 
@@ -1939,7 +2017,7 @@ TODO v0.3.0
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
     var animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
     var animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
-    var animEnabled = !instant && !inst._noLayoutAnimation && animaDuration > 0;
+    var animEnabled = !instant && !inst._noLayoutAnimation && animDuration > 0;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
     var offsetLeft;
@@ -2067,7 +2145,7 @@ TODO v0.3.0
    * @memberof Item.prototype
    * @param {Boolean} instant
    * @param {Function} [onFinish]
-   * @returns {Item} returns the Item instance.
+   * @returns {Item}
    */
   Item.prototype._show = function (instant, onFinish) {
 
@@ -3483,6 +3561,11 @@ TODO v0.3.0
       currentGrid._items.splice(currentIndex, 1);
       insertItemsToArray(targetGrid._items, item, targetIndex);
 
+      // Set sort data as null, which is an indicator for the item comparison
+      // function that the sort data of this specific item should be fetched
+      // lazily.
+      item._sortData = null;
+
       // Emit dragSend event.
       currentGrid._emitter.emit(evDragSend, dragEvent, {
         item: item,
@@ -3600,6 +3683,9 @@ TODO v0.3.0
     // Refresh item's dimensions, because they might have changed with the
     // addition of the new classnames.
     item._refresh();
+
+    // Refresh sort data.
+    item._refreshSortData();
 
     // Recreate item's drag handler.
     item._drag = targetGridStn.dragEnabled ? new Grid.Drag(item) : null;
@@ -5066,7 +5152,7 @@ TODO v0.3.0
     var opts = options || {};
     var isInstant = opts.instant === true;
     var callback = opts.onFinish;
-    var layout = opts.layout;
+    var layout = opts.layout ? opts.layout : opts.layot === undefined;
     var counter = targetItems.length;
     var isShow = method === 'show';
     var startEvent = isShow ? evShowStart : evHideStart;
@@ -5294,20 +5380,116 @@ TODO v0.3.0
 
   }
 
-
   /**
-   * Element attribute comparison function for grid's sort method.
+   * A helper function to check if layout is needed.
    *
    * @private
-   * @param {Item} a
-   * @param {Item} b
-   * @param {Object} attributes
+   * @param {Grid} instance
+   * @returns {Boolean}
+   */
+   /*
+  function isLayoutNeeded(instance) {
+
+    // TODO
+    // Check the following things.
+    // * Is container width/height (depending on the layout algorithm) changed?
+    // * Is layout configuration is changed?
+    // * Is the order, amount and dimensions of the items is changed?
+
+    return true;
+
+  }
+  */
+
+  /**
+   * Helper for the sort method to generate mapped version of the items array
+   * than contains reference to the item indices.
+   *
+   * @private
+   * @param {Array} items
+   * @returns {Object}
+   */
+  function getItemIndexMap(items) {
+
+    var ret = {};
+    var i;
+
+    for (i = 0; i < items.length; i++) {
+      ret[items[i]._id] = i;
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Helper for the sort method to compare the indices of the items to enforce
+   * stable sort.
+   *
+   * @private
+   * @param {Item} itemA
+   * @param {Item} itemB
+   * @param {Boolean} isDescending
+   * @param {Object} indexMap
    * @returns {Number}
    */
-  function compareItemAttributes(a, b, attributes) {
+  function compareItemIndices(itemA, itemB, isDescending, indexMap) {
+
+    var indexA = indexMap[itemA._id];
+    var indexB = indexMap[itemB._id];
+    return isDescending ? indexB - indexA : indexA - indexB;
+
+  }
+
+  /**
+   * Helper for the sort method to compare the items based on the provided
+   * attributes.
+   *
+   * @private
+   * @param {Item} itemA
+   * @param {Item} itemB
+   * @param {Boolean} isDescending
+   * @param {Object} criterias
+   * @returns {Number}
+   */
+  function compareItems(itemA, itemB, isDescending, criterias) {
 
     var ret = 0;
-    // TODO!!!
+    var criteriaName;
+    var criteriaOrder;
+    var valA;
+    var valB;
+    var i;
+
+    // Loop through the list of sort criterias.
+    for (i = 0; i < criterias.length; i++) {
+
+      // Get the criteria name, which should match an item's sort data key.
+      criteriaName = criterias[i][0];
+      criteriaOrder = criterias[i][1];
+
+      // Get items' cached sort values for the criteria. If the item has no sort
+      // data let's refresh the items sort data (this is a lazy load mechanism).
+      valA = (itemA._sortData ? itemA : itemA._refreshSortData())._sortData[criteriaName];
+      valB = (itemB._sortData ? itemB : itemB._refreshSortData())._sortData[criteriaName];
+
+      // Sort the items in descending order if defined so explicitly.
+      if (criteriaOrder === 'd' || (!criteriaOrder && isDescending)) {
+        ret = valB < valA ? -1 : valB > valA ? 1 : 0;
+      }
+
+      // Otherwise sort items in ascending order.
+      else {
+        ret = valA < valB ? -1 : valA > valB ? 1 : 0;
+      }
+
+      // If we have -1 or 1 as the return value, let's return it immediately.
+      if (ret !== 0) {
+        return ret;
+      }
+
+    }
+
     return ret;
 
   }

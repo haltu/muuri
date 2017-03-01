@@ -8,12 +8,6 @@ var rename = require('gulp-rename');
 var size = require('gulp-size');
 var rimraf = require('rimraf');
 var runSequence = require('run-sequence');
-try {
-  var test = require('testfoo')
-}
-catch (err) {
-  console.log('no foo');
-}
 var fileExists = function (filePath) {
   try {
     return fs.statSync(filePath).isFile();

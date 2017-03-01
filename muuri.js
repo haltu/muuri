@@ -64,20 +64,19 @@ TODO v0.3.0
 * [x] Rename "callbacks" to something more meaningful -> onFinish
 * [x] Smarter sort method (and make it stable).
 * [x] Filter method overhaul.
+* [ ] Allow dropping on gaps. It is crucial to allow dropping on empty gaps and
+      not having it is a major annoyance when draggin from a grid to another.
+      Imagine a big grid with one item, and you're forced to drag over the
+      item... :(
+* [ ] Smarter system for noItemLayout hack.
 * [ ] Layout system optimizations:
       * [ ] Optimize the current system to work faster if all items are the same
             size.
       * [ ] Don't call layout if nothing has changed. Create a system for
             checking this. Try to keep it fast, just a simple dirty check.
-* [ ] Smarter system for noItemLayout hack.
-* [ ] Allow dropping on gaps. It is crucial to allow dropping on empty gaps and
-      not having it is a major annoyance when draggin from a grid to another.
-      Imagine a big grid with one item, and you're forced to drag over the
-      item... :(
 * [ ] Streamline codebase by trying to combine similar functions and methods
-      into smaller reusable functions.
-* [ ] Use WeakMap for storing the instances in browsers that support WeakMap.
-* [ ] Review and test the show and hide methods.
+      into smaller reusable functions. Goal is less than 10kb when minified and
+      gzipped.
 * [ ] Review the codebase and comments with thought x 3.
 
 */
@@ -3199,11 +3198,8 @@ TODO v0.3.0
 
     });
 
-    // Prevent native link/image dragging for the item and ite's child element.
-    // Consider providing a public interface for this so the user can call this
-    // method for all descendant elements.
-    disableNativeDrag(element);
-    disableNativeDrag(item._child);
+    // Prevent native link/image dragging for the item and it's ancestors.
+    element.addEventListener('dragstart', preventDefault, false);
 
   }
 
@@ -3394,8 +3390,7 @@ TODO v0.3.0
     }
 
     drag._hammer.destroy();
-    enableNativeDrag(item._element);
-    enableNativeDrag(item._child);
+    item._element.removeEventListener('dragstart', preventDefault, false);
     nullifyInstance(drag, Drag);
 
     return drag;
@@ -5097,38 +5092,6 @@ TODO v0.3.0
   }
 
   /**
-   * Browsers allow dragging links and images by creating a "ghost image", which
-   * interferes with Muuri's drag flow. This function prevents that from
-   * happening.
-   *
-   * @private
-   * @param {HTMLElement} element
-   */
-  function disableNativeDrag(element) {
-
-    var tagName = element.tagName.toLowerCase();
-    if (tagName === 'a' || tagName === 'img') {
-      element.addEventListener('dragstart', preventDefault, false);
-    }
-
-  }
-
-  /**
-   * Removes native image/link drag prevention hacks from an element.
-   *
-   * @private
-   * @param {HTMLElement} element
-   */
-  function enableNativeDrag(element) {
-
-    var tagName = element.tagName.toLowerCase();
-    if (tagName === 'a' || tagName === 'img') {
-      element.removeEventListener('dragstart', preventDefault, false);
-    }
-
-  }
-
-  /**
    * Helpers - Muuri
    * ***************
    */
@@ -5379,27 +5342,6 @@ TODO v0.3.0
       false;
 
   }
-
-  /**
-   * A helper function to check if layout is needed.
-   *
-   * @private
-   * @param {Grid} instance
-   * @returns {Boolean}
-   */
-   /*
-  function isLayoutNeeded(instance) {
-
-    // TODO
-    // Check the following things.
-    // * Is container width/height (depending on the layout algorithm) changed?
-    // * Is layout configuration is changed?
-    // * Is the order, amount and dimensions of the items is changed?
-
-    return true;
-
-  }
-  */
 
   /**
    * Helper for the sort method to generate mapped version of the items array

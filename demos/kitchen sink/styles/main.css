@@ -25,7 +25,7 @@ html.dragging body {
 .grid {
   position: absolute;
   top: 0;
-  width: 50%;
+  width: 49%;
   padding: 0 5px 5px 0;
   border: 5px solid #ff0000;
   -moz-box-sizing: border-box;

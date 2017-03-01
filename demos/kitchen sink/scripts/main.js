@@ -17,6 +17,8 @@ $(function () {
   $('.demo-layout').on('click', layout);
   $('.demo-synchronize').on('click', synchronize);
   $('.demo-send').on('click', send);
+  $('.demo-filter').on('click', filter);
+  $('.demo-sort').on('click', sort);
 
   // Init.
   initGrids();
@@ -251,10 +253,42 @@ $(function () {
     var grid2 = $grid2.data('muuri');
 
     if (grid1 && grid2) {
-      grid1.send(0, grid2, {
+      grid1.send(grid1.getItems('active')[0], grid2, {
         position: 0
       });
     }
+
+  }
+
+  function sort() {
+
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.sort(function (a, b) {
+          return a._id - b._id;
+        });
+      }
+
+    });
+
+  }
+
+  function filter() {
+
+    $grid1.add($grid2).each(function () {
+
+      var $grid = $(this);
+      var muuri = $grid.data('muuri');
+
+      if (muuri) {
+        muuri.filter('.h2:not(.w2)');
+      }
+
+    });
 
   }
 

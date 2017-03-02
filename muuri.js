@@ -64,11 +64,12 @@ TODO v0.3.0
 * [x] Rename "callbacks" to something more meaningful -> onFinish
 * [x] Smarter sort method (and make it stable).
 * [x] Filter method overhaul.
+* [ ] BUG: When dragging items from a grid to another and the page is scrolled
+      things the items dont's go where they are supposed to go.
 * [ ] Allow dropping on gaps. It is crucial to allow dropping on empty gaps and
       not having it is a major annoyance when draggin from a grid to another.
       Imagine a big grid with one item, and you're forced to drag over the
       item... :(
-* [ ] Smarter system for noItemLayout hack.
 * [ ] Layout system optimizations:
       * [ ] Optimize the current system to work faster if all items are the same
             size.
@@ -157,9 +158,6 @@ TODO v0.3.0
   var transformLeaksFixed = doesTransformLeakFixed();
 
   // Event names.
-  var evRefresh = 'refresh';
-  var evRefreshItems = 'refreshItems';
-  var evRefreshSortData = 'refreshSortData';
   var evSynchronize = 'synchronize';
   var evLayoutStart = 'layoutStart';
   var evLayoutEnd = 'layoutEnd';
@@ -169,6 +167,7 @@ TODO v0.3.0
   var evShowEnd = 'showEnd';
   var evHideStart = 'hideStart';
   var evHideEnd = 'hideEnd';
+  var evFilter = 'filter';
   var evSort = 'sort';
   var evMove = 'move';
   var evSend = 'send';
@@ -395,6 +394,9 @@ TODO v0.3.0
     layoutDuration: 300,
     layoutEasing: 'ease',
 
+    // Sorting
+    sortData: null,
+
     // Drag & Drop
     dragEnabled: false,
     dragContainer: null,
@@ -582,9 +584,6 @@ TODO v0.3.0
     // Update box-sizing.
     inst._boxSizing = getStyle(element, 'box-sizing');
 
-    // Emit refresh event.
-    inst._emitter.emit(evRefresh);
-
     return inst;
 
   };
@@ -607,9 +606,6 @@ TODO v0.3.0
       targetItems[i]._refresh();
     }
 
-    // Emit refreshItems event.
-    inst._emitter.emit(evRefreshItems, targetItems);
-
     return inst;
 
   };
@@ -631,9 +627,6 @@ TODO v0.3.0
     for (i = 0; i < targetItems.length; i++) {
       targetItems[i]._refreshSortData();
     }
-
-    // Emit refreshSortData event.
-    inst._emitter.emit(evRefreshSortData, targetItems);
 
     return inst;
 
@@ -827,7 +820,7 @@ TODO v0.3.0
     var inst = this;
     var targetElements = [].concat(elements);
     var opts = options || {};
-    var layout = opts.layout ? opts.layout : opts.layot === undefined;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var newItems = [];
     var items = inst._items;
     var needsLayout = false;
@@ -850,12 +843,20 @@ TODO v0.3.0
 
     // Create new items.
     for (i = 0; i < targetElements.length; i++) {
+
       item = new Grid.Item(inst, targetElements[i]);
       newItems[newItems.length] = item;
+
+      // If the item to be added is active, we need to do a layout. Also, we
+      // need to mark the item with the skipNextLayoutAnimation flag to make it
+      // position instantly (without animation) during the next layout. Without
+      // the hack the item would animate to it's new position from the northwest
+      // corner of the grid, which feels a bit buggy (imho).
       if (item._isActive) {
         needsLayout = true;
-        item._noLayoutAnimation = true;
+        item._skipNextLayoutAnimation = true;
       }
+
     }
 
     // Add the new items to the items collection to correct index.
@@ -891,7 +892,7 @@ TODO v0.3.0
     var inst = this;
     var targetItems = inst.getItems(items);
     var opts = options || {};
-    var layout = opts.layout ? opts.layout : opts.layot === undefined;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var indices = [];
     var needsLayout = false;
     var item;
@@ -983,7 +984,7 @@ TODO v0.3.0
     var isPredicateFn = predicateType === 'function';
     var opts = options || {};
     var isInstant = opts.instant === true;
-    var layout = opts.layout ? opts.layout : opts.layot === undefined;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var onFinish = typeof opts.onFinish === 'function' ? opts.onFinish : null;
     var itemsToShow = [];
     var itemsToHide = [];
@@ -1041,9 +1042,17 @@ TODO v0.3.0
       tryFinish();
     }
 
-    // If layout is needed.
-    if ((itemsToShow.length || itemsToHide.length) && layout) {
-      inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+    // If there are any items to filter.
+    if (itemsToShow.length || itemsToHide.length) {
+
+      // Emit filter event.
+      inst._emitter.emit(evFilter, itemsToShow.concat(), itemsToHide.concat());
+
+      // If layout is needed.
+      if (layout) {
+        inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      }
+
     }
 
     return inst;
@@ -1074,7 +1083,7 @@ TODO v0.3.0
     var items = inst._items;
     var opts = options || {};
     var isDescending = !!opts.descending;
-    var layout = opts.layout ? opts.layout : opts.layot === undefined;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var origItems;
     var indexMap;
 
@@ -1083,9 +1092,11 @@ TODO v0.3.0
       return inst;
     }
 
+    // Clone current set of items for the event.
+    origItems = items.concat();
+
     // If function is provided do a native array sort.
     if (typeof comparer === 'function') {
-      origItems = items.concat();
       items.sort(function (a, b) {
         return comparer(a, b) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
       });
@@ -1094,7 +1105,6 @@ TODO v0.3.0
     // Otherwise if we got a string, let's sort by the sort data as provided in
     // the instance's options.
     else if (typeof comparer === 'string') {
-      origItems = items.concat();
       comparer = comparer.trim().split(' ').map(function (val) {
         return val.split(':');
       });
@@ -1115,7 +1125,7 @@ TODO v0.3.0
     }
 
     // Emit sort event.
-    inst._emitter.emit(evSort, items.concat());
+    inst._emitter.emit(evSort, items.concat(), origItems);
 
     // If layout is needed.
     if (layout) {
@@ -1146,7 +1156,7 @@ TODO v0.3.0
     var inst = this;
     var items = inst._items;
     var opts = options || {};
-    var layout = opts.layout ? opts.layout : opts.layot === undefined;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var fromItem;
     var toItem;
     var fromIndex;
@@ -1208,28 +1218,53 @@ TODO v0.3.0
   Grid.prototype.send = function (item, grid, options) {
 
     var currentGrid = this;
-    var currentGridStn = currentGrid._settings;
     var targetGrid = grid;
-    var targetGridStn = targetGrid._settings;
-    var opts = options || {};
-    var appendTo = opts.appendTo || document.body;
-    var position = opts.position;
-    var layout = opts.layout ? opts.layout : opts.layot === undefined;
     var targetItem = currentGrid._getItem(item);
-    var migrate = targetItem._migrate;
-    var element = targetItem._element;
-    var isActive = targetItem.isActive();
-    var isVisible = (targetItem.isVisible() || targetItem.isShowing()) && !targetItem.isHiding();
-    var currentIndex = currentGrid._items.indexOf(targetItem);
-    var newIndex = typeof position === 'number' ? position : (position ? targetGrid._items.indexOf(targetGrid._getItem(position)) : -1);
+    var currentGridStn;
+    var targetGridStn;
+    var opts;
+    var appendTo;
+    var position;
+    var layout;
+    var migrate;
+    var element;
+    var isActive;
+    var isVisible;
+    var currentIndex;
+    var newIndex;
     var offsetDiff;
     var translateX;
     var translateY;
 
-    // Stop current layout animation.
-    targetItem._stopLayout(true);
+    // Make sure we have a valid target item and target grid.
+    if (!targetItem || !(targetGrid instanceof Grid) || currentGrid === targetGrid) {
+      return currentGrid;
+    }
 
-    // Stop current migration.
+    // Get settings of both grids.
+    currentGridStn = currentGrid._settings;
+    targetGridStn = targetGrid._settings;
+
+    // Parse options.
+    opts = options || {};
+    appendTo = opts.appendTo || document.body;
+    position = opts.position;
+    layout = opts.layout ? opts.layout : opts.layout === undefined;
+
+    // Get item's migrate data and element.
+    migrate = targetItem._migrate;
+    element = targetItem._element;
+
+    // Check if element is active/visible.
+    isActive = targetItem.isActive();
+    isVisible = (targetItem.isVisible() || targetItem.isShowing()) && !targetItem.isHiding();
+
+    // Get item's current and new index.
+    currentIndex = currentGrid._items.indexOf(targetItem);
+    newIndex = typeof position === 'number' ? position : (position ? targetGrid._items.indexOf(targetGrid._getItem(position)) : -1);
+
+    // Stop current layout animation and migration.
+    targetItem._stopLayout(true);
     targetItem._stopMigrate(true);
 
     // Stop current visibility animations.
@@ -1301,6 +1336,7 @@ TODO v0.3.0
       setStyles(element, {
         transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
+
     }
 
     // Update display styles.
@@ -2016,7 +2052,7 @@ TODO v0.3.0
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
     var animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
     var animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
-    var animEnabled = !instant && !inst._noLayoutAnimation && animDuration > 0;
+    var animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
     var offsetLeft;
@@ -2072,7 +2108,7 @@ TODO v0.3.0
     if (!animEnabled) {
 
       inst._stopLayout();
-      inst._noLayoutAnimation = false;
+      inst._skipNextLayoutAnimation = false;
 
       // Set the styles only if they are not set later on. If an item is being
       // released after drag and the drag container is something else than the
@@ -5115,7 +5151,7 @@ TODO v0.3.0
     var opts = options || {};
     var isInstant = opts.instant === true;
     var callback = opts.onFinish;
-    var layout = opts.layout ? opts.layout : opts.layot === undefined;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var counter = targetItems.length;
     var isShow = method === 'show';
     var startEvent = isShow ? evShowStart : evHideStart;
@@ -5158,13 +5194,21 @@ TODO v0.3.0
 
         item = validItems[i];
 
-        // Check if layout or refresh is needed.
+        // If inactive item is shown or active item is hidden we need to do
+        // layout.
         if ((isShow && !item._isActive) || (!isShow && item._isActive)) {
           needsLayout = true;
-          if (isShow) {
-            item._noLayoutAnimation = true;
-            hiddenItems[hiddenItems.length] = item;
-          }
+        }
+
+        // If inactive item is shown we also need to do some special hackery to
+        // make the item not animate it's next positioning (layout). Without the
+        // skipNextLayoutAnimation flag the item would animate to it's place
+        // from the northwest corner of the grid, which (imho) has a buggy vibe
+        // to it. Also we are adding the item to the hidden items list here,
+        // which means that it will be refreshed just before the layout.
+        if (isShow && !item._isActive) {
+          item._skipNextLayoutAnimation = true;
+          hiddenItems[hiddenItems.length] = item;
         }
 
         // Show/hide the item.

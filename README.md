@@ -48,8 +48,6 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
   * [item.isReleasing()](#itemisreleasing)
   * [item.isMigrating()](#itemismigrating)
 * [Events](#events)
-  * [refresh](#refresh)
-  * [refreshItems](#refreshitems)
   * [synchronize](#synchronize)
   * [layoutStart](#layoutstart)
   * [layoutEnd](#layoutend)
@@ -59,6 +57,8 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
   * [showEnd](#showend)
   * [hideStart](#hidestart)
   * [hideEnd](#hideend)
+  * [filter](#filter)
+  * [sort](#sort)
   * [move](#move)
   * [send](#send)
   * [receiveStart](#receivestart)
@@ -1214,38 +1214,9 @@ var isMigrating = item.isMigrating();
 
 ## Events
 
-### refresh
-
-Triggered after the `grid.refresh()` method is called.
-
-**Examples**
-
-```javascript
-grid.on('refresh', function () {
-  console.log('The container element was refreshed');
-});
-```
-
-### refreshItems
-
-Triggered after the `grid.refreshItems()` method is called.
-
-**Arguments**
-
-* **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances which were refreshed.
-
-**Examples**
-
-```javascript
-grid.on('refreshItems', function (items) {
-  console.log(items);
-});
-```
-
 ### synchronize
 
-Triggered after the `grid.synchronize()` is called.
+Triggered when the `grid.synchronize()` is called.
 
 **Examples**
 
@@ -1291,7 +1262,7 @@ grid.on('layoutEnd', function (items) {
 
 ### add
 
-Triggered after `grid.add()` method is called.
+Triggered when `grid.add()` method is called.
 
 **Arguments**
 
@@ -1308,7 +1279,7 @@ grid.on('add', function (items) {
 
 ### remove
 
-Triggered after `grid.remove()` method is called.
+Triggered when `grid.remove()` method is called.
 
 **Arguments**
 
@@ -1391,9 +1362,49 @@ grid.on('hideEnd', function (items) {
 });
 ```
 
+### filter
+
+Triggered when `grid.filter()` method is called.
+
+**Arguments**
+
+* **itemsToShow** &nbsp;&mdash;&nbsp; *array*
+  * An array of `Muuri.Item` instances that are shown.
+* **itemsToHide** &nbsp;&mdash;&nbsp; *array*
+  * An array of `Muuri.Item` instances that are hidden.
+
+**Examples**
+
+```javascript
+grid.on('filter', function (itemsToShow, itemsToHide) {
+  console.log(itemsToShow);
+  console.log(itemsToHide);
+});
+```
+
+### sort
+
+Triggered when `grid.sort()` method is called.
+
+**Arguments**
+
+* **itemsCurrent** &nbsp;&mdash;&nbsp; *array*
+  * An array of all the items in their current order.
+* **itemsBefore** &nbsp;&mdash;&nbsp; *array*
+  * An array of all the items in their previous order.
+
+**Examples**
+
+```javascript
+grid.on('sort', function (itemsCurrent, itemsBefore) {
+  console.log(itemsCurrent);
+  console.log(itemsBefore);
+});
+```
+
 ### move
 
-Triggered after `grid.move()` method is called.
+Triggered when `grid.move()` method is called.
 
 **Arguments**
 

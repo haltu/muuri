@@ -64,8 +64,18 @@ TODO v0.3.0
 * [x] Rename "callbacks" to something more meaningful -> onFinish
 * [x] Smarter sort method (and make it stable).
 * [x] Filter method overhaul.
-* [ ] BUG: When dragging items from a grid to another and the page is scrolled
-      things the items dont's go where they are supposed to go.
+* [x] BUG: When dragging items from a grid to another and the page is scrolled
+      things the items dont's go where they are supposed to go. The problem is
+      that the grid container's offset is not automatically updated on scroll
+      during drag, so let's fix it -> always update the connected grids' offset
+      when checking overlap.
+* [ ] Make the fix above more performant: When a grid has one or more items
+      being dragged set it in a mode where it listens it's scroll containers for
+      scroll events and marks the offset as "dirty". When checking overlap
+      update the offset only for the "dirty" containers. This way we reduce
+      the calling of gbcr to the minimum. Also whenever dragging is started all
+      connected grids should get their offset updated. The offset is only
+      required for the dragging operation.
 * [ ] Allow dropping on gaps. It is crucial to allow dropping on empty gaps and
       not having it is a major annoyance when draggin from a grid to another.
       Imagine a big grid with one item, and you're forced to drag over the
@@ -195,39 +205,39 @@ TODO v0.3.0
    *
    * @public
    * @class
-   * @param {HTMLElement|String} element
+   * @param {(HTMLElement|String)} element
    * @param {Object} [options]
-   * @param {?Array|NodeList|String} [options.items]
-   * @param {?Function|Object} [options.show]
+   * @param {(?HTMLElement[]|NodeList|String)} [options.items]
+   * @param {(?Function|Object)} [options.show]
    * @param {Number} [options.show.duration=300]
-   * @param {Array|String} [options.show.easing="ease"]
+   * @param {(Array|String)} [options.show.easing="ease"]
    * @param {Object} [options.show.styles]
-   * @param {?Function|Object} [options.hide]
+   * @param {(?Function|Object)} [options.hide]
    * @param {Number} [options.hide.duration=300]
-   * @param {Array|String} [options.hide.easing="ease"]
+   * @param {(Array|String)} [options.hide.easing="ease"]
    * @param {Object} [options.hide.styles]
-   * @param {Function|Object} [options.layout]
+   * @param {(Function|Object)} [options.layout]
    * @param {Boolean} [options.layout.fillGaps=false]
    * @param {Boolean} [options.layout.horizontal=false]
    * @param {Boolean} [options.layout.alignRight=false]
    * @param {Boolean} [options.layout.alignBottom=false]
-   * @param {Boolean|Number} [options.layoutOnResize=100]
+   * @param {(Boolean|Number)} [options.layoutOnResize=100]
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
-   * @param {Array|String} [options.layoutEasing="ease"]
+   * @param {(Array|String)} [options.layoutEasing="ease"]
    * @param {?Object} [options.sortData=null]
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?HtmlElement} [options.dragContainer=null]
    * @param {?Function} [options.dragStartPredicate=null]
    * @param {Boolean} [options.dragSort=true]
    * @param {Number} [options.dragSortInterval=50]
-   * @param {?Function|Object} [options.dragSortPredicate]
+   * @param {(?Function|Object)} [options.dragSortPredicate]
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {?String} [options.dragSortGroup=null]
    * @param {?Array} [options.dragSortConnections=null]
    * @param {Number} [options.dragReleaseDuration=300]
-   * @param {Array|String} [options.dragReleaseEasing="ease"]
+   * @param {(Array|String)} [options.dragReleaseEasing="ease"]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
    * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -278,7 +288,7 @@ TODO v0.3.0
     addClass(element, settings.containerClass);
 
     // Calculate container element's initial dimensions and offset.
-    inst.refresh();
+    inst.updateDimensions('grid');
 
     // Create initial items.
     inst._items = [];
@@ -300,7 +310,7 @@ TODO v0.3.0
     if (typeof settings.layoutOnResize === 'number' || settings.layoutOnResize === true) {
 
       debouncedLayout = debounce(function () {
-        inst.refresh().refreshItems().layout();
+        inst.updateDimensions().layout();
       }, Math.max(0, parseInt(settings.layoutOnResize) || 0));
 
       inst._resizeHandler = function () {
@@ -474,25 +484,33 @@ TODO v0.3.0
   };
 
   /**
-   * Get cached dimensions and offsets. Basically the same data as provided by
-   * element.getBoundingClientRect() method, just cached. The cached dimensions
-   * and offsets are subject to change whenever layout or refresh method
-   * is called. Note that all returned values are rounded.
+   * Get cached dimensions. The cached dimensions are subject to change whenever
+   * layout or updateDimensions method is called. Note that all returned values
+   * are rounded.
    *
    * @public
    * @memberof Grid.prototype
-   * @returns {Object}
-   *   - width, height, left, right, top, bottom.
+   * @returns {GridDimensions}
    */
-  Grid.prototype.getRect = function () {
+  Grid.prototype.getDimensions = function () {
+
+    var inst = this;
 
     return {
-      width: this._width,
-      height: this._height,
-      left: this._offset.left,
-      right: this._offset.left + this._width,
-      top: this._offset.top,
-      bottom: this._offset.top + this._height
+      width: inst._width,
+      height: inst._height,
+      padding: {
+        left: inst._padding.left,
+        right: inst._padding.right,
+        top: inst._padding.top,
+        bottom: inst._padding.bottom
+      },
+      border: {
+        left: inst._border.left,
+        right: inst._border.right,
+        top: inst._border.top,
+        bottom: inst._border.bottom
+      }
     };
 
   };
@@ -506,13 +524,9 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Array|HTMLElement|Item|NodeList|Number} [targets]
-   * @param {String} [state]
-   *   - Allowed values are: "active", "inactive", "visible", "hidden",
-   *     "showing", "hiding", "positioning", "dragging", "releasing" and
-   *     "migrating".
-   * @returns {Array}
-   *   - Array of Item instances.
+   * @param {GridMultiItemQuery} [targets]
+   * @param {GridItemState} [state]
+   * @returns {Item[]}
    */
   Grid.prototype.getItems = function (targets, state) {
 
@@ -547,63 +561,35 @@ TODO v0.3.0
   };
 
   /**
-   * Calculate and cache the dimensions and offsets of the container element.
+   * Update the cached dimensions and offsets of the container element and/or
+   * the items.
    *
    * @public
    * @memberof Grid.prototype
+   * @param {String} [target]
+   *   - Define if you want to update the dimensions of the grid container
+   *     element or the items. Leave empty to update the dimensions of both the
+   *     grid and the items.
+   *   - Accepted values: "grid" or "items".
+   * @param {(GridMultiItemQuery|GridItemState|GridDimensionQuery)} [items]
+   *   - If target is "grid" this allows you to define which specific dimensions
+   *     you want to update.
+   *   - If target is "items" this allows you to  define which specific items
+   *     you want to update.
    * @returns {Grid}
    */
-  Grid.prototype.refresh = function () {
+  Grid.prototype.updateDimensions = function (target, items) {
 
     var inst = this;
-    var element = inst._element;
-    var rect = element.getBoundingClientRect();
-    var sides;
-    var side;
-    var i;
+    var targetGrid = target === 'grid';
+    var targetItems = target === 'items';
 
-    // Update width and height.
-    inst._width = Math.round(rect.width);
-    inst._height = Math.round(rect.height);
-
-    // Update offset.
-    inst._offset = inst._offset || {};
-    inst._offset.left = Math.round(rect.left);
-    inst._offset.top = Math.round(rect.top);
-
-    // Update borders and paddings.
-    inst._border = inst._border || {};
-    inst._padding = inst._padding || {};
-    sides = ['left', 'right', 'top', 'bottom'];
-    for (i = 0; i < sides.length; i++) {
-      side = sides[i];
-      inst._border[side] = Math.round(getStyleAsFloat(element, 'border-' + side + '-width'));
-      inst._padding[side] = Math.round(getStyleAsFloat(element, 'padding-' + side));
+    if (targetGrid || !target) {
+      updateGridDimensions(inst, targetGrid && items);
     }
 
-    // Update box-sizing.
-    inst._boxSizing = getStyle(element, 'box-sizing');
-
-    return inst;
-
-  };
-
-  /**
-   * Refresh the dimensions of the instance's items.
-   *
-   * @public
-   * @memberof Grid.prototype
-   * @param {Array|HTMLElement|Item|Number|String} [items]
-   * @returns {Grid}
-   */
-  Grid.prototype.refreshItems = function (items) {
-
-    var inst = this;
-    var targetItems = inst.getItems(items || 'active');
-    var i;
-
-    for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._refresh();
+    if (targetItems || !target) {
+      updateItemDimensions(inst, targetItems && items);
     }
 
     return inst;
@@ -611,21 +597,21 @@ TODO v0.3.0
   };
 
   /**
-   * Refresh the sort data of the instance's items.
+   * Update the sort data of the instance's items.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Array|HTMLElement|Item|Number|String} [items]
+   * @param {(GridMultiItemQuery|GridItemState)} [items]
    * @returns {Grid}
    */
-  Grid.prototype.refreshSortData = function (items) {
+  Grid.prototype.updateSortData = function (items) {
 
     var inst = this;
     var targetItems = inst.getItems(items);
     var i;
 
     for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._refreshSortData();
+      targetItems[i]._updateSortData();
     }
 
     return inst;
@@ -690,7 +676,6 @@ TODO v0.3.0
     var counter = 0;
     var itemsLength = layout.items.length;
     var completed = [];
-    var rect;
     var padding;
     var border;
     var isBorderBox;
@@ -722,7 +707,7 @@ TODO v0.3.0
     // Emit layoutStart event.
     emitter.emit(evLayoutStart, layout.items.concat());
 
-    // If grid's width or height was modified, we need refresh it's cached
+    // If grid's width or height was modified, we need to update it's cached
     // dimensions. Also keep in mind that grid's cached width/height should
     // always equal to what elem.getBoundingClientRect() would return, so
     // therefore we need to add the grid element's paddings and margins to the
@@ -747,11 +732,9 @@ TODO v0.3.0
         });
       }
 
-      // Get the instance's dimensions with elem.getBoundingClientRect() to
-      // account for the possible min/max-width/height.
-      rect = inst._element.getBoundingClientRect();
-      inst._width = Math.round(rect.width);
-      inst._height = Math.round(rect.height);
+      // Update item's width and height to account for the possible
+      // min/max-width/height.
+      inst.updateDimensions('grid', ['width', 'height']);
 
     }
 
@@ -808,12 +791,11 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Array|HTMLElement} elements
+   * @param {(HTMLElement|HTMLElement[])} elements
    * @param {Object} [options]
    * @param {Number} [options.index=-1]
-   * @param {Boolean|Function|String} [options.layout=true]
-   * @returns {Array}
-   *   - Array of the new Item instances.
+   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @returns {Item[]}
    */
   Grid.prototype.add = function (elements, options) {
 
@@ -880,11 +862,11 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Array|HTMLElement|Item|Number} items
+   * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.removeElement=false]
-   * @param {Boolean|Function|String} [options.layout=true]
-   * @returns {Array}
+   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @returns {Number[]}
    *   - The indices of removed items.
    */
   Grid.prototype.remove = function (items, options) {
@@ -924,11 +906,11 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Array|HTMLElement|Item|Number} items
+   * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
    * @param {Function} [options.onFinish]
-   * @param {Boolean|Function|String} [options.layout=tue]
+   * @param {(Boolean|Function|String)} [options.layout=tue]
    * @returns {Grid}
    */
   Grid.prototype.show = function (items, options) {
@@ -942,11 +924,11 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Array|HTMLElement|Item|Number} items
+   * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
    * @param {Function} [options.onFinish]
-   * @param {Boolean|Function|String} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.hide = function (items, options) {
@@ -968,11 +950,11 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Function|String} predicate
+   * @param {(Function|String)} predicate
    * @oaram {Object} [options]
    * @param {Boolean} [options.instant=false]
    * @param {Function} [options.onFinish]
-   * @param {Boolean|Function|String} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.filter = function (predicate, options) {
@@ -1071,10 +1053,10 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Array|Function|String} comparer
+   * @param {(Function|String|String[])} comparer
    * @param {Object} [options]
    * @param {Boolean} [options.descending=false]
-   * @param {Boolean|Function|String} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.sort = function (comparer, options) {
@@ -1141,14 +1123,14 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {HTMLElement|Item|Number} item
-   * @param {HTMLElement|Item|Number} position
+   * @param {GridSingleItemQuery} item
+   * @param {GridSingleItemQuery} position
    * @param {Object} [options]
    * @param {String} [options.action="move"]
    *   - Accepts either "move" or "swap".
    *   - "move" moves the item in place of the other item.
    *   - "swap" swaps the position of the items.
-   * @param {Boolean|Function|String} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.move = function (item, position, options) {
@@ -1207,12 +1189,12 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {HTMLElement|Item|Number} item
+   * @param {GridSingleItemQuery} item
    * @param {Grid} grid
    * @param {Object} [options]
-   * @param {HTMLElement|Item|Number} [options.position=-1]
+   * @param {GridSingleItemQuery} [options.position=-1]
    * @param {HTMLElement} [options.appendTo=document.body]
-   * @param {Boolean|Function|String} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.send = function (item, grid, options) {
@@ -1353,12 +1335,8 @@ TODO v0.3.0
       targetGrid._itemHideHandler.start(targetItem, true);
     }
 
-    // Refresh item's dimensions, because they might have changed with the
-    // addition of the new classnames.
-    targetItem._refresh();
-
-    // Refresh item's sort data.
-    targetItem._refreshSortData();
+    // Update item's cached dimensions and sort data.
+    targetItem._updateDimensions()._updateSortData();
 
     // Recreate item's drag handler.
     targetItem._drag = targetGridStn.dragEnabled ? new Grid.Drag(targetItem) : null;
@@ -1467,7 +1445,7 @@ TODO v0.3.0
    *
    * @protected
    * @memberof Grid.prototype
-   * @param {HTMLElement|Item|Number} [target=0]
+   * @param {GridSingleItemQuery} [target=0]
    * @returns {?Item}
    */
   Grid.prototype._getItem = function (target) {
@@ -1483,7 +1461,7 @@ TODO v0.3.0
       return inst._items[0] || null;
     }
 
-    // If the target is instance of Item return it if it is attached to this
+    // If the target is an instance of Item return it if it is attached to this
     // Grid instance, otherwise return null.
     else if (target instanceof Item) {
       return target._gridId === inst._id ? target : null;
@@ -1574,7 +1552,7 @@ TODO v0.3.0
    * @protected
    * @memberof Grid.prototype
    * @param {Boolean} [includeSelf=false]
-   * @returns {Array}
+   * @returns {Grid[]}
    */
   Grid.prototype._getSortConnections = function (includeSelf) {
 
@@ -1603,6 +1581,59 @@ TODO v0.3.0
     return ret;
 
   };
+
+  /**
+   * Grid - Type defintions
+   * **********************
+   */
+
+  /**
+   * The grid's width, height, padding and border dimensions.
+   *
+   * @typedef {Object} GridDimensions
+   * @property {Number} width
+   * @property {Number} height
+   * @property {Object} padding
+   * @property {Number} padding.left
+   * @property {Number} padding.right
+   * @property {Number} padding.top
+   * @property {Number} padding.bottom
+   * @property {Object} border
+   * @property {Number} border.left
+   * @property {Number} border.right
+   * @property {Number} border.top
+   * @property {Number} border.bottom
+   */
+
+  /**
+   * The values by which multiple grid items can be queried. An html element or
+   * an array of HTML elements. Item or an array of items. Node list, live or
+   * static. Number (index) or a list of numbers (indices).
+   *
+   * @typedef {(HTMLElement|HTMLElement[]|Item|Item[]|NodeList|Number|Number[])} GridMultiItemQuery
+   */
+
+  /**
+   * The values by which a single grid item can be queried. An html element, an
+   * item instance or a number (index).
+   *
+   * @typedef {(HTMLElement|Item|Number)} GridSingleItemQuery
+   */
+
+  /**
+   * The grid item's state, a string. Accepted values are: "active", "inactive",
+   * "visible", "hidden", "showing", "hiding", "positioning", "dragging",
+   * "releasing" and "migrating".
+   *
+   * @typedef {String} GridItemState
+   */
+
+  /**
+   * Grid element's cached dimensions. Accepted values are: "width", "height",
+   * "offset", "padding", "border", "box-sizing".
+   *
+   * @typedef {(String|String[])} GridDimensionQuery
+   */
 
   /**
    * Item
@@ -1696,11 +1727,8 @@ TODO v0.3.0
       display: isHidden ? 'none' : 'block'
     });
 
-    // Calculate and set up initial dimensions.
-    inst._refresh();
-
-    // Get and set the initial sort data.
-    inst._refreshSortData();
+    // Set up the initial dimensions and sort data.
+    inst._updateDimensions()._updateSortData();
 
     // Set initial styles for the child element.
     if (isHidden) {
@@ -1971,7 +1999,7 @@ TODO v0.3.0
    * @memberof Item.prototype
    * @returns {Item}
    */
-  Item.prototype._refresh = function () {
+  Item.prototype._updateDimensions = function () {
 
     var inst = this;
     var element;
@@ -2007,13 +2035,13 @@ TODO v0.3.0
   };
 
   /**
-   * Get and store item's sort data.
+   * Fetch and store item's sort data.
    *
    * @protected
    * @memberof Item.prototype
    * @returns {Item}
    */
-  Item.prototype._refreshSortData = function () {
+  Item.prototype._updateSortData = function () {
 
     var inst = this;
     var sortData = {};
@@ -3265,12 +3293,9 @@ TODO v0.3.0
    * @public
    * @memberof Drag
    * @param {Item} item
-   * @returns {Boolean|Object}
-   *   - Returns false if no valid index was found. Otherwise returns an object
-   *     that has three properties as specified below.
-   *   - @param {String} action - "move" or "swap".
-   *   - @param {Number} index - target index.
-   *   - @param {?Grid} [grid=null] - target grid.
+   * @returns {(Boolean|DragSortCommand)}
+   *   - Returns false if no valid index was found. Otherwise returns drag sort
+   *     command.
    */
   Drag.defaultSortPredicate = function (item) {
 
@@ -3299,8 +3324,14 @@ TODO v0.3.0
     // item overlaps the most currently.
     for (i = 0; i < grids.length; i++) {
 
-      // Check how much dragged element overlaps the container element.
       grid = grids[i];
+
+      // We need to update the grid's offset since it may have changed during
+      // scrolling. This could be left as problem for the userland, but it's
+      // much nicer this way. One less hack for the user to worry about =)
+      grid.updateDimensions('grid', 'offset');
+
+      // Check how much dragged element overlaps the container element.
       overlapScore = getOverlapScore(itemRect, {
         width: grid._width,
         height: grid._height,
@@ -3456,7 +3487,7 @@ TODO v0.3.0
    *
    * @protected
    * @memberof Drag.prototype
-   * @returns {?Item}
+   * @returns {?Grid}
    */
   Drag.prototype._getGrid = function () {
 
@@ -3711,12 +3742,8 @@ TODO v0.3.0
     item._child.removeAttribute('style');
     targetGrid._itemShowHandler.start(item, true);
 
-    // Refresh item's dimensions, because they might have changed with the
-    // addition of the new classnames.
-    item._refresh();
-
-    // Refresh sort data.
-    item._refreshSortData();
+    // Update item's cached dimensions and sort data.
+    item._updateDimensions()._updateSortData();
 
     // Recreate item's drag handler.
     item._drag = targetGridStn.dragEnabled ? new Grid.Drag(item) : null;
@@ -4197,6 +4224,23 @@ TODO v0.3.0
     return drag;
 
   };
+
+  /**
+   * Drag - Type definitions
+   * ***********************
+   */
+
+  /**
+   * The data that is required to orchestrate a sort action during drag.
+   *
+   * @typedef {Object} DragSortCommand
+   * @param {String} action
+   *   - "move" or "swap".
+   * @param {Number} index
+   *   - target index.
+   * @param {?Grid} [grid=null]
+   *   - target grid.
+   */
 
   /**
    * Predicate
@@ -4720,7 +4764,7 @@ TODO v0.3.0
    *
    * @private
    * @param {NodeList} nodeList
-   * @returns {Array}
+   * @returns {HTMLElement[]}
    */
   function nodeListToArray(nodeList) {
 
@@ -4787,7 +4831,7 @@ TODO v0.3.0
    * @private
    * @param {HTMLElement} element
    * @param {HTMLElement} anchor
-   * @returns {PlaceData}
+   * @returns {Object}
    */
   function getContainerOffsetDiff(element, anchor) {
 
@@ -4826,7 +4870,7 @@ TODO v0.3.0
    *
    * @private
    * @param {HTMLElement} element
-   * @returns {Array}
+   * @returns {HTMLElement[]}
    */
   function getScrollParents(element) {
 
@@ -4988,8 +5032,8 @@ TODO v0.3.0
    * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L274
    *
    * @private
-   * @param {Document|HTMLElement|Window} element
-   * @returns {?Document|HTMLElement|Window}
+   * @param {(Document|HTMLElement|Window)} element
+   * @returns {(?Document|HTMLElement|Window)}
    */
   function getContainingBlock(element) {
 
@@ -5066,7 +5110,7 @@ TODO v0.3.0
    * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L1006
    *
    * @private
-   * @param {Document|HTMLElement|Window} element
+   * @param {(Document|HTMLElement|Window)} element
    * @param {Edge} [edge='border']
    * @returns {Object}
    */
@@ -5133,16 +5177,111 @@ TODO v0.3.0
    */
 
   /**
+   * Update the cached dimensions and offsets of the Grid instance's container
+   * element.
+   *
+   * @private
+   * @memberof Grid.prototype
+   * @param {Grid} inst
+   * @param {GridDimensionQuery} [dimensions]
+   */
+  function updateGridDimensions(inst, dimensions) {
+
+    var element = inst._element;
+    var sides = ['left', 'right', 'top', 'bottom'];
+    var update = {
+      'width': !dimensions,
+      'height': !dimensions,
+      'offset': !dimensions,
+      'padding': !dimensions,
+      'border': !dimensions,
+      'box-sizing': !dimensions
+    };
+    var rect;
+    var i;
+
+    // If we have dimensions, let's set the needed updates to true.
+    if (dimensions) {
+      dimensions = [].concat(dimensions);
+      for (i = 0; i < dimensions.length; i++) {
+        update[dimensions[i]] = true;
+      }
+    }
+
+    // Get bounding client rect if needed.
+    if (update.width || update.height || update.offset) {
+      rect = element.getBoundingClientRect();
+    }
+
+    // Update width.
+    if (update.width) {
+      inst._width = Math.round(rect.width);
+    }
+
+    // Update height.
+    if (update.height) {
+      inst._height = Math.round(rect.height);
+    }
+
+    // Update offset.
+    if (update.offset) {
+      inst._offset = inst._offset || {};
+      inst._offset.left = Math.round(rect.left);
+      inst._offset.top = Math.round(rect.top);
+    }
+
+    // Update paddings.
+    if (update.padding) {
+      inst._padding = inst._padding || {};
+      for (i = 0; i < sides.length; i++) {
+        inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
+      }
+    }
+
+    // Update borders.
+    if (update.border) {
+      inst._border = inst._border || {};
+      for (i = 0; i < sides.length; i++) {
+        inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
+      }
+    }
+
+    // Update box-sizing.
+    if (update['box-sizing']) {
+      inst._boxSizing = getStyle(element, 'box-sizing');
+    }
+
+  }
+
+  /**
+   * Update the dimensions of the Grid instance's items.
+   *
+   * @private
+   * @param {Grid} inst
+   * @param {(GridMultiItemQuery|GridItemState)} [items]
+   */
+  function updateItemDimensions(inst, items) {
+
+    var targetItems = inst.getItems(items || 'active');
+    var i;
+
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._updateDimensions();
+    }
+
+  }
+
+  /**
    * Show or hide Grid instance's items.
    *
    * @private
    * @param {Grid} inst
    * @param {String} method - "show" or "hide".
-   * @param {Array|HTMLElement|Item|Number} items
+   * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
    * @param {Function} [options.onFinish]
-   * @param {Boolean|Function|String} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   function setVisibility(inst, method, items, options) {
@@ -5205,7 +5344,8 @@ TODO v0.3.0
         // skipNextLayoutAnimation flag the item would animate to it's place
         // from the northwest corner of the grid, which (imho) has a buggy vibe
         // to it. Also we are adding the item to the hidden items list here,
-        // which means that it will be refreshed just before the layout.
+        // which means that it's dimensions will be updated just before the
+        // layout.
         if (isShow && !item._isActive) {
           item._skipNextLayoutAnimation = true;
           hiddenItems[hiddenItems.length] = item;
@@ -5236,7 +5376,7 @@ TODO v0.3.0
       // Layout if needed.
       if (needsLayout) {
         if (hiddenItems.length) {
-          inst.refreshItems(hiddenItems);
+          inst.updateDimensions('items', hiddenItems);
         }
         if (layout) {
           inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
@@ -5319,7 +5459,7 @@ TODO v0.3.0
    * Process item's callback queue.
    *
    * @private
-   * @param {Array} queue
+   * @param {Function[]} queue
    * @param {Boolean} interrupted
    * @param {Item} instance
    */
@@ -5368,7 +5508,7 @@ TODO v0.3.0
    *
    * @private
    * @param {Item} item
-   * @param {String} state
+   * @param {GridItemState} state
    * Returns {Boolean}
    */
   function isItemInState(item, state) {
@@ -5392,7 +5532,7 @@ TODO v0.3.0
    * than contains reference to the item indices.
    *
    * @private
-   * @param {Array} items
+   * @param {Item[]} items
    * @returns {Object}
    */
   function getItemIndexMap(items) {
@@ -5455,9 +5595,9 @@ TODO v0.3.0
       criteriaOrder = criterias[i][1];
 
       // Get items' cached sort values for the criteria. If the item has no sort
-      // data let's refresh the items sort data (this is a lazy load mechanism).
-      valA = (itemA._sortData ? itemA : itemA._refreshSortData())._sortData[criteriaName];
-      valB = (itemB._sortData ? itemB : itemB._refreshSortData())._sortData[criteriaName];
+      // data let's update the items sort data (this is a lazy load mechanism).
+      valA = (itemA._sortData ? itemA : itemA._updateSortData())._sortData[criteriaName];
+      valB = (itemB._sortData ? itemB : itemB._updateSortData())._sortData[criteriaName];
 
       // Sort the items in descending order if defined so explicitly.
       if (criteriaOrder === 'd' || (!criteriaOrder && isDescending)) {

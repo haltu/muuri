@@ -15,19 +15,19 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
 * [Options](#options)
 * [Methods](#methods)
   * [grid.getElement()](#gridgetelement)
-  * [grid.getRect()](#gridgetrect)
+  * [grid.getDimensions()](#gridgetdimensions)
   * [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
-  * [grid.refresh()](#gridrefresh)
-  * [grid.refreshItems( [items] )](#gridrefreshitems-items-)
+  * [grid.updateDimensions( [target], [items] )](#gridupdatedimensions-target-items-)
+  * [grid.updateSortData( [items] )](#gridupdatesortdata-items-)
   * [grid.synchronize()](#gridsynchronize)
   * [grid.layout( [instant], [callback] )](#gridlayout-instant-callback-)
-  * [grid.add( elements, [index] )](#gridadd-elements-index-)
-  * [grid.remove( items, [removeElement] )](#gridremove-items-removeelement-)
-  * [grid.show( items, [instant], [callback] )](#gridshow-items-instant-callback-)
-  * [grid.hide( items, [instant], [callback] )](#gridhide-items-instant-callback-)
-  * [grid.filter( predicate, [instant] )](#gridfilter-predicate-instant-)
-  * [grid.sort( compareFunction )](#gridsort-comparefunction-)
-  * [grid.move( item, position, [action] )](#gridmove-item-position-action-)
+  * [grid.add( elements, [options] )](#gridadd-elements-options-)
+  * [grid.remove( items, [options] )](#gridremove-items-options-)
+  * [grid.show( items, [options] )](#gridshow-items-options-)
+  * [grid.hide( items, [options] )](#gridhide-items-options-)
+  * [grid.filter( predicate, [options] )](#gridfilter-predicate-options-)
+  * [grid.sort( comparer, [options] )](#gridsort-comparer-options-)
+  * [grid.move( item, position, [options] )](#gridmove-item-position-options-)
   * [grid.send( item, grid, [options] )](#gridsend-item-grid-options-)
   * [grid.on( event, listener )](#gridon-event-listener-)
   * [grid.off( event, listener )](#gridoff-event-listener-)
@@ -215,62 +215,65 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
 ```javascript
 {
 
-  // Items
-  items: '*',
+    // Item elements
+    items: '*',
 
-  // Show/hide animations
-  show: {
-    duration: 300,
-    easing: 'ease',
-    styles: {
-      opacity: 1,
-      scale: 1
-    }
-  },
-  hide: {
-    duration: 300,
-    easing: 'ease',
-    styles: {
-      opacity: 0,
-      scale: 0.5
-    }
-  },
+    // Show/hide animations
+    show: {
+      duration: 300,
+      easing: 'ease',
+      styles: {
+        opacity: 1,
+        scale: 1
+      }
+    },
+    hide: {
+      duration: 300,
+      easing: 'ease',
+      styles: {
+        opacity: 0,
+        scale: 0.5
+      }
+    },
 
-  // Layout
-  layout: {
-    fillGaps: false,
-    horizontal: false,
-    alignRight: false,
-    alignBottom: false
-  },
-  layoutOnResize: 100,
-  layoutOnInit: true,
-  layoutDuration: 300,
-  layoutEasing: 'ease',
+    // Layout
+    layout: {
+      fillGaps: false,
+      horizontal: false,
+      alignRight: false,
+      alignBottom: false
+    },
+    layoutOnResize: 100,
+    layoutOnInit: true,
+    layoutDuration: 300,
+    layoutEasing: 'ease',
 
-  // Drag & Drop
-  dragEnabled: false,
-  dragContainer: null,
-  dragStartPredicate: null,
-  dragSort: true,
-  dragSortInterval: 50,
-  dragSortPredicate: {
-    threshold: 50,
-    action: 'move'
-  },
-  dragSortGroup: null,
-  dragSortConnections: null,
-  dragReleaseDuration: 300,
-  dragReleaseEasing: 'ease',
+    // Sorting
+    sortData: null,
 
-  // Classnames
-  containerClass: 'muuri',
-  itemClass: 'muuri-item',
-  itemVisibleClass: 'muuri-item-shown',
-  itemHiddenClass: 'muuri-item-hidden',
-  itemPositioningClass: 'muuri-item-positioning',
-  itemDraggingClass: 'muuri-item-dragging',
-  itemReleasingClass: 'muuri-item-releasing'
+    // Drag & Drop
+    dragEnabled: false,
+    dragContainer: null,
+    dragStartPredicate: null,
+    dragSort: true,
+    dragSortInterval: 50,
+    dragSortPredicate: {
+      threshold: 50,
+      action: 'move'
+    },
+    dragSortGroup: null,
+    dragSortConnections: null,
+    dragReleaseDuration: 300,
+    dragReleaseEasing: 'ease',
+
+    // Classnames
+    containerClass: 'muuri',
+    itemClass: 'muuri-item',
+    itemVisibleClass: 'muuri-item-shown',
+    itemHiddenClass: 'muuri-item-hidden',
+    itemPositioningClass: 'muuri-item-positioning',
+    itemDraggingClass: 'muuri-item-dragging',
+    itemReleasingClass: 'muuri-item-releasing'
 
 }
 ```
@@ -438,6 +441,30 @@ The easing for item's layout animation. Accepts any valid [Velocity.js easing](h
 
 * Default value: `'ease'`.
 * Accepted types: string.
+
+### sortData &nbsp;
+
+The sort data getter functions. Provide an object where the key is the name of the sortable attribute and the function returns a value (from the item) by which the items can be sorted.
+
+* Default value: `null`.
+* Accepted types: object, null.
+
+```javascript
+var grid = new Muuri(elem, {
+  sortData: {
+    foo: function (item, element) {
+      return parseFloat(element.getAttribute('data-foo'));
+    },
+    bar: function (item, element) {
+      return element.getAttribute('data-bar').toUpperCase();
+    }
+  }
+});
+// Refresh sort data whenever an item's data-foo or data-bar changes
+grid.updateSortData();
+// Sort the grid by foo and bar.
+grid.sort('foo bar');
+```
 
 ### dragEnabled &nbsp;
 

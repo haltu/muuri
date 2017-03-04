@@ -17,7 +17,7 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
   * [grid.getElement()](#gridgetelement)
   * [grid.getDimensions()](#gridgetdimensions)
   * [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
-  * [grid.updateDimensions( [target], [items] )](#gridupdatedimensions-target-items-)
+  * [grid.updateDimensions( [target], [dimensions/items] )](#gridupdatedimensions-target-dimensions-items-)
   * [grid.updateSortData( [items] )](#gridupdatesortdata-items-)
   * [grid.synchronize()](#gridsynchronize)
   * [grid.layout( [instant], [callback] )](#gridlayout-instant-callback-)
@@ -626,9 +626,9 @@ Get the instance element.
 var elem = grid.getElement();
 ```
 
-### grid.getRect()
+### grid.getDimensions()
 
-Get instance's cached dimensions and offsets. Basically the same data as provided by [element.getBoundingClientRect()](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect) method, just cached. The cached dimensions and offsets are subject to change whenever [layoutItems](#muurilayoutitems-instant-callback-) or [refresh](#muurirefresh) method is called. Note that Muuri uses rounded values (`Math.round(val)`) in all calculations.
+Get grid element's cached dimensions. The cached dimensions are subject to change whenever `grid.layout()` or `grid.updateDimensions()` method is called. All returned values are rounded.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 
@@ -636,19 +636,27 @@ Get instance's cached dimensions and offsets. Basically the same data as provide
   * The element's width in pixels (rounded).
 * **obj.height** &nbsp;&mdash;&nbsp; *number*
   * The element's height in pixels (rounded).
-* **obj.left** &nbsp;&mdash;&nbsp; *number*
-  * The element's left offset in pixels (rounded).
-* **obj.right** &nbsp;&mdash;&nbsp; *number*
-  * The element's left offset + width in pixels (rounded).
-* **obj.top** &nbsp;&mdash;&nbsp; *number*
-  * The element's top offset in pixels (rounded).
-* **obj.bottom** &nbsp;&mdash;&nbsp; *number*
-  * The element's top offset + height in pixels (rounded).
+* **obj.padding.left** &nbsp;&mdash;&nbsp; *number*
+  * The element's left padding in pixels (rounded).
+* **obj.padding.right** &nbsp;&mdash;&nbsp; *number*
+  * The element's right padding in pixels (rounded).
+* **obj.padding.top** &nbsp;&mdash;&nbsp; *number*
+  * The element's top padding in pixels (rounded).
+* **obj.padding.bottom** &nbsp;&mdash;&nbsp; *number*
+  * The element's left padding in pixels (rounded).
+* **obj.border.left** &nbsp;&mdash;&nbsp; *number*
+  * The element's left border in pixels (rounded).
+* **obj.border.right** &nbsp;&mdash;&nbsp; *number*
+  * The element's right border in pixels (rounded).
+* **obj.border.top** &nbsp;&mdash;&nbsp; *number*
+  * The element's top border in pixels (rounded).
+* **obj.border.bottom** &nbsp;&mdash;&nbsp; *number*
+  * The element's left border in pixels (rounded).
 
 **Examples**
 
 ```javascript
-var rectData = grid.getRect();
+var dimensions = grid.getDimensions();
 ```
 
 ### grid.getItems( [targets], [state] )
@@ -658,10 +666,10 @@ Get all items in the grid. Optionally you can provide specific targets (indices 
 **Parameters**
 
 * **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
+  * An array of item instances/elements/indices.
   * Optional.
 * **state** &nbsp;&mdash;&nbsp; *string*
-  * Allowed values: `'active'`, `'inactive'`, `'visible'`, `'hidden'`, `'showing'`, `'hiding'`, `'positioning'`, `'dragging'`, `'releasing'`, `'migrating'`.
+  * Accepted values: `'active'`, `'inactive'`, `'visible'`, `'hidden'`, `'showing'`, `'hiding'`, `'positioning'`, `'dragging'`, `'releasing'`, `'migrating'`.
   * Default value: `undefined`.
   * Optional.
 
@@ -691,49 +699,71 @@ var items = grid.getItems([elemA, elemB]);
 var items = grid.getItems([elemA, elemB], 'inactive');
 ```
 
-### grid.refresh()
+### grid.updateDimensions( [target], [dimensions/items] )
 
-Calculate and cache the dimensions and offsets of the grid's container element.
-
-**Examples**
-
-```javascript
-grid.refresh();
-```
-
-### grid.refreshItems( [items] )
-
-Calculate the width and height of the provided items. By default all *active* items will be refreshed if no items are provided.
+Update the cached dimensions and offsets of the container element and/or the items. When called without any arguments all cached grid container element dimensions and item dimensions will be updated. However, that can be quite a heavy operation depending on the amount of items so use it sparingly. The first argument allows you to define a target which in this case can be either "grid" (the grid container element) or "items" (the grid items). If you are targeting the "grid" the second argument allows you to provide an array of all the cached values you want to update. If you are targeting the "items" the second argument allows you to define explicit items you want to update.
 
 **Parameters**
 
-* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
+* **target** &nbsp;&mdash;&nbsp; *string*
+  * Do you want to update the grid container element dimensions ("grid") or the item dimensions ("items")?
+  * Accepted values: "grid" or "items".
+  * Optional.
+* **dimensions/items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number / string*
+  * If you are targeting the "grid" this argument allows you to provide an array of all the cached values you want to update. The allowed values are: "width", "height", "offset", "padding", "border" and "box-sizing". By default all values are updated.
+  * If you are targeting the "items" this allows you to define the explicit items you want to update. You can define the explicit items with an array of item instances/elements/indices. By default all active items are updated.
   * Optional.
 
 **Examples**
 
 ```javascript
-// Refresh all active items
-grid.refreshItems();
+// Update the dimensions of both the grid element and all active item elements.
+grid.updateDimensions();
 
-// Refresh the first item.
-grid.refreshItems(0);
+// Update grid element dimensions.
+grid.updateDimensions('grid');
 
-// Refresh all items which match the provided DOM elements.
-grid.refreshItems([elemA, elemB]);
+// Update dimensions of all active item elements.
+grid.updateDimensions('items');
 
-// Refresh specific items (instances of Muuri.Item).
-grid.refreshItems([itemA, itemB]);
+// Update specific dimensions of the grid element.
+grid.updateDimensions('grid', ['width', 'height']);
+
+// Update dimensions of specific item elements.
+grid.updateDimensions('items', [0, someElem, someItem]);
 ```
 
-### grid.synchronize()
+### grid.updateSortData( [items] )
 
-Order the item elements to match the order of the items. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the container element (if it is dragged for example) it is ignored and left untouched.
+Update the sort data of the instance's items.
+
+**Parameters**
+
+* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * To target explicit items provide an array of item instances/elements/indices. By default all items are targeted.
+  * Optional.
 
 **Examples**
 
 ```javascript
+// Update the sort data for every item.
+grid.updateSortData();
+
+// Update the sort data for specific items.
+grid.updateSortData([0, someElem, someItem]);
+```
+
+### grid.synchronize()
+
+Synchronize the item elements to match the order of the items in the DOM. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the container element (if it is dragged for example) it is ignored and left untouched.
+
+**Examples**
+
+```javascript
+// Let's say we have to move the first item in the grid as the last.
+grid.move(0, -1);
+// Now the DOM order of the items is not in sync anymore with the
+// order of the items. We can sync the DOM with synchronize method.
 grid.synchronize();
 ```
 
@@ -767,21 +797,21 @@ grid.layout(function (items) {
 });
 ```
 
-### grid.add( elements, [index] )
+### grid.add( elements, [options] )
 
-Add new items by providing the elements you wish to add to the instance and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container element.
-
-If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method.
-
-This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
+Add new items by providing the elements you wish to add to the instance and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container element. If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method. This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
 
 **Parameters**
 
 * **elements** &nbsp;&mdash;&nbsp; *array / element*
   * An array of DOM elements.
-* **index** &nbsp;&mdash;&nbsp; *number*
+* **options.index** &nbsp;&mdash;&nbsp; *number*
   * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `grid.synchronize()` method to arrange the DOM elments to the same order as the items.
-  * Default value: `0`.
+  * Default value: `-1`.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
   * Optional.
 
 **Returns** &nbsp;&mdash;&nbsp; *array*
@@ -791,24 +821,31 @@ Returns an array of `Muuri.Item` instances.
 **Examples**
 
 ```javascript
-// Add two new items to the beginning.
+// Add two new items to the end.
 grid.add([elemA, elemB]);
 
-// Add two new items to the end.
-grid.add([elemA, elemB], -1);
+// Add two new items to the beginning.
+grid.add([elemA, elemB], {index: 0});
+
+// Skip the automatic layout.
+grid.add([elemA, elemB], {layout: false});
 ```
 
-### grid.remove( items, [removeElement] )
+### grid.remove( items, [options] )
 
 Remove items from the instance.
 
 **Parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-* **removeElement** &nbsp;&mdash;&nbsp; *boolean*
+  * An array of item instances/elements/indices.
+* **options.removeElement** &nbsp;&mdash;&nbsp; *boolean*
   * Should the associated DOM element be removed from the DOM?
   * Default value: `false`.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
   * Optional.
 
 **Returns** &nbsp;&mdash;&nbsp; *array*
@@ -822,7 +859,10 @@ Returns the indices of the removed items.
 grid.remove(0);
 
 // Remove items and the associated elements.
-grid.remove([elemA, elemB], true);
+grid.remove([elemA, elemB], {removeElement: true});
+
+// Skip the layout.
+grid.remove([elemA, elemB], {layout: false});
 ```
 
 
@@ -864,7 +904,7 @@ Hide the targeted items.
 **Parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
+  * An array of item instances/elements/indices.
 * **instant** &nbsp;&mdash;&nbsp; *boolean*
   * Should the items be hidden instantly without any possible animation?
   * Default value: `false`.

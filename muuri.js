@@ -619,9 +619,11 @@ TODO v0.3.0
   };
 
   /**
-   * Synchronize the DOM order of the item elements to match the order of the
-   * items in the instance. If an item's element is not a child of the container
-   * element it is ignored and left untouched.
+   * Synchronize the item elements to match the order of the items in the DOM.
+   * This comes handy if you need to keep the DOM structure matched with the
+   * order of the items. Note that if an item's element is not currently a child
+   * of the container element (if it is dragged for example) it is ignored and
+   * left untouched.
    *
    * @public
    * @memberof Grid.prototype

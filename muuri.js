@@ -866,7 +866,7 @@ TODO v0.3.0
    * @memberof Grid.prototype
    * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
-   * @param {Boolean} [options.removeElement=false]
+   * @param {Boolean} [options.removeElements=false]
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Number[]}
    *   - The indices of removed items.
@@ -888,7 +888,7 @@ TODO v0.3.0
       if (item._isActive) {
         needsLayout = true;
       }
-      indices[indices.length] = item._destroy(opts.removeElement);
+      indices[indices.length] = item._destroy(opts.removeElements);
     }
 
     // Emit remove event.
@@ -1193,13 +1193,13 @@ TODO v0.3.0
    * @memberof Grid.prototype
    * @param {GridSingleItemQuery} item
    * @param {Grid} grid
+   * @param {GridSingleItemQuery} position
    * @param {Object} [options]
-   * @param {GridSingleItemQuery} [options.position=-1]
    * @param {HTMLElement} [options.appendTo=document.body]
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.send = function (item, grid, options) {
+  Grid.prototype.send = function (item, grid, position, options) {
 
     var currentGrid = this;
     var targetGrid = grid;
@@ -1208,7 +1208,6 @@ TODO v0.3.0
     var targetGridStn;
     var opts;
     var appendTo;
-    var position;
     var layout;
     var migrate;
     var element;
@@ -1225,6 +1224,17 @@ TODO v0.3.0
       return currentGrid;
     }
 
+    // Get new index
+    newIndex = typeof position === 'number' ? position : targetGrid._items.indexOf(targetGrid._getItem(position));
+
+    // If we have invalid new index, let's return immediately.
+    if (newIndex === null) {
+      return currentGrid;
+    }
+
+    // Get item's current index.
+    currentIndex = currentGrid._items.indexOf(targetItem);
+
     // Get settings of both grids.
     currentGridStn = currentGrid._settings;
     targetGridStn = targetGrid._settings;
@@ -1232,7 +1242,6 @@ TODO v0.3.0
     // Parse options.
     opts = options || {};
     appendTo = opts.appendTo || document.body;
-    position = opts.position;
     layout = opts.layout ? opts.layout : opts.layout === undefined;
 
     // Get item's migrate data and element.
@@ -1242,10 +1251,6 @@ TODO v0.3.0
     // Check if element is active/visible.
     isActive = targetItem.isActive();
     isVisible = (targetItem.isVisible() || targetItem.isShowing()) && !targetItem.isHiding();
-
-    // Get item's current and new index.
-    currentIndex = currentGrid._items.indexOf(targetItem);
-    newIndex = typeof position === 'number' ? position : (position ? targetGrid._items.indexOf(targetGrid._getItem(position)) : -1);
 
     // Stop current layout animation and migration.
     targetItem._stopLayout(true);
@@ -1395,9 +1400,9 @@ TODO v0.3.0
    *
    * @public
    * @memberof Grid.prototype
-   * @param {Boolean} [removeElement=false]
+   * @param {Boolean} [removeElements=false]
    */
-  Grid.prototype.destroy = function (removeElement) {
+  Grid.prototype.destroy = function (removeElements) {
 
     var inst = this;
     var container = inst._element;
@@ -1411,7 +1416,7 @@ TODO v0.3.0
 
     // Destroy items.
     for (i = 0; i < items.length; i++) {
-      items[i]._destroy(removeElement);
+      items[i]._destroy(removeElements);
     }
 
     // Unset sort group.
@@ -5602,7 +5607,7 @@ TODO v0.3.0
       valB = (itemB._sortData ? itemB : itemB._updateSortData())._sortData[criteriaName];
 
       // Sort the items in descending order if defined so explicitly.
-      if (criteriaOrder === 'd' || (!criteriaOrder && isDescending)) {
+      if (criteriaOrder === 'desc' || (!criteriaOrder && isDescending)) {
         ret = valB < valA ? -1 : valB > valA ? 1 : 0;
       }
 

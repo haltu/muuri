@@ -31,7 +31,7 @@ And if you're wondering about the name of the library "muuri" is Finnish meaning
   * [grid.send( item, grid, [options] )](#gridsend-item-grid-options-)
   * [grid.on( event, listener )](#gridon-event-listener-)
   * [grid.off( event, listener )](#gridoff-event-listener-)
-  * [grid.destroy()](#griddestroy)
+  * [grid.destroy( [removeElements] )](#griddestroy-removeelements-)
 * [Item methods](#item-methods)
   * [item.getGrid()](#itemgetgrid)
   * [item.getElement()](#itemgetelement)
@@ -839,7 +839,7 @@ Remove items from the instance.
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
   * An array of item instances/elements/indices.
-* **options.removeElement** &nbsp;&mdash;&nbsp; *boolean*
+* **options.removeElements** &nbsp;&mdash;&nbsp; *boolean*
   * Should the associated DOM element be removed from the DOM?
   * Default value: `false`.
   * Optional.
@@ -859,27 +859,31 @@ Returns the indices of the removed items.
 grid.remove(0);
 
 // Remove items and the associated elements.
-grid.remove([elemA, elemB], {removeElement: true});
+grid.remove([elemA, elemB], {removeElements: true});
 
 // Skip the layout.
 grid.remove([elemA, elemB], {layout: false});
 ```
 
 
-### grid.show( items, [instant], [callback] )
+### grid.show( items, [options] )
 
 Show the targeted items.
 
 **Parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or indices.
-* **instant** &nbsp;&mdash;&nbsp; *boolean*
+  * An array of item instances/elements/indices.
+* **options.instant** &nbsp;&mdash;&nbsp; *boolean*
   * Should the items be shown instantly without any possible animation?
   * Default value: `false`.
   * Optional.
-* **callback** &nbsp;&mdash;&nbsp; *function*
+* **options.onFinish** &nbsp;&mdash;&nbsp; *function*
   * A callback function that is called after the items are shown.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
   * Optional.
 
 **Examples**
@@ -897,7 +901,7 @@ grid.show([elemA, elemB], function (items) {
 });
 ```
 
-### grid.hide( items, [instant], [callback] )
+### grid.hide( items, [options] )
 
 Hide the targeted items.
 
@@ -905,12 +909,16 @@ Hide the targeted items.
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
   * An array of item instances/elements/indices.
-* **instant** &nbsp;&mdash;&nbsp; *boolean*
+* **options.instant** &nbsp;&mdash;&nbsp; *boolean*
   * Should the items be hidden instantly without any possible animation?
   * Default value: `false`.
   * Optional.
-* **callback** &nbsp;&mdash;&nbsp; *function*
+* **options.onFinish** &nbsp;&mdash;&nbsp; *function*
   * A callback function that is called after the items are hidden.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
   * Optional.
 
 **Examples**
@@ -929,7 +937,7 @@ grid.hide([elemA, elemB], function (items) {
 });
 ```
 
-### grid.filter( predicate, [instant] )
+### grid.filter( predicate, [options] )
 
 Filter items. Expects at least one argument, a predicate, which should be either a function or a string. The predicate callback is executed for every item in the instance. If the return value of the predicate is truthy the item in question will be shown and otherwise hidden. The predicate callback receives two arguments: the item instance and the instance's element. If the predicate is a string it is considered to be a selector and it is checked against every item element in the instance with the native element.matches() method. All the matching items will be shown and others hidden.
 
@@ -937,9 +945,16 @@ Filter items. Expects at least one argument, a predicate, which should be either
 
 * **predicate** &nbsp;&mdash;&nbsp; *function / string*
   * A predicate callback or a selector.
-* **instant** &nbsp;&mdash;&nbsp; *boolean*
+* **options.instant** &nbsp;&mdash;&nbsp; *boolean*
   * Should the items be shown/hidden instantly without any possible animation?
   * Default value: `false`.
+  * Optional.
+* **options.onFinish** &nbsp;&mdash;&nbsp; *function*
+  * An optional callback function that is called after all the items are shown/hidden.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
   * Optional.
 
 **Examples**
@@ -957,31 +972,48 @@ grid.filter('[data-foo]');
 grid.filter('.foo');
 ```
 
-### grid.sort( compareFunction )
+### grid.sort( comparer, [options] )
 
-Sort items. In all it's simplicity this is just a lightweight wrapper for Array.prototype.sort(), which calls `grid._items.sort(compareFunction)` internally.
+Sort items. There are three ways to sort the items. The first is simply by providing a function as the comparer which works almost identically to [native array sort](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort). Th only difference is that the sort is always stable. Alternatively you can sort by the sort data you have provided in the instance's options. Just provide the sort data key(s) as a string (separated by space) and the items will be sorted based on the provided sort data keys. Lastly you have the opportunity to provide a presorted array of items which will be used to sync the internal items array in the same order.
 
 **Parameters**
 
-* **compareFunction** &nbsp;&mdash;&nbsp; *function*
-  * Refer to the [Array.prototype.sort()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort) documentation.
+* **comparer** &nbsp;&mdash;&nbsp; *array / function / string*
+  * Provide a comparer function, sort data keys as a string (separated with space) or a presorted array of items. It is recommended to use the sort data feature, because it allows you to cache the sort data and make the sorting faster.
+* **options.descending** &nbsp;&mdash;&nbsp; *boolean*
+  * By default the items are sorted in ascending order. If you want to sort them in descending order set this to `true`.
+  * Default value: `false`.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
 
 **Examples**
 
 ```javascript
-// Sort items by data-id attribute value.
+// Sort items by data-id attribute value (ascending).
 grid.sort(function (itemA, itemB) {
-  // Extract data-ids (as integers) from the items.
   var aId = parseInt(itemA.getElement().getAttribute('data-id'));
   var bId = parseInt(itemB.getElement().getAttribute('data-id'));
-  // Sort in ascending order.
-  return aId > bId ? 1 : -1;
-  // Descending would be:
-  // return aId < bId ? 1 : -1;
+  return aId - bId;
 });
+
+// Sort items with a presorted array of items.
+grid.sort(presortedItems);
+
+// Sort items using the sort data keys (ascending).
+grid.sort('foo bar');
+
+// Sort items using the sort data keys (descending).
+grid.sort('foo bar', {descending: true});
+
+// Sort items using the sort data keys. Sort some keys
+// ascending and some keys descending.
+grid.sort('foo bar:desc');
 ```
 
-### grid.move( item, position, [action] )
+### grid.move( item, position, [options] )
 
 Move an item to another position in the grid.
 
@@ -991,11 +1023,15 @@ Move an item to another position in the grid.
   * DOM element or `Muuri.Item` instance or index of the item.
 * **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
   * DOM element or `Muuri.Item` instance or index of the item.
-* **action** &nbsp;&mdash;&nbsp; *string*
+* **options.action** &nbsp;&mdash;&nbsp; *string*
   * Accepts the following values:
     * `'move'`: moves item in place of another item.
     * `'swap'`: swaps position of items.
   * Default value: `'move'`.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
   * Optional.
 
 **Examples**
@@ -1004,43 +1040,45 @@ Move an item to another position in the grid.
 // Move elemA to the index of elemB.
 grid.move(elemA, elemB);
 
-// Move first item as last.
+// Move the first item in the grid as the last.
 grid.move(0, -1);
 
 // Swap positions of elemA and elemB.
-grid.move(elemA, elemB, 'swap');
+grid.move(elemA, elemB, {action: 'swap'});
 
 // Swap positions of the first and the last item.
-grid.move(0, -1, 'swap');
+grid.move(0, -1, {action: 'swap'});
 ```
 
-### grid.send( item, grid, [options] )
+### grid.send( item, grid, position, [options] )
 
-Send an item into another grid.
+Move an item into another grid.
 
 **Parameters**
 
 * **item** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
-  * DOM element or `Muuri.Item` instance or index of the item.
+  * The item that should be moved. You can define the item with an item instance, element or index.
 * **grid** &nbsp;&mdash;&nbsp; *Muuri*
-  * The grid where the item should be sent to.
-* **options** &nbsp;&mdash;&nbsp; *object*
-  * **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
-    * To which position (index/element/item) should the item be positioned in the new grid?
-    * Default value: `0`.
-  * **appendTo** &nbsp;&mdash;&nbsp; *element*
-    * To which element should the item's element be appended to for the duration of the send animation?
-    * Default value: `document.body`.
-  * **instant** &nbsp;&mdash;&nbsp; *boolean*
-    * Should the item be sent instantly without any possible animation?
-    * Default value: `false`.
+  * The grid where the item should be moved to.
+* **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
+  * To which position should the item be placed to in the new grid? You can define the position with an item instance, element or index.
+* **options.appendTo** &nbsp;&mdash;&nbsp; *element*
+  * To which element should the item's element be appended to for the duration of the send animation?
+  * Default value: `document.body`.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method, for both grids. With this argument you can control the layout calls. You can disable the layouts completely with `false`, or provide a callback function for the layout methods, or provide the string `'instant'` to make the layouts happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
 
 **Examples**
 
 ```javascript
 // Move the first item of gridA as the last item of gridB.
-gridA.send(0, gridB, {
-  position: -1
+gridA.send(0, gridB, -1);
+
+// Move the first item of gridA as the last item of gridB.
+gridA.send(0, gridB, -1 {
+  appendTo: someElem
 });
 ```
 
@@ -1090,14 +1128,24 @@ muuri
 .off('layoutEnd', listener);
 ```
 
-### grid.destroy()
+### grid.destroy( [removeElements] )
 
-Destroy the instance.
+Destroy the grid instance.
+
+**Parameters**
+
+* **removeElements** &nbsp;&mdash;&nbsp; *boolean*
+  * Should the item elements be removed or not?
+  * Default value: `false`.
+  * Optional.
 
 **Examples**
 
 ```javascript
+// Destroy the instance.
 grid.destroy();
+// Destroy the instance and remove item elements.
+grid.destroy(true);
 ```
 
 ## Item methods
@@ -1283,7 +1331,7 @@ var isMigrating = item.isMigrating();
 
 ### synchronize
 
-Triggered when the `grid.synchronize()` is called.
+Triggered after `grid.synchronize()` is called.
 
 **Examples**
 
@@ -1295,12 +1343,12 @@ grid.on('synchronize', function () {
 
 ### layoutStart
 
-Triggered when `grid.layout()` method is called, just before the items are positioned.
+Triggered after `grid.layout()` is called, just before the items are positioned.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that are about to be positioned.
+  * The items that are about to be positioned.
 
 **Examples**
 
@@ -1312,12 +1360,12 @@ grid.on('layoutStart', function (items) {
 
 ### layoutEnd
 
-Triggered when `grid.layout()` method is called, after the items have positioned.
+Triggered after `grid.layout()` is called, after the items have positioned.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully positioned.
+  * The items that were succesfully positioned.
 
 **Examples**
 
@@ -1329,12 +1377,12 @@ grid.on('layoutEnd', function (items) {
 
 ### add
 
-Triggered when `grid.add()` method is called.
+Triggered after `grid.add()` is called.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully added to the muuri instance.
+  * The items that were succesfully added.
 
 **Examples**
 
@@ -1346,12 +1394,12 @@ grid.on('add', function (items) {
 
 ### remove
 
-Triggered when `grid.remove()` method is called.
+Triggered after `grid.remove()` is called.
 
 **Arguments**
 
 * **indices** &nbsp;&mdash;&nbsp; *array*
-  * Indices of the `Muuri.Item` instances that were succesfully removed from the muuri instance.
+  * Indices of the items that were succesfully removed.
 
 **Examples**
 
@@ -1363,12 +1411,12 @@ grid.on('remove', function (indices) {
 
 ### showStart
 
-Triggered when `grid.show()` method is called, just before the items are shown (with or without animation).
+Triggered after `grid.show()` is called, just before the items are shown.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that are about to be shown.
+  * The items that are about to be shown.
 
 **Examples**
 
@@ -1380,12 +1428,12 @@ grid.on('showStart', function (items) {
 
 ### showEnd
 
-Triggered when `grid.show()` method is called, after the items are shown (with or without animation).
+Triggered after `grid.show()` is called, after the items are shown.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully shown without interruptions. If an item is already visible when the `grid.show()` method is called it is cosidered as successfully shown.
+  * The items that were succesfully shown without interruptions. If an item is already visible when `grid.show()` is called it is cosidered shown successfully.
 
 **Examples**
 
@@ -1397,12 +1445,12 @@ grid.on('showEnd', function (items) {
 
 ### hideStart
 
-Triggered when `grid.hide()` method is called, just before the items are hidden (with or without animation).
+Triggered after `grid.hide()` is called, just before the items are hidden.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that are about to be hidden.
+  * The items that are about to be hidden.
 
 **Examples**
 
@@ -1414,12 +1462,12 @@ grid.on('hideStart', function (items) {
 
 ### hideEnd
 
-Triggered when `grid.hide()` method is called, after the items are hidden (with or without animation).
+Triggered after `grid.hide()` is called, after the items are hidden (with or without animation).
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully hidden without interruptions. If an item is already hidden when the `grid.hide()` method is called it is considered as successfully hidden.
+  * The items that were succesfully hidden without interruptions. If an item is already hidden when `grid.hide()` is called it is considered successfully hidden.
 
 **Examples**
 
@@ -1431,47 +1479,47 @@ grid.on('hideEnd', function (items) {
 
 ### filter
 
-Triggered when `grid.filter()` method is called.
+Triggered after `grid.filter()` is called.
 
 **Arguments**
 
-* **itemsToShow** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that are shown.
-* **itemsToHide** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that are hidden.
+* **visibleItems** &nbsp;&mdash;&nbsp; *array*
+  * The items that were shown.
+* **hiddenItems** &nbsp;&mdash;&nbsp; *array*
+  * The items that were hidden.
 
 **Examples**
 
 ```javascript
-grid.on('filter', function (itemsToShow, itemsToHide) {
-  console.log(itemsToShow);
-  console.log(itemsToHide);
+grid.on('filter', function (visibleItems, hiddenItems) {
+  console.log(visibleItems);
+  console.log(hiddenItems);
 });
 ```
 
 ### sort
 
-Triggered when `grid.sort()` method is called.
+Triggered after `grid.sort()` is called.
 
 **Arguments**
 
-* **itemsCurrent** &nbsp;&mdash;&nbsp; *array*
-  * An array of all the items in their current order.
-* **itemsBefore** &nbsp;&mdash;&nbsp; *array*
-  * An array of all the items in their previous order.
+* **currentOrder** &nbsp;&mdash;&nbsp; *array*
+  * All items in their current order.
+* **previousOrder** &nbsp;&mdash;&nbsp; *array*
+  * All items in their previous order.
 
 **Examples**
 
 ```javascript
-grid.on('sort', function (itemsCurrent, itemsBefore) {
-  console.log(itemsCurrent);
-  console.log(itemsBefore);
+grid.on('sort', function (currentOrder, previousOrder) {
+  console.log(currentOrder);
+  console.log(previousOrder);
 });
 ```
 
 ### move
 
-Triggered when `grid.move()` method is called.
+Triggered after `grid.move()` is called.
 
 **Arguments**
 
@@ -1495,7 +1543,7 @@ grid.on('move', function (data) {
 
 ### send
 
-Triggered for the originating grid after `grid.send()` method is called.
+Triggered after `grid.send()` is called. Triggered for the originating grid.
 
 **Arguments**
 
@@ -1519,7 +1567,7 @@ grid.on('send', function (data) {
 
 ### receiveStart
 
-Triggered for the receiving grid after `grid.send()` method is called.
+Triggered after `grid.send()` is called. Triggered for the receiving grid.
 
 **Arguments**
 
@@ -1543,7 +1591,7 @@ grid.on('receiveStart', function (data) {
 
 ### receiveEnd
 
-Triggered for the receiving grid after `grid.send()` method is called and after the item has animated to the new position.
+Triggered after `grid.send()` is called and after the item has animated to the new position. Triggered for the receiving grid.
 
 **Arguments**
 
@@ -1628,7 +1676,7 @@ grid.on('dragScroll', function (event, item) {
 
 ### dragSort
 
-Triggered when the grid is sorted during drag. Note that this has nothing to do with the `grid.sort()` method and won't be triggered when the `.sort()` method called. This is specifically triggered when the dragging causes the sorting. Additionally, this is only triggered when the sorting happens within the current grid, not when an item is dragged into another grid.
+Triggered when the grid is sorted during drag. Note that this event is not triggered when `grid.sort()` called. This is specifically triggered when the dragging causes the sorting. Additionally, this is only triggered when the sorting happens within the current grid, not when an item is dragged into another grid.
 
 **Arguments**
 
@@ -1655,7 +1703,7 @@ grid.on('dragSort', function (event, data) {
 
 ### dragSend
 
-Triggered for the sending grid when an item is dragged into another grid.
+Triggered when an item is dragged into another grid. Triggered for the originating grid.
 
 **Arguments**
 
@@ -1682,7 +1730,7 @@ grid.on('dragSend', function (event, data) {
 
 ### dragReceive
 
-Triggered for the receiving grid when an item is dragged into another grid.
+Triggered when an item is dragged into another grid. Triggered for the grid that receives the item.
 
 **Arguments**
 
@@ -1709,7 +1757,7 @@ grid.on('dragReceive', function (event, data) {
 
 ### dragReceiveDrop
 
-Triggered for the receiving grid when an item is dropped into another grid.
+Triggered when an item is dropped into another grid. Triggered for the grid that receives the item.
 
 **Arguments**
 
@@ -1729,7 +1777,7 @@ grid.on('dragReceiveDrop', function (event, item) {
 
 ### dragEnd
 
-Triggered after item dragging ends.
+Triggered when dragging of an item ends.
 
 **Arguments**
 
@@ -1749,7 +1797,7 @@ grid.on('dragEnd', function (event, item) {
 
 ### dragReleaseStart
 
-Triggered when item is released (right after dragging ends).
+Triggered when a dragged item is released.
 
 **Arguments**
 
@@ -1766,7 +1814,7 @@ grid.on('dragReleaseStart', function (item) {
 
 ### dragReleaseEnd
 
-Triggered after item has been released and animated back to it's position.
+Triggered after released item has been animated to position.
 
 **Arguments**
 
@@ -1783,7 +1831,7 @@ grid.on('dragReleaseEnd', function (item) {
 
 ### destroy
 
-Triggered after `grid.destroy()` method is called.
+Triggered after `grid.destroy()` is called.
 
 **Examples**
 

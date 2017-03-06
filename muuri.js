@@ -80,6 +80,9 @@ TODO v0.3.0
       not having it is a major annoyance when draggin from a grid to another.
       Imagine a big grid with one item, and you're forced to drag over the
       item... :(
+* [ ] Add container offset diff mechanism to the item itself so it can be
+      utilized by drag and migrate operations. Just to keep the code DRY and
+      clearer.
 * [ ] Layout system optimizations:
       * [ ] Optimize the current system to work faster if all items are the same
             size.
@@ -3308,6 +3311,12 @@ TODO v0.3.0
 
     var drag = item._drag;
     var rootGrid = drag._getGrid();
+    // TODO:
+    // Should this config be fetched from the current grid instead of the root
+    // grid? Note that there is a chance that the drag is disabled in the
+    // current grid, but this still has to work. Also note that the target
+    // drag sort predicate can be a function... damn. This is a hard call. Maybe
+    // this is ok as is.
     var config = rootGrid._settings.dragSortPredicate || {};
     var grids = rootGrid._getSortConnections(true);
     var itemRect = {
@@ -3361,7 +3370,7 @@ TODO v0.3.0
       return false;
     }
 
-    // Get the target grid and its's items.
+    // Get the target grid and its's active items.
     toGrid = grids[matchIndex];
     toGridItems = toGrid._items;
 
@@ -3414,9 +3423,9 @@ TODO v0.3.0
 
     }
 
-    // Otherwise if the target grid is empty compare the dragged item against
-    // the grid's container element.
-    else {
+    // If the target grid does not have any active items compare the dragged
+    // item against the grid's container element.
+    if (matchScore === null) {
       matchIndex = 0;
       matchScore = getOverlapScore(itemRect, {
         width: toGrid._width,

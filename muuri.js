@@ -88,6 +88,7 @@ TODO v0.3.0
             size.
       * [ ] Don't call layout if nothing has changed. Create a system for
             checking this. Try to keep it fast, just a simple dirty check.
+      * [ ] Allow defining "stamps" (holes) in the layout.
 * [ ] Streamline codebase by trying to combine similar functions and methods
       into smaller reusable functions. Goal is less than 10kb when minified and
       gzipped.
@@ -3310,6 +3311,8 @@ TODO v0.3.0
   Drag.defaultSortPredicate = function (item) {
 
     var drag = item._drag;
+    var dragData = drag._dragData;
+    var dragAngle = dragData.currentEvent.angle;
     var rootGrid = drag._getGrid();
     // TODO:
     // Should this config be fetched from the current grid instead of the root
@@ -3318,22 +3321,34 @@ TODO v0.3.0
     // drag sort predicate can be a function... damn. This is a hard call. Maybe
     // this is ok as is.
     var config = rootGrid._settings.dragSortPredicate || {};
+    var sortThreshold = config.threshold || 50;
+    var sortAction = config.action || 'move';
     var grids = rootGrid._getSortConnections(true);
     var itemRect = {
       width: item._width,
       height: item._height,
-      left: Math.round(drag._dragData.elementClientX),
-      top: Math.round(drag._dragData.elementClientY)
+      left: Math.round(dragData.elementClientX),
+      top: Math.round(dragData.elementClientY)
     };
     var containerOffsetLeft = 0;
     var containerOffsetTop = 0;
     var matchScore = null;
     var matchIndex;
-    var overlapScore;
-    var toGrid;
-    var toGridItems;
-    var toGridItem;
+    var currentScore = null;
+    var currentIndex;
+    var currentAngle;
+    var isMatch = function () {
+      return matchScore !== null && matchScore >= sortThreshold;
+    };
     var grid;
+    var gridScore;
+    var targetItems;
+    var targetItem;
+    var targetAngle;
+    var targetScore;
+    var targetRect;
+    var hasActiveItems;
+    var isApproaching;
     var i;
 
     // First step is checking out which grid's container element the dragged
@@ -3348,7 +3363,7 @@ TODO v0.3.0
       grid.updateDimensions('grid', 'offset');
 
       // Check how much dragged element overlaps the container element.
-      overlapScore = getOverlapScore(itemRect, {
+      gridScore = getOverlapScore(itemRect, {
         width: grid._width,
         height: grid._height,
         left: grid._offset.left,
@@ -3357,90 +3372,110 @@ TODO v0.3.0
 
       // Update best match if the overlap score is higher than the current
       // match.
-      if (matchScore === null || overlapScore > matchScore) {
-        matchScore = overlapScore;
+      if (matchScore === null || gridScore > matchScore) {
+        matchScore = gridScore;
         matchIndex = i;
       }
 
     }
 
-    // If we found no grid container element that overlaps the dragged item,
-    // return false immediately to indicate that no sorting should occur.
-    if (!matchScore) {
+    // Return early if we found no grid container element that overlaps the
+    // dragged item enough.
+    if (!isMatch()) {
       return false;
     }
 
     // Get the target grid and its's active items.
-    toGrid = grids[matchIndex];
-    toGridItems = toGrid._items;
+    grid = grids[matchIndex];
+    targetItems = grid._items;
 
     // If item is moved within it's originating grid adjust item's left and top
-    // props.
-    if (toGrid === rootGrid) {
-      itemRect.left = Math.round(drag._dragData.gridX) + item._margin.left;
-      itemRect.top = Math.round(drag._dragData.gridY) + item._margin.top;
+    // props. Otherwise if item is moved to/within another grid get the
+    // container element's offset (from the element's content edge).
+    if (grid === rootGrid) {
+      itemRect.left = Math.round(dragData.gridX) + item._margin.left;
+      itemRect.top = Math.round(dragData.gridY) + item._margin.top;
     }
-
-    // If item is moved to/within another grid get the container element's
-    // offset (from the element's content edge).
     else {
-      containerOffsetLeft = toGrid._offset.left + toGrid._border.left + toGrid._padding.left;
-      containerOffsetTop = toGrid._offset.top + toGrid._border.top + toGrid._padding.top;
+      containerOffsetLeft = grid._offset.left + grid._border.left + grid._padding.left;
+      containerOffsetTop = grid._offset.top + grid._border.top + grid._padding.top;
     }
 
     // Reset the best match variables.
     matchIndex = matchScore = null;
 
-    // If the target grid has items.
-    if (toGridItems.length) {
+    // Loop through the items and try to find a match.
+    for (i = 0; i < targetItems.length; i++) {
 
-      // Loop through the items and try to find a match.
-      for (i = 0; i < toGridItems.length; i++) {
+      targetItem = targetItems[i];
 
-        toGridItem = toGridItems[i];
+      // Mark grid as having active items.
+      if (!hasActiveItems && targetItem._isActive) {
+        hasActiveItems = true;
+      }
 
-        // If the item is active and is not the target item.
-        if (toGridItem._isActive && toGridItem !== item) {
+      // If the item is not active let's skip to the next one.
+      if (!targetItem._isActive) {
+        continue;
+      }
 
-          // Get overlap data.
-          overlapScore = getOverlapScore(itemRect, {
-            width: toGridItem._width,
-            height: toGridItem._height,
-            left: Math.round(toGridItem._left) + toGridItem._margin.left + containerOffsetLeft,
-            top: Math.round(toGridItem._top) + toGridItem._margin.top + containerOffsetTop
-          });
+      // Calculate target rect, angle and overlap score.
+      targetRect = {
+        width: targetItem._width,
+        height: targetItem._height,
+        left: Math.round(targetItem._left) + targetItem._margin.left + containerOffsetLeft,
+        top: Math.round(targetItem._top) + targetItem._margin.top + containerOffsetTop
+      };
+      targetAngle = getAngle(itemRect, targetRect);
+      // TODO: Allow customizing this value.
+      isApproaching = (180 - Math.abs(Math.abs(dragAngle - targetAngle) - 180)) <= 150;
 
-          // Update best match if the overlap score is higher than the current
-          // best match.
-          if (matchScore === null || overlapScore > matchScore) {
-            matchScore = overlapScore;
-            matchIndex = i;
-          }
+      // If the item is the target item, let's store the data and skip to the
+      // next item.
+      if (targetItem === item) {
+        currentIndex = i;
+        currentScore = getOverlapScore(itemRect, targetRect);
+        currentAngle = targetAngle;
+        continue;
+      }
 
-        }
+      // If the dragged item is not approaching the item, continue to the next
+      // item.
+      if (!isApproaching) {
+        continue;
+      }
 
+      // Update best match if the overlap score is higher than the current
+      // best match.
+      targetScore = getOverlapScore(itemRect, targetRect);
+      if (matchScore === null || targetScore > matchScore) {
+        matchIndex = i;
+        matchScore = targetScore;
       }
 
     }
 
-    // If the target grid does not have any active items compare the dragged
-    // item against the grid's container element.
-    if (matchScore === null) {
+    // If the target grid does not have any active items let's set the dragged
+    // item as the grid's first item.
+    if (!hasActiveItems) {
       matchIndex = 0;
-      matchScore = getOverlapScore(itemRect, {
-        width: toGrid._width,
-        height: toGrid._height,
-        left: toGrid._offset.left,
-        top: toGrid._offset.top
-      });
+      matchScore = Infinity;
+    }
+
+    // If the grid has active items, but there are no matches, let's see if the
+    // item could be dropped on a gap.
+    else if (!isMatch() && (!currentScore || currentScore < sortThreshold)) {
+      // TODO: Somehow measure here if the overlappign empty space exceeds the
+      // sort threshold and find an intuitive index for the gap.
+      console.log('foo');
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
-    if (matchScore !== null && matchScore >= (config.threshold || 50)) {
+    if (isMatch()) {
       return {
-        grid: toGrid,
+        grid: grid,
         index: matchIndex,
-        action: config.action || 'move'
+        action: sortAction
       };
     }
 
@@ -4353,6 +4388,27 @@ TODO v0.3.0
    * Helpers - Generic
    * *****************
    */
+
+  /**
+   * Calculate and return the angle between the center points of two rects
+   * (in degrees). Possible values are between 0 and 360 (or actually 0 is 360).
+   *
+   * @private
+   * @param {Object} rectFrom
+   * @param {Object} rectTo
+   * @return {Number}
+   */
+  function getAngle(rectFrom, rectTo) {
+
+    var fromX = rectFrom.left + (rectFrom.width / 2);
+    var fromY = rectFrom.top + (rectFrom.height / 2);
+    var toX = rectTo.left + (rectTo.width / 2);
+    var toY = rectTo.top + (rectTo.height / 2);
+    var angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
+
+    return angle;
+
+  }
 
   /**
    * Normalize array index. Basically this function makes sure that the provided
@@ -5516,6 +5572,34 @@ TODO v0.3.0
     var maxHeight = Math.min(a.height, b.height);
 
     return (width * height) / (maxWidth * maxHeight) * 100;
+
+  }
+
+  /**
+   * Calculate and return dragged item's index.
+   *
+   * @private
+   * @param {Muuri} inst
+   * @param {item} b
+   * @return {Number}
+   */
+  function getDraggedItemIndex(inst, item) {
+
+    var items = inst.getItems('active');
+    var targetItems = items.sort(function (a, b) {
+      return (a._top - b._top) || (a._left - b._left);
+    });
+    var targetItem;
+    var i;
+
+    for (i = 0; i < targetItems.length; i++) {
+      targetItem = targetItems[i];
+      if (targetItem._top >= item._top && targetItem._left >= item._left) {
+        break;
+      }
+    }
+
+    return inst._items.indexOf(targetItem);
 
   }
 

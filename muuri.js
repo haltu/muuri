@@ -3128,7 +3128,6 @@ TODO v0.3.0
     var matchScore = null;
     var matchIndex;
     var currentScore = null;
-    var currentIndex;
     var isMatch = function () {
       return matchScore !== null && matchScore >= sortThreshold;
     };
@@ -3238,7 +3237,6 @@ TODO v0.3.0
       // If the item is the target item, let's store the data and skip to the
       // next item.
       if (targetItem === item) {
-        currentIndex = i;
         currentScore = targetScore;
         continue;
       }
@@ -3274,8 +3272,11 @@ TODO v0.3.0
           left: containerOffsetLeft,
           top: containerOffsetTop
         });
-        // TODO: Get the index of the item that's visually before the gap.
-        console.log(theGap);
+        // TODO: Check if the gap is big enough (user provided threshold).
+        if ((theGap.width * theGap.height) > ((itemRect.width * itemRect.height) * 0.5)) {
+          // TODO: Get the index of the item that's visually before the gap.
+          console.log(theGap);
+        }
       }
     }
 
@@ -4967,7 +4968,7 @@ TODO v0.3.0
    */
   function doRectsOverlap(a, b) {
 
-    return !((a.left + a.width) <= b.left || (b.left + b.width) <= a.left || (a.top + a.height) <= b.top  || (b.top + b.height) <= a.top);
+    return !((a.left + a.width) <= b.left || (b.left + b.width) <= a.left || (a.top + a.height) <= b.top || (b.top + b.height) <= a.top);
 
   }
 

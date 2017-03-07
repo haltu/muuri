@@ -416,7 +416,7 @@ TODO v0.3.0
     dragContainer: null,
     dragStartPredicate: null,
     dragSort: true,
-    dragSortInterval: 50,
+    dragSortInterval: 100,
     dragSortPredicate: {
       threshold: 50,
       action: 'move'
@@ -1594,59 +1594,6 @@ TODO v0.3.0
   };
 
   /**
-   * Grid - Type defintions
-   * **********************
-   */
-
-  /**
-   * The grid's width, height, padding and border dimensions.
-   *
-   * @typedef {Object} GridDimensions
-   * @property {Number} width
-   * @property {Number} height
-   * @property {Object} padding
-   * @property {Number} padding.left
-   * @property {Number} padding.right
-   * @property {Number} padding.top
-   * @property {Number} padding.bottom
-   * @property {Object} border
-   * @property {Number} border.left
-   * @property {Number} border.right
-   * @property {Number} border.top
-   * @property {Number} border.bottom
-   */
-
-  /**
-   * The values by which multiple grid items can be queried. An html element or
-   * an array of HTML elements. Item or an array of items. Node list, live or
-   * static. Number (index) or a list of numbers (indices).
-   *
-   * @typedef {(HTMLElement|HTMLElement[]|Item|Item[]|NodeList|Number|Number[])} GridMultiItemQuery
-   */
-
-  /**
-   * The values by which a single grid item can be queried. An html element, an
-   * item instance or a number (index).
-   *
-   * @typedef {(HTMLElement|Item|Number)} GridSingleItemQuery
-   */
-
-  /**
-   * The grid item's state, a string. Accepted values are: "active", "inactive",
-   * "visible", "hidden", "showing", "hiding", "positioning", "dragging",
-   * "releasing" and "migrating".
-   *
-   * @typedef {String} GridItemState
-   */
-
-  /**
-   * Grid element's cached dimensions. Accepted values are: "width", "height",
-   * "offset", "padding", "border", "box-sizing".
-   *
-   * @typedef {(String|String[])} GridDimensionQuery
-   */
-
-  /**
    * Item
    * ****
    */
@@ -2751,7 +2698,7 @@ TODO v0.3.0
     // overlap with the item. If an old slot overlaps with the item, split it
     // into smaller slots if necessary.
     for (i = fillGaps ? 0 : ignoreCurrentSlots ? currentSlots.length : i; i < currentSlots.length; i++) {
-      potentialSlots = layoutFirstFit.splitRect(currentSlots[i], item);
+      potentialSlots = splitRectWithRect(currentSlots[i], item);
       for (ii = 0; ii < potentialSlots.length; ii++) {
         slot = potentialSlots[ii];
         if (slot.width > 0 && slot.height > 0 && ((vertical && slot.top < layout.height) || (!vertical && slot.left < layout.width))) {
@@ -2760,165 +2707,11 @@ TODO v0.3.0
       }
     }
 
-    // Remove redundant slots and sort the new slots.
-    layoutFirstFit.purgeSlots(newSlots).sort(vertical ? layoutFirstFit.sortRectsTopLeft : layoutFirstFit.sortRectsLeftTop);
-
-    // Update the slots data.
-    slots[0] = newSlots;
+    // Remove redundant slots, sort the slots and update the slots data.
+    slots[0] = purgeRects(newSlots).sort(vertical ? sortRectsTopLeft : sortRectsLeftTop);
 
     // Return the item.
     return item;
-
-  };
-
-  /**
-   * Sort rectangles with top-left gravity. Assumes that objects with
-   * properties left, top, width and height are being sorted.
-   *
-   * @private
-   * @memberof layoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   */
-  layoutFirstFit.sortRectsTopLeft = function (a, b) {
-
-    return a.top < b.top ? -1 : (a.top > b.top ? 1 : (a.left < b.left ? -1 : (a.left > b.left ? 1 : 0)));
-
-  };
-
-  /**
-   * Sort rectangles with left-top gravity. Assumes that objects with
-   * properties left, top, width and height are being sorted.
-   *
-   * @private
-   * @memberof layoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   */
-  layoutFirstFit.sortRectsLeftTop = function (a, b) {
-
-    return a.left < b.left ? -1 : (a.left > b.left ? 1 : (a.top < b.top ? -1 : (a.top > b.top ? 1 : 0)));
-
-  };
-
-  /**
-   * Check if a rectabgle is fully within another rectangle. Assumes that the
-   * rectangle object has the following properties: left, top, width and height.
-   *
-   * @private
-   * @memberof layoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Boolean}
-   */
-  layoutFirstFit.isRectWithinRect = function (a, b) {
-
-    return a.left >= b.left && a.top >= b.top && (a.left + a.width) <= (b.left + b.width) && (a.top + a.height) <= (b.top + b.height);
-
-  };
-
-  /**
-   * Loops through an array of slots and removes all slots that are fully within
-   * another slot in the array.
-   *
-   * @private
-   * @memberof layoutFirstFit
-   * @param {Array} slots
-   */
-  layoutFirstFit.purgeSlots = function (slots) {
-
-    var i = slots.length;
-    var ii;
-    var slotA;
-    var slotB;
-
-    while (i--) {
-      slotA = slots[i];
-      ii = slots.length;
-      while (ii--) {
-        slotB = slots[ii];
-        if (i !== ii && layoutFirstFit.isRectWithinRect(slotA, slotB)) {
-          slots.splice(i, 1);
-          break;
-        }
-      }
-    }
-
-    return slots;
-
-  };
-
-  /**
-   * Compares a rectangle to another and splits it to smaller pieces (the parts
-   * that exceed the other rectangles edges). At maximum generates four smaller
-   * rectangles.
-   *
-   * @private
-   * @memberof layoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * returns {Array}
-   */
-  layoutFirstFit.splitRect = function (a, b) {
-
-    var ret = [];
-    var overlap = !(b.left > (a.left + a.width) || (b.left + b.width) < a.left || b.top > (a.top + a.height) || (b.top + b.height) < a.top);
-
-    // If rect a does not overlap with rect b add rect a to the return data as
-    // is.
-    if (!overlap) {
-      ret[0] = a;
-    }
-
-    // If rect a overlaps with rect b split rect a into smaller rectangles and
-    // add them to the return data.
-    else {
-
-      // Left split.
-      if (a.left < b.left) {
-        ret[ret.length] = {
-          left: a.left,
-          top: a.top,
-          width: b.left - a.left,
-          height: a.height
-        };
-      }
-
-      // Right split.
-      if ((a.left + a.width) > (b.left + b.width)) {
-        ret[ret.length] = {
-          left: b.left + b.width,
-          top: a.top,
-          width: (a.left + a.width) - (b.left + b.width),
-          height: a.height
-        };
-      }
-
-      // Top split.
-      if (a.top < b.top) {
-        ret[ret.length] = {
-          left: a.left,
-          top: a.top,
-          width: a.width,
-          height: b.top - a.top
-        };
-      }
-
-      // Bottom split.
-      if ((a.top + a.height) > (b.top + b.height)) {
-        ret[ret.length] = {
-          left: a.left,
-          top: b.top + b.height,
-          width: a.width,
-          height: (a.top + a.height) - (b.top + b.height)
-        };
-      }
-
-    }
-
-    return ret;
 
   };
 
@@ -3312,7 +3105,6 @@ TODO v0.3.0
 
     var drag = item._drag;
     var dragData = drag._dragData;
-    var dragAngle = dragData.currentEvent.angle;
     var rootGrid = drag._getGrid();
     // TODO:
     // Should this config be fetched from the current grid instead of the root
@@ -3330,25 +3122,29 @@ TODO v0.3.0
       left: Math.round(dragData.elementClientX),
       top: Math.round(dragData.elementClientY)
     };
+    var overlappingRects = [];
     var containerOffsetLeft = 0;
     var containerOffsetTop = 0;
     var matchScore = null;
     var matchIndex;
     var currentScore = null;
     var currentIndex;
-    var currentAngle;
     var isMatch = function () {
       return matchScore !== null && matchScore >= sortThreshold;
     };
     var grid;
     var gridScore;
+    var targetGrid;
     var targetItems;
     var targetItem;
-    var targetAngle;
-    var targetScore;
     var targetRect;
+    var targetScore;
     var hasActiveItems;
-    var isApproaching;
+    var theGap;
+    var padding;
+    var border;
+    var margin;
+    var offset;
     var i;
 
     // First step is checking out which grid's container element the dragged
@@ -3363,18 +3159,19 @@ TODO v0.3.0
       grid.updateDimensions('grid', 'offset');
 
       // Check how much dragged element overlaps the container element.
-      gridScore = getOverlapScore(itemRect, {
+      offset = grid._offset;
+      gridScore = getRectOverlapScore(itemRect, {
         width: grid._width,
         height: grid._height,
-        left: grid._offset.left,
-        top: grid._offset.top
+        left: offset.left,
+        top: offset.top
       });
 
       // Update best match if the overlap score is higher than the current
       // match.
       if (matchScore === null || gridScore > matchScore) {
-        matchScore = gridScore;
         matchIndex = i;
+        matchScore = gridScore;
       }
 
     }
@@ -3385,20 +3182,24 @@ TODO v0.3.0
       return false;
     }
 
-    // Get the target grid and its's active items.
-    grid = grids[matchIndex];
-    targetItems = grid._items;
+    // Get the target grid, it's rect data and its's active items.
+    targetGrid = grids[matchIndex];
+    targetItems = targetGrid._items;
 
     // If item is moved within it's originating grid adjust item's left and top
     // props. Otherwise if item is moved to/within another grid get the
     // container element's offset (from the element's content edge).
-    if (grid === rootGrid) {
-      itemRect.left = Math.round(dragData.gridX) + item._margin.left;
-      itemRect.top = Math.round(dragData.gridY) + item._margin.top;
+    if (targetGrid === rootGrid) {
+      margin = item._margin;
+      itemRect.left = Math.round(dragData.gridX) + margin.left;
+      itemRect.top = Math.round(dragData.gridY) + margin.top;
     }
     else {
-      containerOffsetLeft = grid._offset.left + grid._border.left + grid._padding.left;
-      containerOffsetTop = grid._offset.top + grid._border.top + grid._padding.top;
+      offset = targetGrid._offset;
+      border = targetGrid._border;
+      padding = targetGrid._padding;
+      containerOffsetLeft = offset.left + border.left + padding.left;
+      containerOffsetTop = offset.top + border.top + padding.top;
     }
 
     // Reset the best match variables.
@@ -3420,34 +3221,30 @@ TODO v0.3.0
       }
 
       // Calculate target rect, angle and overlap score.
+      margin = targetItem._margin;
       targetRect = {
         width: targetItem._width,
         height: targetItem._height,
-        left: Math.round(targetItem._left) + targetItem._margin.left + containerOffsetLeft,
-        top: Math.round(targetItem._top) + targetItem._margin.top + containerOffsetTop
+        left: Math.round(targetItem._left) + margin.left + containerOffsetLeft,
+        top: Math.round(targetItem._top) + margin.top + containerOffsetTop
       };
-      targetAngle = getAngle(itemRect, targetRect);
-      // TODO: Allow customizing this value.
-      isApproaching = (180 - Math.abs(Math.abs(dragAngle - targetAngle) - 180)) <= 150;
+      targetScore = getRectOverlapScore(itemRect, targetRect);
+
+      // Add target item to overlapping items if it overlaps the dragged item.
+      if (targetScore > 0) {
+        overlappingRects.push(targetRect);
+      }
 
       // If the item is the target item, let's store the data and skip to the
       // next item.
       if (targetItem === item) {
         currentIndex = i;
-        currentScore = getOverlapScore(itemRect, targetRect);
-        currentAngle = targetAngle;
-        continue;
-      }
-
-      // If the dragged item is not approaching the item, continue to the next
-      // item.
-      if (!isApproaching) {
+        currentScore = targetScore;
         continue;
       }
 
       // Update best match if the overlap score is higher than the current
       // best match.
-      targetScore = getOverlapScore(itemRect, targetRect);
       if (matchScore === null || targetScore > matchScore) {
         matchIndex = i;
         matchScore = targetScore;
@@ -3464,16 +3261,28 @@ TODO v0.3.0
 
     // If the grid has active items, but there are no matches, let's see if the
     // item could be dropped on a gap.
+    // TODO: Somehow measure here if the overlapping empty space exceeds the
+    // sort threshold and find an intuitive index for the gap.
     else if (!isMatch() && (!currentScore || currentScore < sortThreshold)) {
-      // TODO: Somehow measure here if the overlappign empty space exceeds the
-      // sort threshold and find an intuitive index for the gap.
-      console.log('foo');
+      theGap = getLargestRectSlice(itemRect, overlappingRects);
+      if (theGap) {
+        border = targetGrid._border;
+        padding = targetGrid._padding;
+        theGap = cropRect(theGap, {
+          width: targetGrid._width - padding.left - padding.right - border.left - border.right,
+          height: targetGrid._height - padding.top - padding.bottom - border.top - border.bottom,
+          left: containerOffsetLeft,
+          top: containerOffsetTop
+        });
+        // TODO: Get the index of the item that's visually before the gap.
+        console.log(theGap);
+      }
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
     if (isMatch()) {
       return {
-        grid: grid,
+        grid: targetGrid,
         index: matchIndex,
         action: sortAction
       };
@@ -4277,23 +4086,6 @@ TODO v0.3.0
   };
 
   /**
-   * Drag - Type definitions
-   * ***********************
-   */
-
-  /**
-   * The data that is required to orchestrate a sort action during drag.
-   *
-   * @typedef {Object} DragSortCommand
-   * @param {String} action
-   *   - "move" or "swap".
-   * @param {Number} index
-   *   - target index.
-   * @param {?Grid} [grid=null]
-   *   - target grid.
-   */
-
-  /**
    * Predicate
    * *********
    */
@@ -4388,27 +4180,6 @@ TODO v0.3.0
    * Helpers - Generic
    * *****************
    */
-
-  /**
-   * Calculate and return the angle between the center points of two rects
-   * (in degrees). Possible values are between 0 and 360 (or actually 0 is 360).
-   *
-   * @private
-   * @param {Object} rectFrom
-   * @param {Object} rectTo
-   * @return {Number}
-   */
-  function getAngle(rectFrom, rectTo) {
-
-    var fromX = rectFrom.left + (rectFrom.width / 2);
-    var fromY = rectFrom.top + (rectFrom.height / 2);
-    var toX = rectTo.left + (rectTo.width / 2);
-    var toY = rectTo.top + (rectTo.height / 2);
-    var angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
-
-    return angle;
-
-  }
 
   /**
    * Normalize array index. Basically this function makes sure that the provided
@@ -4583,63 +4354,6 @@ TODO v0.3.0
     });
 
     return target;
-
-  }
-
-  /**
-   * Sanitizes styles definition object within settings. Basically just removes
-   * all properties that have a value of null or undefined.
-   *
-   * @private
-   * @param {Object} styles
-   * @returns {Object} Returns a new object.
-   */
-  function sanitizeStyleSettings(styles) {
-
-    var ret = {};
-
-    Object.keys(styles).forEach(function (prop) {
-      var val = styles[prop];
-      if (val !== undefined && val !== null) {
-        ret[prop] = val;
-      }
-    });
-
-    return ret;
-
-  }
-
-  /**
-   * Merge default settings with user settings. The returned object is a new
-   * object with merged values. The merging is a deep merge meaning that all
-   * objects and arrays within the provided settings objects will be also merged
-   * so that modifying the values of the settings object will have no effect on
-   * the returned object.
-   *
-   * @private
-   * @param {Object} defaultSettings
-   * @param {Object} [userSettings]
-   * @returns {Object} Returns a new object.
-   */
-  function mergeSettings(defaultSettings, userSettings) {
-
-    // Create a fresh copy of default settings.
-    var ret = mergeObjects({}, defaultSettings);
-
-    // Merge user settings to default settings.
-    ret = userSettings ? mergeObjects(ret, userSettings) : ret;
-
-    // Sanitize show styles (if they exist).
-    if (ret.show && ret.show.styles) {
-      ret.show.styles = sanitizeStyleSettings(ret.show.styles);
-    }
-
-    // Sanitize hide styles (if they exist).
-    if (ret.hide && ret.hide.styles) {
-      ret.hide.styles = sanitizeStyleSettings(ret.hide.styles);
-    }
-
-    return ret;
 
   }
 
@@ -4928,11 +4642,6 @@ TODO v0.3.0
     };
 
   }
-
-  /**
-   * Helpers - Borrowed/forked from other libraries
-   * **********************************************
-   */
 
   /**
    * Get element's scroll parents.
@@ -5244,6 +4953,381 @@ TODO v0.3.0
   }
 
   /**
+   * Helpers - Rectangle utilities
+   * *****************************
+   */
+
+  /**
+   * Check if two rectangles overlap.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Boolean}
+   */
+  function doRectsOverlap(a, b) {
+
+    return !((a.left + a.width) <= b.left || (b.left + b.width) <= a.left || (a.top + a.height) <= b.top  || (b.top + b.height) <= a.top);
+
+  }
+
+  /**
+   * Sort rectangles with top-left gravity.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   */
+  function sortRectsTopLeft(a, b) {
+
+    return a.top - b.top || a.left - b.left;
+
+  }
+
+  /**
+   * Sort rectangles with left-top gravity.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   */
+  function sortRectsLeftTop(a, b) {
+
+    return a.left - b.left || a.top - b.top;
+
+  }
+
+  /**
+   * Check if a rectangle is fully within another rectangle.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Boolean}
+   */
+  function isRectWithinRect(a, b) {
+
+    return a.left >= b.left && a.top >= b.top && (a.left + a.width) <= (b.left + b.width) && (a.top + a.height) <= (b.top + b.height);
+
+  }
+
+  /**
+   * Punch a hole into a rectangle and split the remaining area into smaller
+   * rectangles (4 at max).
+   *
+   * @private
+   * @param {Rectangle} rect
+   * @param {Rectangle} hole
+   * returns {Rectangle[]}
+   */
+  function splitRectWithRect(rect, hole) {
+
+    var ret;
+
+    // If the rect does not overlap with the hole add rect to the return data as
+    // is.
+    if (!doRectsOverlap(rect, hole)) {
+      return [{
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height
+      }];
+    }
+
+    ret = [];
+
+    // Left split.
+    if (rect.left < hole.left) {
+      ret[ret.length] = {
+        left: rect.left,
+        top: rect.top,
+        width: hole.left - rect.left,
+        height: rect.height
+      };
+    }
+
+    // Right split.
+    if ((rect.left + rect.width) > (hole.left + hole.width)) {
+      ret[ret.length] = {
+        left: hole.left + hole.width,
+        top: rect.top,
+        width: (rect.left + rect.width) - (hole.left + hole.width),
+        height: rect.height
+      };
+    }
+
+    // Top split.
+    if (rect.top < hole.top) {
+      ret[ret.length] = {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: hole.top - rect.top
+      };
+    }
+
+    // Bottom split.
+    if ((rect.top + rect.height) > (hole.top + hole.height)) {
+      ret[ret.length] = {
+        left: rect.left,
+        top: hole.top + hole.height,
+        width: rect.width,
+        height: (rect.top + rect.height) - (hole.top + hole.height)
+      };
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Compare a rectangle to multiple other rectangles and split the first
+   * rectangle into smaller pieces.
+   *
+   * @private
+   * @param {Rectangle} rect
+   * @param {Rectangle[]} holes
+   * returns {Rectangle[]}
+   */
+  function splitRectWithRects(rect, holes) {
+
+    // If there are no holes, let's return the rect back as is.
+    if (!holes.length) {
+      return [rect];
+    }
+
+    var slices = splitRectWithRect(rect, holes[0]);
+    var tempSlices;
+    var i;
+    var ii;
+
+    // Slice and dice.
+    for (i = 1; i < holes.length; i++) {
+      tempSlices = [];
+      for (ii = 0; ii < slices.length; ii++) {
+        tempSlices = tempSlices.concat(splitRectWithRect(slices[ii], holes[i]));
+      }
+      slices = tempSlices;
+    }
+
+    return slices;
+
+  }
+
+  /**
+   * Compare a rectangle to multiple other rectangles and split the first
+   * rectangle into smaller pieces. Then filter out the largest piece and return
+   * it. Returns null if the holes cover the rect fully.
+   *
+   * @private
+   * @param {Rectangle} rect
+   * @param {Rectangle[]} holes
+   * returns {?Rectangle}
+   */
+  function getLargestRectSlice(rect, holes) {
+
+    var slices = splitRectWithRects(rect, holes);
+    var ret = slices[0] || null;
+    var i;
+
+    if (slices.length < 2) {
+      return ret;
+    }
+
+    for (i = 1; i < slices.length; i++) {
+      if ((slices[i].width * slices[i].height) > (ret.width * ret.height)) {
+        ret = slices[i];
+      }
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Compare a rectangle to another and make the first rectangle fit inside the
+   * other rectangle. Assumes that the rectangles are overlapping.
+   *
+   * @private
+   * @param {Rectangle} rect
+   * @param {Rectangle} crop
+   * returns {Rectangle}
+   */
+  function cropRect(rect, crop) {
+
+    var ret = {};
+
+    ret.left = Math.max(rect.left, crop.left);
+    ret.top = Math.max(rect.top, crop.top);
+    ret.width = Math.min(rect.left + rect.width, crop.left + crop.width) - ret.left;
+    ret.height = Math.min(rect.top + rect.height, crop.top + crop.height) - ret.top;
+
+    return ret;
+
+  }
+
+  /**
+   * Loops through an array of rectangles and removes all that are fully within
+   * another rectangle in the array.
+   *
+   * @private
+   * @param {Rectangle[]} rects
+   * @returns {Rectangle[]}
+   */
+  function purgeRects(rects) {
+
+    var i = rects.length;
+    var ii;
+    var rectA;
+    var rectB;
+
+    while (i--) {
+      rectA = rects[i];
+      ii = rects.length;
+      while (ii--) {
+        rectB = rects[ii];
+        if (i !== ii && isRectWithinRect(rectA, rectB)) {
+          rects.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    return rects;
+
+  }
+
+  /**
+   * Calculate how many percent the intersection area of two rectangles is from
+   * the maximum potential intersection area between the rectangles.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   *   - A number between 0-100.
+   */
+  function getRectOverlapScore(a, b) {
+
+    // Return 0 immediately if the rectangles do not overlap.
+    if (!doRectsOverlap(a, b)) {
+      return 0;
+    }
+
+    // Calculate inersection area width and height.
+    var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+    var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+
+    // Calculate maximum intersection area width and height.
+    var maxWidth = Math.min(a.width, b.width);
+    var maxHeight = Math.min(a.height, b.height);
+
+    return (width * height) / (maxWidth * maxHeight) * 100;
+
+  }
+
+  /**
+   * Helpers - Item sort utilities
+   * *****************************
+   */
+
+  /**
+   * Helper for the sort method to generate mapped version of the items array
+   * than contains reference to the item indices.
+   *
+   * @private
+   * @param {Item[]} items
+   * @returns {Object}
+   */
+  function getItemIndexMap(items) {
+
+    var ret = {};
+    var i;
+
+    for (i = 0; i < items.length; i++) {
+      ret[items[i]._id] = i;
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Helper for the sort method to compare the indices of the items to enforce
+   * stable sort.
+   *
+   * @private
+   * @param {Item} itemA
+   * @param {Item} itemB
+   * @param {Boolean} isDescending
+   * @param {Object} indexMap
+   * @returns {Number}
+   */
+  function compareItemIndices(itemA, itemB, isDescending, indexMap) {
+
+    var indexA = indexMap[itemA._id];
+    var indexB = indexMap[itemB._id];
+    return isDescending ? indexB - indexA : indexA - indexB;
+
+  }
+
+  /**
+   * Helper for the sort method to compare the items based on the provided
+   * attributes.
+   *
+   * @private
+   * @param {Item} itemA
+   * @param {Item} itemB
+   * @param {Boolean} isDescending
+   * @param {Object} criterias
+   * @returns {Number}
+   */
+  function compareItems(itemA, itemB, isDescending, criterias) {
+
+    var ret = 0;
+    var criteriaName;
+    var criteriaOrder;
+    var valA;
+    var valB;
+    var i;
+
+    // Loop through the list of sort criterias.
+    for (i = 0; i < criterias.length; i++) {
+
+      // Get the criteria name, which should match an item's sort data key.
+      criteriaName = criterias[i][0];
+      criteriaOrder = criterias[i][1];
+
+      // Get items' cached sort values for the criteria. If the item has no sort
+      // data let's update the items sort data (this is a lazy load mechanism).
+      valA = (itemA._sortData ? itemA : itemA._updateSortData())._sortData[criteriaName];
+      valB = (itemB._sortData ? itemB : itemB._updateSortData())._sortData[criteriaName];
+
+      // Sort the items in descending order if defined so explicitly.
+      if (criteriaOrder === 'desc' || (!criteriaOrder && isDescending)) {
+        ret = valB < valA ? -1 : valB > valA ? 1 : 0;
+      }
+
+      // Otherwise sort items in ascending order.
+      else {
+        ret = valA < valB ? -1 : valA > valB ? 1 : 0;
+      }
+
+      // If we have -1 or 1 as the return value, let's return it immediately.
+      if (ret !== 0) {
+        return ret;
+      }
+
+    }
+
+    return ret;
+
+  }
+
+  /**
    * Helpers - Muuri
    * ***************
    */
@@ -5547,63 +5631,6 @@ TODO v0.3.0
   }
 
   /**
-   * Calculate how many percent the intersection area of two items is from the
-   * maximum potential intersection area between the items.
-   *
-   * @private
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   *   - A number between 0-100.
-   */
-  function getOverlapScore(a, b) {
-
-    // Return 0 immediately if the rectangles do not overlap.
-    if ((a.left + a.width) <= b.left || (b.left + b.width) <= a.left || (a.top + a.height) <= b.top || (b.top + b.height) <= a.top) {
-      return 0;
-    }
-
-    // Calculate inersection area width and height.
-    var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
-    var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-
-    // Calculate maximum intersection area width and height.
-    var maxWidth = Math.min(a.width, b.width);
-    var maxHeight = Math.min(a.height, b.height);
-
-    return (width * height) / (maxWidth * maxHeight) * 100;
-
-  }
-
-  /**
-   * Calculate and return dragged item's index.
-   *
-   * @private
-   * @param {Muuri} inst
-   * @param {item} b
-   * @return {Number}
-   */
-  function getDraggedItemIndex(inst, item) {
-
-    var items = inst.getItems('active');
-    var targetItems = items.sort(function (a, b) {
-      return (a._top - b._top) || (a._left - b._left);
-    });
-    var targetItem;
-    var i;
-
-    for (i = 0; i < targetItems.length; i++) {
-      targetItem = targetItems[i];
-      if (targetItem._top >= item._top && targetItem._left >= item._left) {
-        break;
-      }
-    }
-
-    return inst._items.indexOf(targetItem);
-
-  }
-
-  /**
    * Check if item is in specific state.
    *
    * @private
@@ -5628,99 +5655,6 @@ TODO v0.3.0
   }
 
   /**
-   * Helper for the sort method to generate mapped version of the items array
-   * than contains reference to the item indices.
-   *
-   * @private
-   * @param {Item[]} items
-   * @returns {Object}
-   */
-  function getItemIndexMap(items) {
-
-    var ret = {};
-    var i;
-
-    for (i = 0; i < items.length; i++) {
-      ret[items[i]._id] = i;
-    }
-
-    return ret;
-
-  }
-
-  /**
-   * Helper for the sort method to compare the indices of the items to enforce
-   * stable sort.
-   *
-   * @private
-   * @param {Item} itemA
-   * @param {Item} itemB
-   * @param {Boolean} isDescending
-   * @param {Object} indexMap
-   * @returns {Number}
-   */
-  function compareItemIndices(itemA, itemB, isDescending, indexMap) {
-
-    var indexA = indexMap[itemA._id];
-    var indexB = indexMap[itemB._id];
-    return isDescending ? indexB - indexA : indexA - indexB;
-
-  }
-
-  /**
-   * Helper for the sort method to compare the items based on the provided
-   * attributes.
-   *
-   * @private
-   * @param {Item} itemA
-   * @param {Item} itemB
-   * @param {Boolean} isDescending
-   * @param {Object} criterias
-   * @returns {Number}
-   */
-  function compareItems(itemA, itemB, isDescending, criterias) {
-
-    var ret = 0;
-    var criteriaName;
-    var criteriaOrder;
-    var valA;
-    var valB;
-    var i;
-
-    // Loop through the list of sort criterias.
-    for (i = 0; i < criterias.length; i++) {
-
-      // Get the criteria name, which should match an item's sort data key.
-      criteriaName = criterias[i][0];
-      criteriaOrder = criterias[i][1];
-
-      // Get items' cached sort values for the criteria. If the item has no sort
-      // data let's update the items sort data (this is a lazy load mechanism).
-      valA = (itemA._sortData ? itemA : itemA._updateSortData())._sortData[criteriaName];
-      valB = (itemB._sortData ? itemB : itemB._updateSortData())._sortData[criteriaName];
-
-      // Sort the items in descending order if defined so explicitly.
-      if (criteriaOrder === 'desc' || (!criteriaOrder && isDescending)) {
-        ret = valB < valA ? -1 : valB > valA ? 1 : 0;
-      }
-
-      // Otherwise sort items in ascending order.
-      else {
-        ret = valA < valB ? -1 : valA > valB ? 1 : 0;
-      }
-
-      // If we have -1 or 1 as the return value, let's return it immediately.
-      if (ret !== 0) {
-        return ret;
-      }
-
-    }
-
-    return ret;
-
-  }
-
-  /**
    * Prevent default.
    *
    * @private
@@ -5731,6 +5665,63 @@ TODO v0.3.0
     if (e.preventDefault) {
       e.preventDefault();
     }
+
+  }
+
+  /**
+   * Sanitizes styles definition object within settings. Basically just removes
+   * all properties that have a value of null or undefined.
+   *
+   * @private
+   * @param {Object} styles
+   * @returns {Object} Returns a new object.
+   */
+  function sanitizeStyleSettings(styles) {
+
+    var ret = {};
+
+    Object.keys(styles).forEach(function (prop) {
+      var val = styles[prop];
+      if (val !== undefined && val !== null) {
+        ret[prop] = val;
+      }
+    });
+
+    return ret;
+
+  }
+
+  /**
+   * Merge default settings with user settings. The returned object is a new
+   * object with merged values. The merging is a deep merge meaning that all
+   * objects and arrays within the provided settings objects will be also merged
+   * so that modifying the values of the settings object will have no effect on
+   * the returned object.
+   *
+   * @private
+   * @param {Object} defaultSettings
+   * @param {Object} [userSettings]
+   * @returns {Object} Returns a new object.
+   */
+  function mergeSettings(defaultSettings, userSettings) {
+
+    // Create a fresh copy of default settings.
+    var ret = mergeObjects({}, defaultSettings);
+
+    // Merge user settings to default settings.
+    ret = userSettings ? mergeObjects(ret, userSettings) : ret;
+
+    // Sanitize show styles (if they exist).
+    if (ret.show && ret.show.styles) {
+      ret.show.styles = sanitizeStyleSettings(ret.show.styles);
+    }
+
+    // Sanitize hide styles (if they exist).
+    if (ret.hide && ret.hide.styles) {
+      ret.hide.styles = sanitizeStyleSettings(ret.hide.styles);
+    }
+
+    return ret;
 
   }
 
@@ -5751,6 +5742,81 @@ TODO v0.3.0
     }
 
   }
+
+  /**
+   * Type defintions
+   * ***************
+   */
+
+  /**
+   * The grid's width, height, padding and border dimensions.
+   *
+   * @typedef {Object} GridDimensions
+   * @property {Number} width
+   * @property {Number} height
+   * @property {Object} padding
+   * @property {Number} padding.left
+   * @property {Number} padding.right
+   * @property {Number} padding.top
+   * @property {Number} padding.bottom
+   * @property {Object} border
+   * @property {Number} border.left
+   * @property {Number} border.right
+   * @property {Number} border.top
+   * @property {Number} border.bottom
+   */
+
+  /**
+   * The values by which multiple grid items can be queried. An html element or
+   * an array of HTML elements. Item or an array of items. Node list, live or
+   * static. Number (index) or a list of numbers (indices).
+   *
+   * @typedef {(HTMLElement|HTMLElement[]|Item|Item[]|NodeList|Number|Number[])} GridMultiItemQuery
+   */
+
+  /**
+   * The values by which a single grid item can be queried. An html element, an
+   * item instance or a number (index).
+   *
+   * @typedef {(HTMLElement|Item|Number)} GridSingleItemQuery
+   */
+
+  /**
+   * The grid item's state, a string. Accepted values are: "active", "inactive",
+   * "visible", "hidden", "showing", "hiding", "positioning", "dragging",
+   * "releasing" and "migrating".
+   *
+   * @typedef {String} GridItemState
+   */
+
+  /**
+   * Grid element's cached dimensions. Accepted values are: "width", "height",
+   * "offset", "padding", "border", "box-sizing".
+   *
+   * @typedef {(String|String[])} GridDimensionQuery
+   */
+
+  /**
+   * The data that is required to orchestrate a sort action during drag.
+   *
+   * @typedef {Object} DragSortCommand
+   * @param {String} action
+   *   - "move" or "swap".
+   * @param {Number} index
+   *   - target index.
+   * @param {?Grid} [grid=null]
+   *   - target grid.
+   */
+
+  /**
+   * A rectangle is an object with width, height and offset (left and top) data.
+   *
+   * @typedef {Object} Rectangle
+   * @property {Number} width
+   * @property {Number} height
+   * @property {Number} left
+   * @property {Number} top
+   */
 
   /**
    * Init

@@ -87,7 +87,7 @@ $(function () {
             predicate.resolve();
           }
         },
-        dragSortInterval: 40,
+        dragSortInterval: 100,
         dragSortPredicate: {
           action: 'move'
         }

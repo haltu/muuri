@@ -256,7 +256,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     dragContainer: null,
     dragStartPredicate: null,
     dragSort: true,
-    dragSortInterval: 50,
+    dragSortInterval: 100,
     dragSortPredicate: {
       threshold: 50,
       action: 'move'
@@ -513,7 +513,7 @@ Should the items be sorted during drag?
 
 Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty intense which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is definitely not recommended).
 
-* Default value: `50`.
+* Default value: `100`.
 * Accepted types: number.
 
 ### dragSortPredicate &nbsp;

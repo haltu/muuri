@@ -3116,9 +3116,6 @@ TODO v0.3.0
       top: Math.round(dragData.elementClientY)
     };
     var targetGrid = getTargetGrid(itemRect, rootGrid, sortThreshold);
-    var gridOffset = targetGrid._offset;
-    var gridBorder = targetGrid._border;
-    var gridPadding = targetGrid._padding;
     var containerOffsetLeft = 0;
     var containerOffsetTop = 0;
     var targetRects = [];
@@ -3131,6 +3128,9 @@ TODO v0.3.0
     var targetRect;
     var targetScore;
     var hasActiveItems;
+    var gridOffset;
+    var gridBorder;
+    var gridPadding;
     var i;
 
     // Return early if we found no grid container element that overlaps the
@@ -3141,6 +3141,11 @@ TODO v0.3.0
 
     // Get target items.
     targetItems = targetGrid._items;
+
+    // Get grid dimensions and offsets data.
+    gridOffset = targetGrid._offset;
+    gridBorder = targetGrid._border;
+    gridPadding = targetGrid._padding;
 
     // If item is moved within it's originating grid adjust item's left and top
     // props. Otherwise if item is moved to/within another grid get the

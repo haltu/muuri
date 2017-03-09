@@ -3106,128 +3106,79 @@ TODO v0.3.0
     var drag = item._drag;
     var dragData = drag._dragData;
     var rootGrid = drag._getGrid();
-    // TODO:
-    // Should this config be fetched from the current grid instead of the root
-    // grid? Note that there is a chance that the drag is disabled in the
-    // current grid, but this still has to work. Also note that the target
-    // drag sort predicate can be a function... damn. This is a hard call. Maybe
-    // this is ok as is.
     var config = rootGrid._settings.dragSortPredicate || {};
     var sortThreshold = config.threshold || 50;
     var sortAction = config.action || 'move';
-    var grids = rootGrid._getSortConnections(true);
     var itemRect = {
       width: item._width,
       height: item._height,
       left: Math.round(dragData.elementClientX),
       top: Math.round(dragData.elementClientY)
     };
-    var overlappingRects = [];
+    var targetGrid = getTargetGrid(itemRect, rootGrid, sortThreshold);
+    var gridOffset = targetGrid._offset;
+    var gridBorder = targetGrid._border;
+    var gridPadding = targetGrid._padding;
     var containerOffsetLeft = 0;
     var containerOffsetTop = 0;
-    var matchScore = null;
+    var targetRects = [];
+    var overlappingRects = [];
+    var selfScore = -1;
+    var matchScore = -1;
     var matchIndex;
-    var currentScore = null;
-    var isMatch = function () {
-      return matchScore !== null && matchScore >= sortThreshold;
-    };
-    var grid;
-    var gridScore;
-    var targetGrid;
     var targetItems;
     var targetItem;
     var targetRect;
     var targetScore;
     var hasActiveItems;
-    var theGap;
-    var padding;
-    var border;
-    var margin;
-    var offset;
     var i;
-
-    // First step is checking out which grid's container element the dragged
-    // item overlaps the most currently.
-    for (i = 0; i < grids.length; i++) {
-
-      grid = grids[i];
-
-      // We need to update the grid's offset since it may have changed during
-      // scrolling. This could be left as problem for the userland, but it's
-      // much nicer this way. One less hack for the user to worry about =)
-      grid.updateDimensions('grid', 'offset');
-
-      // Check how much dragged element overlaps the container element.
-      offset = grid._offset;
-      gridScore = getRectOverlapScore(itemRect, {
-        width: grid._width,
-        height: grid._height,
-        left: offset.left,
-        top: offset.top
-      });
-
-      // Update best match if the overlap score is higher than the current
-      // match.
-      if (matchScore === null || gridScore > matchScore) {
-        matchIndex = i;
-        matchScore = gridScore;
-      }
-
-    }
 
     // Return early if we found no grid container element that overlaps the
     // dragged item enough.
-    if (!isMatch()) {
+    if (!targetGrid) {
       return false;
     }
 
-    // Get the target grid, it's rect data and its's active items.
-    targetGrid = grids[matchIndex];
+    // Get target items.
     targetItems = targetGrid._items;
 
     // If item is moved within it's originating grid adjust item's left and top
     // props. Otherwise if item is moved to/within another grid get the
     // container element's offset (from the element's content edge).
     if (targetGrid === rootGrid) {
-      margin = item._margin;
-      itemRect.left = Math.round(dragData.gridX) + margin.left;
-      itemRect.top = Math.round(dragData.gridY) + margin.top;
+      itemRect.left = Math.round(dragData.gridX) + item._margin.left;
+      itemRect.top = Math.round(dragData.gridY) + item._margin.top;
     }
     else {
-      offset = targetGrid._offset;
-      border = targetGrid._border;
-      padding = targetGrid._padding;
-      containerOffsetLeft = offset.left + border.left + padding.left;
-      containerOffsetTop = offset.top + border.top + padding.top;
+      containerOffsetLeft = gridOffset.left + gridBorder.left + gridPadding.left;
+      containerOffsetTop = gridOffset.top + gridBorder.top + gridPadding.top;
     }
-
-    // Reset the best match variables.
-    matchIndex = matchScore = null;
 
     // Loop through the items and try to find a match.
     for (i = 0; i < targetItems.length; i++) {
 
       targetItem = targetItems[i];
 
-      // Mark grid as having active items.
-      if (!hasActiveItems && targetItem._isActive) {
-        hasActiveItems = true;
-      }
-
       // If the item is not active let's skip to the next one.
       if (!targetItem._isActive) {
         continue;
       }
 
-      // Calculate target rect, angle and overlap score.
-      margin = targetItem._margin;
+      // Mark grid as having active items.
+      hasActiveItems = true;
+
+      // Calculate target score.
       targetRect = {
         width: targetItem._width,
         height: targetItem._height,
-        left: Math.round(targetItem._left) + margin.left + containerOffsetLeft,
-        top: Math.round(targetItem._top) + margin.top + containerOffsetTop
+        left: Math.round(targetItem._left) + targetItem._margin.left + containerOffsetLeft,
+        top: Math.round(targetItem._top) + targetItem._margin.top + containerOffsetTop,
+        index: i
       };
       targetScore = getRectOverlapScore(itemRect, targetRect);
+
+      // Add the rectangle to target rects array (needed for dropping on a gap).
+      targetRects.push(targetRect);
 
       // Add target item to overlapping items if it overlaps the dragged item.
       if (targetScore > 0) {
@@ -3237,7 +3188,7 @@ TODO v0.3.0
       // If the item is the target item, let's store the data and skip to the
       // next item.
       if (targetItem === item) {
-        currentScore = targetScore;
+        selfScore = targetScore;
         continue;
       }
 
@@ -3261,27 +3212,15 @@ TODO v0.3.0
     // item could be dropped on a gap.
     // TODO: Somehow measure here if the overlapping empty space exceeds the
     // sort threshold and find an intuitive index for the gap.
-    else if (!isMatch() && (!currentScore || currentScore < sortThreshold)) {
-      theGap = getLargestRectSlice(itemRect, overlappingRects);
-      if (theGap) {
-        border = targetGrid._border;
-        padding = targetGrid._padding;
-        theGap = cropRect(theGap, {
-          width: targetGrid._width - padding.left - padding.right - border.left - border.right,
-          height: targetGrid._height - padding.top - padding.bottom - border.top - border.bottom,
-          left: containerOffsetLeft,
-          top: containerOffsetTop
-        });
-        // TODO: Check if the gap is big enough (user provided threshold).
-        if ((theGap.width * theGap.height) > ((itemRect.width * itemRect.height) * 0.5)) {
-          // TODO: Get the index of the item that's visually before the gap.
-          console.log(theGap);
-        }
+    else if (matchScore < sortThreshold && selfScore < sortThreshold) {
+      matchIndex = getGapIndex(targetGrid, itemRect, overlappingRects, targetRects, containerOffsetLeft, containerOffsetTop);
+      if (matchIndex !== null) {
+        matchScore = Infinity;
       }
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
-    if (isMatch()) {
+    if (matchScore >= sortThreshold) {
       return {
         grid: targetGrid,
         index: matchIndex,
@@ -5609,6 +5548,112 @@ TODO v0.3.0
         item._animateChild.stop();
       }
     };
+
+  }
+
+  /**
+   * Get target grid for the default drag sort predicate.
+   *
+   * @private
+   * @param {Rectangle} itemRect
+   * @param {Grid} rootGrid
+   * @param {Number} threshold
+   * @returns {?Grid}
+   */
+  function getTargetGrid(itemRect, rootGrid, threshold) {
+
+    var ret = null;
+    var grids = rootGrid._getSortConnections(true);
+    var bestScore = -1;
+    var gridScore;
+    var grid;
+    var offset;
+    var i;
+
+    for (i = 0; i < grids.length; i++) {
+
+      grid = grids[i];
+
+      // We need to update the grid's offset since it may have changed during
+      // scrolling. This could be left as problem for the userland, but it's
+      // much nicer this way. One less hack for the user to worry about =)
+      grid.updateDimensions('grid', 'offset');
+      offset = grid._offset;
+
+      // Check how much dragged element overlaps the container element.
+      gridScore = getRectOverlapScore(itemRect, {
+        width: grid._width,
+        height: grid._height,
+        left: offset.left,
+        top: offset.top
+      });
+
+      // Check if this grid is the best match so far.
+      if (gridScore > threshold && gridScore > bestScore) {
+        bestScore = gridScore;
+        ret = grid;
+      }
+
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Get dragged item's gap index during sorting.
+   *
+   * @private
+   * @param {Grid} gird
+   * @param {Rectangle} itemRect
+   * @param {Rectangle[]} overlappingRects
+   * @param {Rectangle[]} targetRects
+   * @param {Number} offsetLeft
+   * @param {Number} offsetTop
+   * @returns {?Number}
+   */
+  function getGapIndex(grid, itemRect, overlappingRects, targetRects, offsetLeft, offsetTop) {
+
+    var index = null;
+    var gap = getLargestRectSlice(itemRect, overlappingRects);
+    var border = grid._border;
+    var padding = grid._padding;
+    var left = 0;
+    var top = 0;
+    var rect;
+    var i;
+
+    if (!gap) {
+      return index;
+    }
+
+    // Crop the gap.
+    gap = cropRect(gap, {
+      width: grid._width - padding.left - padding.right - border.left - border.right,
+      height: grid._height - padding.top - padding.bottom - border.top - border.bottom,
+      left: offsetLeft,
+      top: offsetTop
+    });
+
+    // Check if the gap is big enough (TODO: user provided threshold).
+    if ((gap.width * gap.height) <= ((itemRect.width * itemRect.height) * 0.5)) {
+      return index;
+    }
+
+    // Now... let's find the index, shall we?
+    // TODO: Modify this for all the different layout algorithms.
+    index = 0;
+    targetRects = targetRects.concat().sort(sortRectsTopLeft);
+    for (i = 0; i < targetRects.length; i++) {
+      rect = targetRects[i];
+      if (rect.top < gap.top || (rect.top === gap.top && rect.left <= gap.left)) {
+        left = rect.left;
+        top = rect.top;
+        index = rect.index + 1;
+      }
+    }
+
+    return index;
 
   }
 

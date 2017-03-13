@@ -72,21 +72,17 @@ $(function () {
 
       var muuri = new Muuri($grid.get(0), {
         items: generateElements(20),
+        layout: {
+          horizontal: false,
+          alignRight: false,
+          alignBottom: false
+        },
         layoutDuration: 1000,
         dragEnabled: true,
         dragContainer: document.body,
         dragReleaseDuration: 1000,
         dragSortGroup: 'a',
         dragSortConnections: ['a'],
-        dragStartPredicate: function (item, event, predicate) {
-          var isLastEvent = event.type === 'draginitup' || event.type === 'dragend' || event.type === 'dragcancel';
-          if (isLastEvent && !predicate.isResolved()) {
-            window.location.href = item._element.getAttribute('href');
-          }
-          else if (event.distance > 5 || item.isReleasing()) {
-            predicate.resolve();
-          }
-        },
         dragSortInterval: 100,
         dragSortPredicate: {
           action: 'move'
@@ -190,7 +186,7 @@ $(function () {
       if (muuri) {
         muuri.hide(muuri.getItems('active').slice(0, 5), {
           onFinish: function (items) {
-            muuri.remove(items, {removeElement: true});
+            muuri.remove(items, {removeElements: true});
             console.log('CALLBACK: Removed ' + items.length + ' items');
           }
         });

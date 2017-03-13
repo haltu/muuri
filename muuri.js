@@ -76,10 +76,8 @@ TODO v0.3.0
       the calling of gbcr to the minimum. Also whenever dragging is started all
       connected grids should get their offset updated. The offset is only
       required for the dragging operation.
-* [ ] Allow dropping on gaps. It is crucial to allow dropping on empty gaps and
-      not having it is a major annoyance when draggin from a grid to another.
-      Imagine a big grid with one item, and you're forced to drag over the
-      item... :(
+* [x] Simpler dragStartPredicate system.
+* [x] Smarter default dragStartPredicate that's aware of links.
 * [ ] Add container offset diff mechanism to the item itself so it can be
       utilized by drag and migrate operations. Just to keep the code DRY and
       clearer.
@@ -238,6 +236,7 @@ TODO v0.3.0
    * @param {(?Function|Object)} [options.dragSortPredicate]
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
+   * @param {String} [options.dragSortPredicate.gaps=true]
    * @param {?String} [options.dragSortGroup=null]
    * @param {?Array} [options.dragSortConnections=null]
    * @param {Number} [options.dragReleaseDuration=300]
@@ -2237,6 +2236,7 @@ TODO v0.3.0
       // Animate child element and process the visibility callback queue after
       // succesful animation.
       grid._itemShowHandler.start(inst, instant, function () {
+        console.log('show done');
         processQueue(queue, false, inst);
       });
 
@@ -2440,6 +2440,8 @@ TODO v0.3.0
     element.removeAttribute('style');
     inst._child.removeAttribute('style');
 
+    console.log(inst._visibilityQueue.concat());
+
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.
     processQueue(inst._visibilityQueue, true, inst);
@@ -2519,19 +2521,19 @@ TODO v0.3.0
    *
    * @private
    * @param {Layout} layout
-   * @param {Object} settings
-   * @param {Boolean} [settings.fillGaps=false]
-   * @param {Boolean} [settings.horizontal=false]
-   * @param {Boolean} [settings.alignRight=false]
-   * @param {Boolean} [settings.alignBottom=false]
+   * @param {Object} options
+   * @param {Boolean} [options.fillGaps=false]
+   * @param {Boolean} [options.horizontal=false]
+   * @param {Boolean} [options.alignRight=false]
+   * @param {Boolean} [options.alignBottom=false]
    */
-  function layoutFirstFit(layout, settings) {
+  function layoutFirstFit(layout, options) {
 
     var emptySlots = [];
-    var fillGaps = settings.fillGaps ? true : false;
-    var isHorizontal = settings.horizontal ? true : false;
-    var alignRight = settings.alignRight ? true : false;
-    var alignBottom = settings.alignBottom ? true : false;
+    var fillGaps = options.fillGaps ? true : false;
+    var isHorizontal = options.horizontal ? true : false;
+    var alignRight = options.alignRight ? true : false;
+    var alignBottom = options.alignBottom ? true : false;
     var slotIds;
     var slot;
     var item;
@@ -2971,8 +2973,10 @@ TODO v0.3.0
     var grid = item.getGrid();
     var settings = grid._settings;
     var checkPredicate = typeof settings.dragStartPredicate === 'function' ? settings.dragStartPredicate : Drag.defaultStartPredicate;
-    var predicate = null;
-    var predicateEvent = null;
+    var predicatePending = 0;
+    var predicateResolved = 1;
+    var predicateRejected = 2;
+    var predicate = predicatePending;
     var hammer;
 
     drag._itemId = item._id;
@@ -3025,44 +3029,42 @@ TODO v0.3.0
     hammer
     .on('draginit dragstart dragmove', function (e) {
 
-      // Always update the predicate event.
-      predicateEvent = e;
+      var predicateResult;
 
-      // Create predicate if it does not exist yet.
-      if (!predicate) {
-        predicate = new Predicate(function () {
-          if (predicate === this) {
-            drag._onDragStart(predicateEvent);
-          }
-        });
+      // If predicate is pending try to resolve it.
+      if (predicate === predicatePending) {
+        predicateResult = checkPredicate(drag._getItem(), e);
+        if (predicateResult === true) {
+          predicate = predicateResolved;
+          drag._onDragStart(e);
+        }
+        else if (predicateResult === false) {
+          predicate = predicateRejected;
+        }
       }
 
-      // If predicate is resolved and dragging is active, do the move.
-      if (predicate._isResolved && drag._dragData.isActive) {
+      // Otherwise if predicate is resolved and drag is active, move the item.
+      else if (predicate === predicateResolved && drag._dragData.isActive) {
         drag._onDragMove(e);
-      }
-
-      // Otherwise, check the predicate.
-      else if (!predicate._isRejected && !predicate._isResolved) {
-        checkPredicate.call(drag._getGrid(), drag._getItem(), e, predicate);
       }
 
     })
     .on('dragend dragcancel draginitup', function (e) {
 
-      // Do final predicate check to allow unbinding stuff for the current drag
-      // procedure within the predicate callback.
-      predicate.reject();
-      checkPredicate.call(drag._getGrid(), drag._getItem(), e, predicate);
+      var isResolved = predicate === predicateResolved;
 
-      // If predicate is resolved and dragging is active, do the end.
-      if (predicate._isResolved && drag._dragData.isActive) {
+      // Do final predicate check to allow user to unbind stuff for the current
+      // drag procedure within the predicate callback. The return value of this
+      // check will have no effect to the state of the predicate.
+      checkPredicate(drag._getItem(), e);
+
+      // Reset predicate state.
+      predicate = predicatePending;
+
+      // If predicate is resolved and dragging is active, call the end handler.
+      if (isResolved && drag._dragData.isActive) {
         drag._onDragEnd(e);
       }
-
-      // Nullify predicate reference.
-      predicate = null;
-      predicateEvent = null;
 
     });
 
@@ -3077,17 +3079,34 @@ TODO v0.3.0
    */
 
   /**
-   * Default drag start predicate handler.
+   * Default drag start predicate handler that handles anchor elements
+   * gracefully.
    *
    * @public
    * @memberof Drag
    * @param {Item} item
    * @param {Object} event
-   * @param {Predicate} predicate
+   * @returns {Boolean}
    */
-  Drag.defaultStartPredicate = function (item, event, predicate) {
+  Drag.defaultStartPredicate = function (item, event) {
 
-    predicate.resolve();
+    if (event.isFinal) {
+      var elem = item.getElement();
+      var isAnchor = elem.tagName.toLowerCase() === 'a';
+      var href = elem.getAttribute('href');
+      var target = elem.getAttribute('target');
+      if (isAnchor && href && Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200) {
+        if (target && target !== '_self') {
+          window.open(href, target);
+        }
+        else {
+          global.location.href = href;
+        }
+      }
+    }
+    else {
+      return true;
+    }
 
   };
 
@@ -3097,6 +3116,7 @@ TODO v0.3.0
    * @public
    * @memberof Drag
    * @param {Item} item
+   * @param {Object} event
    * @returns {(Boolean|DragSortCommand)}
    *   - Returns false if no valid index was found. Otherwise returns drag sort
    *     command.
@@ -3115,119 +3135,85 @@ TODO v0.3.0
       left: Math.round(dragData.elementClientX),
       top: Math.round(dragData.elementClientY)
     };
-    var targetGrid = getTargetGrid(itemRect, rootGrid, sortThreshold);
-    var containerOffsetLeft = 0;
-    var containerOffsetTop = 0;
-    var targetRects = [];
-    var overlappingRects = [];
-    var selfScore = -1;
+    var grid = getTargetGrid(itemRect, rootGrid, sortThreshold);
+    var gridOffsetLeft = 0;
+    var gridOffsetTop = 0;
     var matchScore = -1;
     var matchIndex;
-    var targetItems;
-    var targetItem;
-    var targetRect;
-    var targetScore;
-    var hasActiveItems;
+    var gridItems;
     var gridOffset;
     var gridBorder;
     var gridPadding;
+    var hasValidTargets;
+    var target;
+    var score;
     var i;
 
     // Return early if we found no grid container element that overlaps the
     // dragged item enough.
-    if (!targetGrid) {
+    if (!grid) {
       return false;
     }
 
-    // Get target items.
-    targetItems = targetGrid._items;
-
-    // Get grid dimensions and offsets data.
-    gridOffset = targetGrid._offset;
-    gridBorder = targetGrid._border;
-    gridPadding = targetGrid._padding;
+    // Get the needed target grid data.
+    gridItems = grid._items;
+    gridOffset = grid._offset;
+    gridBorder = grid._border;
+    gridPadding = grid._padding;
 
     // If item is moved within it's originating grid adjust item's left and top
     // props. Otherwise if item is moved to/within another grid get the
     // container element's offset (from the element's content edge).
-    if (targetGrid === rootGrid) {
+    if (grid === rootGrid) {
       itemRect.left = Math.round(dragData.gridX) + item._margin.left;
       itemRect.top = Math.round(dragData.gridY) + item._margin.top;
     }
     else {
-      containerOffsetLeft = gridOffset.left + gridBorder.left + gridPadding.left;
-      containerOffsetTop = gridOffset.top + gridBorder.top + gridPadding.top;
+      gridOffsetLeft = gridOffset.left + gridBorder.left + gridPadding.left;
+      gridOffsetTop = gridOffset.top + gridBorder.top + gridPadding.top;
     }
 
-    // Loop through the items and try to find a match.
-    for (i = 0; i < targetItems.length; i++) {
+    // Loop through the target grid items and try to find the best match.
+    for (i = 0; i < gridItems.length; i++) {
 
-      targetItem = targetItems[i];
+      target = gridItems[i];
 
-      // If the item is not active let's skip to the next one.
-      if (!targetItem._isActive) {
+      // If the target item is not active or the target item is the dragged item
+      // let's skip to the next item.
+      if (!target._isActive || target === item) {
         continue;
       }
 
-      // Mark grid as having active items.
-      hasActiveItems = true;
+      // Mark the grid as having valid target items.
+      hasValidTargets = true;
 
-      // Calculate target score.
-      targetRect = {
-        width: targetItem._width,
-        height: targetItem._height,
-        left: Math.round(targetItem._left) + targetItem._margin.left + containerOffsetLeft,
-        top: Math.round(targetItem._top) + targetItem._margin.top + containerOffsetTop,
-        index: i
-      };
-      targetScore = getRectOverlapScore(itemRect, targetRect);
+      // Calculate the target's overlap score with the dragged item.
+      score = getRectOverlapScore(itemRect, {
+        width: target._width,
+        height: target._height,
+        left: Math.round(target._left) + target._margin.left + gridOffsetLeft,
+        top: Math.round(target._top) + target._margin.top + gridOffsetTop
+      });
 
-      // Add the rectangle to target rects array (needed for dropping on a gap).
-      targetRects.push(targetRect);
-
-      // Add target item to overlapping items if it overlaps the dragged item.
-      if (targetScore > 0) {
-        overlappingRects.push(targetRect);
-      }
-
-      // If the item is the target item, let's store the data and skip to the
-      // next item.
-      if (targetItem === item) {
-        selfScore = targetScore;
-        continue;
-      }
-
-      // Update best match if the overlap score is higher than the current
-      // best match.
-      if (matchScore === null || targetScore > matchScore) {
+      // Update best match index and score if the target's overlap score with
+      // the dragged item is higher than the current best match score.
+      if (score > matchScore) {
         matchIndex = i;
-        matchScore = targetScore;
+        matchScore = score;
       }
 
     }
 
-    // If the target grid does not have any active items let's set the dragged
-    // item as the grid's first item.
-    if (!hasActiveItems) {
-      matchIndex = 0;
+    // If there is no valid match and the item is being moved into another grid.
+    if (matchScore < sortThreshold && item.getGrid() !== grid) {
+      matchIndex = hasValidTargets ? -1 : 0;
       matchScore = Infinity;
-    }
-
-    // If the grid has active items, but there are no matches, let's see if the
-    // item could be dropped on a gap.
-    // TODO: Somehow measure here if the overlapping empty space exceeds the
-    // sort threshold and find an intuitive index for the gap.
-    else if (matchScore < sortThreshold && selfScore < sortThreshold) {
-      matchIndex = getGapIndex(targetGrid, itemRect, overlappingRects, targetRects, containerOffsetLeft, containerOffsetTop);
-      if (matchIndex !== null) {
-        matchScore = Infinity;
-      }
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
     if (matchScore >= sortThreshold) {
       return {
-        grid: targetGrid,
+        grid: grid,
         index: matchIndex,
         action: sortAction
       };
@@ -3377,8 +3363,8 @@ TODO v0.3.0
 
     var drag = this;
     var item = drag._getItem();
-    var result = drag._sortPredicate(item);
-    var dragEvent;
+    var dragEvent = drag._dragData.currentEvent;
+    var result = drag._sortPredicate(item, dragEvent);
     var currentGrid;
     var currentIndex;
     var targetGrid;
@@ -3389,7 +3375,6 @@ TODO v0.3.0
       return drag;
     }
 
-    dragEvent = drag._dragData.currentEvent;
     currentGrid = item.getGrid();
     currentIndex = currentGrid._items.indexOf(item);
     targetGrid = result.grid || currentGrid;
@@ -4027,97 +4012,6 @@ TODO v0.3.0
     }
 
     return drag;
-
-  };
-
-  /**
-   * Predicate
-   * *********
-   */
-
-  /**
-   * Generic predicate constructor.
-   *
-   * @private
-   * @class
-   * @param {Function} [onResolved]
-   * @param {Function} [onRejected]
-   */
-  function Predicate(onResolved, onRejected) {
-
-    this._isResolved = false;
-    this._isRejected = false;
-    this._onResolved = onResolved;
-    this._onRejected = onRejected;
-
-  }
-
-  /**
-   * Predicate - Public prototype methods
-   * ************************************
-   */
-
-  /**
-   * Check if predicate is resolved.
-   *
-   * @public
-   * @memberof Predicate.prototype
-   * returns {Boolean}
-   */
-  Predicate.prototype.isResolved = function () {
-
-    return this._isResolved;
-
-  };
-
-  /**
-   * Check if predicate is rejected.
-   *
-   * @public
-   * @memberof Predicate.prototype
-   * returns {Boolean}
-   */
-  Predicate.prototype.isRejected = function () {
-
-    return this._isRejected;
-
-  };
-
-  /**
-   * Resolve predicate.
-   *
-   * @public
-   * @memberof Predicate.prototype
-   */
-  Predicate.prototype.resolve = function () {
-
-    var inst = this;
-    if (!inst._isRejected && !inst._isResolved) {
-      inst._isResolved = true;
-      if (typeof inst._onResolved === 'function') {
-        inst._onResolved();
-      }
-      inst._onResolved = inst._onRejected = null;
-    }
-
-  };
-
-  /**
-   * Reject predicate.
-   *
-   * @public
-   * @memberof Predicate.prototype
-   */
-  Predicate.prototype.reject = function () {
-
-    var inst = this;
-    if (!inst._isRejected && !inst._isResolved) {
-      inst._isRejected = true;
-      if (typeof inst._onRejected === 'function') {
-        inst._onRejected();
-      }
-      inst._onResolved = inst._onRejected = null;
-    }
 
   };
 
@@ -5029,92 +4923,6 @@ TODO v0.3.0
   }
 
   /**
-   * Compare a rectangle to multiple other rectangles and split the first
-   * rectangle into smaller pieces.
-   *
-   * @private
-   * @param {Rectangle} rect
-   * @param {Rectangle[]} holes
-   * returns {Rectangle[]}
-   */
-  function splitRectWithRects(rect, holes) {
-
-    // If there are no holes, let's return the rect back as is.
-    if (!holes.length) {
-      return [rect];
-    }
-
-    var slices = splitRectWithRect(rect, holes[0]);
-    var tempSlices;
-    var i;
-    var ii;
-
-    // Slice and dice.
-    for (i = 1; i < holes.length; i++) {
-      tempSlices = [];
-      for (ii = 0; ii < slices.length; ii++) {
-        tempSlices = tempSlices.concat(splitRectWithRect(slices[ii], holes[i]));
-      }
-      slices = tempSlices;
-    }
-
-    return slices;
-
-  }
-
-  /**
-   * Compare a rectangle to multiple other rectangles and split the first
-   * rectangle into smaller pieces. Then filter out the largest piece and return
-   * it. Returns null if the holes cover the rect fully.
-   *
-   * @private
-   * @param {Rectangle} rect
-   * @param {Rectangle[]} holes
-   * returns {?Rectangle}
-   */
-  function getLargestRectSlice(rect, holes) {
-
-    var slices = splitRectWithRects(rect, holes);
-    var ret = slices[0] || null;
-    var i;
-
-    if (slices.length < 2) {
-      return ret;
-    }
-
-    for (i = 1; i < slices.length; i++) {
-      if ((slices[i].width * slices[i].height) > (ret.width * ret.height)) {
-        ret = slices[i];
-      }
-    }
-
-    return ret;
-
-  }
-
-  /**
-   * Compare a rectangle to another and make the first rectangle fit inside the
-   * other rectangle. Assumes that the rectangles are overlapping.
-   *
-   * @private
-   * @param {Rectangle} rect
-   * @param {Rectangle} crop
-   * returns {Rectangle}
-   */
-  function cropRect(rect, crop) {
-
-    var ret = {};
-
-    ret.left = Math.max(rect.left, crop.left);
-    ret.top = Math.max(rect.top, crop.top);
-    ret.width = Math.min(rect.left + rect.width, crop.left + crop.width) - ret.left;
-    ret.height = Math.min(rect.top + rect.height, crop.top + crop.height) - ret.top;
-
-    return ret;
-
-  }
-
-  /**
    * Loops through an array of rectangles and removes all that are fully within
    * another rectangle in the array.
    *
@@ -5508,13 +5316,13 @@ TODO v0.3.0
     var styles = opts && isPlainObject(opts.styles) ? opts.styles : null;
 
     return {
-      start: function (item, instant, animDone) {
+      start: function (item, instant, onFinish) {
 
         var animateOpts;
 
         if (!isEnabled || !styles) {
-          if (animDone) {
-            animDone();
+          if (onFinish) {
+            onFinish();
           }
         }
         else if (instant) {
@@ -5526,8 +5334,8 @@ TODO v0.3.0
             setStyles(item._child, styles);
           }
 
-          if (animDone) {
-            animDone();
+          if (onFinish) {
+            onFinish();
           }
 
         }
@@ -5536,7 +5344,7 @@ TODO v0.3.0
           animateOpts = {
             duration: duration,
             easing: easing,
-            done: animDone
+            onFinish: onFinish
           };
 
           if (item._isDefaultChildAnimate) {
@@ -5602,63 +5410,6 @@ TODO v0.3.0
     }
 
     return ret;
-
-  }
-
-  /**
-   * Get dragged item's gap index during sorting.
-   *
-   * @private
-   * @param {Grid} gird
-   * @param {Rectangle} itemRect
-   * @param {Rectangle[]} overlappingRects
-   * @param {Rectangle[]} targetRects
-   * @param {Number} offsetLeft
-   * @param {Number} offsetTop
-   * @returns {?Number}
-   */
-  function getGapIndex(grid, itemRect, overlappingRects, targetRects, offsetLeft, offsetTop) {
-
-    var index = null;
-    var gap = getLargestRectSlice(itemRect, overlappingRects);
-    var border = grid._border;
-    var padding = grid._padding;
-    var left = 0;
-    var top = 0;
-    var rect;
-    var i;
-
-    if (!gap) {
-      return index;
-    }
-
-    // Crop the gap.
-    gap = cropRect(gap, {
-      width: grid._width - padding.left - padding.right - border.left - border.right,
-      height: grid._height - padding.top - padding.bottom - border.top - border.bottom,
-      left: offsetLeft,
-      top: offsetTop
-    });
-
-    // Check if the gap is big enough (TODO: user provided threshold).
-    if ((gap.width * gap.height) <= ((itemRect.width * itemRect.height) * 0.5)) {
-      return index;
-    }
-
-    // Now... let's find the index, shall we?
-    // TODO: Modify this for all the different layout algorithms.
-    index = 0;
-    targetRects = targetRects.concat().sort(sortRectsTopLeft);
-    for (i = 0; i < targetRects.length; i++) {
-      rect = targetRects[i];
-      if (rect.top < gap.top || (rect.top === gap.top && rect.left <= gap.left)) {
-        left = rect.left;
-        top = rect.top;
-        index = rect.index + 1;
-      }
-    }
-
-    return index;
 
   }
 

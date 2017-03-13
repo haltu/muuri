@@ -156,7 +156,7 @@ Include Muuri inside the *body* element in your site and make sure to include th
 * The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
 * The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
-* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the container element's content with padding excluded (intentionally) to provide more control over the gutter spacing.  Normally an absolutely positioned element is positioned relative to the containing element's content with padding included.
+* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the container element's content with padding excluded (intentionally) to provide more control over the gutter spacing. Normally an absolutely positioned element is positioned relative to the containing element's content with padding included.
 
 ```css
 .grid {
@@ -321,7 +321,7 @@ When an object is provided Muuri's built-in animation engine is used and allows 
 * **easing** &nbsp;&mdash;&nbsp; *array* / *string*
   * Default value: `'ease'`.
   * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
-* **show.styles** &nbsp;&mdash;&nbsp; *object*
+* **styles** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{opacity: 1, scale: 1}`.
   * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for the animation.
 
@@ -333,7 +333,7 @@ By providing a function you can define a fully customized animation. The functio
       * The Muuri.Item instance that is being animated.
     * **instant** &nbsp;&mdash;&nbsp; *boolean*
       * A boolean that determines if the styles should be applied instantly or with animation. If this is `true` the styles should be applied instantly instead of being animated.
-    * **onFinished** &nbsp;&mdash;&nbsp; *function*
+    * **onFinish** &nbsp;&mdash;&nbsp; *function*
       * A function that should be called after the animation is successfully finished.
 * **stop** &nbsp;&mdash;&nbsp; *function*
   * A function that stops the current animation (if running). Receives one argument:
@@ -367,7 +367,7 @@ By providing a function you can define a fully customized animation. The functio
       * The Muuri.Item instance that is being animated.
     * **instant** &nbsp;&mdash;&nbsp; *boolean*
       * A boolean that determines if the styles should be applied instantly or with animation. If this is `true` the styles should be applied instantly instead of being animated.
-    * **onFinished** &nbsp;&mdash;&nbsp; *function*
+    * **onFinish** &nbsp;&mdash;&nbsp; *function*
       * A function that should be called after the animation is successfully finished.
 * **stop** &nbsp;&mdash;&nbsp; *function*
     * A function that stops the current animation (if running). Receives one argument:
@@ -482,25 +482,30 @@ Which item the dragged item should be appended to for the duration of the drag? 
 
 ### dragStartPredicate &nbsp;
 
-A function that determines when dragging should start. If `null` the default predicate is used (dragging starts immediately).
+A function that determines when the item should be started to move when dragging an item is being dragged. If `null` the default predicate is used (moving starts immediately).
 
 * Default value: `null`.
 * Accepted types: function, null.
 
-The predicate function receives three arguments:
+When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin moving whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
+
+The predicate function receives two arguments:
+
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * The `Muuri.Item` instance that's being dragged.
+  * The item that's being dragged.
 * **event**  &nbsp;&mdash;&nbsp; *object*
   * The drag event (Hammer.js event).
-* **predicate** &nbsp;&mdash;&nbsp; *Predicate*
-  * **predicate.resolve** &nbsp;&mdash;&nbsp; *function*
-    * Resolves the predicate and initiates the item's drag procedure.
-  * **predicate.reject** &nbsp;&mdash;&nbsp; *function*
-    * Rejects the predicate and prevents the item's drag procedure from initiating until the user releases the item and starts dragging it again.
-  * **predicate.isResolved** &nbsp;&mdash;&nbsp; *function*
-    * Returns boolean. Check if the predicate is resolved.
-  * **predicate.isRejected** &nbsp;&mdash;&nbsp; *function*
-    * Returns boolean. Check if the predicate is rejected.
+
+```javascript
+var grid = new Muuri(elem, {
+  dragStartPredicate: function (item, e) {
+    // Start moving the item after the item has been dragged for one second.
+    if (e.deltaTime > 1000) {
+      return true;
+    }
+  }
+});
+```
 
 ### dragSort &nbsp;
 
@@ -533,7 +538,24 @@ If an object is provided the default sort predicate handler will be used. You ca
   * Allowed values: `1` - `100`.
   * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the items before sorting is triggered.
 
-Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback receives one argument, which is the currently dragged Muuri.Item instance. The callback should return a *falsy* value if sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties: `action` ("move" or "swap"), `from` (the index of the Muuri.Item to be moved/swapped), `to` (the index the item should be moved to / swapped with). E.g returning `{action: 'move', from: 0, to: 1}` would move the first item as the second item.
+Alternatively you can provide your own callback function where you can define your own custom sort logic.
+
+The callback function receives two arguments:
+
+* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+  * The item that's being dragged.
+* **event**  &nbsp;&mdash;&nbsp; *object*
+  * The drag event (Hammer.js event).
+
+The callback should return a *falsy* value if sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties:
+
+* **grid**  &nbsp;&mdash;&nbsp; *Muuri*
+  * The grid where the item should be placed.
+* **index**  &nbsp;&mdash;&nbsp; *number*
+  * The index where the item should be moved to.
+* **action**  &nbsp;&mdash;&nbsp; *string*
+  * The movement method.
+  * Allowed values: `'move'` or `'swap'`.
 
 ### dragSortGroup &nbsp;
 

@@ -150,7 +150,7 @@ var grid = new Muuri('.grid');
   * Default value: `null`.
   * You can provide the element directly or use a selector (string) which uses [querySelectorAll()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelectorAll) internally. The first element of the query's result will be used.
 * **options** &nbsp;&mdash;&nbsp; *object*
-  * Optional. Check out the [detailed options reference](#options).
+  * Optional. Check out the [detailed options reference](#grid-options).
 
 **Default options**
 
@@ -574,12 +574,12 @@ var grid = new Muuri(elem, {
 
 ### dragStartPredicate &nbsp;
 
-A function that determines when the item should be started to move when dragging an item is being dragged. If `null` the default predicate is used (moving starts immediately).
+A function that determines at which point the item starts to move when the item is being dragged. If `null` the default predicate is used (moving starts immediately).
 
 * Default value: `null`.
 * Accepted types: function, null.
 
-When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin moving whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
+When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
 
 The predicate function receives two arguments:
 

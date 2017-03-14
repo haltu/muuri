@@ -243,6 +243,33 @@ var gridB = new Muuri('.grid-b', {
 
 ### Grid options
 
+* [items](#items-)
+* [show](#show-)
+* [hide](#hide-)
+* [layout](#layout-)
+* [layoutOnResize](#layoutonresize-)
+* [layoutOnInit](#layoutoninit-)
+* [layoutDuration](#layoutduration-)
+* [layoutEasing](#layouteasing-)
+* [sortData](#sortdata-)
+* [dragEnabled](#dragenabled-)
+* [dragContainer](#dragcontainer-)
+* [dragStartPredicate](#dragstartpredicate-)
+* [dragSort](#dragsort-)
+* [dragSortInterval](#dragsortinterval-)
+* [dragSortPredicate](#dragsortpredicate-)
+* [dragSortGroup](#dragsortgroup-)
+* [dragSortConnections](#dragsortconnections-)
+* [dragReleaseDuration](#dragreleaseduration-)
+* [dragReleaseEasing](#dragreleaseeasing-)
+* [containerClass](#containerclass-)
+* [itemClass](#itemclass-)
+* [itemVisibleClass](#itemvisibleclass-)
+* [itemHiddenClass](#itemhiddenclass-)
+* [itemPositioningClass](#itempositioningclass-)
+* [itemDraggingClass](#itemdraggingclass-)
+* [itemReleasingClass](#itemreleasingclass-)
+
 ### items &nbsp;
 
 The initial item elements, which should be children of the container element. All elements that are not children of the container will be appended to the container. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.

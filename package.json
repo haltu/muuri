@@ -13,8 +13,9 @@
   "homepage": "https://github.com/haltu/muuri",
   "license": "MIT",
   "author": {
-    "name": "Haltu Oy",
-    "url" : "http://www.haltu.fi/"
+    "name": "Niklas Rämö",
+    "email": "inramo@gmail.com",
+    "url": "https://github.com/niklasramo"
   },
   "repository": {
     "type": "git",

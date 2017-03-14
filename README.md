@@ -1,79 +1,21 @@
 # Muuri
 
-Muuri allows you to create responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
+Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
 
 Muuri's layout system allows positioning the grid items pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
-Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioining/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging.
-
-And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioining/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 ## Table of contents
 
 * [Getting started](#getting-started)
-* [Constructor](#constructor)
-* [Options](#options)
-* [Methods](#methods)
-  * [grid.getElement()](#gridgetelement)
-  * [grid.getDimensions()](#gridgetdimensions)
-  * [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
-  * [grid.updateDimensions( [target], [dimensions/items] )](#gridupdatedimensions-target-dimensions-items-)
-  * [grid.updateSortData( [items] )](#gridupdatesortdata-items-)
-  * [grid.synchronize()](#gridsynchronize)
-  * [grid.layout( [instant], [callback] )](#gridlayout-instant-callback-)
-  * [grid.add( elements, [options] )](#gridadd-elements-options-)
-  * [grid.remove( items, [options] )](#gridremove-items-options-)
-  * [grid.show( items, [options] )](#gridshow-items-options-)
-  * [grid.hide( items, [options] )](#gridhide-items-options-)
-  * [grid.filter( predicate, [options] )](#gridfilter-predicate-options-)
-  * [grid.sort( comparer, [options] )](#gridsort-comparer-options-)
-  * [grid.move( item, position, [options] )](#gridmove-item-position-options-)
-  * [grid.send( item, grid, [options] )](#gridsend-item-grid-options-)
-  * [grid.on( event, listener )](#gridon-event-listener-)
-  * [grid.off( event, listener )](#gridoff-event-listener-)
-  * [grid.destroy( [removeElements] )](#griddestroy-removeelements-)
-* [Item methods](#item-methods)
-  * [item.getGrid()](#itemgetgrid)
-  * [item.getElement()](#itemgetelement)
-  * [item.getWidth()](#itemgetwidth)
-  * [item.getHeight()](#itemgetheight)
-  * [item.getMargin()](#itemgetmargin)
-  * [item.getPosition()](#itemgetposition)
-  * [item.isActive()](#itemisactive)
-  * [item.isVisible()](#itemisvisible)
-  * [item.isShowing()](#itemisshowing)
-  * [item.isHiding()](#itemishiding)
-  * [item.isPositioning()](#itemispositioning)
-  * [item.isDragging()](#itemisdragging)
-  * [item.isReleasing()](#itemisreleasing)
-  * [item.isMigrating()](#itemismigrating)
-* [Events](#events)
-  * [synchronize](#synchronize)
-  * [layoutStart](#layoutstart)
-  * [layoutEnd](#layoutend)
-  * [add](#add)
-  * [remove](#remove)
-  * [showStart](#showstart)
-  * [showEnd](#showend)
-  * [hideStart](#hidestart)
-  * [hideEnd](#hideend)
-  * [filter](#filter)
-  * [sort](#sort)
-  * [move](#move)
-  * [send](#send)
-  * [receiveStart](#receivestart)
-  * [receiveEnd](#receiveend)
-  * [dragStart](#dragstart)
-  * [dragMove](#dragmove)
-  * [dragScroll](#dragscroll)
-  * [dragSort](#dragsort)
-  * [dragSend](#dragsend)
-  * [dragReceive](#dragreceive)
-  * [dragReceiveDrop](#dragreceivedrop)
-  * [dragEnd](#dragend)
-  * [dragReleaseStart](#dragreleasestart)
-  * [dragReleaseEnd](#dragreleaseend)
-  * [destroy](#destroy)
+* [API](#api)
+  * [Grid constructor](#grid-constructor)
+  * [Grid options](#grid-options)
+  * [Grid methods](#grid-methods)
+  * [Grid events](#grid-events)
+  * [Item methods](#item-methods)
+* [Credits](#credits)
 * [License](#license)
 
 ## Getting started
@@ -192,7 +134,9 @@ The bare minimum configuration is demonstrated below. You must always provide th
 var grid = new Muuri('.grid');
 ```
 
-## Constructor
+## API
+
+### Grid constructor
 
 `Muuri` is a constructor function and should be always instantiated with the `new` keyword. For the sake of clarity, we refer to a Muuri instance as *grid* throughout the documentation.
 
@@ -206,7 +150,7 @@ var grid = new Muuri('.grid');
   * Default value: `null`.
   * You can provide the element directly or use a selector (string) which uses [querySelectorAll()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelectorAll) internally. The first element of the query's result will be used.
 * **options** &nbsp;&mdash;&nbsp; *object*
-  * Optional. Check out the [detailed options reference](#grid-options).
+  * Optional. Check out the [detailed options reference](#options).
 
 **Default options**
 
@@ -297,16 +241,35 @@ var gridB = new Muuri('.grid-b', {
 });
 ```
 
-## Options
+### Grid options
 
-### items &nbsp;
+#### items &nbsp;
 
-The initial item elements, which should be children of the container element. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
+The initial item elements, which should be children of the container element. All elements that are not children of the container will be appended to the container. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
 
   * Default value: `'*'`.
   * Accepted types: array (of elements), [node list](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), string, null.
 
-### show &nbsp;
+**Examples**
+
+```javascript
+// Use specific items.
+var grid = new Muuri(elem, {
+  items: [elemA, elemB, elemC]
+});
+
+// Use node list.
+var grid = new Muuri(elem, {
+  items: elem.querySelectorAll('.item')
+});
+
+// Use selector.
+var grid = new Muuri(elem, {
+  items: '.item'
+});
+```
+
+#### show &nbsp;
 
 Defines the show animation. Set to `null` to disable show animation completely.
 
@@ -340,7 +303,22 @@ By providing a function you can define a fully customized animation. The functio
     * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
       * The Muuri.Item instance that is being animated.
 
-### hide &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  show: {
+    duration: 600,
+    easing: 'ease-out',
+    styles: {
+      opacity: 1,
+      rotateZ: '45deg'
+    }
+  }
+});
+```
+
+#### hide &nbsp;
 
 Defines the hide animation. Set to `null` to disable hide animation completely.
 
@@ -374,7 +352,22 @@ By providing a function you can define a fully customized animation. The functio
       * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
         * The Muuri.Item instance that is being animated.
 
-### layout &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  hide: {
+    duration: 700,
+    easing: 'ease-in',
+    styles: {
+      opacity: 0,
+      rotateZ: '-45deg'
+    }
+  }
+});
+```
+
+#### layout &nbsp;
 
 Define how the items will be laid out.
 
@@ -396,58 +389,114 @@ Provide an object to configure the default layout algorithm with the following p
   * Default value: `false`.
   * When `true` the items are aligned from the bottom up.
 
-Alternatively you can provide a function to define a custom layout algorithm. The function will receive the `Muuri.Layout` instance as its context. A `Muuri.Layout` instance has the following properties:
-* **grid** &nbsp;&mdash;&nbsp; *Muuri*
-  * The related `Muuri` instance.
-* **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of the `Muuri.Item` instances that needs to be laid out.
-* **slots** &nbsp;&mdash;&nbsp; *object*
-  * A hash of new item positions. Define the new item positions using an object that contains the item's `left` and `top` values (in pixels, relative to the container element's content). Store the the positions to the object using the related item's id (`item._id`).
-* **setWidth** &nbsp;&mdash;&nbsp; *boolean*
-  * Default value: `false`.
-  * Should container element width be set?
-* **setHeight** &nbsp;&mdash;&nbsp; *boolean*
-  * Default value: `false`.
-  * Should container element height be set?
-* **width** &nbsp;&mdash;&nbsp; *number*
-  * The current width of the container element (without margin, border and padding).
-* **height** &nbsp;&mdash;&nbsp; *number*
-  * The current height of the container element (without margin, border and padding).
+**Examples**
 
-### layoutOnResize &nbsp;
+```javascript
+var grid = new Muuri(elem, {
+  layout: {
+    fillGaps: true,
+    horizontal: true,
+    alignRight: true,
+    alignBottom: true
+  }
+});
+```
+
+#### layoutOnResize &nbsp;
 
 Should Muuri automatically trigger `layoutItems` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically lay out the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are laid out after each window resize event.
 
 * Default value: `100`.
 * Accepted types: boolean, number.
 
-### layoutOnInit &nbsp;
+**Examples**
+
+```javascript
+// No layout on resize.
+var grid = new Muuri(elem, {
+  layoutOnResize: false
+});
+
+// Layout on resize (instantly).
+var grid = new Muuri(elem, {
+  layoutOnResize: true
+});
+
+// Layout on resize (with 200ms debounce).
+var grid = new Muuri(elem, {
+  layoutOnResize: 200
+});
+```
+
+#### layoutOnInit &nbsp;
 
 Should Muuri trigger `layout` method automatically on init?
 
 * Default value: `true`.
 * Accepted types: boolean.
 
-### layoutDuration &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  layoutOnInit: false
+});
+```
+
+#### layoutDuration &nbsp;
 
 The duration for item's layout animation in milliseconds. Set to `0` to disable.
 
 * Default value: `300`.
 * Accepted types: number.
 
-### layoutEasing &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  layoutDuration: 600
+});
+```
+
+#### layoutEasing &nbsp;
 
 The easing for item's layout animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 
 * Default value: `'ease'`.
 * Accepted types: string.
 
-### sortData &nbsp;
+**Examples**
+
+```javascript
+// jQuery UI easings.
+var grid = new Muuri(elem, {
+  layoutEasing: 'easeInSine'
+});
+
+// Custom bezier curve.
+var grid = new Muuri(elem, {
+  layoutEasing: [0.17, 0.67, 0.83, 0.67]
+});
+
+// Spring physics.
+var grid = new Muuri(elem, {
+  layoutEasing: [250, 15]
+});
+
+// Step easing.
+var grid = new Muuri(elem, {
+  layoutEasing: [8]
+});
+```
+
+#### sortData &nbsp;
 
 The sort data getter functions. Provide an object where the key is the name of the sortable attribute and the function returns a value (from the item) by which the items can be sorted.
 
 * Default value: `null`.
 * Accepted types: object, null.
+
+**Examples**
 
 ```javascript
 var grid = new Muuri(elem, {
@@ -461,26 +510,42 @@ var grid = new Muuri(elem, {
   }
 });
 // Refresh sort data whenever an item's data-foo or data-bar changes
-grid.updateSortData();
+grid.refreshSortData();
 // Sort the grid by foo and bar.
 grid.sort('foo bar');
 ```
 
-### dragEnabled &nbsp;
+#### dragEnabled &nbsp;
 
 Should items be draggable?
 
 * Default value: `false`.
 * Accepted types: boolean.
 
-### dragContainer &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  dragEnabled: true
+});
+```
+
+#### dragContainer &nbsp;
 
 Which item the dragged item should be appended to for the duration of the drag? If `null` the container element will be used.
 
 * Default value: `null`.
 * Accepted types: element, null.
 
-### dragStartPredicate &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  dragContainer: document.body
+});
+```
+
+#### dragStartPredicate &nbsp;
 
 A function that determines when the item should be started to move when dragging an item is being dragged. If `null` the default predicate is used (moving starts immediately).
 
@@ -496,6 +561,8 @@ The predicate function receives two arguments:
 * **event**  &nbsp;&mdash;&nbsp; *object*
   * The drag event (Hammer.js event).
 
+**Examples**
+
 ```javascript
 var grid = new Muuri(elem, {
   dragStartPredicate: function (item, e) {
@@ -507,21 +574,44 @@ var grid = new Muuri(elem, {
 });
 ```
 
-### dragSort &nbsp;
+#### dragSort &nbsp;
 
 Should the items be sorted during drag?
 
 * Default value: `true`.
 * Accepted types: boolean.
 
-### dragSortInterval &nbsp;
+**Examples**
 
-Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty intense which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is definitely not recommended).
+```javascript
+// Disable drag sorting.
+var grid = new Muuri(elem, {
+  dragSort: false
+});
+```
+
+#### dragSortInterval &nbsp;
+
+Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty heavy function which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is not recommended).
 
 * Default value: `100`.
 * Accepted types: number.
 
-### dragSortPredicate &nbsp;
+**Examples**
+
+```javascript
+// Sort on every drag move.
+var grid = new Muuri(elem, {
+  dragSortInterval: 0
+});
+
+// Sort with a decent buffer.
+var grid = new Muuri(elem, {
+  dragSortInterval: 150
+});
+```
+
+#### dragSortPredicate &nbsp;
 
 Defines the logic for the sort procedure during dragging an item.
 
@@ -538,9 +628,7 @@ If an object is provided the default sort predicate handler will be used. You ca
   * Allowed values: `1` - `100`.
   * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the items before sorting is triggered.
 
-Alternatively you can provide your own callback function where you can define your own custom sort logic.
-
-The callback function receives two arguments:
+Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback function receives two arguments:
 
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The item that's being dragged.
@@ -557,86 +645,230 @@ The callback should return a *falsy* value if sorting should not occur. If, howe
   * The movement method.
   * Allowed values: `'move'` or `'swap'`.
 
-### dragSortGroup &nbsp;
+**Examples**
 
-The grid's sort group, e.g. "groupA".
+```javascript
+// Customize the default predicate.
+var grid = new Muuri(elem, {
+  dragSortPredicate: {
+    threshold: 90,
+    action: 'swap'
+  }
+});
+
+// Provide your own predicate.
+var grid = new Muuri(elem, {
+  dragSortPredicate: function (item, e) {
+    if (e.deltaTime > 1000) {
+      return {
+        grid: item.getGrid(),
+        index: Math.round(e.deltaTime / 1000) % 2 === 0 ? -1 : 0,
+        action: 'move'
+      };
+    }
+  }
+});
+```
+
+#### dragSortGroup &nbsp;
+
+The grid's sort group, e.g. "groupA". If you provide no sort group the grid can not be targeted with `dragSortConnections` option, which means that items can not be dragged into the grid from other grids.
 
 * Default value: `null`.
 * Accepted types: string, null.
 
-### dragSortConnections &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  dragSortGroup: 'groupA'
+});
+```
+
+#### dragSortConnections &nbsp;
 
 Defines the sort groups that this instance's item's can be dragged to. Provide an array of sort groups (strings), e.g. `['groupA', 'groupC']`.
 
 * Default value: `null`.
 * Accepted types: array, null.
 
-### dragReleaseDuration &nbsp;
+**Examples**
+
+```javascript
+// This grid's items can not be dragged into any other grids.
+var gridA = new Muuri(elemA, {
+  dragSortGroup: 'a'
+});
+
+// This grid's items can be dragged into gridC.
+var gridB = new Muuri(elemB, {
+  dragSortGroup: 'b',
+  dragSortConnections: ['c']
+});
+
+// This grid's items can be dragged into gridA and gridB. 
+var gridC = new Muuri(elemC, {
+  dragSortGroup: 'c',
+  dragSortConnections: ['a', 'b']
+});
+```
+
+#### dragReleaseDuration &nbsp;
 
 The duration for item's drag release animation. Set to `0` to disable.
 
 * Default value: `300`.
 * Accepted types: number.
 
-### dragReleaseEasing &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  dragReleaseDuration: 600
+});
+```
+
+#### dragReleaseEasing &nbsp;
 
 The easing for item's drag release animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 
 * Default value: `'ease'`.
 * Accepted types: array, string.
 
-### containerClass &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  dragReleaseEasing: 'ease-out'
+});
+```
+
+#### containerClass &nbsp;
 
 Container element's classname.
 
 * Default value: `'muuri'`.
 * Accepted types: string.
 
-### itemClass &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  containerClass: 'foo'
+});
+```
+
+#### itemClass &nbsp;
 
 Item element's classname.
 
 * Default value: `'muuri-item'`.
 * Accepted types: string.
 
-### itemVisibleClass &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  itemClass: 'foo-item'
+});
+```
+
+#### itemVisibleClass &nbsp;
 
 Visible item's classname.
 
 * Default value: `'muuri-item-shown'`.
 * Accepted types: string.
 
-### itemHiddenClass &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  itemVisibleClass: 'foo-item-shown'
+});
+```
+
+#### itemHiddenClass &nbsp;
 
 Hidden item's classname.
 
 * Default value: `'muuri-item-hidden'`.
 * Accepted types: string.
 
-### itemPositioningClass &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  itemHiddenClass: 'foo-item-hidden'
+});
+```
+
+#### itemPositioningClass &nbsp;
 
 This classname will be added to the item element for the duration of positioning.
 
 * Default value: `'muuri-item-positioning'`.
 * Accepted types: string.
 
-### itemDraggingClass &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  itemPositioningClass: 'foo-item-positioning'
+});
+```
+
+#### itemDraggingClass &nbsp;
 
 This classname will be added to the item element for the duration of drag.
 
 * Default value: `'muuri-item-dragging'`.
 * Accepted types: string.
 
-### itemReleasingClass &nbsp;
+**Examples**
+
+```javascript
+var grid = new Muuri(elem, {
+  itemDraggingClass: 'foo-item-dragging'
+});
+```
+
+#### itemReleasingClass &nbsp;
 
 This classname will be added to the item element for the duration of release.
 
 * Default value: `'muuri-item-releasing'`.
 * Accepted types: string.
 
-## Methods
+```javascript
+var grid = new Muuri(elem, {
+  itemReleasingClass: 'foo-item-releasing'
+});
+```
 
-### grid.getElement()
+### Grid methods
+
+* [grid.getElement()](#gridgetelement)
+* [grid.getDimensions()](#gridgetdimensions)
+* [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
+* [grid.refreshContainer( [...dimension] )](#gridrefreshcontainer-dimension-)
+* [grid.refreshItems( [items] )](#gridrefreshitems-items-)
+* [grid.refreshSortData( [items] )](#gridrefreshsortdata-items-)
+* [grid.synchronize()](#gridsynchronize)
+* [grid.layout( [instant], [callback] )](#gridlayout-instant-callback-)
+* [grid.add( elements, [options] )](#gridadd-elements-options-)
+* [grid.remove( items, [options] )](#gridremove-items-options-)
+* [grid.show( items, [options] )](#gridshow-items-options-)
+* [grid.hide( items, [options] )](#gridhide-items-options-)
+* [grid.filter( predicate, [options] )](#gridfilter-predicate-options-)
+* [grid.sort( comparer, [options] )](#gridsort-comparer-options-)
+* [grid.move( item, position, [options] )](#gridmove-item-position-options-)
+* [grid.send( item, grid, [options] )](#gridsend-item-grid-options-)
+* [grid.on( event, listener )](#gridon-event-listener-)
+* [grid.off( event, listener )](#gridoff-event-listener-)
+* [grid.destroy( [removeElements] )](#griddestroy-removeelements-)
+
+#### grid.getElement()
 
 Get the instance element.
 
@@ -648,9 +880,9 @@ Get the instance element.
 var elem = grid.getElement();
 ```
 
-### grid.getDimensions()
+#### grid.getDimensions()
 
-Get grid element's cached dimensions. The cached dimensions are subject to change whenever `grid.layout()` or `grid.updateDimensions()` method is called. All returned values are rounded.
+Get grid element's cached dimensions. The cached dimensions are subject to change whenever `grid.layout()` or `grid.refreshContainer()` method is called. All returned values are rounded.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 
@@ -681,7 +913,7 @@ Get grid element's cached dimensions. The cached dimensions are subject to chang
 var dimensions = grid.getDimensions();
 ```
 
-### grid.getItems( [targets], [state] )
+#### grid.getItems( [targets], [state] )
 
 Get all items in the grid. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state. Note that the returned array is not the same object that is used by the grid instance so modifying it will not affect the instance's items.
 
@@ -721,61 +953,68 @@ var items = grid.getItems([elemA, elemB]);
 var items = grid.getItems([elemA, elemB], 'inactive');
 ```
 
-### grid.updateDimensions( [target], [dimensions/items] )
+#### grid.refreshContainer( [...dimension] )
 
-Update the cached dimensions and offsets of the container element and/or the items. When called without any arguments all cached grid container element dimensions and item dimensions will be updated. However, that can be quite a heavy operation depending on the amount of items so use it sparingly. The first argument allows you to define a target which in this case can be either "grid" (the grid container element) or "items" (the grid items). If you are targeting the "grid" the second argument allows you to provide an array of all the cached values you want to update. If you are targeting the "items" the second argument allows you to define explicit items you want to update.
+Refresh the cached dimensions and offsets of the container element. By default, when called without any arguments, all cached grid container element dimensions are refreshed (read from the DOM and cached). Optionally you can provide the names of the values you want to refresh as arguents.
 
 **Parameters**
 
-* **target** &nbsp;&mdash;&nbsp; *string*
-  * Do you want to update the grid container element dimensions ("grid") or the item dimensions ("items")?
-  * Accepted values: "grid" or "items".
-  * Optional.
-* **dimensions/items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number / string*
-  * If you are targeting the "grid" this argument allows you to provide an array of all the cached values you want to update. The allowed values are: "width", "height", "offset", "padding", "border" and "box-sizing". By default all values are updated.
-  * If you are targeting the "items" this allows you to define the explicit items you want to update. You can define the explicit items with an array of item instances/elements/indices. By default all active items are updated.
+* **dimension** &nbsp;&mdash;&nbsp; *string*
+  * Provide the name of the cached value you want to refresh. By default all values are refreshed.
+  * Accepted values: "width", "height", "offset", "padding", "border" and "box-sizing".
   * Optional.
 
 **Examples**
 
 ```javascript
-// Update the dimensions of both the grid element and all active item elements.
-grid.updateDimensions();
+// Refresh all grid element's cached dimensions.
+grid.refreshContainer();
 
-// Update grid element dimensions.
-grid.updateDimensions('grid');
-
-// Update dimensions of all active item elements.
-grid.updateDimensions('items');
-
-// Update specific dimensions of the grid element.
-grid.updateDimensions('grid', ['width', 'height']);
-
-// Update dimensions of specific item elements.
-grid.updateDimensions('items', [0, someElem, someItem]);
+// Refresh specific dimensions of the grid element.
+grid.refreshContainer('grid', ['width', 'height']);
 ```
 
-### grid.updateSortData( [items] )
+#### grid.refreshItems( [items] )
 
-Update the sort data of the instance's items.
+Refresh the cached dimensions of the grid's items. When called without any arguments all active items are refreshed. Optionally you can provide specific the items which you want to refresh as the first argument.
+
+**Parameters**
+
+* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number / string*
+  * To target specific items provide an array of item instances/elements/indices. By default all active items are targeted.
+  * Optional.
+
+**Examples**
+
+```javascript
+// Refresh dimensions of all active item elements.
+grid.refreshItems();
+
+// Refresh dimensions of specific item elements.
+grid.refreshItems([0, someElem, someItem]);
+```
+
+#### grid.refreshSortData( [items] )
+
+Refresh the sort data of the instance's items.
 
 **Parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * To target explicit items provide an array of item instances/elements/indices. By default all items are targeted.
+  * To target specific items provide an array of item instances/elements/indices. By default all items are targeted.
   * Optional.
 
 **Examples**
 
 ```javascript
-// Update the sort data for every item.
-grid.updateSortData();
+// Refresh the sort data for every item.
+grid.refreshSortData();
 
-// Update the sort data for specific items.
-grid.updateSortData([0, someElem, someItem]);
+// Refresh the sort data for specific items.
+grid.refreshSortData([0, someElem, someItem]);
 ```
 
-### grid.synchronize()
+#### grid.synchronize()
 
 Synchronize the item elements to match the order of the items in the DOM. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the container element (if it is dragged for example) it is ignored and left untouched.
 
@@ -789,7 +1028,7 @@ grid.move(0, -1);
 grid.synchronize();
 ```
 
-### grid.layout( [instant], [callback] )
+#### grid.layout( [instant], [callback] )
 
 Calculate item positions and move items to their calculated positions, unless they are already positioned correctly. The grid's height/width (depends on the layout algorithm) is also adjusted according to the position of the items.
 
@@ -819,7 +1058,7 @@ grid.layout(function (items) {
 });
 ```
 
-### grid.add( elements, [options] )
+#### grid.add( elements, [options] )
 
 Add new items by providing the elements you wish to add to the instance and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container element. If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method. This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
 
@@ -853,7 +1092,7 @@ grid.add([elemA, elemB], {index: 0});
 grid.add([elemA, elemB], {layout: false});
 ```
 
-### grid.remove( items, [options] )
+#### grid.remove( items, [options] )
 
 Remove items from the instance.
 
@@ -888,7 +1127,7 @@ grid.remove([elemA, elemB], {layout: false});
 ```
 
 
-### grid.show( items, [options] )
+#### grid.show( items, [options] )
 
 Show the targeted items.
 
@@ -923,7 +1162,7 @@ grid.show([elemA, elemB], function (items) {
 });
 ```
 
-### grid.hide( items, [options] )
+#### grid.hide( items, [options] )
 
 Hide the targeted items.
 
@@ -959,7 +1198,7 @@ grid.hide([elemA, elemB], function (items) {
 });
 ```
 
-### grid.filter( predicate, [options] )
+#### grid.filter( predicate, [options] )
 
 Filter items. Expects at least one argument, a predicate, which should be either a function or a string. The predicate callback is executed for every item in the instance. If the return value of the predicate is truthy the item in question will be shown and otherwise hidden. The predicate callback receives two arguments: the item instance and the instance's element. If the predicate is a string it is considered to be a selector and it is checked against every item element in the instance with the native element.matches() method. All the matching items will be shown and others hidden.
 
@@ -994,7 +1233,7 @@ grid.filter('[data-foo]');
 grid.filter('.foo');
 ```
 
-### grid.sort( comparer, [options] )
+#### grid.sort( comparer, [options] )
 
 Sort items. There are three ways to sort the items. The first is simply by providing a function as the comparer which works almost identically to [native array sort](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort). Th only difference is that the sort is always stable. Alternatively you can sort by the sort data you have provided in the instance's options. Just provide the sort data key(s) as a string (separated by space) and the items will be sorted based on the provided sort data keys. Lastly you have the opportunity to provide a presorted array of items which will be used to sync the internal items array in the same order.
 
@@ -1035,7 +1274,7 @@ grid.sort('foo bar', {descending: true});
 grid.sort('foo bar:desc');
 ```
 
-### grid.move( item, position, [options] )
+#### grid.move( item, position, [options] )
 
 Move an item to another position in the grid.
 
@@ -1072,7 +1311,7 @@ grid.move(elemA, elemB, {action: 'swap'});
 grid.move(0, -1, {action: 'swap'});
 ```
 
-### grid.send( item, grid, position, [options] )
+#### grid.send( item, grid, position, [options] )
 
 Move an item into another grid.
 
@@ -1104,7 +1343,7 @@ gridA.send(0, gridB, -1 {
 });
 ```
 
-### grid.on( event, listener )
+#### grid.on( event, listener )
 
 Bind an event on the Muuri instance.
 
@@ -1125,7 +1364,7 @@ grid.on('layoutEnd', function (items) {
 });
 ```
 
-### grid.off( event, listener )
+#### grid.off( event, listener )
 
 Unbind an event from the Muuri instance.
 
@@ -1150,7 +1389,7 @@ muuri
 .off('layoutEnd', listener);
 ```
 
-### grid.destroy( [removeElements] )
+#### grid.destroy( [removeElements] )
 
 Destroy the grid instance.
 
@@ -1170,188 +1409,36 @@ grid.destroy();
 grid.destroy(true);
 ```
 
-## Item methods
-
-### item.getGrid()
-
-Get the instance's grid instance.
-
-**Returns** &nbsp;&mdash;&nbsp; *Muuri*
-
-**Examples**
-
-```javascript
-var grid = item.getMuuri();
-```
-
-
-### item.getElement()
-
-Get the instance element.
-
-**Returns** &nbsp;&mdash;&nbsp; *element*
-
-**Examples**
-
-```javascript
-var elem = item.getElement();
-```
-
-### item.getWidth()
-
-Get instance element's cached width. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
-
-**Returns** &nbsp;&mdash;&nbsp; *number*
-
-**Examples**
-
-```javascript
-var width = item.getWidth();
-```
-
-### item.getHeight()
-
-Get instance element's cached height. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
-
-**Returns** &nbsp;&mdash;&nbsp; *number*
-
-**Examples**
-
-```javascript
-var height = item.getHeight();
-```
-
-### item.getMargin()
-
-Get instance element's cached margins. Note that the values are rounded with `Math.round()`.
-
-**Returns** &nbsp;&mdash;&nbsp; *object*
-
-* **obj.left** &nbsp;&mdash;&nbsp; *number*
-* **obj.right** &nbsp;&mdash;&nbsp; *number*
-* **obj.top** &nbsp;&mdash;&nbsp; *number*
-* **obj.bottom** &nbsp;&mdash;&nbsp; *number*
-
-**Examples**
-
-```javascript
-var margin = item.getMargin();
-```
-
-### item.getPosition()
-
-Get instance element's cached position (relative to the container element).
-
-**Returns** &nbsp;&mdash;&nbsp; *object*
-
-* **obj.left** &nbsp;&mdash;&nbsp; *number*
-* **obj.top** &nbsp;&mdash;&nbsp; *number*
-
-**Examples**
-
-```javascript
-var position = item.getPosition();
-```
-
-### item.isActive()
-
-Check if the item is currently *active*. Only active items are considered to be part of the layout.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isActive = item.isActive();
-```
-
-### item.isVisible()
-
-Check if the item is currently *visible*.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isVisible = item.isVisible();
-```
-
-### item.isShowing()
-
-Check if the item is currently animating to visible.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isShowing = item.isShowing();
-```
-
-### item.isHiding()
-
-Check if the item is currently animating to hidden.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isHiding = item.isHiding();
-```
-
-### item.isPositioning()
-
-Check if the item is currently being positioned.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isPositioning = item.isPositioning();
-```
-
-### item.isDragging()
-
-Check if the item is currently being dragged.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isDragging = item.isDragging();
-```
-
-### item.isReleasing()
-
-Check if the item is currently being released.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isReleasing = item.isReleasing();
-```
-
-### item.isMigrating()
-
-Check if the item is currently being migrated from a grid to another.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isMigrating = item.isMigrating();
-```
-
-## Events
-
-### synchronize
+### Grid events
+
+* [synchronize](#synchronize)
+* [layoutStart](#layoutstart)
+* [layoutEnd](#layoutend)
+* [add](#add)
+* [remove](#remove)
+* [showStart](#showstart)
+* [showEnd](#showend)
+* [hideStart](#hidestart)
+* [hideEnd](#hideend)
+* [filter](#filter)
+* [sort](#sort)
+* [move](#move)
+* [send](#send)
+* [receiveStart](#receivestart)
+* [receiveEnd](#receiveend)
+* [dragStart](#dragstart)
+* [dragMove](#dragmove)
+* [dragScroll](#dragscroll)
+* [dragSort](#dragsort)
+* [dragSend](#dragsend)
+* [dragReceive](#dragreceive)
+* [dragReceiveDrop](#dragreceivedrop)
+* [dragEnd](#dragend)
+* [dragReleaseStart](#dragreleasestart)
+* [dragReleaseEnd](#dragreleaseend)
+* [destroy](#destroy)
+
+#### synchronize
 
 Triggered after `grid.synchronize()` is called.
 
@@ -1363,7 +1450,7 @@ grid.on('synchronize', function () {
 });
 ```
 
-### layoutStart
+#### layoutStart
 
 Triggered after `grid.layout()` is called, just before the items are positioned.
 
@@ -1380,7 +1467,7 @@ grid.on('layoutStart', function (items) {
 });
 ```
 
-### layoutEnd
+#### layoutEnd
 
 Triggered after `grid.layout()` is called, after the items have positioned.
 
@@ -1397,7 +1484,7 @@ grid.on('layoutEnd', function (items) {
 });
 ```
 
-### add
+#### add
 
 Triggered after `grid.add()` is called.
 
@@ -1414,7 +1501,7 @@ grid.on('add', function (items) {
 });
 ```
 
-### remove
+#### remove
 
 Triggered after `grid.remove()` is called.
 
@@ -1431,7 +1518,7 @@ grid.on('remove', function (indices) {
 });
 ```
 
-### showStart
+#### showStart
 
 Triggered after `grid.show()` is called, just before the items are shown.
 
@@ -1448,7 +1535,7 @@ grid.on('showStart', function (items) {
 });
 ```
 
-### showEnd
+#### showEnd
 
 Triggered after `grid.show()` is called, after the items are shown.
 
@@ -1465,7 +1552,7 @@ grid.on('showEnd', function (items) {
 });
 ```
 
-### hideStart
+#### hideStart
 
 Triggered after `grid.hide()` is called, just before the items are hidden.
 
@@ -1482,7 +1569,7 @@ grid.on('hideStart', function (items) {
 });
 ```
 
-### hideEnd
+#### hideEnd
 
 Triggered after `grid.hide()` is called, after the items are hidden (with or without animation).
 
@@ -1499,7 +1586,7 @@ grid.on('hideEnd', function (items) {
 });
 ```
 
-### filter
+#### filter
 
 Triggered after `grid.filter()` is called.
 
@@ -1519,7 +1606,7 @@ grid.on('filter', function (visibleItems, hiddenItems) {
 });
 ```
 
-### sort
+#### sort
 
 Triggered after `grid.sort()` is called.
 
@@ -1539,7 +1626,7 @@ grid.on('sort', function (currentOrder, previousOrder) {
 });
 ```
 
-### move
+#### move
 
 Triggered after `grid.move()` is called.
 
@@ -1563,7 +1650,7 @@ grid.on('move', function (data) {
 });
 ```
 
-### send
+#### send
 
 Triggered after `grid.send()` is called. Triggered for the originating grid.
 
@@ -1587,7 +1674,7 @@ grid.on('send', function (data) {
 });
 ```
 
-### receiveStart
+#### receiveStart
 
 Triggered after `grid.send()` is called. Triggered for the receiving grid.
 
@@ -1611,7 +1698,7 @@ grid.on('receiveStart', function (data) {
 });
 ```
 
-### receiveEnd
+#### receiveEnd
 
 Triggered after `grid.send()` is called and after the item has animated to the new position. Triggered for the receiving grid.
 
@@ -1635,7 +1722,7 @@ grid.on('receiveEnd', function (data) {
 });
 ```
 
-### dragStart
+#### dragStart
 
 Triggered when dragging of an item begins.
 
@@ -1655,7 +1742,7 @@ grid.on('dragStart', function (event, item) {
 });
 ```
 
-### dragMove
+#### dragMove
 
 Triggered when an item is dragged.
 
@@ -1675,7 +1762,7 @@ grid.on('dragMove', function (event, item) {
 });
 ```
 
-### dragScroll
+#### dragScroll
 
 Triggered when any of the scroll parents of a dragged item is scrolled.
 
@@ -1696,7 +1783,7 @@ grid.on('dragScroll', function (event, item) {
 ```
 
 
-### dragSort
+#### dragSort
 
 Triggered when the grid is sorted during drag. Note that this event is not triggered when `grid.sort()` called. This is specifically triggered when the dragging causes the sorting. Additionally, this is only triggered when the sorting happens within the current grid, not when an item is dragged into another grid.
 
@@ -1723,7 +1810,7 @@ grid.on('dragSort', function (event, data) {
 });
 ```
 
-### dragSend
+#### dragSend
 
 Triggered when an item is dragged into another grid. Triggered for the originating grid.
 
@@ -1750,7 +1837,7 @@ grid.on('dragSend', function (event, data) {
 });
 ```
 
-### dragReceive
+#### dragReceive
 
 Triggered when an item is dragged into another grid. Triggered for the grid that receives the item.
 
@@ -1777,7 +1864,7 @@ grid.on('dragReceive', function (event, data) {
 });
 ```
 
-### dragReceiveDrop
+#### dragReceiveDrop
 
 Triggered when an item is dropped into another grid. Triggered for the grid that receives the item.
 
@@ -1797,7 +1884,7 @@ grid.on('dragReceiveDrop', function (event, item) {
 });
 ```
 
-### dragEnd
+#### dragEnd
 
 Triggered when dragging of an item ends.
 
@@ -1817,7 +1904,7 @@ grid.on('dragEnd', function (event, item) {
 });
 ```
 
-### dragReleaseStart
+#### dragReleaseStart
 
 Triggered when a dragged item is released.
 
@@ -1834,7 +1921,7 @@ grid.on('dragReleaseStart', function (item) {
 });
 ```
 
-### dragReleaseEnd
+#### dragReleaseEnd
 
 Triggered after released item has been animated to position.
 
@@ -1851,7 +1938,7 @@ grid.on('dragReleaseEnd', function (item) {
 });
 ```
 
-### destroy
+#### destroy
 
 Triggered after `grid.destroy()` is called.
 
@@ -1862,6 +1949,208 @@ grid.on('destroy', function () {
   console.log('Muuri is no more...');
 });
 ```
+
+### Item methods
+
+* [item.getGrid()](#itemgetgrid)
+* [item.getElement()](#itemgetelement)
+* [item.getWidth()](#itemgetwidth)
+* [item.getHeight()](#itemgetheight)
+* [item.getMargin()](#itemgetmargin)
+* [item.getPosition()](#itemgetposition)
+* [item.isActive()](#itemisactive)
+* [item.isVisible()](#itemisvisible)
+* [item.isShowing()](#itemisshowing)
+* [item.isHiding()](#itemishiding)
+* [item.isPositioning()](#itemispositioning)
+* [item.isDragging()](#itemisdragging)
+* [item.isReleasing()](#itemisreleasing)
+* [item.isMigrating()](#itemismigrating)
+
+#### item.getGrid()
+
+Get the instance's grid instance.
+
+**Returns** &nbsp;&mdash;&nbsp; *Muuri*
+
+**Examples**
+
+```javascript
+var grid = item.getMuuri();
+```
+
+#### item.getElement()
+
+Get the instance element.
+
+**Returns** &nbsp;&mdash;&nbsp; *element*
+
+**Examples**
+
+```javascript
+var elem = item.getElement();
+```
+
+#### item.getWidth()
+
+Get instance element's cached width. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *number*
+
+**Examples**
+
+```javascript
+var width = item.getWidth();
+```
+
+#### item.getHeight()
+
+Get instance element's cached height. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *number*
+
+**Examples**
+
+```javascript
+var height = item.getHeight();
+```
+
+#### item.getMargin()
+
+Get instance element's cached margins. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+* **obj.left** &nbsp;&mdash;&nbsp; *number*
+* **obj.right** &nbsp;&mdash;&nbsp; *number*
+* **obj.top** &nbsp;&mdash;&nbsp; *number*
+* **obj.bottom** &nbsp;&mdash;&nbsp; *number*
+
+**Examples**
+
+```javascript
+var margin = item.getMargin();
+```
+
+#### item.getPosition()
+
+Get instance element's cached position (relative to the container element).
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+* **obj.left** &nbsp;&mdash;&nbsp; *number*
+* **obj.top** &nbsp;&mdash;&nbsp; *number*
+
+**Examples**
+
+```javascript
+var position = item.getPosition();
+```
+
+#### item.isActive()
+
+Check if the item is currently *active*. Only active items are considered to be part of the layout.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+var isActive = item.isActive();
+```
+
+#### item.isVisible()
+
+Check if the item is currently *visible*.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+var isVisible = item.isVisible();
+```
+
+#### item.isShowing()
+
+Check if the item is currently animating to visible.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+var isShowing = item.isShowing();
+```
+
+#### item.isHiding()
+
+Check if the item is currently animating to hidden.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+var isHiding = item.isHiding();
+```
+
+#### item.isPositioning()
+
+Check if the item is currently being positioned.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+var isPositioning = item.isPositioning();
+```
+
+#### item.isDragging()
+
+Check if the item is currently being dragged.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+var isDragging = item.isDragging();
+```
+
+#### item.isReleasing()
+
+Check if the item is currently being released.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+var isReleasing = item.isReleasing();
+```
+
+#### item.isMigrating()
+
+Check if the item is currently being migrated from a grid to another.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+**Examples**
+
+```javascript
+var isMigrating = item.isMigrating();
+```
+
+## Credits
+
+Created and maintained by [Niklas Rämö](https://github.com/niklasramo).
+
+* This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/) and [Packery](http://packery.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
+* Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!
+* Big thanks to the people behind [Velocity.js](http://velocityjs.org/) and [Hammer.js](http://hammerjs.github.io/) for providing such awesome libraries. Muuri would be much less cool without animations and dragging.
+* [Haltu Oy](http://www.haltu.fi/) was responsible for initiating this project in the first place and funded the intial development. Thanks Haltu!
 
 ## License
 

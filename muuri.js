@@ -156,7 +156,7 @@ TODO v0.3.0
   // No operation function.
   var noop = function () {};
 
-  // Unique id which is used for Muuri instances and Item instances.
+  // Unique id which is used for Grid instances and Item instances.
   // Should be incremented every time when used.
   var uuid = 0;
 
@@ -291,7 +291,7 @@ TODO v0.3.0
     addClass(element, settings.containerClass);
 
     // Calculate container element's initial dimensions and offset.
-    inst.updateDimensions('grid');
+    inst.refreshContainer();
 
     // Create initial items.
     inst._items = [];
@@ -313,7 +313,7 @@ TODO v0.3.0
     if (typeof settings.layoutOnResize === 'number' || settings.layoutOnResize === true) {
 
       debouncedLayout = debounce(function () {
-        inst.updateDimensions().layout();
+        inst.refreshContainer().refreshItems().layout();
       }, Math.max(0, parseInt(settings.layoutOnResize) || 0));
 
       inst._resizeHandler = function () {
@@ -488,8 +488,8 @@ TODO v0.3.0
 
   /**
    * Get cached dimensions. The cached dimensions are subject to change whenever
-   * layout or updateDimensions method is called. Note that all returned values
-   * are rounded.
+   * layout or refresh method is called. Note that all returned values are
+   * rounded.
    *
    * @public
    * @memberof Grid.prototype
@@ -564,35 +564,104 @@ TODO v0.3.0
   };
 
   /**
-   * Update the cached dimensions and offsets of the container element and/or
-   * the items.
+   * Refresh the cached dimensions and offsets of the container element.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {String} [target]
-   *   - Define if you want to update the dimensions of the grid container
-   *     element or the items. Leave empty to update the dimensions of both the
-   *     grid and the items.
-   *   - Accepted values: "grid" or "items".
-   * @param {(GridMultiItemQuery|GridItemState|GridDimensionQuery)} [items]
-   *   - If target is "grid" this allows you to define which specific dimensions
-   *     you want to update.
-   *   - If target is "items" this allows you to  define which specific items
-   *     you want to update.
+   * @param {...String} [dimensions]
+   *   - The specific dimensions you want to refresh. If no specific dimensions
+   *     are provided, all dimensions are refreshed. Accepted values are:
+   *     "width", "height", "offset", "padding", "border", "box-sizing".
    * @returns {Grid}
    */
-  Grid.prototype.updateDimensions = function (target, items) {
+  Grid.prototype.refreshContainer = function () {
 
     var inst = this;
-    var targetGrid = target === 'grid';
-    var targetItems = target === 'items';
+    var element = inst._element;
+    var argsLength = arguments.length;
+    var hasArgs = argsLength > 0;
+    var sides = ['left', 'right', 'top', 'bottom'];
+    var update = {
+      'width': !hasArgs,
+      'height': !hasArgs,
+      'offset': !hasArgs,
+      'padding': !hasArgs,
+      'border': !hasArgs,
+      'box-sizing': !hasArgs
+    };
+    var rect;
+    var i;
 
-    if (targetGrid || !target) {
-      updateGridDimensions(inst, targetGrid && items);
+    // If we have dimensions, let's set the needed updates to true.
+    if (hasArgs) {
+      for (i = 0; i < argsLength; i++) {
+        update[arguments[i]] = true;
+      }
     }
 
-    if (targetItems || !target) {
-      updateItemDimensions(inst, targetItems && items);
+    // Get bounding client rect if needed.
+    if (update.width || update.height || update.offset) {
+      rect = element.getBoundingClientRect();
+    }
+
+    // Update width.
+    if (update.width) {
+      inst._width = Math.round(rect.width);
+    }
+
+    // Update height.
+    if (update.height) {
+      inst._height = Math.round(rect.height);
+    }
+
+    // Update offset.
+    if (update.offset) {
+      inst._offset = inst._offset || {};
+      inst._offset.left = Math.round(rect.left);
+      inst._offset.top = Math.round(rect.top);
+    }
+
+    // Update paddings.
+    if (update.padding) {
+      inst._padding = inst._padding || {};
+      for (i = 0; i < sides.length; i++) {
+        inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
+      }
+    }
+
+    // Update borders.
+    if (update.border) {
+      inst._border = inst._border || {};
+      for (i = 0; i < sides.length; i++) {
+        inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
+      }
+    }
+
+    // Update box-sizing.
+    if (update['box-sizing']) {
+      inst._boxSizing = getStyle(element, 'box-sizing');
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Update the cached dimensions of the instance's items.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(GridMultiItemQuery|GridItemState)} [items]
+   * @returns {Grid}
+   */
+  Grid.prototype.refreshItems = function (items) {
+
+    var inst = this;
+    var targetItems = inst.getItems(items || 'active');
+    var i;
+
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._refreshDimensions();
     }
 
     return inst;
@@ -607,14 +676,14 @@ TODO v0.3.0
    * @param {(GridMultiItemQuery|GridItemState)} [items]
    * @returns {Grid}
    */
-  Grid.prototype.updateSortData = function (items) {
+  Grid.prototype.refreshSortData = function (items) {
 
     var inst = this;
     var targetItems = inst.getItems(items);
     var i;
 
     for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._updateSortData();
+      targetItems[i]._refreshSortData();
     }
 
     return inst;
@@ -739,7 +808,7 @@ TODO v0.3.0
 
       // Update item's width and height to account for the possible
       // min/max-width/height.
-      inst.updateDimensions('grid', ['width', 'height']);
+      inst.refreshContainer('width', 'height');
 
     }
 
@@ -1346,7 +1415,7 @@ TODO v0.3.0
     }
 
     // Update item's cached dimensions and sort data.
-    targetItem._updateDimensions()._updateSortData();
+    targetItem._refreshDimensions()._refreshSortData();
 
     // Recreate item's drag handler.
     targetItem._drag = targetGridStn.dragEnabled ? new Grid.Drag(targetItem) : null;
@@ -1685,7 +1754,7 @@ TODO v0.3.0
     });
 
     // Set up the initial dimensions and sort data.
-    inst._updateDimensions()._updateSortData();
+    inst._refreshDimensions()._refreshSortData();
 
     // Set initial styles for the child element.
     if (isHidden) {
@@ -1956,7 +2025,7 @@ TODO v0.3.0
    * @memberof Item.prototype
    * @returns {Item}
    */
-  Item.prototype._updateDimensions = function () {
+  Item.prototype._refreshDimensions = function () {
 
     var inst = this;
     var element;
@@ -1998,7 +2067,7 @@ TODO v0.3.0
    * @memberof Item.prototype
    * @returns {Item}
    */
-  Item.prototype._updateSortData = function () {
+  Item.prototype._refreshSortData = function () {
 
     var inst = this;
     var sortData = {};
@@ -3533,7 +3602,7 @@ TODO v0.3.0
     targetGrid._itemShowHandler.start(item, true);
 
     // Update item's cached dimensions and sort data.
-    item._updateDimensions()._updateSortData();
+    item._refreshDimensions()._refreshSortData();
 
     // Recreate item's drag handler.
     item._drag = targetGridStn.dragEnabled ? new Grid.Drag(item) : null;
@@ -5056,8 +5125,8 @@ TODO v0.3.0
 
       // Get items' cached sort values for the criteria. If the item has no sort
       // data let's update the items sort data (this is a lazy load mechanism).
-      valA = (itemA._sortData ? itemA : itemA._updateSortData())._sortData[criteriaName];
-      valB = (itemB._sortData ? itemB : itemB._updateSortData())._sortData[criteriaName];
+      valA = (itemA._sortData ? itemA : itemA._refreshSortData())._sortData[criteriaName];
+      valB = (itemB._sortData ? itemB : itemB._refreshSortData())._sortData[criteriaName];
 
       // Sort the items in descending order if defined so explicitly.
       if (criteriaOrder === 'desc' || (!criteriaOrder && isDescending)) {
@@ -5084,101 +5153,6 @@ TODO v0.3.0
    * Helpers - Muuri
    * ***************
    */
-
-  /**
-   * Update the cached dimensions and offsets of the Grid instance's container
-   * element.
-   *
-   * @private
-   * @memberof Grid.prototype
-   * @param {Grid} inst
-   * @param {GridDimensionQuery} [dimensions]
-   */
-  function updateGridDimensions(inst, dimensions) {
-
-    var element = inst._element;
-    var sides = ['left', 'right', 'top', 'bottom'];
-    var update = {
-      'width': !dimensions,
-      'height': !dimensions,
-      'offset': !dimensions,
-      'padding': !dimensions,
-      'border': !dimensions,
-      'box-sizing': !dimensions
-    };
-    var rect;
-    var i;
-
-    // If we have dimensions, let's set the needed updates to true.
-    if (dimensions) {
-      dimensions = [].concat(dimensions);
-      for (i = 0; i < dimensions.length; i++) {
-        update[dimensions[i]] = true;
-      }
-    }
-
-    // Get bounding client rect if needed.
-    if (update.width || update.height || update.offset) {
-      rect = element.getBoundingClientRect();
-    }
-
-    // Update width.
-    if (update.width) {
-      inst._width = Math.round(rect.width);
-    }
-
-    // Update height.
-    if (update.height) {
-      inst._height = Math.round(rect.height);
-    }
-
-    // Update offset.
-    if (update.offset) {
-      inst._offset = inst._offset || {};
-      inst._offset.left = Math.round(rect.left);
-      inst._offset.top = Math.round(rect.top);
-    }
-
-    // Update paddings.
-    if (update.padding) {
-      inst._padding = inst._padding || {};
-      for (i = 0; i < sides.length; i++) {
-        inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
-      }
-    }
-
-    // Update borders.
-    if (update.border) {
-      inst._border = inst._border || {};
-      for (i = 0; i < sides.length; i++) {
-        inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
-      }
-    }
-
-    // Update box-sizing.
-    if (update['box-sizing']) {
-      inst._boxSizing = getStyle(element, 'box-sizing');
-    }
-
-  }
-
-  /**
-   * Update the dimensions of the Grid instance's items.
-   *
-   * @private
-   * @param {Grid} inst
-   * @param {(GridMultiItemQuery|GridItemState)} [items]
-   */
-  function updateItemDimensions(inst, items) {
-
-    var targetItems = inst.getItems(items || 'active');
-    var i;
-
-    for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._updateDimensions();
-    }
-
-  }
 
   /**
    * Show or hide Grid instance's items.
@@ -5285,7 +5259,7 @@ TODO v0.3.0
       // Layout if needed.
       if (needsLayout) {
         if (hiddenItems.length) {
-          inst.updateDimensions('items', hiddenItems);
+          inst.refreshItems(hiddenItems);
         }
         if (layout) {
           inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
@@ -5390,7 +5364,7 @@ TODO v0.3.0
       // We need to update the grid's offset since it may have changed during
       // scrolling. This could be left as problem for the userland, but it's
       // much nicer this way. One less hack for the user to worry about =)
-      grid.updateDimensions('grid', 'offset');
+      grid.refreshContainer('offset');
       offset = grid._offset;
 
       // Check how much dragged element overlaps the container element.
@@ -5589,13 +5563,6 @@ TODO v0.3.0
    * "releasing" and "migrating".
    *
    * @typedef {String} GridItemState
-   */
-
-  /**
-   * Grid element's cached dimensions. Accepted values are: "width", "height",
-   * "offset", "padding", "border", "box-sizing".
-   *
-   * @typedef {(String|String[])} GridDimensionQuery
    */
 
   /**

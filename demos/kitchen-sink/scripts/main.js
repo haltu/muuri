@@ -221,7 +221,7 @@ $(function () {
       var muuri = $grid.data('muuri');
 
       if (muuri) {
-        muuri.updateDimensions();
+        muuri.refreshContainer().refreshItems();
       }
 
     });

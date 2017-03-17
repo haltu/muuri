@@ -256,6 +256,9 @@ TODO v0.3.0
     var items;
     var debouncedLayout;
 
+    // Allow passing element as selector string. Store element for instance.
+    element = inst._element = typeof element === 'string' ? document.querySelectorAll(element)[0] : element;
+
     // Throw an error if the container element does not exist in the DOM.
     if (!document.body.contains(element)) {
       throw new Error('Container element must be an existing DOM element');
@@ -263,9 +266,6 @@ TODO v0.3.0
 
     // Create instance settings by merging the options with default options.
     settings = inst._settings = mergeSettings(Grid.defaultOptions, options);
-
-    // Get container element and store it.
-    inst._element = typeof element === 'string' ? document.querySelectorAll(element)[0] : element;
 
     // Create instance id and store it to the grid instances collection.
     inst._id = ++uuid;

@@ -78,6 +78,9 @@ TODO v0.3.0
       required for the dragging operation.
 * [x] Simpler dragStartPredicate system.
 * [x] Smarter default dragStartPredicate that's aware of links.
+* [x] Allow document.body being a container.
+* [ ] Allow nested Muuri instances or add a warning to documentation that nested
+      instances are not supported. Is there actually anything preventing this?
 * [ ] Add container offset diff mechanism to the item itself so it can be
       utilized by drag and migrate operations. Just to keep the code DRY and
       clearer.
@@ -255,12 +258,13 @@ TODO v0.3.0
     var settings;
     var items;
     var debouncedLayout;
+    var layoutOnResize;
 
     // Allow passing element as selector string. Store element for instance.
     element = inst._element = typeof element === 'string' ? document.querySelectorAll(element)[0] : element;
 
     // Throw an error if the container element does not exist in the DOM.
-    if (!document.body.contains(element)) {
+    if (element !== document.body && !document.body.contains(element)) {
       throw new Error('Container element must be an existing DOM element');
     }
 
@@ -309,19 +313,18 @@ TODO v0.3.0
       });
     }
 
-    // Layout on window resize if the layoutOnResize option is enabled.
-    if (typeof settings.layoutOnResize === 'number' || settings.layoutOnResize === true) {
-
+    // Sanitize layoutOnResize option and bind debounced resize handler if the
+    // layoutOnResize option a valid number.
+    layoutOnResize = settings.layoutOnResize;
+    layoutOnResize = layoutOnResize === true ? 0 : typeof layoutOnResize === 'number' ? layoutOnResize : -1;
+    if (layoutOnResize >= 0) {
       debouncedLayout = debounce(function () {
         inst.refreshContainer().refreshItems().layout();
-      }, Math.max(0, parseInt(settings.layoutOnResize) || 0));
-
+      }, layoutOnResize);
       inst._resizeHandler = function () {
         debouncedLayout();
       };
-
       global.addEventListener('resize', inst._resizeHandler);
-
     }
 
     // Layout on init if necessary.
@@ -1746,7 +1749,7 @@ TODO v0.3.0
     inst._top = 0;
 
     // Set element's initial styles.
-    setStyles(inst._element, {
+    setStyles(element, {
       left: '0',
       top: '0',
       transform: 'translateX(0px) translateY(0px)',
@@ -2305,7 +2308,6 @@ TODO v0.3.0
       // Animate child element and process the visibility callback queue after
       // succesful animation.
       grid._itemShowHandler.start(inst, instant, function () {
-        console.log('show done');
         processQueue(queue, false, inst);
       });
 
@@ -2508,8 +2510,6 @@ TODO v0.3.0
     // Remove all inline styles.
     element.removeAttribute('style');
     inst._child.removeAttribute('style');
-
-    console.log(inst._visibilityQueue.concat());
 
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.

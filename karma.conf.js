@@ -15,6 +15,7 @@ module.exports = function (config) {
       './node_modules/velocity-animate/velocity.js',
       pkg.main,
       './tests/index.js',
+      './tests/utils.js',
       './tests/grid-constructor/*.js',
       './tests/grid-options/*.js',
       './tests/grid-methods/*.js',

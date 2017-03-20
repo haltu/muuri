@@ -32,7 +32,7 @@
 
   QUnit.test('Muuri constructor should accept document body as container', function (assert) {
 
-    var muuri = new Muuri(document.body);
+    var muuri = new Muuri(document.body, {items: []});
     assert.strictEqual(muuri instanceof Muuri, true, 'Should initiate succesfully when body element is set as the container');
     muuri.destroy();
 

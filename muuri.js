@@ -1347,7 +1347,7 @@ TODO v0.3.0
     var translateY;
 
     // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
+    if (currentGrid._isDestroyed) {
       return currentGrid;
     }
 

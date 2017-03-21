@@ -88,6 +88,7 @@ TODO v0.3.0
       utilized by drag and migrate operations. Just to keep the code DRY and
       clearer.
 * [ ] Layout system optimizations:
+      * [x] Make the layout system API clearer.
       * [ ] Optimize the current system to work faster if all items are the same
             size.
       * [ ] Don't call layout if nothing has changed. Create a system for
@@ -1043,7 +1044,7 @@ TODO v0.3.0
    */
   Grid.prototype.show = function (items, options) {
 
-    return this._isDestroyed ? this : setVisibility(this, 'show', items, options);
+    return this._isDestroyed ? this : gridShowHideHandler(this, 'show', items, options);
 
   };
 
@@ -1061,7 +1062,7 @@ TODO v0.3.0
    */
   Grid.prototype.hide = function (items, options) {
 
-    return this._isDestroyed ? this : setVisibility(this, 'hide', items, options);
+    return this._isDestroyed ? this : gridShowHideHandler(this, 'hide', items, options);
 
   };
 
@@ -2690,23 +2691,28 @@ TODO v0.3.0
    */
   function Layout(grid, items) {
 
+    // Sanitize items.
+    items = items ? items.concat() : grid.getItems('active');
+
     var inst = this;
     var settings = grid._settings.layout;
     var padding = grid._padding;
     var border = grid._border;
+    var width = grid._width - border.left - border.right - padding.left - padding.right;
+    var height = grid._height - border.top - border.bottom - padding.top - padding.bottom;
 
-    inst.items = items ? items.concat() : grid.getItems('active');
-    inst.slots = {};
-    inst.setWidth = false;
-    inst.setHeight = false;
+    // Calculate the layout data. If the user has provided custom function as a
+    // layout method invoke it. Otherwise invoke the default layout method.
+    var layout = typeof settings === 'function' ? settings(items, width, height) :
+                 layoutFirstFit(items, width, height, isPlainObject(settings) ? settings : {});
 
-    // Calculate the current width and height of the container element.
-    inst.width = grid._width - border.left - border.right - padding.left - padding.right;
-    inst.height = grid._height - border.top - border.bottom - padding.top - padding.bottom;
-
-    // If the user has provided custom function as a layout method invoke it.
-    // Otherwise invoke the default layout method.
-    typeof settings === 'function' ? settings(inst) : layoutFirstFit(inst, isPlainObject(settings) ? settings : {});
+    // Set instance data based on layout data.
+    inst.items = items;
+    inst.slots = layout.slots;
+    inst.setWidth = layout.setWidth || false;
+    inst.setHeight = layout.setHeight || false;
+    inst.width = layout.width;
+    inst.height = layout.height;
 
   }
 
@@ -2723,43 +2729,43 @@ TODO v0.3.0
    * The default layout method.
    *
    * @private
-   * @param {Layout} layout
+   * @param {Item[]} items
+   * @param {Number} width
+   * @param {Number} height
    * @param {Object} options
    * @param {Boolean} [options.fillGaps=false]
    * @param {Boolean} [options.horizontal=false]
    * @param {Boolean} [options.alignRight=false]
    * @param {Boolean} [options.alignBottom=false]
+   * @returns {LayoutData}
    */
-  function layoutFirstFit(layout, options) {
+  function layoutFirstFit(items, width, height, options) {
 
-    var emptySlots = [];
     var fillGaps = options.fillGaps ? true : false;
     var isHorizontal = options.horizontal ? true : false;
     var alignRight = options.alignRight ? true : false;
     var alignBottom = options.alignBottom ? true : false;
+    var layout = {
+      slots: {},
+      width: isHorizontal ? 0 : width,
+      height: isHorizontal ? height : 0,
+      setWidth: isHorizontal,
+      setHeight: !isHorizontal
+    };
+    var emptySlots = [];
     var slotIds;
     var slot;
     var item;
     var i;
 
-    // Set horizontal/vertical mode.
-    if (isHorizontal) {
-      layout.setWidth = true;
-      layout.width = 0;
-    }
-    else {
-      layout.setHeight = true;
-      layout.height = 0;
-    }
-
     // No need to go further if items do not exist.
-    if (!layout.items.length) {
-      return;
+    if (!items.length) {
+      return layout;
     }
 
     // Find slots for items.
-    for (i = 0; i < layout.items.length; i++) {
-      item = layout.items[i];
+    for (i = 0; i < items.length; i++) {
+      item = items[i];
       slot = layoutFirstFit.getSlot(layout, emptySlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
       if (isHorizontal) {
         layout.width = Math.max(layout.width, slot.left + slot.width);
@@ -2784,6 +2790,8 @@ TODO v0.3.0
         }
       }
     }
+
+    return layout;
 
   }
 
@@ -5101,7 +5109,7 @@ TODO v0.3.0
    */
   function splitRectWithRect(rect, hole) {
 
-    var ret;
+    var ret = [];
 
     // If the rect does not overlap with the hole add rect to the return data as
     // is.
@@ -5113,8 +5121,6 @@ TODO v0.3.0
         height: rect.height
       }];
     }
-
-    ret = [];
 
     // Left split.
     if (rect.left < hole.left) {
@@ -5336,7 +5342,7 @@ TODO v0.3.0
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
-  function setVisibility(inst, method, items, options) {
+  function gridShowHideHandler(inst, method, items, options) {
 
     var targetItems = inst.getItems(items);
     var opts = options || {};
@@ -5741,6 +5747,17 @@ TODO v0.3.0
    * @property {Number} height
    * @property {Number} left
    * @property {Number} top
+   */
+
+  /**
+   * Layout data for the layout instance.
+   *
+   * @typedef {Object} LayoutData
+   * @property {Object} slots
+   * @property {Number} width
+   * @property {Number} height
+   * @property {Boolean} setWidth
+   * @property {Boolean} setHeight
    */
 
   /**

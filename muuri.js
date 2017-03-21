@@ -79,7 +79,7 @@ TODO v0.3.0
 * [x] Simpler dragStartPredicate system.
 * [x] Smarter default dragStartPredicate that's aware of links.
 * [x] Allow document.body being a container.
-* [ ] Destroying the instance causes weird scenarios sometimes. Think through
+* [x] Destroying the instance causes weird scenarios sometimes. Think through
       the usage flow and find a way to handle it. How is destroy managed in
       other libs?
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
@@ -278,6 +278,9 @@ TODO v0.3.0
     inst._id = ++uuid;
     gridInstances[inst._id] = inst;
 
+    // Destroyed flag.
+    inst._isDestroyed = false;
+
     // Reference to the currently used Layout instance.
     inst._layout = null;
 
@@ -458,7 +461,10 @@ TODO v0.3.0
    */
   Grid.prototype.on = function (event, listener) {
 
-    this._emitter.on(event, listener);
+    if (!this._isDestroyed) {
+      this._emitter.on(event, listener);
+    }
+
     return this;
 
   };
@@ -474,7 +480,10 @@ TODO v0.3.0
    */
   Grid.prototype.off = function (event, listener) {
 
-    this._emitter.off(event, listener);
+    if (!this._isDestroyed) {
+      this._emitter.off(event, listener);
+    }
+
     return this;
 
   };
@@ -547,6 +556,11 @@ TODO v0.3.0
     var item;
     var i;
 
+    // Return an empty array immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return ret;
+    }
+
     // Sanitize target state.
     targetState = typeof targetState === 'string' ? targetState : null;
 
@@ -597,6 +611,11 @@ TODO v0.3.0
     };
     var rect;
     var i;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
 
     // If we have dimensions, let's set the needed updates to true.
     if (hasArgs) {
@@ -663,11 +682,14 @@ TODO v0.3.0
   Grid.prototype.refreshItems = function (items) {
 
     var inst = this;
-    var targetItems = inst.getItems(items || 'active');
+    var targetItems;
     var i;
 
-    for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._refreshDimensions();
+    if (!inst._isDestroyed) {
+      targetItems = inst.getItems(items || 'active');
+      for (i = 0; i < targetItems.length; i++) {
+        targetItems[i]._refreshDimensions();
+      }
     }
 
     return inst;
@@ -685,11 +707,14 @@ TODO v0.3.0
   Grid.prototype.refreshSortData = function (items) {
 
     var inst = this;
-    var targetItems = inst.getItems(items);
+    var targetItems;
     var i;
 
-    for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._refreshSortData();
+    if (!inst._isDestroyed) {
+      targetItems = inst.getItems(items);
+      for (i = 0; i < targetItems.length; i++) {
+        targetItems[i]._refreshSortData();
+      }
     }
 
     return inst;
@@ -715,6 +740,11 @@ TODO v0.3.0
     var fragment;
     var element;
     var i;
+
+    // Return immediately if instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
 
     // Append all elements in order to the container element.
     if (items.length) {
@@ -752,10 +782,10 @@ TODO v0.3.0
     var emitter = inst._emitter;
     var callback = typeof instant === 'function' ? instant : onFinish;
     var isInstant = instant === true;
-    var layout = new Grid.Layout(inst);
-    var counter = 0;
-    var itemsLength = layout.items.length;
     var completed = [];
+    var counter = 0;
+    var layout;
+    var itemsLength;
     var padding;
     var border;
     var isBorderBox;
@@ -763,6 +793,13 @@ TODO v0.3.0
     var position;
     var i;
 
+    // Return immediately if instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // The finish function, which will be used for checking if all the items
+    // have laid out yet.
     function tryFinish(interrupted, item) {
 
       // Push all items, which were not interrupted, to the completed items.
@@ -781,8 +818,10 @@ TODO v0.3.0
 
     }
 
-    // Update the current layout data reference.
-    inst._layout = layout;
+    // Create a new layout and store the new layout instance into the grid
+    // instance.
+    layout = inst._layout = new Grid.Layout(inst);
+    itemsLength = layout.items.length;
 
     // Emit layoutStart event.
     emitter.emit(evLayoutStart, layout.items.concat());
@@ -890,6 +929,11 @@ TODO v0.3.0
     var item;
     var i;
 
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return [];
+    }
+
     // Filter out all elements that exist already in current instance.
     for (i = 0; i < items.length; i++) {
       elementIndex = targetElements.indexOf(items[i]._element);
@@ -946,38 +990,42 @@ TODO v0.3.0
    * @param {Object} [options]
    * @param {Boolean} [options.removeElements=false]
    * @param {(Boolean|Function|String)} [options.layout=true]
-   * @returns {Number[]}
-   *   - The indices of removed items.
+   * @returns {Item[]}
    */
   Grid.prototype.remove = function (items, options) {
 
     var inst = this;
-    var targetItems = inst.getItems(items);
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var indices = [];
     var needsLayout = false;
+    var targetItems;
     var item;
     var i;
 
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return [];
+    }
+
     // Remove the individual items.
+    targetItems = inst.getItems(items);
     for (i = 0; i < targetItems.length; i++) {
       item = targetItems[i];
       if (item._isActive) {
         needsLayout = true;
       }
-      indices[indices.length] = item._destroy(opts.removeElements);
+      item._destroy(opts.removeElements);
     }
 
     // Emit remove event.
-    inst._emitter.emit(evRemove, indices.concat());
+    inst._emitter.emit(evRemove, targetItems.concat());
 
     // If layout is needed.
     if (needsLayout && layout) {
       inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
     }
 
-    return indices;
+    return targetItems;
 
   };
 
@@ -995,7 +1043,7 @@ TODO v0.3.0
    */
   Grid.prototype.show = function (items, options) {
 
-    return setVisibility(this, 'show', items, options);
+    return this._isDestroyed ? this : setVisibility(this, 'show', items, options);
 
   };
 
@@ -1013,7 +1061,7 @@ TODO v0.3.0
    */
   Grid.prototype.hide = function (items, options) {
 
-    return setVisibility(this, 'hide', items, options);
+    return this._isDestroyed ? this : setVisibility(this, 'hide', items, options);
 
   };
 
@@ -1055,8 +1103,8 @@ TODO v0.3.0
     var item;
     var i;
 
-    // Return immediately if there are no items.
-    if (!items.length) {
+    // Return immediately if there are no items or if the instance id destroyed.
+    if (inst._isDestroyed || !items.length) {
       return inst;
     }
 
@@ -1150,7 +1198,7 @@ TODO v0.3.0
     var indexMap;
 
     // Let's not sort if it has no effect.
-    if (items.length < 2) {
+    if (inst._isDestroyed || items.length < 2) {
       return inst;
     }
 
@@ -1226,7 +1274,7 @@ TODO v0.3.0
     var isSwap;
 
     // Return immediately, if moving an item is not possible.
-    if (items.length < 2) {
+    if (inst._isDestroyed || items.length < 2) {
       return inst;
     }
 
@@ -1281,9 +1329,9 @@ TODO v0.3.0
 
     var currentGrid = this;
     var targetGrid = grid;
-    var targetItem = currentGrid._getItem(item);
     var currentGridStn;
     var targetGridStn;
+    var targetItem;
     var opts;
     var appendTo;
     var layout;
@@ -1297,7 +1345,14 @@ TODO v0.3.0
     var translateX;
     var translateY;
 
-    // Make sure we have a valid target item and target grid.
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return currentGrid;
+    }
+
+    // Make sure item is not destroyed and we have a valid target item and
+    // target grid.
+    targetItem = currentGrid._getItem(item);
     if (!targetItem || !(targetGrid instanceof Grid) || currentGrid === targetGrid) {
       return currentGrid;
     }
@@ -1479,6 +1534,7 @@ TODO v0.3.0
    * @public
    * @memberof Grid.prototype
    * @param {Boolean} [removeElements=false]
+   * @returns {Grid}
    */
   Grid.prototype.destroy = function (removeElements) {
 
@@ -1486,6 +1542,11 @@ TODO v0.3.0
     var container = inst._element;
     var items = inst._items.concat();
     var i;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
 
     // Unbind window resize event listener.
     if (inst._resizeHandler) {
@@ -1512,8 +1573,10 @@ TODO v0.3.0
     // Remove reference from the grid instances collection.
     gridInstances[inst._id] = undefined;
 
-    // Nullify instance properties.
-    nullifyInstance(inst, Grid);
+    // Flag instance as destroyed.
+    inst._isDestroyed = true;
+
+    return inst;
 
   };
 
@@ -1541,8 +1604,9 @@ TODO v0.3.0
     var item;
     var i;
 
-    // If no target is specified, return the first item or null.
-    if (!target) {
+    // If no target is specified or the instance is destroyed, return the first
+    // item or null.
+    if (inst._isDestroyed || !target) {
       return inst._items[0] || null;
     }
 
@@ -1649,6 +1713,10 @@ TODO v0.3.0
     var ii;
     var i;
 
+    if (inst._isDestroyed) {
+      return ret;
+    }
+
     if (connections && connections.length) {
       for (i = 0; i < connections.length; i++) {
         sortGroup = sortGroups[connections[i]];
@@ -1689,6 +1757,9 @@ TODO v0.3.0
     // Create instance id and add item to the itemInstances collection.
     inst._id = ++uuid;
     itemInstances[inst._id] = inst;
+
+    // Destroyed flag.
+    inst._isDestroyed = false;
 
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container.
@@ -2002,7 +2073,7 @@ TODO v0.3.0
 
     var inst = this;
 
-    if (!inst._isPositioning) {
+    if (inst._isDestroyed || !inst._isPositioning) {
       return inst;
     }
 
@@ -2041,7 +2112,7 @@ TODO v0.3.0
     var margin;
     var i;
 
-    if (inst._isHidden) {
+    if (inst._isDestroyed || inst._isHidden) {
       return inst;
     }
 
@@ -2076,18 +2147,25 @@ TODO v0.3.0
   Item.prototype._refreshSortData = function () {
 
     var inst = this;
-    var sortData = {};
-    var getters = inst.getGrid()._settings.sortData;
+    var sortData;
+    var getters;
 
-    // Fetch sort data.
-    if (getters) {
-      Object.keys(getters).forEach(function (key) {
-        sortData[key] = getters[key](inst, inst._element);
-      });
+    if (!inst._isDestroyed) {
+
+      sortData = {};
+      getters = inst.getGrid()._settings.sortData;
+
+      // Fetch sort data.
+      if (getters) {
+        Object.keys(getters).forEach(function (key) {
+          sortData[key] = getters[key](inst, inst._element);
+        });
+      }
+
+      // Store sort data to the instance.
+      inst._sortData = sortData;
+
     }
-
-    // Store sort data to the instance.
-    inst._sortData = sortData;
 
     return inst;
 
@@ -2106,20 +2184,35 @@ TODO v0.3.0
 
     var inst = this;
     var element = inst._element;
-    var grid = inst.getGrid();
-    var settings = grid._settings;
-    var release = inst._drag ? inst._drag._releaseData : {};
-    var isJustReleased = release.isActive && release.isPositioningStarted === false;
-    var animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
-    var animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
-    var animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
+    var release = inst._drag ? inst._drag._releaseData : {};
+    var isJustReleased = release.isActive && release.isPositioningStarted === false;
+    var grid;
+    var settings;
+    var animDuration;
+    var animEasing;
+    var animEnabled;
     var offsetLeft;
     var offsetTop;
     var currentLeft;
     var currentTop;
-    var finishLayout = function () {
+    var finishLayout;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Get grid and settings.
+    grid = inst.getGrid();
+    settings = grid._settings;
+    animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
+    animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
+    animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
+
+    // Create the layout callback.
+    finishLayout = function () {
 
       // Mark the item as not positioning and remove positioning classes.
       if (inst._isPositioning) {
@@ -2247,9 +2340,18 @@ TODO v0.3.0
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
-    var grid = inst.getGrid();
-    var settings = grid._settings;
     var callback = typeof onFinish === 'function' ? onFinish : null;
+    var grid;
+    var settings;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Get grid and settings.
+    grid = inst.getGrid();
+    settings = grid._settings;
 
     // If item is showing.
     if (inst._isShowing) {
@@ -2336,9 +2438,18 @@ TODO v0.3.0
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
-    var grid = inst.getGrid();
-    var settings = grid._settings;
     var callback = typeof onFinish === 'function' ? onFinish : null;
+    var grid;
+    var settings;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Get grid and settings.
+    grid = inst.getGrid();
+    settings = grid._settings;
 
     // If item is hiding.
     if (inst._isHiding) {
@@ -2425,7 +2536,7 @@ TODO v0.3.0
 
     var inst = this;
     var migrate = inst._migrate;
-    var element;
+    var element = inst._element;
     var grid;
     var translateX;
     var translateY;
@@ -2433,11 +2544,11 @@ TODO v0.3.0
     var fromIndex;
     var toIndex;
 
-    if (!migrate.isActive) {
+    if (inst._isDestroyed || !migrate.isActive) {
       return inst;
     }
 
-    element = inst._element;
+    // Get grid.
     grid = inst.getGrid();
 
     // If the element is outside the grid's container element put it back there
@@ -2488,14 +2599,25 @@ TODO v0.3.0
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} [removeElement=false]
+   * @returns {Item}
    */
   Item.prototype._destroy = function (removeElement) {
 
     var inst = this;
-    var grid = inst.getGrid();
-    var settings = grid._settings;
     var element = inst._element;
-    var index = grid._items.indexOf(inst);
+    var grid;
+    var settings;
+    var index;
+
+    // Return immediately if the instance is already destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Get grid and settings.
+    grid = inst.getGrid();
+    settings = grid._settings;
+    index = grid._items.indexOf(inst);
 
     // Stop animations.
     inst._stopLayout(true);
@@ -2505,7 +2627,7 @@ TODO v0.3.0
     // Stop migration.
     inst._stopMigrate(true);
 
-    // If item is being dragged or released, stop it gracefully.
+    // Destroy drag.
     if (inst._drag) {
       inst._drag.destroy();
     }
@@ -2520,6 +2642,8 @@ TODO v0.3.0
 
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.
+    // TODO: Or should we just clear the visibility queue and not call the
+    // callbacks?
     processQueue(inst._visibilityQueue, true, inst);
 
     // Remove classes.
@@ -2543,8 +2667,11 @@ TODO v0.3.0
     // Remove item instance from the item instances collection.
     itemInstances[inst._id] = undefined;
 
-    // Nullify instance properties.
-    nullifyInstance(inst, Item);
+    // Update item states (mostly just for good measure).
+    inst._isActive = inst._isPositioning = inst._isHiding = inst._isShowing = false;
+    inst._isDestroyed = inst._isHidden = true;
+
+    return inst;
 
   };
 
@@ -2807,7 +2934,11 @@ TODO v0.3.0
    * @public
    * @class
    */
-  function Emitter() {}
+  function Emitter() {
+
+    this._isDestroyed = false;
+
+  }
 
   /**
    * Emitter - Public prototype methods
@@ -2824,6 +2955,10 @@ TODO v0.3.0
    * @returns {Emitter} returns the Emitter instance.
    */
   Emitter.prototype.on = function (event, listener) {
+
+    if (this._isDestroyed) {
+      return this;
+    }
 
     var events = this._events = this._events || {};
     var listeners = events[event] || [];
@@ -2845,6 +2980,10 @@ TODO v0.3.0
    * @returns {Emitter} returns the Emitter instance.
    */
   Emitter.prototype.off = function (event, listener) {
+
+    if (this._isDestroyed) {
+      return this;
+    }
 
     var events = this._events = this._events || {};
     var listeners = events[event] || [];
@@ -2874,6 +3013,10 @@ TODO v0.3.0
    * @returns {Emitter} returns the Emitter instance.
    */
   Emitter.prototype.emit = function (event, arg1, arg2, arg3) {
+
+    if (this._isDestroyed) {
+      return this;
+    }
 
     var events = this._events = this._events || {};
     var listeners = events[event] || [];
@@ -2905,6 +3048,10 @@ TODO v0.3.0
    */
   Emitter.prototype.destroy = function () {
 
+    if (this._isDestroyed) {
+      return this;
+    }
+
     var events = this._events || {};
     var eventNames = Object.keys(events);
     var i;
@@ -2913,6 +3060,8 @@ TODO v0.3.0
       events[eventNames[i]].length = 0;
       events[eventNames[i]] = null;
     }
+
+    this._isDestroyed = true;
 
     return this;
 
@@ -2936,6 +3085,7 @@ TODO v0.3.0
     this._element = element;
     this._queue = libName + '-' + (++uuid);
     this._isAnimating = false;
+    this._isDestroyed = false;
 
   }
 
@@ -2959,6 +3109,10 @@ TODO v0.3.0
    * @param {Function} [options.onFinish]
    */
   Animate.prototype.start = function (propsCurrent, propsTarget, options) {
+
+    if (this._isDestroyed) {
+      return;
+    }
 
     var inst = this;
     var element = inst._element;
@@ -3005,7 +3159,7 @@ TODO v0.3.0
    */
   Animate.prototype.stop = function () {
 
-    if (this._isAnimating) {
+    if (!this._isDestroyed && this._isAnimating) {
       this._isAnimating = false;
       Velocity(this._element, 'stop', this._queue);
     }
@@ -3021,8 +3175,11 @@ TODO v0.3.0
    */
   Animate.prototype.destroy = function () {
 
-    this.stop();
-    nullifyInstance(this, Animate);
+    if (!this._isDestroyed) {
+      this.stop();
+      this._element = null;
+      this._isDestroyed = true;
+    }
 
   };
 
@@ -3058,6 +3215,7 @@ TODO v0.3.0
     drag._itemId = item._id;
     drag._gridId = grid._id;
     drag._hammer = hammer = new Hammer.Manager(element);
+    drag._isDestroyed = false;
     drag._isMigrating = false;
     drag._dragData = {};
     drag._releaseData = {};
@@ -3314,18 +3472,18 @@ TODO v0.3.0
   Drag.prototype.destroy = function () {
 
     var drag = this;
-    var item = drag._getItem();
 
-    if (drag._dragData.isActive) {
-      drag._stopDrag();
+    if (!drag._isDestroyed) {
+      if (drag._dragData.isActive) {
+        drag._stopDrag();
+      }
+      else if (drag._releaseData.isActive) {
+        drag._stopRelease(true);
+      }
+      drag._hammer.destroy();
+      drag._getItem()._element.removeEventListener('dragstart', preventDefault, false);
+      drag._isDestroyed = true;
     }
-    else if (drag._releaseData.isActive) {
-      drag._stopRelease(true);
-    }
-
-    drag._hammer.destroy();
-    item._element.removeEventListener('dragstart', preventDefault, false);
-    nullifyInstance(drag, Drag);
 
     return drag;
 
@@ -4484,6 +4642,7 @@ TODO v0.3.0
 
     var p = Element.prototype;
     var fn = p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector;
+
     return function (el, selector) {
       return fn.call(el, selector);
     };
@@ -4816,6 +4975,9 @@ TODO v0.3.0
       left: 0,
       top: 0
     };
+    var gbcr;
+    var marginLeft;
+    var marginTop;
 
     // Document's offsets are always 0.
     if (element === document) {
@@ -4834,7 +4996,7 @@ TODO v0.3.0
     // Now we know we are calculating an element's offsets so let's first get
     // the element's bounding client rect. If it is not cached, then just fetch
     // it.
-    var gbcr = element.getBoundingClientRect();
+    gbcr = element.getBoundingClientRect();
 
     // Add bounding client rect's left/top values to the offsets.
     ret.left += gbcr.left;
@@ -4845,8 +5007,8 @@ TODO v0.3.0
 
     // Exclude element's positive margin size from the offset if needed.
     if (edge === 'margin') {
-      var marginLeft = getStyleAsFloat(element, 'margin-left');
-      var marginTop = getStyleAsFloat(element, 'margin-top');
+      marginLeft = getStyleAsFloat(element, 'margin-left');
+      marginTop = getStyleAsFloat(element, 'margin-top');
       ret.left -= marginLeft > 0 ? marginLeft : 0;
       ret.top -= marginTop > 0 ? marginTop : 0;
     }
@@ -5419,21 +5581,26 @@ TODO v0.3.0
    * @private
    * @param {Item} item
    * @param {GridItemState} state
+   *  - Accepted values are: "active", "inactive", "visible", "hidden",
+   *    "showing", "hiding", "positioning", "dragging", "releasing" and
+   *    "migrating".
    * Returns {Boolean}
    */
   function isItemInState(item, state) {
 
-    return state === 'active' ? item._isActive :
-      state === 'inactive' ? !item._isActive :
-      state === 'visible' ? !item._isHidden :
-      state === 'hidden' ? item._isHidden :
-      state === 'showing' ? item._isShowing :
-      state === 'hiding' ? item._isHiding :
-      state === 'positioning' ? item._isPositioning :
-      state === 'dragging' ? item._drag && item._drag._dragData.isActive :
-      state === 'releasing' ? item._drag && item._drag._releaseData.isActive :
-      state === 'migrating' ? item._migrate.isActive :
-      false;
+    var methodName;
+
+    if (state === 'inactive') {
+      return !item.isActive();
+    }
+
+    if (state === 'hidden') {
+      return !item.isVisible();
+    }
+
+    methodName = 'is' + state.charAt(0).toUpperCase() + state.slice(1);
+
+    return typeof item[methodName] === 'function' ? item[methodName]() : false;
 
   }
 
@@ -5505,24 +5672,6 @@ TODO v0.3.0
     }
 
     return ret;
-
-  }
-
-  /**
-   * Nullify an instance's own and prototype properties.
-   *
-   * @private
-   * @param {Object} instance
-   * @param {Object} Constructor
-   */
-  function nullifyInstance(instance, Constructor) {
-
-    var props = Object.keys(instance).concat(Object.keys(Constructor.prototype));
-    var i;
-
-    for (i = 0; i < props.length; i++) {
-      instance[props[i]] = null;
-    }
 
   }
 

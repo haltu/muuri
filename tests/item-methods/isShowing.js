@@ -17,10 +17,8 @@
     grid.hide(item, {instant: true});
     grid.show(item, {onFinish: function () {
       assert.strictEqual(item.isShowing(), false);
-      /*
       grid.destroy();
       container.parentNode.removeChild(container);
-      */
       done();
     }});
     assert.strictEqual(item.isShowing(), true);

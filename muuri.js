@@ -79,6 +79,9 @@ TODO v0.3.0
 * [x] Simpler dragStartPredicate system.
 * [x] Smarter default dragStartPredicate that's aware of links.
 * [x] Allow document.body being a container.
+* [ ] Destroying the instance causes weird scenarios sometimes. Think through
+      the usage flow and find a way to handle it. How is destroy managed in
+      other libs?
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
 * [ ] Add container offset diff mechanism to the item itself so it can be
@@ -2260,6 +2263,7 @@ TODO v0.3.0
           queue[queue.length] = callback;
         }
         grid._itemShowHandler.start(inst, instant, function () {
+          inst._isShowing = false;
           processQueue(queue, false, inst);
         });
       }
@@ -2308,6 +2312,7 @@ TODO v0.3.0
       // Animate child element and process the visibility callback queue after
       // succesful animation.
       grid._itemShowHandler.start(inst, instant, function () {
+        inst._isShowing = false;
         processQueue(queue, false, inst);
       });
 
@@ -2347,6 +2352,7 @@ TODO v0.3.0
           queue[queue.length] = callback;
         }
         grid._itemHideHandler.start(inst, instant, function () {
+          inst._isHiding = false;
           setStyles(element, {
             display: 'none'
           });
@@ -2393,6 +2399,7 @@ TODO v0.3.0
       // Animate child element and process the visibility callback queue after
       // succesful animation.
       grid._itemHideHandler.start(inst, instant, function () {
+        inst._isHiding = false;
         setStyles(element, {
           display: 'none'
         });
@@ -5418,8 +5425,8 @@ TODO v0.3.0
 
     return state === 'active' ? item._isActive :
       state === 'inactive' ? !item._isActive :
-      state === 'visible' ? !item._isHiding :
-      state === 'hidden' ? item._isHiding :
+      state === 'visible' ? !item._isHidden :
+      state === 'hidden' ? item._isHidden :
       state === 'showing' ? item._isShowing :
       state === 'hiding' ? item._isHiding :
       state === 'positioning' ? item._isPositioning :

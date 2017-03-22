@@ -1268,11 +1268,12 @@ TODO v0.3.0
     var items = inst._items;
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
+    var isSwap = opts.action === 'swap';
+    var action = isSwap ? 'swap' : 'move';
     var fromItem;
     var toItem;
     var fromIndex;
     var toIndex;
-    var isSwap;
 
     // Return immediately, if moving an item is not possible.
     if (inst._isDestroyed || items.length < 2) {
@@ -1281,8 +1282,6 @@ TODO v0.3.0
 
     fromItem = inst._getItem(item);
     toItem = inst._getItem(position);
-    isSwap = action === 'swap';
-    action = isSwap ? 'swap' : 'move';
 
     // Make sure the items exist and are not the same.
     if (fromItem && toItem && (fromItem !== toItem)) {
@@ -1345,6 +1344,7 @@ TODO v0.3.0
     var offsetDiff;
     var translateX;
     var translateY;
+    var layoutCallbackArgs;
 
     // Return immediately if the instance is destroyed.
     if (currentGrid._isDestroyed) {
@@ -1512,11 +1512,18 @@ TODO v0.3.0
         targetGrid.layout(true);
       }
       else if (typeof layout === 'function') {
+        layoutCallbackArgs = [];
         currentGrid.layout(function (completed) {
-          layout(completed, currentGrid);
+          layoutCallbackArgs[0] = completed;
+          if (layoutCallbackArgs.length === 2) {
+            layout(layoutCallbackArgs[0], layoutCallbackArgs[1]);
+          }
         });
         targetGrid.layout(function (completed) {
-          layout(completed, targetGrid);
+          layoutCallbackArgs[1] = completed;
+          if (layoutCallbackArgs.length === 2) {
+            layout(layoutCallbackArgs[0], layoutCallbackArgs[1]);
+          }
         });
       }
       else {
@@ -2027,7 +2034,7 @@ TODO v0.3.0
    */
   Item.prototype.isDragging = function () {
 
-    return this._drag && this._drag._dragData.isActive;
+    return !!this._drag && this._drag._dragData.isActive;
 
   };
 
@@ -2040,7 +2047,7 @@ TODO v0.3.0
    */
   Item.prototype.isReleasing = function () {
 
-    return this._drag && this._drag._releaseData.isActive;
+    return !!this._drag && this._drag._releaseData.isActive;
 
   };
 

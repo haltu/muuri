@@ -46,6 +46,17 @@
 
   };
 
+  // https://github.com/hammerjs/hammer.js/blob/master/tests/unit/assets/utils.js#L34
+  utils.dispatchTouchEvent = function(el, name, x, y) {
+    var e = document.createEvent('Event');
+    e.initEvent('touch' + name, true, true);
+    e.targetTouches = [{
+      pageX: x,
+      pageY: y
+    }];
+    el.dispatchEvent(e);
+  };
+
   //
   // Helpers
   //

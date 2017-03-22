@@ -733,7 +733,7 @@ var gridB = new Muuri(elemB, {
   dragSortConnections: ['c']
 });
 
-// This grid's items can be dragged into gridA and gridB. 
+// This grid's items can be dragged into gridA and gridB.
 var gridC = new Muuri(elemC, {
   dragSortGroup: 'c',
   dragSortConnections: ['a', 'b']
@@ -890,7 +890,7 @@ var grid = new Muuri(elem, {
 * [grid.filter( predicate, [options] )](#gridfilter-predicate-options-)
 * [grid.sort( comparer, [options] )](#gridsort-comparer-options-)
 * [grid.move( item, position, [options] )](#gridmove-item-position-options-)
-* [grid.send( item, grid, [options] )](#gridsend-item-grid-options-)
+* [grid.send( item, grid, position, [options] )](#gridsend-item-grid-position-options-)
 * [grid.on( event, listener )](#gridon-event-listener-)
 * [grid.off( event, listener )](#gridoff-event-listener-)
 * [grid.destroy( [removeElements] )](#griddestroy-removeelements-)
@@ -1354,7 +1354,7 @@ Move an item into another grid.
   * To which element should the item's element be appended to for the duration of the send animation?
   * Default value: `document.body`.
 * **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
-  * By default `grid.layout()` is called at the end of this method, for both grids. With this argument you can control the layout calls. You can disable the layouts completely with `false`, or provide a callback function for the layout methods, or provide the string `'instant'` to make the layouts happen instantly without any animations.
+  * By default `grid.layout()` is called at the end of this method, for both grids. With this argument you can control the layout calls. You can disable the layouts completely with `false`, or provide a callback function that is called when both of the grids have laid out, or provide the string `'instant'` to make the layouts happen instantly without any animations.
   * Default value: `true`.
   * Optional.
 
@@ -1367,6 +1367,14 @@ gridA.send(0, gridB, -1);
 // Move the first item of gridA as the last item of gridB.
 gridA.send(0, gridB, -1 {
   appendTo: someElem
+});
+
+// Do something after the item has been sent and both grids
+// have laid out.
+gridA.send(0, gridB, -1 {
+  layout: function (gridACompletedItems, gridBCompletedItems) {
+    // Do your thing here...
+  }
 });
 ```
 

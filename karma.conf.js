@@ -10,7 +10,6 @@ module.exports = function (config) {
       'karma-story-reporter'
     ],
     files: [
-      './node_modules/hammer-simulator/index.js',
       './node_modules/hammerjs/hammer.js',
       './node_modules/velocity-animate/velocity.js',
       pkg.main,

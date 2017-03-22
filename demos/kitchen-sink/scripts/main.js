@@ -249,8 +249,10 @@ $(function () {
     var grid2 = $grid2.data('muuri');
 
     if (grid1 && grid2) {
-      grid1.send(grid1.getItems('active')[0], grid2, {
-        position: 0
+      grid1.send(grid1.getItems('active')[0], grid2, 0, {
+        layout: function () {
+          console.log('send layout done');
+        }
       });
     }
 

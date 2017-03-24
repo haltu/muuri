@@ -1664,6 +1664,10 @@ jodid25519@^1.0.0:
   dependencies:
     jsbn "~0.1.0"
 
+jquery@^3.2.1:
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/jquery/-/jquery-3.2.1.tgz#5c4d9de652af6cd0a770154a631bba12b015c787"
+
 js-tokens@^3.0.0:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-3.0.1.tgz#08e9f132484a2c45a30907e9dc4d5567b7f114d7"
@@ -1964,6 +1968,10 @@ map-cache@^0.2.0:
 media-typer@0.3.0:
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/media-typer/-/media-typer-0.3.0.tgz#8710d7af0aa626f8fffa1ce00168545263255748"
+
+mezr@^0.6.1:
+  version "0.6.1"
+  resolved "https://registry.yarnpkg.com/mezr/-/mezr-0.6.1.tgz#0fdb141c52bb508f5e3f5f48194efb9766a6f450"
 
 micromatch@^2.1.5, micromatch@^2.3.7:
   version "2.3.11"
@@ -2304,6 +2312,10 @@ process-nextick-args@~1.0.6:
 progress@^1.1.8:
   version "1.1.8"
   resolved "https://registry.yarnpkg.com/progress/-/progress-1.1.8.tgz#e260c78f6161cdd9b0e56cc3e0a85de17c7a57be"
+
+prosthetic-hand@^1.3.1:
+  version "1.3.1"
+  resolved "https://registry.yarnpkg.com/prosthetic-hand/-/prosthetic-hand-1.3.1.tgz#aa13d4a99d5a39c5d168cbe207bcce576e84a732"
 
 punycode@^1.4.1:
   version "1.4.1"

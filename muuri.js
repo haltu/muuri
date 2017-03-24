@@ -133,7 +133,7 @@ TODO v0.3.0
   }
   else {
 
-    Velocity = typeof global.jQuery === 'function' ? global.jQuery.Velocity : global.Velocity;
+    Velocity = global.Velocity || global.jQuery.Velocity;
     Hammer = global.Hammer;
     global[libName] = factory(global, libName, Velocity, Hammer);
 

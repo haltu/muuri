@@ -82,11 +82,7 @@ $(function () {
         dragContainer: document.body,
         dragReleaseDuration: 1000,
         dragSortGroup: 'a',
-        dragSortConnections: ['a'],
-        dragSortInterval: 100,
-        dragSortPredicate: {
-          action: 'move'
-        }
+        dragSortConnections: ['a']
       });
 
       $grid.data('muuri', muuri);

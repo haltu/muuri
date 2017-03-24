@@ -1,6 +1,15 @@
 (function (window) {
 
   var utils = window.utils = {};
+  var vendorPrefixes = ['', 'webkit', 'Moz', 'MS', 'ms', 'o'];
+  var supportsTouch = 'ontouchstart' in window;
+  var supportsPointerEvents = (function () {
+    for (var i = 0; i < vendorPrefixes.length; i++) {
+      if ((vendorPrefixes[i] + 'PointerEvent') in window) {
+        return true;
+      }
+    }
+  })();
 
   //
   // Methods
@@ -46,15 +55,51 @@
 
   };
 
-  // https://github.com/hammerjs/hammer.js/blob/master/tests/unit/assets/utils.js#L34
-  utils.dispatchTouchEvent = function(el, name, x, y) {
-    var e = document.createEvent('Event');
-    e.initEvent('touch' + name, true, true);
-    e.targetTouches = [{
-      pageX: x,
-      pageY: y
-    }];
-    el.dispatchEvent(e);
+  utils.dragElement = function(options) {
+
+    // Parse options.
+    var opts = options || {};
+    var noop = function () {};
+    var element = opts.element;
+    var move = opts.move;
+    var onStart = opts.onStart || noop;
+    var onStop = opts.onStop || noop;
+    var onRelease = opts.onRelease || noop;
+
+    // Calculate start and end points.
+    var from = mezr.offset(element, window);
+    var to = {
+      left: from.left + move.left,
+      top: from.top + move.top
+    };
+
+    // Create the hand and finger istances.
+    var eventMode = supportsPointerEvents ? 'pointer' : supportsTouch ? 'touch' : 'mouse';
+    var pointerType = supportsTouch ? 'touch' : 'mouse';
+    var hand = new Hand({timing: 'fastFrame'});
+    var finger = hand.growFinger(eventMode, {
+      pointerType: pointerType,
+      down: false,
+      width: 30,
+      height: 30,
+      x: from.left,
+      y: from.top
+    });
+
+    // Do the drag.
+    finger.down();
+    window.setTimeout(function () {
+      onStart();
+      finger.moveTo(to.left, to.top, 100);
+      window.setTimeout(function () {
+        onStop();
+        finger.up();
+        window.setTimeout(function () {
+          onRelease();
+        }, 100);
+      }, 200);
+    }, 100);
+
   };
 
   //

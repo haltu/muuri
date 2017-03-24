@@ -102,6 +102,12 @@
 
   };
 
+  utils.sortItemsById = function (items) {
+    items.sort(function (a, b) {
+      return a._id - b._id;
+    });
+  };
+
   //
   // Helpers
   //

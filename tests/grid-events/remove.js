@@ -13,8 +13,8 @@
     var removedItems = grid.getItems([0,1]);
 
     grid.on('remove', function (items) {
-      assert.strictEqual(arguments.length, 1, '"remove" event callback should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(removedItems), '"remove" event items should be an array of the removed items');
+      assert.strictEqual(arguments.length, 1, 'should have one argument');
+      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(removedItems), 'items should be an array of the removed items');
     });
     grid.remove(removedItems);
 

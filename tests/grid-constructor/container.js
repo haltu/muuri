@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Grid instance - container');
+  QUnit.module('Grid instance');
 
   QUnit.test('Muuri constructor should not accept an invalid container element', function (assert) {
 

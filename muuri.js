@@ -1229,8 +1229,9 @@ TODO v0.3.0
 
     // Otherwise if we got an array, let's assume it's a presorted array of the
     // items and order the items based on it.
+    // TODO: This one could do with some sanity checks.
     else if (Array.isArray(comparer)) {
-      items.splice(0, items.length).concat(comparer);
+      Array.prototype.splice.apply(items, [0, items.length].concat(comparer));
     }
 
     // Otherwise, let's go home.
@@ -5362,7 +5363,7 @@ TODO v0.3.0
 
       item = targetItems[i];
       isAffected = isShow ? item._isHidden || item._isHiding || (item._isShowing && isInstant) :
-                   !item.isHidden || item._isShowing || (item._isHiding && isInstant);
+                   !item._isHidden || item._isShowing || (item._isHiding && isInstant);
 
       if (isAffected) {
         affectedItems[affectedItems.length] = item;

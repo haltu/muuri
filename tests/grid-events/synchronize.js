@@ -12,7 +12,7 @@
     var grid = new Muuri(container);
 
     grid.on('synchronize', function () {
-      assert.strictEqual(arguments.length, 0, '"synchronize" event callback should have no arguments')
+      assert.strictEqual(arguments.length, 0, '"synchronize" event callback should have no arguments');
     });
     grid.synchronize();
 

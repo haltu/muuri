@@ -12,8 +12,8 @@
     var grid = new Muuri(container);
 
     grid.on('layoutStart', function (items) {
-      assert.strictEqual(arguments.length, 1, '"layoutStart" event callback should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems('active')), '"layoutStart" event callback argument should be an array of the items that are about to be laid out');
+      assert.strictEqual(arguments.length, 1, 'should have one argument');
+      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems('active')), 'should be an array of the items that are about to be laid out');
     });
 
     // Cause a layout.

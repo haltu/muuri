@@ -16,8 +16,8 @@
     assert.expect(2);
 
     grid.on('add', function (items) {
-      assert.strictEqual(arguments.length, 1, '"add" event callback should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems(newElems)), '"add" event items should be an array of the added items');
+      assert.strictEqual(arguments.length, 1, 'should have one argument');
+      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems(newElems)), 'items should be an array of the added items');
     });
 
     grid.add(newElems);

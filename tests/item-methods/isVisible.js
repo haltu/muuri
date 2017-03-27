@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - isVisible');
+  QUnit.module('Item methods');
 
   QUnit.test('item.isVisible() should return true if the item is visible and otherwise false', function (assert) {
 

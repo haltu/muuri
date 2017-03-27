@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - getHeight');
+  QUnit.module('Item methods');
 
   QUnit.test('item.getHeight() should return the Item element`s cached height that includes paddings and borders', function (assert) {
 

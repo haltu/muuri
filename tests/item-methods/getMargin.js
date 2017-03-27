@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - getMargin');
+  QUnit.module('Item methods');
 
   QUnit.test('item.getMargin() should return the Item element`s cached margins', function (assert) {
 

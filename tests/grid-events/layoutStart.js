@@ -2,20 +2,24 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Grid events - layoutStart');
+  QUnit.module('Grid events');
 
-  QUnit.test('layoutStart event should be triggered after grid.layout() is called, just before the items are positioned', function (assert) {
+  QUnit.test('"layoutStart" event should be triggered after grid.layout() is called, just before the items are positioned', function (assert) {
 
-    assert.expect(4);
+    assert.expect(2);
 
     var container = utils.createGridElements({itemCount: 5}).container;
     var grid = new Muuri(container);
 
     grid.on('layoutStart', function (items) {
-      assert.strictEqual(arguments.length, 1, 'layoutStart event callback should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems('active')), 'layoutStart event callback argument should be an array of the items that are about to be laid out');
+      assert.strictEqual(arguments.length, 1, '"layoutStart" event callback should have one argument');
+      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems('active')), '"layoutStart" event callback argument should be an array of the items that are about to be laid out');
     });
-    grid.move(0, -1).layout(true);
+
+    // Cause a layout.
+    grid.move(0, -1);
+
+    // Teardown.
     grid.destroy();
     container.parentNode.removeChild(container);
 

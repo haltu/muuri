@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - isActive');
+  QUnit.module('Item methods');
 
   QUnit.test('item.isActive() should return true if the item is active and otherwise false', function (assert) {
 

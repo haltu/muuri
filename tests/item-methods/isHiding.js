@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - isHiding');
+  QUnit.module('Item methods');
 
   QUnit.test('item.isHiding() should return true if the item is animating to hidden and otherwise false', function (assert) {
 

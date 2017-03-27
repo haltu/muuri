@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - isPositioning');
+  QUnit.module('Item methods');
 
   QUnit.test('item.isPositioning() should return true if the item`s position is being animated', function (assert) {
 

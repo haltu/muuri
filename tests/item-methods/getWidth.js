@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - getWidth');
+  QUnit.module('Item methods');
 
   QUnit.test('item.getWidth() should return the Item element`s cached width that includes paddings and borders', function (assert) {
 

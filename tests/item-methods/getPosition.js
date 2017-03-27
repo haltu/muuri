@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - getPosition');
+  QUnit.module('Item methods');
 
   QUnit.test('item.getPosition() should return the Item element`s cached position in the grid', function (assert) {
 

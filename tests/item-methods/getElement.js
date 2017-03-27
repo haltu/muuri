@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - getElement');
+  QUnit.module('Item methods');
 
   QUnit.test('item.getElement() should return the Item instance`s associated DOM element', function (assert) {
 

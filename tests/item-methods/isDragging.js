@@ -3,7 +3,7 @@
   var Muuri = window.Muuri;
   var Simulator = window.Simulator;
 
-  QUnit.module('Item methods - isDragging');
+  QUnit.module('Item methods');
 
   QUnit.test('item.isDragging() should return true if the item is being dragged', function (assert) {
 

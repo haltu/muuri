@@ -2,9 +2,9 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Grid events - layoutEnd');
+  QUnit.module('Grid events');
 
-  QUnit.test('layoutEnd event should be triggered after the items have positioned', function (assert) {
+  QUnit.test('"layoutEnd" event should be triggered after the items have positioned', function (assert) {
 
     var done = assert.async();
     var container = utils.createGridElements({itemCount: 5}).container;
@@ -24,9 +24,9 @@
       });
 
       // Do the assertions.
-      assert.strictEqual(arguments.length, 1, 'layoutEnd callback should have a single argument');
-      assert.strictEqual(isAnyItemPositioning, false, 'layoutEnd callback items should not be in positioning state');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(expectedItems), 'layoutEnd callback items should be identical to the array of items that were active when the layout was triggered');
+      assert.strictEqual(arguments.length, 1, '"layoutEnd" callback should have a single argument');
+      assert.strictEqual(isAnyItemPositioning, false, '"layoutEnd" callback items should not be in positioning state');
+      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(expectedItems), '"layoutEnd" callback items should be identical to the array of items that were active when the layout was triggered');
 
       // Teardown.
       grid.destroy();

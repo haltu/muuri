@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - getGrid');
+  QUnit.module('Item methods');
 
   QUnit.test('item.getGrid() should return the Item instance`s associated Grid instance', function (assert) {
 

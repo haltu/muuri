@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - isMigrating');
+  QUnit.module('Item methods');
 
   QUnit.test('item.isMigrating() should return true if the item is being sent to another grid', function (assert) {
 

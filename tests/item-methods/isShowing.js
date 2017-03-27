@@ -2,7 +2,7 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods - isShowing');
+  QUnit.module('Item methods');
 
   QUnit.test('item.isShowing() should return true if the item is animating to visible and otherwise false', function (assert) {
 

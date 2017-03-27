@@ -3,7 +3,7 @@
   var Muuri = window.Muuri;
   var Simulator = window.Simulator;
 
-  QUnit.module('Item methods - isReleasing');
+  QUnit.module('Item methods');
 
   QUnit.test('item.isReleasing() should return true if the item is being released', function (assert) {
 

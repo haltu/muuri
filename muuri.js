@@ -82,6 +82,8 @@ TODO v0.3.0
 * [x] Destroying the instance causes weird scenarios sometimes. Think through
       the usage flow and find a way to handle it. How is destroy managed in
       other libs?
+* [x] Update layout callback/end event logic.
+* [x] Document all public callbacks within the type definitions section.
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
 * [ ] Add container offset diff mechanism to the item itself so it can be
@@ -150,6 +152,11 @@ TODO v0.3.0
   var Math = global.Math;
   var Error = global.Error;
   var Element = global.Element;
+
+  // Types.
+  var typeFunction = 'function';
+  var typeString = 'string';
+  var typeNumber = 'number';
 
   // Keep track of Grid instances.
   var gridInstances = {};
@@ -265,10 +272,11 @@ TODO v0.3.0
     var layoutOnResize;
 
     // Allow passing element as selector string. Store element for instance.
-    element = inst._element = typeof element === 'string' ? document.querySelectorAll(element)[0] : element;
+    element = inst._element = typeof element === typeString ? document.querySelectorAll(element)[0] : element;
 
-    // Throw an error if the container element does not exist in the DOM.
-    if (element !== document.body && !document.body.contains(element)) {
+    // Throw an error if the container element is not body element or does not
+    // exist within the body element.
+    if (!document.body.contains(element)) {
       throw new Error('Container element must be an existing DOM element');
     }
 
@@ -295,8 +303,8 @@ TODO v0.3.0
     inst._sortConnections = Array.isArray(settings.dragSortConnections) && settings.dragSortConnections.length ? settings.dragSortConnections : null;
 
     // Setup show and hide animations for items.
-    inst._itemShowHandler = typeof settings.show === 'function' ? settings.show() : getItemVisbilityHandler('show', settings.show);
-    inst._itemHideHandler = typeof settings.hide === 'function' ? settings.hide() : getItemVisbilityHandler('hide', settings.hide);
+    inst._itemShowHandler = typeof settings.show === typeFunction ? settings.show() : getItemVisbilityHandler('show', settings.show);
+    inst._itemHideHandler = typeof settings.hide === typeFunction ? settings.hide() : getItemVisbilityHandler('hide', settings.hide);
 
     // Add container element's class name.
     addClass(element, settings.containerClass);
@@ -307,7 +315,7 @@ TODO v0.3.0
     // Create initial items.
     inst._items = [];
     items = settings.items;
-    if (typeof items === 'string') {
+    if (typeof items === typeString) {
       nodeListToArray(inst._element.children).forEach(function (itemElement) {
         if (items === '*' || elementMatches(itemElement, items)) {
           inst._items.push(new Grid.Item(inst, itemElement));
@@ -323,7 +331,7 @@ TODO v0.3.0
     // Sanitize layoutOnResize option and bind debounced resize handler if the
     // layoutOnResize option a valid number.
     layoutOnResize = settings.layoutOnResize;
-    layoutOnResize = layoutOnResize === true ? 0 : typeof layoutOnResize === 'number' ? layoutOnResize : -1;
+    layoutOnResize = layoutOnResize === true ? 0 : typeof layoutOnResize === typeNumber ? layoutOnResize : -1;
     if (layoutOnResize >= 0) {
       debouncedLayout = debounce(function () {
         inst.refreshContainer().refreshItems().layout();
@@ -550,7 +558,7 @@ TODO v0.3.0
   Grid.prototype.getItems = function (targets, state) {
 
     var inst = this;
-    var hasTargets = targets && typeof targets !== 'string';
+    var hasTargets = targets === 0 || (targets && typeof targets !== typeString);
     var targetItems = !hasTargets ? null : isNodeList(targets) ? nodeListToArray(targets) : [].concat(targets);
     var targetState = !hasTargets ? targets : state;
     var ret = [];
@@ -563,7 +571,7 @@ TODO v0.3.0
     }
 
     // Sanitize target state.
-    targetState = typeof targetState === 'string' ? targetState : null;
+    targetState = typeof targetState === typeString ? targetState : null;
 
     // If target state or target items are defined return filtered results.
     if (targetState || targetItems) {
@@ -585,14 +593,17 @@ TODO v0.3.0
   };
 
   /**
-   * Refresh the cached dimensions and offsets of the container element.
+   * Refresh the cached dimensions and offsets of the container element. Note
+   * that the offset never really needs to be updated manually in the userland
+   * because it's only used by the default drag sort predicate temporarily. It's
+   * added here as an updatable property just for conveniency.
    *
    * @public
    * @memberof Grid.prototype
    * @param {...String} [dimensions]
    *   - The specific dimensions you want to refresh. If no specific dimensions
    *     are provided, all dimensions are refreshed. Accepted values are:
-   *     "width", "height", "offset", "padding", "border", "box-sizing".
+   *     "width", "height", "offset", "padding", "border", "boxSizing".
    * @returns {Grid}
    */
   Grid.prototype.refreshContainer = function () {
@@ -603,12 +614,12 @@ TODO v0.3.0
     var hasArgs = argsLength > 0;
     var sides = ['left', 'right', 'top', 'bottom'];
     var update = {
-      'width': !hasArgs,
-      'height': !hasArgs,
-      'offset': !hasArgs,
-      'padding': !hasArgs,
-      'border': !hasArgs,
-      'box-sizing': !hasArgs
+      width: !hasArgs,
+      height: !hasArgs,
+      offset: !hasArgs,
+      padding: !hasArgs,
+      border: !hasArgs,
+      boxSizing: !hasArgs
     };
     var rect;
     var i;
@@ -664,7 +675,7 @@ TODO v0.3.0
     }
 
     // Update box-sizing.
-    if (update['box-sizing']) {
+    if (update.boxSizing) {
       inst._boxSizing = getStyle(element, 'box-sizing');
     }
 
@@ -774,19 +785,18 @@ TODO v0.3.0
    * @public
    * @memberof Grid.prototype
    * @param {Boolean} [instant=false]
-   * @param {Function} [onFinish]
+   * @param {LayoutCallback} [onFinish]
    * @returns {Grid}
    */
   Grid.prototype.layout = function (instant, onFinish) {
 
     var inst = this;
     var emitter = inst._emitter;
-    var callback = typeof instant === 'function' ? instant : onFinish;
+    var callback = typeof instant === typeFunction ? instant : onFinish;
     var isInstant = instant === true;
-    var completed = [];
     var counter = 0;
     var layout;
-    var itemsLength;
+    var items;
     var padding;
     var border;
     var isBorderBox;
@@ -800,32 +810,28 @@ TODO v0.3.0
     }
 
     // The finish function, which will be used for checking if all the items
-    // have laid out yet.
-    function tryFinish(interrupted, item) {
-
-      // Push all items, which were not interrupted, to the completed items.
-      if (!interrupted) {
-        completed[completed.length] = item;
-      }
-
-      // After all items have finished their animations call callback and emit
-      // layoutend event.
-      if (++counter === itemsLength) {
-        if (typeof callback === 'function') {
-          callback(completed.concat());
+    // have laid out yet. After all items have finished their animations call
+    // callback and emit layoutEnd event. Only emit layoutEnd event if there
+    // hasn't been a new layout call during this layout.
+    function tryFinish() {
+      if (--counter <= 0) {
+        if (typeof callback === typeFunction) {
+          callback(inst._layout !== layout, items.concat());
         }
-        emitter.emit(evLayoutEnd, completed.concat());
+        if (inst._layout === layout) {
+          emitter.emit(evLayoutEnd, items.concat());
+        }
       }
-
     }
 
     // Create a new layout and store the new layout instance into the grid
     // instance.
     layout = inst._layout = new Grid.Layout(inst);
-    itemsLength = layout.items.length;
+    items = layout.items.concat();
+    counter = items.length;
 
     // Emit layoutStart event.
-    emitter.emit(evLayoutStart, layout.items.concat());
+    emitter.emit(evLayoutStart, items.concat());
 
     // If grid's width or height was modified, we need to update it's cached
     // dimensions. Also keep in mind that grid's cached width/height should
@@ -859,35 +865,32 @@ TODO v0.3.0
     }
 
     // If there are no items let's finish quickly.
-    if (!itemsLength) {
-      tryFinish(true);
+    if (!items.length) {
+      tryFinish();
+      return inst;
     }
 
     // If there are items let's position them.
-    else {
+    for (i = 0; i < items.length; i++) {
 
-      for (i = 0; i < layout.items.length; i++) {
+      item = items[i];
+      position = layout.slots[item._id];
 
-        item = layout.items[i];
-        position = layout.slots[item._id];
+      // Update item's position. We add the padding to the value here because
+      // we want the position to be relative to the container elment's
+      // content edge, not padding edge (which would be default behaviour for
+      // absolute positioned elements). This way we provide more control over
+      // the gutter spacing via CSS styles. Otherwise the padding would be
+      // kind of wasted.
+      item._left = position.left + inst._padding.left;
+      item._top = position.top + inst._padding.top;
 
-        // Update item's position. We add the padding to the value here because
-        // we want the position to be relative to the container elment's
-        // content edge, not padding edge (which would be default behaviour for
-        // absolute positioned elements). This way we provide more control over
-        // the gutter spacing via CSS styles. Otherwise the padding would be
-        // kind of wasted.
-        item._left = position.left + inst._padding.left;
-        item._top = position.top + inst._padding.top;
-
-        // Layout non-dragged items.
-        if (item._drag && item._drag._dragData.isActive) {
-          tryFinish(false, item);
-        }
-        else {
-          item._layout(isInstant, tryFinish);
-        }
-
+      // Layout non-dragged items.
+      if (item.isDragging()) {
+        tryFinish(true, item);
+      }
+      else {
+        item._layout(isInstant, tryFinish);
       }
 
     }
@@ -914,7 +917,7 @@ TODO v0.3.0
    * @param {(HTMLElement|HTMLElement[])} elements
    * @param {Object} [options]
    * @param {Number} [options.index=-1]
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
    * @returns {Item[]}
    */
   Grid.prototype.add = function (elements, options) {
@@ -974,7 +977,7 @@ TODO v0.3.0
 
     // If layout is needed.
     if (needsLayout && layout) {
-      inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
     }
 
     // Return new items.
@@ -990,7 +993,7 @@ TODO v0.3.0
    * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.removeElements=false]
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
    * @returns {Item[]}
    */
   Grid.prototype.remove = function (items, options) {
@@ -1023,7 +1026,7 @@ TODO v0.3.0
 
     // If layout is needed.
     if (needsLayout && layout) {
-      inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
     }
 
     return targetItems;
@@ -1038,8 +1041,8 @@ TODO v0.3.0
    * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {Function} [options.onFinish]
-   * @param {(Boolean|Function|String)} [options.layout=tue]
+   * @param {ShowCallback} [options.onFinish]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=tue]
    * @returns {Grid}
    */
   Grid.prototype.show = function (items, options) {
@@ -1056,8 +1059,8 @@ TODO v0.3.0
    * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {Function} [options.onFinish]
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {HideCallback} [options.onFinish]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.hide = function (items, options) {
@@ -1082,8 +1085,8 @@ TODO v0.3.0
    * @param {(Function|String)} predicate
    * @oaram {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {Function} [options.onFinish]
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {FilterCallback} [options.onFinish]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.filter = function (predicate, options) {
@@ -1091,12 +1094,12 @@ TODO v0.3.0
     var inst = this;
     var items = inst._items;
     var predicateType = typeof predicate;
-    var isPredicateString = predicateType === 'string';
-    var isPredicateFn = predicateType === 'function';
+    var isPredicateString = predicateType === typeString;
+    var isPredicateFn = predicateType === typeFunction;
     var opts = options || {};
     var isInstant = opts.instant === true;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var onFinish = typeof opts.onFinish === 'function' ? opts.onFinish : null;
+    var onFinish = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
     var itemsToShow = [];
     var itemsToHide = [];
     var tryFinishCounter = -1;
@@ -1161,7 +1164,7 @@ TODO v0.3.0
 
       // If layout is needed.
       if (layout) {
-        inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+        inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
       }
 
     }
@@ -1185,7 +1188,7 @@ TODO v0.3.0
    * @param {(Function|String|String[])} comparer
    * @param {Object} [options]
    * @param {Boolean} [options.descending=false]
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.sort = function (comparer, options) {
@@ -1207,7 +1210,7 @@ TODO v0.3.0
     origItems = items.concat();
 
     // If function is provided do a native array sort.
-    if (typeof comparer === 'function') {
+    if (typeof comparer === typeFunction) {
       items.sort(function (a, b) {
         return comparer(a, b) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
       });
@@ -1215,7 +1218,7 @@ TODO v0.3.0
 
     // Otherwise if we got a string, let's sort by the sort data as provided in
     // the instance's options.
-    else if (typeof comparer === 'string') {
+    else if (typeof comparer === typeString) {
       comparer = comparer.trim().split(' ').map(function (val) {
         return val.split(':');
       });
@@ -1240,7 +1243,7 @@ TODO v0.3.0
 
     // If layout is needed.
     if (layout) {
-      inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
     }
 
     return inst;
@@ -1259,7 +1262,7 @@ TODO v0.3.0
    *   - Accepts either "move" or "swap".
    *   - "move" moves the item in place of the other item.
    *   - "swap" swaps the position of the items.
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.move = function (item, position, options) {
@@ -1303,7 +1306,7 @@ TODO v0.3.0
 
       // If layout is needed.
       if (layout) {
-        inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+        inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
       }
 
     }
@@ -1322,7 +1325,8 @@ TODO v0.3.0
    * @param {GridSingleItemQuery} position
    * @param {Object} [options]
    * @param {HTMLElement} [options.appendTo=document.body]
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {(Boolean|LayoutCallback|String)} [options.layoutSender=true]
+   * @param {(Boolean|LayoutCallback|String)} [options.layoutReceiver=true]
    * @returns {Grid}
    */
   Grid.prototype.send = function (item, grid, position, options) {
@@ -1334,7 +1338,8 @@ TODO v0.3.0
     var targetItem;
     var opts;
     var appendTo;
-    var layout;
+    var layoutSender;
+    var layoutReceiver;
     var migrate;
     var element;
     var isActive;
@@ -1344,7 +1349,6 @@ TODO v0.3.0
     var offsetDiff;
     var translateX;
     var translateY;
-    var layoutCallbackArgs;
 
     // Return immediately if the instance is destroyed.
     if (currentGrid._isDestroyed) {
@@ -1359,7 +1363,7 @@ TODO v0.3.0
     }
 
     // Get new index
-    newIndex = typeof position === 'number' ? position : targetGrid._items.indexOf(targetGrid._getItem(position));
+    newIndex = typeof position === typeNumber ? position : targetGrid._items.indexOf(targetGrid._getItem(position));
 
     // If we have invalid new index, let's return immediately.
     if (newIndex === null) {
@@ -1376,7 +1380,8 @@ TODO v0.3.0
     // Parse options.
     opts = options || {};
     appendTo = opts.appendTo || document.body;
-    layout = opts.layout ? opts.layout : opts.layout === undefined;
+    layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
+    layoutReceiver = opts.layoutReceiver ? opts.layoutReceiver : opts.layoutReceiver === undefined;
 
     // Get item's migrate data and element.
     migrate = targetItem._migrate;
@@ -1505,30 +1510,13 @@ TODO v0.3.0
       toIndex: newIndex
     });
 
-    // If layout is defined and if the item is active and layout both grids.
-    if (isActive && layout) {
-      if (layout === 'instant') {
-        currentGrid.layout(true);
-        targetGrid.layout(true);
+    // If item is active try to layout both grids.
+    if (isActive) {
+      if (layoutSender) {
+        currentGrid.layout(layoutSender === 'instant', typeof layoutSender === typeFunction ? layoutSender : undefined);
       }
-      else if (typeof layout === 'function') {
-        layoutCallbackArgs = [];
-        currentGrid.layout(function (completed) {
-          layoutCallbackArgs[0] = completed;
-          if (layoutCallbackArgs.length === 2) {
-            layout(layoutCallbackArgs[0], layoutCallbackArgs[1]);
-          }
-        });
-        targetGrid.layout(function (completed) {
-          layoutCallbackArgs[1] = completed;
-          if (layoutCallbackArgs.length === 2) {
-            layout(layoutCallbackArgs[0], layoutCallbackArgs[1]);
-          }
-        });
-      }
-      else {
-        currentGrid.layout();
-        targetGrid.layout();
+      if (layoutReceiver) {
+        targetGrid.layout(layoutReceiver === 'instant', typeof layoutReceiver === typeFunction ? layoutReceiver : undefined);
       }
     }
 
@@ -1627,7 +1615,7 @@ TODO v0.3.0
     // If target is number return the item in that index. If the number is lower
     // than zero look for the item starting from the end of the items array. For
     // example -1 for the last item, -2 for the second last item, etc.
-    else if (typeof target === 'number') {
+    else if (typeof target === typeNumber) {
       index = target > -1 ? target : inst._items.length + target;
       return inst._items[index] || null;
     }
@@ -1662,7 +1650,7 @@ TODO v0.3.0
     var inst = this;
 
     inst._sortGroup = null;
-    if (sortGroup && typeof sortGroup === 'string') {
+    if (sortGroup && typeof sortGroup === typeString) {
       inst._sortGroup = sortGroup;
       if (!sortGroups[sortGroup]) {
         sortGroups[sortGroup] = [];
@@ -2255,7 +2243,7 @@ TODO v0.3.0
     }
 
     // Push the callback to the callback queue.
-    if (typeof onFinish === 'function') {
+    if (typeof onFinish === typeFunction) {
       inst._layoutQueue[inst._layoutQueue.length] = onFinish;
     }
 
@@ -2348,7 +2336,7 @@ TODO v0.3.0
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
-    var callback = typeof onFinish === 'function' ? onFinish : null;
+    var callback = typeof onFinish === typeFunction ? onFinish : null;
     var grid;
     var settings;
 
@@ -2446,7 +2434,7 @@ TODO v0.3.0
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
-    var callback = typeof onFinish === 'function' ? onFinish : null;
+    var callback = typeof onFinish === typeFunction ? onFinish : null;
     var grid;
     var settings;
 
@@ -2511,7 +2499,7 @@ TODO v0.3.0
       processQueue(queue, true, inst);
 
       // Push the callback to the visibility callback queue.
-      if (typeof callback === 'function') {
+      if (typeof callback === typeFunction) {
         queue[queue.length] = callback;
       }
 
@@ -2710,7 +2698,7 @@ TODO v0.3.0
 
     // Calculate the layout data. If the user has provided custom function as a
     // layout method invoke it. Otherwise invoke the default layout method.
-    var layout = typeof settings === 'function' ? settings(items, width, height) :
+    var layout = typeof settings === typeFunction ? settings(items, width, height) :
                  layoutFirstFit(items, width, height, isPlainObject(settings) ? settings : {});
 
     // Set instance data based on layout data.
@@ -2971,15 +2959,15 @@ TODO v0.3.0
    */
   Emitter.prototype.on = function (event, listener) {
 
-    if (this._isDestroyed) {
-      return this;
+    if (!this._isDestroyed) {
+
+      var events = this._events = this._events || {};
+      var listeners = events[event] || [];
+
+      listeners[listeners.length] = listener;
+      events[event] = listeners;
+
     }
-
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
-
-    listeners[listeners.length] = listener;
-    events[event] = listeners;
 
     return this;
 
@@ -2996,20 +2984,20 @@ TODO v0.3.0
    */
   Emitter.prototype.off = function (event, listener) {
 
-    if (this._isDestroyed) {
-      return this;
-    }
+    if (!this._isDestroyed) {
 
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
-    var counter = listeners.length;
+      var events = this._events = this._events || {};
+      var listeners = events[event] || [];
+      var counter = listeners.length;
 
-    if (counter) {
-      while (counter--) {
-        if (listener === listeners[i]) {
-          listeners.splice(counter, 1);
+      if (counter) {
+        while (counter--) {
+          if (listener === listeners[i]) {
+            listeners.splice(counter, 1);
+          }
         }
       }
+
     }
 
     return this;
@@ -3029,25 +3017,25 @@ TODO v0.3.0
    */
   Emitter.prototype.emit = function (event, arg1, arg2, arg3) {
 
-    if (this._isDestroyed) {
-      return this;
-    }
+    if (!this._isDestroyed) {
 
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
-    var listenersLength = listeners.length;
-    var argsLength;
-    var i;
+      var events = this._events = this._events || {};
+      var listeners = events[event] || [];
+      var listenersLength = listeners.length;
+      var argsLength;
+      var i;
 
-    if (listenersLength) {
-      argsLength = arguments.length - 1;
-      listeners = listeners.concat();
-      for (i = 0; i < listenersLength; i++) {
-        argsLength === 0 ? listeners[i]() :
-        argsLength === 1 ? listeners[i](arg1) :
-        argsLength === 2 ? listeners[i](arg1, arg2) :
-                           listeners[i](arg1, arg2, arg3);
+      if (listenersLength) {
+        argsLength = arguments.length - 1;
+        listeners = listeners.concat();
+        for (i = 0; i < listenersLength; i++) {
+          argsLength === 0 ? listeners[i]() :
+          argsLength === 1 ? listeners[i](arg1) :
+          argsLength === 2 ? listeners[i](arg1, arg2) :
+                             listeners[i](arg1, arg2, arg3);
+        }
       }
+
     }
 
     return this;
@@ -3063,20 +3051,20 @@ TODO v0.3.0
    */
   Emitter.prototype.destroy = function () {
 
-    if (this._isDestroyed) {
-      return this;
+    if (!this._isDestroyed) {
+
+      var events = this._events || {};
+      var eventNames = Object.keys(events);
+      var i;
+
+      for (i = 0; i < eventNames.length; i++) {
+        events[eventNames[i]].length = 0;
+        events[eventNames[i]] = null;
+      }
+
+      this._isDestroyed = true;
+
     }
-
-    var events = this._events || {};
-    var eventNames = Object.keys(events);
-    var i;
-
-    for (i = 0; i < eventNames.length; i++) {
-      events[eventNames[i]].length = 0;
-      events[eventNames[i]] = null;
-    }
-
-    this._isDestroyed = true;
 
     return this;
 
@@ -3132,7 +3120,7 @@ TODO v0.3.0
     var inst = this;
     var element = inst._element;
     var opts = options || {};
-    var callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
+    var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
     var velocityOpts = {
       duration: opts.duration || 300,
       delay: opts.delay || 0,
@@ -3220,7 +3208,7 @@ TODO v0.3.0
     var element = item._element;
     var grid = item.getGrid();
     var settings = grid._settings;
-    var checkPredicate = typeof settings.dragStartPredicate === 'function' ? settings.dragStartPredicate : Drag.defaultStartPredicate;
+    var checkPredicate = typeof settings.dragStartPredicate === typeFunction ? settings.dragStartPredicate : Drag.defaultStartPredicate;
     var predicatePending = 0;
     var predicateResolved = 1;
     var predicateRejected = 2;
@@ -3247,7 +3235,7 @@ TODO v0.3.0
     }, settings.dragSortInterval);
 
     // Setup sort predicate.
-    drag._sortPredicate = typeof settings.dragSortPredicate === 'function' ? settings.dragSortPredicate : Drag.defaultSortPredicate;
+    drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ? settings.dragSortPredicate : Drag.defaultSortPredicate;
 
     // Setup drag scroll handler.
     drag._scrollHandler = function (e) {
@@ -3346,7 +3334,7 @@ TODO v0.3.0
       var target = elem.getAttribute('target');
       if (isAnchor && href && Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200) {
         if (target && target !== '_self') {
-          window.open(href, target);
+          global.open(href, target);
         }
         else {
           global.location.href = href;
@@ -4457,7 +4445,7 @@ TODO v0.3.0
    */
   function insertItemsToArray(array, items, index) {
 
-    var targetIndex = typeof index === 'number' ? index : -1;
+    var targetIndex = typeof index === typeNumber ? index : -1;
     array.splice.apply(array, [targetIndex < 0 ? array.length - targetIndex + 1 : targetIndex, 0].concat(items));
 
   }
@@ -5345,8 +5333,8 @@ TODO v0.3.0
    * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {Function} [options.onFinish]
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {(ShowCallback|HideCallback)} [options.onFinish]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
    * @returns {Grid}
    */
   function gridShowHideHandler(inst, method, items, options) {
@@ -5361,29 +5349,34 @@ TODO v0.3.0
     var startEvent = isShow ? evShowStart : evHideStart;
     var endEvent = isShow ? evShowEnd : evHideEnd;
     var needsLayout = false;
-    var validItems = [];
+    var affectedItems = [];
     var completedItems = [];
     var hiddenItems = [];
+    var isAffected;
     var item;
     var i;
 
-    // Get valid items -> filter out items which will not be affected by this
+    // Get affected items: filter out items which will not be affected by this
     // method at their current state.
     for (i = 0; i < targetItems.length; i++) {
+
       item = targetItems[i];
-      // Omg... this is a monster. No liner like one-liner.
-      if (isShow ? (item._isHidden || item._isHiding || (item._isShowing && isInstant)) : (!item.isHidden || item._isShowing || (item._isHiding && isInstant))) {
-        validItems[validItems.length] = item;
+      isAffected = isShow ? item._isHidden || item._isHiding || (item._isShowing && isInstant) :
+                   !item.isHidden || item._isShowing || (item._isHiding && isInstant);
+
+      if (isAffected) {
+        affectedItems[affectedItems.length] = item;
       }
+
     }
 
     // Set up counter based on valid items.
-    counter = validItems.length;
+    counter = affectedItems.length;
 
     // If there are no items call the callback, but don't emit any events.
     if (!counter) {
-      if (typeof callback === 'function') {
-        callback(validItems);
+      if (typeof callback === typeFunction) {
+        callback(affectedItems);
       }
     }
 
@@ -5391,12 +5384,12 @@ TODO v0.3.0
     else {
 
       // Emit showStart/hideStart event.
-      inst._emitter.emit(startEvent, validItems.concat());
+      inst._emitter.emit(startEvent, affectedItems.concat());
 
       // Show/hide items.
-      for (i = 0; i < validItems.length; i++) {
+      for (i = 0; i < affectedItems.length; i++) {
 
-        item = validItems[i];
+        item = affectedItems[i];
 
         // If inactive item is shown or active item is hidden we need to do
         // layout.
@@ -5428,7 +5421,7 @@ TODO v0.3.0
           // If all items have finished their animations call the callback
           // and emit showEnd/hideEnd event.
           if (--counter < 1) {
-            if (typeof callback === 'function') {
+            if (typeof callback === typeFunction) {
               callback(completedItems.concat());
             }
             inst._emitter.emit(endEvent, completedItems.concat());
@@ -5444,7 +5437,7 @@ TODO v0.3.0
           inst.refreshItems(hiddenItems);
         }
         if (layout) {
-          inst.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+          inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
         }
       }
 
@@ -5613,7 +5606,7 @@ TODO v0.3.0
 
     methodName = 'is' + state.charAt(0).toUpperCase() + state.slice(1);
 
-    return typeof item[methodName] === 'function' ? item[methodName]() : false;
+    return typeof item[methodName] === typeFunction ? item[methodName]() : false;
 
   }
 
@@ -5689,8 +5682,8 @@ TODO v0.3.0
   }
 
   /**
-   * Type defintions
-   * ***************
+   * Type definitions
+   * ****************
    */
 
   /**
@@ -5765,6 +5758,34 @@ TODO v0.3.0
    * @property {Number} height
    * @property {Boolean} setWidth
    * @property {Boolean} setHeight
+   */
+
+  /**
+   * @callback LayoutCallback
+   * @param {Boolean} isAborted
+   *   - Was the layout procedure aborted?
+   * @param {Item[]} items
+   *   - The items that were attempted to be positioned.
+   */
+
+  /**
+   * @callback ShowCallback
+   * @param {Item[]} items
+   *   - The items that were successfully shown without interruptions.
+   */
+
+  /**
+   * @callback HideCallback
+   * @param {Item[]} items
+   *   - The items that were successfully hidden without interruptions.
+   */
+
+  /**
+   * @callback FilterCallback
+   * @param {Item[]} shownItems
+   *   - The items that were shown.
+   * @param {Item[]} hiddenItems
+   *   - The items that were hidden.
    */
 
   /**

@@ -17,7 +17,7 @@
 
     assert.strictEqual(item.isMigrating(), false, 'An item should not be in migrating state when it`s position is not being animated during send operation');
     gridA.send(item, gridB, 0, {
-      layout: function () {
+      layoutReceiver: function () {
         assert.strictEqual(item.isMigrating(), false, 'An item should not be in migrating state after the send operation is finished');
         gridA.destroy();
         gridB.destroy();

@@ -320,7 +320,7 @@ By providing a function you can define a fully customized animation. The functio
 * **start** &nbsp;&mdash;&nbsp; *function*
   * A function that starts the animation. Receives three arguments:
     * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The Muuri.Item instance that is being animated.
+      * The animated item.
     * **instant** &nbsp;&mdash;&nbsp; *boolean*
       * A boolean that determines if the styles should be applied instantly or with animation. If this is `true` the styles should be applied instantly instead of being animated.
     * **onFinish** &nbsp;&mdash;&nbsp; *function*
@@ -328,7 +328,7 @@ By providing a function you can define a fully customized animation. The functio
 * **stop** &nbsp;&mdash;&nbsp; *function*
   * A function that stops the current animation (if running). Receives one argument:
     * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The Muuri.Item instance that is being animated.
+      * The animated item.
 
 **Examples**
 
@@ -369,7 +369,7 @@ By providing a function you can define a fully customized animation. The functio
 * **start** &nbsp;&mdash;&nbsp; *function*
   * A function that starts the animation. Receives three arguments:
     * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The Muuri.Item instance that is being animated.
+      * The animated item.
     * **instant** &nbsp;&mdash;&nbsp; *boolean*
       * A boolean that determines if the styles should be applied instantly or with animation. If this is `true` the styles should be applied instantly instead of being animated.
     * **onFinish** &nbsp;&mdash;&nbsp; *function*
@@ -377,7 +377,7 @@ By providing a function you can define a fully customized animation. The functio
 * **stop** &nbsp;&mdash;&nbsp; *function*
     * A function that stops the current animation (if running). Receives one argument:
       * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-        * The Muuri.Item instance that is being animated.
+        * The animated item.
 
 **Examples**
 
@@ -942,7 +942,7 @@ var dimensions = grid.getDimensions();
 
 ### grid.getItems( [targets], [state] )
 
-Get all items in the grid. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state. Note that the returned array is not the same object that is used by the grid instance so modifying it will not affect the instance's items.
+Get all items in the grid. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state.
 
 **Parameters**
 
@@ -956,7 +956,7 @@ Get all items in the grid. Optionally you can provide specific targets (indices 
 
 **Returns** &nbsp;&mdash;&nbsp; *array*
 
-Returns an array of `Muuri.Item` instances.
+Returns the queried items.
 
 **Examples**
 
@@ -988,7 +988,7 @@ Refresh the cached dimensions and offsets of the container element. By default, 
 
 * **dimension** &nbsp;&mdash;&nbsp; *string*
   * Provide the name of the cached value you want to refresh. By default all values are refreshed.
-  * Accepted values: "width", "height", "offset", "padding", "border" and "box-sizing".
+  * Accepted values: "width", "height", "padding", "border" and "boxSizing".
   * Optional.
 
 **Examples**
@@ -1104,7 +1104,7 @@ Add new items by providing the elements you wish to add to the instance and opti
 
 **Returns** &nbsp;&mdash;&nbsp; *array*
 
-Returns an array of `Muuri.Item` instances.
+Returns the added items.
 
 **Examples**
 
@@ -1138,7 +1138,7 @@ Remove items from the instance.
 
 **Returns** &nbsp;&mdash;&nbsp; *array*
 
-Returns the indices of the removed items.
+Returns the destroyed items.
 
 **Examples**
 
@@ -1181,12 +1181,12 @@ Show the targeted items.
 grid.show([elemA, elemB]);
 
 // Show items instantly without animations.
-grid.show([elemA, elemB], true);
+grid.show([elemA, elemB], {instant: true});
 
 // Show items with callback (and with animations if any).
-grid.show([elemA, elemB], function (items) {
+grid.show([elemA, elemB], {onFinish: function (items) {
   console.log('items shown!');
-});
+}});
 ```
 
 ### grid.hide( items, [options] )
@@ -1216,13 +1216,13 @@ Hide the targeted items.
 grid.hide([elemA, elemB]);
 
 // Hide items instantly without animations.
-grid.hide([elemA, elemB], true);
+grid.hide([elemA, elemB], {instant: true});
 
 // Hide items and call the callback function after
 // all items are hidden.
-grid.hide([elemA, elemB], function (items) {
+grid.hide([elemA, elemB], {onFinish: function (items) {
   console.log('items hidden!');
-});
+}});
 ```
 
 ### grid.filter( predicate, [options] )
@@ -1308,9 +1308,9 @@ Move an item to another position in the grid.
 **Parameters**
 
 * **item** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
-  * DOM element or `Muuri.Item` instance or index of the item.
+  * Item instance, element or index.
 * **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
-  * DOM element or `Muuri.Item` instance or index of the item.
+  * Item instance, element or index.
 * **options.action** &nbsp;&mdash;&nbsp; *string*
   * Accepts the following values:
     * `'move'`: moves item in place of another item.
@@ -1351,10 +1351,14 @@ Move an item into another grid.
 * **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
   * To which position should the item be placed to in the new grid? You can define the position with an item instance, element or index.
 * **options.appendTo** &nbsp;&mdash;&nbsp; *element*
-  * To which element should the item's element be appended to for the duration of the send animation?
+  * To which element should the item element be appended to for the duration of the send animation?
   * Default value: `document.body`.
-* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
-  * By default `grid.layout()` is called at the end of this method, for both grids. With this argument you can control the layout calls. You can disable the layouts completely with `false`, or provide a callback function that is called when both of the grids have laid out, or provide the string `'instant'` to make the layouts happen instantly without any animations.
+* **options.layoutSender** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called for the sending grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+* **options.layoutReceiver** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called for the receiving grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   * Default value: `true`.
   * Optional.
 
@@ -1369,11 +1373,14 @@ gridA.send(0, gridB, -1 {
   appendTo: someElem
 });
 
-// Do something after the item has been sent and both grids
-// have laid out.
+// Do something after the item has been sent and the layout
+// processes have finished.
 gridA.send(0, gridB, -1 {
-  layout: function (gridACompletedItems, gridBCompletedItems) {
+  layoutSender: function (isAborted, items) {
     // Do your thing here...
+  },
+  layoutReceiver: function (isAborted, items) {
+    // Do your other thing here...
   }
 });
 ```
@@ -1434,6 +1441,10 @@ Destroy the grid instance.
   * Should the item elements be removed or not?
   * Default value: `false`.
   * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the instance.
 
 **Examples**
 
@@ -1504,12 +1515,12 @@ grid.on('layoutStart', function (items) {
 
 ### layoutEnd
 
-Triggered after `grid.layout()` is called, after the items have positioned.
+Triggered after `grid.layout()` is called, after the items have positioned. Note that if `grid.layout()` is called during an ongoing layout animation the ongoing layout process will be aborted and it's layoutEnd event will never be triggered.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully positioned.
+  * The items that were intended to be positioned. Note that these items are always identical to what the layoutStart event's callback receives as it's argument. So if, for example, you destroy an item during the layout animation and don't do call another layout the destroyed item will still be included in this array of items. The original intention was to filter these items so that all items that were "interrupted" somehow during the layout process would be omitted from the results, but that solution was much more prone to errors and much more harder to explain/understand.
 
 **Examples**
 
@@ -1577,7 +1588,7 @@ Triggered after `grid.show()` is called, after the items are shown.
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully shown without interruptions. If an item is already visible when `grid.show()` is called it is cosidered shown successfully.
+  * The items that were succesfully shown without interruptions.
 
 **Examples**
 
@@ -1611,7 +1622,7 @@ Triggered after `grid.hide()` is called, after the items are hidden (with or wit
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully hidden without interruptions. If an item is already hidden when `grid.hide()` is called it is considered successfully hidden.
+  * The items that were succesfully hidden without interruptions.
 
 **Examples**
 
@@ -1627,7 +1638,7 @@ Triggered after `grid.filter()` is called.
 
 **Arguments**
 
-* **visibleItems** &nbsp;&mdash;&nbsp; *array*
+* **shownItems** &nbsp;&mdash;&nbsp; *array*
   * The items that were shown.
 * **hiddenItems** &nbsp;&mdash;&nbsp; *array*
   * The items that were hidden.
@@ -1635,8 +1646,8 @@ Triggered after `grid.filter()` is called.
 **Examples**
 
 ```javascript
-grid.on('filter', function (visibleItems, hiddenItems) {
-  console.log(visibleItems);
+grid.on('filter', function (shownItems, hiddenItems) {
+  console.log(shownItems);
   console.log(hiddenItems);
 });
 ```

@@ -57,6 +57,8 @@
 
   utils.dragElement = function(options) {
 
+    // TODO: Take element's translate values into account!
+
     // Parse options.
     var opts = options || {};
     var noop = function () {};
@@ -68,6 +70,8 @@
 
     // Calculate start and end points.
     var from = mezr.offset(element, window);
+    from.left += mezr.width(element) / 2;
+    from.top += mezr.height(element) / 2;
     var to = {
       left: from.left + move.left,
       top: from.top + move.top
@@ -103,7 +107,7 @@
   };
 
   utils.sortItemsById = function (items) {
-    items.sort(function (a, b) {
+    return items.sort(function (a, b) {
       return a._id - b._id;
     });
   };

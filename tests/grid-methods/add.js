@@ -2,9 +2,9 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Grid methods - add');
+  QUnit.module('Grid methods');
 
-  QUnit.test('Muuri instance should have an add method', function (assert) {
+  QUnit.test('add: Muuri instance should have an add method', function (assert) {
     assert.expect(1);
     assert.strictEqual(typeof Muuri.prototype.add, 'function');
   });

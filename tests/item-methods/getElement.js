@@ -4,7 +4,7 @@
 
   QUnit.module('Item methods');
 
-  QUnit.test('item.getElement() should return the Item instance`s associated DOM element', function (assert) {
+  QUnit.test('getElement: should return the instance`s associated DOM element', function (assert) {
 
     assert.expect(1);
 
@@ -13,11 +13,13 @@
     var itemElement = elements.items[1];
     var grid = new Muuri(container);
     var item = grid.getItems(itemElement)[0];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
 
     assert.strictEqual(item.getElement(), itemElement);
-
-    grid.destroy();
-    container.parentNode.removeChild(container);
+    teardown();
 
   });
 

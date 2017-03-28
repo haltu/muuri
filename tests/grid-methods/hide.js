@@ -2,9 +2,9 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Grid methods - hide');
+  QUnit.module('Grid methods');
 
-  QUnit.test('Muuri instance should have a hide method', function (assert) {
+  QUnit.test('hide: Muuri instance should have a hide method', function (assert) {
     assert.expect(1);
     assert.strictEqual(typeof Muuri.prototype.hide, 'function');
   });

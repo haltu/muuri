@@ -4,7 +4,7 @@
 
   QUnit.module('Item methods');
 
-  QUnit.test('item.getPosition() should return the Item element`s cached position in the grid', function (assert) {
+  QUnit.test('getPosition: should return the instance element`s cached position in the grid', function (assert) {
 
     assert.expect(4);
 
@@ -26,14 +26,16 @@
     var itemB = items[1];
     var itemC = items[2];
     var itemD = items[3];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
 
     assert.deepEqual(itemA.getPosition(), {left: 0, top: 0});
     assert.deepEqual(itemB.getPosition(), {left: 20, top: 0});
     assert.deepEqual(itemC.getPosition(), {left: 0, top: 20});
     assert.deepEqual(itemD.getPosition(), {left: 20, top: 20});
-
-    grid.destroy();
-    container.parentNode.removeChild(container);
+    teardown();
 
   });
 

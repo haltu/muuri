@@ -5,7 +5,7 @@
 
   QUnit.module('Item methods');
 
-  QUnit.test('item.isDragging() should return true if the item is being dragged', function (assert) {
+  QUnit.test('isDragging: should return true if the item is being dragged', function (assert) {
 
     assert.expect(4);
 
@@ -13,9 +13,13 @@
     var container = utils.createGridElements().container;
     var grid = new Muuri(container, {dragEnabled: true});
     var item = grid.getItems()[0];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+      done();
+    };
 
     assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state when it`s not being dragged');
-
     utils.dragElement({
       element: item.getElement(),
       move: {
@@ -30,9 +34,7 @@
       },
       onRelease: function () {
         assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state after dragging has ended');
-        grid.destroy();
-        container.parentNode.removeChild(container);
-        done();
+        teardown();
       }
     });
 

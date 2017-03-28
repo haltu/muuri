@@ -69,13 +69,6 @@ TODO v0.3.0
       that the grid container's offset is not automatically updated on scroll
       during drag, so let's fix it -> always update the connected grids' offset
       when checking overlap.
-* [ ] Make the fix above more performant: When a grid has one or more items
-      being dragged set it in a mode where it listens it's scroll containers for
-      scroll events and marks the offset as "dirty". When checking overlap
-      update the offset only for the "dirty" containers. This way we reduce
-      the calling of gbcr to the minimum. Also whenever dragging is started all
-      connected grids should get their offset updated. The offset is only
-      required for the dragging operation.
 * [x] Simpler dragStartPredicate system.
 * [x] Smarter default dragStartPredicate that's aware of links.
 * [x] Allow document.body being a container.
@@ -86,20 +79,40 @@ TODO v0.3.0
 * [x] Document all public callbacks within the type definitions section.
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
-* [ ] Add container offset diff mechanism to the item itself so it can be
-      utilized by drag and migrate operations. Just to keep the code DRY and
-      clearer.
-* [ ] Layout system optimizations:
-      * [x] Make the layout system API clearer.
-      * [ ] Optimize the current system to work faster if all items are the same
-            size.
-      * [ ] Don't call layout if nothing has changed. Create a system for
-            checking this. Try to keep it fast, just a simple dirty check.
-      * [ ] Allow defining "stamps" (holes) in the layout.
+      The practical use case for this would be a kanban board where the columns
+      themselves and their items would be draggable. Let's try to make this work
+      if there are any issues with it.
+* [ ] Review the codebase and comments with thought x 3.
+
+Optional optimization for v0.3.x
+================================
 * [ ] Streamline codebase by trying to combine similar functions and methods
       into smaller reusable functions. Goal is less than 10kb when minified and
       gzipped.
-* [ ] Review the codebase and comments with thought x 3.
+* [ ] Add container offset diff mechanism to the item itself so it can be
+      utilized by drag and migrate operations. Just to keep the code DRY and
+      clearer.
+* [ ] When a grid has one or more items being dragged set it in a mode where it
+      listens it's scroll containers for scroll events and marks the offset as
+      "dirty". When checking overlap update the offset only for the "dirty"
+      containers. This way we reduce the calling of gbcr to the minimum. Also
+      whenever dragging is started all connected grids should get their offset
+      updated. The offset is only required for the dragging operation.
+* [ ] Optimize the current layout system to work faster if all items are
+      the same size.
+* [ ] Don't call layout if nothing has changed. Create a system for checking
+      this. Try to keep it fast, just a simple dirty check.
+* [ ] Refactor the layout algorithm so that we don't need to do the extra
+      looping of the items in the end if the algorithm mode is alignRight or
+      alignBottom.
+* [ ] Memory leak tests.
+
+New features for v0.4.x
+=======================
+* [ ] Allow defining "stamps" (holes) in the layout.
+* [ ] Allow moving and sending batches of items with move and send methods.
+* [ ] Drag placeholder.
+* [ ] Scroll while dragging.
 
 */
 
@@ -593,34 +606,17 @@ TODO v0.3.0
   };
 
   /**
-   * Refresh the cached dimensions and offsets of the container element. Note
-   * that the offset never really needs to be updated manually in the userland
-   * because it's only used by the default drag sort predicate temporarily. It's
-   * added here as an updatable property just for conveniency.
+   * Refresh the cached dimensions and styles of the container element.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {...String} [dimensions]
-   *   - The specific dimensions you want to refresh. If no specific dimensions
-   *     are provided, all dimensions are refreshed. Accepted values are:
-   *     "width", "height", "offset", "padding", "border", "boxSizing".
    * @returns {Grid}
    */
   Grid.prototype.refreshContainer = function () {
 
     var inst = this;
-    var element = inst._element;
-    var argsLength = arguments.length;
-    var hasArgs = argsLength > 0;
-    var sides = ['left', 'right', 'top', 'bottom'];
-    var update = {
-      width: !hasArgs,
-      height: !hasArgs,
-      offset: !hasArgs,
-      padding: !hasArgs,
-      border: !hasArgs,
-      boxSizing: !hasArgs
-    };
+    var element;
+    var sides;
     var rect;
     var i;
 
@@ -629,54 +625,29 @@ TODO v0.3.0
       return inst;
     }
 
-    // If we have dimensions, let's set the needed updates to true.
-    if (hasArgs) {
-      for (i = 0; i < argsLength; i++) {
-        update[arguments[i]] = true;
-      }
-    }
+    // Get some data.
+    element = inst._element;
+    sides = ['left', 'right', 'top', 'bottom'];
+    rect = element.getBoundingClientRect();
 
-    // Get bounding client rect if needed.
-    if (update.width || update.height || update.offset) {
-      rect = element.getBoundingClientRect();
-    }
-
-    // Update width.
-    if (update.width) {
-      inst._width = Math.round(rect.width);
-    }
-
-    // Update height.
-    if (update.height) {
-      inst._height = Math.round(rect.height);
-    }
-
-    // Update offset.
-    if (update.offset) {
-      inst._offset = inst._offset || {};
-      inst._offset.left = Math.round(rect.left);
-      inst._offset.top = Math.round(rect.top);
-    }
+    // Update width, height, offsets and box sizing.
+    inst._width = Math.round(rect.width);
+    inst._height = Math.round(rect.height);
+    inst._offset = inst._offset || {};
+    inst._offset.left = Math.round(rect.left);
+    inst._offset.top = Math.round(rect.top);
+    inst._boxSizing = getStyle(element, 'box-sizing');
 
     // Update paddings.
-    if (update.padding) {
-      inst._padding = inst._padding || {};
-      for (i = 0; i < sides.length; i++) {
-        inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
-      }
+    inst._padding = inst._padding || {};
+    for (i = 0; i < sides.length; i++) {
+      inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
     }
 
     // Update borders.
-    if (update.border) {
-      inst._border = inst._border || {};
-      for (i = 0; i < sides.length; i++) {
-        inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
-      }
-    }
-
-    // Update box-sizing.
-    if (update.boxSizing) {
-      inst._boxSizing = getStyle(element, 'box-sizing');
+    inst._border = inst._border || {};
+    for (i = 0; i < sides.length; i++) {
+      inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
     }
 
     return inst;
@@ -802,6 +773,7 @@ TODO v0.3.0
     var isBorderBox;
     var item;
     var position;
+    var rect;
     var i;
 
     // Return immediately if instance is destroyed.
@@ -858,9 +830,11 @@ TODO v0.3.0
         });
       }
 
-      // Update item's width and height to account for the possible
+      // Update grid's width and height to account for the possible
       // min/max-width/height.
-      inst.refreshContainer('width', 'height');
+      rect = inst._element.getBoundingClientRect();
+      inst._width = Math.round(rect.width);
+      inst._height = Math.round(rect.height);
 
     }
 
@@ -2989,12 +2963,12 @@ TODO v0.3.0
 
       var events = this._events = this._events || {};
       var listeners = events[event] || [];
-      var counter = listeners.length;
+      var i = listeners.length;
 
-      if (counter) {
-        while (counter--) {
+      if (i) {
+        while (i--) {
           if (listener === listeners[i]) {
-            listeners.splice(counter, 1);
+            listeners.splice(i, 1);
           }
         }
       }
@@ -5530,7 +5504,7 @@ TODO v0.3.0
     var bestScore = -1;
     var gridScore;
     var grid;
-    var offset;
+    var rect;
     var i;
 
     for (i = 0; i < grids.length; i++) {
@@ -5540,15 +5514,16 @@ TODO v0.3.0
       // We need to update the grid's offset since it may have changed during
       // scrolling. This could be left as problem for the userland, but it's
       // much nicer this way. One less hack for the user to worry about =)
-      grid.refreshContainer('offset');
-      offset = grid._offset;
+      rect = grid._element.getBoundingClientRect();
+      grid._offset.left = Math.round(rect.left);
+      grid._offset.top = Math.round(rect.top);
 
       // Check how much dragged element overlaps the container element.
       gridScore = getRectOverlapScore(itemRect, {
         width: grid._width,
         height: grid._height,
-        left: offset.left,
-        top: offset.top
+        left: grid._offset.left,
+        top: grid._offset.top
       });
 
       // Check if this grid is the best match so far.

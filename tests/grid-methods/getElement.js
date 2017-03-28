@@ -2,11 +2,22 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Grid methods - getElement');
+  QUnit.module('Grid methods');
 
-  QUnit.test('Muuri instance should have a getElement method', function (assert) {
+  QUnit.test('getElement: should return the container element', function (assert) {
+
     assert.expect(1);
-    assert.strictEqual(typeof Muuri.prototype.getElement, 'function');
+
+    var container = utils.createGridElements({itemCount: 5}).container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.getElement(), container);
+    teardown();
+
   });
 
 })(this);

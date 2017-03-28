@@ -4,7 +4,7 @@
 
   QUnit.module('Grid events');
 
-  QUnit.test('"filter" event should be triggered after grid.filter() method is called', function (assert) {
+  QUnit.test('filter: should be triggered after grid.filter()', function (assert) {
 
     assert.expect(3);
 
@@ -12,22 +12,21 @@
     var grid = new Muuri(container);
     var itemsToShow = grid.getItems([0, 1]);
     var itemsToHide = grid.getItems([2, 3]);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
 
-    // Bind move listener.
     grid.on('filter', function (shownItems, hiddenItems) {
-      assert.strictEqual(arguments.length, 2, 'should have two arguments');
-      assert.deepEqual(utils.sortItemsById(shownItems), utils.sortItemsById(itemsToShow), 'shown items should be correct');
-      assert.deepEqual(utils.sortItemsById(hiddenItems), utils.sortItemsById(itemsToHide), 'hidden items should be correct');
+      assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
+      assert.deepEqual(utils.sortItemsById(shownItems), utils.sortItemsById(itemsToShow), 'callback: array of shown items should be the first argument');
+      assert.deepEqual(utils.sortItemsById(hiddenItems), utils.sortItemsById(itemsToHide), 'callback: array of hidden items should be the second argument');
     });
-
-    // Do the filtering.
     grid.filter(function (item) {
       return itemsToShow.indexOf(item) > -1;
     });
+    teardown();
 
-    // Teardown.
-    grid.destroy();
-    container.parentNode.removeChild(container);
 
   });
 

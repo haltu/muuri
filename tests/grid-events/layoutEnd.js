@@ -4,44 +4,34 @@
 
   QUnit.module('Grid events');
 
-  QUnit.test('"layoutEnd" event should be triggered after the items have positioned', function (assert) {
+  QUnit.test('layoutEnd: should be triggered after grid.layout() (after the items have positioned)', function (assert) {
+
+    assert.expect(3);
 
     var done = assert.async();
     var container = utils.createGridElements({itemCount: 5}).container;
     var grid = new Muuri(container);
     var isAnyItemPositioning = false;
-    var expectedItems;
-
-    assert.expect(3);
+    var expectedItems = [];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+      done();
+    };
 
     grid.on('layoutEnd', function (items) {
-
-      // Check if any of the items is still positioning.
       items.forEach(function (item) {
         if (item.isPositioning()) {
           isAnyItemPositioning = true;
         }
       });
-
-      // Do the assertions.
-      assert.strictEqual(arguments.length, 1, 'should have a single argument');
-      assert.strictEqual(isAnyItemPositioning, false, 'items should not be in positioning state');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(expectedItems), 'items should be identical to the array of items that were active when the layout was triggered');
-
-      // Teardown.
-      grid.destroy();
-      container.parentNode.removeChild(container);
-      done();
-
+      assert.strictEqual(arguments.length, 1, 'callback: should have a single argument');
+      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(expectedItems), 'callback: first argument should be an array of items that were active when the layout was triggered');
+      assert.strictEqual(isAnyItemPositioning, false, 'callback: none of the items in the first argument should be in positioning state');
+      teardown();
     });
-
-    // Hide the first item instantly.
     grid.hide(0, {instant: true, layout: false});
-
-    // Cache all currently active items.
     expectedItems = grid.getItems('active');
-
-    // Do an action that causes a layout.
     grid.move(1, -1);
 
   });

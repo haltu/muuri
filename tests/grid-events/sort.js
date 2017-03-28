@@ -4,7 +4,7 @@
 
   QUnit.module('Grid events');
 
-  QUnit.test('"sort" event should be triggered after grid.sort() method is called', function (assert) {
+  QUnit.test('sort: should be triggered after grid.sort()', function (assert) {
 
     assert.expect(3);
 
@@ -12,20 +12,17 @@
     var grid = new Muuri(container);
     var currentOrder = grid.getItems();
     var newOrder = grid.getItems([3,2,1,0]);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
 
-    // Bind move listener.
     grid.on('sort', function (itemsNew, itemsPrev) {
-      assert.strictEqual(arguments.length, 2, 'should have two arguments');
-      assert.deepEqual(utils.sortItemsById(itemsNew), utils.sortItemsById(newOrder), 'new items should be correct');
-      assert.deepEqual(utils.sortItemsById(itemsPrev), utils.sortItemsById(currentOrder), 'previous items should be correct');
+      assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
+      assert.deepEqual(utils.sortItemsById(itemsNew), utils.sortItemsById(newOrder), 'callback: first argument should be an array of all the items in their new order');
+      assert.deepEqual(utils.sortItemsById(itemsPrev), utils.sortItemsById(currentOrder), 'callback: second argument should be an array of all the items in their previous order');
     });
-
-    // Do the filtering.
     grid.sort(newOrder);
-
-    // Teardown.
-    grid.destroy();
-    container.parentNode.removeChild(container);
 
   });
 

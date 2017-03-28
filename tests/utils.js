@@ -34,11 +34,11 @@
     var items = [];
     var item;
 
-    setStyles(container, containerStyles);
+    utils.setStyles(container, containerStyles);
 
     for (var i = 0; i < itemCount; i++) {
       item = document.createElement('div');
-      setStyles(item, itemStyles);
+      utils.setStyles(item, itemStyles);
       item.appendChild(document.createElement('div'));
       container.appendChild(item);
       items.push(item);
@@ -56,8 +56,6 @@
   };
 
   utils.dragElement = function(options) {
-
-    // TODO: Take element's translate values into account!
 
     // Parse options.
     var opts = options || {};
@@ -112,19 +110,11 @@
     });
   };
 
-  //
-  // Helpers
-  //
-
-  function setStyles(element, styles) {
-
+  utils.setStyles = function (element, styles) {
     var props = Object.keys(styles);
-    var i;
-
-    for (i = 0; i < props.length; i++) {
+    for (var i = 0; i < props.length; i++) {
       element.style[props[i]] = styles[props[i]];
     }
-
-  }
+  };
 
 })(this);

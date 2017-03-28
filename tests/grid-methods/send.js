@@ -2,9 +2,9 @@
 
   var Muuri = window.Muuri;
 
-  QUnit.module('Grid methods - send');
+  QUnit.module('Grid methods');
 
-  QUnit.test('Muuri instance should have a send method', function (assert) {
+  QUnit.test('send: Muuri instance should have a send method', function (assert) {
     assert.expect(1);
     assert.strictEqual(typeof Muuri.prototype.send, 'function');
   });

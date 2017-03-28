@@ -878,7 +878,7 @@ var grid = new Muuri(elem, {
 * [grid.getElement()](#gridgetelement)
 * [grid.getDimensions()](#gridgetdimensions)
 * [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
-* [grid.refreshContainer( [...dimension] )](#gridrefreshcontainer-dimension-)
+* [grid.refreshContainer()](#gridrefreshcontainer)
 * [grid.refreshItems( [items] )](#gridrefreshitems-items-)
 * [grid.refreshSortData( [items] )](#gridrefreshsortdata-items-)
 * [grid.synchronize()](#gridsynchronize)
@@ -980,25 +980,14 @@ var items = grid.getItems([elemA, elemB]);
 var items = grid.getItems([elemA, elemB], 'inactive');
 ```
 
-### grid.refreshContainer( [...dimension] )
+### grid.refreshContainer()
 
-Refresh the cached dimensions and offsets of the container element. By default, when called without any arguments, all cached grid container element dimensions are refreshed (read from the DOM and cached). Optionally you can provide the names of the values you want to refresh as arguents.
-
-**Parameters**
-
-* **dimension** &nbsp;&mdash;&nbsp; *string*
-  * Provide the name of the cached value you want to refresh. By default all values are refreshed.
-  * Accepted values: "width", "height", "padding", "border" and "boxSizing".
-  * Optional.
+Refresh the cached dimensions and styles of the container element.
 
 **Examples**
 
 ```javascript
-// Refresh all grid element's cached dimensions.
 grid.refreshContainer();
-
-// Refresh specific dimensions of the grid element.
-grid.refreshContainer('width', 'height');
 ```
 
 ### grid.refreshItems( [items] )

@@ -4,7 +4,9 @@
 
   QUnit.module('Grid events');
 
-  QUnit.test('"add" event should be triggered after grid.add() is called', function (assert) {
+  QUnit.test('add: should be triggered after grid.add()', function (assert) {
+
+    assert.expect(2);
 
     var container = utils.createGridElements({itemCount: 5}).container;
     var grid = new Muuri(container);
@@ -12,19 +14,17 @@
       document.createElement('div').appendChild(document.createElement('div')).parentNode,
       document.createElement('div').appendChild(document.createElement('div')).parentNode
     ];
-
-    assert.expect(2);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
 
     grid.on('add', function (items) {
-      assert.strictEqual(arguments.length, 1, 'should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems(newElems)), 'items should be an array of the added items');
+      assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
+      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems(newElems)), 'callback: first argument should be an array of the added items');
     });
-
     grid.add(newElems);
-
-    // Teardown.
-    grid.destroy();
-    container.parentNode.removeChild(container);
+    teardown();
 
   });
 

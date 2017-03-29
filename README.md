@@ -1954,7 +1954,6 @@ grid.on('destroy', function () {
 * [item.isPositioning()](#itemispositioning)
 * [item.isDragging()](#itemisdragging)
 * [item.isReleasing()](#itemisreleasing)
-* [item.isMigrating()](#itemismigrating)
 
 ### item.getGrid()
 
@@ -2118,18 +2117,6 @@ Check if the item is currently being released.
 
 ```javascript
 var isReleasing = item.isReleasing();
-```
-
-### item.isMigrating()
-
-Check if the item is currently being migrated from a grid to another.
-
-**Returns** &nbsp;&mdash;&nbsp; *boolean*
-
-**Examples**
-
-```javascript
-var isMigrating = item.isMigrating();
 ```
 
 ## Credits

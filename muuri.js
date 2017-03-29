@@ -80,7 +80,7 @@ TODO v0.3.0
 * [x] Refactor release process:
       * [x] Separate release process drag process.
       * [x] Merge dragReceiveDrop into releaseStart.
-* [ ] Is item.isMigrating() really needed?
+* [x] Is item.isMigrating() really needed? Nope.
 * [ ] add .once() method for triggering a listener only once.
 * [ ] Create a "migrator" class that handles migrations for both the send method
       and when dragging an item from a grid to another.
@@ -2028,19 +2028,6 @@ New features for v0.4.x
   Item.prototype.isReleasing = function () {
 
     return this._release.isActive;
-
-  };
-
-  /**
-   * Is the item being migrated?
-   *
-   * @public
-   * @memberof Item.prototype
-   * @returns {Boolean}
-   */
-  Item.prototype.isMigrating = function () {
-
-    return this._migrate.isActive;
 
   };
 

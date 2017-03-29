@@ -1466,7 +1466,6 @@ grid.destroy(true);
 * [dragSort](#dragsort)
 * [dragSend](#dragsend)
 * [dragReceive](#dragreceive)
-* [dragReceiveDrop](#dragreceivedrop)
 * [dragEnd](#dragend)
 * [dragReleaseStart](#dragreleasestart)
 * [dragReleaseEnd](#dragreleaseend)
@@ -1871,26 +1870,6 @@ Triggered when an item is dragged into another grid. Triggered for the grid that
 grid.on('dragReceive', function (event, data) {
   console.log(event);
   console.log(data);
-});
-```
-
-### dragReceiveDrop
-
-Triggered when an item is dropped into another grid. Triggered for the grid that receives the item.
-
-**Arguments**
-
-* **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
-* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * The dragged item.
-
-**Examples**
-
-```javascript
-grid.on('dragReceiveDrop', function (event, item) {
-  console.log(event);
-  console.log(item);
 });
 ```
 

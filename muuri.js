@@ -77,6 +77,13 @@ TODO v0.3.0
       other libs?
 * [x] Update layout callback/end event logic.
 * [x] Document all public callbacks within the type definitions section.
+* [x] Refactor release process:
+      * [x] Separate release process drag process.
+      * [x] Merge dragReceiveDrop into releaseStart.
+* [ ] Is item.isMigrating() really needed?
+* [ ] add .once() method for triggering a listener only once.
+* [ ] Create a "migrator" class that handles migrations for both the send method
+      and when dragging an item from a grid to another.
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
       The practical use case for this would be a kanban board where the columns
@@ -217,7 +224,6 @@ New features for v0.4.x
   var evDragSort = 'dragSort';
   var evDragSend = 'dragSend';
   var evDragReceive = 'dragReceive';
-  var evDragReceiveDrop = 'dragReceiveDrop';
   var evDragEnd = 'dragEnd';
   var evDragReleaseStart = 'dragReleaseStart';
   var evDragReleaseEnd = 'dragReleaseEnd';
@@ -375,6 +381,11 @@ New features for v0.4.x
    * @see Drag
    */
   Grid.Drag = Drag;
+
+  /**
+   * @see Release
+   */
+  Grid.Release = Release;
 
   /**
    * @see Layout
@@ -1365,6 +1376,9 @@ New features for v0.4.x
     isActive = targetItem.isActive();
     isVisible = (targetItem.isVisible() || targetItem.isShowing()) && !targetItem.isHiding();
 
+    // Stop current release process.
+    targetItem._release._stop(true);
+
     // Stop current layout animation and migration.
     targetItem._stopLayout(true);
     targetItem._stopMigrate(true);
@@ -1811,10 +1825,14 @@ New features for v0.4.x
       grid._itemShowHandler.start(inst, true);
     }
 
+    // Set up release handler
+    inst._release = new Grid.Release(inst);
+
     // Set up drag handler.
     inst._drag = settings.dragEnabled ? new Grid.Drag(inst) : null;
 
     // Set up migration handler data.
+    // TODO: Bake this into a separate constructor.
     inst._migrate = {
       isActive: false,
       appendTo: null,
@@ -1996,7 +2014,7 @@ New features for v0.4.x
    */
   Item.prototype.isDragging = function () {
 
-    return !!this._drag && this._drag._dragData.isActive;
+    return !!this._drag && this._drag._data.isActive;
 
   };
 
@@ -2009,7 +2027,7 @@ New features for v0.4.x
    */
   Item.prototype.isReleasing = function () {
 
-    return !!this._drag && this._drag._releaseData.isActive;
+    return this._release.isActive;
 
   };
 
@@ -2156,7 +2174,7 @@ New features for v0.4.x
     var element = inst._element;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
-    var release = inst._drag ? inst._drag._releaseData : {};
+    var release = inst._release;
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
     var grid;
     var settings;
@@ -2192,7 +2210,7 @@ New features for v0.4.x
 
       // Finish up release.
       if (release.isActive) {
-        inst._drag._stopRelease();
+        release._stop();
       }
 
       // Finish up migration.
@@ -2568,13 +2586,16 @@ New features for v0.4.x
     settings = grid._settings;
     index = grid._items.indexOf(inst);
 
+    // Destroy release.
+    inst._release.destroy();
+
+    // Stop migration.
+    inst._stopMigrate(true);
+
     // Stop animations.
     inst._stopLayout(true);
     grid._itemShowHandler.stop(inst);
     grid._itemHideHandler.stop(inst);
-
-    // Stop migration.
-    inst._stopMigrate(true);
 
     // Destroy drag.
     if (inst._drag) {
@@ -3140,6 +3161,201 @@ New features for v0.4.x
   };
 
   /**
+   * Release
+   * *******
+   */
+
+  /**
+   * The release process handler constructor. Although this might seem as proper
+   * fit for the drag process this needs to be separated into it's own logic
+   * because there might be a scenario where drag is disabled, but the release
+   * process still needs to be implemented (dragging from a grid to another).
+   *
+   * @class
+   * @private
+   * @param {Item} item
+   */
+  function Release(item) {
+
+    var release = this;
+
+    // Private props.
+    release._itemId = item._id;
+    release._isDestroyed = false;
+
+    // Public props.
+    release.isActive = false;
+    release.isPositioningStarted = false;
+    release.containerDiffX = 0;
+    release.containerDiffY = 0;
+
+  }
+
+  /**
+   * Release - Public prototype methods
+   * **********************************
+   */
+
+  /**
+   * Destroy instance.
+   *
+   * @public
+   * @memberof Release.prototype
+   * @returns {Release}
+   */
+  Release.prototype.destroy = function () {
+
+    var release = this;
+
+    if (!release._isDestroyed) {
+      release._stop(true);
+      release._isDestroyed = true;
+    }
+
+    return release;
+
+  };
+
+  /**
+   * Release - Private prototype methods
+   * ***********************************
+   */
+
+  /**
+   * Get Item instance.
+   *
+   * @protected
+   * @memberof Release.prototype
+   * @returns {?Item}
+   */
+  Release.prototype._getItem = function () {
+
+    return itemInstances[this._itemId] || null;
+
+  };
+
+  /**
+   * Reset public data and remove releasing class.
+   *
+   * @protected
+   * @memberof Release.prototype
+   * @returns {Release}
+   */
+  Release.prototype._reset = function () {
+
+    var release = this;
+    var item;
+
+    if (!release._isDestroyed) {
+      item = release._getItem();
+      removeClass(item.getElement(), item.getGrid()._settings.itemReleasingClass);
+      release.isActive = false;
+      release.isPositioningStarted = false;
+      release.containerDiffX = 0;
+      release.containerDiffY = 0;
+    }
+
+    return release;
+
+  };
+
+  /**
+   * Start the release process of an item.
+   *
+   * @protected
+   * @memberof Release.prototype
+   * @returns {Release}
+   */
+  Release.prototype._start = function () {
+
+    var release = this;
+    var item;
+    var element;
+    var grid;
+
+    if (release._isDestroyed || release.isActive) {
+      return release;
+    }
+
+    item = release._getItem();
+    element = item.getElement();
+    grid = item.getGrid();
+
+    // Flag release as active.
+    release.isActive = true;
+
+    // Add release classname to the released element.
+    addClass(element, grid._settings.itemReleasingClass);
+
+    // Emit dragReleaseStart event.
+    grid._emitter.emit(evDragReleaseStart, item);
+
+    // Position the released item.
+    item._layout(false);
+
+    return release;
+
+  };
+
+  /**
+   * End the release process of an item. This method can be used to abort an
+   * ongoing release process (animation) or finish the release process.
+   *
+   * @protected
+   * @memberof Release.prototype
+   * @param {Boolean} [abort=false]
+   *  - Should the release be aborted? When true, the release end event won't be
+   *    emitted. Set to true only when you need to abort the release process
+   *    while the item is animating to it's position.
+   * @returns {Release}
+   */
+  Release.prototype._stop = function (abort) {
+
+    var release = this;
+    var item;
+    var element;
+    var grid;
+    var container;
+    var containerDiffX;
+    var containerDiffY;
+    var translateX;
+    var translateY;
+
+    if (release._isDestroyed || !release.isActive) {
+      return release;
+    }
+
+    item = release._getItem();
+    element = item.getElement();
+    grid = item.getGrid();
+    container = grid.getElement();
+    containerDiffX = release.containerDiffX;
+    containerDiffY = release.containerDiffY;
+
+    // Reset data and remove releasing classname from the element.
+    release._reset();
+
+    // If the released element is outside the grid's container element put it
+    // back there and adjust position accordingly.
+    if (element.parentNode !== container) {
+      translateX = abort ? getTranslateAsFloat(element, 'x') - containerDiffX : item._left;
+      translateY = abort ? getTranslateAsFloat(element, 'y') - containerDiffY : item._top;
+      container.appendChild(element);
+      setStyles(element, {
+        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
+      });
+    }
+
+    // Emit dragReleaseEnd event.
+    if (!abort) {
+      grid._emitter.emit(evDragReleaseEnd, item);
+    }
+
+    return release;
+
+  };
+
+  /**
    * Drag
    * ****
    */
@@ -3173,16 +3389,14 @@ New features for v0.4.x
     drag._hammer = hammer = new Hammer.Manager(element);
     drag._isDestroyed = false;
     drag._isMigrating = false;
-    drag._dragData = {};
-    drag._releaseData = {};
+    drag._data = {};
 
-    // Setup item's initial drag and release data.
-    drag._setupDragData();
-    drag._setupReleaseData();
+    // Setup item's initial drag data.
+    drag._reset();
 
     // Setup overlap checker function.
     drag._checkSortOverlap = debounce(function () {
-      if (drag._dragData.isActive) {
+      if (drag._data.isActive) {
         drag._checkOverlap();
       }
     }, settings.dragSortInterval);
@@ -3192,7 +3406,7 @@ New features for v0.4.x
 
     // Setup drag scroll handler.
     drag._scrollHandler = function (e) {
-      drag._onDragScroll(e);
+      drag._onScroll(e);
     };
 
     // Add drag recognizer to hammer.
@@ -3226,7 +3440,7 @@ New features for v0.4.x
         predicateResult = checkPredicate(drag._getItem(), e);
         if (predicateResult === true) {
           predicate = predicateResolved;
-          drag._onDragStart(e);
+          drag._onStart(e);
         }
         else if (predicateResult === false) {
           predicate = predicateRejected;
@@ -3234,8 +3448,8 @@ New features for v0.4.x
       }
 
       // Otherwise if predicate is resolved and drag is active, move the item.
-      else if (predicate === predicateResolved && drag._dragData.isActive) {
-        drag._onDragMove(e);
+      else if (predicate === predicateResolved && drag._data.isActive) {
+        drag._onMove(e);
       }
 
     })
@@ -3252,8 +3466,8 @@ New features for v0.4.x
       predicate = predicatePending;
 
       // If predicate is resolved and dragging is active, call the end handler.
-      if (isResolved && drag._dragData.isActive) {
-        drag._onDragEnd(e);
+      if (isResolved && drag._data.isActive) {
+        drag._onEnd(e);
       }
 
     });
@@ -3314,7 +3528,7 @@ New features for v0.4.x
   Drag.defaultSortPredicate = function (item) {
 
     var drag = item._drag;
-    var dragData = drag._dragData;
+    var dragData = drag._data;
     var rootGrid = drag._getGrid();
     var config = rootGrid._settings.dragSortPredicate || {};
     var sortThreshold = config.threshold || 50;
@@ -3430,12 +3644,7 @@ New features for v0.4.x
     var drag = this;
 
     if (!drag._isDestroyed) {
-      if (drag._dragData.isActive) {
-        drag._stopDrag();
-      }
-      else if (drag._releaseData.isActive) {
-        drag._stopRelease(true);
-      }
+      drag._stop();
       drag._hammer.destroy();
       drag._getItem()._element.removeEventListener('dragstart', preventDefault, false);
       drag._isDestroyed = true;
@@ -3483,10 +3692,10 @@ New features for v0.4.x
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._setupDragData = function () {
+  Drag.prototype._reset = function () {
 
     var drag = this;
-    var dragData = drag._dragData;
+    var dragData = drag._data;
 
     // Is item being dragged?
     dragData.isActive = false;
@@ -3521,27 +3730,6 @@ New features for v0.4.x
   };
 
   /**
-   * Setup/reset release data.
-   *
-   * @protected
-   * @memberof Drag.prototype
-   * @returns {Drag}
-   */
-  Drag.prototype._setupReleaseData = function () {
-
-    var drag = this;
-    var release = drag._releaseData;
-
-    release.isActive = false;
-    release.isPositioningStarted = false;
-    release.containerDiffX = 0;
-    release.containerDiffY = 0;
-
-    return drag;
-
-  };
-
-  /**
    * Check (during drag) if an item is overlapping other items and based on
    * the configuration layout the items.
    *
@@ -3553,7 +3741,7 @@ New features for v0.4.x
 
     var drag = this;
     var item = drag._getItem();
-    var dragEvent = drag._dragData.currentEvent;
+    var dragEvent = drag._data.currentEvent;
     var result = drag._sortPredicate(item, dragEvent);
     var currentGrid;
     var currentIndex;
@@ -3640,10 +3828,9 @@ New features for v0.4.x
    *
    * @protected
    * @memberof Drag.prototype
-   * @param {Object} currentEvent
    * @returns {Drag}
    */
-  Drag.prototype._finishMigration = function (currentEvent) {
+  Drag.prototype._finishMigration = function () {
 
     var drag = this;
     var item = drag._getItem();
@@ -3655,21 +3842,14 @@ New features for v0.4.x
     var appendTo = targetGridStn.dragEnabled && targetGridStn._dragGrid ? targetGridStn._dragGrid : targetGrid._element;
     var releaseDiffX = 0;
     var releaseDiffY = 0;
-    var release;
     var offsetDiff;
     var translateX;
     var translateY;
 
-    // Reset migrating indicator to avoid infinite loops.
+    // Destroy current drag. Note that we need to set the migrating flag to
+    // false first, because otherwise we create an infinite loop between this
+    // and the drag._stop() method.
     drag._isMigrating = false;
-
-    // If drag is not currently active set the release as active (to fool the
-    // drag.destroy() method) so that drag.stopRelease() gets called.
-    if (!drag._dragData.isActive) {
-      drag._releaseData.isActive = true;
-    }
-
-    // Destroy current drag.
     drag.destroy();
 
     // Destroy current animation handlers.
@@ -3728,21 +3908,10 @@ New features for v0.4.x
     // Recreate item's drag handler.
     item._drag = targetGridStn.dragEnabled ? new Grid.Drag(item) : null;
 
-    // Emit dragReceiveDrop event.
-    targetGrid._emitter.emit(evDragReceiveDrop, currentEvent, item);
-
-    // If the item has drag handling, start the release.
-    if (item._drag) {
-      release = item._drag._releaseData;
-      release.containerDiffX = releaseDiffX;
-      release.containerDiffY = releaseDiffY;
-      item._drag._startRelease();
-    }
-
-    // Otherwise just layout the item.
-    else {
-      item._layout();
-    }
+    // Start the release.
+    item._release.containerDiffX = releaseDiffX;
+    item._release.containerDiffY = releaseDiffY;
+    item._release._start();
 
     return drag;
 
@@ -3755,10 +3924,10 @@ New features for v0.4.x
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._stopDrag = function () {
+  Drag.prototype._stop = function () {
 
     var drag = this;
-    var dragData = drag._dragData;
+    var dragData = drag._data;
     var element;
     var grid;
     var i;
@@ -3798,102 +3967,7 @@ New features for v0.4.x
     removeClass(element, grid._settings.itemDraggingClass);
 
     // Reset drag data.
-    drag._setupDragData();
-
-    return drag;
-
-  };
-
-  /**
-   * Start the release process of an item.
-   *
-   * @protected
-   * @memberof Drag.prototype
-   * @returns {Drag}
-   */
-  Drag.prototype._startRelease = function () {
-
-    var drag = this;
-    var releaseData = drag._releaseData;
-    var item;
-    var element;
-    var grid;
-
-    if (releaseData.isActive) {
-      return drag;
-    }
-
-    item = drag._getItem();
-    element = item._element;
-    grid = drag._getGrid();
-
-    // Flag release as active.
-    releaseData.isActive = true;
-
-    // Add release classname to released element.
-    addClass(element, grid._settings.itemReleasingClass);
-
-    // Emit dragReleaseStart event.
-    grid._emitter.emit(evDragReleaseStart, item);
-
-    // Position the released item.
-    item._layout(false);
-
-    return drag;
-
-  };
-
-  /**
-   * End the release process of an item. This method can be used to abort an
-   * ongoing release process (animation) or finish the release process.
-   *
-   * @protected
-   * @memberof Drag.prototype
-   * @param {Boolean} [abort=false]
-   *  - Should the release be aborted? When true, the release end event won't be
-   *    emitted. Set to true only when you need to abort the release process
-   *    while the item is animating to it's position.
-   * @returns {Drag}
-   */
-  Drag.prototype._stopRelease = function (abort) {
-
-    var drag = this;
-    var releaseData = drag._releaseData;
-    var item;
-    var element;
-    var grid;
-    var translateX;
-    var translateY;
-
-    if (!releaseData.isActive) {
-      return drag;
-    }
-
-    item = drag._getItem();
-    element = item._element;
-    grid = drag._getGrid();
-
-    // Remove release classname from the released element.
-    removeClass(element, grid._settings.itemReleasingClass);
-
-    // If the released element is outside the grid's container element put it
-    // back there and adjust position accordingly.
-    if (element.parentNode !== grid._element) {
-      translateX = abort ? getTranslateAsFloat(element, 'x') - releaseData.containerDiffX : item._left;
-      translateY = abort ? getTranslateAsFloat(element, 'y') - releaseData.containerDiffY : item._top;
-      grid._element.appendChild(element);
-      setStyles(element, {
-        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
-      });
-    }
-
-    // Reset release data.
-    drag._setupReleaseData();
-
-    // Emit dragReleaseEnd event.
-    if (!abort) {
-      grid._emitter.emit(evDragReleaseEnd, item);
-    }
+    drag._reset();
 
     return drag;
 
@@ -3906,7 +3980,7 @@ New features for v0.4.x
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._onDragStart = function (e) {
+  Drag.prototype._onStart = function (e) {
 
     var drag = this;
     var item = drag._getItem();
@@ -3914,7 +3988,7 @@ New features for v0.4.x
     var grid;
     var settings;
     var dragData;
-    var releaseData;
+    var release;
     var currentLeft;
     var currentTop;
     var gridContainer;
@@ -3932,8 +4006,8 @@ New features for v0.4.x
     element = item._element;
     grid = drag._getGrid();
     settings = grid._settings;
-    dragData = drag._dragData;
-    releaseData = drag._releaseData;
+    dragData = drag._data;
+    release = item._release;
 
     // Stop current positioning animation.
     if (item._isPositioning) {
@@ -3945,11 +4019,9 @@ New features for v0.4.x
       item._stopMigrate(true);
     }
 
-    // If item is being released reset release data, remove release class and
-    // import the element styles from release data to drag data.
-    if (releaseData.isActive) {
-      removeClass(element, settings.itemReleasingClass);
-      drag._setupReleaseData();
+    // If item is being released reset release data.
+    if (release.isActive) {
+      release._reset();
     }
 
     // Setup drag data.
@@ -4038,7 +4110,7 @@ New features for v0.4.x
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._onDragMove = function (e) {
+  Drag.prototype._onMove = function (e) {
 
     var drag = this;
     var item = drag._getItem();
@@ -4051,14 +4123,14 @@ New features for v0.4.x
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      drag._stopDrag();
+      drag._stop();
       return;
     }
 
     element = item._element;
     grid = drag._getGrid();
     settings = grid._settings;
-    dragData = drag._dragData;
+    dragData = drag._data;
 
     // Get delta difference from last dragmove event.
     xDiff = e.deltaX - dragData.currentEvent.deltaX;
@@ -4099,14 +4171,14 @@ New features for v0.4.x
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._onDragScroll = function (e) {
+  Drag.prototype._onScroll = function (e) {
 
     var drag = this;
     var item = drag._getItem();
     var element = item._element;
     var grid = drag._getGrid();
     var settings = grid._settings;
-    var dragData = drag._dragData;
+    var dragData = drag._data;
     var gridContainer = grid._element;
     var dragContainer = settings.dragContainer;
     var elementGBCR = element.getBoundingClientRect();
@@ -4151,20 +4223,20 @@ New features for v0.4.x
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._onDragEnd = function (e) {
+  Drag.prototype._onEnd = function (e) {
 
     var drag = this;
     var item = drag._getItem();
     var element = item._element;
     var grid = drag._getGrid();
     var settings = grid._settings;
-    var dragData = drag._dragData;
-    var releaseData = drag._releaseData;
+    var dragData = drag._data;
+    var release = item._release;
     var i;
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      drag._stopDrag();
+      drag._stop();
       return;
     }
 
@@ -4182,23 +4254,21 @@ New features for v0.4.x
     removeClass(element, settings.itemDraggingClass);
 
     // Setup release data.
-    releaseData.containerDiffX = dragData.containerDiffX;
-    releaseData.containerDiffY = dragData.containerDiffY;
+    release.containerDiffX = dragData.containerDiffX;
+    release.containerDiffY = dragData.containerDiffY;
 
     // Reset drag data.
-    drag._setupDragData();
+    drag._reset();
 
     // Emit dragEnd event.
     grid._emitter.emit(evDragEnd, e, item);
 
-    // Finish up the migration process if needed.
+    // Finish up the migration process or start the release process.
     if (drag._isMigrating) {
-      drag._finishMigration(e);
+      drag._finishMigration();
     }
-
-    // Otherwise start the release process.
     else {
-      drag._startRelease();
+      release._start();
     }
 
     return drag;

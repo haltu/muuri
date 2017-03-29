@@ -117,4 +117,44 @@
     }
   };
 
+  utils.isHammerEvent = function (e) {
+
+    var ret = true;
+    var eventKeys = Object.keys(e);
+    var requiredKeys = [
+      'type',
+      'deltaX',
+      'deltaY',
+      'deltaTime',
+      'distance',
+      'angle',
+      'velocityX',
+      'velocityY',
+      'velocity',
+      'direction',
+      'offsetDirection',
+      'scale',
+      'rotation',
+      'center',
+      'srcEvent',
+      'target',
+      'pointerType',
+      'eventType',
+      'isFirst',
+      'isFinal',
+      'pointers',
+      'changedPointers',
+      'preventDefault'
+    ];
+
+    requiredKeys.forEach(function (key) {
+      if (eventKeys.indexOf(key) === -1) {
+        ret = false;
+      }
+    });
+
+    return ret;
+
+  };
+
 })(this);

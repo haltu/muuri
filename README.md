@@ -1459,8 +1459,7 @@ grid.destroy(true);
 * [sort](#sort)
 * [move](#move)
 * [send](#send)
-* [receiveStart](#receivestart)
-* [receiveEnd](#receiveend)
+* [receive](#receive)
 * [dragStart](#dragstart)
 * [dragMove](#dragmove)
 * [dragScroll](#dragscroll)
@@ -1687,7 +1686,7 @@ grid.on('move', function (data) {
 
 ### send
 
-Triggered after `grid.send()` is called. Triggered for the originating grid.
+Triggered after `grid.send()` is called, for the originating grid.
 
 **Arguments**
 
@@ -1709,33 +1708,9 @@ grid.on('send', function (data) {
 });
 ```
 
-### receiveStart
+### receive
 
-Triggered after `grid.send()` is called. Triggered for the receiving grid.
-
-**Arguments**
-
-* **data** &nbsp;&mdash;&nbsp; *object*
-    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The item that was sent.
-    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
-      * The grid the item was sent from.
-    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
-      * The index the item was moved from.
-    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
-      * The index the item was moved to.
-
-**Examples**
-
-```javascript
-grid.on('receiveStart', function (data) {
-  console.log(data);
-});
-```
-
-### receiveEnd
-
-Triggered after `grid.send()` is called and after the item has animated to the new position. Triggered for the receiving grid.
+Triggered after `grid.send()` is called, for the receiving grid.
 
 **Arguments**
 
@@ -1752,7 +1727,7 @@ Triggered after `grid.send()` is called and after the item has animated to the n
 **Examples**
 
 ```javascript
-grid.on('receiveEnd', function (data) {
+grid.on('receive', function (data) {
   console.log(data);
 });
 ```

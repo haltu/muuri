@@ -4,28 +4,35 @@
 
   QUnit.module('Grid events');
 
-  QUnit.test('move: should be triggered after grid.move()', function (assert) {
+  QUnit.test('receive: should be triggered, for the receiving grid, after grid.send()', function (assert) {
 
     assert.expect(7);
 
-    var container = utils.createGridElements().container;
-    var grid = new Muuri(container);
-    var item = grid.getItems()[0];
+    var containerA = utils.createGridElements().container;
+    var containerB = utils.createGridElements().container;
+    var gridA = new Muuri(containerA);
+    var gridB = new Muuri(containerB);
+    var item = gridA.getItems()[0];
     var teardown = function () {
-      grid.destroy();
-      container.parentNode.removeChild(container);
+      gridA.destroy();
+      gridB.destroy();
+      containerA.parentNode.removeChild(containerA);
+      containerB.parentNode.removeChild(containerB);
     };
 
-    grid.on('move', function (data) {
+    gridB.on('receive', function (data) {
       assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
       assert.strictEqual(Object.prototype.toString.call(data), '[object Object]', 'callback: first argument should be a plain object');
       assert.strictEqual(Object.keys(data).length, 4, 'callback: first argument should have 4 properties');
       assert.strictEqual(data.item, item, 'callback: first argument item property should be the moved item');
-      assert.strictEqual(data.action, 'move', 'callback: first argument action property should be the correct action');
+      assert.strictEqual(data.fromGrid, gridA, 'callback: first argument fromGrid property should be the sending grid instance');
       assert.strictEqual(data.fromIndex, 0, 'callback: first argument fromIndex property should be the index where the item was moved from');
       assert.strictEqual(data.toIndex, 1, 'callback: first argument toIndex property should be the index where the item was moved to');
     });
-    grid.move(item, 1, {layout: false});
+    gridA.on('receive', function () {
+      assert.ok(false, 'should not be triggered for the sending grid');
+    });
+    gridA.send(item, gridB, 1, {layout: false});
     teardown();
 
   });

@@ -210,8 +210,7 @@ New features for v0.4.x
   var evSort = 'sort';
   var evMove = 'move';
   var evSend = 'send';
-  var evReceiveStart = 'receiveStart';
-  var evReceiveEnd = 'receiveEnd';
+  var evReceive = 'receive';
   var evDragStart = 'dragStart';
   var evDragMove = 'dragMove';
   var evDragScroll = 'dragScroll';
@@ -1478,7 +1477,7 @@ New features for v0.4.x
     });
 
     // Emit receiveStart event.
-    targetGrid._emitter.emit(evReceiveStart, {
+    targetGrid._emitter.emit(evReceive, {
       item: targetItem,
       fromGrid: currentGrid,
       fromIndex: currentIndex,
@@ -2511,9 +2510,6 @@ New features for v0.4.x
     var grid;
     var translateX;
     var translateY;
-    var fromGrid;
-    var fromIndex;
-    var toIndex;
 
     if (inst._isDestroyed || !migrate.isActive) {
       return inst;
@@ -2533,14 +2529,6 @@ New features for v0.4.x
       });
     }
 
-    // Cache some migration data temporarily so it can be provided to the end
-    // event after the migration data is reset.
-    if (!abort) {
-      fromGrid = migrate.fromGrid;
-      fromIndex = migrate.fromIndex;
-      toIndex = migrate.toIndex;
-    }
-
     // Reset migration data.
     migrate.isActive = false;
     migrate.appendTo = null;
@@ -2549,16 +2537,6 @@ New features for v0.4.x
     migrate.fromGrid = null;
     migrate.fromIndex = 0;
     migrate.toIndex = 0;
-
-    // Emit receiveEnd event.
-    if (!abort) {
-      grid._emitter.emit(evReceiveEnd, {
-        item: inst,
-        fromGrid: fromGrid,
-        fromIndex: fromIndex,
-        toIndex: toIndex
-      });
-    }
 
     return inst;
 

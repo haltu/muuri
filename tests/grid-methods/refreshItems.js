@@ -21,29 +21,33 @@
     }).container;
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var updateItemDimensions = function (item) {
-      utils.setStyles(item.getElement(), {
-        width: '10px',
-        height: '20px',
-        margin: '30px'
+    var updateItemDimensions = function (items) {
+      [].concat(items).forEach(function (item) {
+        utils.setStyles(item.getElement(), {
+          width: '10px',
+          height: '20px',
+          margin: '30px'
+        });
       });
     };
-    var assertItemChange = function (item, msg) {
-      var result = {
-        margin: item.getMargin(),
-        width: item.getWidth(),
-        height: item.getHeight()
-      };
-      assert.deepEqual(result, {
-        width: 10,
-        height: 20,
-        margin: {
-          left: 30,
-          right: 30,
-          top: 30,
-          bottom: 30
-        }
-      }, msg);
+    var assertItemChange = function (items, msg) {
+      [].concat(items).forEach(function (item) {
+        var result = {
+          margin: item.getMargin(),
+          width: item.getWidth(),
+          height: item.getHeight()
+        };
+        assert.deepEqual(result, {
+          width: 10,
+          height: 20,
+          margin: {
+            left: 30,
+            right: 30,
+            top: 30,
+            bottom: 30
+          }
+        }, msg);
+      });
     };
     var teardown = function () {
       grid.destroy();
@@ -62,17 +66,13 @@
     grid.refreshItems(2);
     assertItemChange(items[2], 'should accept an index (number) as the first argument');
 
-    updateItemDimensions(items[3]);
-    updateItemDimensions(items[4]);
+    updateItemDimensions([items[3], items[4]]);
     grid.refreshItems([3, items[4].getElement()]);
-    assertItemChange(items[3], 'should accept an array of items, elements and indices as the first argument');
-    assertItemChange(items[4], 'should accept an array of items, elements and indices as the first argument');
+    assertItemChange([items[3], items[4]], 'should accept an array of items, elements and indices as the first argument');
 
-    updateItemDimensions(items[5]);
-    updateItemDimensions(items[6]);
+    updateItemDimensions([items[5], items[6]]);
     grid.refreshItems();
-    assertItemChange(items[5], 'should refresh all items if no aguments are provided');
-    assertItemChange(items[6], 'should refresh all items if no aguments are provided');
+    assertItemChange([items[5], items[6]], 'should refresh all items if no aguments are provided');
 
     teardown();
 

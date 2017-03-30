@@ -9,15 +9,9 @@
     assert.expect(4);
 
     var container = utils.createGridElements({
-      itemCount: 4,
-      itemStyles: {
-        width: '10px',
-        height: '10px',
-        margin: '5px'
-      },
       containerStyles: {
         position: 'relative',
-        width: '40px'
+        width: '140px'
       }
     }).container;
     var grid = new Muuri(container);
@@ -32,9 +26,9 @@
     };
 
     assert.deepEqual(itemA.getPosition(), {left: 0, top: 0});
-    assert.deepEqual(itemB.getPosition(), {left: 20, top: 0});
-    assert.deepEqual(itemC.getPosition(), {left: 0, top: 20});
-    assert.deepEqual(itemD.getPosition(), {left: 20, top: 20});
+    assert.deepEqual(itemB.getPosition(), {left: 70, top: 0});
+    assert.deepEqual(itemC.getPosition(), {left: 0, top: 70});
+    assert.deepEqual(itemD.getPosition(), {left: 70, top: 70});
     teardown();
 
   });

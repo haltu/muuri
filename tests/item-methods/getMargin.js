@@ -8,13 +8,7 @@
 
     assert.expect(2);
 
-    var container = utils.createGridElements({
-      itemStyles: {
-        width: '10px',
-        height: '10px',
-        margin: '1px 2px 3px 4px'
-      }
-    }).container;
+    var container = utils.createGridElements().container;
     var grid = new Muuri(container);
     var item = grid.getItems()[0];
     var teardown = function () {
@@ -22,9 +16,9 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(item.getMargin(), {left: 4, right: 2, top: 1, bottom: 3});
+    assert.deepEqual(item.getMargin(), {left: 10, right: 10, top: 10, bottom: 10}, 'The margins should be retrieved from the DOM on init');
     item.getElement().style.margin = '0px';
-    assert.deepEqual(item.getMargin(), {left: 4, right: 2, top: 1, bottom: 3}, 'The returned margins are cached and not the element`s current margins in DOM');
+    assert.deepEqual(item.getMargin(), {left: 10, right: 10, top: 10, bottom: 10}, 'The returned margins are cached and not necessarilly the element`s current margins in DOM');
     teardown();
 
   });

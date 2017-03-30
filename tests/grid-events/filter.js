@@ -8,10 +8,10 @@
 
     assert.expect(3);
 
-    var container = utils.createGridElements({itemCount: 2}).container;
+    var container = utils.createGridElements().container;
     var grid = new Muuri(container);
-    var itemsToShow = grid.getItems([0, 1]);
-    var itemsToHide = grid.getItems([2, 3]);
+    var itemsToShow = grid.getItems([0, 1, 2, 3, 4]);
+    var itemsToHide = grid.getItems([5, 6, 7, 8, 9]);
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);

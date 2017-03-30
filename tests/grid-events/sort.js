@@ -8,10 +8,10 @@
 
     assert.expect(3);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGridElements().container;
     var grid = new Muuri(container);
     var currentOrder = grid.getItems();
-    var newOrder = grid.getItems([3,2,1,0]);
+    var newOrder = currentOrder.concat().reverse();
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);

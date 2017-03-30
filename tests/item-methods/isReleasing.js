@@ -20,6 +20,16 @@
     };
 
     assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state when it`s not being released');
+
+    grid.on('dragReleaseStart', function () {
+      assert.strictEqual(item.isReleasing(), true, 'An item should be in releasing state right after it has been released');
+    });
+
+    grid.on('dragReleaseEnd', function () {
+      assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state right after releasing has ended');
+      teardown();
+    });
+
     utils.dragElement({
       element: item.getElement(),
       move: {
@@ -35,13 +45,6 @@
       onRelease: function () {
         assert.strictEqual(item.isReleasing(), true, 'An item should be in releasing state during release');
       }
-    });
-    grid.on('dragReleaseStart', function () {
-      assert.strictEqual(item.isReleasing(), true, 'An item should be in releasing state right after it has been released');
-    });
-    grid.on('dragReleaseEnd', function () {
-      assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state right after releasing has ended');
-      teardown();
     });
 
   });

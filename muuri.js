@@ -81,6 +81,10 @@ TODO v0.3.0
       * [x] Separate release process drag process.
       * [x] Merge dragReceiveDrop into releaseStart.
 * [x] Is item.isMigrating() really needed? Nope.
+* [ ] When checking the overlap in onEnd drag handler, don't check it if the
+      cursor has not moved and the coordinate is already checked. We need to
+      keep track of the last place the overlap was checked for. Otherwise this
+      might cause wonky behaviour in some scenarios.
 * [ ] add .once() method for triggering a listener only once.
 * [ ] Create a "migrator" class that handles migrations for both the send method
       and when dragging an item from a grid to another.
@@ -1026,7 +1030,7 @@ New features for v0.4.x
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
    * @param {ShowCallback} [options.onFinish]
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=tue]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.show = function (items, options) {
@@ -2334,7 +2338,7 @@ New features for v0.4.x
       // If instant flag is on, interrupt the current animation and set the
       // visible styles.
       if (instant) {
-        grid._itemShowHandler.stop();
+        grid._itemShowHandler.stop(inst);
         processQueue(queue, true, inst);
         if (callback) {
           queue[queue.length] = callback;
@@ -2432,7 +2436,7 @@ New features for v0.4.x
       // If instant flag is on, interrupt the current animation and set the
       // hidden styles.
       if (instant) {
-        grid._itemHideHandler.stop();
+        grid._itemHideHandler.stop(inst);
         processQueue(queue, true, inst);
         if (callback) {
           queue[queue.length] = callback;

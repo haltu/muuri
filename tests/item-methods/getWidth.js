@@ -8,15 +8,7 @@
 
     assert.expect(2);
 
-    var container = utils.createGridElements({
-      itemStyles: {
-        width: '10px',
-        height: '10px',
-        padding: '10px',
-        border: '10px solid #000',
-        margin: '10px'
-      }
-    }).container;
+    var container = utils.createGridElements().container;
     var grid = new Muuri(container);
     var item = grid.getItems()[0];
     var teardown = function () {

@@ -5,7 +5,7 @@
 
   QUnit.module('Grid events');
 
-  QUnit.test('dragMove: should be triggered when item is dragged', function (assert) {
+  QUnit.test('dragEnd: should be triggered when item is dragged', function (assert) {
 
     assert.expect(6);
 
@@ -31,7 +31,7 @@
     });
 
     grid.on('dragEnd', function (ev, draggedItem) {
-      assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
+      assert.strictEqual(arguments.length, 2, 'callback: should receive two arguments');
       assert.strictEqual(utils.isHammerEvent(ev), true, 'callback: first argument should be a hammer event object');
       assert.strictEqual(draggedItem, item, 'callback: second argument should be the dragged item');
       assert.strictEqual(isStartCalled, true, 'callback: should be called after dragStart');

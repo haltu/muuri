@@ -8,14 +8,16 @@
 
     assert.expect(2);
 
-    var container = utils.createGridElements({containerStyles: {
-      position: 'relative',
-      display: 'block',
-      width: '300px',
-      padding: '0px',
-      border: '0px solid #000',
-      boxSizing: 'padding-box'
-    }}).container;
+    var container = utils.createGridElements({
+      containerStyles: {
+        position: 'relative',
+        display: 'block',
+        width: '300px',
+        padding: '0px',
+        border: '0px solid #000',
+        boxSizing: 'padding-box'
+      }
+    }).container;
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();

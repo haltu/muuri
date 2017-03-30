@@ -21,15 +21,17 @@
     var container = opts.container || document.createElement('div');
     var itemCount = typeof opts.itemCount === 'number' && opts.itemCount >= 0 ? opts.itemCount : 10;
     var itemStyles = opts.itemStyles || {
-      width: '10px',
-      height: '10px',
-      padding: '10px',
-      border: '10px solid #000',
-      margin: '10px'
+      position: 'absolute',
+      width: '50px',
+      height: '50px',
+      padding: '5px',
+      border: '5px solid #ff0000',
+      margin: '10px',
+      background: '#000',
+      boxSizing: 'border-box'
     };
     var containerStyles = opts.containerStyles || {
-      position: 'relative',
-      display: 'block'
+      position: 'relative'
     };
     var items = [];
     var item;
@@ -115,6 +117,12 @@
     for (var i = 0; i < props.length; i++) {
       element.style[props[i]] = styles[props[i]];
     }
+  };
+
+  utils.isScrollEvent = function (e) {
+
+    return Object.prototype.toString.call(e) === '[object Event]' && e.type === 'scroll';
+
   };
 
   utils.isHammerEvent = function (e) {

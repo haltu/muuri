@@ -9,7 +9,7 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGridElements({itemCount: 5}).container;
+    var container = utils.createGridElements().container;
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();

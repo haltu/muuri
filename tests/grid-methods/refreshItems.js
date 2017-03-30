@@ -11,12 +11,14 @@
     var container = utils.createGridElements({
       itemCount: 7,
       itemStyles: {
+        position: 'absolute',
         width: '50px',
         height: '50px',
         padding: '0px',
         border: '0px',
         margin: '10px',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        background: '#000'
       }
     }).container;
     var grid = new Muuri(container);

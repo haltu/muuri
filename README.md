@@ -1373,9 +1373,6 @@ grid.destroy(true);
 * [dragStart](#dragstart)
 * [dragMove](#dragmove)
 * [dragScroll](#dragscroll)
-* [dragSort](#dragsort)
-* [dragSend](#dragsend)
-* [dragReceive](#dragreceive)
 * [dragEnd](#dragend)
 * [dragReleaseStart](#dragreleasestart)
 * [dragReleaseEnd](#dragreleaseend)
@@ -1549,7 +1546,7 @@ grid.on('sort', function (currentOrder, previousOrder) {
 
 ### move
 
-Triggered after `grid.move()` is called.
+Triggered after `grid.move()` is called or when the grid is sorted during drag. Note that this is event not triggered when an item is dragged into another grid.
 
 **Arguments**
 
@@ -1571,7 +1568,7 @@ grid.on('move', function (data) {
 
 ### send
 
-Triggered after `grid.send()` is called, for the originating grid.
+Triggered, for the originating grid, after `grid.send()` is called or when an item is dragged into another grid.
 
 **Arguments**
 
@@ -1593,7 +1590,7 @@ grid.on('send', function (data) {
 
 ### receive
 
-Triggered after `grid.send()` is called, for the receiving grid.
+Triggered, for the receiving grid, after `grid.send()` is called or when an item is dragged into another grid.
 
 **Arguments**
 
@@ -1664,82 +1661,6 @@ Triggered when any of the scroll parents of a dragged item is scrolled.
 grid.on('dragScroll', function (event, item) {
   console.log(event);
   console.log(item);
-});
-```
-
-
-### dragSort
-
-Triggered when the grid is sorted during drag. Note that this event is not triggered when `grid.sort()` called. This is specifically triggered when the dragging causes the sorting. Additionally, this is only triggered when the sorting happens within the current grid, not when an item is dragged into another grid.
-
-**Arguments**
-
-* **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
-* **data** &nbsp;&mdash;&nbsp; *object*
-    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The dragged item.
-    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
-      * The index the item was moved from.
-    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
-      * The index the item was moved to.
-    * **data.action** &nbsp;&mdash;&nbsp; *string*
-      * "move" or "swap".
-
-```javascript
-grid.on('dragSort', function (event, data) {
-  console.log(event);
-  console.log(data);
-});
-```
-
-### dragSend
-
-Triggered when an item is dragged into another grid. Triggered for the originating grid.
-
-**Arguments**
-
-* **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
-* **data** &nbsp;&mdash;&nbsp; *object*
-    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The dragged item.
-    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
-      * The index the item was moved from.
-    * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
-      * The grid the item was sent to.
-    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
-      * The index the item was moved to.
-
-```javascript
-grid.on('dragSend', function (event, data) {
-  console.log(event);
-  console.log(data);
-});
-```
-
-### dragReceive
-
-Triggered when an item is dragged into another grid. Triggered for the grid that receives the item.
-
-**Arguments**
-
-* **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
-* **data** &nbsp;&mdash;&nbsp; *object*
-    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The dragged item.
-    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
-      * The grid the item was sent from.
-    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
-      * The index the item was moved from.
-    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
-      * The index the item was moved to.
-
-```javascript
-grid.on('dragReceive', function (event, data) {
-  console.log(event);
-  console.log(data);
 });
 ```
 

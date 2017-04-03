@@ -81,13 +81,16 @@ TODO v0.3.0
       * [x] Separate release process drag process.
       * [x] Merge dragReceiveDrop into releaseStart.
 * [x] Is item.isMigrating() really needed? Nope.
+* [x] Consider merging dragSort event to move event. Done.
+* [x] Consider merging dragSend event to send event. Done.
+* [x] Consider merging dragReceive event to receive event. Done.
+* [ ] Create a "migrator" class that handles migrations for both the send method
+      and when dragging an item from a grid to another.
 * [ ] When checking the overlap in onEnd drag handler, don't check it if the
       cursor has not moved and the coordinate is already checked. We need to
       keep track of the last place the overlap was checked for. Otherwise this
       might cause wonky behaviour in some scenarios.
 * [ ] add .once() method for triggering a listener only once.
-* [ ] Create a "migrator" class that handles migrations for both the send method
-      and when dragging an item from a grid to another.
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
       The practical use case for this would be a kanban board where the columns
@@ -225,9 +228,6 @@ New features for v0.4.x
   var evDragStart = 'dragStart';
   var evDragMove = 'dragMove';
   var evDragScroll = 'dragScroll';
-  var evDragSort = 'dragSort';
-  var evDragSend = 'dragSend';
-  var evDragReceive = 'dragReceive';
   var evDragEnd = 'dragEnd';
   var evDragReleaseStart = 'dragReleaseStart';
   var evDragReleaseEnd = 'dragReleaseEnd';
@@ -3756,8 +3756,8 @@ New features for v0.4.x
       // Do the sort.
       (sortAction === 'swap' ? arraySwap : arrayMove)(currentGrid._items, currentIndex, targetIndex);
 
-      // Emit dragSort event.
-      currentGrid._emitter.emit(evDragSort, dragEvent, {
+      // Emit move event.
+      currentGrid._emitter.emit(evMove, {
         item: item,
         fromIndex: currentIndex,
         toIndex: targetIndex,
@@ -3787,16 +3787,16 @@ New features for v0.4.x
       // lazily.
       item._sortData = null;
 
-      // Emit dragSend event.
-      currentGrid._emitter.emit(evDragSend, dragEvent, {
+      // Emit send event.
+      currentGrid._emitter.emit(evSend, {
         item: item,
         fromIndex: currentIndex,
         toGrid: targetGrid,
         toIndex: targetIndex
       });
 
-      // Emit dragReceive event.
-      targetGrid._emitter.emit(evDragReceive, dragEvent, {
+      // Emit receive event.
+      targetGrid._emitter.emit(evReceive, {
         item: item,
         fromGrid: currentGrid,
         fromIndex: currentIndex,

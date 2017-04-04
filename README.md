@@ -206,7 +206,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
       action: 'move'
     },
     dragSortGroup: null,
-    dragSortConnections: null,
+    dragSortWith: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
 
@@ -257,7 +257,7 @@ var gridB = new Muuri('.grid-b', {
 * [dragSortInterval](#dragsortinterval-)
 * [dragSortPredicate](#dragsortpredicate-)
 * [dragSortGroup](#dragsortgroup-)
-* [dragSortConnections](#dragsortconnections-)
+* [dragSortWith](#dragsortconnections-)
 * [dragReleaseDuration](#dragreleaseduration-)
 * [dragReleaseEasing](#dragreleaseeasing-)
 * [containerClass](#containerclass-)
@@ -667,7 +667,7 @@ var grid = new Muuri(elem, {
 
 ### dragSortGroup &nbsp;
 
-The grid's sort group, e.g. "groupA". If you provide no sort group the grid can not be targeted with `dragSortConnections` option, which means that items can not be dragged into the grid from other grids.
+The grid's sort group, e.g. "groupA". If you provide no sort group the grid can not be targeted with `dragSortWith` option, which means that items can not be dragged into the grid from other grids.
 
 * Default value: `null`.
 * Accepted types: string, null.
@@ -678,7 +678,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-### dragSortConnections &nbsp;
+### dragSortWith &nbsp;
 
 Defines the sort groups that this instance's item's can be dragged to. Provide an array of sort groups (strings), e.g. `['groupA', 'groupC']`.
 
@@ -694,13 +694,13 @@ var gridA = new Muuri(elemA, {
 // This grid's items can be dragged into gridC.
 var gridB = new Muuri(elemB, {
   dragSortGroup: 'b',
-  dragSortConnections: ['c']
+  dragSortWith: ['c']
 });
 
 // This grid's items can be dragged into gridA and gridB.
 var gridC = new Muuri(elemC, {
   dragSortGroup: 'c',
-  dragSortConnections: ['a', 'b']
+  dragSortWith: ['a', 'b']
 });
 ```
 
@@ -840,6 +840,7 @@ var grid = new Muuri(elem, {
 * [grid.move( item, position, [options] )](#gridmove-item-position-options-)
 * [grid.send( item, grid, position, [options] )](#gridsend-item-grid-position-options-)
 * [grid.on( event, listener )](#gridon-event-listener-)
+* [grid.once( event, listener )](#gridonce-event-listener-)
 * [grid.off( event, listener )](#gridoff-event-listener-)
 * [grid.destroy( [removeElements] )](#griddestroy-removeelements-)
 
@@ -1292,7 +1293,7 @@ gridA.send(0, gridB, -1 {
 
 ### grid.on( event, listener )
 
-Bind an event on the Muuri instance.
+Bind an event listener.
 
 **Parameters**
 
@@ -1309,9 +1310,28 @@ grid.on('layoutEnd', function (items) {
 });
 ```
 
+### grid.once( event, listener )
+
+Bind an event listener that is triggered only once.
+
+**Parameters**
+
+* **event** &nbsp;&mdash;&nbsp; *string*
+* **listener** &nbsp;&mdash;&nbsp; *function*
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the instance.
+
+```javascript
+grid.once('layoutEnd', function (items) {
+  console.log(items);
+});
+```
+
 ### grid.off( event, listener )
 
-Unbind an event from the Muuri instance.
+Unbind an event listener.
 
 **Parameters**
 
@@ -1575,6 +1595,8 @@ Triggered, for the originating grid, after `grid.send()` is called or when an it
 * **data** &nbsp;&mdash;&nbsp; *object*
     * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
       * The item that was sent.
+    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent from.
     * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
       * The index the item was moved from.
     * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
@@ -1601,6 +1623,8 @@ Triggered, for the receiving grid, after `grid.send()` is called or when an item
       * The grid the item was sent from.
     * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
       * The index the item was moved from.
+    * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent to.
     * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
       * The index the item was moved to.
 

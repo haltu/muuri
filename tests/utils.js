@@ -121,7 +121,7 @@
 
   utils.isScrollEvent = function (e) {
 
-    return Object.prototype.toString.call(e) === '[object Event]' && e.type === 'scroll';
+    return e.type === 'scroll';
 
   };
 

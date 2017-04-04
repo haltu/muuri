@@ -52,9 +52,7 @@ gulp.task('test-sauce', function (done) {
       'slFirefoxMac',
       'slFirefoxLinux',
       'slSafari',
-      'slEdge',
-      'slIE11',
-      'slIE10'
+      'slEdge'
     ]
   }, function (exitCode) {
     done(exitCode);

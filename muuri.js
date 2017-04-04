@@ -1367,7 +1367,7 @@ New features for v0.4.x
     }
 
     // Start the migration process.
-    item._migrate._start(targetGrid, position, container);
+    item._migrate.start(targetGrid, position, container);
 
     // If migration was started succesfully and the item is active, let's layout
     // the grids.
@@ -2060,12 +2060,12 @@ New features for v0.4.x
 
       // Finish up release.
       if (release.isActive) {
-        release._stop();
+        release.stop();
       }
 
       // Finish up migration.
       if (migrate.isActive) {
-        migrate._stop();
+        migrate.stop();
       }
 
       // Process the callback queue.
@@ -2472,7 +2472,7 @@ New features for v0.4.x
     // Calculate the layout data. If the user has provided custom function as a
     // layout method invoke it. Otherwise invoke the default layout method.
     var layout = typeof settings === typeFunction ? settings(items, width, height) :
-                 layoutFirstFit(items, width, height, isPlainObject(settings) ? settings : {});
+                 layoutDefault(items, width, height, isPlainObject(settings) ? settings : {});
 
     // Set instance data based on layout data.
     inst.items = items;
@@ -2485,12 +2485,6 @@ New features for v0.4.x
   }
 
   /**
-   * Layout - Default layout method
-   * ******************************
-   */
-
-  /**
-   * LayoutFirstFit v0.3.0-dev
    * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
    * Released under the MIT license
    *
@@ -2507,7 +2501,7 @@ New features for v0.4.x
    * @param {Boolean} [options.alignBottom=false]
    * @returns {LayoutData}
    */
-  function layoutFirstFit(items, width, height, options) {
+  function layoutDefault(items, width, height, options) {
 
     var fillGaps = options.fillGaps ? true : false;
     var isHorizontal = options.horizontal ? true : false;
@@ -2534,7 +2528,7 @@ New features for v0.4.x
     // Find slots for items.
     for (i = 0; i < items.length; i++) {
       item = items[i];
-      slot = layoutFirstFit.getSlot(layout, emptySlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
+      slot = layoutGetSlot(layout, emptySlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
       if (isHorizontal) {
         layout.width = Math.max(layout.width, slot.left + slot.width);
       }
@@ -2564,6 +2558,9 @@ New features for v0.4.x
   }
 
   /**
+   * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
+   * Released under the MIT license
+   *
    * Calculate position for the layout item. Returns the left and top position
    * of the item in pixels.
    *
@@ -2577,7 +2574,7 @@ New features for v0.4.x
    * @param {Boolean} fillGaps
    * @returns {Object}
    */
-  layoutFirstFit.getSlot = function (layout, slots, itemWidth, itemHeight, vertical, fillGaps) {
+  function layoutGetSlot(layout, slots, itemWidth, itemHeight, vertical, fillGaps) {
 
     var currentSlots = slots[0] || [];
     var newSlots = [];
@@ -2694,7 +2691,7 @@ New features for v0.4.x
     // Return the item.
     return item;
 
-  };
+  }
 
   /**
    * Emitter
@@ -2704,14 +2701,12 @@ New features for v0.4.x
   /**
    * Event emitter constructor.
    *
-   * This is a simplified version of jvent.js event emitter library:
-   * https://github.com/pazguille/jvent/blob/0.2.0/dist/jvent.js
-   *
    * @public
    * @class
    */
   function Emitter() {
 
+    this._events = {};
     this._isDestroyed = false;
 
   }
@@ -2736,11 +2731,9 @@ New features for v0.4.x
       return this;
     }
 
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
-
+    var listeners = this._events[event] || [];
     listeners[listeners.length] = listener;
-    events[event] = listeners;
+    this._events[event] = listeners;
 
     return this;
 
@@ -2757,26 +2750,15 @@ New features for v0.4.x
    */
   Emitter.prototype.once = function (event, listener) {
 
-    if (this._isDestroyed) {
-      return this;
-    }
-
     var inst = this;
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
-    var callback = function (arg1, arg2, arg3) {
+    return this.on(event, function callback(arg1, arg2, arg3) {
       var argsLength = arguments.length;
+      inst.off(event, callback);
       argsLength === 0 ? listener() :
       argsLength === 1 ? listener(arg1) :
       argsLength === 2 ? listener(arg1, arg2) :
                          listener(arg1, arg2, arg3);
-      inst.off(event, callback);
-    };
-
-    listeners[listeners.length] = callback;
-    events[event] = listeners;
-
-    return this;
+    });
 
   };
 
@@ -2795,15 +2777,12 @@ New features for v0.4.x
       return this;
     }
 
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
+    var listeners = this._events[event] || [];
     var i = listeners.length;
 
-    if (i) {
-      while (i--) {
-        if (listener === listeners[i]) {
-          listeners.splice(i, 1);
-        }
+    while (i--) {
+      if (listener === listeners[i]) {
+        listeners.splice(i, 1);
       }
     }
 
@@ -2828,18 +2807,14 @@ New features for v0.4.x
       return this;
     }
 
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
+    var listeners = this._events[event] || [];
     var listenersLength = listeners.length;
-    var argsLength;
+    var argsLength = arguments.length - 1;
     var i;
 
     if (listenersLength) {
-      argsLength = arguments.length - 1;
       listeners = listeners.concat();
       for (i = 0; i < listenersLength; i++) {
-        // TODO: Should we check here if the instance is destroyed and only
-        // call the callback if the instance is not destroyed?
         argsLength === 0 ? listeners[i]() :
         argsLength === 1 ? listeners[i](arg1) :
         argsLength === 2 ? listeners[i](arg1, arg2) :
@@ -2864,13 +2839,11 @@ New features for v0.4.x
       return this;
     }
 
-    var events = this._events || {};
-    var eventNames = Object.keys(events);
+    var eventNames = Object.keys(this._events);
     var i;
 
     for (i = 0; i < eventNames.length; i++) {
-      events[eventNames[i]].length = 0;
-      events[eventNames[i]] = null;
+      this._events[eventNames[i]] = null;
     }
 
     this._isDestroyed = true;
@@ -2916,7 +2889,6 @@ New features for v0.4.x
    * @param {Object} propsTarget
    * @param {Object} [options]
    * @param {Number} [options.duration=300]
-   * @param {Number} [options.delay=0]
    * @param {String} [options.easing='ease']
    * @param {Function} [options.onFinish]
    */
@@ -2932,7 +2904,6 @@ New features for v0.4.x
     var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
     var velocityOpts = {
       duration: opts.duration || 300,
-      delay: opts.delay || 0,
       easing: opts.easing || 'ease',
       queue: inst._queue
     };
@@ -3040,7 +3011,7 @@ New features for v0.4.x
     var migrate = this;
 
     if (!migrate._isDestroyed) {
-      migrate._stop(true);
+      migrate.stop(true);
       migrate._isDestroyed = true;
     }
 
@@ -3049,18 +3020,13 @@ New features for v0.4.x
   };
 
   /**
-   * Migrate - Private prototype methods
-   * ***********************************
-   */
-
-  /**
    * Get Item instance.
    *
-   * @protected
+   * @public
    * @memberof Migrate.prototype
    * @returns {?Item}
    */
-  Migrate.prototype._getItem = function () {
+  Migrate.prototype.getItem = function () {
 
     return itemInstances[this._itemId] || null;
 
@@ -3069,14 +3035,14 @@ New features for v0.4.x
   /**
    * Start the migrate process of an item.
    *
-   * @protected
+   * @public
    * @memberof Migrate.prototype
    * @param {Grid} targetGrid
    * @param {GridSingleItemQuery} position
    * @param {HTMLElement} [container]
    * @returns {Migrate}
    */
-  Migrate.prototype._start = function (targetGrid, position, container) {
+  Migrate.prototype.start = function (targetGrid, position, container) {
 
     var migrate = this;
     var item;
@@ -3098,7 +3064,7 @@ New features for v0.4.x
       return migrate;
     }
 
-    item = migrate._getItem();
+    item = migrate.getItem();
     itemElement = item.getElement();
     isItemVisible = item.isVisible();
     currentGrid = item.getGrid();
@@ -3122,12 +3088,12 @@ New features for v0.4.x
 
     // Abort current migration.
     if (migrate.isActive) {
-      inst._stop(true);
+      migrate.stop(true);
     }
 
     // Abort current release.
     if (item.isReleasing()) {
-      item._release._stop(true);
+      item._release.stop(true);
     }
 
     // Stop current visibility animations.
@@ -3236,13 +3202,13 @@ New features for v0.4.x
    * End the migrate process of an item. This method can be used to abort an
    * ongoing migrate process (animation) or finish the migrate process.
    *
-   * @protected
+   * @public
    * @memberof Migrate.prototype
    * @param {Boolean} [abort=false]
    *  - Should the migration be aborted?
    * @returns {Migrate}
    */
-  Migrate.prototype._stop = function (abort) {
+  Migrate.prototype.stop = function (abort) {
 
     var migrate = this;
     var item;
@@ -3256,7 +3222,7 @@ New features for v0.4.x
       return migrate;
     }
 
-    item = migrate._getItem();
+    item = migrate.getItem();
     element = item.getElement();
     grid = item.getGrid();
     gridElement = grid.getElement();
@@ -3327,7 +3293,7 @@ New features for v0.4.x
     var release = this;
 
     if (!release._isDestroyed) {
-      release._stop(true);
+      release.stop(true);
       release._isDestroyed = true;
     }
 
@@ -3336,18 +3302,13 @@ New features for v0.4.x
   };
 
   /**
-   * Release - Private prototype methods
-   * ***********************************
-   */
-
-  /**
    * Get Item instance.
    *
-   * @protected
+   * @public
    * @memberof Release.prototype
    * @returns {?Item}
    */
-  Release.prototype._getItem = function () {
+  Release.prototype.getItem = function () {
 
     return itemInstances[this._itemId] || null;
 
@@ -3356,17 +3317,17 @@ New features for v0.4.x
   /**
    * Reset public data and remove releasing class.
    *
-   * @protected
+   * @public
    * @memberof Release.prototype
    * @returns {Release}
    */
-  Release.prototype._reset = function () {
+  Release.prototype.reset = function () {
 
     var release = this;
     var item;
 
     if (!release._isDestroyed) {
-      item = release._getItem();
+      item = release.getItem();
       removeClass(item.getElement(), item.getGrid()._settings.itemReleasingClass);
       release.isActive = false;
       release.isPositioningStarted = false;
@@ -3381,11 +3342,11 @@ New features for v0.4.x
   /**
    * Start the release process of an item.
    *
-   * @protected
+   * @public
    * @memberof Release.prototype
    * @returns {Release}
    */
-  Release.prototype._start = function () {
+  Release.prototype.start = function () {
 
     var release = this;
     var item;
@@ -3396,7 +3357,7 @@ New features for v0.4.x
       return release;
     }
 
-    item = release._getItem();
+    item = release.getItem();
     element = item.getElement();
     grid = item.getGrid();
 
@@ -3420,7 +3381,7 @@ New features for v0.4.x
    * End the release process of an item. This method can be used to abort an
    * ongoing release process (animation) or finish the release process.
    *
-   * @protected
+   * @public
    * @memberof Release.prototype
    * @param {Boolean} [abort=false]
    *  - Should the release be aborted? When true, the release end event won't be
@@ -3428,7 +3389,7 @@ New features for v0.4.x
    *    while the item is animating to it's position.
    * @returns {Release}
    */
-  Release.prototype._stop = function (abort) {
+  Release.prototype.stop = function (abort) {
 
     var release = this;
     var item;
@@ -3444,7 +3405,7 @@ New features for v0.4.x
       return release;
     }
 
-    item = release._getItem();
+    item = release.getItem();
     element = item.getElement();
     grid = item.getGrid();
     container = grid.getElement();
@@ -3452,7 +3413,7 @@ New features for v0.4.x
     containerDiffY = release.containerDiffY;
 
     // Reset data and remove releasing classname from the element.
-    release._reset();
+    release.reset();
 
     // If the released element is outside the grid's container element put it
     // back there and adjust position accordingly.
@@ -3511,12 +3472,12 @@ New features for v0.4.x
     drag._data = {};
 
     // Setup item's initial drag data.
-    drag._reset();
+    drag.reset();
 
     // Setup overlap checker function.
     drag._checkSortOverlap = debounce(function () {
       if (drag._data.isActive) {
-        drag._checkOverlap();
+        drag.checkOverlap();
       }
     }, settings.dragSortInterval);
 
@@ -3525,7 +3486,7 @@ New features for v0.4.x
 
     // Setup drag scroll handler.
     drag._scrollHandler = function (e) {
-      drag._onScroll(e);
+      drag.onScroll(e);
     };
 
     // Add drag recognizer to hammer.
@@ -3556,10 +3517,10 @@ New features for v0.4.x
 
       // If predicate is pending try to resolve it.
       if (predicate === predicatePending) {
-        predicateResult = checkPredicate(drag._getItem(), e);
+        predicateResult = checkPredicate(drag.getItem(), e);
         if (predicateResult === true) {
           predicate = predicateResolved;
-          drag._onStart(e);
+          drag.onStart(e);
         }
         else if (predicateResult === false) {
           predicate = predicateRejected;
@@ -3568,7 +3529,7 @@ New features for v0.4.x
 
       // Otherwise if predicate is resolved and drag is active, move the item.
       else if (predicate === predicateResolved && drag._data.isActive) {
-        drag._onMove(e);
+        drag.onMove(e);
       }
 
     })
@@ -3579,14 +3540,14 @@ New features for v0.4.x
       // Do final predicate check to allow user to unbind stuff for the current
       // drag procedure within the predicate callback. The return value of this
       // check will have no effect to the state of the predicate.
-      checkPredicate(drag._getItem(), e);
+      checkPredicate(drag.getItem(), e);
 
       // Reset predicate state.
       predicate = predicatePending;
 
       // If predicate is resolved and dragging is active, call the end handler.
       if (isResolved && drag._data.isActive) {
-        drag._onEnd(e);
+        drag.onEnd(e);
       }
 
     });
@@ -3648,7 +3609,7 @@ New features for v0.4.x
 
     var drag = item._drag;
     var dragData = drag._data;
-    var rootGrid = drag._getGrid();
+    var rootGrid = drag.getGrid();
     var config = rootGrid._settings.dragSortPredicate || {};
     var sortThreshold = config.threshold || 50;
     var sortAction = config.action || 'move';
@@ -3763,9 +3724,9 @@ New features for v0.4.x
     var drag = this;
 
     if (!drag._isDestroyed) {
-      drag._stop();
+      drag.stop();
       drag._hammer.destroy();
-      drag._getItem()._element.removeEventListener('dragstart', preventDefault, false);
+      drag.getItem()._element.removeEventListener('dragstart', preventDefault, false);
       drag._isDestroyed = true;
     }
 
@@ -3774,18 +3735,13 @@ New features for v0.4.x
   };
 
   /**
-   * Drag - Protected prototype methods
-   * **********************************
-   */
-
-  /**
    * Get Item instance.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {?Item}
    */
-  Drag.prototype._getItem = function () {
+  Drag.prototype.getItem = function () {
 
     return itemInstances[this._itemId] || null;
 
@@ -3794,11 +3750,11 @@ New features for v0.4.x
   /**
    * Get Grid instance.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {?Grid}
    */
-  Drag.prototype._getGrid = function () {
+  Drag.prototype.getGrid = function () {
 
     return gridInstances[this._gridId] || null;
 
@@ -3807,11 +3763,11 @@ New features for v0.4.x
   /**
    * Setup/reset drag data.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._reset = function () {
+  Drag.prototype.reset = function () {
 
     var drag = this;
     var dragData = drag._data;
@@ -3852,14 +3808,14 @@ New features for v0.4.x
    * Check (during drag) if an item is overlapping other items and based on
    * the configuration layout the items.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._checkOverlap = function () {
+  Drag.prototype.checkOverlap = function () {
 
     var drag = this;
-    var item = drag._getItem();
+    var item = drag.getItem();
     var dragEvent = drag._data.currentEvent;
     var result = drag._sortPredicate(item, dragEvent);
     var currentGrid;
@@ -3947,21 +3903,21 @@ New features for v0.4.x
    * If item is dragged into another grid, finish the migration process
    * gracefully.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._finishMigration = function () {
+  Drag.prototype.finishMigration = function () {
 
     var drag = this;
-    var item = drag._getItem();
+    var item = drag.getItem();
     var release = item._release;
     var element = item.getElement();
     var targetGrid = item.getGrid();
     var targetGridElement = targetGrid.getElement();
     var targetStn = targetGrid._settings;
     var targetContainer = targetStn.dragContainer || targetGridElement;
-    var currentStn = drag._getGrid()._settings;
+    var currentStn = drag.getGrid()._settings;
     var currentContainer = element.parentNode;
     var translateX;
     var translateY;
@@ -3969,7 +3925,7 @@ New features for v0.4.x
 
     // Destroy current drag. Note that we need to set the migrating flag to
     // false first, because otherwise we create an infinite loop between this
-    // and the drag._stop() method.
+    // and the drag.stop() method.
     drag._isMigrating = false;
     drag.destroy();
 
@@ -4019,7 +3975,7 @@ New features for v0.4.x
     offsetDiff = getOffsetDiff(targetContainer, targetGridElement);
     release.containerDiffX = offsetDiff.left;
     release.containerDiffY = offsetDiff.top;
-    release._start();
+    release.start();
 
     return drag;
 
@@ -4028,11 +3984,11 @@ New features for v0.4.x
   /**
    * Abort dragging and reset drag data.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._stop = function () {
+  Drag.prototype.stop = function () {
 
     var drag = this;
     var dragData = drag._data;
@@ -4047,12 +4003,12 @@ New features for v0.4.x
     // If the item is being dropped into another grid, finish it up and return
     // immediately.
     if (drag._isMigrating) {
-      drag._finishMigration(dragData.currentEvent);
+      drag.finishMigration(dragData.currentEvent);
       return;
     }
 
-    element = drag._getItem()._element;
-    grid = drag._getGrid();
+    element = drag.getItem()._element;
+    grid = drag.getGrid();
 
     // Remove scroll listeners.
     for (i = 0; i < dragData.scrollParents.length; i++) {
@@ -4075,7 +4031,7 @@ New features for v0.4.x
     removeClass(element, grid._settings.itemDraggingClass);
 
     // Reset drag data.
-    drag._reset();
+    drag.reset();
 
     return drag;
 
@@ -4084,14 +4040,14 @@ New features for v0.4.x
   /**
    * Drag start handler.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._onStart = function (e) {
+  Drag.prototype.onStart = function (e) {
 
     var drag = this;
-    var item = drag._getItem();
+    var item = drag.getItem();
     var element;
     var grid;
     var settings;
@@ -4112,7 +4068,7 @@ New features for v0.4.x
     }
 
     element = item._element;
-    grid = drag._getGrid();
+    grid = drag.getGrid();
     settings = grid._settings;
     dragData = drag._data;
     release = item._release;
@@ -4124,12 +4080,12 @@ New features for v0.4.x
 
     // Stop current migration animation.
     if (item._migrate.isActive) {
-      item._migrate._stop(true);
+      item._migrate.stop(true);
     }
 
     // If item is being released reset release data.
     if (item.isReleasing()) {
-      release._reset();
+      release.reset();
     }
 
     // Setup drag data.
@@ -4214,14 +4170,14 @@ New features for v0.4.x
   /**
    * Drag move handler.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._onMove = function (e) {
+  Drag.prototype.onMove = function (e) {
 
     var drag = this;
-    var item = drag._getItem();
+    var item = drag.getItem();
     var element;
     var grid;
     var settings;
@@ -4231,12 +4187,12 @@ New features for v0.4.x
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      drag._stop();
+      drag.stop();
       return;
     }
 
     element = item._element;
-    grid = drag._getGrid();
+    grid = drag.getGrid();
     settings = grid._settings;
     dragData = drag._data;
 
@@ -4275,16 +4231,16 @@ New features for v0.4.x
   /**
    * Drag scroll handler.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._onScroll = function (e) {
+  Drag.prototype.onScroll = function (e) {
 
     var drag = this;
-    var item = drag._getItem();
+    var item = drag.getItem();
     var element = item._element;
-    var grid = drag._getGrid();
+    var grid = drag.getGrid();
     var settings = grid._settings;
     var dragData = drag._data;
     var gridContainer = grid._element;
@@ -4327,16 +4283,16 @@ New features for v0.4.x
   /**
    * Drag end handler.
    *
-   * @protected
+   * @public
    * @memberof Drag.prototype
    * @returns {Drag}
    */
-  Drag.prototype._onEnd = function (e) {
+  Drag.prototype.onEnd = function (e) {
 
     var drag = this;
-    var item = drag._getItem();
+    var item = drag.getItem();
     var element = item._element;
-    var grid = drag._getGrid();
+    var grid = drag.getGrid();
     var settings = grid._settings;
     var dragData = drag._data;
     var release = item._release;
@@ -4344,7 +4300,7 @@ New features for v0.4.x
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      drag._stop();
+      drag.stop();
       return;
     }
 
@@ -4366,17 +4322,17 @@ New features for v0.4.x
     release.containerDiffY = dragData.containerDiffY;
 
     // Reset drag data.
-    drag._reset();
+    drag.reset();
 
     // Emit dragEnd event.
     grid._emitter.emit(evDragEnd, e, item);
 
     // Finish up the migration process or start the release process.
     if (drag._isMigrating) {
-      drag._finishMigration();
+      drag.finishMigration();
     }
     else {
-      release._start();
+      release.start();
     }
 
     return drag;

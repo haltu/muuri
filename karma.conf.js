@@ -6,6 +6,8 @@ module.exports = function (config) {
     plugins: [
       'karma-qunit',
       'karma-chrome-launcher',
+      'karma-firefox-launcher',
+      'karma-ie-launcher',
       'karma-sauce-launcher',
       'karma-story-reporter'
     ],
@@ -14,7 +16,7 @@ module.exports = function (config) {
       './node_modules/velocity-animate/velocity.js',
       './node_modules/prosthetic-hand/dist/prosthetic-hand.js',
       './node_modules/mezr/mezr.js',
-      pkg.main,
+      './' + pkg.main,
       './tests/index.js',
       './tests/utils.js',
       './tests/grid-constructor/*.js',

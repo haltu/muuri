@@ -4,9 +4,20 @@
 
   QUnit.module('Grid methods');
 
-  QUnit.test('layout: Muuri instance should have a layout method', function (assert) {
+  QUnit.test('layout: should return the instance', function (assert) {
+
     assert.expect(1);
-    assert.strictEqual(typeof Muuri.prototype.layout, 'function');
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.layout(), grid);
+    teardown();
+
   });
 
 })(this);

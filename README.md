@@ -95,10 +95,10 @@ Include Muuri inside the *body* element in your site and make sure to include th
 
 ### 5. Add the styles
 
-* The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
+* The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element's width/height depending on the area the items cover and the layout algorithm configuration.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
 * The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
-* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the container element's content with padding excluded (intentionally) to provide more control over the gutter spacing. Normally an absolutely positioned element is positioned relative to the containing element's content with padding included.
+* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the container element's content with padding excluded (intentionally) to provide more control over the gutter spacing (normally an absolutely positioned element is positioned relative to the containing element's content with padding included).
 
 ```css
 .grid {
@@ -537,7 +537,7 @@ var grid = new Muuri(elem, {
 
 ### dragContainer &nbsp;
 
-Which item the dragged item should be appended to for the duration of the drag? If `null` the container element will be used.
+The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid's container element will be used. Note that the provided element should be "positioned" meaning that it's CSS position property should be *relative*, *absolute* or *fixed*.
 
 * Default value: `null`.
 * Accepted types: element, null.
@@ -1259,7 +1259,7 @@ Move an item into another grid.
 * **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
   * To which position should the item be placed to in the new grid? You can define the position with an item instance, element or index.
 * **options.appendTo** &nbsp;&mdash;&nbsp; *element*
-  * To which element should the item element be appended to for the duration of the send animation?
+  * Which element the item element should be appended to for the duration of the layout animation? Note that the provided element should be "positioned" meaning that it's CSS position property should be *relative*, *absolute* or *fixed*.
   * Default value: `document.body`.
 * **options.layoutSender** &nbsp;&mdash;&nbsp; *boolean / function / string*
   * By default `grid.layout()` is called for the sending grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.

@@ -4,6 +4,22 @@
 
   QUnit.module('Grid methods');
 
+  QUnit.test('synchronize: should return the instance', function (assert) {
+
+    assert.expect(1);
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.synchronize(), grid);
+    teardown();
+
+  });
+
   QUnit.test('synchronize: should order the dom elements to match the order of items', function (assert) {
 
     assert.expect(2);

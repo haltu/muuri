@@ -4,9 +4,20 @@
 
   QUnit.module('Grid methods');
 
-  QUnit.test('filter: Muuri instance should have a filter method', function (assert) {
+  QUnit.test('filter: should return the instance', function (assert) {
+
     assert.expect(1);
-    assert.strictEqual(typeof Muuri.prototype.filter, 'function');
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.filter(function () {}), grid);
+    teardown();
+
   });
 
 })(this);

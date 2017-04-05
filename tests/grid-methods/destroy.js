@@ -4,9 +4,20 @@
 
   QUnit.module('Grid methods');
 
-  QUnit.test('destroy: Muuri instance should have a destroy method', function (assert) {
+  QUnit.test('destroy: should return the instance', function (assert) {
+
     assert.expect(1);
-    assert.strictEqual(typeof Muuri.prototype.destroy, 'function');
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.destroy(), grid);
+    teardown();
+
   });
 
 })(this);

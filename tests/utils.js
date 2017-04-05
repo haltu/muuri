@@ -119,6 +119,11 @@
     }
   };
 
+  utils.matches = function (el, selector) {
+    var p = Element.prototype;
+    return (p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector).call(el, selector);
+  };
+
   utils.isScrollEvent = function (e) {
 
     return e.type === 'scroll';

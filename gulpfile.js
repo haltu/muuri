@@ -14,14 +14,14 @@ if (fs.existsSync('./.env')) {
 }
 
 gulp.task('lint', function () {
-  return gulp.src(pkg.main)
+  return gulp.src('./' + pkg.main)
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
 });
 
 gulp.task('compress', function() {
-  return gulp.src(pkg.main)
+  return gulp.src('./' + pkg.main)
     .pipe(size({title: 'development'}))
     .pipe(uglify({preserveComments: 'some'}))
     .pipe(size({title: 'minified'}))
@@ -44,16 +44,7 @@ gulp.task('test-sauce', function (done) {
   (new karma.Server({
     configFile: __dirname + '/karma.conf.js',
     action: 'run',
-    browsers: [
-      'slChromeWin',
-      'slChromeMac',
-      'slChromeLinux',
-      'slFirefoxWin',
-      'slFirefoxMac',
-      'slFirefoxLinux',
-      'slSafari',
-      'slEdge'
-    ]
+    browsers: ['slChromeWin']
   }, function (exitCode) {
     done(exitCode);
   })).start();

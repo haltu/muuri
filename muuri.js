@@ -86,18 +86,14 @@ TODO v0.3.0
 * [x] Consider merging dragReceive event to receive event. Done.
 * [x] Consider renaming dragSortConnections -> dragSortWith
 * [x] add .once() method for triggering a listener only once.
-* [-] Create a "migrator" class that handles migrations for both the send method
-      and when dragging an item from a grid to another.
-* [ ] When checking the overlap in onEnd drag handler, don't check it if the
-      cursor has not moved and the coordinate is already checked. We need to
-      keep track of the last place the overlap was checked for. Otherwise this
-      might cause wonky behaviour in some scenarios.
+* [ ] Consider adding some configurable properties to the default drag start
+      predicate. If we would have handle(s) option it would make building
+      nested grids much easier.
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
       The practical use case for this would be a kanban board where the columns
       themselves and their items would be draggable. Let's try to make this work
       if there are any issues with it.
-* [ ] Review the codebase and comments with thought x 3.
 
 Optional optimization for v0.3.x
 ================================
@@ -783,7 +779,7 @@ New features for v0.4.x
     }
 
     // Emit synchronize event.
-    inst._emitter.emit(evSynchronize);
+    inst._emit(evSynchronize);
 
     return inst;
 
@@ -801,7 +797,6 @@ New features for v0.4.x
   Grid.prototype.layout = function (instant, onFinish) {
 
     var inst = this;
-    var emitter = inst._emitter;
     var callback = typeof instant === typeFunction ? instant : onFinish;
     var isInstant = instant === true;
     var counter = 0;
@@ -830,7 +825,7 @@ New features for v0.4.x
           callback(inst._layout !== layout, items.concat());
         }
         if (inst._layout === layout) {
-          emitter.emit(evLayoutEnd, items.concat());
+          inst._emit(evLayoutEnd, items.concat());
         }
       }
     }
@@ -842,7 +837,7 @@ New features for v0.4.x
     counter = items.length;
 
     // Emit layoutStart event.
-    emitter.emit(evLayoutStart, items.concat());
+    inst._emit(evLayoutStart, items.concat());
 
     // If grid's width or height was modified, we need to update it's cached
     // dimensions. Also keep in mind that grid's cached width/height should
@@ -986,7 +981,7 @@ New features for v0.4.x
     insertItemsToArray(items, newItems, opts.index);
 
     // Emit add event.
-    inst._emitter.emit(evAdd, newItems.concat());
+    inst._emit(evAdd, newItems.concat());
 
     // If layout is needed.
     if (needsLayout && layout) {
@@ -1035,7 +1030,7 @@ New features for v0.4.x
     }
 
     // Emit remove event.
-    inst._emitter.emit(evRemove, targetItems.concat());
+    inst._emit(evRemove, targetItems.concat());
 
     // If layout is needed.
     if (needsLayout && layout) {
@@ -1173,7 +1168,7 @@ New features for v0.4.x
     if (itemsToShow.length || itemsToHide.length) {
 
       // Emit filter event.
-      inst._emitter.emit(evFilter, itemsToShow.concat(), itemsToHide.concat());
+      inst._emit(evFilter, itemsToShow.concat(), itemsToHide.concat());
 
       // If layout is needed.
       if (layout) {
@@ -1253,7 +1248,7 @@ New features for v0.4.x
     }
 
     // Emit sort event.
-    inst._emitter.emit(evSort, items.concat(), origItems);
+    inst._emit(evSort, items.concat(), origItems);
 
     // If layout is needed.
     if (layout) {
@@ -1311,7 +1306,7 @@ New features for v0.4.x
       (isSwap ? arraySwap : arrayMove)(items, fromIndex, toIndex);
 
       // Emit move event.
-      inst._emitter.emit(evMove, {
+      inst._emit(evMove, {
         item: fromItem,
         fromIndex: fromIndex,
         toIndex: toIndex,
@@ -1424,7 +1419,8 @@ New features for v0.4.x
     });
 
     // Emit destroy event and unbind all events.
-    inst._emitter.emit(evDestroy).destroy();
+    inst._emit(evDestroy);
+    inst._emitter.destroy();
 
     // Remove reference from the grid instances collection.
     gridInstances[inst._id] = undefined;
@@ -1494,6 +1490,27 @@ New features for v0.4.x
       }
       return ret;
     }
+
+  };
+
+  /**
+   * Bind an event listener.
+   *
+   * @protected
+   * @memberof Grid.prototype
+   * @param {String} event
+   * @param {*} [arg1]
+   * @param {*} [arg2]
+   * @param {*} [arg3]
+   * @returns {Grid}
+   */
+  Grid.prototype._emit = function () {
+
+    if (!this._isDestroyed) {
+      this._emitter.emit.apply(this._emitter, arguments);
+    }
+
+    return this;
 
   };
 
@@ -2751,13 +2768,9 @@ New features for v0.4.x
   Emitter.prototype.once = function (event, listener) {
 
     var inst = this;
-    return this.on(event, function callback(arg1, arg2, arg3) {
-      var argsLength = arguments.length;
+    return this.on(event, function callback() {
       inst.off(event, callback);
-      argsLength === 0 ? listener() :
-      argsLength === 1 ? listener(arg1) :
-      argsLength === 2 ? listener(arg1, arg2) :
-                         listener(arg1, arg2, arg3);
+      listener.apply(null, arguments);
     });
 
   };
@@ -3177,7 +3190,7 @@ New features for v0.4.x
     migrate.containerDiffY = offsetDiff.top;
 
     // Emit send event.
-    currentGrid._emitter.emit(evSend, {
+    currentGrid._emit(evSend, {
       item: item,
       fromGrid: currentGrid,
       fromIndex: currentIndex,
@@ -3186,7 +3199,7 @@ New features for v0.4.x
     });
 
     // Emit receiveStart event.
-    targetGrid._emitter.emit(evReceive, {
+    targetGrid._emit(evReceive, {
       item: item,
       fromGrid: currentGrid,
       fromIndex: currentIndex,
@@ -3368,7 +3381,7 @@ New features for v0.4.x
     addClass(element, grid._settings.itemReleasingClass);
 
     // Emit dragReleaseStart event.
-    grid._emitter.emit(evDragReleaseStart, item);
+    grid._emit(evDragReleaseStart, item);
 
     // Position the released item.
     item._layout(false);
@@ -3428,7 +3441,7 @@ New features for v0.4.x
 
     // Emit dragReleaseEnd event.
     if (!abort) {
-      grid._emitter.emit(evDragReleaseEnd, item);
+      grid._emit(evDragReleaseEnd, item);
     }
 
     return release;
@@ -3841,7 +3854,7 @@ New features for v0.4.x
       (sortAction === 'swap' ? arraySwap : arrayMove)(currentGrid._items, currentIndex, targetIndex);
 
       // Emit move event.
-      currentGrid._emitter.emit(evMove, {
+      currentGrid._emit(evMove, {
         item: item,
         fromIndex: currentIndex,
         toIndex: targetIndex,
@@ -3872,7 +3885,7 @@ New features for v0.4.x
       item._sortData = null;
 
       // Emit send event.
-      currentGrid._emitter.emit(evSend, {
+      currentGrid._emit(evSend, {
         item: item,
         fromGrid: currentGrid,
         fromIndex: currentIndex,
@@ -3881,7 +3894,7 @@ New features for v0.4.x
       });
 
       // Emit receive event.
-      targetGrid._emitter.emit(evReceive, {
+      targetGrid._emit(evReceive, {
         item: item,
         fromGrid: currentGrid,
         fromIndex: currentIndex,
@@ -4161,7 +4174,7 @@ New features for v0.4.x
     addClass(element, settings.itemDraggingClass);
 
     // Emit dragStart event.
-    grid._emitter.emit(evDragStart, e, item);
+    grid._emit(evDragStart, e, item);
 
     return drag;
 
@@ -4222,7 +4235,7 @@ New features for v0.4.x
     }
 
     // Emit dragMove event.
-    grid._emitter.emit(evDragMove, e, item);
+    grid._emit(evDragMove, e, item);
 
     return drag;
 
@@ -4274,7 +4287,7 @@ New features for v0.4.x
     }
 
     // Emit dragScroll event.
-    grid._emitter.emit(evDragScroll, e, item);
+    grid._emit(evDragScroll, e, item);
 
     return drag;
 
@@ -4325,7 +4338,7 @@ New features for v0.4.x
     drag.reset();
 
     // Emit dragEnd event.
-    grid._emitter.emit(evDragEnd, e, item);
+    grid._emit(evDragEnd, e, item);
 
     // Finish up the migration process or start the release process.
     if (drag._isMigrating) {
@@ -5389,7 +5402,7 @@ New features for v0.4.x
     else {
 
       // Emit showStart/hideStart event.
-      inst._emitter.emit(startEvent, affectedItems.concat());
+      inst._emit(startEvent, affectedItems.concat());
 
       // Show/hide items.
       for (i = 0; i < affectedItems.length; i++) {
@@ -5429,7 +5442,7 @@ New features for v0.4.x
             if (typeof callback === typeFunction) {
               callback(completedItems.concat());
             }
-            inst._emitter.emit(endEvent, completedItems.concat());
+            inst._emit(endEvent, completedItems.concat());
           }
 
         });

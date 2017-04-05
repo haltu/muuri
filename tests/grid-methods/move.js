@@ -4,9 +4,20 @@
 
   QUnit.module('Grid methods');
 
-  QUnit.test('move: Muuri instance should have a move method', function (assert) {
+  QUnit.test('move: should return the instance', function (assert) {
+
     assert.expect(1);
-    assert.strictEqual(typeof Muuri.prototype.move, 'function');
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.move(0, -1), grid);
+    teardown();
+
   });
 
 })(this);

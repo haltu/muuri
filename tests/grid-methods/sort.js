@@ -4,9 +4,20 @@
 
   QUnit.module('Grid methods');
 
-  QUnit.test('sort: Muuri instance should have a sort method', function (assert) {
+  QUnit.test('sort: should return the instance', function (assert) {
+
     assert.expect(1);
-    assert.strictEqual(typeof Muuri.prototype.sort, 'function');
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.sort(function () {}), grid);
+    teardown();
+
   });
 
 })(this);

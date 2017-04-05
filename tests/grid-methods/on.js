@@ -4,6 +4,22 @@
 
   QUnit.module('Grid methods');
 
+  QUnit.test('on: should return the instance', function (assert) {
+
+    assert.expect(1);
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.on('foo', function () {}), grid);
+    teardown();
+
+  });
+
   QUnit.test('on: should bind an event listener', function (assert) {
 
     assert.expect(3);

@@ -4,9 +4,21 @@
 
   QUnit.module('Grid methods');
 
-  QUnit.test('add: Muuri instance should have an add method', function (assert) {
+  QUnit.test('add: should return the added items', function (assert) {
+
     assert.expect(1);
-    assert.strictEqual(typeof Muuri.prototype.add, 'function');
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.deepEqual(grid.add(elem), grid.getItems(elem));
+    teardown();
+
   });
 
 })(this);

@@ -4,9 +4,20 @@
 
   QUnit.module('Grid methods');
 
-  QUnit.test('refreshSortData: Muuri instance should have a refreshSortData method', function (assert) {
+  QUnit.test('refreshSortData: should return the instance', function (assert) {
+
     assert.expect(1);
-    assert.strictEqual(typeof Muuri.prototype.refreshSortData, 'function');
+
+    var container = utils.createGridElements().container;
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(grid.refreshSortData(), grid);
+    teardown();
+
   });
 
 })(this);

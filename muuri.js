@@ -4174,7 +4174,7 @@ New features for v0.4.x
     addClass(element, settings.itemDraggingClass);
 
     // Emit dragStart event.
-    grid._emit(evDragStart, e, item);
+    grid._emit(evDragStart, item, e);
 
     return drag;
 
@@ -4235,7 +4235,7 @@ New features for v0.4.x
     }
 
     // Emit dragMove event.
-    grid._emit(evDragMove, e, item);
+    grid._emit(evDragMove, item, e);
 
     return drag;
 
@@ -4287,7 +4287,7 @@ New features for v0.4.x
     }
 
     // Emit dragScroll event.
-    grid._emit(evDragScroll, e, item);
+    grid._emit(evDragScroll, item, e);
 
     return drag;
 
@@ -4338,7 +4338,7 @@ New features for v0.4.x
     drag.reset();
 
     // Emit dragEnd event.
-    grid._emit(evDragEnd, e, item);
+    grid._emit(evDragEnd, item, e);
 
     // Finish up the migration process or start the release process.
     if (drag._isMigrating) {

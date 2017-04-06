@@ -38,10 +38,10 @@
       body.scrollTop = 100;
     });
 
-    grid.on('dragScroll', function (ev, draggedItem) {
+    grid.on('dragScroll', function (draggedItem, ev) {
       assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
-      assert.strictEqual(utils.isScrollEvent(ev), true, 'callback: first argument should be a scroll event object');
-      assert.strictEqual(draggedItem, item, 'callback: second argument should be the dragged item');
+      assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
+      assert.strictEqual(utils.isScrollEvent(ev), true, 'callback: second argument should be a scroll event object');
       ++calls;
     });
 

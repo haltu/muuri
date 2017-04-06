@@ -85,6 +85,10 @@ $(function () {
         dragSortWith: ['a']
       });
 
+      muuri.on('dragMove', function (item, e) {
+        console.log(e);
+      });
+
       $grid.data('muuri', muuri);
 
       $(document).on('click', '.item', function (e) {

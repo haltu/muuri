@@ -24,11 +24,11 @@
       isStartCalled = true;
     });
 
-    grid.on('dragMove', function (ev, draggedItem) {
+    grid.on('dragMove', function (draggedItem, ev) {
       if (!calls) {
         assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
-        assert.strictEqual(utils.isHammerEvent(ev), true, 'callback: first argument should be a hammer event object');
-        assert.strictEqual(draggedItem, item, 'callback: second argument should be the dragged item');
+        assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
+        assert.strictEqual(utils.isHammerEvent(ev), true, 'callback: second argument should be a hammer event object');
         assert.strictEqual(isStartCalled, true, 'callback: should be called after dragStart');
       }
       ++calls;

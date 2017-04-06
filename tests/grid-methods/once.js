@@ -4,7 +4,7 @@
 
   QUnit.module('Grid methods');
 
-  QUnit.test('on: should return the instance', function (assert) {
+  QUnit.test('once: should return the instance', function (assert) {
 
     assert.expect(1);
 
@@ -15,12 +15,12 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.strictEqual(grid.on('foo', function () {}), grid);
+    assert.strictEqual(grid.once('foo', function () {}), grid);
     teardown();
 
   });
 
-  QUnit.test('on: should bind an event listener', function (assert) {
+  QUnit.test('once: should bind an event listener that is triggered only once', function (assert) {
 
     assert.expect(1);
 
@@ -35,9 +35,9 @@
       container.parentNode.removeChild(container);
     };
 
-    grid.on('synchronize', callback);
+    grid.once('synchronize', callback);
     grid.synchronize().synchronize().synchronize();
-    assert.strictEqual(calls, 3, 'should execute the listeners when event is emitted');
+    assert.strictEqual(calls, 1, 'should execute the listener once when event is emitted');
     teardown();
 
   });

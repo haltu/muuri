@@ -1640,13 +1640,13 @@ Triggered when dragging of an item begins.
 
 **Arguments**
 
-* **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * Hammer.js event data.
 
 ```javascript
-grid.on('dragStart', function (event, item) {
+grid.on('dragStart', function (item, event) {
   console.log(event);
   console.log(item);
 });
@@ -1658,13 +1658,13 @@ Triggered when an item is dragged.
 
 **Arguments**
 
-* **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * Hammer.js event data.
 
 ```javascript
-grid.on('dragMove', function (event, item) {
+grid.on('dragMove', function (item, event) {
   console.log(event);
   console.log(item);
 });
@@ -1676,13 +1676,13 @@ Triggered when any of the scroll parents of a dragged item is scrolled.
 
 **Arguments**
 
-* **event** &nbsp;&mdash;&nbsp; *object*
-  * The scroll event data.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * The scroll event data.
 
 ```javascript
-grid.on('dragScroll', function (event, item) {
+grid.on('dragScroll', function (item, event) {
   console.log(event);
   console.log(item);
 });
@@ -1694,13 +1694,13 @@ Triggered when dragging of an item ends.
 
 **Arguments**
 
-* **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * Hammer.js event data.
 
 ```javascript
-grid.on('dragEnd', function (event, item) {
+grid.on('dragEnd', function (item, event) {
   console.log(event);
   console.log(item);
 });

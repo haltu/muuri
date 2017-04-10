@@ -4,18 +4,16 @@
 
   QUnit.module('Grid options');
 
-  QUnit.test('dragStartPredicate: should allow customizing the drag start condition', function (assert) {
+  QUnit.test('dragStartPredicate: should receive the dragged item and current hammer event as it`s arguments', function (assert) {
 
-    assert.expect(5);
+    assert.expect(3);
 
     var done = assert.async();
     var container = utils.createGridElements().container;
     var isChecked = false;
-    var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragStartPredicate: function (draggedItem, ev) {
-        ++counter;
         if (!isChecked) {
           assert.strictEqual(arguments.length, 2, 'predicate should receive two aguments');
           assert.strictEqual(draggedItem, item, 'predicate first argument should be the dragged item');
@@ -33,11 +31,6 @@
     };
 
     grid.on('dragStart', function () {
-      assert.strictEqual(true, true, 'predicate should start dragging when it returns true');
-    });
-
-    grid.on('dragReleaseStart', function () {
-      assert.strictEqual(counter, 2, 'predicate should be called');
       teardown();
     });
 
@@ -135,7 +128,7 @@
 
   });
 
-  QUnit.test('dragStartPredicate: returning nothing should keep calling the predicate and not start the drag procedure', function (assert) {
+  QUnit.test('dragStartPredicate: returning nothing (undefined) should keep calling the predicate and not start the drag procedure', function (assert) {
 
     assert.expect(1);
 

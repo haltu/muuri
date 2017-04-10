@@ -561,7 +561,7 @@ The predicate function receives two arguments:
 
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The item that's being dragged.
-* **event**  &nbsp;&mdash;&nbsp; *object*
+* **event** &nbsp;&mdash;&nbsp; *object*
   * The drag event (Hammer.js event).
 
 ```javascript
@@ -629,18 +629,22 @@ Alternatively you can provide your own callback function where you can define yo
 
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The item that's being dragged.
-* **event**  &nbsp;&mdash;&nbsp; *object*
+* **event** &nbsp;&mdash;&nbsp; *object*
   * The drag event (Hammer.js event).
 
 The callback should return a *falsy* value if sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties:
 
-* **grid**  &nbsp;&mdash;&nbsp; *Muuri*
-  * The grid where the item should be placed.
-* **index**  &nbsp;&mdash;&nbsp; *number*
+* **index** &nbsp;&mdash;&nbsp; *number*
   * The index where the item should be moved to.
-* **action**  &nbsp;&mdash;&nbsp; *string*
+* **grid** &nbsp;&mdash;&nbsp; *Muuri*
+  * The grid where the item should be moved to.
+  * Defaults to the item's current grid.
+  * Optional.
+* **action** &nbsp;&mdash;&nbsp; *string*
   * The movement method.
+  * Default value: `'move'`.
   * Allowed values: `'move'` or `'swap'`.
+  * Optional.
 
 ```javascript
 // Customize the default predicate.
@@ -656,9 +660,8 @@ var grid = new Muuri(elem, {
   dragSortPredicate: function (item, e) {
     if (e.deltaTime > 1000) {
       return {
-        grid: item.getGrid(),
         index: Math.round(e.deltaTime / 1000) % 2 === 0 ? -1 : 0,
-        action: 'move'
+        action: 'swap'
       };
     }
   }

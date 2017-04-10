@@ -1193,7 +1193,7 @@ New features for v0.4.x
    *
    * @public
    * @memberof Grid.prototype
-   * @param {(Function|String|String[])} comparer
+   * @param {(Function|Item[]|String|String[])} comparer
    * @param {Object} [options]
    * @param {Boolean} [options.descending=false]
    * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
@@ -1237,9 +1237,8 @@ New features for v0.4.x
 
     // Otherwise if we got an array, let's assume it's a presorted array of the
     // items and order the items based on it.
-    // TODO: This one could do with some sanity checks.
     else if (Array.isArray(comparer)) {
-      Array.prototype.splice.apply(items, [0, items.length].concat(comparer));
+      sortItemsByReference(items, comparer);
     }
 
     // Otherwise, let's go home.
@@ -3829,15 +3828,15 @@ New features for v0.4.x
 
     var drag = this;
     var item = drag.getItem();
-    var dragEvent = drag._data.currentEvent;
-    var result = drag._sortPredicate(item, dragEvent);
+    var result = drag._sortPredicate(item, drag._data.currentEvent);
     var currentGrid;
     var currentIndex;
     var targetGrid;
     var targetIndex;
     var sortAction;
 
-    if (!result) {
+    // Let's make sure the result object has a valid index before going further.
+    if (!isPlainObject(result) || typeof result.index !== typeNumber) {
       return drag;
     }
 
@@ -3845,24 +3844,32 @@ New features for v0.4.x
     currentIndex = currentGrid._items.indexOf(item);
     targetGrid = result.grid || currentGrid;
     targetIndex = result.index;
-    sortAction = result.action || 'move';
+    sortAction = result.action === 'swap' ? 'swap' : 'move';
 
     // If the item was moved within it's current grid.
     if (currentGrid === targetGrid) {
 
-      // Do the sort.
-      (sortAction === 'swap' ? arraySwap : arrayMove)(currentGrid._items, currentIndex, targetIndex);
+      // Normalize target index.
+      targetIndex = normalizeArrayIndex(currentGrid._items, targetIndex);
 
-      // Emit move event.
-      currentGrid._emit(evMove, {
-        item: item,
-        fromIndex: currentIndex,
-        toIndex: targetIndex,
-        action: sortAction
-      });
+      // Make sure the target index is not the current index.
+      if (currentIndex !== targetIndex) {
 
-      // Layout the grid.
-      currentGrid.layout();
+        // Do the sort.
+        (sortAction === 'swap' ? arraySwap : arrayMove)(currentGrid._items, currentIndex, targetIndex);
+
+        // Emit move event.
+        currentGrid._emit(evMove, {
+          item: item,
+          fromIndex: currentIndex,
+          toIndex: targetIndex,
+          action: sortAction
+        });
+
+        // Layout the grid.
+        currentGrid.layout();
+
+      }
 
     }
 
@@ -3878,6 +3885,9 @@ New features for v0.4.x
       // Move item instance from current grid to target grid.
       currentGrid._items.splice(currentIndex, 1);
       insertItemsToArray(targetGrid._items, item, targetIndex);
+
+      // Get the final target index for event data.
+      targetIndex = targetGrid._items.indexOf(item);
 
       // Set sort data as null, which is an indicator for the item comparison
       // function that the sort data of this specific item should be fetched
@@ -5334,6 +5344,37 @@ New features for v0.4.x
     }
 
     return ret;
+
+  }
+
+  /**
+   * Reorder an array of items based on another array of items.
+   *
+   * @private
+   * @param {Item[]} items
+   * @param {Item[]} refItems
+   * @returns {Item[]}
+   */
+  function sortItemsByReference(items, refItems) {
+
+    var newItems = [];
+    var currentItems = items.concat();
+    var item;
+    var currentIndex;
+    var i;
+
+    for (i = 0; i < refItems.length; i++) {
+      item = refItems[i];
+      currentIndex = currentItems.indexOf(item);
+      if (currentIndex > -1) {
+        newItems.push(item);
+        currentItems.splice(currentIndex, 1);
+      }
+    }
+
+    Array.prototype.splice.apply(items, [0, items.length].concat(newItems).concat(currentItems));
+
+    return items;
 
   }
 

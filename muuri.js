@@ -86,6 +86,10 @@ TODO v0.3.0
 * [x] Consider merging dragReceive event to receive event. Done.
 * [x] Consider renaming dragSortConnections -> dragSortWith
 * [x] add .once() method for triggering a listener only once.
+* [ ] Consider refactoring the show/hide options into their separate options:
+      showDuration/hideDuration, showEasing/hideEasing and showStyles/
+      hideStyles. Having a totally custom show/hideanimation should probably be
+      a hidden feature behind an undocumented option.
 * [ ] Consider adding some configurable properties to the default drag start
       predicate. If we would have handle(s) option it would make building
       nested grids much easier.

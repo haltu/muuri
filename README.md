@@ -48,7 +48,7 @@ bower install muuri
 ### 2. Get the dependencies
 
 Muuri depends on the following libraries:
-* [Velocity](https://github.com/julianshapiro/velocity) (v1.0.0+)
+* [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
   * By default Muuri users Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting `Muuri.AnimateLayout` and `Muuri.AnimateVisibility` constructors. If you overwrite those constructors with your own implementation Muuri detects it and Velocity is no longer required as a dependency.
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
   * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.Drag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.Drag` constructor with your own implementation (fingers crossed).
@@ -272,8 +272,8 @@ var gridB = new Muuri('.grid-b', {
 
 The initial item elements, which should be children of the container element. All elements that are not children of the container will be appended to the container. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
 
-  * Default value: `'*'`.
-  * Accepted types: array (of elements), [node list](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), string, null.
+* Default value: `'*'`.
+* Accepted types: array (of elements), [node list](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), string, null.
 
 ```javascript
 // Use specific items.
@@ -294,37 +294,20 @@ var grid = new Muuri(elem, {
 
 ### show &nbsp;
 
-Defines the show animation. Set to `null` to disable show animation completely.
+Defines the show animation.
 
-  * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, scale: 1}}`.
-  * Accepted types: function, object, null.
-
-When an object is provided Muuri's built-in animation engine is used and allows configuring the animation with following properties:
+* Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, scale: 1}}`.
+* Accepted types: object.
 
 * **duration** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
-  * Animation duration in milliseconds.
+  * Animation duration in milliseconds. Set to `0` to disable the animation.
 * **easing** &nbsp;&mdash;&nbsp; *array* / *string*
   * Default value: `'ease'`.
   * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 * **styles** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{opacity: 1, scale: 1}`.
   * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for the animation.
-
-By providing a function you can define a fully customized animation. The function should return an object that contains the following methods:
-
-* **start** &nbsp;&mdash;&nbsp; *function*
-  * A function that starts the animation. Receives three arguments:
-    * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The animated item.
-    * **instant** &nbsp;&mdash;&nbsp; *boolean*
-      * A boolean that determines if the styles should be applied instantly or with animation. If this is `true` the styles should be applied instantly instead of being animated.
-    * **onFinish** &nbsp;&mdash;&nbsp; *function*
-      * A function that should be called after the animation is successfully finished.
-* **stop** &nbsp;&mdash;&nbsp; *function*
-  * A function that stops the current animation (if running). Receives one argument:
-    * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The animated item.
 
 ```javascript
 var grid = new Muuri(elem, {
@@ -341,37 +324,20 @@ var grid = new Muuri(elem, {
 
 ### hide &nbsp;
 
-Defines the hide animation. Set to `null` to disable hide animation completely.
+Defines the hide animation.
 
-  * Default value: `{duration: 300, easing: 'ease', styles: {opacity: 0, scale: 0.5}}`.
-  * Accepted types: function, object, null.
-
-When an object is provided Muuri's built-in animation engine is used and allows configuring the animation with following properties:
+* Default value: `{duration: 300, easing: 'ease', styles: {opacity: 0, scale: 0.5}}`.
+* Accepted types: object.
 
 * **duration** &nbsp;&mdash;&nbsp; *number*
   * Default value: `300`.
-  * Animation duration in milliseconds.
+  * Animation duration in milliseconds. Set to `0` to disable the animation.
 * **easing** &nbsp;&mdash;&nbsp; *array* / *string*
   * Default value: `'ease'`.
   * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
 * **styles** &nbsp;&mdash;&nbsp; *object*
   * Default value: `{opacity: 0, scale: 0.5}`.
   * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for the animation.
-
-By providing a function you can define a fully customized animation. The function should return an object that contains the following methods:
-
-* **start** &nbsp;&mdash;&nbsp; *function*
-  * A function that starts the animation. Receives three arguments:
-    * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-      * The animated item.
-    * **instant** &nbsp;&mdash;&nbsp; *boolean*
-      * A boolean that determines if the styles should be applied instantly or with animation. If this is `true` the styles should be applied instantly instead of being animated.
-    * **onFinish** &nbsp;&mdash;&nbsp; *function*
-      * A function that should be called after the animation is successfully finished.
-* **stop** &nbsp;&mdash;&nbsp; *function*
-    * A function that stops the current animation (if running). Receives one argument:
-      * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-        * The animated item.
 
 ```javascript
 var grid = new Muuri(elem, {
@@ -390,8 +356,8 @@ var grid = new Muuri(elem, {
 
 Define how the items will be laid out.
 
-  * Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
-  * Accepted types: function, object.
+* Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
+* Accepted types: function, object.
 
 Provide an object to configure the default layout algorithm with the following properties:
 

@@ -31,7 +31,7 @@
   },
   "optionalDependencies": {
     "hammerjs": "^2.0.0",
-    "velocity-animate": "^1.0.0"
+    "velocity-animate": "^1.2.0"
   },
   "devDependencies": {
     "dotenv": "^4.0.0",

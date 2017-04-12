@@ -1086,11 +1086,10 @@ New features for v0.4.x
    * either a function or a string. The predicate callback is executed for every
    * item in the instance. If the return value of the predicate is truthy the
    * item in question will be shown and otherwise hidden. The predicate callback
-   * receives two arguments: the item instance and the instance's element. If
-   * the predicate is a string it is considered to be a selector and it is
-   * checked against every item element in the instance with the native
-   * element.matches() method. All the matching items will be shown and others
-   * hidden.
+   * receives the item instance as it's argument. If the predicate is a string
+   * it is considered to be a selector and it is checked against every item
+   * element in the instance with the native element.matches() method. All the
+   * matching items will be shown and others hidden.
    *
    * @public
    * @memberof Grid.prototype
@@ -1135,7 +1134,7 @@ New features for v0.4.x
     if (isPredicateFn || isPredicateString) {
       for (i = 0; i < items.length; i++) {
         item = items[i];
-        if (isPredicateFn ? predicate(item, item._element) : elementMatches(item._element, predicate)) {
+        if (isPredicateFn ? predicate(item) : elementMatches(item._element, predicate)) {
           itemsToShow.push(item);
         }
         else {

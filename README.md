@@ -1110,7 +1110,7 @@ grid.hide([elemA, elemB], {onFinish: function (items) {
 
 ### grid.filter( predicate, [options] )
 
-Filter items. Expects at least one argument, a predicate, which should be either a function or a string. The predicate callback is executed for every item in the instance. If the return value of the predicate is truthy the item in question will be shown and otherwise hidden. The predicate callback receives two arguments: the item instance and the instance's element. If the predicate is a string it is considered to be a selector and it is checked against every item element in the instance with the native element.matches() method. All the matching items will be shown and others hidden.
+Filter items. Expects at least one argument, a predicate, which should be either a function or a string. The predicate callback is executed for every item in the instance. If the return value of the predicate is truthy the item in question will be shown and otherwise hidden. The predicate callback receives the item instance as it's argument. If the predicate is a string it is considered to be a selector and it is checked against every item element in the instance with the native element.matches() method. All the matching items will be shown and others hidden.
 
 **Parameters**
 
@@ -1130,8 +1130,8 @@ Filter items. Expects at least one argument, a predicate, which should be either
 
 ```javascript
 // Show all items that have the attribute "data-foo".
-grid.filter(function (item, element) {
-  return element.hasAttribute('data-foo');
+grid.filter(function (item) {
+  return item.getElement().hasAttribute('data-foo');
 });
 
 // Or simply just...

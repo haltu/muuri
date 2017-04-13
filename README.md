@@ -162,22 +162,26 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     // Item elements
     items: '*',
 
-    // Show/hide animations
-    show: {
-      duration: 300,
-      easing: 'ease',
-      styles: {
-        opacity: 1,
-        scale: 1
-      }
+    // Default show animation
+    showDuration: 300,
+    showEasing: 'ease',
+
+    // Default hide animation
+    hideDuration: 300,
+    hideEasing: 'ease',
+
+    // Custom show/hide animations
+    showAnimation: null,
+    hideAnimation: null,
+
+    // Item's visible/hidden state styles
+    visibleStyles: {
+      opacity: 1,
+      scale: 1
     },
-    hide: {
-      duration: 300,
-      easing: 'ease',
-      styles: {
-        opacity: 0,
-        scale: 0.5
-      }
+    hiddenStyles: {
+      opacity: 0,
+      scale: 0.5
     },
 
     // Layout
@@ -242,8 +246,12 @@ var gridB = new Muuri('.grid-b', {
 ### Grid options
 
 * [items](#items-)
-* [show](#show-)
-* [hide](#hide-)
+* [showDuration](#showduration-)
+* [showEasing](#showeasing-)
+* [hideDuration](#hideduration-)
+* [hideEasing](#hideeasing-)
+* [visibleStyles](#visiblestyles-)
+* [hiddenStyles](#hiddenstyles-)
 * [layout](#layout-)
 * [layoutOnResize](#layoutonresize-)
 * [layoutOnInit](#layoutoninit-)
@@ -292,62 +300,94 @@ var grid = new Muuri(elem, {
 });
 ```
 
-### show &nbsp;
+### showDuration &nbsp;
 
-Defines the show animation.
+Show animation duration in milliseconds. Set to `0` to disable show animation.
 
-* Default value: `{duration: 300, easing: 'ease', styles: {opacity: 1, scale: 1}}`.
-* Accepted types: object.
-
-* **duration** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `300`.
-  * Animation duration in milliseconds. Set to `0` to disable the animation.
-* **easing** &nbsp;&mdash;&nbsp; *array* / *string*
-  * Default value: `'ease'`.
-  * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
-* **styles** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{opacity: 1, scale: 1}`.
-  * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for the animation.
+* Default value: `300`.
+* Accepted types: number.
 
 ```javascript
 var grid = new Muuri(elem, {
-  show: {
-    duration: 600,
-    easing: 'ease-out',
-    styles: {
-      opacity: 1,
-      rotateZ: '45deg'
-    }
+  showDuration: 600
+});
+```
+
+### showEasing &nbsp;
+
+Show animation easing. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+
+* Default value: `'ease'`.
+* Accepted types: array, string.
+
+```javascript
+var grid = new Muuri(elem, {
+  showEasing: 'ease-out'
+});
+```
+
+### hideDuration &nbsp;
+
+Hide animation duration in milliseconds. Set to `0` to disable hide animation.
+
+* Default value: `300`.
+* Accepted types: number.
+
+```javascript
+var grid = new Muuri(elem, {
+  hideDuration: 600
+});
+```
+
+### hideEasing &nbsp;
+
+Hide animation easing. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+
+* Default value: `'ease'`.
+* Accepted types: array, string.
+
+```javascript
+var grid = new Muuri(elem, {
+  hideEasing: 'ease-out'
+});
+```
+
+### visibleStyles &nbsp;
+
+The styles that will be applied to all visible items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options.
+
+* Default value: `{opacity: 1, scale: 1}`.
+* Accepted types: object.
+
+```javascript
+var grid = new Muuri(elem, {
+  visibleStyles: {
+    opacity: 1,
+    rotateZ: '45deg'
+  },
+  hiddenStyles: {
+    opacity: 0,
+    rotateZ: '-45deg'
   }
 });
 ```
 
-### hide &nbsp;
+### hiddenStyles &nbsp;
 
-Defines the hide animation.
+The styles that will be applied to all hidden items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options.
 
-* Default value: `{duration: 300, easing: 'ease', styles: {opacity: 0, scale: 0.5}}`.
+* Default value: `{opacity: 0, scale: 0.5}`.
 * Accepted types: object.
-
-* **duration** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `300`.
-  * Animation duration in milliseconds. Set to `0` to disable the animation.
-* **easing** &nbsp;&mdash;&nbsp; *array* / *string*
-  * Default value: `'ease'`.
-  * Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
-* **styles** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{opacity: 0, scale: 0.5}`.
-  * A hash of the animated [style properties](http://velocityjs.org/#propertiesMap) and their target values for the animation.
 
 ```javascript
 var grid = new Muuri(elem, {
-  hide: {
-    duration: 700,
-    easing: 'ease-in',
-    styles: {
-      opacity: 0,
-      rotateZ: '-45deg'
-    }
+  visibleStyles: {
+    opacity: 1,
+    rotateZ: '45deg'
+  },
+  hiddenStyles: {
+    opacity: 0,
+    rotateZ: '-45deg'
   }
 });
 ```

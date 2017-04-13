@@ -86,10 +86,11 @@ TODO v0.3.0
 * [x] Consider merging dragReceive event to receive event. Done.
 * [x] Consider renaming dragSortConnections -> dragSortWith
 * [x] add .once() method for triggering a listener only once.
-* [ ] Consider refactoring the show/hide options into their separate options:
+* [x] Consider refactoring the show/hide options into their separate options:
       showDuration/hideDuration, showEasing/hideEasing and showStyles/
       hideStyles. Having a totally custom show/hideanimation should probably be
       a hidden feature behind an undocumented option.
+* [x] Allow dragSortWith to be a string for single value.
 * [ ] Consider adding some configurable properties to the default drag start
       predicate. If we would have handle(s) option it would make building
       nested grids much easier.
@@ -247,14 +248,14 @@ New features for v0.4.x
    * @param {(HTMLElement|String)} element
    * @param {Object} [options]
    * @param {(?HTMLElement[]|NodeList|String)} [options.items]
-   * @param {(?Function|Object)} [options.show]
-   * @param {Number} [options.show.duration=300]
-   * @param {(Array|String)} [options.show.easing="ease"]
-   * @param {Object} [options.show.styles]
-   * @param {(?Function|Object)} [options.hide]
-   * @param {Number} [options.hide.duration=300]
-   * @param {(Array|String)} [options.hide.easing="ease"]
-   * @param {Object} [options.hide.styles]
+   * @param {?Function} [options.showAnimation=null]
+   * @param {Number} [options.showDuration=300]
+   * @param {(Number[]|String)} [options.showEasing="ease"]
+   * @param {Object} [options.visibleStyles]
+   * @param {?Function} [options.hideAnimation=null]
+   * @param {Number} [options.hideDuration=300]
+   * @param {(Number[]|String)} [options.hideEasing="ease"]
+   * @param {Object} [options.hiddenStyles]
    * @param {(Function|Object)} [options.layout]
    * @param {Boolean} [options.layout.fillGaps=false]
    * @param {Boolean} [options.layout.horizontal=false]
@@ -263,7 +264,7 @@ New features for v0.4.x
    * @param {(Boolean|Number)} [options.layoutOnResize=100]
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
-   * @param {(Array|String)} [options.layoutEasing="ease"]
+   * @param {(Number[]|String)} [options.layoutEasing="ease"]
    * @param {?Object} [options.sortData=null]
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?HtmlElement} [options.dragContainer=null]
@@ -275,9 +276,9 @@ New features for v0.4.x
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {String} [options.dragSortPredicate.gaps=true]
    * @param {?String} [options.dragSortGroup=null]
-   * @param {?Array} [options.dragSortWith=null]
+   * @param {?(Array|String)} [options.dragSortWith=null]
    * @param {Number} [options.dragReleaseDuration=300]
-   * @param {(Array|String)} [options.dragReleaseEasing="ease"]
+   * @param {(Number[]|String)} [options.dragReleaseEasing="ease"]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
    * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -323,11 +324,13 @@ New features for v0.4.x
     inst._setSortGroup(settings.dragSortGroup);
 
     // Setup instance's sort connections.
-    inst._sortConnections = Array.isArray(settings.dragSortWith) && settings.dragSortWith.length ? settings.dragSortWith : null;
+    inst._sortConnections = settings.dragSortWith && settings.dragSortWith.length ? [].concat(settings.dragSortWith) : null;
 
     // Setup show and hide animations for items.
-    inst._itemShowHandler = typeof settings.show === typeFunction ? settings.show() : getItemVisbilityHandler('show', settings.show);
-    inst._itemHideHandler = typeof settings.hide === typeFunction ? settings.hide() : getItemVisbilityHandler('hide', settings.hide);
+    inst._itemShowHandler = typeof settings.showAnimation === typeFunction ? settings.showAnimation(settings.showDuration, settings.showEasing, settings.visibleStyles) :
+                            getItemVisibilityHandler('show', settings.showDuration, settings.showEasing, settings.visibleStyles);
+    inst._itemHideHandler = typeof settings.hideAnimation === typeFunction ? settings.hideAnimation(settings.hideDuration, settings.hideEasing, settings.hiddenStyles) :
+                            getItemVisibilityHandler('hide', settings.hideDuration, settings.hideEasing, settings.hiddenStyles);
 
     // Add container element's class name.
     addClass(element, settings.containerClass);
@@ -428,22 +431,26 @@ New features for v0.4.x
     // Item elements
     items: '*',
 
-    // Show/hide animations
-    show: {
-      duration: 300,
-      easing: 'ease',
-      styles: {
-        opacity: 1,
-        scale: 1
-      }
+    // Default show animation
+    showDuration: 300,
+    showEasing: 'ease',
+
+    // Default hide animation
+    hideDuration: 300,
+    hideEasing: 'ease',
+
+    // Custom show/hide animations
+    showAnimation: null,
+    hideAnimation: null,
+
+    // Item's visible/hidden state styles
+    visibleStyles: {
+      opacity: 1,
+      scale: 1
     },
-    hide: {
-      duration: 300,
-      easing: 'ease',
-      styles: {
-        opacity: 0,
-        scale: 0.5
-      }
+    hiddenStyles: {
+      opacity: 0,
+      scale: 0.5
     },
 
     // Layout
@@ -5514,17 +5521,18 @@ New features for v0.4.x
    * show/hide process.
    *
    * @param {String} type
-   * @param {?Object} [opts]
-   * @param {Number} [opts.duration]
-   * @param {String} [opts.easing]
+   * @param {Number} duration
+   * @param {(Number[]|String)} easing
+   * @param {Object} styles
    * @returns {Object}
    */
-  function getItemVisbilityHandler(type, opts) {
+  function getItemVisibilityHandler(type, duration, easing, styles) {
 
-    var duration = parseInt(opts && opts.duration) || 0;
+    duration = parseInt(duration) || 0;
+    easing = easing || 'ease';
+    styles = isPlainObject(styles) ? styles : null;
+
     var isEnabled = duration > 0;
-    var easing = (opts && opts.easing) || 'ease';
-    var styles = opts && isPlainObject(opts.styles) ? opts.styles : null;
 
     return {
       start: function (item, instant, onFinish) {
@@ -5688,29 +5696,6 @@ New features for v0.4.x
   }
 
   /**
-   * Sanitizes styles definition object within settings. Basically just removes
-   * all properties that have a value of null or undefined.
-   *
-   * @private
-   * @param {Object} styles
-   * @returns {Object} Returns a new object.
-   */
-  function sanitizeStyleSettings(styles) {
-
-    var ret = {};
-
-    Object.keys(styles).forEach(function (prop) {
-      var val = styles[prop];
-      if (val !== undefined && val !== null) {
-        ret[prop] = val;
-      }
-    });
-
-    return ret;
-
-  }
-
-  /**
    * Merge default settings with user settings. The returned object is a new
    * object with merged values. The merging is a deep merge meaning that all
    * objects and arrays within the provided settings objects will be also merged
@@ -5730,15 +5715,10 @@ New features for v0.4.x
     // Merge user settings to default settings.
     ret = userSettings ? mergeObjects(ret, userSettings) : ret;
 
-    // Sanitize show styles (if they exist).
-    if (ret.show && ret.show.styles) {
-      ret.show.styles = sanitizeStyleSettings(ret.show.styles);
-    }
-
-    // Sanitize hide styles (if they exist).
-    if (ret.hide && ret.hide.styles) {
-      ret.hide.styles = sanitizeStyleSettings(ret.hide.styles);
-    }
+    // Handle visible/hidden styles manually so that the whole object is
+    // overriden instead of the props.
+    ret.visibleStyles = (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
+    ret.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
 
     return ret;
 

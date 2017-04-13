@@ -73,6 +73,12 @@ $(function () {
       var muuri = new Muuri($grid.get(0), {
         items: generateElements(20),
         layoutDuration: 1000,
+        hiddenStyles: {
+          opacity: 0
+        },
+        visibleStyles: {
+          opacity: 1
+        },
         dragEnabled: true,
         dragContainer: document.body,
         dragReleaseDuration: 1000,

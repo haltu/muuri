@@ -129,6 +129,11 @@ New features for v0.4.x
 * [ ] Allow moving and sending batches of items with move and send methods.
 * [ ] Drag placeholder.
 * [ ] Scroll while dragging.
+* [ ] dragAxis: If defined, the items can be dragged only horizontally or
+      vertically. Possible values: "x", "y". (Idea nicked from jQuery UI
+      Sortable).
+* [ ] dragContainement: Defines a bounding box that the sortable items are
+      constrained to while dragging. (Idea nicked from jQuery UI Sortable).
 
 */
 

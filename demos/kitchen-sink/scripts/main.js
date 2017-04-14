@@ -80,6 +80,9 @@ $(function () {
           opacity: 1
         },
         dragEnabled: true,
+        dragStartPredicate: function (item, event) {
+          console.log(event);
+        },
         dragContainer: document.body,
         dragReleaseDuration: 1000,
         dragSortGroup: 'a',

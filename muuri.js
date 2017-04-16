@@ -1235,7 +1235,8 @@ New features for v0.4.x
     // If function is provided do a native array sort.
     if (typeof comparer === typeFunction) {
       items.sort(function (a, b) {
-        return comparer(a, b) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
+        var result = comparer(a, b);
+        return (isDescending && result !== 0 ? -result : result) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
       });
     }
 
@@ -1254,6 +1255,9 @@ New features for v0.4.x
     // items and order the items based on it.
     else if (Array.isArray(comparer)) {
       sortItemsByReference(items, comparer);
+      if (isDescending) {
+        items.reverse();
+      }
     }
 
     // Otherwise, let's go home.

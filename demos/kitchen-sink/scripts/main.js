@@ -72,21 +72,10 @@ $(function () {
 
       var muuri = new Muuri($grid.get(0), {
         items: generateElements(20),
-        layoutDuration: 1000,
-        hiddenStyles: {
-          opacity: 0
-        },
-        visibleStyles: {
-          opacity: 1
-        },
         dragEnabled: true,
-        dragStartPredicate: function (item, event) {
-          console.log(event);
-        },
         dragContainer: document.body,
-        dragReleaseDuration: 1000,
         dragSortGroup: 'a',
-        dragSortWith: ['a']
+        dragSortWith: 'a'
       });
 
       $grid.data('muuri', muuri);

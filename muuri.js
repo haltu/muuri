@@ -91,9 +91,13 @@ TODO v0.3.0
       hideStyles. Having a totally custom show/hideanimation should probably be
       a hidden feature behind an undocumented option.
 * [x] Allow dragSortWith to be a string for single value.
-* [ ] Consider adding some configurable properties to the default drag start
+* [-] Consider adding some configurable properties to the default drag start
       predicate. If we would have handle(s) option it would make building
       nested grids much easier.
+* [ ] Think about how one would write plugins for Muuri and the hooks that
+      need to be in place. E.g. muuri init, item init, etc. Create a plugin
+      boilerplate as an example. Some of the new features could be implemented
+      as plugins instead of core funcionality.
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
       The practical use case for this would be a kanban board where the columns
@@ -123,8 +127,10 @@ Optional optimization for v0.3.x
       alignBottom.
 * [ ] Memory leak tests.
 
-New features for v0.4.x
+New features for v1.0.0
 =======================
+* [ ] Get rid of the auto-layout within some methods. It's handy, but not good
+      API design pattern.
 * [ ] Allow defining "stamps" (holes) in the layout.
 * [ ] Allow moving and sending batches of items with move and send methods.
 * [ ] Drag placeholder.
@@ -134,6 +140,11 @@ New features for v0.4.x
       Sortable).
 * [ ] dragContainement: Defines a bounding box that the sortable items are
       constrained to while dragging. (Idea nicked from jQuery UI Sortable).
+* [ ] Change add method to support use case where the added element is inside
+      an other container than the grid container. There should be an option to
+      allow positioning the item from the current container to the grid
+      container using similar flow as in release flow. There are a lot of use
+      cases for this scenario.
 
 */
 
@@ -273,7 +284,9 @@ New features for v0.4.x
    * @param {?Object} [options.sortData=null]
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?HtmlElement} [options.dragContainer=null]
-   * @param {?Function} [options.dragStartPredicate=null]
+   * @param {?Function} [options.dragStartPredicate]
+   * @param {Number} [options.dragStartPredicate.distance=50]
+   * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
    * @param {Boolean} [options.dragSort=true]
    * @param {Number} [options.dragSortInterval=50]
    * @param {(?Function|Object)} [options.dragSortPredicate]
@@ -401,7 +414,7 @@ New features for v0.4.x
   Grid.Release = Release;
 
   /**
-   * @see Release
+   * @see Migrate
    */
   Grid.Migrate = Migrate;
 
@@ -476,7 +489,10 @@ New features for v0.4.x
     // Drag & Drop
     dragEnabled: false,
     dragContainer: null,
-    dragStartPredicate: null,
+    dragStartPredicate: {
+      distance: 0,
+      handle: false
+    },
     dragSort: true,
     dragSortInterval: 100,
     dragSortPredicate: {
@@ -3605,11 +3621,26 @@ New features for v0.4.x
    */
   Drag.defaultStartPredicate = function (item, event) {
 
+    // TODO: Allow giving different options to touch devices. Make the options
+    // cover most use cases.
+
+    var elem = item.getElement();
+    var drag = item._drag;
+    var rootGrid = drag.getGrid();
+    var config = rootGrid._settings.dragStartPredicate || {};
+    var distance = Math.abs(config.distance) || 0;
+    var handle = typeof config.handle === 'string' ? config.handle : false;
+    var isAnchor;
+    var href;
+    var target;
+
+    // Final event logic. At this stage return value does not matter anymore,
+    // the predicate is either resolved or it's not and there's nothing to do
+    // about it. The stuff inside this if clause is used just for cleaning up.
     if (event.isFinal) {
-      var elem = item.getElement();
-      var isAnchor = elem.tagName.toLowerCase() === 'a';
-      var href = elem.getAttribute('href');
-      var target = elem.getAttribute('target');
+      isAnchor = elem.tagName.toLowerCase() === 'a';
+      href = elem.getAttribute('href');
+      target = elem.getAttribute('target');
       if (isAnchor && href && Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200) {
         if (target && target !== '_self') {
           global.open(href, target);
@@ -3619,8 +3650,28 @@ New features for v0.4.x
         }
       }
     }
+
+    // All other events logic. Returning true will resolve the predicate,
+    // returning false will reject the predicate and returning anything else
+    // will ignore this specific cycle of the predicate, but keep it capturing
+    // future events.
     else {
+
+      // If handle is defined, but it does not match the event target, reject
+      // predicate immediately.
+      if (handle && !elementMatches(event.srcEvent.target, handle)) {
+        return false;
+      }
+
+      // If the current distance is smaller than the threshold, ignore this
+      // predicate cycle.
+      if (event.distance < distance) {
+        return;
+      }
+
+      // In other cases, let's start the drag!
       return true;
+
     }
 
   };

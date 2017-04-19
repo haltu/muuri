@@ -91,7 +91,7 @@ TODO v0.3.0
       hideStyles. Having a totally custom show/hideanimation should probably be
       a hidden feature behind an undocumented option.
 * [x] Allow dragSortWith to be a string for single value.
-* [-] Consider adding some configurable properties to the default drag start
+* [x] Consider adding some configurable properties to the default drag start
       predicate. If we would have handle(s) option it would make building
       nested grids much easier.
 * [ ] Think about how one would write plugins for Muuri and the hooks that
@@ -285,11 +285,12 @@ New features for v1.0.0
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?HtmlElement} [options.dragContainer=null]
    * @param {?Function} [options.dragStartPredicate]
-   * @param {Number} [options.dragStartPredicate.distance=50]
+   * @param {Number} [options.dragStartPredicate.distance=0]
+   * @param {Number} [options.dragStartPredicate.delay=0]
    * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
    * @param {Boolean} [options.dragSort=true]
    * @param {Number} [options.dragSortInterval=50]
-   * @param {(?Function|Object)} [options.dragSortPredicate]
+   * @param {(Function|Object)} [options.dragSortPredicate]
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {String} [options.dragSortPredicate.gaps=true]
@@ -491,6 +492,7 @@ New features for v1.0.0
     dragContainer: null,
     dragStartPredicate: {
       distance: 0,
+      delay: 0,
       handle: false
     },
     dragSort: true,
@@ -3621,14 +3623,19 @@ New features for v1.0.0
    */
   Drag.defaultStartPredicate = function (item, event) {
 
-    // TODO: Allow giving different options to touch devices. Make the options
-    // cover most use cases.
+    // TODO:
+    // * Allow giving different options to touch devices. Make the options
+    //   cover most use cases.
+    // * Allow enforcing that the pointer must be within the target element
+    //   for the predicate to resolve. This check should be after all the other
+    //   checks.
 
     var elem = item.getElement();
     var drag = item._drag;
     var rootGrid = drag.getGrid();
     var config = rootGrid._settings.dragStartPredicate || {};
     var distance = Math.abs(config.distance) || 0;
+    var delay = Math.abs(config.delay) || 0;
     var handle = typeof config.handle === 'string' ? config.handle : false;
     var isAnchor;
     var href;
@@ -3663,9 +3670,10 @@ New features for v1.0.0
         return false;
       }
 
-      // If the current distance is smaller than the threshold, ignore this
+      // If the moved distance is smaller than the threshold distance or the
+      // expired duration is smaller than the threshold delay, ignore this
       // predicate cycle.
-      if (event.distance < distance) {
+      if (event.distance < distance || event.deltaTime < delay) {
         return;
       }
 

@@ -202,7 +202,11 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     // Drag & Drop
     dragEnabled: false,
     dragContainer: null,
-    dragStartPredicate: null,
+    dragStartPredicate: {
+      distance: 0,
+      delay: 0,
+      handle: false
+    },
     dragSort: true,
     dragSortInterval: 100,
     dragSortPredicate: {
@@ -556,12 +560,24 @@ var grid = new Muuri(elem, {
 
 ### dragStartPredicate &nbsp;
 
-A function that determines at which point the item starts to move when the item is being dragged. If `null` the default predicate is used (moving starts immediately).
+A function that determines at which point the item starts to move when the item is being dragged. By default uses the built-in predicate which has some configurable options.
 
-* Default value: `null`.
-* Accepted types: function, null.
+* Default value: `{distance: 0, delay: 0, handle: false}`.
+* Accepted types: function, object.
 
-When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
+If an object is provided the default sort predicate handler will be used. You can define the following properties:
+
+* **distance** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `0`.
+  * How many pixels must be dragged before the dragging starts.
+* **delay** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `0`.
+  * How long (in milliseconds) the user must drag before the dragging starts.
+* **handle** &nbsp;&mdash;&nbsp; *string / boolean*
+  * Default value: `false`.
+  * The selector(s) which much match the event target element for the dragging to start.
+
+If you provide a function you can totally customize the drag start logic. When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
 
 The predicate function receives two arguments:
 
@@ -571,6 +587,16 @@ The predicate function receives two arguments:
   * The drag event (Hammer.js event).
 
 ```javascript
+// Configure the default preficate
+var grid = new Muuri(elem, {
+  dragStartPredicate: {
+    distance: 10,
+    delay: 100,
+    handle: '.foo, .bar'
+  }
+});
+
+// Provide your own predicate
 var grid = new Muuri(elem, {
   dragStartPredicate: function (item, e) {
     // Start moving the item after the item has been dragged for one second.

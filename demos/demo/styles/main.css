@@ -3,6 +3,7 @@
 html {
   overflow-y: scroll;
   overflow-x: hidden;
+  height: 100%
 }
 html.dragging body {
   -moz-user-select: none;
@@ -13,8 +14,15 @@ html.dragging body {
 body {
   position: relative;
   padding: 10px;
+  height: 100%;
 }
 
+#demo {
+  height: 100%;
+}
+.container {
+  height: 100%;
+}
 /* Controls */
 
 .controls {
@@ -25,16 +33,20 @@ body {
 
 .grids {
   position: relative;
+  height: 100%;
 }
 .grid {
   position: absolute;
   top: 0;
   width: 49%;
+  height: 200% !important;
   padding: 0 5px 5px 0;
   border: 5px solid #ff0000;
   -moz-box-sizing: border-box;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 .grid-1 {
   left: 0;

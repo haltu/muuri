@@ -73,7 +73,7 @@ $(function () {
       var muuri = new Muuri($grid.get(0), {
         items: generateElements(20),
         dragEnabled: true,
-        dragContainer: document.body,
+        dragContainer: $('.grids')[0],
         dragSortGroup: 'a',
         dragSortWith: 'a'
       });

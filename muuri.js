@@ -94,10 +94,11 @@ TODO v0.3.0
 * [x] Consider adding some configurable properties to the default drag start
       predicate. If we would have handle(s) option it would make building
       nested grids much easier.
-* [ ] Think about how one would write plugins for Muuri and the hooks that
-      need to be in place. E.g. muuri init, item init, etc. Create a plugin
-      boilerplate as an example. Some of the new features could be implemented
-      as plugins instead of core funcionality.
+* [-] BUG: scrollTop/scrollLeft values are not taken into account when calculating
+      distances. This needs to be done.
+      Update: Seems to be done -> Validate and add some unit tests!
+* [ ] In some cases it would be better if Muuri set min-height to the grid
+      container instead of height. Think about it.
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
       The practical use case for this would be a kanban board where the columns
@@ -2145,8 +2146,12 @@ New features for v1.0.0
     // Get item container offset. This applies only for release handling in the
     // scenario where the released element is not currently within the
     // grid container element.
-    offsetLeft = release.isActive ? release.containerDiffX : migrate.isActive ? migrate.containerDiffX : 0;
-    offsetTop = release.isActive ? release.containerDiffY : migrate.isActive ? migrate.containerDiffY : 0;
+    offsetLeft = release.isActive ? release.containerDiffX :
+                 migrate.isActive ? migrate.containerDiffX :
+                 0;
+    offsetTop = release.isActive ? release.containerDiffY :
+                migrate.isActive ? migrate.containerDiffY :
+                0;
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
@@ -3100,6 +3105,7 @@ New features for v1.0.0
     var currentGrid;
     var currentGridStn;
     var targetGridStn;
+    var targetGridElement;
     var currentIndex;
     var targetIndex;
     var targetContainer;
@@ -3119,6 +3125,7 @@ New features for v1.0.0
     currentGrid = item.getGrid();
     currentGridStn = currentGrid._settings;
     targetGridStn = targetGrid._settings;
+    targetGridElement = targetGrid.getElement();
     targetContainer = container || document.body;
 
     // Get current index and target index
@@ -3191,8 +3198,8 @@ New features for v1.0.0
     if (targetContainer !== currentContainer) {
       targetContainer.appendChild(itemElement);
       offsetDiff = getOffsetDiff(targetContainer, currentContainer);
-      translateX = getTranslateAsFloat(itemElement, 'x') + offsetDiff.left;
-      translateY = getTranslateAsFloat(itemElement, 'y') + offsetDiff.top;
+      translateX = getTranslateAsFloat(itemElement, 'x') + offsetDiff.left - currentContainer.scrollLeft;
+      translateY = getTranslateAsFloat(itemElement, 'y') + offsetDiff.top - currentContainer.scrollTop;
       setStyles(itemElement, {
         transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
@@ -3219,11 +3226,11 @@ New features for v1.0.0
     item._drag = targetGridStn.dragEnabled ? new Grid.Drag(item) : null;
 
     // Setup migration data.
-    offsetDiff = getOffsetDiff(targetContainer, targetGrid.getElement());
+    offsetDiff = getOffsetDiff(targetContainer, targetGridElement);
     migrate.isActive = true;
     migrate.container = targetContainer;
-    migrate.containerDiffX = offsetDiff.left;
-    migrate.containerDiffY = offsetDiff.top;
+    migrate.containerDiffX = offsetDiff.left - targetGridElement.scrollLeft + targetContainer.scrollLeft;
+    migrate.containerDiffY = offsetDiff.top - targetGridElement.scrollTop + targetContainer.scrollTop;
 
     // Emit send event.
     currentGrid._emit(evSend, {
@@ -3710,6 +3717,7 @@ New features for v1.0.0
       top: Math.round(dragData.elementClientY)
     };
     var grid = getTargetGrid(itemRect, rootGrid, sortThreshold);
+    var gridElement;
     var gridOffsetLeft = 0;
     var gridOffsetTop = 0;
     var matchScore = -1;
@@ -3730,6 +3738,7 @@ New features for v1.0.0
     }
 
     // Get the needed target grid data.
+    gridElement = grid.getElement();
     gridItems = grid._items;
     gridOffset = grid._offset;
     gridBorder = grid._border;
@@ -3743,8 +3752,8 @@ New features for v1.0.0
       itemRect.top = Math.round(dragData.gridY) + item._margin.top;
     }
     else {
-      gridOffsetLeft = gridOffset.left + gridBorder.left + gridPadding.left;
-      gridOffsetTop = gridOffset.top + gridBorder.top + gridPadding.top;
+      gridOffsetLeft = gridOffset.left + gridBorder.left + gridPadding.left - gridElement.scrollLeft;
+      gridOffsetTop = gridOffset.top + gridBorder.top + gridPadding.top - gridElement.scrollTop;
     }
 
     // Loop through the target grid items and try to find the best match.
@@ -3869,8 +3878,9 @@ New features for v1.0.0
     dragData.startEvent = null;
     dragData.currentEvent = null;
 
-    // Scroll parents of the dragged element and container.
-    dragData.scrollParents = [];
+    // All the elements which need to be listened for scroll events during
+    // dragging.
+    dragData.scrollers = [];
 
     // The current translateX/translateY position.
     dragData.left = 0;
@@ -4074,8 +4084,8 @@ New features for v1.0.0
     // Let's calculate and store the new diff between the new drag container and
     // new grid element and start the release.
     offsetDiff = getOffsetDiff(targetContainer, targetGridElement);
-    release.containerDiffX = offsetDiff.left;
-    release.containerDiffY = offsetDiff.top;
+    release.containerDiffX = offsetDiff.left - targetGridElement.scrollLeft + targetContainer.scrollLeft;
+    release.containerDiffY = offsetDiff.top - targetGridElement.scrollTop + targetContainer.scrollTop;
     release.start();
 
     return drag;
@@ -4112,8 +4122,8 @@ New features for v1.0.0
     grid = drag.getGrid();
 
     // Remove scroll listeners.
-    for (i = 0; i < dragData.scrollParents.length; i++) {
-      dragData.scrollParents[i].removeEventListener('scroll', drag._scrollHandler);
+    for (i = 0; i < dragData.scrollers.length; i++) {
+      dragData.scrollers[i].removeEventListener('scroll', drag._scrollHandler);
     }
 
     // Cancel overlap check.
@@ -4220,8 +4230,8 @@ New features for v1.0.0
 
       // Store the container offset diffs to drag data.
       offsetDiff = getOffsetDiff(dragContainer, gridContainer);
-      dragData.containerDiffX = offsetDiff.left;
-      dragData.containerDiffY = offsetDiff.top;
+      dragData.containerDiffX = offsetDiff.left - gridContainer.scrollLeft + dragContainer.scrollLeft;
+      dragData.containerDiffY = offsetDiff.top - gridContainer.scrollTop + dragContainer.scrollTop;
 
       // If the dragged element is a child of the drag container all we need to
       // do is setup the relative drag position data.
@@ -4247,15 +4257,20 @@ New features for v1.0.0
     dragData.elementClientX = elementGBCR.left;
     dragData.elementClientY = elementGBCR.top;
 
-    // Get drag scroll parents.
-    dragData.scrollParents = getScrollParents(element);
+    // Get dragged element's scroll parents.
+    dragData.scrollers = getScrollParents(element);
+
+    // If drag container is defined and it's not the the element as grid
+    // container we need to add the grid container and grid container's scroll
+    // parent's to the element's which are going to be listener for scroll
+    // events.
     if (dragContainer && dragContainer !== gridContainer) {
-      dragData.scrollParents = arrayUnique(dragData.scrollParents.concat(getScrollParents(gridContainer)));
+      dragData.scrollers = arrayUnique(dragData.scrollers.concat(gridContainer).concat(getScrollParents(gridContainer)));
     }
 
     // Bind scroll listeners.
-    for (i = 0; i < dragData.scrollParents.length; i++) {
-      dragData.scrollParents[i].addEventListener('scroll', drag._scrollHandler);
+    for (i = 0; i < dragData.scrollers.length; i++) {
+      dragData.scrollers[i].addEventListener('scroll', drag._scrollHandler);
     }
 
     // Set drag class.
@@ -4354,8 +4369,8 @@ New features for v1.0.0
     // Update container diff.
     if (dragContainer && dragContainer !== gridContainer) {
       offsetDiff = getOffsetDiff(dragContainer, gridContainer);
-      dragData.containerDiffX = offsetDiff.left;
-      dragData.containerDiffY = offsetDiff.top;
+      dragData.containerDiffX = offsetDiff.left - gridContainer.scrollLeft + dragContainer.scrollLeft;
+      dragData.containerDiffY = offsetDiff.top - gridContainer.scrollTop + dragContainer.scrollTop;
     }
 
     // Update position data.
@@ -4411,8 +4426,8 @@ New features for v1.0.0
     }
 
     // Remove scroll listeners.
-    for (i = 0; i < dragData.scrollParents.length; i++) {
-      dragData.scrollParents[i].removeEventListener('scroll', drag._scrollHandler);
+    for (i = 0; i < dragData.scrollers.length; i++) {
+      dragData.scrollers[i].removeEventListener('scroll', drag._scrollHandler);
     }
 
     // Remove drag classname from element.
@@ -4892,12 +4907,16 @@ New features for v1.0.0
       };
     }
 
-    var elemAOffset = getOffsetFromDocument(elemA, 'padding');
-    var elemBOffset = getOffsetFromDocument(elemB, 'padding');
+    var aRect = elemA.getBoundingClientRect();
+    var aLeft = aRect.left + getStyleAsFloat(elemA, 'border-left-width');
+    var aTop = aRect.top + getStyleAsFloat(elemA, 'border-top-width');
+    var bRect = elemB.getBoundingClientRect();
+    var bLeft = bRect.left + getStyleAsFloat(elemB, 'border-left-width');
+    var bTop = bRect.top + getStyleAsFloat(elemB, 'border-top-width');
 
     return {
-      left: elemBOffset.left - elemAOffset.left,
-      top: elemBOffset.top - elemAOffset.top
+      left: bLeft - aLeft,
+      top: bTop - aTop
     };
 
   }
@@ -5062,79 +5081,6 @@ New features for v1.0.0
     var display = getStyle(element, 'display');
 
     return transform !== 'none' && display !== 'inline' && display !== 'none';
-
-  }
-
-  /**
-   * Returns the element's (or window's) document offset, which in practice
-   * means the vertical and horizontal distance between the element's northwest
-   * corner and the document's northwest corner.
-   *
-   * Borrowed from Mezr (v0.6.1):
-   * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L1006
-   *
-   * @private
-   * @param {(Document|HTMLElement|Window)} element
-   * @param {Edge} [edge='border']
-   * @returns {Object}
-   */
-  function getOffsetFromDocument(element, edge) {
-
-    var ret = {
-      left: 0,
-      top: 0
-    };
-    var gbcr;
-    var marginLeft;
-    var marginTop;
-
-    // Document's offsets are always 0.
-    if (element === document) {
-      return ret;
-    }
-
-    // Add viewport's scroll left/top to the respective offsets.
-    ret.left = global.pageXOffset || 0;
-    ret.top = global.pageYOffset || 0;
-
-    // Window's offsets are the viewport's scroll left/top values.
-    if (element.self === global.self) {
-      return ret;
-    }
-
-    // Now we know we are calculating an element's offsets so let's first get
-    // the element's bounding client rect. If it is not cached, then just fetch
-    // it.
-    gbcr = element.getBoundingClientRect();
-
-    // Add bounding client rect's left/top values to the offsets.
-    ret.left += gbcr.left;
-    ret.top += gbcr.top;
-
-    // Sanitize edge.
-    edge = edge || 'border';
-
-    // Exclude element's positive margin size from the offset if needed.
-    if (edge === 'margin') {
-      marginLeft = getStyleAsFloat(element, 'margin-left');
-      marginTop = getStyleAsFloat(element, 'margin-top');
-      ret.left -= marginLeft > 0 ? marginLeft : 0;
-      ret.top -= marginTop > 0 ? marginTop : 0;
-    }
-
-    // Include element's border size to the offset if needed.
-    else if (edge !== 'border') {
-      ret.left += getStyleAsFloat(element, 'border-left-width');
-      ret.top += getStyleAsFloat(element, 'border-top-width');
-    }
-
-    // Include element's padding size to the offset if needed.
-    if (edge === 'content') {
-      ret.left += getStyleAsFloat(element, 'padding-left');
-      ret.top += getStyleAsFloat(element, 'padding-top');
-    }
-
-    return ret;
 
   }
 

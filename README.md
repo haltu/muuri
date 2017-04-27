@@ -560,7 +560,7 @@ var grid = new Muuri(elem, {
 
 ### dragStartPredicate &nbsp;
 
-A function that determines at which point the item starts to move when the item is being dragged. By default uses the built-in predicate which has some configurable options.
+A function that determines when the item should start to move when the item is being dragged. By default uses the built-in predicate which has some configurable options.
 
 * Default value: `{distance: 0, delay: 0, handle: false}`.
 * Accepted types: function, object.

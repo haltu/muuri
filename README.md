@@ -702,14 +702,17 @@ var grid = new Muuri(elem, {
 
 ### dragSortGroup &nbsp;
 
-The grid's sort group, e.g. "groupA". If you provide no sort group the grid can not be targeted with `dragSortWith` option, which means that items can not be dragged into the grid from other grids.
+The grid's sort group(s), e.g. `'groupA'` or `['groupA', 'groupB']`. If you provide no sort group the grid cannot be targeted with `dragSortWith` option, which means that items can not be dragged into the grid from other grids.
 
 * Default value: `null`.
-* Accepted types: string, null.
+* Accepted types: array, string, null.
 
 ```javascript
-var grid = new Muuri(elem, {
+var gridA = new Muuri(elemA, {
   dragSortGroup: 'groupA'
+});
+var gridB = new Muuri(elemB, {
+  dragSortGroup: ['groupA', 'groupB']
 });
 ```
 

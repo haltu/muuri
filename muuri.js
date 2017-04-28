@@ -99,11 +99,17 @@ TODO v0.3.0
       Update: Seems to be done -> Validate and add some unit tests!
 * [ ] In some cases it would be better if Muuri set min-height to the grid
       container instead of height. Think about it.
+* [ ] Consider triggering internal events for external plugins. Think about
+      what kind of events would ease the usaged with React, Angular and Vue.
+      And how one would build a plugin.
 * [ ] Allow nested Muuri instances or add a warning to documentation that nested
       instances are not supported. Is there actually anything preventing this?
       The practical use case for this would be a kanban board where the columns
       themselves and their items would be draggable. Let's try to make this work
       if there are any issues with it.
+* [ ] Consider adding an option for controlling Hammer instances initialization
+      settings. E.g. some people don't want to set touch-action as none.
+* [ ] Allow providing multiple drag sort groups for easier customizability.
 
 Optional optimization for v0.3.x
 ================================
@@ -406,34 +412,29 @@ New features for v1.0.0
   Grid.Item = Item;
 
   /**
-   * @see Drag
+   * @see ItemDrag
    */
-  Grid.Drag = Drag;
+  Grid.ItemDrag = ItemDrag;
 
   /**
-   * @see Release
+   * @see ItemRelease
    */
-  Grid.Release = Release;
+  Grid.ItemRelease = ItemRelease;
 
   /**
-   * @see Migrate
+   * @see ItemMigrate
    */
-  Grid.Migrate = Migrate;
+  Grid.ItemMigrate = ItemMigrate;
+
+  /**
+   * @see ItemAnimate
+   */
+  Grid.ItemAnimate = ItemAnimate;
 
   /**
    * @see Layout
    */
   Grid.Layout = Layout;
-
-  /**
-   * @see Animate
-   */
-  Grid.AnimateLayout = Animate;
-
-  /**
-   * @see Animate
-   */
-  Grid.AnimateVisibility = Animate;
 
   /**
    * @see Emitter
@@ -1694,12 +1695,11 @@ New features for v1.0.0
     inst._child = element.children[0];
 
     // Initiate item's animation controllers.
-    inst._animate = new Grid.AnimateLayout(inst, element);
-    inst._animateChild = new Grid.AnimateVisibility(inst, inst._child);
+    inst._animate = new Grid.ItemAnimate(inst, element);
+    inst._animateChild = new Grid.ItemAnimate(inst, inst._child);
 
     // Check if default animation engine is used.
-    inst._isDefaultAnimate = inst._animate instanceof Animate;
-    inst._isDefaultChildAnimate = inst._animateChild instanceof Animate;
+    inst._isDefaultAnimate = inst._animate instanceof ItemAnimate;
 
     // Set up active state (defines if the item is considered part of the layout
     // or not).
@@ -1752,13 +1752,13 @@ New features for v1.0.0
     }
 
     // Set up migration handler data.
-    inst._migrate = new Grid.Migrate(inst);
+    inst._migrate = new Grid.ItemMigrate(inst);
 
     // Set up release handler
-    inst._release = new Grid.Release(inst);
+    inst._release = new Grid.ItemRelease(inst);
 
     // Set up drag handler.
-    inst._drag = settings.dragEnabled ? new Grid.Drag(inst) : null;
+    inst._drag = settings.dragEnabled ? new Grid.ItemDrag(inst) : null;
 
   }
 
@@ -2907,8 +2907,8 @@ New features for v1.0.0
   };
 
   /**
-   * Animate
-   * *******
+   * ItemAnimate
+   * ***********
    */
 
   /**
@@ -2919,7 +2919,7 @@ New features for v1.0.0
    * @param {Item} item
    * @param {HTMLElement} element
    */
-  function Animate(item, element) {
+  function ItemAnimate(item, element) {
 
     this._element = element;
     this._queue = libName + '-' + (++uuid);
@@ -2929,8 +2929,8 @@ New features for v1.0.0
   }
 
   /**
-   * Animate - Public prototype methods
-   * **********************************
+   * ItemAnimate - Public prototype methods
+   * **************************************
    */
 
   /**
@@ -2938,7 +2938,7 @@ New features for v1.0.0
    * running.
    *
    * @public
-   * @memberof Animate.prototype
+   * @memberof ItemAnimate.prototype
    * @param {?Object} propsCurrent
    * @param {Object} propsTarget
    * @param {Object} [options]
@@ -2946,7 +2946,7 @@ New features for v1.0.0
    * @param {String} [options.easing='ease']
    * @param {Function} [options.onFinish]
    */
-  Animate.prototype.start = function (propsCurrent, propsTarget, options) {
+  ItemAnimate.prototype.start = function (propsCurrent, propsTarget, options) {
 
     if (this._isDestroyed) {
       return;
@@ -2992,9 +2992,9 @@ New features for v1.0.0
    * Stop instance's current animation if running.
    *
    * @public
-   * @memberof Animate.prototype
+   * @memberof ItemAnimate.prototype
    */
-  Animate.prototype.stop = function () {
+  ItemAnimate.prototype.stop = function () {
 
     if (!this._isDestroyed && this._isAnimating) {
       this._isAnimating = false;
@@ -3007,10 +3007,10 @@ New features for v1.0.0
    * Destroy the instance and stop current animation if it is running.
    *
    * @public
-   * @memberof Animate.prototype
+   * @memberof ItemAnimate.prototype
    * @returns {Boolean}
    */
-  Animate.prototype.destroy = function () {
+  ItemAnimate.prototype.destroy = function () {
 
     if (!this._isDestroyed) {
       this.stop();
@@ -3021,8 +3021,8 @@ New features for v1.0.0
   };
 
   /**
-   * Migrate
-   * *******
+   * ItemMigrate
+   * ***********
    */
 
   /**
@@ -3032,7 +3032,7 @@ New features for v1.0.0
    * @private
    * @param {Item} item
    */
-  function Migrate(item) {
+  function ItemMigrate(item) {
 
     var migrate = this;
 
@@ -3049,18 +3049,18 @@ New features for v1.0.0
   }
 
   /**
-   * Migrate - Public prototype methods
-   * **********************************
+   * ItemMigrate - Public prototype methods
+   * **************************************
    */
 
   /**
    * Destroy instance.
    *
    * @public
-   * @memberof Migrate.prototype
-   * @returns {Migrate}
+   * @memberof ItemMigrate.prototype
+   * @returns {ItemMigrate}
    */
-  Migrate.prototype.destroy = function () {
+  ItemMigrate.prototype.destroy = function () {
 
     var migrate = this;
 
@@ -3077,10 +3077,10 @@ New features for v1.0.0
    * Get Item instance.
    *
    * @public
-   * @memberof Migrate.prototype
+   * @memberof ItemMigrate.prototype
    * @returns {?Item}
    */
-  Migrate.prototype.getItem = function () {
+  ItemMigrate.prototype.getItem = function () {
 
     return itemInstances[this._itemId] || null;
 
@@ -3090,13 +3090,13 @@ New features for v1.0.0
    * Start the migrate process of an item.
    *
    * @public
-   * @memberof Migrate.prototype
+   * @memberof ItemMigrate.prototype
    * @param {Grid} targetGrid
    * @param {GridSingleItemQuery} position
    * @param {HTMLElement} [container]
-   * @returns {Migrate}
+   * @returns {ItemMigrate}
    */
-  Migrate.prototype.start = function (targetGrid, position, container) {
+  ItemMigrate.prototype.start = function (targetGrid, position, container) {
 
     var migrate = this;
     var item;
@@ -3185,10 +3185,9 @@ New features for v1.0.0
     item._gridId = targetGrid._id;
 
     // Instantiate new animation controllers.
-    item._animate = new Grid.AnimateLayout(item, itemElement);
-    item._animateChild = new Grid.AnimateVisibility(item, item._child);
-    item._isDefaultAnimate = item._animate instanceof Animate;
-    item._isDefaultChildAnimate = item._animateChild instanceof Animate;
+    item._animate = new Grid.ItemAnimate(item, itemElement);
+    item._animateChild = new Grid.ItemAnimate(item, item._child);
+    item._isDefaultAnimate = item._animate instanceof ItemAnimate;
 
     // Get current container
     currentContainer = itemElement.parentNode;
@@ -3223,7 +3222,7 @@ New features for v1.0.0
     }
 
     // Create new drag handler.
-    item._drag = targetGridStn.dragEnabled ? new Grid.Drag(item) : null;
+    item._drag = targetGridStn.dragEnabled ? new Grid.ItemDrag(item) : null;
 
     // Setup migration data.
     offsetDiff = getOffsetDiff(targetContainer, targetGridElement);
@@ -3259,12 +3258,12 @@ New features for v1.0.0
    * ongoing migrate process (animation) or finish the migrate process.
    *
    * @public
-   * @memberof Migrate.prototype
+   * @memberof ItemMigrate.prototype
    * @param {Boolean} [abort=false]
    *  - Should the migration be aborted?
-   * @returns {Migrate}
+   * @returns {ItemMigrate}
    */
-  Migrate.prototype.stop = function (abort) {
+  ItemMigrate.prototype.stop = function (abort) {
 
     var migrate = this;
     var item;
@@ -3302,8 +3301,8 @@ New features for v1.0.0
   };
 
   /**
-   * Release
-   * *******
+   * ItemRelease
+   * ***********
    */
 
   /**
@@ -3316,7 +3315,7 @@ New features for v1.0.0
    * @private
    * @param {Item} item
    */
-  function Release(item) {
+  function ItemRelease(item) {
 
     var release = this;
 
@@ -3333,18 +3332,18 @@ New features for v1.0.0
   }
 
   /**
-   * Release - Public prototype methods
-   * **********************************
+   * ItemRelease - Public prototype methods
+   * **************************************
    */
 
   /**
    * Destroy instance.
    *
    * @public
-   * @memberof Release.prototype
-   * @returns {Release}
+   * @memberof ItemRelease.prototype
+   * @returns {ItemRelease}
    */
-  Release.prototype.destroy = function () {
+  ItemRelease.prototype.destroy = function () {
 
     var release = this;
 
@@ -3361,10 +3360,10 @@ New features for v1.0.0
    * Get Item instance.
    *
    * @public
-   * @memberof Release.prototype
+   * @memberof ItemRelease.prototype
    * @returns {?Item}
    */
-  Release.prototype.getItem = function () {
+  ItemRelease.prototype.getItem = function () {
 
     return itemInstances[this._itemId] || null;
 
@@ -3374,10 +3373,10 @@ New features for v1.0.0
    * Reset public data and remove releasing class.
    *
    * @public
-   * @memberof Release.prototype
-   * @returns {Release}
+   * @memberof ItemRelease.prototype
+   * @returns {ItemRelease}
    */
-  Release.prototype.reset = function () {
+  ItemRelease.prototype.reset = function () {
 
     var release = this;
     var item;
@@ -3399,10 +3398,10 @@ New features for v1.0.0
    * Start the release process of an item.
    *
    * @public
-   * @memberof Release.prototype
-   * @returns {Release}
+   * @memberof ItemRelease.prototype
+   * @returns {ItemRelease}
    */
-  Release.prototype.start = function () {
+  ItemRelease.prototype.start = function () {
 
     var release = this;
     var item;
@@ -3438,14 +3437,14 @@ New features for v1.0.0
    * ongoing release process (animation) or finish the release process.
    *
    * @public
-   * @memberof Release.prototype
+   * @memberof ItemRelease.prototype
    * @param {Boolean} [abort=false]
    *  - Should the release be aborted? When true, the release end event won't be
    *    emitted. Set to true only when you need to abort the release process
    *    while the item is animating to it's position.
-   * @returns {Release}
+   * @returns {ItemRelease}
    */
-  Release.prototype.stop = function (abort) {
+  ItemRelease.prototype.stop = function (abort) {
 
     var release = this;
     var item;
@@ -3492,8 +3491,8 @@ New features for v1.0.0
   };
 
   /**
-   * Drag
-   * ****
+   * ItemDrag
+   * ********
    */
 
   /**
@@ -3503,7 +3502,7 @@ New features for v1.0.0
    * @private
    * @param {Item} item
    */
-  function Drag(item) {
+  function ItemDrag(item) {
 
     if (!Hammer) {
       throw Error('[' + libName + '] required dependency Hammer is not defined.');
@@ -3513,7 +3512,7 @@ New features for v1.0.0
     var element = item._element;
     var grid = item.getGrid();
     var settings = grid._settings;
-    var checkPredicate = typeof settings.dragStartPredicate === typeFunction ? settings.dragStartPredicate : Drag.defaultStartPredicate;
+    var checkPredicate = typeof settings.dragStartPredicate === typeFunction ? settings.dragStartPredicate : ItemDrag.defaultStartPredicate;
     var predicatePending = 0;
     var predicateResolved = 1;
     var predicateRejected = 2;
@@ -3538,7 +3537,7 @@ New features for v1.0.0
     }, settings.dragSortInterval);
 
     // Setup sort predicate.
-    drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ? settings.dragSortPredicate : Drag.defaultSortPredicate;
+    drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ? settings.dragSortPredicate : ItemDrag.defaultSortPredicate;
 
     // Setup drag scroll handler.
     drag._scrollHandler = function (e) {
@@ -3614,8 +3613,8 @@ New features for v1.0.0
   }
 
   /**
-   * Drag - Public methods
-   * *********************
+   * ItemDrag - Public methods
+   * *************************
    */
 
   /**
@@ -3623,12 +3622,12 @@ New features for v1.0.0
    * gracefully.
    *
    * @public
-   * @memberof Drag
+   * @memberof ItemDrag
    * @param {Item} item
    * @param {Object} event
    * @returns {Boolean}
    */
-  Drag.defaultStartPredicate = function (item, event) {
+  ItemDrag.defaultStartPredicate = function (item, event) {
 
     // TODO:
     // * Allow giving different options to touch devices. Make the options
@@ -3695,14 +3694,14 @@ New features for v1.0.0
    * Default drag sort predicate.
    *
    * @public
-   * @memberof Drag
+   * @memberof ItemDrag
    * @param {Item} item
    * @param {Object} event
    * @returns {(Boolean|DragSortCommand)}
    *   - Returns false if no valid index was found. Otherwise returns drag sort
    *     command.
    */
-  Drag.defaultSortPredicate = function (item) {
+  ItemDrag.defaultSortPredicate = function (item) {
 
     var drag = item._drag;
     var dragData = drag._data;
@@ -3807,18 +3806,18 @@ New features for v1.0.0
   };
 
   /**
-   * Drag - Public prototype methods
-   * *******************************
+   * ItemDrag - Public prototype methods
+   * ***********************************
    */
 
   /**
    * Destroy instance.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.destroy = function () {
+  ItemDrag.prototype.destroy = function () {
 
     var drag = this;
 
@@ -3837,10 +3836,10 @@ New features for v1.0.0
    * Get Item instance.
    *
    * @public
-   * @memberof Drag.prototype
+   * @memberof ItemDrag.prototype
    * @returns {?Item}
    */
-  Drag.prototype.getItem = function () {
+  ItemDrag.prototype.getItem = function () {
 
     return itemInstances[this._itemId] || null;
 
@@ -3850,10 +3849,10 @@ New features for v1.0.0
    * Get Grid instance.
    *
    * @public
-   * @memberof Drag.prototype
+   * @memberof ItemDrag.prototype
    * @returns {?Grid}
    */
-  Drag.prototype.getGrid = function () {
+  ItemDrag.prototype.getGrid = function () {
 
     return gridInstances[this._gridId] || null;
 
@@ -3863,10 +3862,10 @@ New features for v1.0.0
    * Setup/reset drag data.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.reset = function () {
+  ItemDrag.prototype.reset = function () {
 
     var drag = this;
     var dragData = drag._data;
@@ -3909,10 +3908,10 @@ New features for v1.0.0
    * the configuration layout the items.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.checkOverlap = function () {
+  ItemDrag.prototype.checkOverlap = function () {
 
     var drag = this;
     var item = drag.getItem();
@@ -4015,10 +4014,10 @@ New features for v1.0.0
    * gracefully.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.finishMigration = function () {
+  ItemDrag.prototype.finishMigration = function () {
 
     var drag = this;
     var item = drag.getItem();
@@ -4054,10 +4053,9 @@ New features for v1.0.0
     addClass(element, targetStn.itemVisibleClass);
 
     // Instantiate new animation controllers.
-    item._animate = new Grid.AnimateLayout(item, element);
-    item._animateChild = new Grid.AnimateVisibility(item, item._child);
-    item._isDefaultAnimate = item._animate instanceof Animate;
-    item._isDefaultChildAnimate = item._animateChild instanceof Animate;
+    item._animate = new Grid.ItemAnimate(item, element);
+    item._animateChild = new Grid.ItemAnimate(item, item._child);
+    item._isDefaultAnimate = item._animate instanceof ItemAnimate;
 
     // Move the item inside the target container if it's different than the
     // current container.
@@ -4079,7 +4077,7 @@ New features for v1.0.0
     targetGrid._itemShowHandler.start(item, true);
 
     // Recreate item's drag handler.
-    item._drag = targetStn.dragEnabled ? new Grid.Drag(item) : null;
+    item._drag = targetStn.dragEnabled ? new Grid.ItemDrag(item) : null;
 
     // Let's calculate and store the new diff between the new drag container and
     // new grid element and start the release.
@@ -4096,10 +4094,10 @@ New features for v1.0.0
    * Abort dragging and reset drag data.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.stop = function () {
+  ItemDrag.prototype.stop = function () {
 
     var drag = this;
     var dragData = drag._data;
@@ -4152,10 +4150,10 @@ New features for v1.0.0
    * Drag start handler.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.onStart = function (e) {
+  ItemDrag.prototype.onStart = function (e) {
 
     var drag = this;
     var item = drag.getItem();
@@ -4287,10 +4285,10 @@ New features for v1.0.0
    * Drag move handler.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.onMove = function (e) {
+  ItemDrag.prototype.onMove = function (e) {
 
     var drag = this;
     var item = drag.getItem();
@@ -4348,10 +4346,10 @@ New features for v1.0.0
    * Drag scroll handler.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.onScroll = function (e) {
+  ItemDrag.prototype.onScroll = function (e) {
 
     var drag = this;
     var item = drag.getItem();
@@ -4400,10 +4398,10 @@ New features for v1.0.0
    * Drag end handler.
    *
    * @public
-   * @memberof Drag.prototype
-   * @returns {Drag}
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Drag.prototype.onEnd = function (e) {
+  ItemDrag.prototype.onEnd = function (e) {
 
     var drag = this;
     var item = drag.getItem();
@@ -5551,8 +5549,6 @@ New features for v1.0.0
     return {
       start: function (item, instant, onFinish) {
 
-        var animateOpts;
-
         if (!isEnabled || !styles) {
           if (onFinish) {
             onFinish();
@@ -5560,12 +5556,7 @@ New features for v1.0.0
         }
         else if (instant) {
 
-          if (item._isDefaultChildAnimate) {
-            hookStyles(item._child, styles);
-          }
-          else {
-            setStyles(item._child, styles);
-          }
+          (item._isDefaultAnimate ? hookStyles : setStyles)(item._child, styles);
 
           if (onFinish) {
             onFinish();
@@ -5574,18 +5565,11 @@ New features for v1.0.0
         }
         else {
 
-          animateOpts = {
+          item._animateChild.start(null, styles, {
             duration: duration,
             easing: easing,
             onFinish: onFinish
-          };
-
-          if (item._isDefaultChildAnimate) {
-            item._animateChild.start(null, styles, animateOpts);
-          }
-          else {
-            item._animateChild.start(styles, animateOpts);
-          }
+          });
 
         }
 

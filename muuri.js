@@ -97,8 +97,9 @@ TODO v0.3.0
 * [-] BUG: scrollTop/scrollLeft values are not taken into account when calculating
       distances. This needs to be done.
       Update: Seems to be done -> Validate and add some unit tests!
-* [ ] In some cases it would be better if Muuri set min-height to the grid
-      container instead of height. Think about it.
+* [x] Allow providing multiple drag sort groups for easier customizability.
+* [ ] Consider adding an option for controlling Hammer instances initialization
+      settings. E.g. some people don't want to set touch-action as none.
 * [ ] Consider triggering internal events for external plugins. Think about
       what kind of events would ease the usaged with React, Angular and Vue.
       And how one would build a plugin.
@@ -107,9 +108,6 @@ TODO v0.3.0
       The practical use case for this would be a kanban board where the columns
       themselves and their items would be draggable. Let's try to make this work
       if there are any issues with it.
-* [ ] Consider adding an option for controlling Hammer instances initialization
-      settings. E.g. some people don't want to set touch-action as none.
-* [ ] Allow providing multiple drag sort groups for easier customizability.
 
 Optional optimization for v0.3.x
 ================================
@@ -217,7 +215,7 @@ New features for v1.0.0
   var itemInstances = {};
 
   // Keep track of the drag sort groups.
-  var sortGroups = {};
+  var dragSortGroups = {};
 
   // No operation function.
   var noop = function () {};
@@ -301,7 +299,7 @@ New features for v1.0.0
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {String} [options.dragSortPredicate.gaps=true]
-   * @param {?String} [options.dragSortGroup=null]
+   * @param {?(Array|String)} [options.dragSortGroup=null]
    * @param {?(Array|String)} [options.dragSortWith=null]
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {(Number[]|String)} [options.dragReleaseEasing="ease"]
@@ -347,7 +345,7 @@ New features for v1.0.0
     inst._emitter = new Grid.Emitter();
 
     // Setup instance's sort group.
-    inst._setSortGroup(settings.dragSortGroup);
+    inst._setSortGroups(settings.dragSortGroup);
 
     // Setup instance's sort connections.
     inst._sortConnections = settings.dragSortWith && settings.dragSortWith.length ? [].concat(settings.dragSortWith) : null;
@@ -1448,7 +1446,7 @@ New features for v1.0.0
     }
 
     // Unset sort group.
-    inst._unsetSortGroup();
+    inst._unsetSortGroups();
 
     // Restore container.
     removeClass(container, inst._settings.containerClass);
@@ -1553,24 +1551,36 @@ New features for v1.0.0
   };
 
   /**
-   * Set instance's drag sort group.
+   * Set instance's drag sort groups.
    *
    * @protected
    * @memberof Grid.prototype
-   * @param {?String} sortGroup
+   * @param {?(Array|String)} sortGroups
    * @returns {Grid}
    */
-  Grid.prototype._setSortGroup = function (sortGroup) {
+  Grid.prototype._setSortGroups = function (sortGroups) {
 
     var inst = this;
+    var instSortGroups = [];
 
-    inst._sortGroup = null;
-    if (sortGroup && typeof sortGroup === typeString) {
-      inst._sortGroup = sortGroup;
-      if (!sortGroups[sortGroup]) {
-        sortGroups[sortGroup] = [];
+    // Set the initial instance sort group.
+    inst._sortGroups = null;
+
+    // Sanitize sort groups and add them to the instance sort groups as well as
+    // to the global sort groups collection.
+    [].concat(sortGroups).forEach(function (sortGroup) {
+      if (typeof sortGroup === 'string' && instSortGroups.indexOf(sortGroup) < 0) {
+        instSortGroups.push(sortGroup);
+        if (!dragSortGroups[sortGroup]) {
+          dragSortGroups[sortGroup] = [];
+        }
+        dragSortGroups[sortGroup].push(inst._id);
       }
-      sortGroups[sortGroup].push(inst._id);
+    });
+
+    // If there were valid sort groups update the instance sort groups.
+    if (instSortGroups.length) {
+      inst._sortGroups = instSortGroups;
     }
 
     return inst;
@@ -1584,22 +1594,25 @@ New features for v1.0.0
    * @memberof Grid.prototype
    * @returns {Grid}
    */
-  Grid.prototype._unsetSortGroup = function () {
+  Grid.prototype._unsetSortGroups = function () {
 
     var inst = this;
-    var sortGroup = inst._sortGroup;
+    var sortGroups = inst._sortGroups;
     var sortGroupItems;
     var i;
+    var ii;
 
-    if (sortGroup) {
-      sortGroupItems = sortGroups[sortGroup];
-      for (i = 0; i < sortGroupItems.length; i++) {
-        if (sortGroupItems[i] === inst._id) {
-          sortGroupItems.splice(i, 1);
-          break;
+    if (sortGroups) {
+      for (i = 0; i < sortGroups.length; i++) {
+        sortGroupItems = dragSortGroups[sortGroups[i]];
+        for (ii = 0; ii < sortGroupItems.length; ii++) {
+          if (sortGroupItems[ii] === inst._id) {
+            sortGroupItems.splice(ii, 1);
+            break;
+          }
         }
       }
-      inst._sortGroup = null;
+      inst._sortGroups = null;
     }
 
     return inst;
@@ -1620,7 +1633,7 @@ New features for v1.0.0
     var ret = includeSelf ? [inst] : [];
     var connections = inst._sortConnections;
     var sortGroup;
-    var gridId;
+    var connectedGrid;
     var ii;
     var i;
 
@@ -1630,12 +1643,12 @@ New features for v1.0.0
 
     if (connections && connections.length) {
       for (i = 0; i < connections.length; i++) {
-        sortGroup = sortGroups[connections[i]];
+        sortGroup = dragSortGroups[connections[i]];
         if (sortGroup && sortGroup.length) {
           for (ii = 0; ii < sortGroup.length; ii++) {
-            gridId = sortGroup[ii];
-            if (gridId !== inst._id) {
-              ret.push(gridInstances[gridId]);
+            connectedGrid = gridInstances[sortGroup[ii]];
+            if (connectedGrid !== inst && ret.indexOf(connectedGrid) < 0) {
+              ret.push(connectedGrid);
             }
           }
         }

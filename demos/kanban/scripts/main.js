@@ -2,14 +2,14 @@ $(function () {
 
   var muuriInstances = [];
 
-  $('.board-column-items').each(function () {
+  $('.board-column-items').each(function (i) {
 
     var container = this;
     var muuri = new Muuri(container, {
       items: '.board-item',
       dragEnabled: true,
-      dragSortGroup: 'column',
-      dragSortWith: 'column',
+      dragSortGroup: ['col', 'col-' + i],
+      dragSortWith: i === 0 ? 'col' : 'col-' + 0,
       dragContainer: document.body
     });
 

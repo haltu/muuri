@@ -718,7 +718,7 @@ var gridB = new Muuri(elemB, {
 
 ### dragSortWith &nbsp;
 
-Defines the sort groups that this instance's item's can be dragged to. Provide an array of sort groups (strings), e.g. `['groupA', 'groupC']`.
+Defines the sort group(s) that this instance's item's can be dragged to. Provide a string to target a single sort group, e.g. `'groupA'`, or an array of targeted sort groups using an array, e.g. `['groupA', 'groupC']`.
 
 * Default value: `null`.
 * Accepted types: array, null.
@@ -732,7 +732,7 @@ var gridA = new Muuri(elemA, {
 // This grid's items can be dragged into gridC.
 var gridB = new Muuri(elemB, {
   dragSortGroup: 'b',
-  dragSortWith: ['c']
+  dragSortWith: 'c'
 });
 
 // This grid's items can be dragged into gridA and gridB.

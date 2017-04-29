@@ -98,16 +98,8 @@ TODO v0.3.0
       distances. This needs to be done.
       Update: Seems to be done -> Validate and add some unit tests!
 * [x] Allow providing multiple drag sort groups for easier customizability.
-* [ ] Consider adding an option for controlling Hammer instances initialization
+* [x] Consider adding an option for controlling Hammer instances initialization
       settings. E.g. some people don't want to set touch-action as none.
-* [ ] Consider triggering internal events for external plugins. Think about
-      what kind of events would ease the usaged with React, Angular and Vue.
-      And how one would build a plugin.
-* [ ] Allow nested Muuri instances or add a warning to documentation that nested
-      instances are not supported. Is there actually anything preventing this?
-      The practical use case for this would be a kanban board where the columns
-      themselves and their items would be draggable. Let's try to make this work
-      if there are any issues with it.
 
 Optional optimization for v0.3.x
 ================================
@@ -130,6 +122,11 @@ Optional optimization for v0.3.x
 * [ ] Refactor the layout algorithm so that we don't need to do the extra
       looping of the items in the end if the algorithm mode is alignRight or
       alignBottom.
+* [ ] Allow nested Muuri instances or add a warning to documentation that nested
+      instances are not supported. Is there actually anything preventing this?
+      The practical use case for this would be a kanban board where the columns
+      themselves and their items would be draggable. Let's try to make this work
+      if there are any issues with it.
 * [ ] Memory leak tests.
 
 New features for v1.0.0
@@ -303,6 +300,7 @@ New features for v1.0.0
    * @param {?(Array|String)} [options.dragSortWith=null]
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {(Number[]|String)} [options.dragReleaseEasing="ease"]
+   * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
    * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -505,6 +503,9 @@ New features for v1.0.0
     dragSortWith: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
+    dragHammerSettings: {
+      touchAction: 'none'
+    },
 
     // Classnames
     containerClass: 'muuri',
@@ -3573,9 +3574,10 @@ New features for v1.0.0
       time: 0
     }));
 
-    // This is not ideal, but saves us from a LOT of hacks. Let's try to keep
-    // the default drag setup consistent across devices.
-    hammer.set({touchAction: 'none'});
+    // Configure the hammer instance.
+    if (isPlainObject(settings.dragHammerSettings)) {
+      hammer.set(settings.dragHammerSettings);
+    }
 
     // Bind drag events.
     hammer

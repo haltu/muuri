@@ -36,6 +36,7 @@
 
     grid.on('dragStart', function () {
       body.scrollTop = 100;
+      docElem.scrollTop = 100;
     });
 
     grid.on('dragScroll', function (draggedItem, ev) {

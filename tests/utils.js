@@ -1,15 +1,8 @@
 (function (window) {
 
   var utils = window.utils = {};
-  var vendorPrefixes = ['', 'webkit', 'Moz', 'MS', 'ms', 'o'];
-  var supportsTouch = 'ontouchstart' in window;
-  var supportsPointerEvents = (function () {
-    for (var i = 0; i < vendorPrefixes.length; i++) {
-      if ((vendorPrefixes[i] + 'PointerEvent') in window) {
-        return true;
-      }
-    }
-  })();
+  var supportsTouch = !!('TouchEvent' in window);
+  var supportsPointer = !!('PointerEvent' in window);
 
   //
   // Methods
@@ -78,7 +71,7 @@
     };
 
     // Create the hand and finger istances.
-    var eventMode = supportsPointerEvents ? 'pointer' : supportsTouch ? 'touch' : 'mouse';
+    var eventMode = supportsPointer ? 'pointer' : supportsTouch ? 'touch' : 'mouse';
     var pointerType = supportsTouch ? 'touch' : 'mouse';
     var hand = new Hand({timing: 'fastFrame'});
     var finger = hand.growFinger(eventMode, {

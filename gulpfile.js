@@ -34,7 +34,7 @@ gulp.task('test-chrome', function (done) {
   (new karma.Server({
     configFile: __dirname + '/karma.conf.js',
     action: 'run',
-    browsers: ['Chrome']
+    browsers: ['Chrome', 'Firefox']
   }, function (exitCode) {
     done(exitCode);
   })).start();

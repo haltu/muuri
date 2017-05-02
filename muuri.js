@@ -22,134 +22,6 @@
  * SOFTWARE.
  */
 
-/*
-
-TODO v0.3.0
-===========
-* [x] BUG: When container has box-sizing border box the dimensions are not
-      visually correct.
-* [x] grid.send()
-* [x] grid.sort()
-* [x] grid.filter()
-* [x] Improve grid.getItems() to support filtering items by all available
-      states.
-* [x] Improve the the visibility handler method logic. If an item is already
-      visible and grid.show() is called for it, there should be no event
-      triggered. The same applies to hidden items and grid.hide() method.
-* [x] When setting the width/height of container account for min-width/height
-      and max-width/height.
-* [x] Drag item between instances.
-      * [x] Drop item on empty container.
-      * [x] Don't support defining "from" index in sortPredicate.
-      * [x] Get the related events and their arguments sorted out.
-      * [x] Deprecate the builtin freeze/unfreeze methods -> let it for user
-            to solve since it's a fix for a specific scenario.
-* [x] Always consider the dragged element to be the item element. Get rid of
-      the dragData.element and releaseData.element stuff.
-* [x] Review the event names and data.
-* [x] Support providing a selector to items option.
-* [x] API overhaul. Try make as little breaking changes as possible.
-      * [x] Container -> Grid (reflect the change throughout the API)
-      * [x] new Grid(opts) -> new Grid(element, opts)
-      * [x] Review the refresh logic and the need for two refresh methods. It's
-            not ideal at the moment and has some issues.
-* [x] Items should always be children of the container element, so instead of
-      of using querySelectorAll in items options let's just get the children
-      and use elementMatches to filter the elements.
-* [x] Use "border-dimensions" for the container check in drag
-      overlap check. Justification? Well the items are also measured with
-      border, so there's that.
-* [x] Review the dragSend/dragReceive logic, doesn't feel quite right yet.
-* [x] Add auto-layout to grid.sort() method, was missing it while others had it.
-* [x] Rename "callbacks" to something more meaningful -> onFinish
-* [x] Smarter sort method (and make it stable).
-* [x] Filter method overhaul.
-* [x] BUG: When dragging items from a grid to another and the page is scrolled
-      things the items dont's go where they are supposed to go. The problem is
-      that the grid container's offset is not automatically updated on scroll
-      during drag, so let's fix it -> always update the connected grids' offset
-      when checking overlap.
-* [x] Simpler dragStartPredicate system.
-* [x] Smarter default dragStartPredicate that's aware of links.
-* [x] Allow document.body being a container.
-* [x] Destroying the instance causes weird scenarios sometimes. Think through
-      the usage flow and find a way to handle it. How is destroy managed in
-      other libs?
-* [x] Update layout callback/end event logic.
-* [x] Document all public callbacks within the type definitions section.
-* [x] Refactor release process:
-      * [x] Separate release process drag process.
-      * [x] Merge dragReceiveDrop into releaseStart.
-* [x] Is item.isMigrating() really needed? Nope.
-* [x] Consider merging dragSort event to move event. Done.
-* [x] Consider merging dragSend event to send event. Done.
-* [x] Consider merging dragReceive event to receive event. Done.
-* [x] Consider renaming dragSortConnections -> dragSortWith
-* [x] add .once() method for triggering a listener only once.
-* [x] Consider refactoring the show/hide options into their separate options:
-      showDuration/hideDuration, showEasing/hideEasing and showStyles/
-      hideStyles. Having a totally custom show/hideanimation should probably be
-      a hidden feature behind an undocumented option.
-* [x] Allow dragSortWith to be a string for single value.
-* [x] Consider adding some configurable properties to the default drag start
-      predicate. If we would have handle(s) option it would make building
-      nested grids much easier.
-* [-] BUG: scrollTop/scrollLeft values are not taken into account when calculating
-      distances. This needs to be done.
-      Update: Seems to be done -> Validate and add some unit tests!
-* [x] Allow providing multiple drag sort groups for easier customizability.
-* [x] Consider adding an option for controlling Hammer instances initialization
-      settings. E.g. some people don't want to set touch-action as none.
-
-Optional optimization for v0.3.x
-================================
-* [ ] Streamline codebase by trying to combine similar functions and methods
-      into smaller reusable functions. Goal is less than 10kb when minified and
-      gzipped.
-* [ ] Add container offset diff mechanism to the item itself so it can be
-      utilized by drag and migrate operations. Just to keep the code DRY and
-      clearer.
-* [ ] When a grid has one or more items being dragged set it in a mode where it
-      listens it's scroll containers for scroll events and marks the offset as
-      "dirty". When checking overlap update the offset only for the "dirty"
-      containers. This way we reduce the calling of gbcr to the minimum. Also
-      whenever dragging is started all connected grids should get their offset
-      updated. The offset is only required for the dragging operation.
-* [ ] Optimize the current layout system to work faster if all items are
-      the same size.
-* [ ] Don't call layout if nothing has changed. Create a system for checking
-      this. Try to keep it fast, just a simple dirty check.
-* [ ] Refactor the layout algorithm so that we don't need to do the extra
-      looping of the items in the end if the algorithm mode is alignRight or
-      alignBottom.
-* [ ] Allow nested Muuri instances or add a warning to documentation that nested
-      instances are not supported. Is there actually anything preventing this?
-      The practical use case for this would be a kanban board where the columns
-      themselves and their items would be draggable. Let's try to make this work
-      if there are any issues with it.
-* [ ] Memory leak tests.
-
-New features for v1.0.0
-=======================
-* [ ] Get rid of the auto-layout within some methods. It's handy, but not good
-      API design pattern.
-* [ ] Allow defining "stamps" (holes) in the layout.
-* [ ] Allow moving and sending batches of items with move and send methods.
-* [ ] Drag placeholder.
-* [ ] Scroll while dragging.
-* [ ] dragAxis: If defined, the items can be dragged only horizontally or
-      vertically. Possible values: "x", "y". (Idea nicked from jQuery UI
-      Sortable).
-* [ ] dragContainement: Defines a bounding box that the sortable items are
-      constrained to while dragging. (Idea nicked from jQuery UI Sortable).
-* [ ] Change add method to support use case where the added element is inside
-      an other container than the grid container. There should be an option to
-      allow positioning the item from the current container to the grid
-      container using similar flow as in release flow. There are a lot of use
-      cases for this scenario.
-
-*/
-
 (function (global, factory) {
 
   var libName = 'Muuri';
@@ -3210,9 +3082,9 @@ New features for v1.0.0
     // current container.
     if (targetContainer !== currentContainer) {
       targetContainer.appendChild(itemElement);
-      offsetDiff = getOffsetDiff(targetContainer, currentContainer);
-      translateX = getTranslateAsFloat(itemElement, 'x') + offsetDiff.left - currentContainer.scrollLeft;
-      translateY = getTranslateAsFloat(itemElement, 'y') + offsetDiff.top - currentContainer.scrollTop;
+      offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
+      translateX = getTranslateAsFloat(itemElement, 'x') + offsetDiff.left;
+      translateY = getTranslateAsFloat(itemElement, 'y') + offsetDiff.top;
       setStyles(itemElement, {
         transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
@@ -3239,11 +3111,11 @@ New features for v1.0.0
     item._drag = targetGridStn.dragEnabled ? new Grid.ItemDrag(item) : null;
 
     // Setup migration data.
-    offsetDiff = getOffsetDiff(targetContainer, targetGridElement);
+    offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
     migrate.isActive = true;
     migrate.container = targetContainer;
-    migrate.containerDiffX = offsetDiff.left - targetGridElement.scrollLeft + targetContainer.scrollLeft;
-    migrate.containerDiffY = offsetDiff.top - targetGridElement.scrollTop + targetContainer.scrollTop;
+    migrate.containerDiffX = offsetDiff.left;
+    migrate.containerDiffY = offsetDiff.top;
 
     // Emit send event.
     currentGrid._emit(evSend, {
@@ -3731,7 +3603,6 @@ New features for v1.0.0
       top: Math.round(dragData.elementClientY)
     };
     var grid = getTargetGrid(itemRect, rootGrid, sortThreshold);
-    var gridElement;
     var gridOffsetLeft = 0;
     var gridOffsetTop = 0;
     var matchScore = -1;
@@ -3752,7 +3623,6 @@ New features for v1.0.0
     }
 
     // Get the needed target grid data.
-    gridElement = grid.getElement();
     gridItems = grid._items;
     gridOffset = grid._offset;
     gridBorder = grid._border;
@@ -3766,8 +3636,8 @@ New features for v1.0.0
       itemRect.top = Math.round(dragData.gridY) + item._margin.top;
     }
     else {
-      gridOffsetLeft = gridOffset.left + gridBorder.left + gridPadding.left - gridElement.scrollLeft;
-      gridOffsetTop = gridOffset.top + gridBorder.top + gridPadding.top - gridElement.scrollTop;
+      gridOffsetLeft = gridOffset.left + gridBorder.left + gridPadding.left;
+      gridOffsetTop = gridOffset.top + gridBorder.top + gridPadding.top;
     }
 
     // Loop through the target grid items and try to find the best match.
@@ -3887,6 +3757,12 @@ New features for v1.0.0
 
     // Is item being dragged?
     dragData.isActive = false;
+
+    // The dragged item's container element.
+    dragData.container = null;
+
+    // The dragged item's containing block.
+    dragData.containingBlock = null;
 
     // Hammer event data.
     dragData.startEvent = null;
@@ -4076,7 +3952,7 @@ New features for v1.0.0
     // current container.
     if (targetContainer !== currentContainer) {
       targetContainer.appendChild(element);
-      offsetDiff = getOffsetDiff(currentContainer, targetContainer);
+      offsetDiff = getOffsetDiff(currentContainer, targetContainer, true);
       translateX = getTranslateAsFloat(element, 'x') + offsetDiff.left;
       translateY = getTranslateAsFloat(element, 'y') + offsetDiff.top;
       setStyles(element, {
@@ -4094,11 +3970,10 @@ New features for v1.0.0
     // Recreate item's drag handler.
     item._drag = targetStn.dragEnabled ? new Grid.ItemDrag(item) : null;
 
-    // Let's calculate and store the new diff between the new drag container and
-    // new grid element and start the release.
-    offsetDiff = getOffsetDiff(targetContainer, targetGridElement);
-    release.containerDiffX = offsetDiff.left - targetGridElement.scrollLeft + targetContainer.scrollLeft;
-    release.containerDiffY = offsetDiff.top - targetGridElement.scrollTop + targetContainer.scrollTop;
+    // Setup release data and start the release.
+    offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
+    release.containerDiffX = offsetDiff.left;
+    release.containerDiffY = offsetDiff.top;
     release.start();
 
     return drag;
@@ -4181,6 +4056,7 @@ New features for v1.0.0
     var currentTop;
     var gridContainer;
     var dragContainer;
+    var containingBlock;
     var offsetDiff;
     var elementGBCR;
     var isWithinDragContainer;
@@ -4220,9 +4096,11 @@ New features for v1.0.0
     currentLeft = getTranslateAsFloat(element, 'x');
     currentTop = getTranslateAsFloat(element, 'y');
 
-    // Get container element references.
+    // Get container element references, and store drag container and containing
+    // block.
     gridContainer = grid._element;
-    dragContainer = settings.dragContainer;
+    dragData.container = dragContainer = settings.dragContainer || gridContainer;
+    dragData.containingBlock = containingBlock = getContainingBlock(dragContainer, true);
 
     // Set initial left/top drag value.
     dragData.left = dragData.gridX = currentLeft;
@@ -4230,7 +4108,7 @@ New features for v1.0.0
 
     // If a specific drag container is set and it is different from the
     // grid's container element we need to cast some extra spells.
-    if (dragContainer && dragContainer !== gridContainer) {
+    if (dragContainer !== gridContainer) {
 
       // Check if dragged element is already a child of the drag container.
       isWithinDragContainer = element.parentNode === dragContainer;
@@ -4242,9 +4120,9 @@ New features for v1.0.0
       }
 
       // Store the container offset diffs to drag data.
-      offsetDiff = getOffsetDiff(dragContainer, gridContainer);
-      dragData.containerDiffX = offsetDiff.left - gridContainer.scrollLeft + dragContainer.scrollLeft;
-      dragData.containerDiffY = offsetDiff.top - gridContainer.scrollTop + dragContainer.scrollTop;
+      offsetDiff = getOffsetDiff(containingBlock, gridContainer);
+      dragData.containerDiffX = offsetDiff.left;
+      dragData.containerDiffY = offsetDiff.top;
 
       // If the dragged element is a child of the drag container all we need to
       // do is setup the relative drag position data.
@@ -4277,7 +4155,7 @@ New features for v1.0.0
     // container we need to add the grid container and grid container's scroll
     // parent's to the element's which are going to be listener for scroll
     // events.
-    if (dragContainer && dragContainer !== gridContainer) {
+    if (dragContainer !== gridContainer) {
       dragData.scrollers = arrayUnique(dragData.scrollers.concat(gridContainer).concat(getScrollParents(gridContainer)));
     }
 
@@ -4373,17 +4251,16 @@ New features for v1.0.0
     var settings = grid._settings;
     var dragData = drag._data;
     var gridContainer = grid._element;
-    var dragContainer = settings.dragContainer;
     var elementGBCR = element.getBoundingClientRect();
     var xDiff = dragData.elementClientX - elementGBCR.left;
     var yDiff = dragData.elementClientY - elementGBCR.top;
     var offsetDiff;
 
     // Update container diff.
-    if (dragContainer && dragContainer !== gridContainer) {
-      offsetDiff = getOffsetDiff(dragContainer, gridContainer);
-      dragData.containerDiffX = offsetDiff.left - gridContainer.scrollLeft + dragContainer.scrollLeft;
-      dragData.containerDiffY = offsetDiff.top - gridContainer.scrollTop + dragContainer.scrollTop;
+    if (dragData.container !== gridContainer) {
+      offsetDiff = getOffsetDiff(dragData.containingBlock, gridContainer);
+      dragData.containerDiffX = offsetDiff.left;
+      dragData.containerDiffY = offsetDiff.top;
     }
 
     // Update position data.
@@ -4909,9 +4786,13 @@ New features for v1.0.0
    * @private
    * @param {HTMLElement} elemA
    * @param {HTMLElement} elemB
+   * @param {Boolean} [compareContainingBlocks=false]
+   *   - When this is set to true the containing blocks of the provided elements
+   *     will be used for calculating the difference. Otherwise the provided
+   *     elements will be compared directly.
    * @returns {Object}
    */
-  function getOffsetDiff(elemA, elemB) {
+  function getOffsetDiff(elemA, elemB, compareContainingBlocks) {
 
     if (elemA === elemB) {
       return {
@@ -4920,17 +4801,87 @@ New features for v1.0.0
       };
     }
 
-    var aRect = elemA.getBoundingClientRect();
-    var aLeft = aRect.left + getStyleAsFloat(elemA, 'border-left-width');
-    var aTop = aRect.top + getStyleAsFloat(elemA, 'border-top-width');
-    var bRect = elemB.getBoundingClientRect();
-    var bLeft = bRect.left + getStyleAsFloat(elemB, 'border-left-width');
-    var bTop = bRect.top + getStyleAsFloat(elemB, 'border-top-width');
+    if (compareContainingBlocks) {
+      elemA = getContainingBlock(elemA, true);
+      elemB = getContainingBlock(elemB, true);
+    }
+
+    var aOffset = getOffset(elemA);
+    var bOffset = getOffset(elemB);
 
     return {
-      left: bLeft - aLeft,
-      top: bTop - aTop
+      left: bOffset.left - aOffset.left,
+      top: bOffset.top - aOffset.top
     };
+
+  }
+
+  /**
+   * Returns the element's document offset, which in practice means the vertical
+   * and horizontal distance between the element's northwest corner and the
+   * document's northwest corner. Note that this function returns offset from
+   * element's padding edge, not border edge.
+   *
+   * @private
+   * @param {(Document|Element|Window)} element
+   * @returns {Offset}
+   */
+  function getOffset(element) {
+
+    var gbcr;
+    var ret = {
+      left: 0,
+      top: 0
+    };
+
+    // Document's offsets are always 0.
+    if (element === document) {
+      return ret;
+    }
+
+    // Add viewport's scroll left/top to the respective offsets.
+    ret.left = global.pageXOffset || 0;
+    ret.top = global.pageYOffset || 0;
+
+    // Window's offsets are the viewport's scroll left/top values.
+    if (element.self === global.self) {
+      return ret;
+    }
+
+    // Add element's client rects and borders to the offsets.
+    gbcr = element.getBoundingClientRect();
+    ret.left += gbcr.left + getStyleAsFloat(element, 'border-left-width');
+    ret.top += gbcr.top + getStyleAsFloat(element, 'border-top-width');
+
+    return ret;
+
+  }
+
+  /**
+   * Returns an aabsolute positioned element's containing block, which is
+   * considered to be the closest ancestor element that the target element's
+   * positioning is relative to. Disclaimer: this only works as intended for
+   * abolute positioned elements.
+   *
+   * @private
+   * @param {HTMLElement} element
+   * @param {Boolean} [isParent=false]
+   *   - When this is set to true the containing block checking is started from
+   *     the provided element. Otherwise the checking is started from the
+   *     provided element's parent element.
+   * @returns {(Document|Element)}
+   */
+  function getContainingBlock(element, isParent) {
+
+    // As long as the containing block is an element, static and not
+    // transformed, try to get the element's parent element and fallback to
+    // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
+    var ret = (isParent ? element : element.parentElement) || document;
+    while (ret && ret !== document && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
+      ret = ret.parentElement || document;
+    }
+
+    return ret;
 
   }
 

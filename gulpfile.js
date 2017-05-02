@@ -44,7 +44,7 @@ gulp.task('test-sauce', function (done) {
   (new karma.Server({
     configFile: __dirname + '/karma.conf.js',
     action: 'run',
-    browsers: ['slChromeWin']
+    browsers: ['slChromeWin', 'slFirefoxWin', 'slEdge']
   }, function (exitCode) {
     done(exitCode);
   })).start();

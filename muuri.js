@@ -229,9 +229,6 @@
     // Add container element's class name.
     addClass(element, settings.containerClass);
 
-    // Calculate container element's initial dimensions and offset.
-    inst.refreshContainer();
-
     // Create initial items.
     inst._items = [];
     items = settings.items;
@@ -254,7 +251,7 @@
     layoutOnResize = layoutOnResize === true ? 0 : typeof layoutOnResize === typeNumber ? layoutOnResize : -1;
     if (layoutOnResize >= 0) {
       debouncedLayout = debounce(function () {
-        inst.refreshContainer().refreshItems().layout();
+        inst.refreshItems().layout();
       }, layoutOnResize);
       inst._resizeHandler = function () {
         debouncedLayout();
@@ -466,38 +463,6 @@
   };
 
   /**
-   * Get cached dimensions. The cached dimensions are subject to change whenever
-   * layout or refresh method is called. Note that all returned values are
-   * rounded.
-   *
-   * @public
-   * @memberof Grid.prototype
-   * @returns {GridDimensions}
-   */
-  Grid.prototype.getDimensions = function () {
-
-    var inst = this;
-
-    return {
-      width: inst._width,
-      height: inst._height,
-      padding: {
-        left: inst._padding.left,
-        right: inst._padding.right,
-        top: inst._padding.top,
-        bottom: inst._padding.bottom
-      },
-      border: {
-        left: inst._border.left,
-        right: inst._border.right,
-        top: inst._border.top,
-        bottom: inst._border.bottom
-      }
-    };
-
-  };
-
-  /**
    * Get all items. Optionally you can provide specific targets (elements and
    * indices) and filter the results based on the state of the items. Note that
    * the returned array is not the same object used by the instance so modifying
@@ -544,55 +509,6 @@
     else {
       return ret.concat(inst._items);
     }
-
-  };
-
-  /**
-   * Refresh the cached dimensions and styles of the container element.
-   *
-   * @public
-   * @memberof Grid.prototype
-   * @returns {Grid}
-   */
-  Grid.prototype.refreshContainer = function () {
-
-    var inst = this;
-    var element;
-    var sides;
-    var rect;
-    var i;
-
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
-
-    // Get some data.
-    element = inst._element;
-    sides = ['left', 'right', 'top', 'bottom'];
-    rect = element.getBoundingClientRect();
-
-    // Update width, height, offsets and box sizing.
-    inst._width = Math.round(rect.width);
-    inst._height = Math.round(rect.height);
-    inst._offset = inst._offset || {};
-    inst._offset.left = Math.round(rect.left);
-    inst._offset.top = Math.round(rect.top);
-    inst._boxSizing = getStyle(element, 'box-sizing');
-
-    // Update paddings.
-    inst._padding = inst._padding || {};
-    for (i = 0; i < sides.length; i++) {
-      inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
-    }
-
-    // Update borders.
-    inst._border = inst._border || {};
-    for (i = 0; i < sides.length; i++) {
-      inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
-    }
-
-    return inst;
 
   };
 
@@ -709,8 +625,6 @@
     var counter = 0;
     var layout;
     var items;
-    var padding;
-    var border;
     var isBorderBox;
     var item;
     var position;
@@ -753,29 +667,21 @@
     // dimensions if it's box-sizing is border-box.
     if (layout.setWidth || layout.setHeight) {
 
-      padding = inst._padding;
-      border = inst._border;
-      isBorderBox = inst._boxSizing === 'border-box';
+      isBorderBox = getStyle(inst._element, 'box-sizing') === 'border-box';
 
       // Set container element's height if needed.
       if (layout.setHeight) {
         setStyles(inst._element, {
-          height: (isBorderBox ? layout.height + padding.top + padding.bottom + border.top + border.bottom : layout.height) + 'px'
+          height: (isBorderBox ? layout.height + inst._padding.top + inst._padding.bottom + inst._border.top + inst._border.bottom : layout.height) + 'px'
         });
       }
 
       // Set container element's width if needed.
       if (layout.setWidth) {
         setStyles(inst._element, {
-          width: (isBorderBox ? layout.width + padding.left + padding.right + border.left + border.right : layout.width) + 'px'
+          width: (isBorderBox ? layout.width + inst._padding.left + inst._padding.right + inst._border.left + inst._border.right : layout.width) + 'px'
         });
       }
-
-      // Update grid's width and height to account for the possible
-      // min/max-width/height.
-      rect = inst._element.getBoundingClientRect();
-      inst._width = Math.round(rect.width);
-      inst._height = Math.round(rect.height);
 
     }
 
@@ -997,7 +903,7 @@
    * @public
    * @memberof Grid.prototype
    * @param {(Function|String)} predicate
-   * @oaram {Object} [options]
+   * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
    * @param {FilterCallback} [options.onFinish]
    * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
@@ -1420,6 +1326,37 @@
     }
 
     return this;
+
+  };
+
+  /**
+   * Refresh container's internal dimensions.
+   *
+   * @private
+   * @memberof Grid.prototype
+   * @returns {Grid}
+   */
+  Grid.prototype._refreshDimensions = function () {
+
+    var inst = this;
+    var element = this.getElement();
+    var rect = element.getBoundingClientRect();
+    var sides = ['left', 'right', 'top', 'bottom'];
+    var i;
+
+    inst._width = Math.round(rect.width);
+    inst._height = Math.round(rect.height);
+    inst._left = Math.round(rect.left);
+    inst._top = Math.round(rect.top);
+    inst._padding = {};
+    inst._border = {};
+
+    for (i = 0; i < sides.length; i++) {
+      inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
+      inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
+    }
+
+    return inst;
 
   };
 
@@ -2355,8 +2292,6 @@
 
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.
-    // TODO: Or should we just clear the visibility queue and not call the
-    // callbacks?
     processQueue(inst._visibilityQueue, true, inst);
 
     // Remove classes.
@@ -2406,12 +2341,14 @@
     // Sanitize items.
     items = items ? items.concat() : grid.getItems('active');
 
+    // Let's make sure we have the correct container dimensions before going
+    // further.
+    grid._refreshDimensions();
+
     var inst = this;
     var settings = grid._settings.layout;
-    var padding = grid._padding;
-    var border = grid._border;
-    var width = grid._width - border.left - border.right - padding.left - padding.right;
-    var height = grid._height - border.top - border.bottom - padding.top - padding.bottom;
+    var width = grid._width - grid._border.left - grid._border.right - grid._padding.left - grid._padding.right;
+    var height = grid._height - grid._border.top - grid._border.bottom - grid._padding.top - grid._padding.bottom;
 
     // Calculate the layout data. If the user has provided custom function as a
     // layout method invoke it. Otherwise invoke the default layout method.
@@ -3516,13 +3453,6 @@
    */
   ItemDrag.defaultStartPredicate = function (item, event) {
 
-    // TODO:
-    // * Allow giving different options to touch devices. Make the options
-    //   cover most use cases.
-    // * Allow enforcing that the pointer must be within the target element
-    //   for the predicate to resolve. This check should be after all the other
-    //   checks.
-
     var elem = item.getElement();
     var drag = item._drag;
     var rootGrid = drag.getGrid();
@@ -3607,10 +3537,6 @@
     var gridOffsetTop = 0;
     var matchScore = -1;
     var matchIndex;
-    var gridItems;
-    var gridOffset;
-    var gridBorder;
-    var gridPadding;
     var hasValidTargets;
     var target;
     var score;
@@ -3622,12 +3548,6 @@
       return false;
     }
 
-    // Get the needed target grid data.
-    gridItems = grid._items;
-    gridOffset = grid._offset;
-    gridBorder = grid._border;
-    gridPadding = grid._padding;
-
     // If item is moved within it's originating grid adjust item's left and top
     // props. Otherwise if item is moved to/within another grid get the
     // container element's offset (from the element's content edge).
@@ -3636,14 +3556,14 @@
       itemRect.top = Math.round(dragData.gridY) + item._margin.top;
     }
     else {
-      gridOffsetLeft = gridOffset.left + gridBorder.left + gridPadding.left;
-      gridOffsetTop = gridOffset.top + gridBorder.top + gridPadding.top;
+      gridOffsetLeft = grid._left + grid._border.left + grid._padding.left;
+      gridOffsetTop = grid._top + grid._border.top + grid._padding.top;
     }
 
     // Loop through the target grid items and try to find the best match.
-    for (i = 0; i < gridItems.length; i++) {
+    for (i = 0; i < grid._items.length; i++) {
 
-      target = gridItems[i];
+      target = grid._items[i];
 
       // If the target item is not active or the target item is the dragged item
       // let's skip to the next item.
@@ -5563,7 +5483,6 @@
     var bestScore = -1;
     var gridScore;
     var grid;
-    var rect;
     var i;
 
     for (i = 0; i < grids.length; i++) {
@@ -5573,16 +5492,14 @@
       // We need to update the grid's offset since it may have changed during
       // scrolling. This could be left as problem for the userland, but it's
       // much nicer this way. One less hack for the user to worry about =)
-      rect = grid._element.getBoundingClientRect();
-      grid._offset.left = Math.round(rect.left);
-      grid._offset.top = Math.round(rect.top);
+      grid._refreshDimensions();
 
       // Check how much dragged element overlaps the container element.
       gridScore = getRectOverlapScore(itemRect, {
         width: grid._width,
         height: grid._height,
-        left: grid._offset.left,
-        top: grid._offset.top
+        left: grid._left,
+        top: grid._top
       });
 
       // Check if this grid is the best match so far.

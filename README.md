@@ -862,9 +862,7 @@ var grid = new Muuri(elem, {
 ### Grid methods
 
 * [grid.getElement()](#gridgetelement)
-* [grid.getDimensions()](#gridgetdimensions)
 * [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
-* [grid.refreshContainer()](#gridrefreshcontainer)
 * [grid.refreshItems( [items] )](#gridrefreshitems-items-)
 * [grid.refreshSortData( [items] )](#gridrefreshsortdata-items-)
 * [grid.synchronize()](#gridsynchronize)
@@ -890,37 +888,6 @@ Get the instance element.
 
 ```javascript
 var elem = grid.getElement();
-```
-
-### grid.getDimensions()
-
-Get grid element's cached dimensions. The cached dimensions are subject to change whenever `grid.layout()` or `grid.refreshContainer()` method is called. All returned values are rounded.
-
-**Returns** &nbsp;&mdash;&nbsp; *object*
-
-* **obj.width** &nbsp;&mdash;&nbsp; *number*
-  * The element's width in pixels (rounded).
-* **obj.height** &nbsp;&mdash;&nbsp; *number*
-  * The element's height in pixels (rounded).
-* **obj.padding.left** &nbsp;&mdash;&nbsp; *number*
-  * The element's left padding in pixels (rounded).
-* **obj.padding.right** &nbsp;&mdash;&nbsp; *number*
-  * The element's right padding in pixels (rounded).
-* **obj.padding.top** &nbsp;&mdash;&nbsp; *number*
-  * The element's top padding in pixels (rounded).
-* **obj.padding.bottom** &nbsp;&mdash;&nbsp; *number*
-  * The element's left padding in pixels (rounded).
-* **obj.border.left** &nbsp;&mdash;&nbsp; *number*
-  * The element's left border in pixels (rounded).
-* **obj.border.right** &nbsp;&mdash;&nbsp; *number*
-  * The element's right border in pixels (rounded).
-* **obj.border.top** &nbsp;&mdash;&nbsp; *number*
-  * The element's top border in pixels (rounded).
-* **obj.border.bottom** &nbsp;&mdash;&nbsp; *number*
-  * The element's left border in pixels (rounded).
-
-```javascript
-var dimensions = grid.getDimensions();
 ```
 
 ### grid.getItems( [targets], [state] )
@@ -959,14 +926,6 @@ var items = grid.getItems([elemA, elemB]);
 
 // Get specific inactive items.
 var items = grid.getItems([elemA, elemB], 'inactive');
-```
-
-### grid.refreshContainer()
-
-Refresh the cached dimensions and styles of the container element.
-
-```javascript
-grid.refreshContainer();
 ```
 
 ### grid.refreshItems( [items] )

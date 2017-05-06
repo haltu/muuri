@@ -628,7 +628,6 @@
     var isBorderBox;
     var item;
     var position;
-    var rect;
     var i;
 
     // Return immediately if instance is destroyed.

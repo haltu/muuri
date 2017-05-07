@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.3.0-dev
+ * Muuri v0.3.0
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -4808,7 +4808,8 @@
    * Get element's scroll parents.
    *
    * Borrowed from jQuery UI library (and heavily modified):
-   * https://github.com/jquery/jquery-ui/blob/63448148a217da7e64c04b21a04982f0d64aabaa/ui/scroll-parent.js
+   * https://github.com/jquery/jquery-ui/blob/63448148a217da7e64c04b21a04982f0d6
+   * 4aabaa/ui/scroll-parent.js
    *
    * @private
    * @param {HTMLElement} element
@@ -5632,7 +5633,14 @@
    * an array of HTML elements. Item or an array of items. Node list, live or
    * static. Number (index) or a list of numbers (indices).
    *
-   * @typedef {(HTMLElement|HTMLElement[]|Item|Item[]|NodeList|Number|Number[])} GridMultiItemQuery
+   * @typedef {(
+   *   HTMLElement|
+   *   HTMLElement[]|
+   *   Item|Item[]|
+   *   NodeList|
+   *   Number|
+   *   Number[]
+   * )} GridMultiItemQuery
    */
 
   /**

@@ -76,6 +76,7 @@ module.exports = {
     "key-spacing": ["error", {"beforeColon": false, "afterColon": true, "mode": "strict"}],
     "keyword-spacing": ["error", {"before": true, "after": true}],
     "linebreak-style": ["error", "unix"],
+    "max-len": ["error", {"code": Infinity, "comments": 80}],
     "new-parens": "error",
     "no-multiple-empty-lines": ["error", {"max": 1}],
     "no-tabs": "error",

@@ -49,9 +49,9 @@ bower install muuri
 
 Muuri depends on the following libraries:
 * [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
-  * By default Muuri users Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting `Muuri.AnimateLayout` and `Muuri.AnimateVisibility` constructors. If you overwrite those constructors with your own implementation Muuri detects it and Velocity is no longer required as a dependency.
+  * By default Muuri users Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
-  * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.Drag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.Drag` constructor with your own implementation (fingers crossed).
+  * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
 
 ### 3. Add the script tags
 
@@ -217,6 +217,9 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     dragSortWith: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
+    dragHammerSettings: {
+      touchAction: 'none'
+    },
 
     // Classnames
     containerClass: 'muuri',
@@ -233,7 +236,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
 You can modify the default options easily:
 
 ```javascript
-Muuri.defaultOptions.show.duration = 400;
+Muuri.defaultOptions.showDuration = 400;
 Muuri.defaultOptions.dragSortPredicate.action = 'swap';
 ```
 
@@ -398,7 +401,7 @@ var grid = new Muuri(elem, {
 
 ### layout &nbsp;
 
-Define how the items will be laid out.
+Define how the items will be laid out. Although it's not documented well (at all) in this section, you *can* provide a function here also if you want to provide your own layout algorithm (may the source be with you).
 
 * Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
 * Accepted types: function, object.
@@ -431,7 +434,7 @@ var grid = new Muuri(elem, {
 
 ### layoutOnResize &nbsp;
 
-Should Muuri automatically trigger `layoutItems` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically lay out the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are laid out after each window resize event.
+Should Muuri automatically trigger `layout` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically lay out the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are laid out after each window resize event.
 
 * Default value: `100`.
 * Accepted types: boolean, number.

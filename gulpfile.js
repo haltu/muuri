@@ -30,7 +30,7 @@ gulp.task('compress', function() {
     .pipe(gulp.dest('./'));
 });
 
-gulp.task('test-chrome', function (done) {
+gulp.task('test-local', function (done) {
   (new karma.Server({
     configFile: __dirname + '/karma.conf.js',
     action: 'run',
@@ -40,11 +40,11 @@ gulp.task('test-chrome', function (done) {
   })).start();
 });
 
-gulp.task('test-sauce', function (done) {
+gulp.task('test', function (done) {
   (new karma.Server({
     configFile: __dirname + '/karma.conf.js',
     action: 'run',
-    browsers: ['slChromeWin', 'slFirefoxWin', 'slEdge']
+    browsers: ['slChrome', 'slFirefox', 'slEdge', 'slSafari']
   }, function (exitCode) {
     done(exitCode);
   })).start();
@@ -56,9 +56,9 @@ gulp.task('clean', function (cb) {
 
 gulp.task('default', function (done) {
   if (process.env.CI) {
-    runSequence('lint', 'compress', 'test-sauce', 'clean', done);
+    runSequence('lint', 'compress', 'test', 'clean', done);
   }
   else {
-    runSequence('lint', 'compress', 'test-chrome', 'clean', done);
+    runSequence('lint', 'compress', 'test-local', 'clean', done);
   }
 });

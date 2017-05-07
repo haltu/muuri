@@ -1,105 +1,104 @@
 # Muuri
-[![CDNJS](https://img.shields.io/cdnjs/v/muuri.svg)](https://cdnjs.com/libraries/muuri)
 
 Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
 
-Muuri's layout system allows positioning the grid items within the container in pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
+Muuri's layout system allows positioning the grid items pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
-Muuri uses [Velocity](https://github.com/julianshapiro/velocity) for animating the grid items (positioining/showing/hiding) and [Hammer.js](https://github.com/hammerjs/hammer.js) for handling the dragging. Hammer.js is an optional dependency that is only required if dragging is enabled, but Velocity is a hard dependency.
-
-And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
-
-**A word of warning.** Muuri is currently under active development and might be still a bit rough on the edges so production use is not recommended just yet. But when did that ever stop you ;)
+Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioining/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 ## Table of contents
 
 * [Getting started](#getting-started)
-* [Options](#options)
-* [Methods](#methods)
-  * [muuri.on( event, listener )](#muurion-event-listener-)
-  * [muuri.off( event, listener )](#muurioff-event-listener-)
-  * [muuri.refresh( [targets] )](#muurirefresh-targets-)
-  * [muuri.get( [targets], [state] )](#muuriget-targets-state-)
-  * [muuri.add( elements, [index] )](#muuriadd-elements-index-)
-  * [muuri.remove( targets, [removeElement] )](#muuriremove-targets-removeelement-)
-  * [muuri.synchronize()](#muurisynchronize)
-  * [muuri.layout( [instant], [callback] )](#muurilayout-instant-callback-)
-  * [muuri.show( targets, [instant], [callback] )](#muurishow-targets-instant-callback-)
-  * [muuri.hide( targets, [instant], [callback] )](#muurihide-targets-instant-callback-)
-  * [muuri.indexOf( target )](#muuriindexof-target-)
-  * [muuri.move( targetFrom, targetTo )](#muurimove-targetfrom-targetto-)
-  * [muuri.swap( targetA, targetB )](#muuriswap-targeta-targetb-)
-  * [muuri.destroy()](#muuridestroy)
-* [Events](#events)
-  * [refresh](#refresh)
-  * [synchronize](#synchronize)
-  * [layoutstart](#layoutstart)
-  * [layoutend](#layoutend)
-  * [showstart](#showstart)
-  * [showend](#showend)
-  * [hidestart](#hidestart)
-  * [hideend](#hideend)
-  * [move](#move)
-  * [swap](#swap)
-  * [add](#add)
-  * [remove](#remove)
-  * [dragstart](#dragstart)
-  * [dragmove](#dragmove)
-  * [dragscroll](#dragscroll)
-  * [dragend](#dragend)
-  * [releasestart](#releasestart)
-  * [releaseend](#releaseend)
-  * [destroy](#destroy)
+* [API](#api)
+  * [Grid constructor](#grid-constructor)
+  * [Grid options](#grid-options)
+  * [Grid methods](#grid-methods)
+  * [Grid events](#grid-events)
+  * [Item methods](#item-methods)
+* [Credits](#credits)
 * [License](#license)
 
 ## Getting started
 
-Muuri depends on the following libraries:
-* [Velocity](https://github.com/julianshapiro/velocity) (1.2.x)
-* [Hammer.js](https://github.com/hammerjs/hammer.js) (2.0.x) optional, required only if you are using the dragging feature
+### 1. Get Muuri
 
-**First, include Muuri and it's dependencies in your site.**
+Download from GitHub:
+* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.3.0/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.3.0/muuri.min.js) - for production (minified, no comments).
+
+Or link directly via CDNJS:
+
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.0/muuri.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.0/muuri.min.js"></script>
+```
+
+Or install with [npm](https://www.npmjs.com/):
+
+```bash
+npm install muuri
+```
+
+Or install with [bower](http://bower.io):
+
+```bash
+bower install muuri
+```
+
+### 2. Get the dependencies
+
+Muuri depends on the following libraries:
+* [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
+  * By default Muuri users Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
+* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
+  * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
+
+### 3. Add the script tags
+
+Include Muuri inside the *body* element in your site and make sure to include the dependencies before Muuri. Muuri has to be inside the body element because it does some feature checking during initiation and might not work correctly if it does not have access to `document.body`.
 
 ```html
 <script src="velocity.js"></script>
 <script src="hammer.js"></script>
-<!-- Needs to be within in body element or have access to body element -->
+<!-- Muuri needs to have access to document.body when initiated -->
 <script src="muuri.js"></script>
 ```
 
-An important note for including Muuri to your site is that it needs to have access to the `body` element when it's loaded. Muuri does some feature checking on init and might not work correctly if it does not have access to the `body` element.
+### 4. Add the markup
 
-**Then, define your grid markup.**
-
-* Every grid must have a container element and item element(s) within the container element.
-* A grid item must always consist of at least two elements. The outer element is used for positioning the item and the inner element (first direct child) is used for animating the item's visibility (show/hide methods). You can insert any markup you wish inside the inner item element.
+* Every grid must have a container element.
+* Grid items must always consist of at least two elements. The outer element is used for positioning the item and the inner element (first direct child) is used for animating the item's visibility (show/hide methods). You can insert any markup you wish inside the inner item element.
 
 ```html
 <div class="grid">
 
   <div class="item">
     <div class="item-content">
+      <!-- Safe zone, enter your custom markup -->
       This can be anything.
+      <!-- Safe zone ends -->
     </div>
   </div>
 
   <div class="item">
     <div class="item-content">
+      <!-- Safe zone, enter your custom markup -->
       <div class="my-custom-content">
         Yippee!
       </div>
+      <!-- Safe zone ends -->
     </div>
   </div>
 
 </div>
 ```
 
-**Next, let's apply some styles.**
+### 5. Add the styles
 
-* The grid element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element depending on the area the items cover.
-* The item elements must have their CSS position set to *absolute* and their display property set to *block*, unless of course the elements have their display set to *block* inherently.
-* The item elements must not have any CSS transitions or animations applied to them since it might conflict with Velocity's animations.
-* You can control the gaps between the tiles by giving some margin to the item elements.
+* The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element's width/height depending on the area the items cover and the layout algorithm configuration.
+* The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
+* The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
+* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the container element's content with padding excluded (intentionally) to provide more control over the gutter spacing (normally an absolutely positioned element is positioned relative to the containing element's content with padding included).
 
 ```css
 .grid {
@@ -127,175 +126,1174 @@ An important note for including Muuri to your site is that it needs to have acce
 }
 ```
 
-**Finally, initiate a Muuri instance.**
+### 6. Fire it up
 
-* The bare minimum configuration is demonstrated below. You must always provide Muuri with the container element and the initial item elements.
-* Be sure to check out the all the available [options](#options), [methods](#methods) and [events](#events).
+The bare minimum configuration is demonstrated below. You must always provide the container element (or a selector so Muuri can fetch the element for you), everything else is optional.
 
 ```javascript
-var grid = new Muuri({
-  container: document.getElementsByClassName('grid')[0],
-  // Muuri does not convert a node list to array automatically
-  // so we have to do it manually.
-  items: [].slice.call(document.getElementsByClassName('item'))
-});
+var grid = new Muuri('.grid');
 ```
 
-## Options
+## API
 
-* **`container`** &nbsp;&mdash;&nbsp; *element*
-  * Default value: `null`.
-  * The container element. Must be always defined.
-* **`items`** &nbsp;&mdash;&nbsp; *array of elements*
-  * Default value: `[]`.
-  * The initial item elements wrapped in an array. The elements must be children of the container element.
-* **`positionDuration`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `300`.
-  * The duration for item's positioning animation in milliseconds. Set to `0` to disable.
-* **`positionEasing`** &nbsp;&mdash;&nbsp; *string / array*
-  * Default value: `"ease-out"`.
-  * The easing for item's positioning animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
-* **`show`** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{duration: 300, easing: "ease-out"}`.
-  * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
-* **`hide`** &nbsp;&mdash;&nbsp; *object*
-  * Default value: `{duration: 300, easing: "ease-out"}`.
-  * The object should contain *duration* (integer, milliseconds) and [*easing*](http://julian.com/research/velocity/#easing) properties. Set to *null* to disable hide animation altogether.
-* **`layout`** &nbsp;&mdash;&nbsp; *array / function / string*
-  * Default value: `"firstFit"`.
-  * Define the layout method to be used for calculating the positions of the items. If you provide a string or an array Muuri will try to locate a registered layout method in `Muuri.Layout.methods` object. Currently there is only one built-in method: `"firstFit"`.
-  * The array syntax is the only way to use the built-in layout methods and provide arguments for them. The first value should be a string (name of the method) and the second value (optional) should be a configuration object, e.g. `["firstFit", {horizontal: true}]`.
-  * You can always just provide a function which will receive a `Muuri.Layout` instance as it's context which you can manipulate as much as you want to get the items to the wanted positions. More info about rolling your own layout method is coming up later on, but in the meantime you can check the source code and see how the default method is implemented.
-  * Available methods and related settings:
-    * `"firstFit"`
-      * `horizontal` (type: *boolean*, default: `false`)
-        *  When `true` the grid works in landscape mode (grid expands to the right). Use for horizontally scrolling sites. When `false` the grid works in "portrait" mode and expands downwards.
-      * `alignRight` (type: *boolean*, default: `false`)
-        * When `true` the items are aligned from right to left.
-      * `alignBottom` (type: *boolean*, default: `false`)
-        * When `true` the items are aligned from the bottom up.
-      * `fillGaps` (type: *boolean*, default: `false`)
-        * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this options is `false` which basically means that the following condition will be always true when calculating the layout: `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
-* **`layoutOnResize`** &nbsp;&mdash;&nbsp; *null / number*
-  * Default value: `100`.
-  * Should Muuri automatically trigger layout on window resize? Set to `null` to disable. When a number (`0` or greater) is provided Muuri will automatically trigger layout when window is resized. The provided number equals to the amount of time (in milliseconds) that is waited before the layout is triggered after each resize event. The layout method is wrapped in a debouned function in order to avoid unnecessary layout calls.
-* **`layoutOnInit`** &nbsp;&mdash;&nbsp; *boolean*
-  * Default value: `true`.
-  * Should Muuri trigger layout automatically on init?
-* **`dragEnabled`** &nbsp;&mdash;&nbsp; *boolean*
-  * Default value: `false`.
-  * Should items be draggable?
-* **`dragContainer`** &nbsp;&mdash;&nbsp; *null / element*
-  * Default value: `null`.
-  * Which item should the dragged item be appended to for the duration of the drag? If `null` is provided the item's muuri container element will be used.
-* **`dragPredicate`** &nbsp;&mdash;&nbsp; *null / function*
-  * Default value: `null`.
-  * A function that determines when dragging should start. Set to null to use the default predicate.
-* **`dragSort`** &nbsp;&mdash;&nbsp; *boolean*
-  * Default value: `true`.
-  * Should the items be sorted during drag?
-* **`dragSortInterval`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `50`.
-  * When an item is dragged around the grid Muuri automatically checks if the item overlaps another item enough to move the item in it's place. The overlap check method is debounced and this option defines the debounce interval in milliseconds. In other words, this is option defines the amount of time the dragged item must be still before the overlap is checked.
-* **`dragSortTolerance`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `50`.
-  * Allowed values: `1` - `100`.
-  * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the two items in order to justify for sorting to occur.
-* **`dragSortAction`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"move"`.
-  * Allowed values: `"move"`, `"swap"`.
-  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
-* **`dragReleaseDuration`** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `300`.
-  * The duration for item's drag release animation. Set to `0` to disable.
-* **`dragReleaseEasing`** &nbsp;&mdash;&nbsp; *string / array*
-  * Default value: `"ease-out"`.
-  * The easing for item's drag release animation. Read [Velocity's easing documentation](http://julian.com/research/velocity/#easing) for more info on possible easing values.
-* **`containerClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri"`.
-  * Container element classname.
-* **`itemClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-item"`.
-  * Item element classname.
-* **`shownClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-shown"`.
-  * Visible item classname.
-* **`hiddenClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-hidden"`.
-  * Hidden item classname.
-* **`positioningClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-positioning"`.
-  * This classname will be added to the item element for the duration of positioing.
-* **`draggingClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-dragging"`.
-  * This classname will be added to the item element for the duration of drag.
-* **`releasingClass`** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `"muuri-releasing"`.
-  * This classname will be added to the item element for the duration of release.
+### Grid constructor
 
-**Modify default settings**
+`Muuri` is a constructor function and should be always instantiated with the `new` keyword. For the sake of clarity, we refer to a Muuri instance as *grid* throughout the documentation.
 
-The default settings are stored in `Muuri.defaultSettings` object.
+**Syntax**
+
+`Muuri( element, [options]  )`
+
+**Parameters**
+
+* **element** &nbsp;&mdash;&nbsp; *element* / *string*
+  * Default value: `null`.
+  * You can provide the element directly or use a selector (string) which uses [querySelectorAll()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelectorAll) internally. The first element of the query's result will be used.
+* **options** &nbsp;&mdash;&nbsp; *object*
+  * Optional. Check out the [detailed options reference](#grid-options).
+
+**Default options**
+
+The default options are stored in `Muuri.defaultOptions` object, which in it's default state contains the following configuration:
 
 ```javascript
-Muuri.defaultSettings.positionDuration = 400;
-Muuri.defaultSettings.dragSortAction = 'swap';
-```
+{
 
-**Quick reference**
+    // Item elements
+    items: '*',
 
-```javascript
-var defaults = {
+    // Default show animation
+    showDuration: 300,
+    showEasing: 'ease',
 
-    // Container
-    container: null,
+    // Default hide animation
+    hideDuration: 300,
+    hideEasing: 'ease',
 
-    // Items
-    items: [],
-    positionDuration: 300,
-    positionEasing: 'ease-out',
-    show: {
-      duration: 300,
-      easing: 'ease-out'
+    // Custom show/hide animations
+    showAnimation: null,
+    hideAnimation: null,
+
+    // Item's visible/hidden state styles
+    visibleStyles: {
+      opacity: 1,
+      scale: 1
     },
-    hide: {
-      duration: 300,
-      easing: 'ease-out'
+    hiddenStyles: {
+      opacity: 0,
+      scale: 0.5
     },
 
     // Layout
-    layout: 'firstFit',
+    layout: {
+      fillGaps: false,
+      horizontal: false,
+      alignRight: false,
+      alignBottom: false
+    },
     layoutOnResize: 100,
     layoutOnInit: true,
+    layoutDuration: 300,
+    layoutEasing: 'ease',
+
+    // Sorting
+    sortData: null,
 
     // Drag & Drop
     dragEnabled: false,
     dragContainer: null,
-    dragPredicate: null,
+    dragStartPredicate: {
+      distance: 0,
+      delay: 0,
+      handle: false
+    },
     dragSort: true,
-    dragSortInterval: 50,
-    dragSortTolerance: 50,
-    dragSortAction: 'move',
+    dragSortInterval: 100,
+    dragSortPredicate: {
+      threshold: 50,
+      action: 'move'
+    },
+    dragSortGroup: null,
+    dragSortWith: null,
     dragReleaseDuration: 300,
-    dragReleaseEasing: 'ease-out',
+    dragReleaseEasing: 'ease',
+    dragHammerSettings: {
+      touchAction: 'none'
+    },
 
     // Classnames
     containerClass: 'muuri',
     itemClass: 'muuri-item',
-    shownClass: 'muuri-shown',
-    hiddenClass: 'muuri-hidden',
-    positioningClass: 'muuri-positioning',
-    draggingClass: 'muuri-dragging',
-    releasingClass: 'muuri-releasing'
+    itemVisibleClass: 'muuri-item-shown',
+    itemHiddenClass: 'muuri-item-hidden',
+    itemPositioningClass: 'muuri-item-positioning',
+    itemDraggingClass: 'muuri-item-dragging',
+    itemReleasingClass: 'muuri-item-releasing'
 
-};
+}
 ```
 
-## Methods
+You can modify the default options easily:
 
-### `muuri.on( event, listener )`
+```javascript
+Muuri.defaultOptions.showDuration = 400;
+Muuri.defaultOptions.dragSortPredicate.action = 'swap';
+```
 
-Bind an event on the Muuri instance.
+```javascript
+// Minimum configuration.
+var gridA = new Muuri('.grid-a');
+
+// Providing some options.
+var gridB = new Muuri('.grid-b', {
+  items: '.item'
+});
+```
+
+### Grid options
+
+* [items](#items-)
+* [showDuration](#showduration-)
+* [showEasing](#showeasing-)
+* [hideDuration](#hideduration-)
+* [hideEasing](#hideeasing-)
+* [visibleStyles](#visiblestyles-)
+* [hiddenStyles](#hiddenstyles-)
+* [layout](#layout-)
+* [layoutOnResize](#layoutonresize-)
+* [layoutOnInit](#layoutoninit-)
+* [layoutDuration](#layoutduration-)
+* [layoutEasing](#layouteasing-)
+* [sortData](#sortdata-)
+* [dragEnabled](#dragenabled-)
+* [dragContainer](#dragcontainer-)
+* [dragStartPredicate](#dragstartpredicate-)
+* [dragSort](#dragsort-)
+* [dragSortInterval](#dragsortinterval-)
+* [dragSortPredicate](#dragsortpredicate-)
+* [dragSortGroup](#dragsortgroup-)
+* [dragSortWith](#dragsortconnections-)
+* [dragReleaseDuration](#dragreleaseduration-)
+* [dragReleaseEasing](#dragreleaseeasing-)
+* [containerClass](#containerclass-)
+* [itemClass](#itemclass-)
+* [itemVisibleClass](#itemvisibleclass-)
+* [itemHiddenClass](#itemhiddenclass-)
+* [itemPositioningClass](#itempositioningclass-)
+* [itemDraggingClass](#itemdraggingclass-)
+* [itemReleasingClass](#itemreleasingclass-)
+
+### items &nbsp;
+
+The initial item elements, which should be children of the container element. All elements that are not children of the container will be appended to the container. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
+
+* Default value: `'*'`.
+* Accepted types: array (of elements), [node list](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), string, null.
+
+```javascript
+// Use specific items.
+var grid = new Muuri(elem, {
+  items: [elemA, elemB, elemC]
+});
+
+// Use node list.
+var grid = new Muuri(elem, {
+  items: elem.querySelectorAll('.item')
+});
+
+// Use selector.
+var grid = new Muuri(elem, {
+  items: '.item'
+});
+```
+
+### showDuration &nbsp;
+
+Show animation duration in milliseconds. Set to `0` to disable show animation.
+
+* Default value: `300`.
+* Accepted types: number.
+
+```javascript
+var grid = new Muuri(elem, {
+  showDuration: 600
+});
+```
+
+### showEasing &nbsp;
+
+Show animation easing. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+
+* Default value: `'ease'`.
+* Accepted types: array, string.
+
+```javascript
+var grid = new Muuri(elem, {
+  showEasing: 'ease-out'
+});
+```
+
+### hideDuration &nbsp;
+
+Hide animation duration in milliseconds. Set to `0` to disable hide animation.
+
+* Default value: `300`.
+* Accepted types: number.
+
+```javascript
+var grid = new Muuri(elem, {
+  hideDuration: 600
+});
+```
+
+### hideEasing &nbsp;
+
+Hide animation easing. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+
+* Default value: `'ease'`.
+* Accepted types: array, string.
+
+```javascript
+var grid = new Muuri(elem, {
+  hideEasing: 'ease-out'
+});
+```
+
+### visibleStyles &nbsp;
+
+The styles that will be applied to all visible items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options.
+
+* Default value: `{opacity: 1, scale: 1}`.
+* Accepted types: object.
+
+```javascript
+var grid = new Muuri(elem, {
+  visibleStyles: {
+    opacity: 1,
+    rotateZ: '45deg'
+  },
+  hiddenStyles: {
+    opacity: 0,
+    rotateZ: '-45deg'
+  }
+});
+```
+
+### hiddenStyles &nbsp;
+
+The styles that will be applied to all hidden items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options.
+
+* Default value: `{opacity: 0, scale: 0.5}`.
+* Accepted types: object.
+
+```javascript
+var grid = new Muuri(elem, {
+  visibleStyles: {
+    opacity: 1,
+    rotateZ: '45deg'
+  },
+  hiddenStyles: {
+    opacity: 0,
+    rotateZ: '-45deg'
+  }
+});
+```
+
+### layout &nbsp;
+
+Define how the items will be laid out. Although it's not documented well (at all) in this section, you *can* provide a function here also if you want to provide your own layout algorithm (may the source be with you).
+
+* Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
+* Accepted types: function, object.
+
+Provide an object to configure the default layout algorithm with the following properties:
+
+* **fillGaps** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `false`.
+  * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this option is `false` which basically means that the following condition will be always true when calculating the layout (assuming `alignRight` and `alignBottom` are `false`): `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
+* **horizontal** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `false`.
+  *  When `true` the grid works in landscape mode (grid expands to the right). Use for horizontally scrolling sites. When `false` the grid works in "portrait" mode and expands downwards.
+* **alignRight** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `false`.
+  * When `true` the items are aligned from right to left.
+* **alignBottom** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `false`.
+  * When `true` the items are aligned from the bottom up.
+
+```javascript
+var grid = new Muuri(elem, {
+  layout: {
+    fillGaps: true,
+    horizontal: true,
+    alignRight: true,
+    alignBottom: true
+  }
+});
+```
+
+### layoutOnResize &nbsp;
+
+Should Muuri automatically trigger `layout` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically lay out the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are laid out after each window resize event.
+
+* Default value: `100`.
+* Accepted types: boolean, number.
+
+```javascript
+// No layout on resize.
+var grid = new Muuri(elem, {
+  layoutOnResize: false
+});
+
+// Layout on resize (instantly).
+var grid = new Muuri(elem, {
+  layoutOnResize: true
+});
+
+// Layout on resize (with 200ms debounce).
+var grid = new Muuri(elem, {
+  layoutOnResize: 200
+});
+```
+
+### layoutOnInit &nbsp;
+
+Should Muuri trigger `layout` method automatically on init?
+
+* Default value: `true`.
+* Accepted types: boolean.
+
+```javascript
+var grid = new Muuri(elem, {
+  layoutOnInit: false
+});
+```
+
+### layoutDuration &nbsp;
+
+The duration for item's layout animation in milliseconds. Set to `0` to disable.
+
+* Default value: `300`.
+* Accepted types: number.
+
+```javascript
+var grid = new Muuri(elem, {
+  layoutDuration: 600
+});
+```
+
+### layoutEasing &nbsp;
+
+The easing for item's layout animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+
+* Default value: `'ease'`.
+* Accepted types: string.
+
+```javascript
+// jQuery UI easings.
+var grid = new Muuri(elem, {
+  layoutEasing: 'easeInSine'
+});
+
+// Custom bezier curve.
+var grid = new Muuri(elem, {
+  layoutEasing: [0.17, 0.67, 0.83, 0.67]
+});
+
+// Spring physics.
+var grid = new Muuri(elem, {
+  layoutEasing: [250, 15]
+});
+
+// Step easing.
+var grid = new Muuri(elem, {
+  layoutEasing: [8]
+});
+```
+
+### sortData &nbsp;
+
+The sort data getter functions. Provide an object where the key is the name of the sortable attribute and the function returns a value (from the item) by which the items can be sorted.
+
+* Default value: `null`.
+* Accepted types: object, null.
+
+```javascript
+var grid = new Muuri(elem, {
+  sortData: {
+    foo: function (item, element) {
+      return parseFloat(element.getAttribute('data-foo'));
+    },
+    bar: function (item, element) {
+      return element.getAttribute('data-bar').toUpperCase();
+    }
+  }
+});
+// Refresh sort data whenever an item's data-foo or data-bar changes
+grid.refreshSortData();
+// Sort the grid by foo and bar.
+grid.sort('foo bar');
+```
+
+### dragEnabled &nbsp;
+
+Should items be draggable?
+
+* Default value: `false`.
+* Accepted types: boolean.
+
+```javascript
+var grid = new Muuri(elem, {
+  dragEnabled: true
+});
+```
+
+### dragContainer &nbsp;
+
+The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid's container element will be used. Note that the provided element should be "positioned" meaning that it's CSS position property should be *relative*, *absolute* or *fixed*.
+
+* Default value: `null`.
+* Accepted types: element, null.
+
+```javascript
+var grid = new Muuri(elem, {
+  dragContainer: document.body
+});
+```
+
+### dragStartPredicate &nbsp;
+
+A function that determines when the item should start to move when the item is being dragged. By default uses the built-in predicate which has some configurable options.
+
+* Default value: `{distance: 0, delay: 0, handle: false}`.
+* Accepted types: function, object.
+
+If an object is provided the default sort predicate handler will be used. You can define the following properties:
+
+* **distance** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `0`.
+  * How many pixels must be dragged before the dragging starts.
+* **delay** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `0`.
+  * How long (in milliseconds) the user must drag before the dragging starts.
+* **handle** &nbsp;&mdash;&nbsp; *string / boolean*
+  * Default value: `false`.
+  * The selector(s) which much match the event target element for the dragging to start.
+
+If you provide a function you can totally customize the drag start logic. When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
+
+The predicate function receives two arguments:
+
+* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+  * The item that's being dragged.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * The drag event (Hammer.js event).
+
+```javascript
+// Configure the default preficate
+var grid = new Muuri(elem, {
+  dragStartPredicate: {
+    distance: 10,
+    delay: 100,
+    handle: '.foo, .bar'
+  }
+});
+
+// Provide your own predicate
+var grid = new Muuri(elem, {
+  dragStartPredicate: function (item, e) {
+    // Start moving the item after the item has been dragged for one second.
+    if (e.deltaTime > 1000) {
+      return true;
+    }
+  }
+});
+```
+
+### dragSort &nbsp;
+
+Should the items be sorted during drag?
+
+* Default value: `true`.
+* Accepted types: boolean.
+
+```javascript
+// Disable drag sorting.
+var grid = new Muuri(elem, {
+  dragSort: false
+});
+```
+
+### dragSortInterval &nbsp;
+
+Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty heavy function which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is not recommended).
+
+* Default value: `100`.
+* Accepted types: number.
+
+```javascript
+// Sort on every drag move.
+var grid = new Muuri(elem, {
+  dragSortInterval: 0
+});
+
+// Sort with a decent buffer.
+var grid = new Muuri(elem, {
+  dragSortInterval: 150
+});
+```
+
+### dragSortPredicate &nbsp;
+
+Defines the logic for the sort procedure during dragging an item.
+
+* Default value: `{action: 'move', tolerance: 50}`.
+* Accepted types: function, object.
+
+If an object is provided the default sort predicate handler will be used. You can define the following properties:
+* **action** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'move'`.
+  * Allowed values: `'move'`, `'swap'`.
+  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
+* **threshold** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `50`.
+  * Allowed values: `1` - `100`.
+  * How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the items before sorting is triggered.
+
+Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback function receives two arguments:
+
+* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+  * The item that's being dragged.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * The drag event (Hammer.js event).
+
+The callback should return a *falsy* value if sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties:
+
+* **index** &nbsp;&mdash;&nbsp; *number*
+  * The index where the item should be moved to.
+* **grid** &nbsp;&mdash;&nbsp; *Muuri*
+  * The grid where the item should be moved to.
+  * Defaults to the item's current grid.
+  * Optional.
+* **action** &nbsp;&mdash;&nbsp; *string*
+  * The movement method.
+  * Default value: `'move'`.
+  * Allowed values: `'move'` or `'swap'`.
+  * Optional.
+
+```javascript
+// Customize the default predicate.
+var grid = new Muuri(elem, {
+  dragSortPredicate: {
+    threshold: 90,
+    action: 'swap'
+  }
+});
+
+// Provide your own predicate.
+var grid = new Muuri(elem, {
+  dragSortPredicate: function (item, e) {
+    if (e.deltaTime > 1000) {
+      return {
+        index: Math.round(e.deltaTime / 1000) % 2 === 0 ? -1 : 0,
+        action: 'swap'
+      };
+    }
+  }
+});
+```
+
+### dragSortGroup &nbsp;
+
+The grid's sort group(s), e.g. `'groupA'` or `['groupA', 'groupB']`. If you provide no sort group the grid cannot be targeted with `dragSortWith` option, which means that items can not be dragged into the grid from other grids.
+
+* Default value: `null`.
+* Accepted types: array, string, null.
+
+```javascript
+var gridA = new Muuri(elemA, {
+  dragSortGroup: 'groupA'
+});
+var gridB = new Muuri(elemB, {
+  dragSortGroup: ['groupA', 'groupB']
+});
+```
+
+### dragSortWith &nbsp;
+
+Defines the sort group(s) that this instance's item's can be dragged to. Provide a string to target a single sort group, e.g. `'groupA'`, or an array of targeted sort groups using an array, e.g. `['groupA', 'groupC']`.
+
+* Default value: `null`.
+* Accepted types: array, null.
+
+```javascript
+// This grid's items can not be dragged into any other grids.
+var gridA = new Muuri(elemA, {
+  dragSortGroup: 'a'
+});
+
+// This grid's items can be dragged into gridC.
+var gridB = new Muuri(elemB, {
+  dragSortGroup: 'b',
+  dragSortWith: 'c'
+});
+
+// This grid's items can be dragged into gridA and gridB.
+var gridC = new Muuri(elemC, {
+  dragSortGroup: 'c',
+  dragSortWith: ['a', 'b']
+});
+```
+
+### dragReleaseDuration &nbsp;
+
+The duration for item's drag release animation. Set to `0` to disable.
+
+* Default value: `300`.
+* Accepted types: number.
+
+```javascript
+var grid = new Muuri(elem, {
+  dragReleaseDuration: 600
+});
+```
+
+### dragReleaseEasing &nbsp;
+
+The easing for item's drag release animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+
+* Default value: `'ease'`.
+* Accepted types: array, string.
+
+```javascript
+var grid = new Muuri(elem, {
+  dragReleaseEasing: 'ease-out'
+});
+```
+
+### containerClass &nbsp;
+
+Container element's classname.
+
+* Default value: `'muuri'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  containerClass: 'foo'
+});
+```
+
+### itemClass &nbsp;
+
+Item element's classname.
+
+* Default value: `'muuri-item'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  itemClass: 'foo-item'
+});
+```
+
+### itemVisibleClass &nbsp;
+
+Visible item's classname.
+
+* Default value: `'muuri-item-shown'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  itemVisibleClass: 'foo-item-shown'
+});
+```
+
+### itemHiddenClass &nbsp;
+
+Hidden item's classname.
+
+* Default value: `'muuri-item-hidden'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  itemHiddenClass: 'foo-item-hidden'
+});
+```
+
+### itemPositioningClass &nbsp;
+
+This classname will be added to the item element for the duration of positioning.
+
+* Default value: `'muuri-item-positioning'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  itemPositioningClass: 'foo-item-positioning'
+});
+```
+
+### itemDraggingClass &nbsp;
+
+This classname will be added to the item element for the duration of drag.
+
+* Default value: `'muuri-item-dragging'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  itemDraggingClass: 'foo-item-dragging'
+});
+```
+
+### itemReleasingClass &nbsp;
+
+This classname will be added to the item element for the duration of release.
+
+* Default value: `'muuri-item-releasing'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  itemReleasingClass: 'foo-item-releasing'
+});
+```
+
+### Grid methods
+
+* [grid.getElement()](#gridgetelement)
+* [grid.getItems( [targets], [state] )](#gridgetitems-targets-state-)
+* [grid.refreshItems( [items] )](#gridrefreshitems-items-)
+* [grid.refreshSortData( [items] )](#gridrefreshsortdata-items-)
+* [grid.synchronize()](#gridsynchronize)
+* [grid.layout( [instant], [callback] )](#gridlayout-instant-callback-)
+* [grid.add( elements, [options] )](#gridadd-elements-options-)
+* [grid.remove( items, [options] )](#gridremove-items-options-)
+* [grid.show( items, [options] )](#gridshow-items-options-)
+* [grid.hide( items, [options] )](#gridhide-items-options-)
+* [grid.filter( predicate, [options] )](#gridfilter-predicate-options-)
+* [grid.sort( comparer, [options] )](#gridsort-comparer-options-)
+* [grid.move( item, position, [options] )](#gridmove-item-position-options-)
+* [grid.send( item, grid, position, [options] )](#gridsend-item-grid-position-options-)
+* [grid.on( event, listener )](#gridon-event-listener-)
+* [grid.once( event, listener )](#gridonce-event-listener-)
+* [grid.off( event, listener )](#gridoff-event-listener-)
+* [grid.destroy( [removeElements] )](#griddestroy-removeelements-)
+
+### grid.getElement()
+
+Get the instance element.
+
+**Returns** &nbsp;&mdash;&nbsp; *element*
+
+```javascript
+var elem = grid.getElement();
+```
+
+### grid.getItems( [targets], [state] )
+
+Get all items in the grid. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state.
+
+**Parameters**
+
+* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * An array of item instances/elements/indices.
+  * Optional.
+* **state** &nbsp;&mdash;&nbsp; *string*
+  * Accepted values: `'active'`, `'inactive'`, `'visible'`, `'hidden'`, `'showing'`, `'hiding'`, `'positioning'`, `'dragging'`, `'releasing'`, `'migrating'`.
+  * Default value: `undefined`.
+  * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *array*
+
+Returns the queried items.
+
+```javascript
+// Get all items, both active and inactive.
+var allItems = grid.getItems();
+
+// Get all active (visible) items.
+var activeItems = grid.getItems('active');
+
+// Get all inactive (hidden) items.
+var inactiveItems = grid.getItems('inactive');
+
+// Get the first item (active or inactive).
+var firstItem = grid.getItems(0)[0];
+
+// Get specific items by their elements (inactive or active).
+var items = grid.getItems([elemA, elemB]);
+
+// Get specific inactive items.
+var items = grid.getItems([elemA, elemB], 'inactive');
+```
+
+### grid.refreshItems( [items] )
+
+Refresh the cached dimensions of the grid's items. When called without any arguments all active items are refreshed. Optionally you can provide specific the items which you want to refresh as the first argument.
+
+**Parameters**
+
+* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number / string*
+  * To target specific items provide an array of item instances/elements/indices. By default all active items are targeted.
+  * Optional.
+
+```javascript
+// Refresh dimensions of all active item elements.
+grid.refreshItems();
+
+// Refresh dimensions of specific item elements.
+grid.refreshItems([0, someElem, someItem]);
+```
+
+### grid.refreshSortData( [items] )
+
+Refresh the sort data of the instance's items.
+
+**Parameters**
+
+* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * To target specific items provide an array of item instances/elements/indices. By default all items are targeted.
+  * Optional.
+
+```javascript
+// Refresh the sort data for every item.
+grid.refreshSortData();
+
+// Refresh the sort data for specific items.
+grid.refreshSortData([0, someElem, someItem]);
+```
+
+### grid.synchronize()
+
+Synchronize the item elements to match the order of the items in the DOM. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the container element (if it is dragged for example) it is ignored and left untouched.
+
+```javascript
+// Let's say we have to move the first item in the grid as the last.
+grid.move(0, -1);
+// Now the DOM order of the items is not in sync anymore with the
+// order of the items. We can sync the DOM with synchronize method.
+grid.synchronize();
+```
+
+### grid.layout( [instant], [callback] )
+
+Calculate item positions and move items to their calculated positions, unless they are already positioned correctly. The grid's height/width (depends on the layout algorithm) is also adjusted according to the position of the items.
+
+**Parameters**
+
+* **instant** &nbsp;&mdash;&nbsp; *boolean*
+  * Should the items be positioned instantly without any possible animation?
+  * Default value: `false`.
+  * Optional.
+* **callback** &nbsp;&mdash;&nbsp; *function*
+  * A callback function that is called after the items have positioned. Receives one argument: an array of all the items that were successfully positioned without interruptions.
+  * Optional.
+
+```javascript
+// Layout items.
+grid.layout();
+
+// Layout items instantly (without animations).
+grid.layout(true);
+
+// Layout all items and define a callback that will be called
+// after all items have been animated to their positions.
+grid.layout(function (items) {
+  console.log('layout done!');
+});
+```
+
+### grid.add( elements, [options] )
+
+Add new items by providing the elements you wish to add to the instance and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container element. If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method. This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
+
+**Parameters**
+
+* **elements** &nbsp;&mdash;&nbsp; *array / element*
+  * An array of DOM elements.
+* **options.index** &nbsp;&mdash;&nbsp; *number*
+  * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `grid.synchronize()` method to arrange the DOM elments to the same order as the items.
+  * Default value: `-1`.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *array*
+
+Returns the added items.
+
+```javascript
+// Add two new items to the end.
+grid.add([elemA, elemB]);
+
+// Add two new items to the beginning.
+grid.add([elemA, elemB], {index: 0});
+
+// Skip the automatic layout.
+grid.add([elemA, elemB], {layout: false});
+```
+
+### grid.remove( items, [options] )
+
+Remove items from the instance.
+
+**Parameters**
+
+* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * An array of item instances/elements/indices.
+* **options.removeElements** &nbsp;&mdash;&nbsp; *boolean*
+  * Should the associated DOM element be removed from the DOM?
+  * Default value: `false`.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *array*
+
+Returns the destroyed items.
+
+```javascript
+// Remove the first item, but keep the element in the DOM.
+grid.remove(0);
+
+// Remove items and the associated elements.
+grid.remove([elemA, elemB], {removeElements: true});
+
+// Skip the layout.
+grid.remove([elemA, elemB], {layout: false});
+```
+
+
+### grid.show( items, [options] )
+
+Show the targeted items.
+
+**Parameters**
+
+* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * An array of item instances/elements/indices.
+* **options.instant** &nbsp;&mdash;&nbsp; *boolean*
+  * Should the items be shown instantly without any possible animation?
+  * Default value: `false`.
+  * Optional.
+* **options.onFinish** &nbsp;&mdash;&nbsp; *function*
+  * A callback function that is called after the items are shown.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+
+```javascript
+// Show items with animation (if any).
+grid.show([elemA, elemB]);
+
+// Show items instantly without animations.
+grid.show([elemA, elemB], {instant: true});
+
+// Show items with callback (and with animations if any).
+grid.show([elemA, elemB], {onFinish: function (items) {
+  console.log('items shown!');
+}});
+```
+
+### grid.hide( items, [options] )
+
+Hide the targeted items.
+
+**Parameters**
+
+* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
+  * An array of item instances/elements/indices.
+* **options.instant** &nbsp;&mdash;&nbsp; *boolean*
+  * Should the items be hidden instantly without any possible animation?
+  * Default value: `false`.
+  * Optional.
+* **options.onFinish** &nbsp;&mdash;&nbsp; *function*
+  * A callback function that is called after the items are hidden.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+
+```javascript
+// Hide items with animation.
+grid.hide([elemA, elemB]);
+
+// Hide items instantly without animations.
+grid.hide([elemA, elemB], {instant: true});
+
+// Hide items and call the callback function after
+// all items are hidden.
+grid.hide([elemA, elemB], {onFinish: function (items) {
+  console.log('items hidden!');
+}});
+```
+
+### grid.filter( predicate, [options] )
+
+Filter items. Expects at least one argument, a predicate, which should be either a function or a string. The predicate callback is executed for every item in the instance. If the return value of the predicate is truthy the item in question will be shown and otherwise hidden. The predicate callback receives the item instance as it's argument. If the predicate is a string it is considered to be a selector and it is checked against every item element in the instance with the native element.matches() method. All the matching items will be shown and others hidden.
+
+**Parameters**
+
+* **predicate** &nbsp;&mdash;&nbsp; *function / string*
+  * A predicate callback or a selector.
+* **options.instant** &nbsp;&mdash;&nbsp; *boolean*
+  * Should the items be shown/hidden instantly without any possible animation?
+  * Default value: `false`.
+  * Optional.
+* **options.onFinish** &nbsp;&mdash;&nbsp; *function*
+  * An optional callback function that is called after all the items are shown/hidden.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+
+```javascript
+// Show all items that have the attribute "data-foo".
+grid.filter(function (item) {
+  return item.getElement().hasAttribute('data-foo');
+});
+
+// Or simply just...
+grid.filter('[data-foo]');
+
+// Show all items that have a class foo.
+grid.filter('.foo');
+```
+
+### grid.sort( comparer, [options] )
+
+Sort items. There are three ways to sort the items. The first is simply by providing a function as the comparer which works almost identically to [native array sort](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort). Th only difference is that the sort is always stable. Alternatively you can sort by the sort data you have provided in the instance's options. Just provide the sort data key(s) as a string (separated by space) and the items will be sorted based on the provided sort data keys. Lastly you have the opportunity to provide a presorted array of items which will be used to sync the internal items array in the same order.
+
+**Parameters**
+
+* **comparer** &nbsp;&mdash;&nbsp; *array / function / string*
+  * Provide a comparer function, sort data keys as a string (separated with space) or a presorted array of items. It is recommended to use the sort data feature, because it allows you to cache the sort data and make the sorting faster.
+* **options.descending** &nbsp;&mdash;&nbsp; *boolean*
+  * By default the items are sorted in ascending order. If you want to sort them in descending order set this to `true`.
+  * Default value: `false`.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+
+```javascript
+// Sort items by data-id attribute value (ascending).
+grid.sort(function (itemA, itemB) {
+  var aId = parseInt(itemA.getElement().getAttribute('data-id'));
+  var bId = parseInt(itemB.getElement().getAttribute('data-id'));
+  return aId - bId;
+});
+
+// Sort items with a presorted array of items.
+grid.sort(presortedItems);
+
+// Sort items using the sort data keys (ascending).
+grid.sort('foo bar');
+
+// Sort items using the sort data keys (descending).
+grid.sort('foo bar', {descending: true});
+
+// Sort items using the sort data keys. Sort some keys
+// ascending and some keys descending.
+grid.sort('foo bar:desc');
+```
+
+### grid.move( item, position, [options] )
+
+Move an item to another position in the grid.
+
+**Parameters**
+
+* **item** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
+  * Item instance, element or index.
+* **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
+  * Item instance, element or index.
+* **options.action** &nbsp;&mdash;&nbsp; *string*
+  * Accepts the following values:
+    * `'move'`: moves item in place of another item.
+    * `'swap'`: swaps position of items.
+  * Default value: `'move'`.
+  * Optional.
+* **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+
+```javascript
+// Move elemA to the index of elemB.
+grid.move(elemA, elemB);
+
+// Move the first item in the grid as the last.
+grid.move(0, -1);
+
+// Swap positions of elemA and elemB.
+grid.move(elemA, elemB, {action: 'swap'});
+
+// Swap positions of the first and the last item.
+grid.move(0, -1, {action: 'swap'});
+```
+
+### grid.send( item, grid, position, [options] )
+
+Move an item into another grid.
+
+**Parameters**
+
+* **item** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
+  * The item that should be moved. You can define the item with an item instance, element or index.
+* **grid** &nbsp;&mdash;&nbsp; *Muuri*
+  * The grid where the item should be moved to.
+* **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
+  * To which position should the item be placed to in the new grid? You can define the position with an item instance, element or index.
+* **options.appendTo** &nbsp;&mdash;&nbsp; *element*
+  * Which element the item element should be appended to for the duration of the layout animation? Note that the provided element should be "positioned" meaning that it's CSS position property should be *relative*, *absolute* or *fixed*.
+  * Default value: `document.body`.
+* **options.layoutSender** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called for the sending grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+* **options.layoutReceiver** &nbsp;&mdash;&nbsp; *boolean / function / string*
+  * By default `grid.layout()` is called for the receiving grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  * Default value: `true`.
+  * Optional.
+
+```javascript
+// Move the first item of gridA as the last item of gridB.
+gridA.send(0, gridB, -1);
+
+// Move the first item of gridA as the last item of gridB.
+gridA.send(0, gridB, -1 {
+  appendTo: someElem
+});
+
+// Do something after the item has been sent and the layout
+// processes have finished.
+gridA.send(0, gridB, -1 {
+  layoutSender: function (isAborted, items) {
+    // Do your thing here...
+  },
+  layoutReceiver: function (isAborted, items) {
+    // Do your other thing here...
+  }
+});
+```
+
+### grid.on( event, listener )
+
+Bind an event listener.
 
 **Parameters**
 
@@ -306,19 +1304,15 @@ Bind an event on the Muuri instance.
 
 Returns the instance.
 
-**Examples**
-
 ```javascript
-muuri.on('layoutend', function (items) {
+grid.on('layoutEnd', function (items) {
   console.log(items);
 });
 ```
 
-&nbsp;
+### grid.once( event, listener )
 
-### `muuri.off( event, listener )`
-
-Unbind an event from the Muuri instance.
+Bind an event listener that is triggered only once.
 
 **Parameters**
 
@@ -329,7 +1323,24 @@ Unbind an event from the Muuri instance.
 
 Returns the instance.
 
-**Examples**
+```javascript
+grid.once('layoutEnd', function (items) {
+  console.log(items);
+});
+```
+
+### grid.off( event, listener )
+
+Unbind an event listener.
+
+**Parameters**
+
+* **event** &nbsp;&mdash;&nbsp; *string*
+* **listener** &nbsp;&mdash;&nbsp; *function*
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the instance.
 
 ```javascript
 var listener = function (items) {
@@ -337,709 +1348,566 @@ var listener = function (items) {
 };
 
 muuri
-.on('layoutend', listener)
-.off('layoutend', listener);
+.on('layoutEnd', listener)
+.off('layoutEnd', listener);
 ```
 
-### `muuri.refresh( [targets] )`
+### grid.destroy( [removeElements] )
 
-Recalculate the width and height of the provided targets. If no targets are provided all *active* items will be refreshed.
+Destroy the grid instance.
 
 **Parameters**
 
-* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * Optional.
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-
-**Examples**
-
-```javascript
-// Refresh all active items
-muuri.refresh();
-
-// Refresh the first item.
-muuri.refresh(0);
-
-// Refresh all items which match the provided DOM elements.
-muuri.refresh([elemA, elemB]);
-
-// Refresh specific items (instances of Muuri.Item).
-muuri.refresh([itemA, itemB]);
-```
-
-### `muuri.get( [targets], [state] )`
-
-Get all items. Optionally you can provide specific targets (indices or elements) and filter the results by the items' state (active/inactive). Note that the returned array is not the same object used by the instance so modifying it will not affect instance's items. All items that are not found are omitted from the returned array.
-
-**Parameters**
-
-* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * Optional.
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-* **state** &nbsp;&mdash;&nbsp; *string*
-  * Optional.
-  * Default value: `undefined`.
-  * Allowed values: `"active"`, `"inactive"`.
-  * Filter the returned array by the items' state. For example, if set to `"active"` all *inactive* items will be removed from the returned array.
-
-**Returns** &nbsp;&mdash;&nbsp; *array*
-
-Returns an array of `Muuri.Item` instances.
-
-**Examples**
-
-```javascript
-// Get all items, active and inactive.
-var allItems = muuri.get();
-
-// Get all active items.
-var activeItems = muuri.get('active');
-
-// Get all inactive items.
-var inactiveItems = muuri.get('inactive');
-
-// Get the first item.
-var firstItem = muuri.get(0)[0];
-
-// Get specific items by their elements.
-var items = muuri.get([elemA, elemB]);
-
-// Get specific inactive items.
-var items = muuri.get([elemA, elemB], 'inactive');
-```
-
-### `muuri.add( elements, [index] )`
-
-Add new items by providing the elements you wish to add to the instance and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container.
-
-If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `muuri.show()` method.
-
-This method will automatically call `muuri.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
-
-**Parameters**
-
-* **elements** &nbsp;&mdash;&nbsp; *array / element*
-  * An array of DOM elements.
-* **index** &nbsp;&mdash;&nbsp; *number*
-  * Optional.
-  * Default value: `0`.
-  * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `muuri.synchronize()` method to arrange the DOM elments to the same order as the items.
-
-**Returns** &nbsp;&mdash;&nbsp; *array*
-
-Returns an array of `Muuri.Item` instances.
-
-**Examples**
-
-```javascript
-// Add two new items to the beginning.
-muuri.add([elemA, elemB]);
-
-// Add two new items to the end.
-muuri.add([elemA, elemB], -1);
-```
-
-### `muuri.remove( targets, [removeElement] )`
-
-Remove items from the instance.
-
-**Parameters**
-
-* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-* **removeElement** &nbsp;&mdash;&nbsp; *boolean*
-  * Optional.
+* **removeElements** &nbsp;&mdash;&nbsp; *boolean*
+  * Should the item elements be removed or not?
   * Default value: `false`.
-  * Should the associated DOM element be removed or not?
-
-**Returns** &nbsp;&mdash;&nbsp; *array*
-
-Returns the indices of the removed items.
-
-**Examples**
-
-```javascript
-// Remove the first item, but keep the element in the DOM.
-muuri.remove(0);
-
-// Remove items and the associated elements.
-muuri.remove([elemA, elemB], true);
-```
-
-### `muuri.synchronize()`
-
-Order the item elements to match the order of the items. If the item's element is not a child of the container it is ignored and left untouched. This comes handy if you need to keep the DOM structure matched with the order of the items.
-
-**Examples**
-
-```javascript
-muuri.synchronize();
-```
-
-### `muuri.layout( [instant], [callback] )`
-
-Calculate item positions and move items to their calculated positions unless they are already positioned correctly. The container's height is also adjusted according to the position of the items.
-
-**Parameters**
-
-* **instant** &nbsp;&mdash;&nbsp; *boolean*
   * Optional.
-  * Default value: `false`.
-  * Should the items be positioned instantly without any possible animation?
-* **callback** &nbsp;&mdash;&nbsp; *function*
-  * Optional.
-  * A callback function that is called after the items have positioned. Receives two arguments. The first one is an array of all the items that were successfully positioned without interruptions and the second is a layout data object.
 
-**Examples**
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the instance.
 
 ```javascript
-// Layout with animations (if any).
-muuri.layout();
-
-// Layout instantly without animations.
-muuri.layout(true);
-
-// Layout with callback (and with animations if any).
-muuri.layout(function (items, layoutData) {
-  console.log('layout done!');
-});
+// Destroy the instance.
+grid.destroy();
+// Destroy the instance and remove item elements.
+grid.destroy(true);
 ```
 
-### `muuri.show( targets, [instant], [callback] )`
+### Grid events
 
-Show the targeted items.
+* [synchronize](#synchronize)
+* [layoutStart](#layoutstart)
+* [layoutEnd](#layoutend)
+* [add](#add)
+* [remove](#remove)
+* [showStart](#showstart)
+* [showEnd](#showend)
+* [hideStart](#hidestart)
+* [hideEnd](#hideend)
+* [filter](#filter)
+* [sort](#sort)
+* [move](#move)
+* [send](#send)
+* [receive](#receive)
+* [dragStart](#dragstart)
+* [dragMove](#dragmove)
+* [dragScroll](#dragscroll)
+* [dragEnd](#dragend)
+* [dragReleaseStart](#dragreleasestart)
+* [dragReleaseEnd](#dragreleaseend)
+* [destroy](#destroy)
 
-**Parameters**
+### synchronize
 
-* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-* **instant** &nbsp;&mdash;&nbsp; *boolean*
-  * Optional.
-  * Default value: `false`.
-  * Should the items be shown instantly without any possible animation?
-* **callback** &nbsp;&mdash;&nbsp; *function*
-  * Optional.
-  * A callback function that is called after the items are shown.
-
-**Examples**
-
-```javascript
-// Show items with animation (if any).
-muuri.show([elemA, elemB]);
-
-// Show items instantly without animations.
-muuri.show([elemA, elemB], true);
-
-// Show items with callback (and with animations if any).
-muuri.show([elemA, elemB], function (items) {
-  console.log('items shown!');
-});
-```
-
-### `muuri.hide( targets, [instant], [callback] )`
-
-Hide the targeted items.
-
-**Parameters**
-
-* **targets** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of DOM elements and/or `Muuri.Item` instances and/or integers (which describe the index of the item).
-* **instant** &nbsp;&mdash;&nbsp; *boolean*
-  * Optional.
-  * Default value: `false`.
-  * Should the items be hidden instantly without any possible animation?
-* **callback** &nbsp;&mdash;&nbsp; *function*
-  * Optional.
-  * A callback function that is called after the items are hidden.
-
-**Examples**
+Triggered after `grid.synchronize()` is called.
 
 ```javascript
-// Hide items with animation (if any).
-muuri.hide([elemA, elemB]);
-
-// Hide items instantly without animations.
-muuri.hide([elemA, elemB], true);
-
-// Hide items with callback (and with animations if any).
-muuri.hide([elemA, elemB], function (items) {
-  console.log('items hidden!');
-});
-```
-
-### `muuri.indexOf( target )`
-
-Get item's index.
-
-**Parameters**
-
-* **target** &nbsp;&mdash;&nbsp; *element / Muuri.Item*
-
-**Returns** &nbsp;&mdash;&nbsp; *number / null*
-
-Returns the target's index or null if the target is not found.
-
-**Examples**
-
-```javascript
-var index = muuri.indexOf(elemA);
-```
-
-### `muuri.move( targetFrom, targetTo )`
-
-Move item to another index or in place of another item.
-
-**Parameters**
-
-* **targetFrom** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
-  * DOM element or `Muuri.Item` instance or index of the item as an integer.
-* **targetTo** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
-  * DOM element or `Muuri.Item` instance or index of the item as an integer.
-
-**Examples**
-
-```javascript
-
-// Move elemA to the index of elemB.
-muuri.move(elemA, elemB);
-
-// Move first item as last.
-muuri.move(0, -1);
-```
-
-### `muuri.swap( targetA, targetB )`
-
-Swap positions of two items.
-
-**Parameters**
-
-* **targetA** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
-  * DOM element or `Muuri.Item` instance or index of the item as an integer.
-* **targetB** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
-  * DOM element or `Muuri.Item` instance or index of the item as an integer.
-
-**Examples**
-
-```javascript
-// Swap positions of elemA and elemB.
-muuri.swap(elemA, elemB);
-
-// Swap positions of the first and the last item.
-muuri.swap(0, -1);
-```
-
-### `muuri.destroy()`
-
-Destroy the instance.
-
-**Examples**
-
-```javascript
-muuri.destroy();
-```
-
-## Events
-
-### `refresh`
-
-Triggered after the `muuri.refresh()` method is called.
-
-**Listener parameters**
-
-* **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances which were refreshed.
-
-**Examples**
-
-```javascript
-muuri.on('refresh', function (items) {
-  console.log(items);
-});
-```
-
-### `synchronize`
-
-Triggered after the `muuri.synchronize()` is called.
-
-**Examples**
-
-```javascript
-muuri.on('synchronize', function () {
+grid.on('synchronize', function () {
   console.log('Synced!');
 });
 ```
 
-### `layoutstart`
+### layoutStart
 
-Triggered when `muuri.layout()` method is called, just before the items are positioned.
+Triggered after `grid.layout()` is called, just before the items are positioned.
 
-**Listener parameters**
-
-* **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully positioned. If, for example, an item is being dragged it is ignored by the layout method.
-* **layout** &nbsp;&mdash;&nbsp; *object*
-  * A `Muuri.Layout` instance.
-  * **layout.muuri** &nbsp;&mdash;&nbsp; *Muuri*
-    * A `Muuri` instance for which the layout was generated.
-  * **layout.items** &nbsp;&mdash;&nbsp; *array*
-      * An array of `Muuri.Item` instances that were positioned.
-  * **layout.slots** &nbsp;&mdash;&nbsp; *object*
-    * An object containing the positions of the `layout.items`. Indexed with the ids of the items. For example, to get the first item's position you would do `layout.slots[layout.items[0]._id]`. Each slot contains the the item's *width*, *height*, *left* and *top*.
-  * **layout.width** &nbsp;&mdash;&nbsp; *number*
-    * The width of the grid.
-  * **layout.height** &nbsp;&mdash;&nbsp; *number*
-    * The height of the grid.
-
-**Examples**
-
-```javascript
-muuri.on('layoutstart', function (items, layout) {
-  console.log(items);
-  console.log(layout);
-});
-```
-
-### `layoutend`
-
-Triggered when `muuri.layout()` method is called, after the items have positioned.
-
-**Listener parameters**
+**Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully positioned. If, for example, an item is being dragged it is ignored by the layout method.
-* **layout** &nbsp;&mdash;&nbsp; *object*
-  * A `Muuri.Layout` instance.
-  * **layout.muuri** &nbsp;&mdash;&nbsp; *Muuri*
-    * A `Muuri` instance for which the layout was generated.
-  * **layout.items** &nbsp;&mdash;&nbsp; *array*
-      * An array of `Muuri.Item` instances that were positioned.
-  * **layout.slots** &nbsp;&mdash;&nbsp; *object*
-    * An object containing the positions of the `layout.items`. Indexed with the ids of the items. For example, to get the first item's position you would do `layout.slots[layout.items[0]._id]`. Each slot contains the the item's *width*, *height*, *left* and *top*.
-  * **layout.width** &nbsp;&mdash;&nbsp; *number*
-    * The width of the grid.
-  * **layout.height** &nbsp;&mdash;&nbsp; *number*
-    * The height of the grid.
-
-**Examples**
+  * The items that are about to be positioned.
 
 ```javascript
-muuri.on('layoutend', function (items, layout) {
-  console.log(items);
-  console.log(layout);
-});
-```
-
-### `showstart`
-
-Triggered when `muuri.show()` method is called, just before the items are shown (with or without animation).
-
-**Listener parameters**
-
-* **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that are about to be shown.
-
-**Examples**
-
-```javascript
-muuri.on('showstart', function (items) {
+grid.on('layoutStart', function (items) {
   console.log(items);
 });
 ```
 
-### `showend`
+### layoutEnd
 
-Triggered when `muuri.show()` method is called, after the items are shown (with or without animation).
+Triggered after `grid.layout()` is called, after the items have positioned. Note that if `grid.layout()` is called during an ongoing layout animation the ongoing layout process will be aborted and it's layoutEnd event will never be triggered.
 
-**Listener parameters**
+**Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully shown without interruptions. If an item is already visible when the `muuri.show()` method is called it is considered as successfully shown.
-
-**Examples**
+  * The items that were intended to be positioned. Note that these items are always identical to what the layoutStart event's callback receives as it's argument. So if, for example, you destroy an item during the layout animation and don't do call another layout the destroyed item will still be included in this array of items. The original intention was to filter these items so that all items that were "interrupted" somehow during the layout process would be omitted from the results, but that solution was much more prone to errors and much more harder to explain/understand.
 
 ```javascript
-muuri.on('showend', function (items) {
+grid.on('layoutEnd', function (items) {
   console.log(items);
 });
 ```
 
-### `hidestart`
+### add
 
-Triggered when `muuri.hide()` method is called, just before the items are hidden (with or without animation).
+Triggered after `grid.add()` is called.
 
-**Listener parameters**
+**Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that are about to be hidden.
-
-**Examples**
+  * The items that were succesfully added.
 
 ```javascript
-muuri.on('hidestart', function (items) {
+grid.on('add', function (items) {
   console.log(items);
 });
 ```
 
-### `hideend`
+### remove
 
-Triggered when `muuri.hide()` method is called, after the items are hidden (with or without animation).
+Triggered after `grid.remove()` is called.
 
-**Listener parameters**
+**Arguments**
 
-* **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully hidden without interruptions. If an item is already hidden when the `muuri.hide()` method is called it is considered as successfully hidden.
-
-**Examples**
+* **indices** &nbsp;&mdash;&nbsp; *array*
+  * Indices of the items that were succesfully removed.
 
 ```javascript
-muuri.on('hideend', function (items) {
+grid.on('remove', function (indices) {
+  console.log(indices);
+});
+```
+
+### showStart
+
+Triggered after `grid.show()` is called, just before the items are shown.
+
+**Arguments**
+
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * The items that are about to be shown.
+
+```javascript
+grid.on('showStart', function (items) {
   console.log(items);
 });
 ```
 
-### `move`
+### showEnd
 
-Triggered after `muuri.move()` method is called.
+Triggered after `grid.show()` is called, after the items are shown.
 
-**Listener parameters**
-
-* **targetFrom** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that was moved.
-* **targetTo** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance to which's index the *targetFrom* item was moved to.
-
-**Examples**
-
-```javascript
-muuri.on('move', function (targetFrom, targetTo) {
-  console.log(targetFrom);
-  console.log(targetTo);
-});
-```
-
-### `swap`
-
-Triggered after `muuri.swap()` method is called.
-
-**Listener parameters**
-
-* **targetA** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that was swapped with *targetB*.
-* **targetB** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that was swapped with *targetA*.
-
-**Examples**
-
-```javascript
-muuri.on('swap', function (targetA, targetB) {
-  console.log(targetA);
-  console.log(targetB);
-});
-```
-
-### `add`
-
-Triggered after `muuri.add()` method is called.
-
-**Listener parameters**
+**Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * An array of `Muuri.Item` instances that were succesfully added to the muuri instance.
-
-**Examples**
+  * The items that were succesfully shown without interruptions.
 
 ```javascript
-muuri.on('add', function (items) {
+grid.on('showEnd', function (items) {
   console.log(items);
 });
 ```
 
-### `remove`
+### hideStart
 
-Triggered after `muuri.remove()` method is called.
+Triggered after `grid.hide()` is called, just before the items are hidden.
 
-**Listener parameters**
+**Arguments**
 
-* **itemIndices** &nbsp;&mdash;&nbsp; *array*
-  * Indices of the `Muuri.Item` instances that were succesfully removed from the muuri instance.
-
-**Examples**
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * The items that are about to be hidden.
 
 ```javascript
-muuri.on('remove', function (itemIndices) {
-  console.log(itemIndices);
+grid.on('hideStart', function (items) {
+  console.log(items);
 });
 ```
 
-### `dragstart`
+### hideEnd
+
+Triggered after `grid.hide()` is called, after the items are hidden (with or without animation).
+
+**Arguments**
+
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * The items that were succesfully hidden without interruptions.
+
+```javascript
+grid.on('hideEnd', function (items) {
+  console.log(items);
+});
+```
+
+### filter
+
+Triggered after `grid.filter()` is called.
+
+**Arguments**
+
+* **shownItems** &nbsp;&mdash;&nbsp; *array*
+  * The items that were shown.
+* **hiddenItems** &nbsp;&mdash;&nbsp; *array*
+  * The items that were hidden.
+
+```javascript
+grid.on('filter', function (shownItems, hiddenItems) {
+  console.log(shownItems);
+  console.log(hiddenItems);
+});
+```
+
+### sort
+
+Triggered after `grid.sort()` is called.
+
+**Arguments**
+
+* **currentOrder** &nbsp;&mdash;&nbsp; *array*
+  * All items in their current order.
+* **previousOrder** &nbsp;&mdash;&nbsp; *array*
+  * All items in their previous order.
+
+```javascript
+grid.on('sort', function (currentOrder, previousOrder) {
+  console.log(currentOrder);
+  console.log(previousOrder);
+});
+```
+
+### move
+
+Triggered after `grid.move()` is called or when the grid is sorted during drag. Note that this is event not triggered when an item is dragged into another grid.
+
+**Arguments**
+
+* **data** &nbsp;&mdash;&nbsp; *object*
+    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The item that was moved.
+    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved from.
+    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved to.
+    * **data.action** &nbsp;&mdash;&nbsp; *string*
+      * "move" or "swap".
+
+```javascript
+grid.on('move', function (data) {
+  console.log(data);
+});
+```
+
+### send
+
+Triggered, for the originating grid, after `grid.send()` is called or when an item is dragged into another grid.
+
+**Arguments**
+
+* **data** &nbsp;&mdash;&nbsp; *object*
+    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The item that was sent.
+    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent from.
+    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved from.
+    * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent to.
+    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved to.
+
+```javascript
+grid.on('send', function (data) {
+  console.log(data);
+});
+```
+
+### receive
+
+Triggered, for the receiving grid, after `grid.send()` is called or when an item is dragged into another grid.
+
+**Arguments**
+
+* **data** &nbsp;&mdash;&nbsp; *object*
+    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The item that was sent.
+    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent from.
+    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved from.
+    * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent to.
+    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved to.
+
+```javascript
+grid.on('receive', function (data) {
+  console.log(data);
+});
+```
+
+### dragStart
 
 Triggered when dragging of an item begins.
 
-**Listener parameters**
+**Arguments**
 
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that is being dragged.
-* **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.type** &nbsp;&mdash;&nbsp; *string*
-    *  `"dragstart"`
-  * **data.event** &nbsp;&mdash;&nbsp; *object*
-    *  The hammer event for the drag start event.
-  * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
-    *  The dragged element's current translateX value.
-  * **data.currentTop** &nbsp;&mdash;&nbsp; *object*
-    *  The dragged element's current translateY value.
-  * **data.gridLeft** &nbsp;&mdash;&nbsp; *number*
-    *  The dragged element's current x-coordinate within the muuri container element.
-  * **data.gridTop** &nbsp;&mdash;&nbsp; *object*
-    *  The dragged element's current y-coordinate within the muuri container element.
-
-**Examples**
+  * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * Hammer.js event data.
 
 ```javascript
-muuri.on('dragstart', function (item, data) {
+grid.on('dragStart', function (item, event) {
+  console.log(event);
   console.log(item);
-  console.log(data);
 });
 ```
 
-### `dragmove`
+### dragMove
 
 Triggered when an item is dragged.
 
-**Listener parameters**
+**Arguments**
 
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that is being dragged.
-* **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.type** &nbsp;&mdash;&nbsp; *string*
-    *  `"dragmove"`
-  * **data.event** &nbsp;&mdash;&nbsp; *object*
-    *  The hammer event for the drag start event.
-  * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
-    *  The dragged element's current translateX value.
-  * **data.currentTop** &nbsp;&mdash;&nbsp; *object*
-    *  The dragged element's current translateY value.
-  * **data.gridLeft** &nbsp;&mdash;&nbsp; *number*
-    *  The dragged element's current x-coordinate within the muuri container element.
-  * **data.gridTop** &nbsp;&mdash;&nbsp; *object*
-    *  The dragged element's current y-coordinate within the muuri container element.
-
-**Examples**
+  * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * Hammer.js event data.
 
 ```javascript
-muuri.on('dragmove', function (item, data) {
+grid.on('dragMove', function (item, event) {
+  console.log(event);
   console.log(item);
-  console.log(data);
 });
 ```
 
-### `dragscroll`
+### dragScroll
 
 Triggered when any of the scroll parents of a dragged item is scrolled.
 
-**Listener parameters**
+**Arguments**
 
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that is being dragged.
-* **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.type** &nbsp;&mdash;&nbsp; *string*
-    *  `"dragscroll"`
-  * **data.event** &nbsp;&mdash;&nbsp; *object*
-    *  Th scroll event.
-  * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
-    *  The dragged element's current translateX value.
-  * **data.currentTop** &nbsp;&mdash;&nbsp; *object*
-    *  The dragged element's current translateY value.
-  * **data.gridLeft** &nbsp;&mdash;&nbsp; *number*
-    *  The dragged element's current x-coordinate within the muuri container element.
-  * **data.gridTop** &nbsp;&mdash;&nbsp; *object*
-    *  The dragged element's current y-coordinate within the muuri container element.
-
-**Examples**
+  * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * The scroll event data.
 
 ```javascript
-muuri.on('dragscroll', function (item, data) {
-  console.log(item);
-  console.log(data);
-});
-```
-
-### `dragend`
-
-Triggered after item dragging ends.
-
-**Listener parameters**
-
-* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that is being dragged.
-* **data** &nbsp;&mdash;&nbsp; *object*
-  * **data.type** &nbsp;&mdash;&nbsp; *string*
-    *  `"dragend"`
-  * **data.event** &nbsp;&mdash;&nbsp; *object*
-    *  The hammer event for the drag start event.
-  * **data.currentLeft** &nbsp;&mdash;&nbsp; *number*
-    *  The dragged element's current translateX value.
-  * **data.currentTop** &nbsp;&mdash;&nbsp; *object*
-    *  The dragged element's current translateY value.
-  * **data.gridLeft** &nbsp;&mdash;&nbsp; *number*
-    *  The dragged element's current x-coordinate within the muuri container element.
-  * **data.gridTop** &nbsp;&mdash;&nbsp; *object*
-    *  The dragged element's current y-coordinate within the muuri container element.
-
-**Examples**
-
-```javascript
-muuri.on('dragend', function (item, data) {
-  console.log(item);
-  console.log(data);
-});
-```
-
-### `releasestart`
-
-Triggered when item is released (right after dragging ends).
-
-**Listener parameters**
-
-* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that is being dragged.
-
-**Examples**
-
-```javascript
-muuri.on('releasestart', function (item) {
+grid.on('dragScroll', function (item, event) {
+  console.log(event);
   console.log(item);
 });
 ```
 
-### `releaseend`
+### dragEnd
 
-Triggered after item has finished the release procedure (animated back to it's position if animations are enabled).
+Triggered when dragging of an item ends.
 
-**Listener parameters**
+**Arguments**
 
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
-  * `Muuri.Item` instance that is being dragged.
-
-**Examples**
+  * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * Hammer.js event data.
 
 ```javascript
-muuri.on('releaseend', function (item) {
+grid.on('dragEnd', function (item, event) {
+  console.log(event);
   console.log(item);
 });
 ```
 
-### `destroy`
+### dragReleaseStart
 
-Triggered after `muuri.destroy()` method is called.
+Triggered when a dragged item is released.
 
-**Examples**
+**Arguments**
+
+* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+  * The released item.
 
 ```javascript
-muuri.on('destroy', function () {
+grid.on('dragReleaseStart', function (item) {
+  console.log(item);
+});
+```
+
+### dragReleaseEnd
+
+Triggered after released item has been animated to position.
+
+**Arguments**
+
+* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+  * The released item.
+
+```javascript
+grid.on('dragReleaseEnd', function (item) {
+  console.log(item);
+});
+```
+
+### destroy
+
+Triggered after `grid.destroy()` is called.
+
+```javascript
+grid.on('destroy', function () {
   console.log('Muuri is no more...');
 });
 ```
+
+### Item methods
+
+* [item.getGrid()](#itemgetgrid)
+* [item.getElement()](#itemgetelement)
+* [item.getWidth()](#itemgetwidth)
+* [item.getHeight()](#itemgetheight)
+* [item.getMargin()](#itemgetmargin)
+* [item.getPosition()](#itemgetposition)
+* [item.isActive()](#itemisactive)
+* [item.isVisible()](#itemisvisible)
+* [item.isShowing()](#itemisshowing)
+* [item.isHiding()](#itemishiding)
+* [item.isPositioning()](#itemispositioning)
+* [item.isDragging()](#itemisdragging)
+* [item.isReleasing()](#itemisreleasing)
+
+### item.getGrid()
+
+Get the instance's grid instance.
+
+**Returns** &nbsp;&mdash;&nbsp; *Muuri*
+
+```javascript
+var grid = item.getMuuri();
+```
+
+### item.getElement()
+
+Get the instance element.
+
+**Returns** &nbsp;&mdash;&nbsp; *element*
+
+```javascript
+var elem = item.getElement();
+```
+
+### item.getWidth()
+
+Get instance element's cached width. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *number*
+
+```javascript
+var width = item.getWidth();
+```
+
+### item.getHeight()
+
+Get instance element's cached height. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *number*
+
+```javascript
+var height = item.getHeight();
+```
+
+### item.getMargin()
+
+Get instance element's cached margins. Note that the values are rounded with `Math.round()`.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+* **obj.left** &nbsp;&mdash;&nbsp; *number*
+* **obj.right** &nbsp;&mdash;&nbsp; *number*
+* **obj.top** &nbsp;&mdash;&nbsp; *number*
+* **obj.bottom** &nbsp;&mdash;&nbsp; *number*
+
+```javascript
+var margin = item.getMargin();
+```
+
+### item.getPosition()
+
+Get instance element's cached position (relative to the container element).
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+* **obj.left** &nbsp;&mdash;&nbsp; *number*
+* **obj.top** &nbsp;&mdash;&nbsp; *number*
+
+```javascript
+var position = item.getPosition();
+```
+
+### item.isActive()
+
+Check if the item is currently *active*. Only active items are considered to be part of the layout.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isActive = item.isActive();
+```
+
+### item.isVisible()
+
+Check if the item is currently *visible*.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isVisible = item.isVisible();
+```
+
+### item.isShowing()
+
+Check if the item is currently animating to visible.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isShowing = item.isShowing();
+```
+
+### item.isHiding()
+
+Check if the item is currently animating to hidden.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isHiding = item.isHiding();
+```
+
+### item.isPositioning()
+
+Check if the item is currently being positioned.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isPositioning = item.isPositioning();
+```
+
+### item.isDragging()
+
+Check if the item is currently being dragged.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isDragging = item.isDragging();
+```
+
+### item.isReleasing()
+
+Check if the item is currently being released.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isReleasing = item.isReleasing();
+```
+
+## Credits
+
+Created and maintained by [Niklas Rämö](https://github.com/niklasramo).
+
+* This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/) and [Packery](http://packery.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
+* Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!
+* Big thanks to the people behind [Velocity.js](http://velocityjs.org/) and [Hammer.js](http://hammerjs.github.io/) for providing such awesome libraries. Muuri would be much less cool without animations and dragging.
+* [Haltu Oy](http://www.haltu.fi/) was responsible for initiating this project in the first place and funded the intial development. Thanks Haltu!
 
 ## License
 

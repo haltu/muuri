@@ -1,3 +1,4 @@
 Authors ordered by first contribution.
 
 Niklas Rämö <inramo@gmail.com>
+Indigane <https://github.com/indigane>

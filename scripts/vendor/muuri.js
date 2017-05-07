@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.2.0
+ * Muuri v0.3.0
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -25,278 +25,2405 @@
 (function (global, factory) {
 
   var libName = 'Muuri';
-  var depVelocity = typeof jQuery === 'function' ? jQuery.Velocity : global.Velocity;
-  var depHammer = global.Hammer;
+  var Velocity;
+  var Hammer;
 
-  global[libName] = factory(global, depVelocity, depHammer);
+  if (typeof define === 'function' && define.amd) {
 
-}(this, function (global, Velocity, Hammer, undefined) {
+    define(function (require) {
+      Velocity = require.defined && require.defined('velocity') ? require('velocity') : undefined;
+      Hammer = require.defined && require.defined('hammer') ? require('hammer') : undefined;
+      return factory(global, libName, Velocity, Hammer);
+    });
+
+  }
+  else if (typeof module === 'object' && module.exports) {
+
+    try {
+      Velocity = require('velocity-animate');
+    }
+    catch (e) {}
+
+    try {
+      Hammer = require('hammerjs');
+    }
+    catch (e) {}
+
+    module.exports = factory(global, libName, Velocity, Hammer);
+
+  }
+  else {
+
+    Velocity = global.Velocity || global.jQuery.Velocity;
+    Hammer = global.Hammer;
+    global[libName] = factory(global, libName, Velocity, Hammer);
+
+  }
+
+}(this, function (global, libName, Velocity, Hammer, undefined) {
 
   'use strict';
 
-  // Document body needs to be ready for tests.
-  if (!document.body) {
-    throw Error('Muuri needs access to document.body to work.');
-  }
+  // Get references to all the stuff we are using from the global scope.
+  var document = global.document;
+  var Object = global.Object;
+  var Array = global.Array;
+  var Math = global.Math;
+  var Error = global.Error;
+  var Element = global.Element;
 
-  var uuid = 0;
+  // Types.
+  var typeFunction = 'function';
+  var typeString = 'string';
+  var typeNumber = 'number';
+
+  // Keep track of Grid instances.
+  var gridInstances = {};
+
+  // Keep track of Item instances.
+  var itemInstances = {};
+
+  // Keep track of the drag sort groups.
+  var dragSortGroups = {};
+
+  // No operation function.
   var noop = function () {};
-  var raf = typeof global.requestAnimationFrame === 'function' ? global.requestAnimationFrame : null;
+
+  // Unique id which is used for Grid instances and Item instances.
+  // Should be incremented every time when used.
+  var uuid = 0;
+
+  // Get the supported element.matches().
+  var elementMatches = getSupportedElementMatches();
+
+  // Get the supported transform style property.
+  var transform = getSupportedStyle('transform');
+
+  // Test if transformed elements leak fixed elements.
+  var transformLeaksFixed = doesTransformLeakFixed();
 
   // Event names.
-  var evRefresh = 'refresh';
   var evSynchronize = 'synchronize';
-  var evLayoutStart = 'layoutstart';
-  var evLayoutEnd = 'layoutend';
-  var evShowStart = 'showstart';
-  var evShowEnd = 'showend';
-  var evHideStart = 'hidestart';
-  var evHideEnd = 'hideend';
-  var evMove = 'move';
-  var evSwap = 'swap';
+  var evLayoutStart = 'layoutStart';
+  var evLayoutEnd = 'layoutEnd';
   var evAdd = 'add';
   var evRemove = 'remove';
-  var evDragStart = 'dragstart';
-  var evDragMove = 'dragmove';
-  var evDragScroll = 'dragscroll';
-  var evDragEnd = 'dragend';
-  var evReleaseStart = 'releasestart';
-  var evReleaseEnd = 'releaseend';
+  var evShowStart = 'showStart';
+  var evShowEnd = 'showEnd';
+  var evHideStart = 'hideStart';
+  var evHideEnd = 'hideEnd';
+  var evFilter = 'filter';
+  var evSort = 'sort';
+  var evMove = 'move';
+  var evSend = 'send';
+  var evReceive = 'receive';
+  var evDragStart = 'dragStart';
+  var evDragMove = 'dragMove';
+  var evDragScroll = 'dragScroll';
+  var evDragEnd = 'dragEnd';
+  var evDragReleaseStart = 'dragReleaseStart';
+  var evDragReleaseEnd = 'dragReleaseEnd';
   var evDestroy = 'destroy';
 
-  // Get the primary supported transform property.
-  var supportedTransform = (function () {
-    var all = ['transform', 'WebkitTransform', 'MozTransform', 'OTransform', 'msTransform'];
-    for (var i = 0; i < all.length; i++) {
-      if (document.documentElement.style[all[i]] !== undefined) {
-        var prop = all[i];
-        var prefix = prop.toLowerCase().split('transform')[0];
-        return {
-          prefix: prefix,
-          prop: prop,
-          style: prefix ? '-' + prefix + '-transform' : prop
-        };
-      }
-    }
-    return null;
-  })();
-
-  // Detect if current browser positions fixed elements relative to the nearest
-  // ancestor transformed element instead of the window.
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=20574
-  //
-  // Borrowed from Mezr library:
-  // https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L95-L113
-  // https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L247-L300
-  var hasBrokenW3CTELCS = (function () {
-
-    // If the browser does not support transforms we can deduct that the
-    // W3C TELCS is broken (non-existent).
-    if (!supportedTransform) {
-      return true;
-    }
-
-    var body = document.body;
-    var outer = document.createElement('div');
-    var inner = document.createElement('div');
-    var leftUntransformed;
-    var leftTransformed;
-
-    setStyles(outer, {
-      display: 'block',
-      visibility: 'hidden',
-      position: 'absolute',
-      width: '1px',
-      height: '1px',
-      left: '1px',
-      top: '0',
-      margin: '0'
-    });
-
-    setStyles(inner, {
-      display: 'block',
-      position: 'fixed',
-      width: '1px',
-      height: '1px',
-      left: '0',
-      top: '0',
-      margin: '0'
-    });
-
-    outer.appendChild(inner);
-    body.appendChild(outer);
-    leftUntransformed = inner.getBoundingClientRect().left;
-    outer.style[supportedTransform.prop] = 'translateZ(0)';
-    leftTransformed = inner.getBoundingClientRect().left;
-    body.removeChild(outer);
-
-    return leftTransformed === leftUntransformed;
-
-  })();
-
   /**
-   * Emitter
-   * *******
+   * Grid
+   * ****
    */
 
   /**
-   * Event emitter constructor.
+   * Creates a new Grid instance.
    *
-   * This is a simplified version of jvent.js event emitter library:
-   * https://github.com/pazguille/jvent/blob/0.2.0/dist/jvent.js
-   *
-   * @private
+   * @public
+   * @class
+   * @param {(HTMLElement|String)} element
+   * @param {Object} [options]
+   * @param {(?HTMLElement[]|NodeList|String)} [options.items]
+   * @param {?Function} [options.showAnimation=null]
+   * @param {Number} [options.showDuration=300]
+   * @param {(Number[]|String)} [options.showEasing="ease"]
+   * @param {Object} [options.visibleStyles]
+   * @param {?Function} [options.hideAnimation=null]
+   * @param {Number} [options.hideDuration=300]
+   * @param {(Number[]|String)} [options.hideEasing="ease"]
+   * @param {Object} [options.hiddenStyles]
+   * @param {(Function|Object)} [options.layout]
+   * @param {Boolean} [options.layout.fillGaps=false]
+   * @param {Boolean} [options.layout.horizontal=false]
+   * @param {Boolean} [options.layout.alignRight=false]
+   * @param {Boolean} [options.layout.alignBottom=false]
+   * @param {(Boolean|Number)} [options.layoutOnResize=100]
+   * @param {Boolean} [options.layoutOnInit=true]
+   * @param {Number} [options.layoutDuration=300]
+   * @param {(Number[]|String)} [options.layoutEasing="ease"]
+   * @param {?Object} [options.sortData=null]
+   * @param {Boolean} [options.dragEnabled=false]
+   * @param {?HtmlElement} [options.dragContainer=null]
+   * @param {?Function} [options.dragStartPredicate]
+   * @param {Number} [options.dragStartPredicate.distance=0]
+   * @param {Number} [options.dragStartPredicate.delay=0]
+   * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
+   * @param {Boolean} [options.dragSort=true]
+   * @param {Number} [options.dragSortInterval=50]
+   * @param {(Function|Object)} [options.dragSortPredicate]
+   * @param {Number} [options.dragSortPredicate.threshold=50]
+   * @param {String} [options.dragSortPredicate.action="move"]
+   * @param {String} [options.dragSortPredicate.gaps=true]
+   * @param {?(Array|String)} [options.dragSortGroup=null]
+   * @param {?(Array|String)} [options.dragSortWith=null]
+   * @param {Number} [options.dragReleaseDuration=300]
+   * @param {(Number[]|String)} [options.dragReleaseEasing="ease"]
+   * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
+   * @param {String} [options.containerClass="muuri"]
+   * @param {String} [options.itemClass="muuri-item"]
+   * @param {String} [options.itemVisibleClass="muuri-item-visible"]
+   * @param {String} [options.itemHiddenClass="muuri-item-hidden"]
+   * @param {String} [options.itemPositioningClass="muuri-item-positioning"]
+   * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
+   * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
    */
-  function Emitter() {}
+  function Grid(element, options) {
+
+    var inst = this;
+    var settings;
+    var items;
+    var debouncedLayout;
+    var layoutOnResize;
+
+    // Allow passing element as selector string. Store element for instance.
+    element = inst._element = typeof element === typeString ? document.querySelectorAll(element)[0] : element;
+
+    // Throw an error if the container element is not body element or does not
+    // exist within the body element.
+    if (!document.body.contains(element)) {
+      throw new Error('Container element must be an existing DOM element');
+    }
+
+    // Create instance settings by merging the options with default options.
+    settings = inst._settings = mergeSettings(Grid.defaultOptions, options);
+
+    // Create instance id and store it to the grid instances collection.
+    inst._id = ++uuid;
+    gridInstances[inst._id] = inst;
+
+    // Destroyed flag.
+    inst._isDestroyed = false;
+
+    // Reference to the currently used Layout instance.
+    inst._layout = null;
+
+    // Create private Emitter instance.
+    inst._emitter = new Grid.Emitter();
+
+    // Setup instance's sort group.
+    inst._setSortGroups(settings.dragSortGroup);
+
+    // Setup instance's sort connections.
+    inst._sortConnections = settings.dragSortWith && settings.dragSortWith.length ? [].concat(settings.dragSortWith) : null;
+
+    // Setup show and hide animations for items.
+    inst._itemShowHandler = typeof settings.showAnimation === typeFunction ? settings.showAnimation(settings.showDuration, settings.showEasing, settings.visibleStyles) :
+                            getItemVisibilityHandler('show', settings.showDuration, settings.showEasing, settings.visibleStyles);
+    inst._itemHideHandler = typeof settings.hideAnimation === typeFunction ? settings.hideAnimation(settings.hideDuration, settings.hideEasing, settings.hiddenStyles) :
+                            getItemVisibilityHandler('hide', settings.hideDuration, settings.hideEasing, settings.hiddenStyles);
+
+    // Add container element's class name.
+    addClass(element, settings.containerClass);
+
+    // Create initial items.
+    inst._items = [];
+    items = settings.items;
+    if (typeof items === typeString) {
+      nodeListToArray(inst._element.children).forEach(function (itemElement) {
+        if (items === '*' || elementMatches(itemElement, items)) {
+          inst._items.push(new Grid.Item(inst, itemElement));
+        }
+      });
+    }
+    else if (Array.isArray(items) || isNodeList(items)) {
+      inst._items = nodeListToArray(items).map(function (itemElement) {
+        return new Grid.Item(inst, itemElement);
+      });
+    }
+
+    // Sanitize layoutOnResize option and bind debounced resize handler if the
+    // layoutOnResize option a valid number.
+    layoutOnResize = settings.layoutOnResize;
+    layoutOnResize = layoutOnResize === true ? 0 : typeof layoutOnResize === typeNumber ? layoutOnResize : -1;
+    if (layoutOnResize >= 0) {
+      debouncedLayout = debounce(function () {
+        inst.refreshItems().layout();
+      }, layoutOnResize);
+      inst._resizeHandler = function () {
+        debouncedLayout();
+      };
+      global.addEventListener('resize', inst._resizeHandler);
+    }
+
+    // Layout on init if necessary.
+    if (settings.layoutOnInit) {
+      inst.layout(true);
+    }
+
+  }
+
+  /**
+   * Grid - Public properties
+   * ************************
+   */
+
+  /**
+   * @see Item
+   */
+  Grid.Item = Item;
+
+  /**
+   * @see ItemDrag
+   */
+  Grid.ItemDrag = ItemDrag;
+
+  /**
+   * @see ItemRelease
+   */
+  Grid.ItemRelease = ItemRelease;
+
+  /**
+   * @see ItemMigrate
+   */
+  Grid.ItemMigrate = ItemMigrate;
+
+  /**
+   * @see ItemAnimate
+   */
+  Grid.ItemAnimate = ItemAnimate;
+
+  /**
+   * @see Layout
+   */
+  Grid.Layout = Layout;
+
+  /**
+   * @see Emitter
+   */
+  Grid.Emitter = Emitter;
+
+  /**
+   * Default options for Grid instance.
+   *
+   * @public
+   * @memberof Grid
+   */
+  Grid.defaultOptions = {
+
+    // Item elements
+    items: '*',
+
+    // Default show animation
+    showDuration: 300,
+    showEasing: 'ease',
+
+    // Default hide animation
+    hideDuration: 300,
+    hideEasing: 'ease',
+
+    // Custom show/hide animations
+    showAnimation: null,
+    hideAnimation: null,
+
+    // Item's visible/hidden state styles
+    visibleStyles: {
+      opacity: 1,
+      scale: 1
+    },
+    hiddenStyles: {
+      opacity: 0,
+      scale: 0.5
+    },
+
+    // Layout
+    layout: {
+      fillGaps: false,
+      horizontal: false,
+      alignRight: false,
+      alignBottom: false
+    },
+    layoutOnResize: 100,
+    layoutOnInit: true,
+    layoutDuration: 300,
+    layoutEasing: 'ease',
+
+    // Sorting
+    sortData: null,
+
+    // Drag & Drop
+    dragEnabled: false,
+    dragContainer: null,
+    dragStartPredicate: {
+      distance: 0,
+      delay: 0,
+      handle: false
+    },
+    dragSort: true,
+    dragSortInterval: 100,
+    dragSortPredicate: {
+      threshold: 50,
+      action: 'move'
+    },
+    dragSortGroup: null,
+    dragSortWith: null,
+    dragReleaseDuration: 300,
+    dragReleaseEasing: 'ease',
+    dragHammerSettings: {
+      touchAction: 'none'
+    },
+
+    // Classnames
+    containerClass: 'muuri',
+    itemClass: 'muuri-item',
+    itemVisibleClass: 'muuri-item-shown',
+    itemHiddenClass: 'muuri-item-hidden',
+    itemPositioningClass: 'muuri-item-positioning',
+    itemDraggingClass: 'muuri-item-dragging',
+    itemReleasingClass: 'muuri-item-releasing'
+
+  };
+
+  /**
+   * Grid - Public prototype methods
+   * *******************************
+   */
 
   /**
    * Bind an event listener.
    *
-   * @private
-   * @memberof Emitter.prototype
+   * @public
+   * @memberof Grid.prototype
    * @param {String} event
    * @param {Function} listener
-   * @returns {Emitter} returns the Emitter instance.
+   * @returns {Grid}
    */
-  Emitter.prototype.on = function (event, listener) {
+  Grid.prototype.on = function (event, listener) {
 
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
-    listeners[listeners.length] = listener;
-    events[event] = listeners;
+    if (!this._isDestroyed) {
+      this._emitter.on(event, listener);
+    }
 
     return this;
 
   };
 
   /**
-   * Unbind all event listeners that match the provided listener function.
+   * Bind an event listener that is triggered only once.
    *
-   * @private
-   * @memberof Emitter.prototype
+   * @public
+   * @memberof Grid.prototype
    * @param {String} event
    * @param {Function} listener
-   * @returns {Emitter} returns the Emitter instance.
+   * @returns {Grid}
    */
-  Emitter.prototype.off = function (event, listener) {
+  Grid.prototype.once = function (event, listener) {
 
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
-    var counter = listeners.length;
+    if (!this._isDestroyed) {
+      this._emitter.once(event, listener);
+    }
 
-    if (counter) {
-      while (counter--) {
-        if (listener === listeners[i]) {
-          listeners.splice(counter, 1);
+    return this;
+
+  };
+
+  /**
+   * Unbind an event listener.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {String} event
+   * @param {Function} listener
+   * @returns {Grid}
+   */
+  Grid.prototype.off = function (event, listener) {
+
+    if (!this._isDestroyed) {
+      this._emitter.off(event, listener);
+    }
+
+    return this;
+
+  };
+
+  /**
+   * Get the container element.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @returns {HTMLElement}
+   */
+  Grid.prototype.getElement = function () {
+
+    return this._element;
+
+  };
+
+  /**
+   * Get all items. Optionally you can provide specific targets (elements and
+   * indices) and filter the results based on the state of the items. Note that
+   * the returned array is not the same object used by the instance so modifying
+   * it will not affect instance's items. All items that are not found are
+   * omitted from the returned array.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {GridMultiItemQuery} [targets]
+   * @param {GridItemState} [state]
+   * @returns {Item[]}
+   */
+  Grid.prototype.getItems = function (targets, state) {
+
+    var inst = this;
+    var hasTargets = targets === 0 || (targets && typeof targets !== typeString);
+    var targetItems = !hasTargets ? null : isNodeList(targets) ? nodeListToArray(targets) : [].concat(targets);
+    var targetState = !hasTargets ? targets : state;
+    var ret = [];
+    var item;
+    var i;
+
+    // Return an empty array immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return ret;
+    }
+
+    // Sanitize target state.
+    targetState = typeof targetState === typeString ? targetState : null;
+
+    // If target state or target items are defined return filtered results.
+    if (targetState || targetItems) {
+      targetItems = targetItems || inst._items;
+      for (i = 0; i < targetItems.length; i++) {
+        item = hasTargets ? inst._getItem(targetItems[i]) : targetItems[i];
+        if (item && (!targetState || isItemInState(item, targetState))) {
+          ret[ret.length] = item;
+        }
+      }
+      return ret;
+    }
+
+    // Otherwise return all items.
+    else {
+      return ret.concat(inst._items);
+    }
+
+  };
+
+  /**
+   * Update the cached dimensions of the instance's items.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(GridMultiItemQuery|GridItemState)} [items]
+   * @returns {Grid}
+   */
+  Grid.prototype.refreshItems = function (items) {
+
+    var inst = this;
+    var targetItems;
+    var i;
+
+    if (!inst._isDestroyed) {
+      targetItems = inst.getItems(items || 'active');
+      for (i = 0; i < targetItems.length; i++) {
+        targetItems[i]._refreshDimensions();
+      }
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Update the sort data of the instance's items.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(GridMultiItemQuery|GridItemState)} [items]
+   * @returns {Grid}
+   */
+  Grid.prototype.refreshSortData = function (items) {
+
+    var inst = this;
+    var targetItems;
+    var i;
+
+    if (!inst._isDestroyed) {
+      targetItems = inst.getItems(items);
+      for (i = 0; i < targetItems.length; i++) {
+        targetItems[i]._refreshSortData();
+      }
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Synchronize the item elements to match the order of the items in the DOM.
+   * This comes handy if you need to keep the DOM structure matched with the
+   * order of the items. Note that if an item's element is not currently a child
+   * of the container element (if it is dragged for example) it is ignored and
+   * left untouched.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @returns {Grid}
+   */
+  Grid.prototype.synchronize = function () {
+
+    var inst = this;
+    var container = inst._element;
+    var items = inst._items;
+    var fragment;
+    var element;
+    var i;
+
+    // Return immediately if instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Append all elements in order to the container element.
+    if (items.length) {
+      for (i = 0; i < items.length; i++) {
+        element = items[i]._element;
+        if (element.parentNode === container) {
+          fragment = fragment || document.createDocumentFragment();
+          fragment.appendChild(element);
+        }
+      }
+      if (fragment) {
+        container.appendChild(fragment);
+      }
+    }
+
+    // Emit synchronize event.
+    inst._emit(evSynchronize);
+
+    return inst;
+
+  };
+
+  /**
+   * Calculate and apply item positions.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {Boolean} [instant=false]
+   * @param {LayoutCallback} [onFinish]
+   * @returns {Grid}
+   */
+  Grid.prototype.layout = function (instant, onFinish) {
+
+    var inst = this;
+    var callback = typeof instant === typeFunction ? instant : onFinish;
+    var isInstant = instant === true;
+    var counter = 0;
+    var layout;
+    var items;
+    var isBorderBox;
+    var item;
+    var position;
+    var i;
+
+    // Return immediately if instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // The finish function, which will be used for checking if all the items
+    // have laid out yet. After all items have finished their animations call
+    // callback and emit layoutEnd event. Only emit layoutEnd event if there
+    // hasn't been a new layout call during this layout.
+    function tryFinish() {
+      if (--counter <= 0) {
+        if (typeof callback === typeFunction) {
+          callback(inst._layout !== layout, items.concat());
+        }
+        if (inst._layout === layout) {
+          inst._emit(evLayoutEnd, items.concat());
         }
       }
     }
 
-    return this;
+    // Create a new layout and store the new layout instance into the grid
+    // instance.
+    layout = inst._layout = new Grid.Layout(inst);
+    items = layout.items.concat();
+    counter = items.length;
 
-  };
+    // Emit layoutStart event.
+    inst._emit(evLayoutStart, items.concat());
 
-  /**
-   * Emit all listeners in a specified event with the provided arguments.
-   *
-   * @private
-   * @memberof Emitter.prototype
-   * @param {String} event
-   * @param {*} [arg1]
-   * @param {*} [arg2]
-   * @param {*} [arg3]
-   * @returns {Emitter} returns the Emitter instance.
-   */
-  Emitter.prototype.emit = function (event, arg1, arg2, arg3) {
+    // If grid's width or height was modified, we need to update it's cached
+    // dimensions. Also keep in mind that grid's cached width/height should
+    // always equal to what elem.getBoundingClientRect() would return, so
+    // therefore we need to add the grid element's paddings and margins to the
+    // dimensions if it's box-sizing is border-box.
+    if (layout.setWidth || layout.setHeight) {
 
-    var events = this._events = this._events || {};
-    var listeners = events[event] || [];
-    var listenersLength = listeners.length;
+      isBorderBox = getStyle(inst._element, 'box-sizing') === 'border-box';
 
-    if (listenersLength) {
+      // Set container element's height if needed.
+      if (layout.setHeight) {
+        setStyles(inst._element, {
+          height: (isBorderBox ? layout.height + inst._padding.top + inst._padding.bottom + inst._border.top + inst._border.bottom : layout.height) + 'px'
+        });
+      }
 
-      var argsLength = arguments.length - 1;
-      listeners = listeners.concat();
-
-      for (var i = 0; i < listenersLength; i++) {
-        argsLength === 0 ? listeners[i]() :
-        argsLength === 1 ? listeners[i](arg1) :
-        argsLength === 2 ? listeners[i](arg1, arg2) :
-                           listeners[i](arg1, arg2, arg3);
+      // Set container element's width if needed.
+      if (layout.setWidth) {
+        setStyles(inst._element, {
+          width: (isBorderBox ? layout.width + inst._padding.left + inst._padding.right + inst._border.left + inst._border.right : layout.width) + 'px'
+        });
       }
 
     }
 
+    // If there are no items let's finish quickly.
+    if (!items.length) {
+      tryFinish();
+      return inst;
+    }
+
+    // If there are items let's position them.
+    for (i = 0; i < items.length; i++) {
+
+      item = items[i];
+      position = layout.slots[item._id];
+
+      // Update item's position. We add the padding to the value here because
+      // we want the position to be relative to the container elment's
+      // content edge, not padding edge (which would be default behaviour for
+      // absolute positioned elements). This way we provide more control over
+      // the gutter spacing via CSS styles. Otherwise the padding would be
+      // kind of wasted.
+      item._left = position.left + inst._padding.left;
+      item._top = position.top + inst._padding.top;
+
+      // Layout non-dragged items.
+      if (item.isDragging()) {
+        tryFinish(true, item);
+      }
+      else {
+        item._layout(isInstant, tryFinish);
+      }
+
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Add new items by providing the elements you wish to add to the instance and
+   * optionally provide the index where you want the items to be inserted into.
+   * All elements that are not already children of the container element will be
+   * automatically appended to the container element. If an element has it's CSS
+   * display property set to "none" it will be marked as inactive during the
+   * initiation process. As long as the item is inactive it will not be part of
+   * the layout, but it will retain it's index. You can activate items at any
+   * point with grid.show() method. This method will automatically call
+   * grid.layout() if one or more of the added elements are visible. If only
+   * hidden items are added no layout will be called. All the new visible items
+   * are positioned without animation during their first layout.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(HTMLElement|HTMLElement[])} elements
+   * @param {Object} [options]
+   * @param {Number} [options.index=-1]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @returns {Item[]}
+   */
+  Grid.prototype.add = function (elements, options) {
+
+    var inst = this;
+    var targetElements = [].concat(elements);
+    var opts = options || {};
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
+    var newItems = [];
+    var items = inst._items;
+    var needsLayout = false;
+    var elementIndex;
+    var item;
+    var i;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return [];
+    }
+
+    // Filter out all elements that exist already in current instance.
+    for (i = 0; i < items.length; i++) {
+      elementIndex = targetElements.indexOf(items[i]._element);
+      if (elementIndex > -1) {
+        targetElements.splice(elementIndex, 1);
+      }
+    }
+
+    // Return early if there are no valid items.
+    if (!targetElements.length) {
+      return newItems;
+    }
+
+    // Create new items.
+    for (i = 0; i < targetElements.length; i++) {
+
+      item = new Grid.Item(inst, targetElements[i]);
+      newItems[newItems.length] = item;
+
+      // If the item to be added is active, we need to do a layout. Also, we
+      // need to mark the item with the skipNextLayoutAnimation flag to make it
+      // position instantly (without animation) during the next layout. Without
+      // the hack the item would animate to it's new position from the northwest
+      // corner of the grid, which feels a bit buggy (imho).
+      if (item._isActive) {
+        needsLayout = true;
+        item._skipNextLayoutAnimation = true;
+      }
+
+    }
+
+    // Add the new items to the items collection to correct index.
+    insertItemsToArray(items, newItems, opts.index);
+
+    // Emit add event.
+    inst._emit(evAdd, newItems.concat());
+
+    // If layout is needed.
+    if (needsLayout && layout) {
+      inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
+    }
+
+    // Return new items.
+    return newItems;
+
+  };
+
+  /**
+   * Remove items from the instance.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(GridMultiItemQuery|GridItemState)} items
+   * @param {Object} [options]
+   * @param {Boolean} [options.removeElements=false]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @returns {Item[]}
+   */
+  Grid.prototype.remove = function (items, options) {
+
+    var inst = this;
+    var opts = options || {};
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
+    var needsLayout = false;
+    var targetItems;
+    var item;
+    var i;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return [];
+    }
+
+    // Remove the individual items.
+    targetItems = inst.getItems(items);
+    for (i = 0; i < targetItems.length; i++) {
+      item = targetItems[i];
+      if (item._isActive) {
+        needsLayout = true;
+      }
+      item._destroy(opts.removeElements);
+    }
+
+    // Emit remove event.
+    inst._emit(evRemove, targetItems.concat());
+
+    // If layout is needed.
+    if (needsLayout && layout) {
+      inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
+    }
+
+    return targetItems;
+
+  };
+
+  /**
+   * Show instance items.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(GridMultiItemQuery|GridItemState)} items
+   * @param {Object} [options]
+   * @param {Boolean} [options.instant=false]
+   * @param {ShowCallback} [options.onFinish]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @returns {Grid}
+   */
+  Grid.prototype.show = function (items, options) {
+
+    return this._isDestroyed ? this : gridShowHideHandler(this, 'show', items, options);
+
+  };
+
+  /**
+   * Hide instance items.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(GridMultiItemQuery|GridItemState)} items
+   * @param {Object} [options]
+   * @param {Boolean} [options.instant=false]
+   * @param {HideCallback} [options.onFinish]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @returns {Grid}
+   */
+  Grid.prototype.hide = function (items, options) {
+
+    return this._isDestroyed ? this : gridShowHideHandler(this, 'hide', items, options);
+
+  };
+
+  /**
+   * Filter items. Expects at least one argument, a predicate, which should be
+   * either a function or a string. The predicate callback is executed for every
+   * item in the instance. If the return value of the predicate is truthy the
+   * item in question will be shown and otherwise hidden. The predicate callback
+   * receives the item instance as it's argument. If the predicate is a string
+   * it is considered to be a selector and it is checked against every item
+   * element in the instance with the native element.matches() method. All the
+   * matching items will be shown and others hidden.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(Function|String)} predicate
+   * @param {Object} [options]
+   * @param {Boolean} [options.instant=false]
+   * @param {FilterCallback} [options.onFinish]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @returns {Grid}
+   */
+  Grid.prototype.filter = function (predicate, options) {
+
+    var inst = this;
+    var items = inst._items;
+    var predicateType = typeof predicate;
+    var isPredicateString = predicateType === typeString;
+    var isPredicateFn = predicateType === typeFunction;
+    var opts = options || {};
+    var isInstant = opts.instant === true;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
+    var onFinish = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
+    var itemsToShow = [];
+    var itemsToHide = [];
+    var tryFinishCounter = -1;
+    var tryFinish;
+    var item;
+    var i;
+
+    // Return immediately if there are no items or if the instance id destroyed.
+    if (inst._isDestroyed || !items.length) {
+      return inst;
+    }
+
+    // Create finisher function.
+    tryFinish = !onFinish ? noop : function () {
+      if (++tryFinishCounter) {
+        onFinish(itemsToShow.concat(), itemsToHide.concat());
+      }
+    };
+
+    // Check which items need to be shown and which hidden.
+    if (isPredicateFn || isPredicateString) {
+      for (i = 0; i < items.length; i++) {
+        item = items[i];
+        if (isPredicateFn ? predicate(item) : elementMatches(item._element, predicate)) {
+          itemsToShow.push(item);
+        }
+        else {
+          itemsToHide.push(item);
+        }
+      }
+    }
+
+    // Show items that need to be shown.
+    if (itemsToShow.length) {
+      inst.show(itemsToShow, {
+        instant: isInstant,
+        onFinish: tryFinish,
+        layout: false
+      });
+    }
+    else {
+      tryFinish();
+    }
+
+    // Hide items that need to be hidden.
+    if (itemsToHide.length) {
+      inst.hide(itemsToHide, {
+        instant: isInstant,
+        onFinish: tryFinish,
+        layout: false
+      });
+    }
+    else {
+      tryFinish();
+    }
+
+    // If there are any items to filter.
+    if (itemsToShow.length || itemsToHide.length) {
+
+      // Emit filter event.
+      inst._emit(evFilter, itemsToShow.concat(), itemsToHide.concat());
+
+      // If layout is needed.
+      if (layout) {
+        inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
+      }
+
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Sort items. There are three ways to sort the items. The first is simply by
+   * providing a function as the comparer which works identically to native
+   * array sort. Alternatively you can sort by the sort data you have provided
+   * in the instance's options. Just provide the sort data key(s) as a string
+   * (separated by space) and the items will be sorted based on the provided
+   * sort data keys. Lastly you have the opportunity to provide a presorted
+   * array of items which will be used to sync the internal items array in the
+   * same order.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {(Function|Item[]|String|String[])} comparer
+   * @param {Object} [options]
+   * @param {Boolean} [options.descending=false]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @returns {Grid}
+   */
+  Grid.prototype.sort = function (comparer, options) {
+
+    var inst = this;
+    var items = inst._items;
+    var opts = options || {};
+    var isDescending = !!opts.descending;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
+    var origItems;
+    var indexMap;
+
+    // Let's not sort if it has no effect.
+    if (inst._isDestroyed || items.length < 2) {
+      return inst;
+    }
+
+    // Clone current set of items for the event.
+    origItems = items.concat();
+
+    // If function is provided do a native array sort.
+    if (typeof comparer === typeFunction) {
+      items.sort(function (a, b) {
+        var result = comparer(a, b);
+        return (isDescending && result !== 0 ? -result : result) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
+      });
+    }
+
+    // Otherwise if we got a string, let's sort by the sort data as provided in
+    // the instance's options.
+    else if (typeof comparer === typeString) {
+      comparer = comparer.trim().split(' ').map(function (val) {
+        return val.split(':');
+      });
+      items.sort(function (a, b) {
+        return compareItems(a, b, isDescending, comparer) || compareItemIndices(a, b, isDescending, indexMap || (indexMap = getItemIndexMap(origItems)));
+      });
+    }
+
+    // Otherwise if we got an array, let's assume it's a presorted array of the
+    // items and order the items based on it.
+    else if (Array.isArray(comparer)) {
+      sortItemsByReference(items, comparer);
+      if (isDescending) {
+        items.reverse();
+      }
+    }
+
+    // Otherwise, let's go home.
+    else {
+      return inst;
+    }
+
+    // Emit sort event.
+    inst._emit(evSort, items.concat(), origItems);
+
+    // If layout is needed.
+    if (layout) {
+      inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Move item to another index or in place of another item.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {GridSingleItemQuery} item
+   * @param {GridSingleItemQuery} position
+   * @param {Object} [options]
+   * @param {String} [options.action="move"]
+   *   - Accepts either "move" or "swap".
+   *   - "move" moves the item in place of the other item.
+   *   - "swap" swaps the position of the items.
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @returns {Grid}
+   */
+  Grid.prototype.move = function (item, position, options) {
+
+    var inst = this;
+    var items = inst._items;
+    var opts = options || {};
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
+    var isSwap = opts.action === 'swap';
+    var action = isSwap ? 'swap' : 'move';
+    var fromItem;
+    var toItem;
+    var fromIndex;
+    var toIndex;
+
+    // Return immediately, if moving an item is not possible.
+    if (inst._isDestroyed || items.length < 2) {
+      return inst;
+    }
+
+    fromItem = inst._getItem(item);
+    toItem = inst._getItem(position);
+
+    // Make sure the items exist and are not the same.
+    if (fromItem && toItem && (fromItem !== toItem)) {
+
+      // Get the indices of the items.
+      fromIndex = items.indexOf(fromItem);
+      toIndex = items.indexOf(toItem);
+
+      // Do the move/swap.
+      (isSwap ? arraySwap : arrayMove)(items, fromIndex, toIndex);
+
+      // Emit move event.
+      inst._emit(evMove, {
+        item: fromItem,
+        fromIndex: fromIndex,
+        toIndex: toIndex,
+        action: action
+      });
+
+      // If layout is needed.
+      if (layout) {
+        inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
+      }
+
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Send item to another Grid instance.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {GridSingleItemQuery} item
+   * @param {Grid} grid
+   * @param {GridSingleItemQuery} position
+   * @param {Object} [options]
+   * @param {HTMLElement} [options.appendTo=document.body]
+   * @param {(Boolean|LayoutCallback|String)} [options.layoutSender=true]
+   * @param {(Boolean|LayoutCallback|String)} [options.layoutReceiver=true]
+   * @returns {Grid}
+   */
+  Grid.prototype.send = function (item, grid, position, options) {
+
+    // Return immediately if either grid is destroyed or if the grids are the
+    // same.
+    if (this._isDestroyed || grid._isDestroyed || this === grid) {
+      return this;
+    }
+
+    var currentGrid = this;
+    var targetGrid = grid;
+    var opts = options || {};
+    var container = opts.appendTo || document.body;
+    var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
+    var layoutReceiver = opts.layoutReceiver ? opts.layoutReceiver : opts.layoutReceiver === undefined;
+
+    // Get the target item.
+    item = currentGrid._getItem(item);
+
+    // If no valid item was found, let's stop here.
+    if (!item) {
+      return currentGrid;
+    }
+
+    // Start the migration process.
+    item._migrate.start(targetGrid, position, container);
+
+    // If migration was started succesfully and the item is active, let's layout
+    // the grids.
+    if (item._migrate.isActive && item.isActive()) {
+      if (layoutSender) {
+        currentGrid.layout(layoutSender === 'instant', typeof layoutSender === typeFunction ? layoutSender : undefined);
+      }
+      if (layoutReceiver) {
+        targetGrid.layout(layoutReceiver === 'instant', typeof layoutReceiver === typeFunction ? layoutReceiver : undefined);
+      }
+    }
+
+    return currentGrid;
+
+  };
+
+  /**
+   * Destroy the instance.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {Boolean} [removeElements=false]
+   * @returns {Grid}
+   */
+  Grid.prototype.destroy = function (removeElements) {
+
+    var inst = this;
+    var container = inst._element;
+    var items = inst._items.concat();
+    var i;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Unbind window resize event listener.
+    if (inst._resizeHandler) {
+      global.removeEventListener('resize', inst._resizeHandler);
+    }
+
+    // Destroy items.
+    for (i = 0; i < items.length; i++) {
+      items[i]._destroy(removeElements);
+    }
+
+    // Unset sort group.
+    inst._unsetSortGroups();
+
+    // Restore container.
+    removeClass(container, inst._settings.containerClass);
+    setStyles(container, {
+      height: ''
+    });
+
+    // Emit destroy event and unbind all events.
+    inst._emit(evDestroy);
+    inst._emitter.destroy();
+
+    // Remove reference from the grid instances collection.
+    gridInstances[inst._id] = undefined;
+
+    // Flag instance as destroyed.
+    inst._isDestroyed = true;
+
+    return inst;
+
+  };
+
+  /**
+   * Grid - Protected prototype methods
+   * **********************************
+   */
+
+  /**
+   * Get instance's item by element or by index. Target can also be an Item
+   * instance in which case the function returns the item if it exists within
+   * related Grid instance. If nothing is found with the provided target, null
+   * is returned.
+   *
+   * @protected
+   * @memberof Grid.prototype
+   * @param {GridSingleItemQuery} [target=0]
+   * @returns {?Item}
+   */
+  Grid.prototype._getItem = function (target) {
+
+    var inst = this;
+    var index;
+    var ret;
+    var item;
+    var i;
+
+    // If no target is specified or the instance is destroyed, return the first
+    // item or null.
+    if (inst._isDestroyed || !target) {
+      return inst._items[0] || null;
+    }
+
+    // If the target is an instance of Item return it if it is attached to this
+    // Grid instance, otherwise return null.
+    else if (target instanceof Item) {
+      return target._gridId === inst._id ? target : null;
+    }
+
+    // If target is number return the item in that index. If the number is lower
+    // than zero look for the item starting from the end of the items array. For
+    // example -1 for the last item, -2 for the second last item, etc.
+    else if (typeof target === typeNumber) {
+      index = target > -1 ? target : inst._items.length + target;
+      return inst._items[index] || null;
+    }
+
+    // In other cases let's assume that the target is an element, so let's try
+    // to find an item that matches the element and return it. If item is not
+    // found return null.
+    else {
+      ret = null;
+      for (i = 0; i < inst._items.length; i++) {
+        item = inst._items[i];
+        if (item._element === target) {
+          ret = item;
+          break;
+        }
+      }
+      return ret;
+    }
+
+  };
+
+  /**
+   * Bind an event listener.
+   *
+   * @protected
+   * @memberof Grid.prototype
+   * @param {String} event
+   * @param {*} [arg1]
+   * @param {*} [arg2]
+   * @param {*} [arg3]
+   * @returns {Grid}
+   */
+  Grid.prototype._emit = function () {
+
+    if (!this._isDestroyed) {
+      this._emitter.emit.apply(this._emitter, arguments);
+    }
+
     return this;
 
   };
 
   /**
-   * LayoutFirstFit v0.2.0
+   * Refresh container's internal dimensions.
+   *
+   * @private
+   * @memberof Grid.prototype
+   * @returns {Grid}
+   */
+  Grid.prototype._refreshDimensions = function () {
+
+    var inst = this;
+    var element = this.getElement();
+    var rect = element.getBoundingClientRect();
+    var sides = ['left', 'right', 'top', 'bottom'];
+    var i;
+
+    inst._width = Math.round(rect.width);
+    inst._height = Math.round(rect.height);
+    inst._left = Math.round(rect.left);
+    inst._top = Math.round(rect.top);
+    inst._padding = {};
+    inst._border = {};
+
+    for (i = 0; i < sides.length; i++) {
+      inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
+      inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Set instance's drag sort groups.
+   *
+   * @protected
+   * @memberof Grid.prototype
+   * @param {?(Array|String)} sortGroups
+   * @returns {Grid}
+   */
+  Grid.prototype._setSortGroups = function (sortGroups) {
+
+    var inst = this;
+    var instSortGroups = [];
+
+    // Set the initial instance sort group.
+    inst._sortGroups = null;
+
+    // Sanitize sort groups and add them to the instance sort groups as well as
+    // to the global sort groups collection.
+    [].concat(sortGroups).forEach(function (sortGroup) {
+      if (typeof sortGroup === 'string' && instSortGroups.indexOf(sortGroup) < 0) {
+        instSortGroups.push(sortGroup);
+        if (!dragSortGroups[sortGroup]) {
+          dragSortGroups[sortGroup] = [];
+        }
+        dragSortGroups[sortGroup].push(inst._id);
+      }
+    });
+
+    // If there were valid sort groups update the instance sort groups.
+    if (instSortGroups.length) {
+      inst._sortGroups = instSortGroups;
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Unset instance's drag sort group.
+   *
+   * @protected
+   * @memberof Grid.prototype
+   * @returns {Grid}
+   */
+  Grid.prototype._unsetSortGroups = function () {
+
+    var inst = this;
+    var sortGroups = inst._sortGroups;
+    var sortGroupItems;
+    var i;
+    var ii;
+
+    if (sortGroups) {
+      for (i = 0; i < sortGroups.length; i++) {
+        sortGroupItems = dragSortGroups[sortGroups[i]];
+        for (ii = 0; ii < sortGroupItems.length; ii++) {
+          if (sortGroupItems[ii] === inst._id) {
+            sortGroupItems.splice(ii, 1);
+            break;
+          }
+        }
+      }
+      inst._sortGroups = null;
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Get connected Grid instances.
+   *
+   * @protected
+   * @memberof Grid.prototype
+   * @param {Boolean} [includeSelf=false]
+   * @returns {Grid[]}
+   */
+  Grid.prototype._getSortConnections = function (includeSelf) {
+
+    var inst = this;
+    var ret = includeSelf ? [inst] : [];
+    var connections = inst._sortConnections;
+    var sortGroup;
+    var connectedGrid;
+    var ii;
+    var i;
+
+    if (inst._isDestroyed) {
+      return ret;
+    }
+
+    if (connections && connections.length) {
+      for (i = 0; i < connections.length; i++) {
+        sortGroup = dragSortGroups[connections[i]];
+        if (sortGroup && sortGroup.length) {
+          for (ii = 0; ii < sortGroup.length; ii++) {
+            connectedGrid = gridInstances[sortGroup[ii]];
+            if (connectedGrid !== inst && ret.indexOf(connectedGrid) < 0) {
+              ret.push(connectedGrid);
+            }
+          }
+        }
+      }
+    }
+
+    return ret;
+
+  };
+
+  /**
+   * Item
+   * ****
+   */
+
+  /**
+   * Creates a new Item instance for a Grid instance.
+   *
+   * @public
+   * @class
+   * @param {Grid} grid
+   * @param {HTMLElement} element
+   */
+  function Item(grid, element) {
+
+    var inst = this;
+    var settings = grid._settings;
+    var isHidden;
+
+    // Create instance id and add item to the itemInstances collection.
+    inst._id = ++uuid;
+    itemInstances[inst._id] = inst;
+
+    // Destroyed flag.
+    inst._isDestroyed = false;
+
+    // If the provided item element is not a direct child of the grid container
+    // element, append it to the grid container.
+    if (element.parentNode !== grid._element) {
+      grid._element.appendChild(element);
+    }
+
+    // Set item class.
+    addClass(element, settings.itemClass);
+
+    // Check if the element is hidden.
+    isHidden = getStyle(element, 'display') === 'none';
+
+    // Set visible/hidden class.
+    addClass(element, isHidden ? settings.itemHiddenClass : settings.itemVisibleClass);
+
+    // Refrence to connected Grid instance's id.
+    inst._gridId = grid._id;
+
+    // The elements.
+    inst._element = element;
+    inst._child = element.children[0];
+
+    // Initiate item's animation controllers.
+    inst._animate = new Grid.ItemAnimate(inst, element);
+    inst._animateChild = new Grid.ItemAnimate(inst, inst._child);
+
+    // Check if default animation engine is used.
+    inst._isDefaultAnimate = inst._animate instanceof ItemAnimate;
+
+    // Set up active state (defines if the item is considered part of the layout
+    // or not).
+    inst._isActive = isHidden ? false : true;
+
+    // Set up positioning state (defines if the item is currently animating
+    // it's position).
+    inst._isPositioning = false;
+
+    // Set up visibility states.
+    inst._isHidden = isHidden;
+    inst._isHiding = false;
+    inst._isShowing = false;
+
+    // Visibility animation callback queue. Whenever a callback is provided for
+    // show/hide methods and animation is enabled the callback is stored
+    // temporarily to this array. The callbacks are called with the first
+    // argument as false if the animation succeeded without interruptions and
+    // with the first argument as true if the animation was interrupted.
+    inst._visibilityQueue = [];
+
+    // Layout animation callback queue. Whenever a callback is provided for
+    // layout method and animation is enabled the callback is stored temporarily
+    // to this array. The callbacks are called with the first argument as false
+    // if the animation succeeded without interruptions and with the first
+    // argument as true if the animation was interrupted.
+    inst._layoutQueue = [];
+
+    // Set up initial positions.
+    inst._left = 0;
+    inst._top = 0;
+
+    // Set element's initial styles.
+    setStyles(element, {
+      left: '0',
+      top: '0',
+      transform: 'translateX(0px) translateY(0px)',
+      display: isHidden ? 'none' : 'block'
+    });
+
+    // Set up the initial dimensions and sort data.
+    inst._refreshDimensions()._refreshSortData();
+
+    // Set initial styles for the child element.
+    if (isHidden) {
+      grid._itemHideHandler.start(inst, true);
+    }
+    else {
+      grid._itemShowHandler.start(inst, true);
+    }
+
+    // Set up migration handler data.
+    inst._migrate = new Grid.ItemMigrate(inst);
+
+    // Set up release handler
+    inst._release = new Grid.ItemRelease(inst);
+
+    // Set up drag handler.
+    inst._drag = settings.dragEnabled ? new Grid.ItemDrag(inst) : null;
+
+  }
+
+  /**
+   * Item - Public prototype methods
+   * *******************************
+   */
+
+  /**
+   * Get the instance grid reference.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Grid}
+   */
+  Item.prototype.getGrid = function () {
+
+    return gridInstances[this._gridId];
+
+  };
+
+  /**
+   * Get the instance element.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {HTMLElement}
+   */
+  Item.prototype.getElement = function () {
+
+    return this._element;
+
+  };
+
+  /**
+   * Get instance element's cached width.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Number}
+   */
+  Item.prototype.getWidth = function () {
+
+    return this._width;
+
+  };
+
+  /**
+   * Get instance element's cached height.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Number}
+   */
+  Item.prototype.getHeight = function () {
+
+    return this._height;
+
+  };
+
+  /**
+   * Get instance element's cached margins.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Object}
+   *   - The returned object contains left, right, top and bottom properties
+   *     which indicate the item element's cached margins.
+   */
+  Item.prototype.getMargin = function () {
+
+    return {
+      left: this._margin.left,
+      right: this._margin.right,
+      top: this._margin.top,
+      bottom: this._margin.bottom
+    };
+
+  };
+
+  /**
+   * Get instance element's cached position.
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Object}
+   *   - The returned object contains left and top properties which indicate the
+   *     item element's cached position in the grid.
+   */
+  Item.prototype.getPosition = function () {
+
+    return {
+      left: this._left,
+      top: this._top
+    };
+
+  };
+
+  /**
+   * Is the item active?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isActive = function () {
+
+    return this._isActive;
+
+  };
+
+  /**
+   * Is the item visible?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isVisible = function () {
+
+    return !this._isHidden;
+
+  };
+
+  /**
+   * Is the item being animated to visible?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isShowing = function () {
+
+    return this._isShowing;
+
+  };
+
+  /**
+   * Is the item being animated to hidden?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isHiding = function () {
+
+    return this._isHiding;
+
+  };
+
+  /**
+   * Is the item positioning?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isPositioning = function () {
+
+    return this._isPositioning;
+
+  };
+
+  /**
+   * Is the item being dragged?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isDragging = function () {
+
+    return !!this._drag && this._drag._data.isActive;
+
+  };
+
+  /**
+   * Is the item being released?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isReleasing = function () {
+
+    return this._release.isActive;
+
+  };
+
+  /**
+   * Item - Protected prototype methods
+   * **********************************
+   */
+
+  /**
+   * Stop item's position animation if it is currently animating.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @param {Boolean} [processLayoutQueue=false]
+   * @returns {Item}
+   */
+  Item.prototype._stopLayout = function (processLayoutQueue) {
+
+    var inst = this;
+
+    if (inst._isDestroyed || !inst._isPositioning) {
+      return inst;
+    }
+
+    // Stop animation.
+    inst._animate.stop();
+
+    // Remove positioning class.
+    removeClass(inst._element, inst.getGrid()._settings.itemPositioningClass);
+
+    // Reset state.
+    inst._isPositioning = false;
+
+    // Process callback queue.
+    if (processLayoutQueue) {
+      processQueue(inst._layoutQueue, true, inst);
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Recalculate item's dimensions.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @returns {Item}
+   */
+  Item.prototype._refreshDimensions = function () {
+
+    var inst = this;
+    var element;
+    var rect;
+    var sides;
+    var side;
+    var margin;
+    var i;
+
+    if (inst._isDestroyed || inst._isHidden) {
+      return inst;
+    }
+
+    element = inst._element;
+
+    // Calculate margins (ignore negative margins).
+    sides = ['left', 'right', 'top', 'bottom'];
+    margin = inst._margin = inst._margin || {};
+    for (i = 0; i < 4; i++) {
+      side = Math.round(getStyleAsFloat(element, 'margin-' + sides[i]));
+      margin[sides[i]] = side > 0 ? side : 0;
+    }
+
+    // Calculate width and height (with and without margins).
+    rect = element.getBoundingClientRect();
+    inst._width = Math.round(rect.width);
+    inst._height = Math.round(rect.height);
+    inst._outerWidth = inst._width + margin.left + margin.right;
+    inst._outerHeight = inst._height + margin.top + margin.bottom;
+
+    return inst;
+
+  };
+
+  /**
+   * Fetch and store item's sort data.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @returns {Item}
+   */
+  Item.prototype._refreshSortData = function () {
+
+    var inst = this;
+    var sortData;
+    var getters;
+
+    if (!inst._isDestroyed) {
+
+      sortData = {};
+      getters = inst.getGrid()._settings.sortData;
+
+      // Fetch sort data.
+      if (getters) {
+        Object.keys(getters).forEach(function (key) {
+          sortData[key] = getters[key](inst, inst._element);
+        });
+      }
+
+      // Store sort data to the instance.
+      inst._sortData = sortData;
+
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Position item based on it's current data.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @param {Boolean} instant
+   * @param {Function} [onFinish]
+   * @returns {Item}
+   */
+  Item.prototype._layout = function (instant, onFinish) {
+
+    var inst = this;
+    var element = inst._element;
+    var isPositioning = inst._isPositioning;
+    var migrate = inst._migrate;
+    var release = inst._release;
+    var isJustReleased = release.isActive && release.isPositioningStarted === false;
+    var grid;
+    var settings;
+    var animDuration;
+    var animEasing;
+    var animEnabled;
+    var offsetLeft;
+    var offsetTop;
+    var currentLeft;
+    var currentTop;
+    var finishLayout;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Get grid and settings.
+    grid = inst.getGrid();
+    settings = grid._settings;
+    animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
+    animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
+    animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
+
+    // Create the layout callback.
+    finishLayout = function () {
+
+      // Mark the item as not positioning and remove positioning classes.
+      if (inst._isPositioning) {
+        inst._isPositioning = false;
+        removeClass(element, settings.itemPositioningClass);
+      }
+
+      // Finish up release.
+      if (release.isActive) {
+        release.stop();
+      }
+
+      // Finish up migration.
+      if (migrate.isActive) {
+        migrate.stop();
+      }
+
+      // Process the callback queue.
+      processQueue(inst._layoutQueue, false, inst);
+
+    };
+
+    // Process current layout callback queue with interrupted flag on if the
+    // item is currently positioning.
+    if (isPositioning) {
+      processQueue(inst._layoutQueue, true, inst);
+    }
+
+    // Mark release positioning as started.
+    if (isJustReleased) {
+      release.isPositioningStarted = true;
+    }
+
+    // Push the callback to the callback queue.
+    if (typeof onFinish === typeFunction) {
+      inst._layoutQueue[inst._layoutQueue.length] = onFinish;
+    }
+
+    // Get item container offset. This applies only for release handling in the
+    // scenario where the released element is not currently within the
+    // grid container element.
+    offsetLeft = release.isActive ? release.containerDiffX :
+                 migrate.isActive ? migrate.containerDiffX :
+                 0;
+    offsetTop = release.isActive ? release.containerDiffY :
+                migrate.isActive ? migrate.containerDiffY :
+                0;
+
+    // If no animations are needed, easy peasy!
+    if (!animEnabled) {
+
+      inst._stopLayout();
+      inst._skipNextLayoutAnimation = false;
+
+      // Set the styles only if they are not set later on. If an item is being
+      // released after drag and the drag container is something else than the
+      // Grid's container element these styles will be set after the item has
+      // been moved back to the Grid's element, which also means that setting
+      // the styles here in that scenario is a waste of resources.
+      if (!(release.isActive && element.parentNode !== grid._element) || !(migrate.isActive && migrate.container !== grid._element)) {
+        setStyles(element, {
+          transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
+        });
+      }
+
+      finishLayout();
+
+    }
+
+    // If animations are needed, let's dive in.
+    else {
+
+      // Get current (relative) left and top position. Meaning that the
+      // container's offset (if applicable) is subtracted from the current
+      // translate values.
+      if (isPositioning && inst._isDefaultAnimate) {
+        currentLeft = parseFloat(Velocity.hook(element, 'translateX')) - offsetLeft;
+        currentTop = parseFloat(Velocity.hook(element, 'translateY')) - offsetTop;
+      }
+      else {
+        currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
+        currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
+      }
+
+      // If the item is already in correct position there's no need to animate
+      // it.
+      if (inst._left === currentLeft && inst._top === currentTop) {
+        inst._stopLayout();
+        finishLayout();
+        return;
+      }
+
+      // Mark as positioning and add positioning class if necessary.
+      if (!isPositioning) {
+        inst._isPositioning = true;
+        addClass(element, settings.itemPositioningClass);
+      }
+
+      // Animate.
+      inst._animate.start({
+        translateX: (currentLeft + offsetLeft) + 'px',
+        translateY: (currentTop + offsetTop) + 'px'
+      }, {
+        translateX: inst._left + offsetLeft,
+        translateY: inst._top + offsetTop
+      }, {
+        duration: animDuration,
+        easing: animEasing,
+        onFinish: finishLayout
+      });
+
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Show item.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @param {Boolean} instant
+   * @param {Function} [onFinish]
+   * @returns {Item}
+   */
+  Item.prototype._show = function (instant, onFinish) {
+
+    var inst = this;
+    var element = inst._element;
+    var queue = inst._visibilityQueue;
+    var callback = typeof onFinish === typeFunction ? onFinish : null;
+    var grid;
+    var settings;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Get grid and settings.
+    grid = inst.getGrid();
+    settings = grid._settings;
+
+    // If item is showing.
+    if (inst._isShowing) {
+
+      // If instant flag is on, interrupt the current animation and set the
+      // visible styles.
+      if (instant) {
+        grid._itemShowHandler.stop(inst);
+        processQueue(queue, true, inst);
+        if (callback) {
+          queue[queue.length] = callback;
+        }
+        grid._itemShowHandler.start(inst, instant, function () {
+          inst._isShowing = false;
+          processQueue(queue, false, inst);
+        });
+      }
+
+      // Otherwise just push the callback to the queue.
+      else if (callback) {
+        queue[queue.length] = callback;
+      }
+
+    }
+
+    // Otherwise if item is visible call the callback and be done with it.
+    else if (!inst._isHidden) {
+      callback && callback(false, inst);
+    }
+
+    // Finally if item is hidden or hiding, show it.
+    else {
+
+      // Stop ongoing hide animation.
+      if (inst._isHiding) {
+        grid._itemHideHandler.stop(inst);
+      }
+
+      // Update item's internal state.
+      inst._isActive = inst._isShowing = true;
+      inst._isHidden = inst._isHiding = false;
+
+      // Update item classes.
+      addClass(element, settings.itemVisibleClass);
+      removeClass(element, settings.itemHiddenClass);
+
+      // Set item element's display style to block.
+      setStyles(element, {
+        display: 'block'
+      });
+
+      // Process the visibility callback queue with the interrupted flag active.
+      processQueue(queue, true, inst);
+
+      // Push the callback to the visibility callback queue.
+      if (callback) {
+        queue[queue.length] = callback;
+      }
+
+      // Animate child element and process the visibility callback queue after
+      // succesful animation.
+      grid._itemShowHandler.start(inst, instant, function () {
+        inst._isShowing = false;
+        processQueue(queue, false, inst);
+      });
+
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Hide item.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @param {Boolean} instant
+   * @param {Function} [onFinish]
+   * @returns {Item}
+   */
+  Item.prototype._hide = function (instant, onFinish) {
+
+    var inst = this;
+    var element = inst._element;
+    var queue = inst._visibilityQueue;
+    var callback = typeof onFinish === typeFunction ? onFinish : null;
+    var grid;
+    var settings;
+
+    // Return immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Get grid and settings.
+    grid = inst.getGrid();
+    settings = grid._settings;
+
+    // If item is hiding.
+    if (inst._isHiding) {
+
+      // If instant flag is on, interrupt the current animation and set the
+      // hidden styles.
+      if (instant) {
+        grid._itemHideHandler.stop(inst);
+        processQueue(queue, true, inst);
+        if (callback) {
+          queue[queue.length] = callback;
+        }
+        grid._itemHideHandler.start(inst, instant, function () {
+          inst._isHiding = false;
+          setStyles(element, {
+            display: 'none'
+          });
+          processQueue(queue, false, inst);
+        });
+      }
+
+      // Otherwise just push the callback to the queue.
+      else if (callback) {
+        queue[queue.length] = callback;
+      }
+
+    }
+
+    // Otherwise if item is hidden call the callback and be done with it.
+    else if (inst._isHidden) {
+      callback && callback(false, inst);
+    }
+
+    // Finally if item is visible or showing, hide it.
+    else {
+
+      // Stop ongoing show animation.
+      if (inst._isShowing) {
+        grid._itemShowHandler.stop(inst);
+      }
+
+      // Update item's internal state.
+      inst._isHidden = inst._isHiding = true;
+      inst._isActive = inst._isShowing = false;
+
+      // Update item classes.
+      addClass(element, settings.itemHiddenClass);
+      removeClass(element, settings.itemVisibleClass);
+
+      // Process the visibility callback queue with the interrupted flag active.
+      processQueue(queue, true, inst);
+
+      // Push the callback to the visibility callback queue.
+      if (typeof callback === typeFunction) {
+        queue[queue.length] = callback;
+      }
+
+      // Animate child element and process the visibility callback queue after
+      // succesful animation.
+      grid._itemHideHandler.start(inst, instant, function () {
+        inst._isHiding = false;
+        setStyles(element, {
+          display: 'none'
+        });
+        processQueue(queue, false, inst);
+      });
+
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Destroy item instance.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @param {Boolean} [removeElement=false]
+   * @returns {Item}
+   */
+  Item.prototype._destroy = function (removeElement) {
+
+    var inst = this;
+    var element = inst._element;
+    var grid;
+    var settings;
+    var index;
+
+    // Return immediately if the instance is already destroyed.
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Get grid and settings.
+    grid = inst.getGrid();
+    settings = grid._settings;
+    index = grid._items.indexOf(inst);
+
+    // Destroy release and migration.
+    inst._release.destroy();
+    inst._migrate.destroy();
+
+    // Stop animations.
+    inst._stopLayout(true);
+    grid._itemShowHandler.stop(inst);
+    grid._itemHideHandler.stop(inst);
+
+    // Destroy drag.
+    if (inst._drag) {
+      inst._drag.destroy();
+    }
+
+    // Destroy animation handlers.
+    inst._animate.destroy();
+    inst._animateChild.destroy();
+
+    // Remove all inline styles.
+    element.removeAttribute('style');
+    inst._child.removeAttribute('style');
+
+    // Handle visibility callback queue, fire all uncompleted callbacks with
+    // interrupted flag.
+    processQueue(inst._visibilityQueue, true, inst);
+
+    // Remove classes.
+    removeClass(element, settings.itemPositioningClass);
+    removeClass(element, settings.itemDraggingClass);
+    removeClass(element, settings.itemReleasingClass);
+    removeClass(element, settings.itemClass);
+    removeClass(element, settings.itemVisibleClass);
+    removeClass(element, settings.itemHiddenClass);
+
+    // Remove item from Grid instance if it still exists there.
+    if (index > -1) {
+      grid._items.splice(index, 1);
+    }
+
+    // Remove element from DOM.
+    if (removeElement) {
+      element.parentNode.removeChild(element);
+    }
+
+    // Remove item instance from the item instances collection.
+    itemInstances[inst._id] = undefined;
+
+    // Update item states (mostly just for good measure).
+    inst._isActive = inst._isPositioning = inst._isHiding = inst._isShowing = false;
+    inst._isDestroyed = inst._isHidden = true;
+
+    return inst;
+
+  };
+
+  /**
+   * Layout
+   * ******
+   */
+
+  /**
+   * Creates a new Layout instance.
+   *
+   * @public
+   * @class
+   * @param {Grid} grid
+   * @param {Item[]} [items]
+   */
+  function Layout(grid, items) {
+
+    // Sanitize items.
+    items = items ? items.concat() : grid.getItems('active');
+
+    // Let's make sure we have the correct container dimensions before going
+    // further.
+    grid._refreshDimensions();
+
+    var inst = this;
+    var settings = grid._settings.layout;
+    var width = grid._width - grid._border.left - grid._border.right - grid._padding.left - grid._padding.right;
+    var height = grid._height - grid._border.top - grid._border.bottom - grid._padding.top - grid._padding.bottom;
+
+    // Calculate the layout data. If the user has provided custom function as a
+    // layout method invoke it. Otherwise invoke the default layout method.
+    var layout = typeof settings === typeFunction ? settings(items, width, height) :
+                 layoutDefault(items, width, height, isPlainObject(settings) ? settings : {});
+
+    // Set instance data based on layout data.
+    inst.items = items;
+    inst.slots = layout.slots;
+    inst.setWidth = layout.setWidth || false;
+    inst.setHeight = layout.setHeight || false;
+    inst.width = layout.width;
+    inst.height = layout.height;
+
+  }
+
+  /**
    * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
    * Released under the MIT license
    *
-   * The default Muuri layout method.
+   * The default layout method.
    *
    * @private
-   * @param {object} settings
+   * @param {Item[]} items
+   * @param {Number} width
+   * @param {Number} height
+   * @param {Object} options
+   * @param {Boolean} [options.fillGaps=false]
+   * @param {Boolean} [options.horizontal=false]
+   * @param {Boolean} [options.alignRight=false]
+   * @param {Boolean} [options.alignBottom=false]
+   * @returns {LayoutData}
    */
-  function LayoutFirstFit(settings) {
+  function layoutDefault(items, width, height, options) {
 
-    var layout = this;
-
-    // Empty slots data.
+    var fillGaps = options.fillGaps ? true : false;
+    var isHorizontal = options.horizontal ? true : false;
+    var alignRight = options.alignRight ? true : false;
+    var alignBottom = options.alignBottom ? true : false;
+    var layout = {
+      slots: {},
+      width: isHorizontal ? 0 : width,
+      height: isHorizontal ? height : 0,
+      setWidth: isHorizontal,
+      setHeight: !isHorizontal
+    };
     var emptySlots = [];
-
-    // Normalize settings.
-    var fillGaps = settings.fillGaps ? true : false;
-    var isHorizontal = settings.horizontal ? true : false;
-    var alignRight = settings.alignRight ? true : false;
-    var alignBottom = settings.alignBottom ? true : false;
-
-    // Round container width and height.
-    layout.width = Math.round(layout.width);
-    layout.height = Math.round(layout.height);
-
-    // Set horizontal/vertical mode.
-    if (isHorizontal) {
-      layout.setWidth = true;
-      layout.width = 0;
-    }
-    else {
-      layout.setHeight = true;
-      layout.height = 0;
-    }
+    var slotIds;
+    var slot;
+    var item;
+    var i;
 
     // No need to go further if items do not exist.
-    if (!layout.items.length) {
-      return;
+    if (!items.length) {
+      return layout;
     }
 
     // Find slots for items.
-    for (var i = 0; i < layout.items.length; i++) {
-
-      var item = layout.items[i];
-      var slot = LayoutFirstFit.getSlot(layout, emptySlots, item._width, item._height, !isHorizontal, fillGaps);
-
-      // Update layout height.
+    for (i = 0; i < items.length; i++) {
+      item = items[i];
+      slot = layoutGetSlot(layout, emptySlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
       if (isHorizontal) {
         layout.width = Math.max(layout.width, slot.left + slot.width);
       }
       else {
         layout.height = Math.max(layout.height, slot.top + slot.height);
       }
-
-      // Add slot to slots data.
       layout.slots[item._id] = slot;
-
     }
 
     // If the alignment is set to right or bottom, we need to adjust the
     // results.
     if (alignRight || alignBottom) {
-      for (var id in layout.slots) {
-        var slot = layout.slots[id];
+      slotIds = Object.keys(layout.slots);
+      for (i = 0; i < slotIds.length; i++) {
+        slot = layout.slots[slotIds[i]];
         if (alignRight) {
           slot.left = layout.width - (slot.left + slot.width);
         }
@@ -306,15 +2433,20 @@
       }
     }
 
+    return layout;
+
   }
 
   /**
+   * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
+   * Released under the MIT license
+   *
    * Calculate position for the layout item. Returns the left and top position
    * of the item in pixels.
    *
    * @private
-   * @memberof LayoutFirstFit
-   * @param {Muuri.Layout} layout
+   * @memberof layoutFirstFit
+   * @param {Layout} layout
    * @param {Array} slots
    * @param {Number} itemWidth
    * @param {Number} itemHeight
@@ -322,7 +2454,7 @@
    * @param {Boolean} fillGaps
    * @returns {Object}
    */
-  LayoutFirstFit.getSlot = function (layout, slots, itemWidth, itemHeight, vertical, fillGaps) {
+  function layoutGetSlot(layout, slots, itemWidth, itemHeight, vertical, fillGaps) {
 
     var currentSlots = slots[0] || [];
     var newSlots = [];
@@ -332,11 +2464,11 @@
       width: itemWidth,
       height: itemHeight
     };
-    var i;
-    var ii;
     var slot;
     var potentialSlots;
     var ignoreCurrentSlots;
+    var i;
+    var ii;
 
     // Try to find a slot for the item.
     for (i = 0; i < currentSlots.length; i++) {
@@ -424,7 +2556,7 @@
     // overlap with the item. If an old slot overlaps with the item, split it
     // into smaller slots if necessary.
     for (i = fillGaps ? 0 : ignoreCurrentSlots ? currentSlots.length : i; i < currentSlots.length; i++) {
-      potentialSlots = LayoutFirstFit.splitRect(currentSlots[i], item);
+      potentialSlots = splitRectWithRect(currentSlots[i], item);
       for (ii = 0; ii < potentialSlots.length; ii++) {
         slot = potentialSlots[ii];
         if (slot.width > 0 && slot.height > 0 && ((vertical && slot.top < layout.height) || (!vertical && slot.left < layout.width))) {
@@ -433,892 +2565,806 @@
       }
     }
 
-    // Remove redundant slots and sort the new slots.
-    LayoutFirstFit.purgeSlots(newSlots).sort(vertical ? LayoutFirstFit.sortRectsTopLeft : LayoutFirstFit.sortRectsLeftTop);
-
-    // Update the slots data.
-    slots[0] = newSlots;
+    // Remove redundant slots, sort the slots and update the slots data.
+    slots[0] = purgeRects(newSlots).sort(vertical ? sortRectsTopLeft : sortRectsLeftTop);
 
     // Return the item.
     return item;
 
-  };
+  }
 
   /**
-   * Sort rectangles with top-left gravity. Assumes that objects with
-   * properties left, top, width and height are being sorted.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   */
-  LayoutFirstFit.sortRectsTopLeft = function (a, b) {
-
-    return a.top < b.top ? -1 : (a.top > b.top ? 1 : (a.left < b.left ? -1 : (a.left > b.left ? 1 : 0)));
-
-  };
-
-  /**
-   * Sort rectangles with left-top gravity. Assumes that objects with
-   * properties left, top, width and height are being sorted.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number}
-   */
-  LayoutFirstFit.sortRectsLeftTop = function (a, b) {
-
-    return a.left < b.left ? -1 : (a.left > b.left ? 1 : (a.top < b.top ? -1 : (a.top > b.top ? 1 : 0)));
-
-  };
-
-  /**
-   * Check if a rectabgle is fully within another rectangle. Assumes that the
-   * rectangle object has the following properties: left, top, width and height.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Boolean}
-   */
-  LayoutFirstFit.isRectWithinRect = function (a, b) {
-
-    return a.left >= b.left && a.top >= b.top && (a.left + a.width) <= (b.left + b.width) && (a.top + a.height) <= (b.top + b.height);
-
-  };
-
-  /**
-   * Loops through an array of slots and removes all slots that are fully within
-   * another slot in the array.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Array} slots
-   */
-  LayoutFirstFit.purgeSlots = function (slots) {
-
-    var i = slots.length;
-    while (i--) {
-      var slotA = slots[i];
-      var ii = slots.length;
-      while (ii--) {
-        var slotB = slots[ii];
-        if (i !== ii && LayoutFirstFit.isRectWithinRect(slotA, slotB)) {
-          slots.splice(i, 1);
-          break;
-        }
-      }
-    }
-
-    return slots;
-
-  };
-
-  /**
-   * Compares a rectangle to another and splits it to smaller pieces (the parts
-   * that exceed the other rectangles edges). At maximum generates four smaller
-   * rectangles.
-   *
-   * @private
-   * @memberof LayoutFirstFit
-   * @param {Object} a
-   * @param {Object} b
-   * returns {Array}
-   */
-  LayoutFirstFit.splitRect = function (a, b) {
-
-    var ret = [];
-    var overlap = !(b.left > (a.left + a.width) || (b.left + b.width) < a.left || b.top > (a.top + a.height) || (b.top + b.height) < a.top);
-
-    // If rect a does not overlap with rect b add rect a to the return data as
-    // is.
-    if (!overlap) {
-
-      ret[0] = a;
-
-    }
-    // If rect a overlaps with rect b split rect a into smaller rectangles and
-    // add them to the return data.
-    else {
-
-      // Left split.
-      if (a.left < b.left) {
-        ret[ret.length] = {
-          left: a.left,
-          top: a.top,
-          width: b.left - a.left,
-          height: a.height
-        };
-      }
-
-      // Right split.
-      if ((a.left + a.width) > (b.left + b.width)) {
-        ret[ret.length] = {
-          left: b.left + b.width,
-          top: a.top,
-          width: (a.left + a.width) - (b.left + b.width),
-          height: a.height
-        };
-      }
-
-      // Top split.
-      if (a.top < b.top) {
-        ret[ret.length] = {
-          left: a.left,
-          top: a.top,
-          width: a.width,
-          height: b.top - a.top
-        };
-      }
-
-      // Bottom split.
-      if ((a.top + a.height) > (b.top + b.height)) {
-        ret[ret.length] = {
-          left: a.left,
-          top: b.top + b.height,
-          width: a.width,
-          height: (a.top + a.height) - (b.top + b.height)
-        };
-      }
-
-    }
-
-    return ret;
-
-  };
-
-  /**
-   * Muuri
-   * *****
+   * Emitter
+   * *******
    */
 
   /**
-   * Creates a new Muuri instance.
+   * Event emitter constructor.
    *
    * @public
    * @class
-   * @param {Object} settings
-   *
-   * @example
-   * var grid = new Muuri({
-   *   container: document.getElementsByClassName('grid')[0],
-   *   items: document.getElementsByClassName('item')
-   * });
    */
-  function Muuri(settings) {
+  function Emitter() {
 
-    var inst = this;
-
-    // Merge user settings with default settings.
-    var stn = inst._settings = mergeObjects({}, Muuri.defaultSettings, settings || {});
-
-    // Make sure a valid container element is provided before going continuing.
-    if (!document.body.contains(stn.container)) {
-      throw new Error('Container must be an existing DOM element');
-    }
-
-    // Setup container element.
-    inst._element = stn.container;
-    addClass(stn.container, stn.containerClass);
-
-    // Instance id.
-    inst._id = ++uuid;
-
-    // Unique animation queue name.
-    inst._animQueue = 'muuri-' + inst._id;
-
-    // Create private eventize instance.
-    inst._emitter = new Emitter();
-
-    // Setup show and hide animations for items.
-    inst._itemShow = typeof stn.show === 'function' ? stn.show() : showHideAnimation(stn.show, true);
-    inst._itemHide = typeof stn.hide === 'function' ? stn.hide() : showHideAnimation(stn.hide);
-
-    // Setup initial items.
-    inst._items = [];
-    for (var i = 0, len = stn.items.length; i < len; i++) {
-      inst._items[inst._items.length] = new Muuri.Item(inst, stn.items[i]);
-    }
-
-    // Relayout on window resize if enabled.
-    if (stn.layoutOnResize || stn.layoutOnResize === 0) {
-      var debounced = debounce(function () {
-        inst.refresh();
-        inst.layout();
-      }, stn.layoutOnResize);
-      inst._resizeHandler = function () {
-        debounced();
-      };
-      global.addEventListener('resize', inst._resizeHandler);
-    }
-
-    // Layout on init if enabled.
-    if (stn.layoutOnInit) {
-      inst.layout(true);
-    }
+    this._events = {};
+    this._isDestroyed = false;
 
   }
 
   /**
-   * Get instance's item by element or by index. Target can also be a
-   * Muuri item instance in which case the function returns the item if it
-   * exists within related Muuri instance. If nothing is found with the
-   * provided target null is returned.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {HTMLElement|Muuri.Item|Number} [target=0]
-   * @returns {!Muuri.Item}
+   * Emitter - Public prototype methods
+   * **********************************
    */
-  Muuri.prototype._getItem = function (target) {
-
-    if (!target) {
-
-      return this._items[0] || null;
-
-    }
-    else if (target instanceof Muuri.Item) {
-
-      return target._muuri === this ? target : null;
-
-    }
-    else if (typeof target === 'number') {
-
-      target = target > -1 ? target : this._items.length + target;
-      return this._items[target] || null;
-
-    }
-    else {
-
-      var ret = null;
-      for (var i = 0, len = this._items.length; i < len; i++) {
-        var item = this._items[i];
-        if (item._element === target) {
-          ret = item;
-          break;
-        }
-      }
-      return ret;
-
-    }
-
-  };
 
   /**
    * Bind an event listener.
    *
    * @public
-   * @memberof Muuri.prototype
+   * @memberof Emitter.prototype
    * @param {String} event
    * @param {Function} listener
-   * @returns {Muuri} returns the Muuri instance.
+   * @returns {Emitter}
    */
-  Muuri.prototype.on = function (event, listener) {
+  Emitter.prototype.on = function (event, listener) {
 
-    this._emitter.on(event, listener);
+    if (this._isDestroyed) {
+      return this;
+    }
+
+    var listeners = this._events[event] || [];
+    listeners[listeners.length] = listener;
+    this._events[event] = listeners;
+
     return this;
 
   };
 
   /**
-   * Unbind an event listener.
+   * Bind an event listener that is triggered only once.
    *
    * @public
-   * @memberof Muuri.prototype
+   * @memberof Emitter.prototype
    * @param {String} event
    * @param {Function} listener
-   * @returns {Muuri} returns the Muuri instance.
+   * @returns {Emitter}
    */
-  Muuri.prototype.off = function (event, listener) {
-
-    this._emitter.off(event, listener);
-    return this;
-
-  };
-
-  /**
-   * Recalculate the width and height of the provided targets. If no targets are
-   * provided all active items will be refreshed.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Muuri.Item|Number} [items]
-   */
-  Muuri.prototype.refresh = function (items) {
-
-    // Get items.
-    items = items ? this.get(items) : this.get('active');
-
-    // Refresh dimensions.
-    for (var i = 0, len = items.length; i < len; i++) {
-      items[i]._refresh();
-    }
-
-    // Emit refresh event.
-    this._emitter.emit(evRefresh, items);
-
-  };
-
-  /**
-   * Get all items. Optionally you can provide specific targets (indices or
-   * elements) and filter the results by the items' state (active/inactive).
-   * Note that the returned array is not the same object used by the instance so
-   * modifying it will not affect instance's items. All items that are not found
-   * are omitted from the returned array.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Muuri.Item|Number} [targets]
-   * @param {String} [state]
-   * @returns {Array} Array of Muuri item instances.
-   */
-  Muuri.prototype.get = function (targets, state) {
-
-    var hasTargets = targets && typeof targets !== 'string';
-
-    state = !hasTargets ? targets : state;
-    state = typeof state === 'string' ? state : null;
-    targets = hasTargets ? [].concat(targets) : null;
-
-    if (state || targets) {
-
-      var items = targets || this._items;
-      var ret = [];
-      var isActive = state === 'active';
-      var isInactive = state === 'inactive';
-
-      for (var i = 0, len = items.length; i < len; i++) {
-        var item = hasTargets ? this._getItem(items[i]) : items[i];
-        if (item && (!state || (isActive && item._active) || (isInactive && !item._active))) {
-          ret[ret.length] = item;
-        }
-      }
-
-      return ret;
-
-    }
-    else {
-
-      return this._items.concat();
-
-    }
-
-  };
-
-  /**
-   * Add new items by providing the elements you wish to add to the instance and
-   * optionally provide the index where you want the items to be inserted into.
-   * All elements that are not already children of the container element will be
-   * automatically appended to the container. If an element has it's CSS display
-   * property set to none it will be marked as inactive during the initiation
-   * process. As long as the item is inactive it will not be part of the layout,
-   * but it will retain it's index. You can activate items at any point
-   * with muuri.show() method. This method will automatically call
-   * muuri.layout() if one or more of the added elements are visible. If only
-   * hidden items are added no layout will be called. All the new visible items
-   * are positioned without animation during their first layout.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement} elements
-   * @param {Number} [index=0]
-   * @returns {Array}
-   */
-  Muuri.prototype.add = function (elements, index) {
-
-    var newItems = [];
-    var needsRelayout = false;
-
-    // Make sure elements is an array.
-    elements = [].concat(elements);
-
-    // Filter out all elements that exist already in current instance.
-    for (var i = 0, len = this._items.length; i < len; i++) {
-      var item = this._items[i];
-      var index = elements.indexOf(item._element);
-      if (index > -1) {
-        elements.splice(index, 1);
-      }
-    }
-
-    // Return early if there are no valid items.
-    if (!elements.length) {
-      return newItems;
-    }
-
-    // Create new items.
-    for (var i = 0, len = elements.length; i < len; i++) {
-      var item = new Muuri.Item(this, elements[i]);
-      newItems[newItems.length] = item;
-      if (item._active) {
-        needsRelayout = true;
-        item._noLayoutAnimation = true;
-      }
-    }
-
-    // Normalize the index for the splice apply hackery so that value of -1
-    // prepends the new items to the current items.
-    index = index < 0 ? this._items.length - index + 1 : index;
-
-    // Add the new items to the items collection to correct index.
-    this._items.splice.apply(this._items, [index, 0].concat(newItems));
-
-    // If relayout is needed.
-    if (needsRelayout) {
-      this.layout();
-    }
-
-    // Emit add event.
-    this._emitter.emit(evAdd, newItems);
-
-    // Return new items
-    return newItems;
-
-  };
-
-  /**
-   * Remove items from muuri instances.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Muuri.Item|Number} items
-   * @param {Boolean} [removeElement=false]
-   * @returns {Array} The indices of removed items.
-   */
-  Muuri.prototype.remove = function (items, removeElement) {
-
-    var indices = [];
-    var needsRelayout = false;
-
-    items = this.get(items);
-
-    for (var i = 0, len = items.length; i < len; i++) {
-
-      var item = items[i];
-
-      // Check it refresh is needed.
-      if (item._active) {
-        needsRelayout = true;
-      }
-
-      // Remove item.
-      indices[indices.length] = item._destroy(removeElement);
-
-    }
-
-    // If relayout is needed.
-    if (needsRelayout) {
-      this.layout();
-    }
-
-    this._emitter.emit(evRemove, indices);
-
-    return indices;
-
-  };
-
-  /**
-   * Order the item elements to match the order of the items. If the item's
-   * element is not a child of the container it is ignored and left untouched.
-   * This comes handy if you need to keep the DOM structure matched with the
-   * order of the items.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   */
-  Muuri.prototype.synchronize = function () {
-
-    for (var i = 0, len = this._items.length; i < len; i++) {
-      var item = this._items[i];
-      if (item._element.parentNode === this._element) {
-        this._element.appendChild(item._element);
-      }
-    }
-
-    this._emitter.emit(evSynchronize);
-
-  };
-
-  /**
-   * Calculate and apply Muuri instance's item positions.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Boolean} [instant=false]
-   * @param {Function} [callback]
-   */
-  Muuri.prototype.layout = function (instant, callback) {
+  Emitter.prototype.once = function (event, listener) {
 
     var inst = this;
-    var emitter = inst._emitter;
-    var callback = typeof instant === 'function' ? instant : callback;
-    var isInstant = instant === true;
-    var layout = new Muuri.Layout(inst);
-    var counter = -1;
-    var itemsLength = layout.items.length;
-    var completed = [];
-    var tryFinish = function (interrupted, item) {
-
-      // Push all items to the completed items array which were not interrupted.
-      if (!interrupted) {
-        completed[completed.length] = item;
-      }
-
-      // If container and all items have finished their animations (if any).
-      if (++counter === itemsLength) {
-
-        // Call callback.
-        if (typeof callback === 'function') {
-          callback(completed, layout);
-        }
-
-        // Emit layoutend event.
-        emitter.emit(evLayoutEnd, completed, layout);
-
-      }
-
-    };
-
-    // Emit layoutstart event.
-    emitter.emit(evLayoutStart, layout.items, layout);
-
-    // Set container's height if needed.
-    if (layout.setHeight) {
-      setStyles(inst._element, {
-        height: layout.height + 'px'
-      });
-    }
-
-    // Set container's width if needed.
-    if (layout.setWidth) {
-      setStyles(inst._element, {
-        width: layout.width + 'px'
-      });
-    }
-
-    // If there are now items let's finish quickly.
-    if (!itemsLength) {
-
-      tryFinish(true);
-
-    }
-    // If there are items let's position them.
-    else {
-
-      for (var i = 0, len = layout.items.length; i < len; i++) {
-
-        var item = layout.items[i];
-        var pos = layout.slots[item._id];
-
-        // Update item's position.
-        item._left = pos.left;
-        item._top = pos.top;
-
-        // Layout non-dragged items.
-        item._drag.active ? tryFinish(false, item) : item._layout(isInstant, tryFinish);
-
-      }
-
-    }
-
-  };
-
-  /**
-   * Show instance items.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Muuri.Item|Number} items
-   * @param {Boolean} [instant=false]
-   * @param {Function} [callback]
-   */
-  Muuri.prototype.show = function (items, instant, callback) {
-
-    showHideHandler(this, 'show', items, instant, callback);
-
-  };
-
-  /**
-   * Hide instance items.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {Array|HTMLElement|Muuri.Item|Number} items
-   * @param {Boolean} [instant=false]
-   * @param {Function} [callback]
-   */
-  Muuri.prototype.hide = function (items, instant, callback) {
-
-    showHideHandler(this, 'hide', items, instant, callback);
-
-  };
-
-  /**
-   * Get item's index.
-   *
-   * @public
-   * @memberof Muuri.Item.prototype
-   * @param {HTMLElement|Muuri.Item|Number} item
-   * @returns {Number}
-   */
-  Muuri.prototype.indexOf = function (item) {
-
-    if (typeof item === 'number') {
-
-      return item <= (this._items.length - 1) ? item : null;
-
-    }
-    else if (item instanceof Muuri.Item) {
-
-      var index = this._items.indexOf(item);
-      return index > -1 ? index : null;
-
-    }
-    else {
-
-      var index = null;
-      for (var i = 0, len = this._items.length; i < len; i++) {
-        if (this._items[i]._element === item) {
-          index = i;
-          break;
-        }
-      }
-      return index;
-
-    }
-
-  };
-
-  /**
-   * Move item to another index or in place of another item.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   * @param {HTMLElement|Muuri.Item|Number} targetFrom
-   * @param {HTMLElement|Muuri.Item|Number} targetTo
-   */
-  Muuri.prototype.move = function (targetFrom, targetTo) {
-
-    targetFrom = this._getItem(targetFrom);
-    targetTo = this._getItem(targetTo);
-
-    if (targetFrom && targetTo && (targetFrom !== targetTo)) {
-      arrayMove(this._items, this._items.indexOf(targetFrom), this._items.indexOf(targetTo));
-      this._emitter.emit(evMove, targetFrom, targetTo);
-    }
-
-  };
-
-  /**
-   * Swap positions of two items.
-   *
-   * @public
-   * @memberof Muuri.Item.prototype
-   * @param {HTMLElement|Muuri.Item|Number} targetA
-   * @param {HTMLElement|Muuri.Item|Number} targetB
-   */
-  Muuri.prototype.swap = function (targetA, targetB) {
-
-    targetA = this._getItem(targetA);
-    targetB = this._getItem(targetB);
-
-    if (targetA && targetB && (targetA !== targetB)) {
-      arraySwap(this._items, this._items.indexOf(targetA), this._items.indexOf(targetB));
-      this._emitter.emit(evSwap, targetA, targetB);
-    }
-
-  };
-
-  /**
-   * Destroy the instance.
-   *
-   * @public
-   * @memberof Muuri.prototype
-   */
-  Muuri.prototype.destroy = function () {
-
-    // Unbind window resize event listener.
-    if (this._resizeHandler) {
-      global.removeEventListener('resize', this._resizeHandler);
-    }
-
-    // Destroy items.
-    var items = this._items.concat();
-    for (var i = 0, len = items.length; i < len; i++) {
-      items[i]._destroy();
-    }
-
-    // Restore container.
-    removeClass(this._element, this._settings.containerClass);
-    setStyles(this._element, {
-      height: ''
+    return this.on(event, function callback() {
+      inst.off(event, callback);
+      listener.apply(null, arguments);
     });
 
-    // Emit destroy event.
-    this._emitter.emit(evDestroy);
+  };
 
-    // Remove all event listeners.
-    var events = this._emitter._events;
-    if (events) {
-      var eventNames = Object.keys(this._emitter._events);
-      for (var i = 0, len = eventNames.length; i < len; i++) {
-        events[eventNames[i]].length = 0;
+  /**
+   * Unbind all event listeners that match the provided listener function.
+   *
+   * @public
+   * @memberof Emitter.prototype
+   * @param {String} event
+   * @param {Function} listener
+   * @returns {Emitter}
+   */
+  Emitter.prototype.off = function (event, listener) {
+
+    if (this._isDestroyed) {
+      return this;
+    }
+
+    var listeners = this._events[event] || [];
+    var i = listeners.length;
+
+    while (i--) {
+      if (listener === listeners[i]) {
+        listeners.splice(i, 1);
       }
     }
 
-    // Render the instance unusable -> nullify all Muuri related properties.
-    var props = Object.keys(this).concat(Object.keys(Muuri.prototype));
-    for (var i = 0; i < props.length; i++) {
-      this[props[i]] = null;
-    }
+    return this;
 
   };
 
   /**
-   * Muuri - Item
-   * ************
+   * Emit all listeners in a specified event with the provided arguments.
+   *
+   * @public
+   * @memberof Emitter.prototype
+   * @param {String} event
+   * @param {*} [arg1]
+   * @param {*} [arg2]
+   * @param {*} [arg3]
+   * @returns {Emitter}
+   */
+  Emitter.prototype.emit = function (event, arg1, arg2, arg3) {
+
+    if (this._isDestroyed) {
+      return this;
+    }
+
+    var listeners = this._events[event] || [];
+    var listenersLength = listeners.length;
+    var argsLength = arguments.length - 1;
+    var i;
+
+    if (listenersLength) {
+      listeners = listeners.concat();
+      for (i = 0; i < listenersLength; i++) {
+        argsLength === 0 ? listeners[i]() :
+        argsLength === 1 ? listeners[i](arg1) :
+        argsLength === 2 ? listeners[i](arg1, arg2) :
+                           listeners[i](arg1, arg2, arg3);
+      }
+    }
+
+    return this;
+
+  };
+
+  /**
+   * Destroy emitter instance. Basically just removes all bound listeners.
+   *
+   * @public
+   * @memberof Emitter.prototype
+   * @returns {Emitter}
+   */
+  Emitter.prototype.destroy = function () {
+
+    if (this._isDestroyed) {
+      return this;
+    }
+
+    var eventNames = Object.keys(this._events);
+    var i;
+
+    for (i = 0; i < eventNames.length; i++) {
+      this._events[eventNames[i]] = null;
+    }
+
+    this._isDestroyed = true;
+
+    return this;
+
+  };
+
+  /**
+   * ItemAnimate
+   * ***********
    */
 
   /**
-   * Creates a new Muuri Item instance.
+   * Muuri's internal animation engine. Uses Velocity.
    *
    * @public
    * @class
-   * @memberof Muuri
-   * @param {Muuri} muuri
+   * @param {Item} item
    * @param {HTMLElement} element
    */
-  Muuri.Item = function (muuri, element) {
+  function ItemAnimate(item, element) {
 
-    // Make sure the item element is not a parent of the grid container element.
-    if (element.contains(muuri._element)) {
-      throw new Error('Item element must not be a parent of the grid container element');
-    }
-
-    // If the provided item element is not a direct child of the grid container
-    // element, append it to the grid container.
-    if (element.parentNode !== muuri._element) {
-      muuri._element.appendChild(element);
-    }
-
-    var stn = muuri._settings;
-    var isHidden = getStyle(element, 'display') === 'none';
-
-    // Instance id.
-    this._id = ++uuid;
-    this._muuri = muuri;
     this._element = element;
-    this._child = element.children[0];
+    this._queue = libName + '-' + (++uuid);
+    this._isAnimating = false;
+    this._isDestroyed = false;
 
-    // Set item class.
-    addClass(element, stn.itemClass);
+  }
 
-    // Set up active state (defines if the item is considered part of the layout
-    // or not).
-    this._active = isHidden ? false : true;
+  /**
+   * ItemAnimate - Public prototype methods
+   * **************************************
+   */
 
-    // Set up positioning state (defines if the item is currently animating
-    // it's position).
-    this._positioning = false;
+  /**
+   * Start instance's animation. Automatically stops current animation if it is
+   * running.
+   *
+   * @public
+   * @memberof ItemAnimate.prototype
+   * @param {?Object} propsCurrent
+   * @param {Object} propsTarget
+   * @param {Object} [options]
+   * @param {Number} [options.duration=300]
+   * @param {String} [options.easing='ease']
+   * @param {Function} [options.onFinish]
+   */
+  ItemAnimate.prototype.start = function (propsCurrent, propsTarget, options) {
 
-    // Set up visibility states.
-    this._hidden = isHidden;
-    this._hiding = false;
-    this._showing = false;
+    if (this._isDestroyed) {
+      return;
+    }
 
-    // Visibility animation callback queue. Whenever a callback is provided for
-    // show/hide methods and animation is enabled the callback is stored
-    // temporarily to this array. The callbacks are called with the first
-    // argument as false if the animation succeeded without interruptions and
-    // with the first argument as true if the animation was interrupted.
-    this._visibiliyQueue = [];
+    var inst = this;
+    var element = inst._element;
+    var opts = options || {};
+    var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
+    var velocityOpts = {
+      duration: opts.duration || 300,
+      easing: opts.easing || 'ease',
+      queue: inst._queue
+    };
 
-    // Layout animation callback queue. Whenever a callback is provided for
-    // layout method and animation is enabled the callback is stored temporarily
-    // to this array. The callbacks are called with the first argument as false
-    // if the animation succeeded without interruptions and with the first
-    // argument as true if the animation was interrupted.
-    this._layoutQueue = [];
+    // Stop current animation, if running.
+    if (inst._isAnimating) {
+      inst.stop();
+    }
 
-    // Set element's initial position.
-    hookStyles(this._element, {
-      left: '0',
-      top: '0',
-      translateX: '0px',
-      translateY: '0px'
-    });
+    // Otherwise if current props exist force feed current values to Velocity.
+    if (propsCurrent) {
+      hookStyles(element, propsCurrent);
+    }
 
-    // Set hidden/shown class.
-    addClass(element, isHidden ? stn.hiddenClass : stn.shownClass);
+    // Set as animating.
+    inst._isAnimating = true;
 
-    // Set hidden/shown styles for the child element.
-    hookStyles(this._child, {
-      scale: isHidden ? 0 : 1,
-      opacity: isHidden ? 0 : 1
-    });
+    // Add callback if it exists.
+    if (callback) {
+      velocityOpts.complete = function () {
+        callback();
+      };
+    }
 
-    // Enforce display "block" if element is visible.
-    if (!isHidden) {
-      setStyles(this._element, {
-        display: 'block'
+    // Set up and start the animation.
+    Velocity(element, propsTarget, velocityOpts);
+    Velocity.Utilities.dequeue(element, inst._queue);
+
+  };
+
+  /**
+   * Stop instance's current animation if running.
+   *
+   * @public
+   * @memberof ItemAnimate.prototype
+   */
+  ItemAnimate.prototype.stop = function () {
+
+    if (!this._isDestroyed && this._isAnimating) {
+      this._isAnimating = false;
+      Velocity(this._element, 'stop', this._queue);
+    }
+
+  };
+
+  /**
+   * Destroy the instance and stop current animation if it is running.
+   *
+   * @public
+   * @memberof ItemAnimate.prototype
+   * @returns {Boolean}
+   */
+  ItemAnimate.prototype.destroy = function () {
+
+    if (!this._isDestroyed) {
+      this.stop();
+      this._element = null;
+      this._isDestroyed = true;
+    }
+
+  };
+
+  /**
+   * ItemMigrate
+   * ***********
+   */
+
+  /**
+   * The migrate process handler constructor.
+   *
+   * @class
+   * @private
+   * @param {Item} item
+   */
+  function ItemMigrate(item) {
+
+    var migrate = this;
+
+    // Private props.
+    migrate._itemId = item._id;
+    migrate._isDestroyed = false;
+
+    // Public props.
+    migrate.isActive = false;
+    migrate.container = false;
+    migrate.containerDiffX = 0;
+    migrate.containerDiffY = 0;
+
+  }
+
+  /**
+   * ItemMigrate - Public prototype methods
+   * **************************************
+   */
+
+  /**
+   * Destroy instance.
+   *
+   * @public
+   * @memberof ItemMigrate.prototype
+   * @returns {ItemMigrate}
+   */
+  ItemMigrate.prototype.destroy = function () {
+
+    var migrate = this;
+
+    if (!migrate._isDestroyed) {
+      migrate.stop(true);
+      migrate._isDestroyed = true;
+    }
+
+    return migrate;
+
+  };
+
+  /**
+   * Get Item instance.
+   *
+   * @public
+   * @memberof ItemMigrate.prototype
+   * @returns {?Item}
+   */
+  ItemMigrate.prototype.getItem = function () {
+
+    return itemInstances[this._itemId] || null;
+
+  };
+
+  /**
+   * Start the migrate process of an item.
+   *
+   * @public
+   * @memberof ItemMigrate.prototype
+   * @param {Grid} targetGrid
+   * @param {GridSingleItemQuery} position
+   * @param {HTMLElement} [container]
+   * @returns {ItemMigrate}
+   */
+  ItemMigrate.prototype.start = function (targetGrid, position, container) {
+
+    var migrate = this;
+    var item;
+    var itemElement;
+    var isItemVisible;
+    var currentGrid;
+    var currentGridStn;
+    var targetGridStn;
+    var targetGridElement;
+    var currentIndex;
+    var targetIndex;
+    var targetContainer;
+    var currentContainer;
+    var offsetDiff;
+    var translateX;
+    var translateY;
+
+    // Return immediately if the instance is destroyed.
+    if (migrate._isDestroyed) {
+      return migrate;
+    }
+
+    item = migrate.getItem();
+    itemElement = item.getElement();
+    isItemVisible = item.isVisible();
+    currentGrid = item.getGrid();
+    currentGridStn = currentGrid._settings;
+    targetGridStn = targetGrid._settings;
+    targetGridElement = targetGrid.getElement();
+    targetContainer = container || document.body;
+
+    // Get current index and target index
+    currentIndex = currentGrid._items.indexOf(item);
+    targetIndex = typeof position === typeNumber ? position : targetGrid._items.indexOf(targetGrid._getItem(position));
+
+    // If we have invalid new index, let's return immediately.
+    if (targetIndex === null) {
+      return migrate;
+    }
+
+    // Abort current positioning.
+    if (item.isPositioning()) {
+      item._stopLayout(true);
+    }
+
+    // Abort current migration.
+    if (migrate.isActive) {
+      migrate.stop(true);
+    }
+
+    // Abort current release.
+    if (item.isReleasing()) {
+      item._release.stop(true);
+    }
+
+    // Stop current visibility animations.
+    currentGrid._itemShowHandler.stop(item);
+    currentGrid._itemHideHandler.stop(item);
+
+    // Destroy current drag.
+    if (item._drag) {
+      item._drag.destroy();
+    }
+
+    // Destroy current animation handlers.
+    item._animate.destroy();
+    item._animateChild.destroy();
+
+    // Process current visibility animation queue.
+    processQueue(item._visibilityQueue, true, item);
+
+    // Remove current classnames.
+    removeClass(itemElement, currentGridStn.itemClass);
+    removeClass(itemElement, currentGridStn.itemVisibleClass);
+    removeClass(itemElement, currentGridStn.itemHiddenClass);
+
+    // Add new classnames.
+    addClass(itemElement, targetGridStn.itemClass);
+    addClass(itemElement, isItemVisible ? targetGridStn.itemVisibleClass : targetGridStn.itemHiddenClass);
+
+    // Move item instance from current grid to target grid.
+    currentGrid._items.splice(currentIndex, 1);
+    insertItemsToArray(targetGrid._items, item, targetIndex);
+
+    // Update item's grid id reference.
+    item._gridId = targetGrid._id;
+
+    // Instantiate new animation controllers.
+    item._animate = new Grid.ItemAnimate(item, itemElement);
+    item._animateChild = new Grid.ItemAnimate(item, item._child);
+    item._isDefaultAnimate = item._animate instanceof ItemAnimate;
+
+    // Get current container
+    currentContainer = itemElement.parentNode;
+
+    // Move the item inside the target container if it's different than the
+    // current container.
+    if (targetContainer !== currentContainer) {
+      targetContainer.appendChild(itemElement);
+      offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
+      translateX = getTranslateAsFloat(itemElement, 'x') + offsetDiff.left;
+      translateY = getTranslateAsFloat(itemElement, 'y') + offsetDiff.top;
+      setStyles(itemElement, {
+        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
     }
 
-    // Set up initial dimensions and positions.
-    this._refresh();
-    this._left = 0;
-    this._top = 0;
+    // Update display styles.
+    setStyles(itemElement, {
+      display: isItemVisible ? 'block' : 'hidden'
+    });
 
-    // Set up drag & drop.
-    this._drag = {active: false};
-    this._release = {active: false};
-    if (muuri._settings.dragEnabled) {
-      this._initDrag();
+    // Update item's cached dimensions and sort data.
+    item._refreshDimensions()._refreshSortData();
+
+    // Update child element's styles to reflect the current visibility state.
+    item._child.removeAttribute('style');
+    if (isItemVisible) {
+      targetGrid._itemShowHandler.start(item, true);
+    }
+    else {
+      targetGrid._itemHideHandler.start(item, true);
     }
 
+    // Create new drag handler.
+    item._drag = targetGridStn.dragEnabled ? new Grid.ItemDrag(item) : null;
+
+    // Setup migration data.
+    offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
+    migrate.isActive = true;
+    migrate.container = targetContainer;
+    migrate.containerDiffX = offsetDiff.left;
+    migrate.containerDiffY = offsetDiff.top;
+
+    // Emit send event.
+    currentGrid._emit(evSend, {
+      item: item,
+      fromGrid: currentGrid,
+      fromIndex: currentIndex,
+      toGrid: targetGrid,
+      toIndex: targetIndex
+    });
+
+    // Emit receiveStart event.
+    targetGrid._emit(evReceive, {
+      item: item,
+      fromGrid: currentGrid,
+      fromIndex: currentIndex,
+      toGrid: targetGrid,
+      toIndex: targetIndex
+    });
+
+    return migrate;
+
   };
 
   /**
-   * Inspect instance's data.
+   * End the migrate process of an item. This method can be used to abort an
+   * ongoing migrate process (animation) or finish the migrate process.
    *
-   * @protected
-   * @memberof Muuri.Item.prototype
+   * @public
+   * @memberof ItemMigrate.prototype
+   * @param {Boolean} [abort=false]
+   *  - Should the migration be aborted?
+   * @returns {ItemMigrate}
    */
-  Muuri.Item.prototype.inspect = function () {
+  ItemMigrate.prototype.stop = function (abort) {
 
-    return {
-      element: this._element,
-      width: this._width,
-      height: this._height,
-      left: this._left,
-      top: this._top,
-      active: this._active,
-      positioning: this._positioning,
-      dragging: this._drag.active,
-      releasing: this._release.active,
-      visibility: this._hiding  ? 'hiding' : this._showing ? 'showing' : this._hidden  ? 'hidden' : 'shown'
+    var migrate = this;
+    var item;
+    var element;
+    var grid;
+    var gridElement;
+    var translateX;
+    var translateY;
+
+    if (migrate._isDestroyed || !migrate.isActive) {
+      return migrate;
+    }
+
+    item = migrate.getItem();
+    element = item.getElement();
+    grid = item.getGrid();
+    gridElement = grid.getElement();
+
+    if (migrate.container !== gridElement) {
+      translateX = abort ? getTranslateAsFloat(element, 'x') - migrate.containerDiffX : item._left;
+      translateY = abort ? getTranslateAsFloat(element, 'y') - migrate.containerDiffY : item._top;
+      gridElement.appendChild(element);
+      setStyles(element, {
+        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
+      });
+    }
+
+    migrate.isActive = false;
+    migrate.container = null;
+    migrate.containerDiffX = 0;
+    migrate.containerDiffY = 0;
+
+    return migrate;
+
+  };
+
+  /**
+   * ItemRelease
+   * ***********
+   */
+
+  /**
+   * The release process handler constructor. Although this might seem as proper
+   * fit for the drag process this needs to be separated into it's own logic
+   * because there might be a scenario where drag is disabled, but the release
+   * process still needs to be implemented (dragging from a grid to another).
+   *
+   * @class
+   * @private
+   * @param {Item} item
+   */
+  function ItemRelease(item) {
+
+    var release = this;
+
+    // Private props.
+    release._itemId = item._id;
+    release._isDestroyed = false;
+
+    // Public props.
+    release.isActive = false;
+    release.isPositioningStarted = false;
+    release.containerDiffX = 0;
+    release.containerDiffY = 0;
+
+  }
+
+  /**
+   * ItemRelease - Public prototype methods
+   * **************************************
+   */
+
+  /**
+   * Destroy instance.
+   *
+   * @public
+   * @memberof ItemRelease.prototype
+   * @returns {ItemRelease}
+   */
+  ItemRelease.prototype.destroy = function () {
+
+    var release = this;
+
+    if (!release._isDestroyed) {
+      release.stop(true);
+      release._isDestroyed = true;
+    }
+
+    return release;
+
+  };
+
+  /**
+   * Get Item instance.
+   *
+   * @public
+   * @memberof ItemRelease.prototype
+   * @returns {?Item}
+   */
+  ItemRelease.prototype.getItem = function () {
+
+    return itemInstances[this._itemId] || null;
+
+  };
+
+  /**
+   * Reset public data and remove releasing class.
+   *
+   * @public
+   * @memberof ItemRelease.prototype
+   * @returns {ItemRelease}
+   */
+  ItemRelease.prototype.reset = function () {
+
+    var release = this;
+    var item;
+
+    if (!release._isDestroyed) {
+      item = release.getItem();
+      removeClass(item.getElement(), item.getGrid()._settings.itemReleasingClass);
+      release.isActive = false;
+      release.isPositioningStarted = false;
+      release.containerDiffX = 0;
+      release.containerDiffY = 0;
+    }
+
+    return release;
+
+  };
+
+  /**
+   * Start the release process of an item.
+   *
+   * @public
+   * @memberof ItemRelease.prototype
+   * @returns {ItemRelease}
+   */
+  ItemRelease.prototype.start = function () {
+
+    var release = this;
+    var item;
+    var element;
+    var grid;
+
+    if (release._isDestroyed || release.isActive) {
+      return release;
+    }
+
+    item = release.getItem();
+    element = item.getElement();
+    grid = item.getGrid();
+
+    // Flag release as active.
+    release.isActive = true;
+
+    // Add release classname to the released element.
+    addClass(element, grid._settings.itemReleasingClass);
+
+    // Emit dragReleaseStart event.
+    grid._emit(evDragReleaseStart, item);
+
+    // Position the released item.
+    item._layout(false);
+
+    return release;
+
+  };
+
+  /**
+   * End the release process of an item. This method can be used to abort an
+   * ongoing release process (animation) or finish the release process.
+   *
+   * @public
+   * @memberof ItemRelease.prototype
+   * @param {Boolean} [abort=false]
+   *  - Should the release be aborted? When true, the release end event won't be
+   *    emitted. Set to true only when you need to abort the release process
+   *    while the item is animating to it's position.
+   * @returns {ItemRelease}
+   */
+  ItemRelease.prototype.stop = function (abort) {
+
+    var release = this;
+    var item;
+    var element;
+    var grid;
+    var container;
+    var containerDiffX;
+    var containerDiffY;
+    var translateX;
+    var translateY;
+
+    if (release._isDestroyed || !release.isActive) {
+      return release;
+    }
+
+    item = release.getItem();
+    element = item.getElement();
+    grid = item.getGrid();
+    container = grid.getElement();
+    containerDiffX = release.containerDiffX;
+    containerDiffY = release.containerDiffY;
+
+    // Reset data and remove releasing classname from the element.
+    release.reset();
+
+    // If the released element is outside the grid's container element put it
+    // back there and adjust position accordingly.
+    if (element.parentNode !== container) {
+      translateX = abort ? getTranslateAsFloat(element, 'x') - containerDiffX : item._left;
+      translateY = abort ? getTranslateAsFloat(element, 'y') - containerDiffY : item._top;
+      container.appendChild(element);
+      setStyles(element, {
+        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
+      });
+    }
+
+    // Emit dragReleaseEnd event.
+    if (!abort) {
+      grid._emit(evDragReleaseEnd, item);
+    }
+
+    return release;
+
+  };
+
+  /**
+   * ItemDrag
+   * ********
+   */
+
+  /**
+   * Bind Hammer touch interaction to an item.
+   *
+   * @class
+   * @private
+   * @param {Item} item
+   */
+  function ItemDrag(item) {
+
+    if (!Hammer) {
+      throw Error('[' + libName + '] required dependency Hammer is not defined.');
+    }
+
+    var drag = this;
+    var element = item._element;
+    var grid = item.getGrid();
+    var settings = grid._settings;
+    var checkPredicate = typeof settings.dragStartPredicate === typeFunction ? settings.dragStartPredicate : ItemDrag.defaultStartPredicate;
+    var predicatePending = 0;
+    var predicateResolved = 1;
+    var predicateRejected = 2;
+    var predicate = predicatePending;
+    var hammer;
+
+    drag._itemId = item._id;
+    drag._gridId = grid._id;
+    drag._hammer = hammer = new Hammer.Manager(element);
+    drag._isDestroyed = false;
+    drag._isMigrating = false;
+    drag._data = {};
+
+    // Setup item's initial drag data.
+    drag.reset();
+
+    // Setup overlap checker function.
+    drag._checkSortOverlap = debounce(function () {
+      if (drag._data.isActive) {
+        drag.checkOverlap();
+      }
+    }, settings.dragSortInterval);
+
+    // Setup sort predicate.
+    drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ? settings.dragSortPredicate : ItemDrag.defaultSortPredicate;
+
+    // Setup drag scroll handler.
+    drag._scrollHandler = function (e) {
+      drag.onScroll(e);
     };
-
-  };
-
-  /**
-   * Make the item draggable with Hammer.js.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._initDrag = function () {
-
-    var inst = this;
-    var stn = inst._muuri._settings;
-
-    // Initiate Hammer.
-    var hammer = inst._hammer = new Hammer.Manager(inst._element);
 
     // Add drag recognizer to hammer.
     hammer.add(new Hammer.Pan({
@@ -1332,1098 +3378,889 @@
     hammer.add(new Hammer.Press({
       event: 'draginit',
       pointers: 1,
-      threshold: 100,
+      threshold: 1000,
       time: 0
     }));
 
-    // This is not ideal, but saves us from a LOT of hacks. Let's try to keep
-    // the default drag setup consistent across devices.
-    hammer.set({ touchAction: 'none' });
-
-    // Setup initial release data.
-    inst._resetReleaseData();
-
-    // Setup initial drag data.
-    var drag = inst._drag;
-    inst._resetDragData();
-
-    // Add overlap checker function to drag data.
-    drag.checkOverlap = debounce(function () {
-      if (drag.active) {
-        inst._checkOverlap();
-      }
-    }, stn.dragSortInterval);
-
-    // Add predicate related data to drag data.
-    var predicateResolved = false;
-    drag.predicate = typeof stn.dragPredicate === 'function' ? stn.dragPredicate : dragPredicate;
-    drag.predicateData = {};
-    drag.isPredicateResolved = function () {
-      return predicateResolved;
-    };
-    drag.resolvePredicate = function (e) {
-      if (!predicateResolved && e.type !== 'draginitup' && e.type !== 'dragend' && e.type !== 'dragcancel') {
-        predicateResolved = true;
-        inst._onDragStart(e);
-      }
-    };
-
-    // Add drag sroll handler.
-    drag.onScroll = function (e) {
-      if (raf) {
-        raf(function () {
-          inst._onDragScroll(e);
-        });
-      }
-      else {
-        inst._onDragScroll(e);
-      }
-    };
+    // Configure the hammer instance.
+    if (isPlainObject(settings.dragHammerSettings)) {
+      hammer.set(settings.dragHammerSettings);
+    }
 
     // Bind drag events.
     hammer
-    .on('draginit', function (e) {
-      drag.predicateData = {};
-      predicateResolved = false;
-      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
-    })
-    .on('dragstart dragmove', function (e) {
-      if (predicateResolved && drag.active) {
-        inst._onDragMove(e);
+    .on('draginit dragstart dragmove', function (e) {
+
+      var predicateResult;
+
+      // If predicate is pending try to resolve it.
+      if (predicate === predicatePending) {
+        predicateResult = checkPredicate(drag.getItem(), e);
+        if (predicateResult === true) {
+          predicate = predicateResolved;
+          drag.onStart(e);
+        }
+        else if (predicateResult === false) {
+          predicate = predicateRejected;
+        }
       }
-      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
+
+      // Otherwise if predicate is resolved and drag is active, move the item.
+      else if (predicate === predicateResolved && drag._data.isActive) {
+        drag.onMove(e);
+      }
+
     })
     .on('dragend dragcancel draginitup', function (e) {
-      if (predicateResolved && drag.active) {
-        inst._onDragEnd(e);
+
+      var isResolved = predicate === predicateResolved;
+
+      // Do final predicate check to allow user to unbind stuff for the current
+      // drag procedure within the predicate callback. The return value of this
+      // check will have no effect to the state of the predicate.
+      checkPredicate(drag.getItem(), e);
+
+      // Reset predicate state.
+      predicate = predicatePending;
+
+      // If predicate is resolved and dragging is active, call the end handler.
+      if (isResolved && drag._data.isActive) {
+        drag.onEnd(e);
       }
-      drag.predicate.call(drag.predicateData, e, inst, drag.resolvePredicate);
+
     });
+
+    // Prevent native link/image dragging for the item and it's ancestors.
+    element.addEventListener('dragstart', preventDefault, false);
+
+  }
+
+  /**
+   * ItemDrag - Public methods
+   * *************************
+   */
+
+  /**
+   * Default drag start predicate handler that handles anchor elements
+   * gracefully.
+   *
+   * @public
+   * @memberof ItemDrag
+   * @param {Item} item
+   * @param {Object} event
+   * @returns {Boolean}
+   */
+  ItemDrag.defaultStartPredicate = function (item, event) {
+
+    var elem = item.getElement();
+    var drag = item._drag;
+    var rootGrid = drag.getGrid();
+    var config = rootGrid._settings.dragStartPredicate || {};
+    var distance = Math.abs(config.distance) || 0;
+    var delay = Math.abs(config.delay) || 0;
+    var handle = typeof config.handle === 'string' ? config.handle : false;
+    var isAnchor;
+    var href;
+    var target;
+
+    // Final event logic. At this stage return value does not matter anymore,
+    // the predicate is either resolved or it's not and there's nothing to do
+    // about it. The stuff inside this if clause is used just for cleaning up.
+    if (event.isFinal) {
+      isAnchor = elem.tagName.toLowerCase() === 'a';
+      href = elem.getAttribute('href');
+      target = elem.getAttribute('target');
+      if (isAnchor && href && Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200) {
+        if (target && target !== '_self') {
+          global.open(href, target);
+        }
+        else {
+          global.location.href = href;
+        }
+      }
+    }
+
+    // All other events logic. Returning true will resolve the predicate,
+    // returning false will reject the predicate and returning anything else
+    // will ignore this specific cycle of the predicate, but keep it capturing
+    // future events.
+    else {
+
+      // If handle is defined, but it does not match the event target, reject
+      // predicate immediately.
+      if (handle && !elementMatches(event.srcEvent.target, handle)) {
+        return false;
+      }
+
+      // If the moved distance is smaller than the threshold distance or the
+      // expired duration is smaller than the threshold delay, ignore this
+      // predicate cycle.
+      if (event.distance < distance || event.deltaTime < delay) {
+        return;
+      }
+
+      // In other cases, let's start the drag!
+      return true;
+
+    }
 
   };
 
   /**
-   * Reset drag data.
+   * Default drag sort predicate.
    *
-   * @protected
-   * @memberof Muuri.Item.prototype
+   * @public
+   * @memberof ItemDrag
+   * @param {Item} item
+   * @param {Object} event
+   * @returns {(Boolean|DragSortCommand)}
+   *   - Returns false if no valid index was found. Otherwise returns drag sort
+   *     command.
    */
-  Muuri.Item.prototype._resetDragData = function () {
+  ItemDrag.defaultSortPredicate = function (item) {
 
-    var drag = this._drag;
+    var drag = item._drag;
+    var dragData = drag._data;
+    var rootGrid = drag.getGrid();
+    var config = rootGrid._settings.dragSortPredicate || {};
+    var sortThreshold = config.threshold || 50;
+    var sortAction = config.action || 'move';
+    var itemRect = {
+      width: item._width,
+      height: item._height,
+      left: Math.round(dragData.elementClientX),
+      top: Math.round(dragData.elementClientY)
+    };
+    var grid = getTargetGrid(itemRect, rootGrid, sortThreshold);
+    var gridOffsetLeft = 0;
+    var gridOffsetTop = 0;
+    var matchScore = -1;
+    var matchIndex;
+    var hasValidTargets;
+    var target;
+    var score;
+    var i;
 
-    // Is the drag active or not?
-    drag.active = false;
+    // Return early if we found no grid container element that overlaps the
+    // dragged item enough.
+    if (!grid) {
+      return false;
+    }
 
-    // Hammer dragstart/dragend event data.
-    drag.start = null;
-    drag.move = null;
+    // If item is moved within it's originating grid adjust item's left and top
+    // props. Otherwise if item is moved to/within another grid get the
+    // container element's offset (from the element's content edge).
+    if (grid === rootGrid) {
+      itemRect.left = Math.round(dragData.gridX) + item._margin.left;
+      itemRect.top = Math.round(dragData.gridY) + item._margin.top;
+    }
+    else {
+      gridOffsetLeft = grid._left + grid._border.left + grid._padding.left;
+      gridOffsetTop = grid._top + grid._border.top + grid._padding.top;
+    }
 
-    // The element that is currently dragged (instance element or it's clone).
-    drag.element = null;
+    // Loop through the target grid items and try to find the best match.
+    for (i = 0; i < grid._items.length; i++) {
 
-    // The curently dragged element's width and height.
-    drag.elemWidth = 0;
-    drag.elemHeight = 0;
+      target = grid._items[i];
 
-    // Dragged element's inline styles stored for graceful teardown.
-    drag.elementStyles = null;
+      // If the target item is not active or the target item is the dragged item
+      // let's skip to the next item.
+      if (!target._isActive || target === item) {
+        continue;
+      }
 
-    // Scroll parents of the dragged element and muuri container.
-    drag.scrollParents = [];
+      // Mark the grid as having valid target items.
+      hasValidTargets = true;
+
+      // Calculate the target's overlap score with the dragged item.
+      score = getRectOverlapScore(itemRect, {
+        width: target._width,
+        height: target._height,
+        left: Math.round(target._left) + target._margin.left + gridOffsetLeft,
+        top: Math.round(target._top) + target._margin.top + gridOffsetTop
+      });
+
+      // Update best match index and score if the target's overlap score with
+      // the dragged item is higher than the current best match score.
+      if (score > matchScore) {
+        matchIndex = i;
+        matchScore = score;
+      }
+
+    }
+
+    // If there is no valid match and the item is being moved into another grid.
+    if (matchScore < sortThreshold && item.getGrid() !== grid) {
+      matchIndex = hasValidTargets ? -1 : 0;
+      matchScore = Infinity;
+    }
+
+    // Check if the best match overlaps enough to justify a placement switch.
+    if (matchScore >= sortThreshold) {
+      return {
+        grid: grid,
+        index: matchIndex,
+        action: sortAction
+      };
+    }
+
+    return false;
+
+  };
+
+  /**
+   * ItemDrag - Public prototype methods
+   * ***********************************
+   */
+
+  /**
+   * Destroy instance.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.destroy = function () {
+
+    var drag = this;
+
+    if (!drag._isDestroyed) {
+      drag.stop();
+      drag._hammer.destroy();
+      drag.getItem()._element.removeEventListener('dragstart', preventDefault, false);
+      drag._isDestroyed = true;
+    }
+
+    return drag;
+
+  };
+
+  /**
+   * Get Item instance.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {?Item}
+   */
+  ItemDrag.prototype.getItem = function () {
+
+    return itemInstances[this._itemId] || null;
+
+  };
+
+  /**
+   * Get Grid instance.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {?Grid}
+   */
+  ItemDrag.prototype.getGrid = function () {
+
+    return gridInstances[this._gridId] || null;
+
+  };
+
+  /**
+   * Setup/reset drag data.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.reset = function () {
+
+    var drag = this;
+    var dragData = drag._data;
+
+    // Is item being dragged?
+    dragData.isActive = false;
+
+    // The dragged item's container element.
+    dragData.container = null;
+
+    // The dragged item's containing block.
+    dragData.containingBlock = null;
+
+    // Hammer event data.
+    dragData.startEvent = null;
+    dragData.currentEvent = null;
+
+    // All the elements which need to be listened for scroll events during
+    // dragging.
+    dragData.scrollers = [];
 
     // The current translateX/translateY position.
-    drag.left = 0;
-    drag.top = 0;
+    dragData.left = 0;
+    dragData.top = 0;
 
     // Dragged element's current position within the grid.
-    drag.gridX = 0;
-    drag.gridY = 0;
+    dragData.gridX = 0;
+    dragData.gridY = 0;
 
-    // Dragged element's current offset from window's northwest corner. Does not
-    // account for element's margins.
-    drag.elemClientX = 0;
-    drag.elemClientY = 0;
+    // Dragged element's current offset from window's northwest corner. Does
+    // not account for element's margins.
+    dragData.elementClientX = 0;
+    dragData.elementClientY = 0;
 
-    // Offset difference between the dragged element's temporary drag container
-    // and it's original container.
-    drag.containerDiffX = 0;
-    drag.containerDiffY = 0;
+    // Offset difference between the dragged element's temporary drag
+    // container and it's original container.
+    dragData.containerDiffX = 0;
+    dragData.containerDiffY = 0;
+
+    return drag;
+
+  };
+
+  /**
+   * Check (during drag) if an item is overlapping other items and based on
+   * the configuration layout the items.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.checkOverlap = function () {
+
+    var drag = this;
+    var item = drag.getItem();
+    var result = drag._sortPredicate(item, drag._data.currentEvent);
+    var currentGrid;
+    var currentIndex;
+    var targetGrid;
+    var targetIndex;
+    var sortAction;
+
+    // Let's make sure the result object has a valid index before going further.
+    if (!isPlainObject(result) || typeof result.index !== typeNumber) {
+      return drag;
+    }
+
+    currentGrid = item.getGrid();
+    currentIndex = currentGrid._items.indexOf(item);
+    targetGrid = result.grid || currentGrid;
+    targetIndex = result.index;
+    sortAction = result.action === 'swap' ? 'swap' : 'move';
+
+    // If the item was moved within it's current grid.
+    if (currentGrid === targetGrid) {
+
+      // Normalize target index.
+      targetIndex = normalizeArrayIndex(currentGrid._items, targetIndex);
+
+      // Make sure the target index is not the current index.
+      if (currentIndex !== targetIndex) {
+
+        // Do the sort.
+        (sortAction === 'swap' ? arraySwap : arrayMove)(currentGrid._items, currentIndex, targetIndex);
+
+        // Emit move event.
+        currentGrid._emit(evMove, {
+          item: item,
+          fromIndex: currentIndex,
+          toIndex: targetIndex,
+          action: sortAction
+        });
+
+        // Layout the grid.
+        currentGrid.layout();
+
+      }
+
+    }
+
+    // If the item was moved to another grid.
+    else {
+
+      // Update item's grid id reference.
+      item._gridId = targetGrid._id;
+
+      // Update drag instances's migrating indicator.
+      drag._isMigrating = item._gridId !== drag._gridId;
+
+      // Move item instance from current grid to target grid.
+      currentGrid._items.splice(currentIndex, 1);
+      insertItemsToArray(targetGrid._items, item, targetIndex);
+
+      // Get the final target index for event data.
+      targetIndex = targetGrid._items.indexOf(item);
+
+      // Set sort data as null, which is an indicator for the item comparison
+      // function that the sort data of this specific item should be fetched
+      // lazily.
+      item._sortData = null;
+
+      // Emit send event.
+      currentGrid._emit(evSend, {
+        item: item,
+        fromGrid: currentGrid,
+        fromIndex: currentIndex,
+        toGrid: targetGrid,
+        toIndex: targetIndex
+      });
+
+      // Emit receive event.
+      targetGrid._emit(evReceive, {
+        item: item,
+        fromGrid: currentGrid,
+        fromIndex: currentIndex,
+        toGrid: targetGrid,
+        toIndex: targetIndex
+      });
+
+      // Layout both grids.
+      currentGrid.layout();
+      targetGrid.layout();
+
+    }
+
+    return drag;
+
+  };
+
+  /**
+   * If item is dragged into another grid, finish the migration process
+   * gracefully.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.finishMigration = function () {
+
+    var drag = this;
+    var item = drag.getItem();
+    var release = item._release;
+    var element = item.getElement();
+    var targetGrid = item.getGrid();
+    var targetGridElement = targetGrid.getElement();
+    var targetStn = targetGrid._settings;
+    var targetContainer = targetStn.dragContainer || targetGridElement;
+    var currentStn = drag.getGrid()._settings;
+    var currentContainer = element.parentNode;
+    var translateX;
+    var translateY;
+    var offsetDiff;
+
+    // Destroy current drag. Note that we need to set the migrating flag to
+    // false first, because otherwise we create an infinite loop between this
+    // and the drag.stop() method.
+    drag._isMigrating = false;
+    drag.destroy();
+
+    // Destroy current animation handlers.
+    item._animate.destroy();
+    item._animateChild.destroy();
+
+    // Remove current classnames.
+    removeClass(element, currentStn.itemClass);
+    removeClass(element, currentStn.itemVisibleClass);
+    removeClass(element, currentStn.itemHiddenClass);
+
+    // Add new classnames.
+    addClass(element, targetStn.itemClass);
+    addClass(element, targetStn.itemVisibleClass);
+
+    // Instantiate new animation controllers.
+    item._animate = new Grid.ItemAnimate(item, element);
+    item._animateChild = new Grid.ItemAnimate(item, item._child);
+    item._isDefaultAnimate = item._animate instanceof ItemAnimate;
+
+    // Move the item inside the target container if it's different than the
+    // current container.
+    if (targetContainer !== currentContainer) {
+      targetContainer.appendChild(element);
+      offsetDiff = getOffsetDiff(currentContainer, targetContainer, true);
+      translateX = getTranslateAsFloat(element, 'x') + offsetDiff.left;
+      translateY = getTranslateAsFloat(element, 'y') + offsetDiff.top;
+      setStyles(element, {
+        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
+      });
+    }
+
+    // Update item's cached dimensions and sort data.
+    item._refreshDimensions()._refreshSortData();
+
+    // Update child element's styles to reflect the current visibility state.
+    item._child.removeAttribute('style');
+    targetGrid._itemShowHandler.start(item, true);
+
+    // Recreate item's drag handler.
+    item._drag = targetStn.dragEnabled ? new Grid.ItemDrag(item) : null;
+
+    // Setup release data and start the release.
+    offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
+    release.containerDiffX = offsetDiff.left;
+    release.containerDiffY = offsetDiff.top;
+    release.start();
+
+    return drag;
+
+  };
+
+  /**
+   * Abort dragging and reset drag data.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.stop = function () {
+
+    var drag = this;
+    var dragData = drag._data;
+    var element;
+    var grid;
+    var i;
+
+    if (!dragData.isActive) {
+      return drag;
+    }
+
+    // If the item is being dropped into another grid, finish it up and return
+    // immediately.
+    if (drag._isMigrating) {
+      drag.finishMigration(dragData.currentEvent);
+      return;
+    }
+
+    element = drag.getItem()._element;
+    grid = drag.getGrid();
+
+    // Remove scroll listeners.
+    for (i = 0; i < dragData.scrollers.length; i++) {
+      dragData.scrollers[i].removeEventListener('scroll', drag._scrollHandler);
+    }
+
+    // Cancel overlap check.
+    drag._checkSortOverlap('cancel');
+
+    // Append item element to the container if it's not it's child. Also make
+    // sure the translate values are adjusted to account for the DOM shift.
+    if (element.parentNode !== grid._element) {
+      grid._element.appendChild(element);
+      setStyles(element, {
+        transform: 'translateX(' + dragData.gridX + 'px) translateY(' + dragData.gridY + 'px)'
+      });
+    }
+
+    // Remove dragging class.
+    removeClass(element, grid._settings.itemDraggingClass);
+
+    // Reset drag data.
+    drag.reset();
+
+    return drag;
 
   };
 
   /**
    * Drag start handler.
    *
-   * @protected
-   * @memberof Muuri.Item.prototype
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Muuri.Item.prototype._onDragStart = function (e) {
+  ItemDrag.prototype.onStart = function (e) {
 
-    var drag = this._drag;
-    var stn = this._muuri._settings;
-    var isReleased = this._release.active;
+    var drag = this;
+    var item = drag.getItem();
+    var element;
+    var grid;
+    var settings;
+    var dragData;
+    var release;
+    var currentLeft;
+    var currentTop;
+    var gridContainer;
+    var dragContainer;
+    var containingBlock;
+    var offsetDiff;
+    var elementGBCR;
+    var isWithinDragContainer;
+    var i;
 
     // If item is not active, don't start the drag.
-    if (!this._active) {
+    if (!item._isActive) {
       return;
     }
 
+    element = item._element;
+    grid = drag.getGrid();
+    settings = grid._settings;
+    dragData = drag._data;
+    release = item._release;
+
     // Stop current positioning animation.
-    if (this._positioning) {
-      this._stopLayout();
+    if (item.isPositioning()) {
+      item._stopLayout(true);
     }
 
-    // If item is being released reset release data, remove release class and
-    // import the current elementStyles to drag object.
-    if (isReleased) {
-      drag.elementStyles = this._release.elementStyles;
-      removeClass(this._element, stn.releasingClass);
-      this._resetReleaseData();
+    // Stop current migration animation.
+    if (item._migrate.isActive) {
+      item._migrate.stop(true);
+    }
+
+    // If item is being released reset release data.
+    if (item.isReleasing()) {
+      release.reset();
     }
 
     // Setup drag data.
-    drag.active = true;
-    drag.start = e;
-    drag.move = e;
-    drag.element = this._element;
-    drag.elemWidth = this._width;
-    drag.elemHeight = this._height;
+    dragData.isActive = true;
+    dragData.startEvent = dragData.currentEvent = e;
 
     // Get element's current position.
-    var currentLeft = parseFloat(Velocity.hook(drag.element, 'translateX')) || 0;
-    var currentTop = parseFloat(Velocity.hook(drag.element, 'translateY')) || 0;
+    currentLeft = getTranslateAsFloat(element, 'x');
+    currentTop = getTranslateAsFloat(element, 'y');
 
-    // Get container references.
-    var muuriContainer = this._muuri._element;
-    var dragContainer = stn.dragContainer;
+    // Get container element references, and store drag container and containing
+    // block.
+    gridContainer = grid._element;
+    dragData.container = dragContainer = settings.dragContainer || gridContainer;
+    dragData.containingBlock = containingBlock = getContainingBlock(dragContainer, true);
 
     // Set initial left/top drag value.
-    drag.left = drag.gridX = currentLeft;
-    drag.top = drag.gridY = currentTop;
+    dragData.left = dragData.gridX = currentLeft;
+    dragData.top = dragData.gridY = currentTop;
 
     // If a specific drag container is set and it is different from the
-    // default muuri container we need to cast some extra spells.
-    if (dragContainer && dragContainer !== muuriContainer) {
+    // grid's container element we need to cast some extra spells.
+    if (dragContainer !== gridContainer) {
 
-      // If dragged element is already in drag container.
-      if (drag.element.parentNode === dragContainer) {
+      // Check if dragged element is already a child of the drag container.
+      isWithinDragContainer = element.parentNode === dragContainer;
 
-        // Get offset diff.
-        var offsetDiff = getOffsetDiff(drag.element, muuriContainer);
-
-        // Store the container offset diffs to drag data.
-        drag.containerDiffX = offsetDiff.left;
-        drag.containerDiffY = offsetDiff.top;
-
-        // Set up relative drag position data.
-        drag.gridX = currentLeft - drag.containerDiffX;
-        drag.gridY = currentTop - drag.containerDiffY;
-
+      // If dragged elment is not yet a child of the drag container our first
+      // job is to move it there.
+      if (!isWithinDragContainer) {
+        dragContainer.appendChild(element);
       }
 
-      // If dragged element is not within the correct container.
+      // Store the container offset diffs to drag data.
+      offsetDiff = getOffsetDiff(containingBlock, gridContainer);
+      dragData.containerDiffX = offsetDiff.left;
+      dragData.containerDiffY = offsetDiff.top;
+
+      // If the dragged element is a child of the drag container all we need to
+      // do is setup the relative drag position data.
+      if (isWithinDragContainer) {
+        dragData.gridX = currentLeft - dragData.containerDiffX;
+        dragData.gridY = currentTop - dragData.containerDiffY;
+      }
+
+      // Otherwise, we need to setup the actual drag position data and adjust
+      // the element's translate values to account for the DOM position shift.
       else {
-
-        // Lock element's width, height, padding and margin before appending
-        // to the temporary container because otherwise the element might
-        // enlarge or shrink after the append procedure if the some of the
-        // properties are defined in relative sizes.
-        lockElementSize(drag);
-
-        // Append element into correct container.
-        dragContainer.appendChild(drag.element);
-
-        // Get offset diff.
-        var offsetDiff = getOffsetDiff(drag.element, muuriContainer);
-
-        // Store the container offset diffs to drag data.
-        drag.containerDiffX = offsetDiff.left;
-        drag.containerDiffY = offsetDiff.top;
-
-        // Set up drag position data.
-        drag.left = currentLeft + drag.containerDiffX;
-        drag.top = currentTop + drag.containerDiffY;
-
-        // Fix position to account for the append procedure.
-        hookStyles(drag.element, {
-          translateX: drag.left + 'px',
-          translateY: drag.top + 'px'
+        dragData.left = currentLeft + dragData.containerDiffX;
+        dragData.top = currentTop + dragData.containerDiffY;
+        setStyles(element, {
+          transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
         });
-
       }
 
     }
 
     // Get and store element's current offset from window's northwest corner.
-    var elemGbcr = drag.element.getBoundingClientRect();
-    drag.elemClientX = elemGbcr.left;
-    drag.elemClientY = elemGbcr.top;
+    elementGBCR = element.getBoundingClientRect();
+    dragData.elementClientX = elementGBCR.left;
+    dragData.elementClientY = elementGBCR.top;
 
-    // Get drag scroll parents.
-    drag.scrollParents = getScrollParents(drag.element);
-    if (dragContainer && dragContainer !== muuriContainer) {
-      drag.scrollParents = arrayUnique(drag.scrollParents.concat(getScrollParents(muuriContainer)));
+    // Get dragged element's scroll parents.
+    dragData.scrollers = getScrollParents(element);
+
+    // If drag container is defined and it's not the the element as grid
+    // container we need to add the grid container and grid container's scroll
+    // parent's to the element's which are going to be listener for scroll
+    // events.
+    if (dragContainer !== gridContainer) {
+      dragData.scrollers = arrayUnique(dragData.scrollers.concat(gridContainer).concat(getScrollParents(gridContainer)));
     }
 
     // Bind scroll listeners.
-    for (var i = 0, len = drag.scrollParents.length; i < len; i++) {
-      drag.scrollParents[i].addEventListener('scroll', drag.onScroll);
+    for (i = 0; i < dragData.scrollers.length; i++) {
+      dragData.scrollers[i].addEventListener('scroll', drag._scrollHandler);
     }
 
     // Set drag class.
-    addClass(drag.element, stn.draggingClass);
+    addClass(element, settings.itemDraggingClass);
 
-    // Emit dragstart event.
-    this._muuri._emitter.emit(evDragStart, this, generateDragEvent('dragstart', e, drag));
+    // Emit dragStart event.
+    grid._emit(evDragStart, item, e);
+
+    return drag;
 
   };
 
   /**
    * Drag move handler.
    *
-   * @protected
-   * @memberof Muuri.Item.prototype
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Muuri.Item.prototype._onDragMove = function (e) {
+  ItemDrag.prototype.onMove = function (e) {
 
-    var drag = this._drag;
-    var stn = this._muuri._settings;
+    var drag = this;
+    var item = drag.getItem();
+    var element;
+    var grid;
+    var settings;
+    var dragData;
+    var xDiff;
+    var yDiff;
 
     // If item is not active, reset drag.
-    if (!this._active) {
-      this._resetDrag();
+    if (!item._isActive) {
+      drag.stop();
       return;
     }
 
-    // Get delta difference from last dragmove event.
-    var xDiff = e.deltaX - drag.move.deltaX;
-    var yDiff = e.deltaY - drag.move.deltaY;
+    element = item._element;
+    grid = drag.getGrid();
+    settings = grid._settings;
+    dragData = drag._data;
 
-    // Update move event.
-    drag.move = e;
+    // Get delta difference from last dragmove event.
+    xDiff = e.deltaX - dragData.currentEvent.deltaX;
+    yDiff = e.deltaY - dragData.currentEvent.deltaY;
+
+    // Update current event.
+    dragData.currentEvent = e;
 
     // Update position data.
-    drag.left += xDiff;
-    drag.top += yDiff;
-    drag.gridX += xDiff;
-    drag.gridY += yDiff;
-    drag.elemClientX += xDiff;
-    drag.elemClientY += yDiff;
+    dragData.left += xDiff;
+    dragData.top += yDiff;
+    dragData.gridX += xDiff;
+    dragData.gridY += yDiff;
+    dragData.elementClientX += xDiff;
+    dragData.elementClientY += yDiff;
 
     // Update element's translateX/Y values.
-    hookStyles(drag.element, {
-      translateX: drag.left + 'px',
-      translateY: drag.top + 'px'
+    setStyles(element, {
+      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
 
     // Overlap handling.
-    if (stn.dragSort) {
-      drag.checkOverlap();
+    if (settings.dragSort) {
+      drag._checkSortOverlap();
     }
 
-    // Emit item-dragmove event.
-    this._muuri._emitter.emit(evDragMove, this, generateDragEvent('dragmove', e, drag));
+    // Emit dragMove event.
+    grid._emit(evDragMove, item, e);
+
+    return drag;
 
   };
 
   /**
    * Drag scroll handler.
    *
-   * @protected
-   * @memberof Muuri.Item.prototype
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Muuri.Item.prototype._onDragScroll = function (e) {
+  ItemDrag.prototype.onScroll = function (e) {
 
-    var drag = this._drag;
-    var stn = this._muuri._settings;
-
-    // Get containers.
-    var muuriContainer = this._muuri._element;
-    var dragContainer = stn.dragContainer;
-
-    // Get offset diff.
-    var elemGbcr = drag.element.getBoundingClientRect();
-    var xDiff = drag.elemClientX - elemGbcr.left;
-    var yDiff = drag.elemClientY - elemGbcr.top;
+    var drag = this;
+    var item = drag.getItem();
+    var element = item._element;
+    var grid = drag.getGrid();
+    var settings = grid._settings;
+    var dragData = drag._data;
+    var gridContainer = grid._element;
+    var elementGBCR = element.getBoundingClientRect();
+    var xDiff = dragData.elementClientX - elementGBCR.left;
+    var yDiff = dragData.elementClientY - elementGBCR.top;
+    var offsetDiff;
 
     // Update container diff.
-    if (dragContainer && dragContainer !== muuriContainer) {
-
-      // Get offset diff.
-      var offsetDiff = getOffsetDiff(drag.element, muuriContainer);
-
-      // Store the container offset diffs to drag data.
-      drag.containerDiffX = offsetDiff.left;
-      drag.containerDiffY = offsetDiff.top;
-
+    if (dragData.container !== gridContainer) {
+      offsetDiff = getOffsetDiff(dragData.containingBlock, gridContainer);
+      dragData.containerDiffX = offsetDiff.left;
+      dragData.containerDiffY = offsetDiff.top;
     }
 
     // Update position data.
-    drag.left += xDiff;
-    drag.top += yDiff;
-    drag.gridX = drag.left - drag.containerDiffX;
-    drag.gridY = drag.top - drag.containerDiffY;
+    dragData.left += xDiff;
+    dragData.top += yDiff;
+    dragData.gridX = dragData.left - dragData.containerDiffX;
+    dragData.gridY = dragData.top - dragData.containerDiffY;
 
     // Update element's translateX/Y values.
-    hookStyles(drag.element, {
-      translateX: drag.left + 'px',
-      translateY: drag.top + 'px'
+    setStyles(element, {
+      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
 
     // Overlap handling.
-    if (stn.dragSort) {
-      drag.checkOverlap();
+    if (settings.dragSort) {
+      drag._checkSortOverlap();
     }
 
-    // Emit item-dragscroll event.
-    this._muuri._emitter.emit(evDragScroll, this, generateDragEvent('dragscroll', e, drag));
+    // Emit dragScroll event.
+    grid._emit(evDragScroll, item, e);
+
+    return drag;
 
   };
 
   /**
    * Drag end handler.
    *
-   * @protected
-   * @memberof Muuri.Item.prototype
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
    */
-  Muuri.Item.prototype._onDragEnd = function (e) {
+  ItemDrag.prototype.onEnd = function (e) {
 
-    var drag = this._drag;
-    var stn = this._muuri._settings;
-    var release = this._release;
+    var drag = this;
+    var item = drag.getItem();
+    var element = item._element;
+    var grid = drag.getGrid();
+    var settings = grid._settings;
+    var dragData = drag._data;
+    var release = item._release;
+    var i;
 
     // If item is not active, reset drag.
-    if (!this._active) {
-      this._resetDrag();
+    if (!item._isActive) {
+      drag.stop();
       return;
     }
 
     // Finish currently queued overlap check.
-    if (stn.dragSort) {
-      drag.checkOverlap('finish');
+    if (settings.dragSort) {
+      drag._checkSortOverlap('finish');
     }
 
-    // Remove scroll listeners
-    for (var i = 0, len = drag.scrollParents.length; i < len; i++) {
-      drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
+    // Remove scroll listeners.
+    for (i = 0; i < dragData.scrollers.length; i++) {
+      dragData.scrollers[i].removeEventListener('scroll', drag._scrollHandler);
     }
 
     // Remove drag classname from element.
-    removeClass(drag.element, stn.draggingClass);
-
-    // Flag drag as inactive.
-    drag.active = false;
-
-    // Emit item-dragend event.
-    this._muuri._emitter.emit(evDragEnd, this, generateDragEvent('dragend', e, drag));
+    removeClass(element, settings.itemDraggingClass);
 
     // Setup release data.
-    release.containerDiffX = drag.containerDiffX;
-    release.containerDiffY = drag.containerDiffY;
-    release.element = drag.element;
-    release.elementStyles = drag.elementStyles;
+    release.containerDiffX = dragData.containerDiffX;
+    release.containerDiffY = dragData.containerDiffY;
 
     // Reset drag data.
-    this._resetDragData();
+    drag.reset();
 
-    // Start the release process.
-    this._startRelease();
+    // Emit dragEnd event.
+    grid._emit(evDragEnd, item, e);
 
-  };
-
-  /**
-   * Reset drag data and cancel any ongoing drag activity.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._resetDrag = function (e) {
-
-    var drag = this._drag;
-    var stn = this._muuri._settings;
-
-    // Remove scroll listeners
-    for (var i = 0, len = drag.scrollParents.length; i < len; i++) {
-      drag.scrollParents[i].removeEventListener('scroll', drag.onScroll);
+    // Finish up the migration process or start the release process.
+    if (drag._isMigrating) {
+      drag.finishMigration();
     }
-
-    // Cancel overlap check.
-    drag.checkOverlap('cancel');
-
-    // Remove draggin class.
-    removeClass(drag.element, stn.draggingClass);
-
-    // Remove dragged element's inline styles.
-    unlockElementSize(drag);
-
-    this._resetDragData();
-
-  };
-
-  /**
-   * Reset release data.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._resetReleaseData = function () {
-
-    var release = this._release;
-    release.active = false;
-    release.positioningStarted = false;
-    release.containerDiffX = 0;
-    release.containerDiffY = 0;
-    release.element = null;
-    release.elementStyles = null;
-
-  };
-
-  /**
-   * Start the release process of an item.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._startRelease = function () {
-
-    var stn = this._muuri._settings;
-    var release = this._release;
-
-    // Flag release as active.
-    release.active = true;
-
-    // Add release classname to released element.
-    addClass(release.element, stn.releasingClass);
-
-    // Emit releasestart event.
-    this._muuri._emitter.emit(evReleaseStart, this);
-
-    // Position the released item.
-    this._layout(false);
-
-  };
-
-  /**
-   * End the release process of an item.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._endRelease = function () {
-
-    var stn = this._muuri._settings;
-    var release = this._release;
-
-    // Remove release classname from the released element.
-    removeClass(release.element, stn.releasingClass);
-
-    // If the released element is outside the muuri container put it back there
-    // and adjust position accordingly.
-    if (release.element.parentNode !== this._muuri._element) {
-      this._muuri._element.appendChild(release.element);
-      hookStyles(release.element, {
-        translateX: this._left + 'px',
-        translateY: this._top + 'px'
-      });
-    }
-
-    // Unlock temporary inlined styles.
-    unlockElementSize(release);
-
-    // Reset release data.
-    this._resetReleaseData();
-
-    // Emit releaseend event.
-    this._muuri._emitter.emit(evReleaseEnd, this);
-
-  };
-
-  /**
-   * Check (during drag) if an item is overlapping other items and based on
-   * the configuration do a relayout.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._checkOverlap = function () {
-
-    var stn = this._muuri._settings;
-    var overlapTolerance = stn.dragSortTolerance;
-    var overlapAction = stn.dragSortAction;
-    var items = this._muuri._items;
-    var bestMatch = null;
-    var instIndex = 0;
-    var instData = {
-      width: this._drag.elemWidth,
-      height: this._drag.elemHeight,
-      left: this._drag.gridX,
-      top: this._drag.gridY
-    };
-
-    // Find best match (the element with most overlap).
-    for (var i = 0, len = items.length; i < len; i++) {
-      var item = items[i];
-      if (item === this) {
-        instIndex = i;
-      }
-      else if (item._active) {
-        var overlapScore = getOverlapScore(instData, {
-          width: item._width,
-          height: item._height,
-          left: item._left,
-          top: item._top
-        });
-        if (!bestMatch || overlapScore > bestMatch.score) {
-          bestMatch = {
-            item: item,
-            score: overlapScore,
-            index: i
-          };
-        }
-      }
-    }
-
-    // Check if the best match overlaps enough to justify a placement switch.
-    if (bestMatch && bestMatch.score >= overlapTolerance) {
-      if (overlapAction === 'swap') {
-        arraySwap(items, instIndex, bestMatch.index);
-        this._muuri._emitter.emit(evSwap, this, bestMatch.item);
-      }
-      else {
-        arrayMove(items, instIndex, bestMatch.index);
-        this._muuri._emitter.emit(evMove, this, bestMatch.item);
-      }
-      this._muuri.layout();
-    }
-
-  };
-
-  /**
-   * Stop item's position animation if it is currently animating.
-   *
-   * @protected
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._stopLayout = function () {
-
-    var stn = this._muuri._settings;
-
-    if (this._positioning) {
-
-      // Stop animation.
-      Velocity(this._element, 'stop', this._muuri._animQueue);
-
-      // Remove visibility classes.
-      removeClass(this._element, stn.positioningClass);
-
-      // Reset state.
-      this._positioning = false;
-
-      // Process callback queue.
-      processQueue(this._layoutQueue, true, this);
-
-    }
-
-  };
-
-  /**
-   * Recalculate item's dimensions.
-   *
-   * @public
-   * @memberof Muuri.Item.prototype
-   */
-  Muuri.Item.prototype._refresh = function () {
-
-    if (!this._hidden) {
-      this._width = Math.round(getDimension(this._element, 'width', true));
-      this._height = Math.round(getDimension(this._element, 'height', true));
-    }
-
-  };
-
-  /**
-   * Position item based on it's current data.
-   *
-   * @public
-   * @memberof Muuri.Item.prototype
-   * @param {Boolean} instant
-   * @param {Function} [callback]
-   */
-  Muuri.Item.prototype._layout = function (instant, callback) {
-
-    var inst = this;
-    var stn = inst._muuri._settings;
-    var release = inst._release;
-    var isJustReleased = release.active && release.positioningStarted === false;
-    var animDuration = isJustReleased ? stn.dragReleaseDuration : stn.positionDuration;
-    var animEasing = isJustReleased ? stn.dragReleaseEasing : stn.positionEasing;
-    var animEnabled = instant === true || inst._noLayoutAnimation ? false : animDuration > 0;
-    var isPositioning = inst._positioning;
-    var finish = function () {
-
-      // Remove positioning classes.
-      removeClass(inst._element, stn.positioningClass);
-
-      // Mark the item as not positioning.
-      inst._positioning = false;
-
-      // Finish up release.
-      if (release.active) {
-        inst._endRelease();
-      }
-
-      // Process the callback queue.
-      processQueue(inst._layoutQueue, false, inst);
-
-    };
-
-    // Stop currently running animation, if any.
-    inst._stopLayout();
-
-    // Push the callback to the callback queue.
-    if (typeof callback === 'function') {
-      inst._layoutQueue[inst._layoutQueue.length] = callback;
-    }
-
-    // Mark release positiong as started.
-    if (isJustReleased) {
-      release.positioningStarted = true;
-    }
-
-    // Get item container offset. This applies only for release handling in the
-    // scenario where the released element is not currently within the muuri
-    // container.
-    var offsetLeft = inst._release.active ? inst._release.containerDiffX : 0;
-    var offsetTop = inst._release.active ? inst._release.containerDiffY : 0;
-
-    // If no animations are needed, easy peasy!
-    if (!animEnabled) {
-
-      if (inst._noLayoutAnimation) {
-        inst._noLayoutAnimation = false;
-      }
-
-      hookStyles(inst._element, {
-        translateX: (inst._left + offsetLeft) + 'px',
-        translateY: (inst._top + offsetTop) + 'px'
-      });
-
-      finish();
-
-    }
-
-    // If animations are needed, let's dive in.
     else {
-
-      // Get current (relative) left and top position. Meaning that the
-      // drga container's offset (if applicable) is subtracted from the current
-      // translate values.
-      var currentLeft = (parseFloat(Velocity.hook(inst._element, 'translateX')) || 0) - offsetLeft;
-      var currentTop =  (parseFloat(Velocity.hook(inst._element, 'translateY')) || 0) - offsetTop;
-
-      // If the item is already in correct position there's no need to animate
-      // it.
-      if (inst._left === currentLeft && inst._top === currentTop) {
-        finish();
-        return;
-      }
-
-      // Mark as positioning.
-      inst._positioning = true;
-
-      // Add positioning class if necessary.
-      if (!isPositioning) {
-        addClass(inst._element, stn.positioningClass);
-      }
-
-      // Set up the animation.
-      Velocity(inst._element, {
-        translateX: inst._left + offsetLeft,
-        translateY: inst._top + offsetTop
-      }, {
-        duration: animDuration,
-        easing: animEasing,
-        complete: finish,
-        queue: inst._muuri._animQueue
-      });
-
-      // Start the animation.
-      Velocity.Utilities.dequeue(inst._element, inst._muuri._animQueue);
-
+      release.start();
     }
 
-  };
-
-  /**
-   * Show item.
-   *
-   * @public
-   * @memberof Muuri.Item.prototype
-   * @param {Boolean} instant
-   * @param {Function} [callback]
-   */
-  Muuri.Item.prototype._show = function (instant, callback) {
-
-    var inst = this;
-    var stn = inst._muuri._settings;
-
-    // If item is visible.
-    if (!inst._hidden && !inst._showing) {
-
-      // Call the callback and be done with it.
-      if (typeof callback === 'function') {
-        callback(false, inst);
-      }
-
-    }
-
-    // If item is animating to visible.
-    else if (!inst._hidden) {
-
-      // Push the callback to callback queue.
-      if (typeof callback === 'function') {
-        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
-      }
-
-    }
-
-    // If item is hidden or animating to hidden.
-    else {
-
-      var isHiding = inst._hiding;
-
-      // Stop animation.
-      inst._muuri._itemHide.stop(inst);
-
-      // Update states.
-      inst._active = true;
-      inst._hidden = false;
-      inst._showing = inst._hiding = false;
-
-      // Update classes.
-      addClass(inst._element, stn.shownClass);
-      removeClass(inst._element, stn.hiddenClass);
-
-      // Set element's display style.
-      setStyles(inst._element, {
-        display: 'block'
-      });
-
-      // Process current callback queue.
-      processQueue(inst._visibiliyQueue, true, inst);
-
-      // Update state.
-      inst._showing = true;
-
-      // Push the callback to callback queue.
-      if (typeof callback === 'function') {
-        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
-      }
-
-      // Animate child element.
-      inst._muuri._itemShow.start(inst, instant, function () {
-
-        // Process callback queue.
-        processQueue(inst._visibiliyQueue, false, inst);
-
-      });
-
-    }
-
-  };
-
-  /**
-   * Hide item.
-   *
-   * @public
-   * @memberof Muuri.Item.prototype
-   * @param {Boolean} instant
-   * @param {Function} [callback]
-   */
-  Muuri.Item.prototype._hide = function (instant, callback) {
-
-    var inst = this;
-    var stn = inst._muuri._settings;
-
-    // If item is hidden.
-    if (inst._hidden && !inst._hiding) {
-
-      // Call the callback and be done with it.
-      if (typeof callback === 'function') {
-        callback(false, inst);
-      }
-
-    }
-
-    // If item is animating to hidden.
-    else if (inst._hidden) {
-
-      // Push the callback to callback queue.
-      if (typeof callback === 'function') {
-        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
-      }
-
-    }
-
-    // If item is visible or animating to visible.
-    else {
-
-      var isShowing = inst._showing;
-
-      // Stop animation.
-      inst._muuri._itemShow.stop(inst);
-
-      // Update states.
-      inst._active = false;
-      inst._hidden = true;
-      inst._showing = inst._hiding = false;
-
-      // Update classes.
-      addClass(inst._element, stn.hiddenClass);
-      removeClass(inst._element, stn.shownClass);
-
-      // Process current callback queue.
-      processQueue(inst._visibiliyQueue, true, inst);
-
-      // Update state.
-      inst._hiding = true;
-
-      // Push the callback to callback queue.
-      if (typeof callback === 'function') {
-        inst._visibiliyQueue[inst._visibiliyQueue.length] = callback;
-      }
-
-      // Animate child element.
-      inst._muuri._itemHide.start(inst, instant, function () {
-
-        // Hide element.
-        setStyles(inst._element, {
-          display: 'none'
-        });
-
-        // Process callback queue.
-        processQueue(inst._visibiliyQueue, false, inst);
-
-      });
-
-    }
-
-  };
-
-  /**
-   * Destroy item instance.
-   *
-   * @public
-   * @memberof Muuri.Item.prototype
-   * @param {Boolean} [removeElement=false]
-   */
-  Muuri.Item.prototype._destroy = function (removeElement) {
-
-    var muuri = this._muuri;
-    var stn = this._muuri._settings;
-    var element = this._element;
-    var index = this._muuri._items.indexOf(this);
-
-    // Stop animations.
-    this._stopLayout();
-    this._muuri._itemShow.stop(this);
-    this._muuri._itemHide.stop(this);
-
-    // If item is being released, stop it gracefully.
-    if (this._release.active) {
-      if (element.parentNode !== this._muuri._element) {
-        this._muuri._element.appendChild(element);
-      }
-      this._resetReleaseData();
-    }
-
-    // If item is being dragged, stop it gracefully.
-    if (this._drag.active) {
-      if (element.parentNode !== this._muuri._element) {
-        this._muuri._element.appendChild(element);
-      }
-      this._resetDrag();
-    }
-
-    // Destroy Hammer instance and custom touch listeners.
-    if (this._hammer) {
-      this._hammer.destroy();
-    }
-
-    // Remove all inline styles.
-    element.removeAttribute('style');
-    this._child.removeAttribute('style');
-
-    // Handle visibility callback queue, fire all uncompleted callbacks with
-    // interrupted flag.
-    processQueue(this._visibiliyQueue, true, this);
-
-    // Remove Muuri specific classes.
-    removeClass(element, stn.positioningClass);
-    removeClass(element, stn.draggingClass);
-    removeClass(element, stn.releasingClass);
-    removeClass(element, stn.itemClass);
-    removeClass(element, stn.shownClass);
-    removeClass(element, stn.hiddenClass);
-
-    // Remove item from Muuri instance if it still exists there.
-    if (index > -1) {
-      this._muuri._items.splice(index, 1);
-    }
-
-    // Remove element from DOM.
-    if (removeElement) {
-      element.parentNode.removeChild(element);
-    }
-
-    // Render the instance unusable -> nullify all Muuri related properties.
-    var props = Object.keys(this).concat(Object.keys(Muuri.Item.prototype));
-    for (var i = 0; i < props.length; i++) {
-      this[props[i]] = null;
-    }
-
-  };
-
-  /**
-   * Creates a new Muuri Layout instance.
-   *
-   * @public
-   * @class
-   * @memberof Muuri
-   * @param {Muuri} muuri
-   * @param {Muuri.Item[]} [items]
-   */
-  Muuri.Layout = function (muuri, items) {
-
-    var stn = muuri._settings.layout;
-
-    this.muuri = muuri;
-    this.items = items ? items.concat() : muuri.get('active');
-    this.slots = {};
-    this.width = 0;
-    this.height = 0;
-    this.setWidth = false;
-    this.setHeight = false;
-
-    // Calculate the current width and height of the container.
-    this.width = getDimension(muuri._element, 'width');
-    this.height = getDimension(muuri._element, 'height');
-
-    // If the user has provided custom function as a layout method invoke it.
-    if (typeof stn === 'function') {
-
-      stn.call(this);
-
-    }
-    // Otherwise parse the layout mode and settings from provided options and
-    // do the calculations.
-    else {
-
-      // Parse the layout method name and settings from muuri settings.
-      var useDefaults = typeof stn === 'string';
-      var methodName = useDefaults ? stn : stn[0];
-
-      // Make sure the provided layout method exists.
-      if (typeof Muuri.Layout.methods[methodName] !== 'function') {
-        throw new Error('Layout method "' + method +  '" does not exist.');
-      }
-
-      // Invoke the layout method.
-      typeof Muuri.Layout.methods[methodName].call(this, useDefaults ? {} : stn[1]);
-
-    }
-
-  };
-
-  /**
-   * Available layout methods.
-   *
-   * @public
-   * @memberof Muuri.Layout
-   */
-  Muuri.Layout.methods = {
-    firstFit: LayoutFirstFit
-  };
-
-  /**
-   * Muuri - Settings
-   * ****************
-   */
-
-  /**
-   * Default settings.
-   *
-   * @public
-   * @memberof Muuri
-   * @property {HTMLElement} container
-   * @property {Array} items
-   * @property {Number} positionDuration
-   * @property {Array|String} positionEasing
-   * @property {!Function|Object} show
-   * @property {!Function|Object} hide
-   * @property {Array|String} layout
-   * @property {!Number} layoutOnResize
-   * @property {Boolean} layoutOnInit
-   * @property {Boolean} dragEnabled
-   * @property {!Function} dragPredicate
-   * @property {Boolean} dragSort
-   * @property {!HtmlElement} dragContainer
-   * @property {Number} dragReleaseDuration
-   * @property {Array|String} dragReleaseEasing
-   * @property {Number} dragSortInterval
-   * @property {Number} dragSortTolerance
-   * @property {String} dragSortAction
-   * @property {String} containerClass
-   * @property {String} itemClass
-   * @property {String} shownClass
-   * @property {String} hiddenClass
-   * @property {String} positioningClass
-   * @property {String} draggingClass
-   * @property {String} releasingClass
-   */
-  Muuri.defaultSettings = {
-
-    // Container
-    container: null,
-
-    // Items
-    items: [],
-    positionDuration: 300,
-    positionEasing: 'ease-out',
-    show: {
-      duration: 300,
-      easing: 'ease-out'
-    },
-    hide: {
-      duration: 300,
-      easing: 'ease-out'
-    },
-
-    // Layout
-    layout: 'firstFit',
-    layoutOnResize: 100,
-    layoutOnInit: true,
-
-    // Drag & Drop
-    dragEnabled: false,
-    dragContainer: null,
-    dragPredicate: null,
-    dragSort: true,
-    dragSortInterval: 50,
-    dragSortTolerance: 50,
-    dragSortAction: 'move',
-    dragReleaseDuration: 300,
-    dragReleaseEasing: 'ease-out',
-
-    // Classnames
-    containerClass: 'muuri',
-    itemClass: 'muuri-item',
-    shownClass: 'muuri-shown',
-    hiddenClass: 'muuri-hidden',
-    positioningClass: 'muuri-positioning',
-    draggingClass: 'muuri-dragging',
-    releasingClass: 'muuri-releasing'
+    return drag;
 
   };
 
@@ -2433,47 +4270,111 @@
    */
 
   /**
+   * Normalize array index. Basically this function makes sure that the provided
+   * array index is within the bounds of the provided array and also transforms
+   * negative index to the matching positive index.
+   *
+   * @private
+   * @param {Array} array
+   * @param {Number} index
+   */
+  function normalizeArrayIndex(array, index) {
+
+    var length = array.length;
+    var maxIndex = length - 1;
+
+    if (index > maxIndex) {
+      return maxIndex;
+    }
+    else if (index < 0) {
+      return Math.max(length + index, 0);
+    }
+
+    return index;
+
+  }
+
+  /**
    * Swap array items.
    *
+   * @private
    * @param {Array} array
-   * @param {Number} indexA
-   * @param {Number} indexB
+   * @param {Number} index
+   *   - Index (positive or negative) of the item that will be swapped.
+   * @param {Number} withIndex
+   *   - Index (positive or negative) of the other item that will be swapped.
    */
-  function arraySwap(array, indexA, indexB) {
+  function arraySwap(array, index, withIndex) {
 
-    var temp = array[indexA];
-    array[indexA] = array[indexB];
-    array[indexB] = temp;
+    // Make sure the array has two or more items.
+    if (array.length < 2) {
+      return;
+    }
+
+    // Normalize the indices.
+    var indexA = normalizeArrayIndex(array, index);
+    var indexB = normalizeArrayIndex(array, withIndex);
+    var temp;
+
+    // Swap the items.
+    if (indexA !== indexB) {
+      temp = array[indexA];
+      array[indexA] = array[indexB];
+      array[indexB] = temp;
+    }
 
   }
 
   /**
    * Move array item to another index.
    *
+   * @private
    * @param {Array} array
    * @param {Number} fromIndex
+   *   - Index (positive or negative) of the item that will be moved.
    * @param {Number} toIndex
+   *   - Index (positive or negative) where the item should be moved to.
    */
   function arrayMove(array, fromIndex, toIndex) {
 
-    array.splice(toIndex, 0, array.splice(fromIndex, 1)[0]);
+    // Make sure the array has two or more items.
+    if (array.length < 2) {
+      return;
+    }
+
+    // Normalize the indices.
+    var from = normalizeArrayIndex(array, fromIndex);
+    var to = normalizeArrayIndex(array, toIndex);
+
+    // Add target item to the new position.
+    if (from !== to) {
+      array.splice(to, 0, array.splice(from, 1)[0]);
+    }
 
   }
 
   /**
    * Returns a new duplicate free version of the provided array.
    *
+   * @private
    * @param {Array} array
    * @returns {Array}
    */
   function arrayUnique(array) {
 
     var ret = [];
-    for (var i = 0, len = array.length; i < len; i++) {
-      if (ret.indexOf(array[i]) === -1) {
-        ret[ret.length] = array[i];
+    var len = array.length;
+    var i;
+
+    if (len) {
+      ret[0] = array[0];
+      for (i = 1; i < len; i++) {
+        if (ret.indexOf(array[i]) < 0) {
+          ret[ret.length] = array[i];
+        }
       }
     }
+
     return ret;
 
   }
@@ -2481,6 +4382,7 @@
   /**
    * Check if a value is a plain object.
    *
+   * @private
    * @param {*} val
    * @returns {Boolean}
    */
@@ -2491,34 +4393,72 @@
   }
 
   /**
-   * Merge properties of provided objects. The first argument is considered as
-   * the destination object which inherits the properties of the
-   * following argument objects. Merges object properties recursively if the
-   * property's type is object in destination object and the source object.
+   * Check if a value is a node list
    *
-   * @param {Object} dest
-   * @param {...Object} sources
-   * @returns {Object} Returns the destination object.
+   * @private
+   * @param {*} val
+   * @returns {Boolean}
    */
-  function mergeObjects(dest) {
+  function isNodeList(val) {
 
-    var sources = Array.prototype.slice.call(arguments, 1);
+    var type = Object.prototype.toString.call(val);
+    return type === '[object HTMLCollection]' || type === '[object NodeList]';
 
-    for (var i = 0; i < sources.length; i++) {
-      var source = sources[i];
-      for (var prop in source) {
-        if (source.hasOwnProperty(prop)) {
-          if (isPlainObject(dest[prop]) && isPlainObject(source[prop])) {
-            mergeObjects(dest[prop], source[prop]);
-          }
-          else {
-            dest[prop] = source[prop];
-          }
-        }
+  }
+
+  /**
+   * Merge two objects recursively (deep merge). The source object's properties
+   * are merged to the target object.
+   *
+   * @private
+   * @param {Object} target
+   *   - The target object.
+   * @param {Object} source
+   *   - The source object.
+   * @returns {Object} Returns the target object.
+   */
+  function mergeObjects(target, source) {
+
+    // Loop through the surce object's props.
+    Object.keys(source).forEach(function (propName) {
+
+      var isObject = isPlainObject(source[propName]);
+
+      // If target and source values are both objects, merge the objects and
+      // assign the merged value to the target property.
+      if (isPlainObject(target[propName]) && isObject) {
+        target[propName] = mergeObjects({}, target[propName]);
+        target[propName] = mergeObjects(target[propName], source[propName]);
       }
-    }
 
-    return dest;
+      // Otherwise set the source object's value to target object and make sure
+      // that object and array values are cloned and directly assigned.
+      else {
+        target[propName] = isObject ? mergeObjects({}, source[propName]) :
+          Array.isArray(source[propName]) ? source[propName].concat() :
+          source[propName];
+      }
+
+    });
+
+    return target;
+
+  }
+
+  /**
+   * Insert an item or an array of items to array to a specified index. Mutates
+   * the array. The index can be negative in which case the items will be added
+   * to the end of the array.
+   *
+   * @private
+   * @param {Array} array
+   * @param {*} items
+   * @param {Number} [index=-1]
+   */
+  function insertItemsToArray(array, items, index) {
+
+    var targetIndex = typeof index === typeNumber ? index : -1;
+    array.splice.apply(array, [targetIndex < 0 ? array.length - targetIndex + 1 : targetIndex, 0].concat(items));
 
   }
 
@@ -2530,6 +4470,7 @@
    * waiting to be called, and when being "cancel" cancels the currently queued
    * function call.
    *
+   * @private
    * @param {Function} fn
    * @param {Number} wait
    * @returns {Function}
@@ -2540,7 +4481,7 @@
     var actionCancel = 'cancel';
     var actionFinish = 'finish';
 
-    return function (action) {
+    return wait > 0 ? function (action) {
 
       if (timeout !== undefined) {
         timeout = global.clearTimeout(timeout);
@@ -2556,42 +4497,13 @@
         }, wait);
       }
 
+    } : function (action) {
+
+      if (action !== actionCancel) {
+        fn();
+      }
+
     };
-
-  }
-
-  /**
-   * Get intersection area dimensions and position between two rectangles in 2d
-   * space.
-   *
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {?Object}
-   */
-  function getIntersection(a, b) {
-
-    var ret = null;
-    var overlap = {
-      left: a.left - b.left,
-      right: (b.left + b.width) - (a.left + a.width),
-      top: a.top - b.top,
-      bottom: (b.top + b.height) - (a.top + a.height)
-    };
-    var intersectionWidth = Math.max(a.width + Math.min(overlap.left, 0) + Math.min(overlap.right, 0), 0);
-    var intersectionHeight = Math.max(a.height + Math.min(overlap.top, 0) + Math.min(overlap.bottom, 0), 0);
-    var hasIntersection = intersectionWidth > 0 && intersectionHeight > 0;
-
-    if (hasIntersection) {
-      ret = {};
-      ret.width = intersectionWidth;
-      ret.height = intersectionHeight;
-      ret.left = a.left + Math.abs(Math.min(overlap.left, 0));
-      ret.right = ret.left + ret.width;
-      ret.top = a.top + Math.abs(Math.min(overlap.top, 0));
-      ret.bottom = ret.top + ret.height;
-    }
-
-    return ret;
 
   }
 
@@ -2603,70 +4515,102 @@
   /**
    * Returns the computed value of an element's style property as a string.
    *
+   * @private
    * @param {HTMLElement} element
    * @param {String} style
    * @returns {String}
    */
   function getStyle(element, style) {
 
-    return global.getComputedStyle(element, null).getPropertyValue(style);
+    return global.getComputedStyle(element, null).getPropertyValue(style === 'transform' ? transform.styleName || style : style);
+
+  }
+
+  /**
+   * Returns the computed value of an element's style property transformed into
+   * a float value.
+   *
+   * @private
+   * @param {HTMLElement} el
+   * @param {String} style
+   * @returns {Number}
+   */
+  function getStyleAsFloat(el, style) {
+
+    return parseFloat(getStyle(el, style)) || 0;
+
+  }
+
+  /**
+   * Returns the element's computed translateX/Y value as a float. Assumes that
+   * the translate value is defined as pixels.
+   *
+   * @private
+   * @param {HTMLElement} element
+   * @param {String} axis
+   *   - "x" or "y".
+   * @returns {Number}
+   */
+  function getTranslateAsFloat(element, axis) {
+
+    return parseFloat((getStyle(element, 'transform') || '').replace('matrix(', '').split(',')[axis === 'x' ? 4 : 5]) || 0;
 
   }
 
   /**
    * Set inline styles to an element.
    *
+   * @private
    * @param {HTMLElement} element
    * @param {Object} styles
    */
   function setStyles(element, styles) {
 
-    for (var prop in styles) {
-      element.style[prop] = styles[prop];
+    var props = Object.keys(styles);
+    var prop;
+    var val;
+    var i;
+
+    for (i = 0; i < props.length; i++) {
+      prop = props[i];
+      val = styles[prop];
+      element.style[prop === 'transform' && transform ? transform.propName : prop] = val;
     }
 
   }
 
   /**
-   * Set inline styles to an element with Velocity's hook method.
+   * Set inline styles to an element using Velocity's hook method.
    *
+   * @private
    * @param {HTMLElement} element
    * @param {Object} styles
    */
   function hookStyles(element, styles) {
 
-    for (var prop in styles) {
-      Velocity.hook(element, prop, styles[prop]);
+    var props = Object.keys(styles);
+    var i;
+
+    for (i = 0; i < props.length; i++) {
+      Velocity.hook(element, props[i], styles[props[i]]);
     }
-
-  }
-
-  /**
-   * Check if an element has a specific class name.
-   *
-   * @param {HTMLElement} el
-   * @param {String} className
-   * @returns {Boolean}
-   */
-  function hasClass(el, className) {
-
-    return (' ' + el.className).indexOf(' ' + className) > -1;
 
   }
 
   /**
    * Add class to an element.
    *
-   * @param {HTMLElement} el
+   * @private
+   * @param {HTMLElement} element
    * @param {String} className
    */
-  function addClass(el, className) {
+  function addClass(element, className) {
 
-    if (el.classList) {
-      el.classList.add(className);
+    if (element.classList) {
+      element.classList.add(className);
     }
-    else if (hasClass(el, className)) {
-      el.className += ' ' + className;
+    else if (!elementMatches(element, '.' + className)) {
+      element.className += ' ' + className;
     }
 
   }
@@ -2674,64 +4618,186 @@
   /**
    * Remove class name from an element.
    *
-   * @param {HTMLElement} el
+   * @private
+   * @param {HTMLElement} element
+   * @param {String} className
    */
-  function removeClass(el, className) {
+  function removeClass(element, className) {
 
-    if (el.classList) {
-      el.classList.remove(className);
+    if (element.classList) {
+      element.classList.remove(className);
     }
-    else if (hasClass(el, className)) {
-      el.className = (' ' + el.className + ' ').replace(' ' + className + ' ', ' ').trim();
+    else if (elementMatches(element, '.' + className)) {
+      element.className = (' ' + element.className + ' ').replace(' ' + className + ' ', ' ').trim();
     }
 
   }
 
   /**
-   * Get element's width/height with padding or with padding, border and margin.
+   * Convert nodeList to array.
    *
-   * Borrowed from Mezr library:
-   * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L511-L609
-   *
-   * @param {HTMLElement} el
-   * @param {String} dimension
-   * @param {Boolean} [withMargin=false]
+   * @private
+   * @param {NodeList} nodeList
+   * @returns {HTMLElement[]}
    */
-  function getDimension(el, dimension, withMargin) {
+  function nodeListToArray(nodeList) {
 
-    var ret = el.getBoundingClientRect()[dimension];
-    var isHeight = dimension === 'height';
-    var dimensionCapitalized = isHeight ? 'Height' : 'Width';
-    var innerDimension = 'inner' + dimensionCapitalized;
-    var clientDimension = 'client' + dimensionCapitalized;
-    var edgeA = isHeight ? 'top' : 'left';
-    var edgeB = isHeight ? 'bottom' : 'right';
+    return [].slice.call(nodeList);
 
-    if (withMargin) {
+  }
 
-      var marginA = parseFloat(getStyle(el, 'margin-' + edgeA));
-      var marginB = parseFloat(getStyle(el, 'margin-' + edgeB));
-      ret += marginA > 0 ? marginA : 0;
-      ret += marginB > 0 ? marginB : 0;
+  /**
+   * Checks the supported element.matches() method and returns a function that
+   * can be used to call the supported method.
+   *
+   * @private
+   * @returns {Function}
+   */
+  function getSupportedElementMatches() {
 
+    var p = Element.prototype;
+    var fn = p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector;
+
+    return function (el, selector) {
+      return fn.call(el, selector);
+    };
+
+  }
+
+  /**
+   * Returns the supported style property's prefix, property name and style name
+   * or null if the style property is not supported. This is used for getting
+   * the supported transform.
+   *
+   * @private
+   * @param {String} style
+   * @returns {?Object}
+   */
+  function getSupportedStyle(style) {
+
+    var docElem = document.documentElement;
+    var styleCap = style.charAt(0).toUpperCase() + style.slice(1);
+    var prefixes = ['', 'Webkit', 'Moz', 'O', 'ms'];
+    var prefix;
+    var propName;
+    var i;
+
+    for (i = 0; i < prefixes.length; i++) {
+      prefix = prefixes[i];
+      propName = prefix ? prefix + styleCap : style;
+      if (docElem.style[propName] !== undefined) {
+        prefix = prefix.toLowerCase();
+        return {
+          prefix: prefix,
+          propName: propName,
+          styleName: prefix ? '-' + prefix + '-' + style : style
+        };
+      }
     }
-    else {
 
-      var borderA;
-      var borderB;
+    return null;
 
-      if (el === document.documentElement) {
-        ret -= global[innerDimension] - document.documentElement[clientDimension];
-      }
-      else {
-        borderA = parseFloat(getStyle(el, 'border-' + edgeA + '-width'));
-        borderB = parseFloat(getStyle(el, 'border-' + edgeB + '-width'));
-        ret -= Math.round(ret) - el[clientDimension] - borderA - borderB;
-      }
+  }
 
-      ret -= borderA !== undefined ? borderA : parseFloat(getStyle(el, 'border-' + edgeA + '-width'));
-      ret -= borderB !== undefined ? borderB : parseFloat(getStyle(el, 'border-' + edgeB + '-width'));
+  /**
+   * Calculate the offset difference two elements.
+   *
+   * @private
+   * @param {HTMLElement} elemA
+   * @param {HTMLElement} elemB
+   * @param {Boolean} [compareContainingBlocks=false]
+   *   - When this is set to true the containing blocks of the provided elements
+   *     will be used for calculating the difference. Otherwise the provided
+   *     elements will be compared directly.
+   * @returns {Object}
+   */
+  function getOffsetDiff(elemA, elemB, compareContainingBlocks) {
 
+    if (elemA === elemB) {
+      return {
+        left: 0,
+        top: 0
+      };
+    }
+
+    if (compareContainingBlocks) {
+      elemA = getContainingBlock(elemA, true);
+      elemB = getContainingBlock(elemB, true);
+    }
+
+    var aOffset = getOffset(elemA);
+    var bOffset = getOffset(elemB);
+
+    return {
+      left: bOffset.left - aOffset.left,
+      top: bOffset.top - aOffset.top
+    };
+
+  }
+
+  /**
+   * Returns the element's document offset, which in practice means the vertical
+   * and horizontal distance between the element's northwest corner and the
+   * document's northwest corner. Note that this function returns offset from
+   * element's padding edge, not border edge.
+   *
+   * @private
+   * @param {(Document|Element|Window)} element
+   * @returns {Offset}
+   */
+  function getOffset(element) {
+
+    var gbcr;
+    var ret = {
+      left: 0,
+      top: 0
+    };
+
+    // Document's offsets are always 0.
+    if (element === document) {
+      return ret;
+    }
+
+    // Add viewport's scroll left/top to the respective offsets.
+    ret.left = global.pageXOffset || 0;
+    ret.top = global.pageYOffset || 0;
+
+    // Window's offsets are the viewport's scroll left/top values.
+    if (element.self === global.self) {
+      return ret;
+    }
+
+    // Add element's client rects and borders to the offsets.
+    gbcr = element.getBoundingClientRect();
+    ret.left += gbcr.left + getStyleAsFloat(element, 'border-left-width');
+    ret.top += gbcr.top + getStyleAsFloat(element, 'border-top-width');
+
+    return ret;
+
+  }
+
+  /**
+   * Returns an aabsolute positioned element's containing block, which is
+   * considered to be the closest ancestor element that the target element's
+   * positioning is relative to. Disclaimer: this only works as intended for
+   * abolute positioned elements.
+   *
+   * @private
+   * @param {HTMLElement} element
+   * @param {Boolean} [isParent=false]
+   *   - When this is set to true the containing block checking is started from
+   *     the provided element. Otherwise the checking is started from the
+   *     provided element's parent element.
+   * @returns {(Document|Element)}
+   */
+  function getContainingBlock(element, isParent) {
+
+    // As long as the containing block is an element, static and not
+    // transformed, try to get the element's parent element and fallback to
+    // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
+    var ret = (isParent ? element : element.parentElement) || document;
+    while (ret && ret !== document && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
+      ret = ret.parentElement || document;
     }
 
     return ret;
@@ -2739,133 +4805,15 @@
   }
 
   /**
-   * Returns the element's offset, which in practice means the vertical and
-   * horizontal distance between the element's northwest corner and the
-   * document's northwest corner. This method is a stripped down version of
-   * Mezr's offset method and tailored for Muuri specifically. By default the
-   * element's "dimension edge" is considered to be the element's padding layer.
-   *
-   * Borrowed from Mezr library:
-   * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L643-L714
-   *
-   * @param {HTMLElement} el
-   * @returns {Offset}
-   */
-  function getOffset(el) {
-
-    var offsetLeft = 0;
-    var offsetTop = 0;
-    var viewportScrollLeft = parseFloat(global.pageXOffset);
-    var viewportScrollTop = parseFloat(global.pageYOffset);
-
-    // For window we just need to get viewport's scroll distance.
-    if (el.self === global.self) {
-      offsetLeft = viewportScrollLeft;
-      offsetTop = viewportScrollTop;
-    }
-
-    // For all elements except the document and window we can use the combination of gbcr and
-    // viewport's scroll distance.
-    else if (el !== document) {
-      var gbcr = el.getBoundingClientRect();
-      offsetLeft += gbcr.left + viewportScrollLeft + parseFloat(getStyle(el, 'border-left-width'));
-      offsetTop += gbcr.top + viewportScrollTop + parseFloat(getStyle(el, 'border-top-width'));
-    }
-
-    return {
-      left: offsetLeft,
-      top: offsetTop
-    };
-
-  }
-
-  /**
-   * Returns the element's offset parent.
-   *
-   * Borrowed from Mezr library:
-   * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L808-L859
-   *
-   * @param {HTMLElement} el
-   * @returns {!HTMLElement}
-   */
-  function getOffsetParent(el) {
-
-    var isFixed = getStyle(el, 'position') === 'fixed';
-
-    if (isFixed && hasBrokenW3CTELCS) {
-      return global;
-    }
-
-    var offsetParent = el === document.documentElement || el === global ? document : el.parentElement || null;
-
-    if (isFixed) {
-      while (offsetParent && offsetParent !== document && !isTransformed(offsetParent)) {
-        offsetParent = offsetParent.parentElement || document;
-      }
-      return offsetParent === document ? global : offsetParent;
-    }
-    else {
-      while (offsetParent && offsetParent !== document && getStyle(offsetParent, 'position') === 'static' && !isTransformed(offsetParent)) {
-        offsetParent = offsetParent.parentElement || document;
-      }
-      return offsetParent;
-    }
-
-  }
-
-  /**
-   * Returns true if element is transformed, false if not. In practice the
-   * element's display value must be anything else than "none" or "inline" as
-   * well as have a valid transform value applied in order to be counted as a
-   * transformed element.
-   *
-   * Borrowed from Mezr library:
-   * https://github.com/niklasramo/mezr/blob/732cb1f5810b948b4fe8ffd85132d29543ece831/mezr.js#L302-L317
-   *
-   * @param {Element} el
-   * @returns {Boolean}
-   */
-  function isTransformed(el) {
-
-    var transform = getStyle(el, supportedTransform.style);
-    var display = getStyle(el, 'display');
-
-    return transform !== 'none' && display !== 'inline' && display !== 'none';
-
-  }
-
-  /**
-   * Calculate the offset difference of two elements. The target element is is
-   * always considered to be Muuri item's element which means that it's margins
-   * are considered to be part of it's width and height. The anchor element's
-   * width and height however always consist of the core and the padding only.
-   *
-   * @param {HTMLElement} target
-   * @param {HTMLElement} anchor
-   * @returns {PlaceData}
-   */
-  function getOffsetDiff(target, anchor) {
-
-    var anchorOffset = getOffset(anchor);
-    var targetZeroPosition = getOffset(getOffsetParent(target) || doc);
-    targetZeroPosition.left -= Math.abs(Math.min(parseFloat(getStyle(target, 'margin-left')), 0));
-    targetZeroPosition.top -= Math.abs(Math.min(parseFloat(getStyle(target, 'margin-top')), 0));
-
-    return {
-      left: anchorOffset.left - targetZeroPosition.left,
-      top: anchorOffset.top - targetZeroPosition.top
-    };
-
-  }
-
-  /**
    * Get element's scroll parents.
    *
    * Borrowed from jQuery UI library (and heavily modified):
-   * https://github.com/jquery/jquery-ui/blob/63448148a217da7e64c04b21a04982f0d64aabaa/ui/scroll-parent.js
+   * https://github.com/jquery/jquery-ui/blob/63448148a217da7e64c04b21a04982f0d6
+   * 4aabaa/ui/scroll-parent.js
    *
+   * @private
    * @param {HTMLElement} element
-   * @returns {Array}
+   * @returns {HTMLElement[]}
    */
   function getScrollParents(element) {
 
@@ -2873,8 +4821,8 @@
     var overflowRegex = /(auto|scroll)/;
     var parent = element.parentNode;
 
-    // If positioning of fixed elements is broken (according to W3C spec).
-    if (hasBrokenW3CTELCS) {
+    // If transformed elements leak fixed elements.
+    if (transformLeaksFixed) {
 
       // If the element is fixed it can not have any scroll parents.
       if (getStyle(element, 'position') === 'fixed') {
@@ -2920,9 +4868,15 @@
 
       }
 
-      // Replace reference of possible root element to window object.
-      if (ret.length && ret[ret.length - 1] === document.documentElement) {
+      // If the last item is the root element, replace it with the global
+      // object (window). The root element scroll is propagated to the window.
+      if (ret[ret.length - 1] === document.documentElement) {
         ret[ret.length - 1] = global;
+      }
+
+      // Otherwise add global object (window) as the last scroll parent.
+      else {
+        ret[ret.length] = global;
       }
 
     }
@@ -2932,264 +4886,631 @@
   }
 
   /**
+   * Detects if transformed elements leak fixed elements. According W3C
+   * transform rendering spec a transformed element should contain even fixed
+   * elements. Meaning that fixed elements are positioned relative to the
+   * closest transformed ancestor element instead of window. However, not every
+   * browser follows the spec (IE and older Firefox). So we need to test it.
+   * https://www.w3.org/TR/css3-2d-transforms/#transform-rendering
+   *
+   * Borrowed from Mezr (v0.6.1):
+   * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L607
+   *
+   * @private
+   * @returns {Boolean}
+   *   - Returns true if transformed elements leak fixed elements, false
+   *     otherwise.
+   */
+  function doesTransformLeakFixed() {
+
+    if (!transform) {
+      return true;
+    }
+
+    var outer = document.createElement('div');
+    var inner = document.createElement('div');
+    var leftNotTransformed;
+    var leftTransformed;
+
+    setStyles(outer, {
+      display: 'block',
+      visibility: 'hidden',
+      position: 'absolute',
+      width: '1px',
+      height: '1px',
+      left: '1px',
+      top: '0',
+      margin: '0',
+      transform: 'none'
+    });
+
+    setStyles(inner, {
+      display: 'block',
+      position: 'fixed',
+      width: '1px',
+      height: '1px',
+      left: '0',
+      top: '0',
+      margin: '0',
+      transform: 'none'
+    });
+
+    outer.appendChild(inner);
+    document.body.appendChild(outer);
+    leftNotTransformed = inner.getBoundingClientRect().left;
+    outer.style[transform.propName] = 'scaleX(1)';
+    leftTransformed = inner.getBoundingClientRect().left;
+    document.body.removeChild(outer);
+
+    return leftTransformed === leftNotTransformed;
+
+  }
+
+  /**
+   * Returns true if element is transformed, false if not. In practice the
+   * element's display value must be anything else than "none" or "inline" as
+   * well as have a valid transform value applied in order to be counted as a
+   * transformed element.
+   *
+   * Borrowed from Mezr (v0.6.1):
+   * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L661
+   *
+   * @private
+   * @param {HTMLElement} element
+   * @returns {Boolean}
+   */
+  function isTransformed(element) {
+
+    var transform = getStyle(element, 'transform');
+    var display = getStyle(element, 'display');
+
+    return transform !== 'none' && display !== 'inline' && display !== 'none';
+
+  }
+
+  /**
+   * Helpers - Rectangle utilities
+   * *****************************
+   */
+
+  /**
+   * Check if two rectangles overlap.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Boolean}
+   */
+  function doRectsOverlap(a, b) {
+
+    return !((a.left + a.width) <= b.left || (b.left + b.width) <= a.left || (a.top + a.height) <= b.top || (b.top + b.height) <= a.top);
+
+  }
+
+  /**
+   * Sort rectangles with top-left gravity.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   */
+  function sortRectsTopLeft(a, b) {
+
+    return a.top - b.top || a.left - b.left;
+
+  }
+
+  /**
+   * Sort rectangles with left-top gravity.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   */
+  function sortRectsLeftTop(a, b) {
+
+    return a.left - b.left || a.top - b.top;
+
+  }
+
+  /**
+   * Check if a rectangle is fully within another rectangle.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Boolean}
+   */
+  function isRectWithinRect(a, b) {
+
+    return a.left >= b.left && a.top >= b.top && (a.left + a.width) <= (b.left + b.width) && (a.top + a.height) <= (b.top + b.height);
+
+  }
+
+  /**
+   * Punch a hole into a rectangle and split the remaining area into smaller
+   * rectangles (4 at max).
+   *
+   * @private
+   * @param {Rectangle} rect
+   * @param {Rectangle} hole
+   * returns {Rectangle[]}
+   */
+  function splitRectWithRect(rect, hole) {
+
+    var ret = [];
+
+    // If the rect does not overlap with the hole add rect to the return data as
+    // is.
+    if (!doRectsOverlap(rect, hole)) {
+      return [{
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height
+      }];
+    }
+
+    // Left split.
+    if (rect.left < hole.left) {
+      ret[ret.length] = {
+        left: rect.left,
+        top: rect.top,
+        width: hole.left - rect.left,
+        height: rect.height
+      };
+    }
+
+    // Right split.
+    if ((rect.left + rect.width) > (hole.left + hole.width)) {
+      ret[ret.length] = {
+        left: hole.left + hole.width,
+        top: rect.top,
+        width: (rect.left + rect.width) - (hole.left + hole.width),
+        height: rect.height
+      };
+    }
+
+    // Top split.
+    if (rect.top < hole.top) {
+      ret[ret.length] = {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: hole.top - rect.top
+      };
+    }
+
+    // Bottom split.
+    if ((rect.top + rect.height) > (hole.top + hole.height)) {
+      ret[ret.length] = {
+        left: rect.left,
+        top: hole.top + hole.height,
+        width: rect.width,
+        height: (rect.top + rect.height) - (hole.top + hole.height)
+      };
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Loops through an array of rectangles and removes all that are fully within
+   * another rectangle in the array.
+   *
+   * @private
+   * @param {Rectangle[]} rects
+   * @returns {Rectangle[]}
+   */
+  function purgeRects(rects) {
+
+    var i = rects.length;
+    var ii;
+    var rectA;
+    var rectB;
+
+    while (i--) {
+      rectA = rects[i];
+      ii = rects.length;
+      while (ii--) {
+        rectB = rects[ii];
+        if (i !== ii && isRectWithinRect(rectA, rectB)) {
+          rects.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    return rects;
+
+  }
+
+  /**
+   * Calculate how many percent the intersection area of two rectangles is from
+   * the maximum potential intersection area between the rectangles.
+   *
+   * @private
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   *   - A number between 0-100.
+   */
+  function getRectOverlapScore(a, b) {
+
+    // Return 0 immediately if the rectangles do not overlap.
+    if (!doRectsOverlap(a, b)) {
+      return 0;
+    }
+
+    // Calculate inersection area width and height.
+    var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+    var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+
+    // Calculate maximum intersection area width and height.
+    var maxWidth = Math.min(a.width, b.width);
+    var maxHeight = Math.min(a.height, b.height);
+
+    return (width * height) / (maxWidth * maxHeight) * 100;
+
+  }
+
+  /**
+   * Helpers - Item sort utilities
+   * *****************************
+   */
+
+  /**
+   * Helper for the sort method to generate mapped version of the items array
+   * than contains reference to the item indices.
+   *
+   * @private
+   * @param {Item[]} items
+   * @returns {Object}
+   */
+  function getItemIndexMap(items) {
+
+    var ret = {};
+    var i;
+
+    for (i = 0; i < items.length; i++) {
+      ret[items[i]._id] = i;
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Helper for the sort method to compare the indices of the items to enforce
+   * stable sort.
+   *
+   * @private
+   * @param {Item} itemA
+   * @param {Item} itemB
+   * @param {Boolean} isDescending
+   * @param {Object} indexMap
+   * @returns {Number}
+   */
+  function compareItemIndices(itemA, itemB, isDescending, indexMap) {
+
+    var indexA = indexMap[itemA._id];
+    var indexB = indexMap[itemB._id];
+    return isDescending ? indexB - indexA : indexA - indexB;
+
+  }
+
+  /**
+   * Helper for the sort method to compare the items based on the provided
+   * attributes.
+   *
+   * @private
+   * @param {Item} itemA
+   * @param {Item} itemB
+   * @param {Boolean} isDescending
+   * @param {Object} criterias
+   * @returns {Number}
+   */
+  function compareItems(itemA, itemB, isDescending, criterias) {
+
+    var ret = 0;
+    var criteriaName;
+    var criteriaOrder;
+    var valA;
+    var valB;
+    var i;
+
+    // Loop through the list of sort criterias.
+    for (i = 0; i < criterias.length; i++) {
+
+      // Get the criteria name, which should match an item's sort data key.
+      criteriaName = criterias[i][0];
+      criteriaOrder = criterias[i][1];
+
+      // Get items' cached sort values for the criteria. If the item has no sort
+      // data let's update the items sort data (this is a lazy load mechanism).
+      valA = (itemA._sortData ? itemA : itemA._refreshSortData())._sortData[criteriaName];
+      valB = (itemB._sortData ? itemB : itemB._refreshSortData())._sortData[criteriaName];
+
+      // Sort the items in descending order if defined so explicitly.
+      if (criteriaOrder === 'desc' || (!criteriaOrder && isDescending)) {
+        ret = valB < valA ? -1 : valB > valA ? 1 : 0;
+      }
+
+      // Otherwise sort items in ascending order.
+      else {
+        ret = valA < valB ? -1 : valA > valB ? 1 : 0;
+      }
+
+      // If we have -1 or 1 as the return value, let's return it immediately.
+      if (ret !== 0) {
+        return ret;
+      }
+
+    }
+
+    return ret;
+
+  }
+
+  /**
+   * Reorder an array of items based on another array of items.
+   *
+   * @private
+   * @param {Item[]} items
+   * @param {Item[]} refItems
+   * @returns {Item[]}
+   */
+  function sortItemsByReference(items, refItems) {
+
+    var newItems = [];
+    var currentItems = items.concat();
+    var item;
+    var currentIndex;
+    var i;
+
+    for (i = 0; i < refItems.length; i++) {
+      item = refItems[i];
+      currentIndex = currentItems.indexOf(item);
+      if (currentIndex > -1) {
+        newItems.push(item);
+        currentItems.splice(currentIndex, 1);
+      }
+    }
+
+    Array.prototype.splice.apply(items, [0, items.length].concat(newItems).concat(currentItems));
+
+    return items;
+
+  }
+
+  /**
    * Helpers - Muuri
    * ***************
    */
 
   /**
-   * Calculate how many percent the intersection area of two items is from the
-   * maximum potential intersection area between the items.
-   *
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Number} A number between 0-100.
-   */
-  function getOverlapScore(a, b) {
-
-    var intersection = getIntersection(a, b);
-
-    if (!intersection) {
-      return 0;
-    }
-
-    var aUnpos = {
-      width: a.width,
-      height: a.height,
-      left: 0,
-      top: 0
-    };
-
-    var bUnpos = {
-      width: b.width,
-      height: b.height,
-      left: 0,
-      top: 0
-    };
-
-    var maxIntersection = getIntersection(aUnpos, bUnpos);
-
-    return (intersection.width * intersection.height) / (maxIntersection.width * maxIntersection.height) * 100;
-
-  }
-
-  /**
-   * Return parsed drag event data.
-   *
-   * @param {String} type
-   * @param {Object} event
-   * @param {Object} drag
-   * @returns {Object}
-   */
-  function generateDragEvent(type, event, drag) {
-
-    return {
-      type: type,
-      event: event,
-      currentLeft: drag.left,
-      currentTop: drag.top,
-      gridLeft: drag.gridX,
-      gridTop: drag.gridY
-    };
-
-  }
-
-  /**
-   * Default drag start predicate handler. The context of the function is
-   * always a temporary object which is gets reset on each draginit event.
-   *
-   * @param {Object} e
-   * @param {Muuri.Item} item
-   * @param {Function} resolve
-   */
-  function dragPredicate(e, item, resolve) {
-
-    if (!this.isResolved) {
-      this.isResolved = true;
-      resolve(e);
-    }
-
-  }
-
-  /**
-   * Lock dragged element's dimensions.
-   *
-   * @param {Object} data
-   */
-  function lockElementSize(data) {
-
-    // Don't override existing element styles.
-    if (!data.elementStyles) {
-
-      var styles = ['width', 'height', 'padding', 'margin'];
-
-      // Reset element styles.
-      data.elementStyles = {};
-
-      // Store current inline style values.
-      for (var i = 0; i < 4; i++) {
-        var style = styles[i];
-        var value = data.element.style[style];
-        data.elementStyles[style] = value || '';
-      }
-
-      // Set effective values as inline styles.
-      for (var i = 0; i < 4; i++) {
-        var style = styles[i];
-        data.element.style[style] = getStyle(data.element, style);
-      }
-
-    }
-
-  }
-
-  /**
-   * Unlock dragged element's dimensions.
-   *
-   * @param {Object} data
-   */
-  function unlockElementSize(data) {
-
-    if (data.elementStyles) {
-      for (var style in data.elementStyles) {
-        data.element.style[style] = data.elementStyles[style];
-      }
-    }
-
-  }
-
-  /**
-   * Show/hide Muuri instance's items.
+   * Show or hide Grid instance's items.
    *
    * @private
-   * @param {Muuri} inst
+   * @param {Grid} inst
    * @param {String} method - "show" or "hide".
-   * @param {Array|HTMLElement|Muuri.Item|Number} items
-   * @param {Boolean} [instant=false]
-   * @param {Function} [callback]
+   * @param {(GridMultiItemQuery|GridItemState)} items
+   * @param {Object} [options]
+   * @param {Boolean} [options.instant=false]
+   * @param {(ShowCallback|HideCallback)} [options.onFinish]
+   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @returns {Grid}
    */
-  function showHideHandler(inst, method, items, instant, callback) {
+  function gridShowHideHandler(inst, method, items, options) {
 
-    // Sanitize items.
-    items = inst.get(items);
+    var targetItems = inst.getItems(items);
+    var opts = options || {};
+    var isInstant = opts.instant === true;
+    var callback = opts.onFinish;
+    var layout = opts.layout ? opts.layout : opts.layout === undefined;
+    var counter = targetItems.length;
+    var isShow = method === 'show';
+    var startEvent = isShow ? evShowStart : evHideStart;
+    var endEvent = isShow ? evShowEnd : evHideEnd;
+    var needsLayout = false;
+    var affectedItems = [];
+    var completedItems = [];
+    var hiddenItems = [];
+    var isAffected;
+    var item;
+    var i;
 
-    // Sanitize callback.
-    callback = typeof instant === 'function' ? instant : callback;
+    // Get affected items: filter out items which will not be affected by this
+    // method at their current state.
+    for (i = 0; i < targetItems.length; i++) {
 
-    var counter = items.length;
+      item = targetItems[i];
+      isAffected = isShow ? item._isHidden || item._isHiding || (item._isShowing && isInstant) :
+                   !item._isHidden || item._isShowing || (item._isHiding && isInstant);
+
+      if (isAffected) {
+        affectedItems[affectedItems.length] = item;
+      }
+
+    }
+
+    // Set up counter based on valid items.
+    counter = affectedItems.length;
 
     // If there are no items call the callback, but don't emit any events.
     if (!counter) {
-
-      if (typeof callback === 'function') {
-        callback(items);
+      if (typeof callback === typeFunction) {
+        callback(affectedItems);
       }
-
     }
-    // If we have some items let's dig in.
+
+    // Otherwise if we have some items let's dig in.
     else {
 
-      var isShow = method === 'show';
-      var startEvent = isShow ? evShowStart : evHideStart;
-      var endEvent = isShow ? evShowEnd : evHideEnd;
-      var isInstant = instant === true;
-      var completed = [];
-      var needsRelayout = false;
-      var hiddenItems = [];
+      // Emit showStart/hideStart event.
+      inst._emit(startEvent, affectedItems.concat());
 
-      // Emit showstart event.
-      inst._emitter.emit(startEvent, items);
+      // Show/hide items.
+      for (i = 0; i < affectedItems.length; i++) {
 
-      // Show/hide items. The loop cycle must be wrapped in a function in order
-      // to keep the correct reference of the item for the asynchronous callback
-      // of the item's private show/hide method.
-      for (var i = 0, len = items.length; i < len; i++) {
+        item = affectedItems[i];
 
-        var item = items[i];
-
-        // Check if relayout or refresh is needed.
-        if ((isShow && !item._active) || (!isShow && item._active)) {
-          needsRelayout = true;
-          if (isShow) {
-            item._noLayoutAnimation = true;
-            hiddenItems[hiddenItems.length] = item;
-          }
+        // If inactive item is shown or active item is hidden we need to do
+        // layout.
+        if ((isShow && !item._isActive) || (!isShow && item._isActive)) {
+          needsLayout = true;
         }
 
-        // Hide/show the item.
+        // If inactive item is shown we also need to do some special hackery to
+        // make the item not animate it's next positioning (layout). Without the
+        // skipNextLayoutAnimation flag the item would animate to it's place
+        // from the northwest corner of the grid, which (imho) has a buggy vibe
+        // to it. Also we are adding the item to the hidden items list here,
+        // which means that it's dimensions will be updated just before the
+        // layout.
+        if (isShow && !item._isActive) {
+          item._skipNextLayoutAnimation = true;
+          hiddenItems[hiddenItems.length] = item;
+        }
+
+        // Show/hide the item.
         item['_' + method](isInstant, function (interrupted, item) {
 
           // If the current item's animation was not interrupted add it to the
-          // completed set.
+          // completedItems array.
           if (!interrupted) {
-            completed[completed.length] = item;
+            completedItems[completedItems.length] = item;
           }
 
           // If all items have finished their animations call the callback
-          // and emit the event.
+          // and emit showEnd/hideEnd event.
           if (--counter < 1) {
-            if (typeof callback === 'function') {
-              callback(completed);
+            if (typeof callback === typeFunction) {
+              callback(completedItems.concat());
             }
-            inst._emitter.emit(endEvent, completed);
+            inst._emit(endEvent, completedItems.concat());
           }
 
         });
 
       }
 
-      // Relayout only if needed.
-      if (needsRelayout) {
+      // Layout if needed.
+      if (needsLayout) {
         if (hiddenItems.length) {
-          inst.refresh(hiddenItems);
+          inst.refreshItems(hiddenItems);
         }
-        inst.layout();
+        if (layout) {
+          inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
+        }
       }
 
     }
 
+    return inst;
+
   }
 
   /**
-   * Default item show/hide animation flow. Returns and object that contains
-   * the animation start and stop method.
+   * Returns an object which contains start and stop methods for item's
+   * show/hide process.
    *
-   * @param {Object} opts
-   * @param {Boolean} [isShow]
+   * @param {String} type
+   * @param {Number} duration
+   * @param {(Number[]|String)} easing
+   * @param {Object} styles
    * @returns {Object}
    */
-  function showHideAnimation(opts, isShow) {
+  function getItemVisibilityHandler(type, duration, easing, styles) {
 
-    var duration = (opts && opts.duration) || 0;
-    var easing = (opts && opts.easing) || 'ease-out';
+    duration = parseInt(duration) || 0;
+    easing = easing || 'ease';
+    styles = isPlainObject(styles) ? styles : null;
 
-    if (!duration) {
-      return {
-        start: noop,
-        stop: noop
-      };
-    }
-    else {
-      var targetStyles = isShow ? {opacity: 1, scale: 1} : {opacity: 0, scale: 0.5};
-      return {
-        start: function (item, instant, animDone) {
-          if (instant) {
-            hookStyles(item._child, targetStyles);
+    var isEnabled = duration > 0;
+
+    return {
+      start: function (item, instant, onFinish) {
+
+        if (!isEnabled || !styles) {
+          if (onFinish) {
+            onFinish();
           }
-          else {
-            Velocity(item._child, targetStyles, {
-              duration: duration,
-              easing: easing,
-              queue: item._muuri._animQueue,
-              complete: animDone
-            });
-            Velocity.Utilities.dequeue(item._child, item._muuri._animQueue);
-          }
-        },
-        stop: function (item) {
-          Velocity(item._child, 'stop', item._muuri._animQueue);
         }
-      };
+        else if (instant) {
+
+          (item._isDefaultAnimate ? hookStyles : setStyles)(item._child, styles);
+
+          if (onFinish) {
+            onFinish();
+          }
+
+        }
+        else {
+
+          item._animateChild.start(null, styles, {
+            duration: duration,
+            easing: easing,
+            onFinish: onFinish
+          });
+
+        }
+
+      },
+      stop: function (item) {
+        item._animateChild.stop();
+      }
+    };
+
+  }
+
+  /**
+   * Get target grid for the default drag sort predicate.
+   *
+   * @private
+   * @param {Rectangle} itemRect
+   * @param {Grid} rootGrid
+   * @param {Number} threshold
+   * @returns {?Grid}
+   */
+  function getTargetGrid(itemRect, rootGrid, threshold) {
+
+    var ret = null;
+    var grids = rootGrid._getSortConnections(true);
+    var bestScore = -1;
+    var gridScore;
+    var grid;
+    var i;
+
+    for (i = 0; i < grids.length; i++) {
+
+      grid = grids[i];
+
+      // We need to update the grid's offset since it may have changed during
+      // scrolling. This could be left as problem for the userland, but it's
+      // much nicer this way. One less hack for the user to worry about =)
+      grid._refreshDimensions();
+
+      // Check how much dragged element overlaps the container element.
+      gridScore = getRectOverlapScore(itemRect, {
+        width: grid._width,
+        height: grid._height,
+        left: grid._left,
+        top: grid._top
+      });
+
+      // Check if this grid is the best match so far.
+      if (gridScore > threshold && gridScore > bestScore) {
+        bestScore = gridScore;
+        ret = grid;
+      }
+
     }
+
+    return ret;
 
   }
 
@@ -3197,23 +5518,211 @@
    * Process item's callback queue.
    *
    * @private
-   * @param {Array} queue
+   * @param {Function[]} queue
    * @param {Boolean} interrupted
-   * @param {Muuri.Item} instance
+   * @param {Item} instance
    */
   function processQueue(queue, interrupted, instance) {
 
-    var snapshot = queue.splice(0, queue.length);
-    for (var i = 0, len = snapshot.length; i < len; i++) {
-      snapshot[i](interrupted, instance);
+    var callbacks = queue.splice(0, queue.length);
+    var i;
+
+    for (i = 0; i < callbacks.length; i++) {
+      callbacks[i](interrupted, instance);
     }
 
   }
 
   /**
+   * Check if item is in specific state.
+   *
+   * @private
+   * @param {Item} item
+   * @param {GridItemState} state
+   *  - Accepted values are: "active", "inactive", "visible", "hidden",
+   *    "showing", "hiding", "positioning", "dragging", "releasing" and
+   *    "migrating".
+   * Returns {Boolean}
+   */
+  function isItemInState(item, state) {
+
+    var methodName;
+
+    if (state === 'inactive') {
+      return !item.isActive();
+    }
+
+    if (state === 'hidden') {
+      return !item.isVisible();
+    }
+
+    methodName = 'is' + state.charAt(0).toUpperCase() + state.slice(1);
+
+    return typeof item[methodName] === typeFunction ? item[methodName]() : false;
+
+  }
+
+  /**
+   * Prevent default.
+   *
+   * @private
+   * @param {Object} e
+   */
+  function preventDefault(e) {
+
+    if (e.preventDefault) {
+      e.preventDefault();
+    }
+
+  }
+
+  /**
+   * Merge default settings with user settings. The returned object is a new
+   * object with merged values. The merging is a deep merge meaning that all
+   * objects and arrays within the provided settings objects will be also merged
+   * so that modifying the values of the settings object will have no effect on
+   * the returned object.
+   *
+   * @private
+   * @param {Object} defaultSettings
+   * @param {Object} [userSettings]
+   * @returns {Object} Returns a new object.
+   */
+  function mergeSettings(defaultSettings, userSettings) {
+
+    // Create a fresh copy of default settings.
+    var ret = mergeObjects({}, defaultSettings);
+
+    // Merge user settings to default settings.
+    ret = userSettings ? mergeObjects(ret, userSettings) : ret;
+
+    // Handle visible/hidden styles manually so that the whole object is
+    // overriden instead of the props.
+    ret.visibleStyles = (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
+    ret.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
+
+    return ret;
+
+  }
+
+  /**
+   * Type definitions
+   * ****************
+   */
+
+  /**
+   * The grid's width, height, padding and border dimensions.
+   *
+   * @typedef {Object} GridDimensions
+   * @property {Number} width
+   * @property {Number} height
+   * @property {Object} padding
+   * @property {Number} padding.left
+   * @property {Number} padding.right
+   * @property {Number} padding.top
+   * @property {Number} padding.bottom
+   * @property {Object} border
+   * @property {Number} border.left
+   * @property {Number} border.right
+   * @property {Number} border.top
+   * @property {Number} border.bottom
+   */
+
+  /**
+   * The values by which multiple grid items can be queried. An html element or
+   * an array of HTML elements. Item or an array of items. Node list, live or
+   * static. Number (index) or a list of numbers (indices).
+   *
+   * @typedef {(
+   *   HTMLElement|
+   *   HTMLElement[]|
+   *   Item|Item[]|
+   *   NodeList|
+   *   Number|
+   *   Number[]
+   * )} GridMultiItemQuery
+   */
+
+  /**
+   * The values by which a single grid item can be queried. An html element, an
+   * item instance or a number (index).
+   *
+   * @typedef {(HTMLElement|Item|Number)} GridSingleItemQuery
+   */
+
+  /**
+   * The grid item's state, a string. Accepted values are: "active", "inactive",
+   * "visible", "hidden", "showing", "hiding", "positioning", "dragging",
+   * "releasing" and "migrating".
+   *
+   * @typedef {String} GridItemState
+   */
+
+  /**
+   * The data that is required to orchestrate a sort action during drag.
+   *
+   * @typedef {Object} DragSortCommand
+   * @param {String} action
+   *   - "move" or "swap".
+   * @param {Number} index
+   *   - target index.
+   * @param {?Grid} [grid=null]
+   *   - target grid.
+   */
+
+  /**
+   * A rectangle is an object with width, height and offset (left and top) data.
+   *
+   * @typedef {Object} Rectangle
+   * @property {Number} width
+   * @property {Number} height
+   * @property {Number} left
+   * @property {Number} top
+   */
+
+  /**
+   * Layout data for the layout instance.
+   *
+   * @typedef {Object} LayoutData
+   * @property {Object} slots
+   * @property {Number} width
+   * @property {Number} height
+   * @property {Boolean} setWidth
+   * @property {Boolean} setHeight
+   */
+
+  /**
+   * @callback LayoutCallback
+   * @param {Boolean} isAborted
+   *   - Was the layout procedure aborted?
+   * @param {Item[]} items
+   *   - The items that were attempted to be positioned.
+   */
+
+  /**
+   * @callback ShowCallback
+   * @param {Item[]} items
+   *   - The items that were successfully shown without interruptions.
+   */
+
+  /**
+   * @callback HideCallback
+   * @param {Item[]} items
+   *   - The items that were successfully hidden without interruptions.
+   */
+
+  /**
+   * @callback FilterCallback
+   * @param {Item[]} shownItems
+   *   - The items that were shown.
+   * @param {Item[]} hiddenItems
+   *   - The items that were hidden.
+   */
+
+  /**
    * Init
    */
 
-  return Muuri;
+  return Grid;
 
 }));

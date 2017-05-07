@@ -10,12 +10,13 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira+Sans:400,300,300italic,400italic,500,500italic,700,700italic">
     <link rel="stylesheet" href="styles/main.css">
-    <script src="scripts/vendor/palikka.js"></script>
+    <link rel="stylesheet" href="styles/demo-grid.css">
+    <link rel="stylesheet" href="styles/demo-kanban.css">
   </head>
   <body>
 
     <header>
-      <h1>Muuri<span>v0.2.0</span></h1>
+      <h1>Muuri<span>v0.3.0</span></h1>
       <h2>Responsive, sortable, filterable and draggable grid layouts<span><span>MIT license</span><i>&bull;</i><span>Browser support: IE9+</span><i>&bull;</i><span>Grab it and grid it!</span></span></h2>
       <nav>
         <a href="https://raw.githubusercontent.com/haltu/muuri/master/muuri.js">Download<i></i></a>
@@ -24,9 +25,9 @@
       </nav>
     </header>
 
-    <section class="demo">
+    <section class="grid-demo">
 
-      <h2 class="section-title"><span>Demo</span></h2>
+      <h2 class="section-title"><span>Grid Demo</span></h2>
 
       <div class="controls cf">
         <div class="control search">
@@ -54,7 +55,6 @@
             <option value="order" selected>Drag</option>
             <option value="title">Title (drag disabled)</option>
             <option value="color">Color (drag disabled)</option>
-            <option value="id">Id (drag disabled)</option>
           </select>
         </div>
         <div class="control layout">
@@ -74,11 +74,49 @@
         </div>
       </div>
 
-      <div class="grid">
-      </div>
+      <div class="grid"></div>
 
       <div class="grid-footer">
         <button class="add-more-items btn btn-primary"><i class="material-icons">&#xE145;</i>Add more items</button>
+      </div>
+
+    </section>
+
+    <section class="kanban-demo">
+
+      <h2 class="section-title"><span>Kanban Demo</span></h2>
+
+      <div class="board">
+        <div class="board-column">
+          <div class="board-column-header">To do</div>
+          <div class="board-column-content">
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>1</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>2</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>3</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>4</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>5</div></div>
+          </div>
+        </div>
+        <div class="board-column">
+          <div class="board-column-header">Working</div>
+          <div class="board-column-content">
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>6</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>7</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>8</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>9</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>10</div></div>
+          </div>
+        </div>
+        <div class="board-column">
+          <div class="board-column-header">Done</div>
+          <div class="board-column-content">
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>11</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>12</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>13</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>14</div></div>
+            <div class="board-item"><div class="board-item-content"><span>Item #</span>15</div></div>
+          </div>
+        </div>
       </div>
 
     </section>
@@ -111,8 +149,8 @@
             <i class="material-icons">&#xE87B;</i>
           </div>
           <div class="feature-list-text">
-            <h4>Simple and powerful API</h4>
-            <p>Simple API with enough methods and events to gain full control over the library's behaviour. For example custom filtering and sorting of the grid items can be implemented easily (check the source of this site for starters).</p>
+            <h4>Extensive API</h4>
+            <p>Extensive API with enough methods and events to gain full control over the library's behaviour.</p>
           </div>
         </li>
         <li class="feature-list-item">
@@ -180,11 +218,11 @@
       <p class="copyright">Copyright <i>&copy;</i> 2015 <a href="http://www.haltu.fi/">Haltu Oy</a> &nbsp;&bull;&nbsp; <a href="https://github.com/haltu/muuri/blob/master/LICENSE.md">MIT License</a></p>
     </footer>
 
-    <script src="scripts/vendor/jquery.js"></script>
-    <script src="scripts/vendor/velocity.js"></script>
-    <script src="scripts/vendor/hammer.js"></script>
-    <script src="scripts/vendor/muuri.js"></script>
-    <script src="scripts/main.js"></script>
+    <script src="scripts/vendor/velocity.min.js"></script>
+    <script src="scripts/vendor/hammer.min.js"></script>
+    <script src="../muuri.js"></script>
+    <script src="scripts/demo-grid.js"></script>
+    <script src="scripts/demo-kanban.js"></script>
 
   </body>
 

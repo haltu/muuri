@@ -46,11 +46,6 @@
   -moz-box-sizing: content-box;
   -webkit-box-sizing: content-box;
   box-sizing: content-box;
-  -webkit-transition: height 0.2s ease-out;
-  -moz-transition: height 0.2s ease-out;
-  -ms-transition: height 0.2s ease-out;
-  -o-transition: height 0.2s ease-out;
-  transition: height 0.2s ease-out;
 }
 .item {
   position: absolute;

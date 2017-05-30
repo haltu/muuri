@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.3.0
+ * Muuri v0.3.1-dev
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -162,6 +162,7 @@
    * @param {Number} [options.dragStartPredicate.distance=0]
    * @param {Number} [options.dragStartPredicate.delay=0]
    * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
+   * @param {?String} [options.dragAxis]
    * @param {Boolean} [options.dragSort=true]
    * @param {Number} [options.dragSortInterval=50]
    * @param {(Function|Object)} [options.dragSortPredicate]
@@ -362,6 +363,7 @@
       delay: 0,
       handle: false
     },
+    dragAxis: null,
     dragSort: true,
     dragSortInterval: 100,
     dragSortPredicate: {
@@ -4110,6 +4112,7 @@
     var dragData;
     var xDiff;
     var yDiff;
+    var axis;
 
     // If item is not active, reset drag.
     if (!item._isActive) {
@@ -4121,6 +4124,7 @@
     grid = drag.getGrid();
     settings = grid._settings;
     dragData = drag._data;
+    axis = settings.dragAxis;
 
     // Get delta difference from last dragmove event.
     xDiff = e.deltaX - dragData.currentEvent.deltaX;
@@ -4129,13 +4133,19 @@
     // Update current event.
     dragData.currentEvent = e;
 
-    // Update position data.
-    dragData.left += xDiff;
-    dragData.top += yDiff;
-    dragData.gridX += xDiff;
-    dragData.gridY += yDiff;
-    dragData.elementClientX += xDiff;
-    dragData.elementClientY += yDiff;
+    // Update horizontal position data.
+    if (axis !== 'y') {
+      dragData.left += xDiff;
+      dragData.gridX += xDiff;
+      dragData.elementClientX += xDiff;
+    }
+
+    // Update vertical position data.
+    if (axis !== 'x') {
+      dragData.top += yDiff;
+      dragData.gridY += yDiff;
+      dragData.elementClientY += yDiff;
+    }
 
     // Update element's translateX/Y values.
     setStyles(element, {
@@ -4168,6 +4178,7 @@
     var element = item._element;
     var grid = drag.getGrid();
     var settings = grid._settings;
+    var axis = settings.dragAxis;
     var dragData = drag._data;
     var gridContainer = grid._element;
     var elementGBCR = element.getBoundingClientRect();
@@ -4182,11 +4193,17 @@
       dragData.containerDiffY = offsetDiff.top;
     }
 
-    // Update position data.
-    dragData.left += xDiff;
-    dragData.top += yDiff;
-    dragData.gridX = dragData.left - dragData.containerDiffX;
-    dragData.gridY = dragData.top - dragData.containerDiffY;
+    // Update horizontal position data.
+    if (axis !== 'y') {
+      dragData.left += xDiff;
+      dragData.gridX = dragData.left - dragData.containerDiffX;
+    }
+
+    // Update vertical position data.
+    if (axis !== 'x') {
+      dragData.top += yDiff;
+      dragData.gridY = dragData.top - dragData.containerDiffY;
+    }
 
     // Update element's translateX/Y values.
     setStyles(element, {

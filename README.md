@@ -23,14 +23,14 @@ Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (posi
 ### 1. Get Muuri
 
 Download from GitHub:
-* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.3.0/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.3.0/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.3.1/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.3.1/muuri.min.js) - for production (minified, no comments).
 
 Or link directly via CDNJS:
 
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.0/muuri.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.0/muuri.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.1/muuri.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.1/muuri.min.js"></script>
 ```
 
 Or install with [npm](https://www.npmjs.com/):
@@ -207,6 +207,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
       delay: 0,
       handle: false
     },
+    dragAxis: null,
     dragSort: true,
     dragSortInterval: 100,
     dragSortPredicate: {
@@ -268,6 +269,7 @@ var gridB = new Muuri('.grid-b', {
 * [dragEnabled](#dragenabled-)
 * [dragContainer](#dragcontainer-)
 * [dragStartPredicate](#dragstartpredicate-)
+* [dragAxis](#dragaxis-)
 * [dragSort](#dragsort-)
 * [dragSortInterval](#dragsortinterval-)
 * [dragSortPredicate](#dragsortpredicate-)
@@ -607,6 +609,26 @@ var grid = new Muuri(elem, {
       return true;
     }
   }
+});
+```
+
+### dragAxis &nbsp;
+
+Force items to be moved only vertically or horizontally when dragged. Set to `'x'` for horizontal movement and to `'y'` for vertical movement. By default items can be dragged both vertically and horizontally.
+
+* Default value: `null`.
+* Accepted types: string.
+* Allowed values: `'x'`, `'y'`.
+
+```javascript
+// Move items only horizontally when dragged.
+var grid = new Muuri(elem, {
+  dragAxis: 'x'
+});
+
+// Move items only vertically when dragged.
+var grid = new Muuri(elem, {
+  dragAxis: 'y'
 });
 ```
 

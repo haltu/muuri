@@ -1,5 +1,6 @@
 node_modules
 website
+/demos
 /coverage
 /website
 *.log

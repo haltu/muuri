@@ -119,6 +119,24 @@ a:hover {
   background: #fff;
   border: 2px solid #e5e5e5;
   border-radius: 4px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+select.form-control {
+  padding-right: 40px;
+  cursor: pointer;
+}
+.select-arrow {
+  position: absolute;
+  right: 10px;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  z-index: 2;
+  pointer-events: none;
 }
 .form-control:focus {
   outline: 0;

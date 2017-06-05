@@ -121,11 +121,15 @@ a:hover {
   border-radius: 4px;
   -webkit-appearance: none;
   -moz-appearance: none;
+  -o-appearance: none;
   appearance: none;
 }
 select.form-control {
   padding-right: 40px;
   cursor: pointer;
+}
+select.form-control::-ms-expand {
+  display: none;
 }
 .select-arrow {
   position: absolute;

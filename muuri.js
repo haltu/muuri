@@ -77,6 +77,9 @@
   var typeString = 'string';
   var typeNumber = 'number';
 
+  // The requestAnimationFrame loop.
+  var rafLoop = new RafLoop();
+
   // Keep track of Grid instances.
   var gridInstances = {};
 
@@ -3365,7 +3368,12 @@
 
     // Setup drag scroll handler.
     drag._scrollHandler = function (e) {
-      drag.onScroll(e);
+      // TODO: This will potentially break when two elements are scrolled
+      // simultaneously. Every element's scroll handler must be added
+      // separately.
+      rafLoop.add(drag._itemId + 'scroll', function () {
+        drag.onScroll(e);
+      });
     };
 
     // Add drag recognizer to hammer.
@@ -3393,27 +3401,39 @@
     hammer
     .on('draginit dragstart dragmove', function (e) {
 
-      var predicateResult;
+      rafLoop.add(drag._itemId + e.type, function () {
 
-      // If predicate is pending try to resolve it.
-      if (predicate === predicatePending) {
-        predicateResult = checkPredicate(drag.getItem(), e);
-        if (predicateResult === true) {
-          predicate = predicateResolved;
-          drag.onStart(e);
-        }
-        else if (predicateResult === false) {
-          predicate = predicateRejected;
-        }
-      }
+        var predicateResult;
 
-      // Otherwise if predicate is resolved and drag is active, move the item.
-      else if (predicate === predicateResolved && drag._data.isActive) {
-        drag.onMove(e);
-      }
+        // If predicate is pending try to resolve it.
+        if (predicate === predicatePending) {
+          predicateResult = checkPredicate(drag.getItem(), e);
+          if (predicateResult === true) {
+            predicate = predicateResolved;
+            drag.onStart(e);
+          }
+          else if (predicateResult === false) {
+            predicate = predicateRejected;
+          }
+        }
+
+        // Otherwise if predicate is resolved and drag is active, move the item.
+        else if (predicate === predicateResolved && drag._data.isActive) {
+          drag.onMove(e);
+        }
+
+      });
 
     })
     .on('dragend dragcancel draginitup', function (e) {
+
+      // Unbind item's callbacks from the requestAnimationFrame loop.
+      rafLoop.remove([
+        drag._itemId + 'scroll',
+        drag._itemId + 'draginit',
+        drag._itemId + 'dragstart',
+        drag._itemId + 'dragmove'
+      ], true);
 
       var isResolved = predicate === predicateResolved;
 
@@ -3632,6 +3652,12 @@
       drag._hammer.destroy();
       drag.getItem()._element.removeEventListener('dragstart', preventDefault, false);
       drag._isDestroyed = true;
+      rafLoop.remove([
+        drag._itemId + 'scroll',
+        drag._itemId + 'draginit',
+        drag._itemId + 'dragstart',
+        drag._itemId + 'dragmove'
+      ]);
     }
 
     return drag;
@@ -4278,6 +4304,172 @@
     }
 
     return drag;
+
+  };
+
+  /**
+   * RafLoop
+   * ********
+   */
+
+  /**
+   * Create a requestAnimationFrame loop instance, which provides minimum
+   * amount of boilerplate to allow propagating callbacks to the raf loop as
+   * one-time events and automates the start/stop procedure of the loop.
+   *
+   * @class
+   * @private
+   */
+  function RafLoop() {
+
+    this._queue = [];
+    this._callbacks = {};
+    this._loop = null;
+    this._raf = global.requestAnimationFrame ||
+                global.webkitRequestAnimationFrame ||
+                global.mozRequestAnimationFrame ||
+                global.msRequestAnimationFrame ||
+                global.oRequestAnimationFrame ||
+                null;
+    this._caf = global.cancelAnimationFrame ||
+                global.webkitCancelAnimationFrame ||
+                global.mozCancelAnimationFrame ||
+                global.msCancelAnimationFrame ||
+                global.oCancelAnimationFrame ||
+                null;
+
+  }
+
+  /**
+   * RafLoop - Private prototype methods
+   * ***********************************
+   */
+
+  /**
+   * The update method.
+   *
+   * @private
+   * @memberof RafLoop.prototype
+   */
+  RafLoop.prototype._update = function () {
+
+    var inst = this;
+
+    // If the queue is not empty, let's process it.
+    if (inst._queue.length) {
+
+      var queue = inst._queue;
+      var callbacks = inst._callbacks;
+      var i;
+
+      inst._queue = [];
+      inst._callbacks = {};
+
+      for (i = 0; i < queue.length; i++) {
+        callbacks[queue[i]]();
+      }
+
+    }
+
+    // If the loop is still active, let's keep it running.
+    if (inst._loop) {
+      inst._loop = inst._raf.call(global, inst._update.bind(inst));
+    }
+
+  };
+
+  /**
+   * RafLoop - Public prototype methods
+   * **********************************
+   */
+
+  /**
+   * Add a one-time event to the raf loop. Starts the loop if it is not running
+   * already.
+   *
+   * @private
+   * @memberof RafLoop.prototype
+   * @param {String} id
+   * @param {Function} callback
+   */
+  RafLoop.prototype.add = function (id, callback) {
+
+    var inst = this;
+
+    // If requestAnimationFrame is not supported, just call the callback,
+    // and return immediately.
+    if (!inst._raf) {
+      callback();
+      return;
+    }
+
+    // Remove the id from the queue if it exists in it already.
+    var index = inst._queue.indexOf(id);
+    if (index > -1) {
+      inst._queue.splice(index, 1);
+    }
+
+    // Add the callback to the callbacks object.
+    inst._callbacks[id] = callback;
+
+    // Add the callback to the queue.
+    inst._queue.push(id);
+
+    // Start the loop if it is not running yet.
+    if (!inst._loop) {
+      inst._loop = inst._raf.call(global, inst._update.bind(inst));
+    }
+
+  };
+
+  /**
+   * Remove one or more one-time events from the raf loop. Calls the removed
+   * callbacks in the binding order immediately outside the loop. Automatically
+   * stops the loop if there are no more callbacks in the loop.
+   *
+   * @private
+   * @memberof RafLoop.prototype
+   * @param {(String|String[])} ids
+   * @param {Boolean} [callRemoved=false]
+   */
+  RafLoop.prototype.remove = function (ids, callRemoved) {
+
+    var inst = this;
+
+    // If requestAnimationFrame is not supported, just return immediately.
+    if (!inst._raf) {
+      return;
+    }
+
+    var targetIds = [].concat(ids);
+    var removedIds = [];
+    var targetId;
+    var targetIndex;
+    var i;
+
+    // Remove target ids from the queue and add them to the removedIds array
+    // into correct index (keeps the callback execution order intact).
+    for (i = 0; i < targetIds.length; i++) {
+      targetId = targetIds[i];
+      targetIndex = inst._queue.indexOf(targetId);
+      if (targetIndex > -1) {
+        removedIds[targetIndex] = inst._queue.splice(targetIndex, 1)[0];
+      }
+    }
+
+    // Loop through removed ids in correct execution order and call the
+    // callbacks (forEach method ignores the possible holes in array).
+    removedIds.forEach(function (id) {
+      callRemoved && inst._callbacks[id]();
+      inst._callbacks[id] = undefined;
+    });
+
+    // If the queue is empty, stop the loop.
+    if (inst._loop && !inst._queue.length) {
+      inst._caf.call(global, inst._loop);
+      inst._loop = null;
+      inst._callbacks = {};
+    }
 
   };
 

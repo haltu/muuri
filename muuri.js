@@ -78,7 +78,7 @@
   var typeNumber = 'number';
 
   // The requestAnimationFrame loop.
-  var rafLoop = new RafLoop();
+  var rafLoop = createRafLoop();
 
   // Keep track of Grid instances.
   var gridInstances = {};
@@ -190,7 +190,6 @@
     var inst = this;
     var settings;
     var items;
-    var debouncedLayout;
     var layoutOnResize;
 
     // Allow passing element as selector string. Store element for instance.
@@ -254,13 +253,12 @@
     layoutOnResize = settings.layoutOnResize;
     layoutOnResize = layoutOnResize === true ? 0 : typeof layoutOnResize === typeNumber ? layoutOnResize : -1;
     if (layoutOnResize >= 0) {
-      debouncedLayout = debounce(function () {
-        inst.refreshItems().layout();
-      }, layoutOnResize);
-      inst._resizeHandler = function () {
-        debouncedLayout();
-      };
-      global.addEventListener('resize', inst._resizeHandler);
+      global.addEventListener('resize', inst._resizeHandler = debounce(function () {
+        rafLoop.add(inst._id + 'resize', function () {
+          console.log('resize');
+          inst.refreshItems().layout();
+        });
+      }, layoutOnResize));
     }
 
     // Layout on init if necessary.
@@ -1220,6 +1218,7 @@
 
     // Unbind window resize event listener.
     if (inst._resizeHandler) {
+      rafLoop.remove(inst._id + 'resize');
       global.removeEventListener('resize', inst._resizeHandler);
     }
 
@@ -2342,6 +2341,12 @@
    */
   function Layout(grid, items) {
 
+    // TODO: Detect if all items are same size. And do some optimizations
+    // based on that. Try to figure out an algorithm that creates the layout
+    // a lot faster in those situations. Alos try to detect if the items are
+    // same width/height and do optimizations based on that. We also need a
+    // dirty check here to see if the current layout needs full refresh.
+
     // Sanitize items.
     items = items ? items.concat() : grid.getItems('active');
 
@@ -2399,8 +2404,9 @@
       setWidth: isHorizontal,
       setHeight: !isHorizontal
     };
-    var emptySlots = [];
+    var freeSlots = [];
     var slotIds;
+    var slotData;
     var slot;
     var item;
     var i;
@@ -2413,7 +2419,9 @@
     // Find slots for items.
     for (i = 0; i < items.length; i++) {
       item = items[i];
-      slot = layoutGetSlot(layout, emptySlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
+      slotData = layoutGetSlot(layout, freeSlots, item._outerWidth, item._outerHeight, !isHorizontal, fillGaps);
+      slot = slotData[0];
+      freeSlots = slotData[1];
       if (isHorizontal) {
         layout.width = Math.max(layout.width, slot.left + slot.width);
       }
@@ -2461,7 +2469,6 @@
    */
   function layoutGetSlot(layout, slots, itemWidth, itemHeight, vertical, fillGaps) {
 
-    var currentSlots = slots[0] || [];
     var newSlots = [];
     var item = {
       left: null,
@@ -2476,8 +2483,8 @@
     var ii;
 
     // Try to find a slot for the item.
-    for (i = 0; i < currentSlots.length; i++) {
-      slot = currentSlots[i];
+    for (i = 0; i < slots.length; i++) {
+      slot = slots[i];
       if (item.width <= slot.width && item.height <= slot.height) {
         item.left = slot.left;
         item.top = slot.top;
@@ -2560,8 +2567,8 @@
     // Clean up the current slots making sure there are no old slots that
     // overlap with the item. If an old slot overlaps with the item, split it
     // into smaller slots if necessary.
-    for (i = fillGaps ? 0 : ignoreCurrentSlots ? currentSlots.length : i; i < currentSlots.length; i++) {
-      potentialSlots = splitRectWithRect(currentSlots[i], item);
+    for (i = fillGaps ? 0 : ignoreCurrentSlots ? slots.length : i; i < slots.length; i++) {
+      potentialSlots = splitRectWithRect(slots[i], item);
       for (ii = 0; ii < potentialSlots.length; ii++) {
         slot = potentialSlots[ii];
         if (slot.width > 0 && slot.height > 0 && ((vertical && slot.top < layout.height) || (!vertical && slot.left < layout.width))) {
@@ -2570,11 +2577,13 @@
       }
     }
 
-    // Remove redundant slots, sort the slots and update the slots data.
-    slots[0] = purgeRects(newSlots).sort(vertical ? sortRectsTopLeft : sortRectsLeftTop);
+    // Sanitize new slots.
+    if (newSlots.length) {
+      newSlots = purgeRects(newSlots).sort(vertical ? sortRectsTopLeft : sortRectsLeftTop);
+    }
 
-    // Return the item.
-    return item;
+    // Return the item and updated slots data.
+    return [item, newSlots];
 
   }
 
@@ -3332,7 +3341,7 @@
   function ItemDrag(item) {
 
     if (!Hammer) {
-      throw Error('[' + libName + '] required dependency Hammer is not defined.');
+      throw new Error('[' + libName + '] required dependency Hammer is not defined.');
     }
 
     var drag = this;
@@ -3365,16 +3374,6 @@
 
     // Setup sort predicate.
     drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ? settings.dragSortPredicate : ItemDrag.defaultSortPredicate;
-
-    // Setup drag scroll handler.
-    drag._scrollHandler = function (e) {
-      // TODO: This will potentially break when two elements are scrolled
-      // simultaneously. Every element's scroll handler must be added
-      // separately.
-      rafLoop.add(drag._itemId + 'scroll', function () {
-        drag.onScroll(e);
-      });
-    };
 
     // Add drag recognizer to hammer.
     hammer.add(new Hammer.Pan({
@@ -3427,13 +3426,9 @@
     })
     .on('dragend dragcancel draginitup', function (e) {
 
-      // Unbind item's callbacks from the requestAnimationFrame loop.
-      rafLoop.remove([
-        drag._itemId + 'scroll',
-        drag._itemId + 'draginit',
-        drag._itemId + 'dragstart',
-        drag._itemId + 'dragmove'
-      ], true);
+      // Unbind item's callbacks from the requestAnimationFrame loop and call
+      // all queued callbacks.
+      drag.unbindRafLoop(true);
 
       var isResolved = predicate === predicateResolved;
 
@@ -3652,12 +3647,6 @@
       drag._hammer.destroy();
       drag.getItem()._element.removeEventListener('dragstart', preventDefault, false);
       drag._isDestroyed = true;
-      rafLoop.remove([
-        drag._itemId + 'scroll',
-        drag._itemId + 'draginit',
-        drag._itemId + 'dragstart',
-        drag._itemId + 'dragmove'
-      ]);
     }
 
     return drag;
@@ -3736,6 +3725,100 @@
     // container and it's original container.
     dragData.containerDiffX = 0;
     dragData.containerDiffY = 0;
+
+    return drag;
+
+  };
+
+  /**
+   * Bind drag scroll handlers to all scrollable ancestor elements of the
+   * dragged element and the drag container element.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.bindScrollers = function () {
+
+    var drag = this;
+    var dragData = drag._data;
+    var item = drag.getItem();
+    var grid = drag.getGrid();
+    var element = item.getElement();
+    var gridContainer = grid.getElement();
+    var dragContainer = dragData.container;
+    var scrollers = getScrollParents(element);
+
+    // If drag container is defined and it's not the same element as grid
+    // container then we need to add the grid container and it's scroll parents
+    // to the elements which are going to be listener for scroll events.
+    if (dragContainer !== gridContainer) {
+      scrollers = arrayUnique(scrollers.concat(gridContainer).concat(getScrollParents(gridContainer)));
+    }
+
+    // Bind scroll listeners and store the "scroller" objects to drag data.
+    dragData.scrollers = scrollers.map(function (element, index) {
+      var id = drag._itemId + 'scroll' + index;
+      var listener = function (e) {
+        rafLoop.add(id, function () {
+          drag.onScroll(e);
+        });
+      };
+      element.addEventListener('scroll', listener);
+      return [element, listener, id];
+    });
+
+    return drag;
+
+  };
+
+  /**
+   * Unbind currently bound drag scroll handlers from all scrollable ancestor
+   * elements of the dragged element and the drag container element.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.unbindScrollers = function () {
+
+    var drag = this;
+    var dragData = drag._data;
+    var scrollers = dragData.scrollers;
+    var i;
+
+    for (i = 0; i < scrollers.length; i++) {
+      scrollers[i][0].removeEventListener('scroll', scrollers[i][1]);
+    }
+
+    dragData.scrollers = [];
+
+    return drag;
+
+  };
+
+  /**
+   * Unbind currently bound requestAnimationFrame loop callbacks.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @param {Boolean} [callRemoved=false]
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.unbindRafLoop = function (callRemoved) {
+
+    var drag = this;
+    var dragData = drag._data;
+    var itemId = drag._itemId;
+    var rafIds = dragData.scrollers.map(function (scroller) {
+      return scroller[2];
+    });
+
+    rafLoop.remove(rafIds.concat([
+      itemId + 'draginit',
+      itemId + 'dragstart',
+      itemId + 'dragmove'
+    ]), callRemoved);
 
     return drag;
 
@@ -3940,7 +4023,6 @@
     var dragData = drag._data;
     var element;
     var grid;
-    var i;
 
     if (!dragData.isActive) {
       return drag;
@@ -3956,10 +4038,11 @@
     element = drag.getItem()._element;
     grid = drag.getGrid();
 
+    // Unbind requestAnimationFrame loop callbacks.
+    drag.unbindRafLoop();
+
     // Remove scroll listeners.
-    for (i = 0; i < dragData.scrollers.length; i++) {
-      dragData.scrollers[i].removeEventListener('scroll', drag._scrollHandler);
-    }
+    drag.unbindScrollers();
 
     // Cancel overlap check.
     drag._checkSortOverlap('cancel');
@@ -3988,9 +4071,10 @@
    *
    * @public
    * @memberof ItemDrag.prototype
+   * @param {Object} event
    * @returns {ItemDrag}
    */
-  ItemDrag.prototype.onStart = function (e) {
+  ItemDrag.prototype.onStart = function (event) {
 
     var drag = this;
     var item = drag.getItem();
@@ -4007,7 +4091,6 @@
     var offsetDiff;
     var elementGBCR;
     var isWithinDragContainer;
-    var i;
 
     // If item is not active, don't start the drag.
     if (!item._isActive) {
@@ -4037,7 +4120,7 @@
 
     // Setup drag data.
     dragData.isActive = true;
-    dragData.startEvent = dragData.currentEvent = e;
+    dragData.startEvent = dragData.currentEvent = event;
 
     // Get element's current position.
     currentLeft = getTranslateAsFloat(element, 'x');
@@ -4095,27 +4178,14 @@
     dragData.elementClientX = elementGBCR.left;
     dragData.elementClientY = elementGBCR.top;
 
-    // Get dragged element's scroll parents.
-    dragData.scrollers = getScrollParents(element);
-
-    // If drag container is defined and it's not the the element as grid
-    // container we need to add the grid container and grid container's scroll
-    // parent's to the element's which are going to be listener for scroll
-    // events.
-    if (dragContainer !== gridContainer) {
-      dragData.scrollers = arrayUnique(dragData.scrollers.concat(gridContainer).concat(getScrollParents(gridContainer)));
-    }
-
-    // Bind scroll listeners.
-    for (i = 0; i < dragData.scrollers.length; i++) {
-      dragData.scrollers[i].addEventListener('scroll', drag._scrollHandler);
-    }
+    // Bind drag scrollers.
+    drag.bindScrollers();
 
     // Set drag class.
     addClass(element, settings.itemDraggingClass);
 
     // Emit dragStart event.
-    grid._emit(evDragStart, item, e);
+    grid._emit(evDragStart, item, event);
 
     return drag;
 
@@ -4126,9 +4196,10 @@
    *
    * @public
    * @memberof ItemDrag.prototype
+   * @param {Object} event
    * @returns {ItemDrag}
    */
-  ItemDrag.prototype.onMove = function (e) {
+  ItemDrag.prototype.onMove = function (event) {
 
     var drag = this;
     var item = drag.getItem();
@@ -4153,11 +4224,11 @@
     axis = settings.dragAxis;
 
     // Get delta difference from last dragmove event.
-    xDiff = e.deltaX - dragData.currentEvent.deltaX;
-    yDiff = e.deltaY - dragData.currentEvent.deltaY;
+    xDiff = event.deltaX - dragData.currentEvent.deltaX;
+    yDiff = event.deltaY - dragData.currentEvent.deltaY;
 
     // Update current event.
-    dragData.currentEvent = e;
+    dragData.currentEvent = event;
 
     // Update horizontal position data.
     if (axis !== 'y') {
@@ -4184,7 +4255,7 @@
     }
 
     // Emit dragMove event.
-    grid._emit(evDragMove, item, e);
+    grid._emit(evDragMove, item, event);
 
     return drag;
 
@@ -4195,9 +4266,10 @@
    *
    * @public
    * @memberof ItemDrag.prototype
+   * @param {Object} event
    * @returns {ItemDrag}
    */
-  ItemDrag.prototype.onScroll = function (e) {
+  ItemDrag.prototype.onScroll = function (event) {
 
     var drag = this;
     var item = drag.getItem();
@@ -4242,7 +4314,7 @@
     }
 
     // Emit dragScroll event.
-    grid._emit(evDragScroll, item, e);
+    grid._emit(evDragScroll, item, event);
 
     return drag;
 
@@ -4253,9 +4325,10 @@
    *
    * @public
    * @memberof ItemDrag.prototype
+   * @param {Object} event
    * @returns {ItemDrag}
    */
-  ItemDrag.prototype.onEnd = function (e) {
+  ItemDrag.prototype.onEnd = function (event) {
 
     var drag = this;
     var item = drag.getItem();
@@ -4264,7 +4337,6 @@
     var settings = grid._settings;
     var dragData = drag._data;
     var release = item._release;
-    var i;
 
     // If item is not active, reset drag.
     if (!item._isActive) {
@@ -4278,9 +4350,7 @@
     }
 
     // Remove scroll listeners.
-    for (i = 0; i < dragData.scrollers.length; i++) {
-      dragData.scrollers[i].removeEventListener('scroll', drag._scrollHandler);
-    }
+    drag.unbindScrollers();
 
     // Remove drag classname from element.
     removeClass(element, settings.itemDraggingClass);
@@ -4293,7 +4363,7 @@
     drag.reset();
 
     // Emit dragEnd event.
-    grid._emit(evDragEnd, item, e);
+    grid._emit(evDragEnd, item, event);
 
     // Finish up the migration process or start the release process.
     if (drag._isMigrating) {
@@ -4304,172 +4374,6 @@
     }
 
     return drag;
-
-  };
-
-  /**
-   * RafLoop
-   * ********
-   */
-
-  /**
-   * Create a requestAnimationFrame loop instance, which provides minimum
-   * amount of boilerplate to allow propagating callbacks to the raf loop as
-   * one-time events and automates the start/stop procedure of the loop.
-   *
-   * @class
-   * @private
-   */
-  function RafLoop() {
-
-    this._queue = [];
-    this._callbacks = {};
-    this._loop = null;
-    this._raf = global.requestAnimationFrame ||
-                global.webkitRequestAnimationFrame ||
-                global.mozRequestAnimationFrame ||
-                global.msRequestAnimationFrame ||
-                global.oRequestAnimationFrame ||
-                null;
-    this._caf = global.cancelAnimationFrame ||
-                global.webkitCancelAnimationFrame ||
-                global.mozCancelAnimationFrame ||
-                global.msCancelAnimationFrame ||
-                global.oCancelAnimationFrame ||
-                null;
-
-  }
-
-  /**
-   * RafLoop - Private prototype methods
-   * ***********************************
-   */
-
-  /**
-   * The update method.
-   *
-   * @private
-   * @memberof RafLoop.prototype
-   */
-  RafLoop.prototype._update = function () {
-
-    var inst = this;
-
-    // If the queue is not empty, let's process it.
-    if (inst._queue.length) {
-
-      var queue = inst._queue;
-      var callbacks = inst._callbacks;
-      var i;
-
-      inst._queue = [];
-      inst._callbacks = {};
-
-      for (i = 0; i < queue.length; i++) {
-        callbacks[queue[i]]();
-      }
-
-    }
-
-    // If the loop is still active, let's keep it running.
-    if (inst._loop) {
-      inst._loop = inst._raf.call(global, inst._update.bind(inst));
-    }
-
-  };
-
-  /**
-   * RafLoop - Public prototype methods
-   * **********************************
-   */
-
-  /**
-   * Add a one-time event to the raf loop. Starts the loop if it is not running
-   * already.
-   *
-   * @private
-   * @memberof RafLoop.prototype
-   * @param {String} id
-   * @param {Function} callback
-   */
-  RafLoop.prototype.add = function (id, callback) {
-
-    var inst = this;
-
-    // If requestAnimationFrame is not supported, just call the callback,
-    // and return immediately.
-    if (!inst._raf) {
-      callback();
-      return;
-    }
-
-    // Remove the id from the queue if it exists in it already.
-    var index = inst._queue.indexOf(id);
-    if (index > -1) {
-      inst._queue.splice(index, 1);
-    }
-
-    // Add the callback to the callbacks object.
-    inst._callbacks[id] = callback;
-
-    // Add the callback to the queue.
-    inst._queue.push(id);
-
-    // Start the loop if it is not running yet.
-    if (!inst._loop) {
-      inst._loop = inst._raf.call(global, inst._update.bind(inst));
-    }
-
-  };
-
-  /**
-   * Remove one or more one-time events from the raf loop. Calls the removed
-   * callbacks in the binding order immediately outside the loop. Automatically
-   * stops the loop if there are no more callbacks in the loop.
-   *
-   * @private
-   * @memberof RafLoop.prototype
-   * @param {(String|String[])} ids
-   * @param {Boolean} [callRemoved=false]
-   */
-  RafLoop.prototype.remove = function (ids, callRemoved) {
-
-    var inst = this;
-
-    // If requestAnimationFrame is not supported, just return immediately.
-    if (!inst._raf) {
-      return;
-    }
-
-    var targetIds = [].concat(ids);
-    var removedIds = [];
-    var targetId;
-    var targetIndex;
-    var i;
-
-    // Remove target ids from the queue and add them to the removedIds array
-    // into correct index (keeps the callback execution order intact).
-    for (i = 0; i < targetIds.length; i++) {
-      targetId = targetIds[i];
-      targetIndex = inst._queue.indexOf(targetId);
-      if (targetIndex > -1) {
-        removedIds[targetIndex] = inst._queue.splice(targetIndex, 1)[0];
-      }
-    }
-
-    // Loop through removed ids in correct execution order and call the
-    // callbacks (forEach method ignores the possible holes in array).
-    removedIds.forEach(function (id) {
-      callRemoved && inst._callbacks[id]();
-      inst._callbacks[id] = undefined;
-    });
-
-    // If the queue is empty, stop the loop.
-    if (inst._loop && !inst._queue.length) {
-      inst._caf.call(global, inst._loop);
-      inst._loop = null;
-      inst._callbacks = {};
-    }
 
   };
 
@@ -4712,6 +4616,140 @@
         fn();
       }
 
+    };
+
+  }
+
+  /**
+   * Create a requestAnimationFrame loop, which returns an object that contains
+   * add and remove methods for adding/removing callbacks to/from the loop.
+   *
+   * @private
+   * @returns {Object}
+   */
+  function createRafLoop() {
+
+    var queue = [];
+    var callbacks = {};
+    var loop = null;
+    var raf = global.requestAnimationFrame ||
+              global.webkitRequestAnimationFrame ||
+              global.mozRequestAnimationFrame ||
+              global.msRequestAnimationFrame ||
+              global.oRequestAnimationFrame ||
+              null;
+
+    // Bind the window object to raf so it can be called directly.
+    raf = raf && raf.bind(global);
+
+    /**
+     * The update method. This will be process the queue and call the callbacks
+     * on the next available animation frame. If the queue is empty the loop
+     * will automatically be stopped.
+     */
+    function update() {
+
+      // If the queue is empty, let's kill the loop.
+      if (!queue.length) {
+        loop = null;
+        callbacks = {};
+        return;
+      }
+
+      var currentQueue = queue;
+      var currentCallbacks = callbacks;
+      var i;
+
+      // Reste queue anc callbacks.
+      queue = [];
+      callbacks = {};
+
+      // Call the callbacks.
+      for (i = 0; i < currentQueue.length; i++) {
+        currentCallbacks[currentQueue[i]]();
+      }
+
+      // If the loop is still active, let's keep it running.
+      loop = loop && raf(update);
+
+    }
+
+    /**
+     * Add a one-time event to the raf loop. Starts the loop if it is not
+     * running already.
+     *
+     * @param {String} id
+     * @param {Function} callback
+     */
+    function add(id, callback) {
+
+      // If requestAnimationFrame is not supported let's just call the callback
+      // and be done with it.
+      if (!raf) {
+        callback();
+        return;
+      }
+
+      // Remove the id from the queue if it exists in it already.
+      var index = queue.indexOf(id);
+      if (index > -1) {
+        queue.splice(index, 1);
+      }
+
+      // Add the callback to the callbacks object.
+      callbacks[id] = callback;
+
+      // Add the callback to the queue.
+      queue.push(id);
+
+      // Start the loop if it is not running yet.
+      loop = loop || raf(update);
+
+    }
+
+    /**
+     * Remove one or more one-time events from the raf loop. Automatically
+     * stops the loop if there are no more callbacks in the loop. Optionally
+     * calls the removed callbacks in the binding order immediately (outside the
+     * loop).
+     *
+     * @param {(String|String[])} ids
+     * @param {Boolean} [callRemoved=false]
+     */
+    function remove(ids, callRemoved) {
+
+      // If requestAnimationFrame is not supported let's call it a day.
+      if (!raf) {
+        return;
+      }
+
+      var targetIds = [].concat(ids);
+      var removedIds = [];
+      var targetIndex;
+      var i;
+
+      // Remove target ids from the queue and add them to the removedIds array
+      // into correct index (keeps the callback execution order intact).
+      for (i = 0; i < targetIds.length; i++) {
+        targetIndex = queue.indexOf(targetIds[i]);
+        if (targetIndex > -1) {
+          removedIds[targetIndex] = queue.splice(targetIndex, 1)[0];
+        }
+      }
+
+      // Loop through removed ids in correct execution order and call the
+      // callbacks (forEach method ignores the possible holes in array which we
+      // can leverage here).
+      removedIds.forEach(function (id) {
+        callRemoved && callbacks[id]();
+        callbacks[id] = undefined;
+      });
+
+    }
+
+    return {
+      add: add,
+      remove: remove
     };
 
   }

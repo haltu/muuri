@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.3.1-dev
+ * Muuri v0.4.0-dev
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -65,12 +65,14 @@
   'use strict';
 
   // Get references to all the stuff we are using from the global scope.
-  var document = global.document;
   var Object = global.Object;
   var Array = global.Array;
   var Math = global.Math;
   var Error = global.Error;
   var Element = global.Element;
+  var doc = global.document;
+  var docElem = doc.documentElement;
+  var body = doc.body;
 
   // Types.
   var typeFunction = 'function';
@@ -193,11 +195,11 @@
     var layoutOnResize;
 
     // Allow passing element as selector string. Store element for instance.
-    element = inst._element = typeof element === typeString ? document.querySelectorAll(element)[0] : element;
+    element = inst._element = typeof element === typeString ? doc.querySelectorAll(element)[0] : element;
 
     // Throw an error if the container element is not body element or does not
     // exist within the body element.
-    if (!document.body.contains(element)) {
+    if (!body.contains(element)) {
       throw new Error('Container element must be an existing DOM element');
     }
 
@@ -255,7 +257,6 @@
     if (layoutOnResize >= 0) {
       global.addEventListener('resize', inst._resizeHandler = debounce(function () {
         rafLoop.add(inst._id + 'resize', function () {
-          console.log('resize');
           inst.refreshItems().layout();
         });
       }, layoutOnResize));
@@ -595,7 +596,7 @@
       for (i = 0; i < items.length; i++) {
         element = items[i]._element;
         if (element.parentNode === container) {
-          fragment = fragment || document.createDocumentFragment();
+          fragment = fragment || doc.createDocumentFragment();
           fragment.appendChild(element);
         }
       }
@@ -655,8 +656,8 @@
 
     // Create a new layout and store the new layout instance into the grid
     // instance.
-    layout = inst._layout = new Grid.Layout(inst);
-    items = layout.items.concat();
+    items = inst.getItems('active');
+    layout = inst._layout = new Grid.Layout(inst, items);
     counter = items.length;
 
     // Emit layoutStart event.
@@ -1166,7 +1167,7 @@
     var currentGrid = this;
     var targetGrid = grid;
     var opts = options || {};
-    var container = opts.appendTo || document.body;
+    var container = opts.appendTo || body;
     var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
     var layoutReceiver = opts.layoutReceiver ? opts.layoutReceiver : opts.layoutReceiver === undefined;
 
@@ -1342,7 +1343,7 @@
   Grid.prototype._refreshDimensions = function () {
 
     var inst = this;
-    var element = this.getElement();
+    var element = inst._element;
     var rect = element.getBoundingClientRect();
     var sides = ['left', 'right', 'top', 'bottom'];
     var i;
@@ -2337,18 +2338,12 @@
    * @public
    * @class
    * @param {Grid} grid
-   * @param {Item[]} [items]
+   * @param {Item[]} items
    */
   function Layout(grid, items) {
 
-    // TODO: Detect if all items are same size. And do some optimizations
-    // based on that. Try to figure out an algorithm that creates the layout
-    // a lot faster in those situations. Alos try to detect if the items are
-    // same width/height and do optimizations based on that. We also need a
-    // dirty check here to see if the current layout needs full refresh.
-
-    // Sanitize items.
-    items = items ? items.concat() : grid.getItems('active');
+    // Clone items.
+    items = items.concat();
 
     // Let's make sure we have the correct container dimensions before going
     // further.
@@ -2358,14 +2353,10 @@
     var settings = grid._settings.layout;
     var width = grid._width - grid._border.left - grid._border.right - grid._padding.left - grid._padding.right;
     var height = grid._height - grid._border.top - grid._border.bottom - grid._padding.top - grid._padding.bottom;
-
-    // Calculate the layout data. If the user has provided custom function as a
-    // layout method invoke it. Otherwise invoke the default layout method.
-    var layout = typeof settings === typeFunction ? settings(items, width, height) :
-                 layoutDefault(items, width, height, isPlainObject(settings) ? settings : {});
+    var isCustomLayout = typeof settings === typeFunction;
+    var layout = isCustomLayout ? settings(items, width, height) : layoutDefault(items, width, height, isPlainObject(settings) ? settings : {});
 
     // Set instance data based on layout data.
-    inst.items = items;
     inst.slots = layout.slots;
     inst.setWidth = layout.setWidth || false;
     inst.setHeight = layout.setHeight || false;
@@ -2956,13 +2947,13 @@
     }
 
     item = migrate.getItem();
-    itemElement = item.getElement();
+    itemElement = item._element;
     isItemVisible = item.isVisible();
     currentGrid = item.getGrid();
     currentGridStn = currentGrid._settings;
     targetGridStn = targetGrid._settings;
-    targetGridElement = targetGrid.getElement();
-    targetContainer = container || document.body;
+    targetGridElement = targetGrid._element;
+    targetContainer = container || body;
 
     // Get current index and target index
     currentIndex = currentGrid._items.indexOf(item);
@@ -3114,9 +3105,9 @@
     }
 
     item = migrate.getItem();
-    element = item.getElement();
+    element = item._element;
     grid = item.getGrid();
-    gridElement = grid.getElement();
+    gridElement = grid._element;
 
     if (migrate.container !== gridElement) {
       translateX = abort ? getTranslateAsFloat(element, 'x') - migrate.containerDiffX : item._left;
@@ -3219,7 +3210,7 @@
 
     if (!release._isDestroyed) {
       item = release.getItem();
-      removeClass(item.getElement(), item.getGrid()._settings.itemReleasingClass);
+      removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
       release.isActive = false;
       release.isPositioningStarted = false;
       release.containerDiffX = 0;
@@ -3249,7 +3240,7 @@
     }
 
     item = release.getItem();
-    element = item.getElement();
+    element = item._element;
     grid = item.getGrid();
 
     // Flag release as active.
@@ -3297,9 +3288,9 @@
     }
 
     item = release.getItem();
-    element = item.getElement();
+    element = item._element;
     grid = item.getGrid();
-    container = grid.getElement();
+    container = grid._element;
     containerDiffX = release.containerDiffX;
     containerDiffY = release.containerDiffY;
 
@@ -3469,7 +3460,7 @@
    */
   ItemDrag.defaultStartPredicate = function (item, event) {
 
-    var elem = item.getElement();
+    var element = item._element;
     var drag = item._drag;
     var rootGrid = drag.getGrid();
     var config = rootGrid._settings.dragStartPredicate || {};
@@ -3484,9 +3475,9 @@
     // the predicate is either resolved or it's not and there's nothing to do
     // about it. The stuff inside this if clause is used just for cleaning up.
     if (event.isFinal) {
-      isAnchor = elem.tagName.toLowerCase() === 'a';
-      href = elem.getAttribute('href');
-      target = elem.getAttribute('target');
+      isAnchor = element.tagName.toLowerCase() === 'a';
+      href = element.getAttribute('href');
+      target = element.getAttribute('target');
       if (isAnchor && href && Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200) {
         if (target && target !== '_self') {
           global.open(href, target);
@@ -3744,8 +3735,8 @@
     var dragData = drag._data;
     var item = drag.getItem();
     var grid = drag.getGrid();
-    var element = item.getElement();
-    var gridContainer = grid.getElement();
+    var element = item._element;
+    var gridContainer = grid._element;
     var dragContainer = dragData.container;
     var scrollers = getScrollParents(element);
 
@@ -3943,9 +3934,9 @@
     var drag = this;
     var item = drag.getItem();
     var release = item._release;
-    var element = item.getElement();
+    var element = item._element;
     var targetGrid = item.getGrid();
-    var targetGridElement = targetGrid.getElement();
+    var targetGridElement = targetGrid._element;
     var targetStn = targetGrid._settings;
     var targetContainer = targetStn.dragContainer || targetGridElement;
     var currentStn = drag.getGrid()._settings;
@@ -4922,7 +4913,6 @@
    */
   function getSupportedStyle(style) {
 
-    var docElem = document.documentElement;
     var styleCap = style.charAt(0).toUpperCase() + style.slice(1);
     var prefixes = ['', 'Webkit', 'Moz', 'O', 'ms'];
     var prefix;
@@ -5001,7 +4991,7 @@
     };
 
     // Document's offsets are always 0.
-    if (element === document) {
+    if (element === doc) {
       return ret;
     }
 
@@ -5042,9 +5032,9 @@
     // As long as the containing block is an element, static and not
     // transformed, try to get the element's parent element and fallback to
     // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
-    var ret = (isParent ? element : element.parentElement) || document;
-    while (ret && ret !== document && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
-      ret = ret.parentElement || document;
+    var ret = (isParent ? element : element.parentElement) || doc;
+    while (ret && ret !== doc && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
+      ret = ret.parentElement || doc;
     }
 
     return ret;
@@ -5077,7 +5067,7 @@
       }
 
       // Find scroll parents.
-      while (parent && parent !== document && parent !== document.documentElement) {
+      while (parent && parent !== doc && parent !== docElem) {
         if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
           ret[ret.length] = parent;
         }
@@ -5095,7 +5085,7 @@
     else {
 
       // Find scroll parents.
-      while (parent && parent !== document) {
+      while (parent && parent !== doc) {
 
         // If the currently looped element is fixed ignore all parents that are
         // not transformed.
@@ -5117,7 +5107,7 @@
 
       // If the last item is the root element, replace it with the global
       // object (window). The root element scroll is propagated to the window.
-      if (ret[ret.length - 1] === document.documentElement) {
+      if (ret[ret.length - 1] === docElem) {
         ret[ret.length - 1] = global;
       }
 
@@ -5154,42 +5144,25 @@
       return true;
     }
 
-    var outer = document.createElement('div');
-    var inner = document.createElement('div');
-    var leftNotTransformed;
-    var leftTransformed;
-
-    setStyles(outer, {
-      display: 'block',
-      visibility: 'hidden',
-      position: 'absolute',
-      width: '1px',
-      height: '1px',
-      left: '1px',
-      top: '0',
-      margin: '0',
-      transform: 'none'
+    var elems = [0, 1].map(function (elem, isInner) {
+      elem = doc.createElement('div');
+      setStyles(elem, {
+        position: isInner ? 'fixed' : 'absolute',
+        display: 'block',
+        visibility: 'hidden',
+        left: isInner ? '0px' : '1px',
+        transform: 'none'
+      });
+      return elem;
     });
+    var outer = body.appendChild(elems[0]);
+    var inner = outer.appendChild(elems[1]);
+    var left = inner.getBoundingClientRect().left;
+    setStyles(outer, {transform: 'scale(1)'});
+    var isLeaking = left === inner.getBoundingClientRect().left;
+    body.removeChild(outer);
 
-    setStyles(inner, {
-      display: 'block',
-      position: 'fixed',
-      width: '1px',
-      height: '1px',
-      left: '0',
-      top: '0',
-      margin: '0',
-      transform: 'none'
-    });
-
-    outer.appendChild(inner);
-    document.body.appendChild(outer);
-    leftNotTransformed = inner.getBoundingClientRect().left;
-    outer.style[transform.propName] = 'scaleX(1)';
-    leftTransformed = inner.getBoundingClientRect().left;
-    document.body.removeChild(outer);
-
-    return leftTransformed === leftNotTransformed;
+    return isLeaking;
 
   }
 

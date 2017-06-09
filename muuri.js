@@ -5365,11 +5365,9 @@
       return 0;
     }
 
-    // Calculate inersection area width and height.
+    // Calculate intersection area's width, height, max height and max width.
     var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
     var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-
-    // Calculate maximum intersection area width and height.
     var maxWidth = Math.min(a.width, b.width);
     var maxHeight = Math.min(a.height, b.height);
 
@@ -5516,7 +5514,8 @@
    *
    * @private
    * @param {Grid} inst
-   * @param {String} method - "show" or "hide".
+   * @param {String} method
+   *   - "show" or "hide".
    * @param {(GridMultiItemQuery|GridItemState)} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]

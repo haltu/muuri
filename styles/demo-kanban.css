@@ -1,24 +1,26 @@
 
 /* Board */
 
-.board {}
-.board:before,
-.board:after {
-  content: " ";
-  display: table;
-}
-.board:after {
-  clear: both;
+.board {
+  position: relative;
+  margin-left: 1%;
 }
 .board-column {
-  position: relative;
-  float: left;
-  width: 32%;
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 30%;
+  margin: 0 1.5%;
   background: #f0f0f0;
   border-radius: 3px;
+  z-index: 1;
 }
-.board-column:nth-child(2) {
-  margin: 0 2%;
+.board-column.muuri-item-releasing {
+  z-index: 2;
+}
+.board-column.muuri-item-dragging {
+  z-index: 3;
+  cursor: move;
 }
 .board-column-header {
   position: relative;
@@ -36,13 +38,13 @@
     text-indent: -1000px;
   }
 }
-.board-column:nth-child(1) .board-column-header {
+.board-column.todo .board-column-header {
   background: #4A9FF9;
 }
-.board-column:nth-child(2) .board-column-header {
+.board-column.working .board-column-header {
   background: #f9944a;
 }
-.board-column:nth-child(3) .board-column-header {
+.board-column.done .board-column-header {
   background: #2ac06d;
 }
 .board-column-content {
@@ -60,8 +62,6 @@
 }
 .board-item.muuri-item-dragging {
   z-index: 9999;
-}
-.board-item.muuri-item-dragging {
   cursor: move;
 }
 .board-item.muuri-item-hidden {

@@ -2,9 +2,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var docElem = document.documentElement;
   var kanban = document.querySelector('.kanban-demo');
+  var board = kanban.querySelector('.board');
   var itemContainers = Array.prototype.slice.call(kanban.querySelectorAll('.board-column-content'));
-  var muuriInstances = [];
+  var columnGrids = [];
   var dragCounter = 0;
+  var boardGrid;
 
   itemContainers.forEach(function (container) {
 
@@ -29,13 +31,25 @@ document.addEventListener('DOMContentLoaded', function () {
     .on('dragReleaseEnd', function (item) {
       item.getElement().style.width = '';
       item.getElement().style.height = '';
-      muuriInstances.forEach(function (muuri) {
+      columnGrids.forEach(function (muuri) {
         muuri.refreshItems();
       });
+    })
+    .on('layoutStart', function () {
+      window.setTimeout(function () {
+        boardGrid.refreshItems().layout();
+      }, 0);
     });
 
-    muuriInstances.push(muuri);
+    columnGrids.push(muuri);
 
+  });
+
+  boardGrid = new Muuri(board, {
+    dragEnabled: true,
+    dragStartPredicate: {
+      handle: '.board-column-header'
+    }
   });
 
 });

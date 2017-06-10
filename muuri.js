@@ -74,6 +74,12 @@
   var docElem = doc.documentElement;
   var body = doc.body;
 
+  // Math stuff.
+  var round = Math.round;
+  var max = Math.max;
+  var min = Math.min;
+  var abs = Math.abs;
+
   // Types.
   var typeFunction = 'function';
   var typeString = 'string';
@@ -660,9 +666,6 @@
     layout = inst._layout = new Grid.Layout(inst, items);
     counter = items.length;
 
-    // Emit layoutStart event.
-    inst._emit(evLayoutStart, items.concat());
-
     // If grid's width or height was modified, we need to update it's cached
     // dimensions. Also keep in mind that grid's cached width/height should
     // always equal to what elem.getBoundingClientRect() would return, so
@@ -687,6 +690,11 @@
       }
 
     }
+
+    // Emit layoutStart event. Note that this is intentionally emitted after the
+    // container element's dimensions are set, because otherwise there would be
+    // no hook for reacting to container dimension changes.
+    inst._emit(evLayoutStart, items.concat());
 
     // If there are no items let's finish quickly.
     if (!items.length) {
@@ -1348,16 +1356,16 @@
     var sides = ['left', 'right', 'top', 'bottom'];
     var i;
 
-    inst._width = Math.round(rect.width);
-    inst._height = Math.round(rect.height);
-    inst._left = Math.round(rect.left);
-    inst._top = Math.round(rect.top);
+    inst._width = round(rect.width);
+    inst._height = round(rect.height);
+    inst._left = round(rect.left);
+    inst._top = round(rect.top);
     inst._padding = {};
     inst._border = {};
 
     for (i = 0; i < sides.length; i++) {
-      inst._padding[sides[i]] = Math.round(getStyleAsFloat(element, 'padding-' + sides[i]));
-      inst._border[sides[i]] = Math.round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
+      inst._padding[sides[i]] = round(getStyleAsFloat(element, 'padding-' + sides[i]));
+      inst._border[sides[i]] = round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
     }
 
     return inst;
@@ -1841,14 +1849,14 @@
     sides = ['left', 'right', 'top', 'bottom'];
     margin = inst._margin = inst._margin || {};
     for (i = 0; i < 4; i++) {
-      side = Math.round(getStyleAsFloat(element, 'margin-' + sides[i]));
+      side = round(getStyleAsFloat(element, 'margin-' + sides[i]));
       margin[sides[i]] = side > 0 ? side : 0;
     }
 
     // Calculate width and height (with and without margins).
     rect = element.getBoundingClientRect();
-    inst._width = Math.round(rect.width);
-    inst._height = Math.round(rect.height);
+    inst._width = round(rect.width);
+    inst._height = round(rect.height);
     inst._outerWidth = inst._width + margin.left + margin.right;
     inst._outerHeight = inst._height + margin.top + margin.bottom;
 
@@ -2414,10 +2422,10 @@
       slot = slotData[0];
       freeSlots = slotData[1];
       if (isHorizontal) {
-        layout.width = Math.max(layout.width, slot.left + slot.width);
+        layout.width = max(layout.width, slot.left + slot.width);
       }
       else {
-        layout.height = Math.max(layout.height, slot.top + slot.height);
+        layout.height = max(layout.height, slot.top + slot.height);
       }
       layout.slots[item._id] = slot;
     }
@@ -3464,8 +3472,8 @@
     var drag = item._drag;
     var rootGrid = drag.getGrid();
     var config = rootGrid._settings.dragStartPredicate || {};
-    var distance = Math.abs(config.distance) || 0;
-    var delay = Math.abs(config.delay) || 0;
+    var distance = abs(config.distance) || 0;
+    var delay = abs(config.delay) || 0;
     var handle = typeof config.handle === 'string' ? config.handle : false;
     var isAnchor;
     var href;
@@ -3478,7 +3486,7 @@
       isAnchor = element.tagName.toLowerCase() === 'a';
       href = element.getAttribute('href');
       target = element.getAttribute('target');
-      if (isAnchor && href && Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200) {
+      if (isAnchor && href && abs(event.deltaX) < 2 && abs(event.deltaY) < 2 && event.deltaTime < 200) {
         if (target && target !== '_self') {
           global.open(href, target);
         }
@@ -3536,8 +3544,8 @@
     var itemRect = {
       width: item._width,
       height: item._height,
-      left: Math.round(dragData.elementClientX),
-      top: Math.round(dragData.elementClientY)
+      left: round(dragData.elementClientX),
+      top: round(dragData.elementClientY)
     };
     var grid = getTargetGrid(itemRect, rootGrid, sortThreshold);
     var gridOffsetLeft = 0;
@@ -3559,8 +3567,8 @@
     // props. Otherwise if item is moved to/within another grid get the
     // container element's offset (from the element's content edge).
     if (grid === rootGrid) {
-      itemRect.left = Math.round(dragData.gridX) + item._margin.left;
-      itemRect.top = Math.round(dragData.gridY) + item._margin.top;
+      itemRect.left = round(dragData.gridX) + item._margin.left;
+      itemRect.top = round(dragData.gridY) + item._margin.top;
     }
     else {
       gridOffsetLeft = grid._left + grid._border.left + grid._padding.left;
@@ -3585,8 +3593,8 @@
       score = getRectOverlapScore(itemRect, {
         width: target._width,
         height: target._height,
-        left: Math.round(target._left) + target._margin.left + gridOffsetLeft,
-        top: Math.round(target._top) + target._margin.top + gridOffsetTop
+        left: round(target._left) + target._margin.left + gridOffsetLeft,
+        top: round(target._top) + target._margin.top + gridOffsetTop
       });
 
       // Update best match index and score if the target's overlap score with
@@ -4391,7 +4399,7 @@
       return maxIndex;
     }
     else if (index < 0) {
-      return Math.max(length + index, 0);
+      return max(length + index, 0);
     }
 
     return index;
@@ -5366,10 +5374,10 @@
     }
 
     // Calculate intersection area's width, height, max height and max width.
-    var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
-    var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-    var maxWidth = Math.min(a.width, b.width);
-    var maxHeight = Math.min(a.height, b.height);
+    var width = min(a.left + a.width, b.left + b.width) - max(a.left, b.left);
+    var height = min(a.top + a.height, b.top + b.height) - max(a.top, b.top);
+    var maxWidth = min(a.width, b.width);
+    var maxHeight = min(a.height, b.height);
 
     return (width * height) / (maxWidth * maxHeight) * 100;
 

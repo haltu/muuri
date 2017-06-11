@@ -22,6 +22,9 @@
  * SOFTWARE.
  */
 
+// TODO: Get rid of the special grid container padding handling. Unituitive for
+// percentage based layouts.
+
 (function (global, factory) {
 
   var libName = 'Muuri';
@@ -75,7 +78,6 @@
   var body = doc.body;
 
   // Math stuff.
-  var round = Math.round;
   var max = Math.max;
   var min = Math.min;
   var abs = Math.abs;
@@ -393,7 +395,12 @@
     itemHiddenClass: 'muuri-item-hidden',
     itemPositioningClass: 'muuri-item-positioning',
     itemDraggingClass: 'muuri-item-dragging',
-    itemReleasingClass: 'muuri-item-releasing'
+    itemReleasingClass: 'muuri-item-releasing',
+
+    // The function that formats all the dimension values before they are
+    // cached. This can be used to affect the layout calculations and handle
+    // percentage based dimensions.
+    _valueFormatter: toFixed
 
   };
 
@@ -1352,20 +1359,21 @@
 
     var inst = this;
     var element = inst._element;
+    var valueFormatter = inst._settings._valueFormatter;
     var rect = element.getBoundingClientRect();
     var sides = ['left', 'right', 'top', 'bottom'];
     var i;
 
-    inst._width = round(rect.width);
-    inst._height = round(rect.height);
-    inst._left = round(rect.left);
-    inst._top = round(rect.top);
+    inst._width = valueFormatter(rect.width);
+    inst._height = valueFormatter(rect.height);
+    inst._left = valueFormatter(rect.left);
+    inst._top = valueFormatter(rect.top);
     inst._padding = {};
     inst._border = {};
 
     for (i = 0; i < sides.length; i++) {
-      inst._padding[sides[i]] = round(getStyleAsFloat(element, 'padding-' + sides[i]));
-      inst._border[sides[i]] = round(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
+      inst._padding[sides[i]] = valueFormatter(getStyleAsFloat(element, 'padding-' + sides[i]));
+      inst._border[sides[i]] = valueFormatter(getStyleAsFloat(element, 'border-' + sides[i] + '-width'));
     }
 
     return inst;
@@ -1833,6 +1841,7 @@
 
     var inst = this;
     var element;
+    var valueFormatter;
     var rect;
     var sides;
     var side;
@@ -1844,19 +1853,20 @@
     }
 
     element = inst._element;
+    valueFormatter = inst.getGrid()._settings._valueFormatter;
 
     // Calculate margins (ignore negative margins).
     sides = ['left', 'right', 'top', 'bottom'];
     margin = inst._margin = inst._margin || {};
     for (i = 0; i < 4; i++) {
-      side = round(getStyleAsFloat(element, 'margin-' + sides[i]));
+      side = valueFormatter(getStyleAsFloat(element, 'margin-' + sides[i]));
       margin[sides[i]] = side > 0 ? side : 0;
     }
 
     // Calculate width and height (with and without margins).
     rect = element.getBoundingClientRect();
-    inst._width = round(rect.width);
-    inst._height = round(rect.height);
+    inst._width = valueFormatter(rect.width);
+    inst._height = valueFormatter(rect.height);
     inst._outerWidth = inst._width + margin.left + margin.right;
     inst._outerHeight = inst._height + margin.top + margin.bottom;
 
@@ -3538,14 +3548,16 @@
     var drag = item._drag;
     var dragData = drag._data;
     var rootGrid = drag.getGrid();
-    var config = rootGrid._settings.dragSortPredicate || {};
+    var settings = rootGrid._settings;
+    var valueFormatter = settings._valueFormatter;
+    var config = settings.dragSortPredicate || {};
     var sortThreshold = config.threshold || 50;
     var sortAction = config.action || 'move';
     var itemRect = {
       width: item._width,
       height: item._height,
-      left: round(dragData.elementClientX),
-      top: round(dragData.elementClientY)
+      left: valueFormatter(dragData.elementClientX),
+      top: valueFormatter(dragData.elementClientY)
     };
     var grid = getTargetGrid(itemRect, rootGrid, sortThreshold);
     var gridOffsetLeft = 0;
@@ -3567,8 +3579,8 @@
     // props. Otherwise if item is moved to/within another grid get the
     // container element's offset (from the element's content edge).
     if (grid === rootGrid) {
-      itemRect.left = round(dragData.gridX) + item._margin.left;
-      itemRect.top = round(dragData.gridY) + item._margin.top;
+      itemRect.left = valueFormatter(dragData.gridX) + item._margin.left;
+      itemRect.top = valueFormatter(dragData.gridY) + item._margin.top;
     }
     else {
       gridOffsetLeft = grid._left + grid._border.left + grid._padding.left;
@@ -3593,8 +3605,8 @@
       score = getRectOverlapScore(itemRect, {
         width: target._width,
         height: target._height,
-        left: round(target._left) + target._margin.left + gridOffsetLeft,
-        top: round(target._top) + target._margin.top + gridOffsetTop
+        left: valueFormatter(target._left) + target._margin.left + gridOffsetLeft,
+        top: valueFormatter(target._top) + target._margin.top + gridOffsetTop
       });
 
       // Update best match index and score if the target's overlap score with
@@ -4751,6 +4763,19 @@
       remove: remove
     };
 
+  }
+
+  /**
+   * Transforms a number into float format with one decimal. Basically the same
+   * as num.toFixed(1), but with the important difference that this does not
+   * do implicit rounding of the last decimal.
+   *
+   * @private
+   * @returns {Number}
+   */
+  function toFixed(num) {
+    num = num.toString().split('.');
+    return parseFloat((num[0] || '0') + '.' + (num[1] && num[1][0] || '0'));
   }
 
   /**

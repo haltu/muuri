@@ -24,43 +24,28 @@
 
 (function (global, factory) {
 
-  var libName = 'Muuri';
+  var namespace = 'Muuri';
   var Velocity;
   var Hammer;
 
-  if (typeof define === 'function' && define.amd) {
-
-    define(function (require) {
-      Velocity = require.defined && require.defined('velocity') ? require('velocity') : undefined;
-      Hammer = require.defined && require.defined('hammer') ? require('hammer') : undefined;
-      return factory(global, libName, Velocity, Hammer);
-    });
-
-  }
-  else if (typeof module === 'object' && module.exports) {
-
+  if (typeof module === 'object' && typeof module.exports === 'object') {
     try {
       Velocity = require('velocity-animate');
     }
     catch (e) {}
-
     try {
       Hammer = require('hammerjs');
     }
     catch (e) {}
-
-    module.exports = factory(global, libName, Velocity, Hammer);
-
+    module.exports = factory(global, namespace, Velocity, Hammer);
   }
   else {
-
-    Velocity = global.Velocity || global.jQuery.Velocity;
+    Velocity = global.Velocity || (global.jQuery && global.jQuery.Velocity);
     Hammer = global.Hammer;
-    global[libName] = factory(global, libName, Velocity, Hammer);
-
+    global[namespace] = factory(global, namespace, Velocity, Hammer);
   }
 
-}(this, function (global, libName, Velocity, Hammer, undefined) {
+}(typeof window !== 'undefined' ? window : this, function (global, namespace, Velocity, Hammer, undefined) {
 
   'use strict';
 
@@ -2529,7 +2514,7 @@
   function ItemAnimate(item, element) {
 
     this._element = element;
-    this._queue = libName + '-' + (++uuid);
+    this._queue = namespace + '-' + (++uuid);
     this._isAnimating = false;
     this._isDestroyed = false;
 
@@ -3112,7 +3097,7 @@
   function ItemDrag(item) {
 
     if (!Hammer) {
-      throw new Error('[' + libName + '] required dependency Hammer is not defined.');
+      throw new Error('[' + namespace + '] required dependency Hammer is not defined.');
     }
 
     var drag = this;

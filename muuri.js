@@ -209,11 +209,15 @@
     // Setup instance's sort connections.
     inst._sortConnections = settings.dragSortWith && settings.dragSortWith.length ? [].concat(settings.dragSortWith) : null;
 
-    // Setup show and hide animations for items.
-    inst._itemShowHandler = typeof settings.showAnimation === typeFunction ? settings.showAnimation(settings.showDuration, settings.showEasing, settings.visibleStyles) :
-                            getItemVisibilityHandler('show', settings.showDuration, settings.showEasing, settings.visibleStyles);
-    inst._itemHideHandler = typeof settings.hideAnimation === typeFunction ? settings.hideAnimation(settings.hideDuration, settings.hideEasing, settings.hiddenStyles) :
-                            getItemVisibilityHandler('hide', settings.hideDuration, settings.hideEasing, settings.hiddenStyles);
+    // Setup show animations for items.
+    inst._itemShowHandler = typeof settings.showAnimation === typeFunction ?
+      settings.showAnimation(settings.showDuration, settings.showEasing, settings.visibleStyles) :
+      getItemVisibilityHandler('show', settings.showDuration, settings.showEasing, settings.visibleStyles);
+
+    // Setup hide animations for items.
+    inst._itemHideHandler = typeof settings.hideAnimation === typeFunction ?
+      settings.hideAnimation(settings.hideDuration, settings.hideEasing, settings.hiddenStyles) :
+      getItemVisibilityHandler('hide', settings.hideDuration, settings.hideEasing, settings.hiddenStyles);
 
     // Add container element's class name.
     addClass(element, settings.containerClass);

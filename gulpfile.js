@@ -6,8 +6,21 @@ var karma = require('karma');
 var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
 var size = require('gulp-size');
+var header = require('gulp-header');
 var rimraf = require('rimraf');
 var runSequence = require('run-sequence');
+
+// Helper method for retrieving all banners /*! foo */ in a file.
+function getBanners(filePath) {
+  var string = fs.readFileSync(filePath, 'utf8');
+  var banners = [];
+  var bannerRegex = /\/\*\!([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+\//g;
+  var banner;
+  while (banner = bannerRegex.exec(string)) {
+    banners.push(banner[0].replace(/^(\s+)/gm, ' ') + '\n');
+  }
+  return banners.length ? banners.join('') : '';
+}
 
 if (fs.existsSync('./.env')) {
   require('dotenv').load();
@@ -23,7 +36,8 @@ gulp.task('lint', function () {
 gulp.task('compress', function() {
   return gulp.src('./' + pkg.main)
     .pipe(size({title: 'development'}))
-    .pipe(uglify({preserveComments: 'some'}))
+    .pipe(uglify())
+    .pipe(header(getBanners('./' + pkg.main)))
     .pipe(size({title: 'minified'}))
     .pipe(size({title: 'gzipped', gzip: true}))
     .pipe(rename(pkg.main.replace('./', '').replace('.js', '.min.js')))

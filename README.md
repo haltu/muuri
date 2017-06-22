@@ -55,12 +55,11 @@ Muuri depends on the following libraries:
 
 ### 3. Add the script tags
 
-Include Muuri inside the *body* element in your site and make sure to include the dependencies before Muuri. Muuri has to be inside the body element because it does some feature checking during initiation and might not work correctly if it does not have access to `document.body`.
+Add Muuri on your site and make sure to include the dependencies before Muuri.
 
 ```html
 <script src="velocity.js"></script>
 <script src="hammer.js"></script>
-<!-- Muuri needs to have access to document.body when initiated -->
 <script src="muuri.js"></script>
 ```
 

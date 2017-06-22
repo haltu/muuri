@@ -90,7 +90,7 @@
   var transform = getSupportedStyle('transform');
 
   // Test if transformed elements leak fixed elements.
-  var transformLeaksFixed = doesTransformLeakFixed();
+  var transformLeaksFixed = body ? doesTransformLeakFixed() : null;
 
   // Event names.
   var evSynchronize = 'synchronize';
@@ -178,6 +178,16 @@
     var settings;
     var items;
     var layoutOnResize;
+
+    // Muuri can be loaded inside the head tag also, but in that case Muuri can
+    // not cache body element and run the initial DOM tests. So, if detect that
+    // body element could not be fetched on init we do it here once and also run
+    // the DOM tests. If the Grid is instantiated before body is ready you are
+    // doing it wrong ;)
+    if (!body) {
+      body = document.body;
+      transformLeaksFixed = doesTransformLeakFixed();
+    }
 
     // Allow passing element as selector string. Store element for instance.
     element = inst._element = typeof element === typeString ? doc.querySelectorAll(element)[0] : element;

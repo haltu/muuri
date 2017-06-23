@@ -548,4 +548,33 @@
 
   });
 
+  QUnit.test('layout: percentage widths with no rounding', function (assert) {
+
+    assert.expect(33);
+
+    for (var i = 1; i < 34; i++) {
+      var container = utils.createGridElements({
+        itemCount: i,
+        itemStyles: {
+          position: 'absolute',
+          width: (100 / i) + '%',
+          height: '50px',
+          background: '#000',
+          border: '1px solid #ff0000',
+          boxSizing: 'border-box'
+        }
+      }).container;
+      var grid = new Muuri(container, {layout: {rounding: false}});
+      var hasIncorrectPosition = grid.getItems().some(function (item) {
+        return item.getPosition().top !== 0;
+      });
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+      };
+      assert.strictEqual(hasIncorrectPosition, false, i);
+      teardown();
+    }
+  });
+
 })(this);

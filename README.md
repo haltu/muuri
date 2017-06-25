@@ -49,7 +49,7 @@ bower install muuri
 
 Muuri depends on the following libraries:
 * [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
-  * By default Muuri users Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
+  * By default Muuri uses Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
   * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
 
@@ -551,7 +551,7 @@ var grid = new Muuri(elem, {
 
 ### dragContainer &nbsp;
 
-The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid's container element will be used. Note that the provided element should be "positioned" meaning that it's CSS position property should be *relative*, *absolute* or *fixed*.
+The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid's container element will be used.
 
 * Default value: `null`.
 * Accepted types: element, null.
@@ -1280,7 +1280,7 @@ Move an item into another grid.
 * **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
   * To which position should the item be placed to in the new grid? You can define the position with an item instance, element or index.
 * **options.appendTo** &nbsp;&mdash;&nbsp; *element*
-  * Which element the item element should be appended to for the duration of the layout animation? Note that the provided element should be "positioned" meaning that it's CSS position property should be *relative*, *absolute* or *fixed*.
+  * Which element the item element should be appended to for the duration of the layout animation?
   * Default value: `document.body`.
 * **options.layoutSender** &nbsp;&mdash;&nbsp; *boolean / function / string*
   * By default `grid.layout()` is called for the sending grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.

@@ -1411,6 +1411,7 @@ grid.destroy(true);
 * [move](#move)
 * [send](#send)
 * [receive](#receive)
+* [dragInit](#draginit)
 * [dragStart](#dragstart)
 * [dragMove](#dragmove)
 * [dragScroll](#dragscroll)
@@ -1655,9 +1656,27 @@ grid.on('receive', function (data) {
 });
 ```
 
+### dragInit
+
+Triggered when dragging of an item begins (before dragStart).
+
+**Arguments**
+
+* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+  * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * Hammer.js event data.
+
+```javascript
+grid.on('dragInit', function (item, event) {
+  console.log(event);
+  console.log(item);
+});
+```
+
 ### dragStart
 
-Triggered when dragging of an item begins.
+Triggered when dragging of an item begins (after dragInit).
 
 **Arguments**
 

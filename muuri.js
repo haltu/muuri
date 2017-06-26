@@ -22,6 +22,17 @@
  * SOFTWARE.
  */
 
+/*
+TODO
+- Add sendEnd/receiveEnd events.
+- Document new events (sendStart/sendEnd/receiveStart/receiveEnd/dragInit).
+- Add unit tests for new events.
+- Make sure that ItemMigrate.prototype.stop() is called also when item is hidden
+  during layout and in other critical spots.
+- Fix drgaStartPredicate delay.
+- Reconsider adding item "dimensions freeze/unfreeze" methods.
+*/
+
 (function (global, factory) {
 
   var namespace = 'Muuri';
@@ -106,7 +117,12 @@
   var evSort = 'sort';
   var evMove = 'move';
   var evSend = 'send';
+  var evSendStart = 'sendStart';
+  //var evSendEnd = 'sendEnd';
   var evReceive = 'receive';
+  var evReceiveStart = 'receiveStart';
+  //var evReceiveEnd = 'receiveEnd';
+  var evDragInit = 'dragInit';
   var evDragStart = 'dragStart';
   var evDragMove = 'dragMove';
   var evDragScroll = 'dragScroll';
@@ -2762,6 +2778,24 @@
     currentGrid._itemShowHandler.stop(item);
     currentGrid._itemHideHandler.stop(item);
 
+    // Emit sendStart event.
+    currentGrid._emit(evSendStart, {
+      item: item,
+      fromGrid: currentGrid,
+      fromIndex: currentIndex,
+      toGrid: targetGrid,
+      toIndex: targetIndex
+    });
+
+    // Emit receiveStart event.
+    targetGrid._emit(evReceiveStart, {
+      item: item,
+      fromGrid: currentGrid,
+      fromIndex: currentIndex,
+      toGrid: targetGrid,
+      toIndex: targetIndex
+    });
+
     // Destroy current drag.
     if (item._drag) {
       item._drag.destroy();
@@ -2846,7 +2880,7 @@
       toIndex: targetIndex
     });
 
-    // Emit receiveStart event.
+    // Emit receive event.
     targetGrid._emit(evReceive, {
       item: item,
       fromGrid: currentGrid,
@@ -3906,6 +3940,9 @@
     // Set initial left/top drag value.
     dragData.left = dragData.gridX = currentLeft;
     dragData.top = dragData.gridY = currentTop;
+
+    // Emit dragInit event.
+    grid._emit(evDragInit, item, event);
 
     // If a specific drag container is set and it is different from the
     // grid's container element we need to cast some extra spells.

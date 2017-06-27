@@ -22,17 +22,6 @@
  * SOFTWARE.
  */
 
-/*
-TODO
-- Add sendEnd/receiveEnd events.
-- Document new events (sendStart/sendEnd/receiveStart/receiveEnd/dragInit).
-- Add unit tests for new events.
-- Make sure that ItemMigrate.prototype.stop() is called also when item is hidden
-  during layout and in other critical spots.
-- Fix drgaStartPredicate delay.
-- Reconsider adding item "dimensions freeze/unfreeze" methods.
-*/
-
 (function (global, factory) {
 
   var namespace = 'Muuri';
@@ -117,11 +106,9 @@ TODO
   var evSort = 'sort';
   var evMove = 'move';
   var evSend = 'send';
-  var evSendStart = 'sendStart';
-  //var evSendEnd = 'sendEnd';
+  var evBeforeSend = 'beforeSend';
   var evReceive = 'receive';
-  var evReceiveStart = 'receiveStart';
-  //var evReceiveEnd = 'receiveEnd';
+  var evBeforeReceive = 'beforeReceive';
   var evDragInit = 'dragInit';
   var evDragStart = 'dragStart';
   var evDragMove = 'dragMove';
@@ -1786,6 +1773,19 @@ TODO
   };
 
   /**
+   * Is the item destroyed?
+   *
+   * @public
+   * @memberof Item.prototype
+   * @returns {Boolean}
+   */
+  Item.prototype.isDestroyed = function () {
+
+    return this._isDestroyed;
+
+  };
+
+  /**
    * Item - Protected prototype methods
    * **********************************
    */
@@ -2778,8 +2778,8 @@ TODO
     currentGrid._itemShowHandler.stop(item);
     currentGrid._itemHideHandler.stop(item);
 
-    // Emit sendStart event.
-    currentGrid._emit(evSendStart, {
+    // Emit beforeSend event.
+    currentGrid._emit(evBeforeSend, {
       item: item,
       fromGrid: currentGrid,
       fromIndex: currentIndex,
@@ -2787,8 +2787,8 @@ TODO
       toIndex: targetIndex
     });
 
-    // Emit receiveStart event.
-    targetGrid._emit(evReceiveStart, {
+    // Emit beforeReceive event.
+    targetGrid._emit(evBeforeReceive, {
       item: item,
       fromGrid: currentGrid,
       fromIndex: currentIndex,

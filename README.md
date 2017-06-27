@@ -1410,7 +1410,9 @@ grid.destroy(true);
 * [sort](#sort)
 * [move](#move)
 * [send](#send)
+* [beforeSend](#beforesend)
 * [receive](#receive)
+* [beforeReceive](#beforereceive)
 * [dragInit](#draginit)
 * [dragStart](#dragstart)
 * [dragMove](#dragmove)
@@ -1610,7 +1612,7 @@ grid.on('move', function (data) {
 
 ### send
 
-Triggered, for the originating grid, after `grid.send()` is called or when an item is dragged into another grid.
+Triggered for the originating grid in the end of the *send process* (after `grid.send()` is called or when an item is dragged into another grid). Note that this event is called *before* the item's layout starts.
 
 **Arguments**
 
@@ -1632,9 +1634,33 @@ grid.on('send', function (data) {
 });
 ```
 
+### beforeSend
+
+Triggered for the originating grid in the beginning of the *send process* (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the sent item (freeze it's dimensions for example) before it is appended to it's temporary layout container as defined in [send method options](#gridsend-item-grid-position-options-).
+
+**Arguments**
+
+* **data** &nbsp;&mdash;&nbsp; *object*
+    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The item that was sent.
+    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent from.
+    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved from.
+    * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent to.
+    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved to.
+
+```javascript
+grid.on('beforeSend', function (data) {
+  console.log(data);
+});
+```
+
 ### receive
 
-Triggered, for the receiving grid, after `grid.send()` is called or when an item is dragged into another grid.
+Triggered for the receiving grid in the end of the *send process* (after `grid.send()` is called or when an item is dragged into another grid). Note that this event is called *before* the item's layout starts.
 
 **Arguments**
 
@@ -1656,9 +1682,33 @@ grid.on('receive', function (data) {
 });
 ```
 
+### beforeReceive
+
+Triggered for the receiving grid in the beginning of the *send process* (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the received item (freeze it's dimensions for example) before it is appended to it's temporary layout container as defined in [send method options](#gridsend-item-grid-position-options-).
+
+**Arguments**
+
+* **data** &nbsp;&mdash;&nbsp; *object*
+    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The item that was sent.
+    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent from.
+    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved from.
+    * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent to.
+    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved to.
+
+```javascript
+grid.on('beforeReceive', function (data) {
+  console.log(data);
+});
+```
+
 ### dragInit
 
-Triggered when dragging of an item begins (before dragStart).
+Triggered in the beginning of the *drag start* process when dragging of an item begins. This event is highly useful in situations where you need to manipulate the dragged item (freeze it's dimensions for example) before it is appended to the [dragContainer](#dragcontainer-).
 
 **Arguments**
 
@@ -1676,7 +1726,7 @@ grid.on('dragInit', function (item, event) {
 
 ### dragStart
 
-Triggered when dragging of an item begins (after dragInit).
+Triggered in the end of the *drag start* process when dragging of an item begins.
 
 **Arguments**
 
@@ -1801,6 +1851,7 @@ grid.on('destroy', function () {
 * [item.isPositioning()](#itemispositioning)
 * [item.isDragging()](#itemisdragging)
 * [item.isReleasing()](#itemisreleasing)
+* [item.isDestroyed()](#itemisdestroyed)
 
 ### item.getGrid()
 
@@ -1938,6 +1989,16 @@ Check if the item is currently being released.
 
 ```javascript
 var isReleasing = item.isReleasing();
+```
+
+### item.isDestroyed()
+
+Check if the item is destroyed.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isDestroyed = item.isDestroyed();
 ```
 
 ## Credits

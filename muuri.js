@@ -3156,7 +3156,15 @@
     var predicatePending = 0;
     var predicateResolved = 1;
     var predicateRejected = 2;
+    var predicateEvent = null;
     var predicate = predicatePending;
+    var resolvePredicate = function () {
+      if (predicate === predicatePending) {
+        predicate = predicateResolved;
+        drag.onStart(predicateEvent);
+        predicateEvent = null;
+      }
+    };
     var hammer;
 
     drag._itemId = item._id;
@@ -3208,14 +3216,18 @@
 
         var predicateResult;
 
+        predicateEvent = e;
+
         // If predicate is pending try to resolve it.
         if (predicate === predicatePending) {
-          predicateResult = checkPredicate(drag.getItem(), e);
+          predicateResult = checkPredicate(drag.getItem(), e, resolvePredicate);
           if (predicateResult === true) {
+            predicateEvent = null;
             predicate = predicateResolved;
             drag.onStart(e);
           }
           else if (predicateResult === false) {
+            predicateEvent = null;
             predicate = predicateRejected;
           }
         }
@@ -3242,6 +3254,7 @@
       checkPredicate(drag.getItem(), e);
 
       // Reset predicate state.
+      predicateEvent = null;
       predicate = predicatePending;
 
       // If predicate is resolved and dragging is active, call the end handler.
@@ -3263,22 +3276,29 @@
 
   /**
    * Default drag start predicate handler that handles anchor elements
-   * gracefully.
+   * gracefully. The return value of this function defines if the drag is
+   * started, rejected or pending. When true is returned the dragging is started
+   * and when false is returned the dragging is rejected. If nothing is returned
+   * the predicate will be called again on the next drag movement.
    *
    * @public
    * @memberof ItemDrag
    * @param {Item} item
    * @param {Object} event
+   * @param {Function} resolve
+   *   - This is a special function that can be also used to resolve the
+   *     predicate. Very handy for scenarios where you need to start dragging
+   *     asynchronously.
    * @returns {Boolean}
    */
-  ItemDrag.defaultStartPredicate = function (item, event) {
+  ItemDrag.defaultStartPredicate = function (item, event, resolve) {
 
     var element = item._element;
     var drag = item._drag;
     var rootGrid = drag.getGrid();
     var config = rootGrid._settings.dragStartPredicate || {};
     var distance = Math.abs(config.distance) || 0;
-    var delay = Math.abs(config.delay) || 0;
+    var delay = Math.max(config.delay, 0);
     var handle = typeof config.handle === 'string' ? config.handle : false;
     var isAnchor;
     var href;
@@ -3288,6 +3308,9 @@
     // the predicate is either resolved or it's not and there's nothing to do
     // about it. The stuff inside this if clause is used just for cleaning up.
     if (event.isFinal) {
+      if (drag._delayTimer) {
+        drag._delayTimer = global.clearTimeout(drag._delayTimer);
+      }
       isAnchor = element.tagName.toLowerCase() === 'a';
       href = element.getAttribute('href');
       target = element.getAttribute('target');
@@ -3310,7 +3333,15 @@
       // If handle is defined, but it does not match the event target, reject
       // predicate immediately.
       if (handle && !elementMatches(event.srcEvent.target, handle)) {
+        if (drag._delayTimer) {
+          drag._delayTimer = global.clearTimeout(drag._delayTimer);
+        }
         return false;
+      }
+
+      // If delay is defined, but not initiated yet, let's set it up.
+      if (delay && !drag._delayTimer) {
+        drag._delayTimer = global.setTimeout(resolve, delay);
       }
 
       // If the moved distance is smaller than the threshold distance or the
@@ -3320,7 +3351,12 @@
         return;
       }
 
-      // In other cases, let's start the drag!
+      // Let's clear the possible delay timer.
+      if (drag._delayTimer) {
+        drag._delayTimer = global.clearTimeout(drag._delayTimer);
+      }
+
+      // In other cases, let's start the drag.
       return true;
 
     }
@@ -5418,7 +5454,7 @@
    *  - Accepted values are: "active", "inactive", "visible", "hidden",
    *    "showing", "hiding", "positioning", "dragging", "releasing" and
    *    "migrating".
-   * Returns {Boolean}
+   * @returns {Boolean}
    */
   function isItemInState(item, state) {
 

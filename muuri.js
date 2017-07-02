@@ -29,27 +29,29 @@
   var Hammer;
 
   if (typeof module === 'object' && typeof module.exports === 'object') {
-    try {
-      Velocity = require('velocity-animate');
-    }
-    catch (e) {}
-    try {
-      Hammer = require('hammerjs');
-    }
-    catch (e) {}
-    module.exports = factory(global, namespace, Velocity, Hammer);
+    /*eslint-disable */
+    try { Velocity = require('velocity-animate'); } catch (e) {}
+    try { Hammer = require('hammerjs'); } catch (e) {}
+    /*eslint-enable */
+    module.exports = factory(namespace, Velocity, Hammer);
+  }
+  else if (typeof define === 'function' && define.amd) {
+    define(['velocity-animate', 'hammerjs'], function (Velocity, Hammer) {
+      return factory(namespace, Velocity, Hammer);
+    });
   }
   else {
     Velocity = global.Velocity || (global.jQuery && global.jQuery.Velocity);
     Hammer = global.Hammer;
-    global[namespace] = factory(global, namespace, Velocity, Hammer);
+    global[namespace] = factory(namespace, Velocity, Hammer);
   }
 
-}(typeof window !== 'undefined' ? window : this, function (global, namespace, Velocity, Hammer, undefined) {
+}(typeof window !== 'undefined' ? window : this, function (namespace, Velocity, Hammer, undefined) {
 
   'use strict';
 
   // Get references to all the stuff we are using from the global scope.
+  var global = window;
   var Object = global.Object;
   var Array = global.Array;
   var Math = global.Math;

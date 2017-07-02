@@ -29,9 +29,9 @@
   "scripts": {
     "test": "gulp"
   },
-  "optionalDependencies": {
-    "hammerjs": "^2.0.8",
-    "velocity-animate": "^1.5.0"
+  "dependencies": {
+    "velocity-animate": "^1.2.0",
+    "hammerjs": "^2.0.0"
   },
   "devDependencies": {
     "dotenv": "^4.0.0",

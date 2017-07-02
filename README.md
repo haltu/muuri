@@ -51,7 +51,9 @@ Muuri depends on the following libraries:
 * [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
   * By default Muuri uses Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
-  * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
+  * Muuri uses Hammer.js to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
+
+For ease of use both Velocity and Hammer.js are marked as Muuri's dependencies in [package.json](package.json) and [bower.json](bower.json) configuration files. So if you're using npm or bower there is no need to manually download and set up the dependencies.
 
 ### 3. Add the script tags
 

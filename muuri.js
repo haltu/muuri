@@ -3288,8 +3288,8 @@
    * @param {Item} item
    * @param {Object} event
    * @param {Function} resolve
-   *   - This is a special function that can be also used to resolve the
-   *     predicate. Very handy for scenarios where you need to start dragging
+   *   - This is a special function that can be used to resolve the predicate.
+   *     Very handy for scenarios where you need to start dragging
    *     asynchronously.
    * @returns {Boolean}
    */

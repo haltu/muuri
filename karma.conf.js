@@ -7,6 +7,8 @@ module.exports = function (config) {
       'karma-qunit',
       'karma-chrome-launcher',
       'karma-firefox-launcher',
+      'karma-safari-launcher',
+      'karma-edge-launcher',
       'karma-sauce-launcher',
       'karma-story-reporter'
     ],

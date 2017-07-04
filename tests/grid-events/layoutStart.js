@@ -6,7 +6,7 @@
 
   QUnit.test('layoutStart: should be triggered after grid.layout() (before the items are positioned)', function (assert) {
 
-    assert.expect(5);
+    assert.expect(4);
 
     var container = utils.createGridElements().container;
     var grid = new Muuri(container);

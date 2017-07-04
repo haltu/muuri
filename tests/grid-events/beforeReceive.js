@@ -4,7 +4,7 @@
 
   QUnit.module('Grid events');
 
-  QUnit.test('receive: should be triggered in the end of the send procedure (for the receiving grid)', function (assert) {
+  QUnit.test('beforeReceive: should be triggered in the beginning of the send procedure (for the receiving grid)', function (assert) {
 
     assert.expect(11);
 
@@ -20,7 +20,7 @@
       containerB.parentNode.removeChild(containerB);
     };
 
-    gridB.on('receive', function (data) {
+    gridB.on('beforeReceive', function (data) {
       assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
       assert.strictEqual(Object.prototype.toString.call(data), '[object Object]', 'callback: the argument should be a plain object');
       assert.strictEqual(Object.keys(data).length, 5, 'callback: the argument should have 5 properties');
@@ -29,11 +29,11 @@
       assert.strictEqual(data.fromIndex, 0, 'callback: the argument fromIndex property should be the index where the item was moved from');
       assert.strictEqual(data.toGrid, gridB, 'callback: the argument toGrid property should be the receiving grid instance');
       assert.strictEqual(data.toIndex, 1, 'callback: the argument toIndex property should be the index where the item was moved to');
-      assert.strictEqual(data.toGrid.getItems().indexOf(data.item), data.toIndex, 'callback: the item should be included in the target grid in correct position');
-      assert.strictEqual(data.fromGrid.getItems().indexOf(data.item), -1, 'callback: the item should not be included in the source grid');
-      assert.strictEqual(data.item.getElement().parentNode, document.body, 'callback: the item element should be appended to the send container');
+      assert.strictEqual(data.toGrid.getItems().indexOf(data.item), -1, 'callback: the item should not be included in the target grid');
+      assert.strictEqual(data.fromGrid.getItems().indexOf(data.item), data.fromIndex, 'callback: the item should be included in the source grid');
+      assert.strictEqual(data.item.getElement().parentNode, containerA, 'callback: the item element should not be appended to the send container');
     });
-    gridA.on('receive', function () {
+    gridA.on('beforeReceive', function () {
       assert.ok(false, 'should not be triggered for the sending grid');
     });
     gridA.send(item, gridB, 1, {layout: false});
@@ -41,7 +41,7 @@
 
   });
 
-  QUnit.test('receive: should be triggered when an item is dragged into another grid (for the receiving grid)', function (assert) {
+  QUnit.test('beforeSend: should be triggered when an item is dragged into another grid (for the receiving grid)', function (assert) {
 
     assert.expect(10);
 
@@ -105,7 +105,7 @@
       done();
     };
 
-    gridB.on('receive', function (data) {
+    gridB.on('beforeReceive', function (data) {
       assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
       assert.strictEqual(Object.prototype.toString.call(data), '[object Object]', 'callback: the argument should be a plain object');
       assert.strictEqual(Object.keys(data).length, 5, 'callback: the argument should have 5 properties');
@@ -114,8 +114,8 @@
       assert.strictEqual(data.fromIndex, 0, 'callback: the argument fromIndex property should be the index where the item was moved from');
       assert.strictEqual(data.toGrid, gridB, 'callback: the argument toGrid property should be the receiving grid instance');
       assert.strictEqual(data.toIndex, 0, 'callback: the argument toIndex property should be the index where the item was moved to');
-      assert.strictEqual(data.toGrid.getItems().indexOf(data.item), data.toIndex, 'callback: the item should be included in the target grid in correct position');
-      assert.strictEqual(data.fromGrid.getItems().indexOf(data.item), -1, 'callback: the item should not be included in the source grid');
+      assert.strictEqual(data.toGrid.getItems().indexOf(data.item), -1, 'callback: the item should not be included in the target grid');
+      assert.strictEqual(data.fromGrid.getItems().indexOf(data.item), data.fromIndex, 'callback: the item should be included in the source grid');
     });
 
     utils.dragElement({

@@ -2780,6 +2780,18 @@
     currentGrid._itemShowHandler.stop(item);
     currentGrid._itemHideHandler.stop(item);
 
+    // Destroy current drag.
+    if (item._drag) {
+      item._drag.destroy();
+    }
+
+    // Destroy current animation handlers.
+    item._animate.destroy();
+    item._animateChild.destroy();
+
+    // Process current visibility animation queue.
+    processQueue(item._visibilityQueue, true, item);
+
     // Emit beforeSend event.
     currentGrid._emit(evBeforeSend, {
       item: item,
@@ -2797,18 +2809,6 @@
       toGrid: targetGrid,
       toIndex: targetIndex
     });
-
-    // Destroy current drag.
-    if (item._drag) {
-      item._drag.destroy();
-    }
-
-    // Destroy current animation handlers.
-    item._animate.destroy();
-    item._animateChild.destroy();
-
-    // Process current visibility animation queue.
-    processQueue(item._visibilityQueue, true, item);
 
     // Remove current classnames.
     removeClass(itemElement, currentGridStn.itemClass);
@@ -3694,14 +3694,11 @@
     currentGrid = item.getGrid();
     currentIndex = currentGrid._items.indexOf(item);
     targetGrid = result.grid || currentGrid;
-    targetIndex = result.index;
+    targetIndex = normalizeArrayIndex(currentGrid._items, result.index);
     sortAction = result.action === 'swap' ? 'swap' : 'move';
 
     // If the item was moved within it's current grid.
     if (currentGrid === targetGrid) {
-
-      // Normalize target index.
-      targetIndex = normalizeArrayIndex(currentGrid._items, targetIndex);
 
       // Make sure the target index is not the current index.
       if (currentIndex !== targetIndex) {
@@ -3727,6 +3724,24 @@
     // If the item was moved to another grid.
     else {
 
+      // Emit beforeSend event.
+      currentGrid._emit(evBeforeSend, {
+        item: item,
+        fromGrid: currentGrid,
+        fromIndex: currentIndex,
+        toGrid: targetGrid,
+        toIndex: targetIndex
+      });
+
+      // Emit beforeReceive event.
+      targetGrid._emit(evBeforeReceive, {
+        item: item,
+        fromGrid: currentGrid,
+        fromIndex: currentIndex,
+        toGrid: targetGrid,
+        toIndex: targetIndex
+      });
+
       // Update item's grid id reference.
       item._gridId = targetGrid._id;
 
@@ -3736,9 +3751,6 @@
       // Move item instance from current grid to target grid.
       currentGrid._items.splice(currentIndex, 1);
       insertItemsToArray(targetGrid._items, item, targetIndex);
-
-      // Get the final target index for event data.
-      targetIndex = targetGrid._items.indexOf(item);
 
       // Set sort data as null, which is an indicator for the item comparison
       // function that the sort data of this specific item should be fetched

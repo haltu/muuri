@@ -43,7 +43,7 @@
 
   QUnit.test('send: should be triggered when an item is dragged into another grid (for the sending grid)', function (assert) {
 
-    assert.expect(10);
+    assert.expect(11);
 
     var done = assert.async();
     var containerA = utils.createGridElements({
@@ -116,6 +116,7 @@
       assert.strictEqual(data.toIndex, 0, 'callback: the argument toIndex property should be the index where the item was moved to');
       assert.strictEqual(data.toGrid.getItems().indexOf(data.item), data.toIndex, 'callback: the item should be included in the target grid in correct position');
       assert.strictEqual(data.fromGrid.getItems().indexOf(data.item), -1, 'callback: the item should not be included in the source grid');
+      assert.strictEqual(data.item.isDragging(), true, 'callback: the item should be in dragging state');
     });
 
     utils.dragElement({

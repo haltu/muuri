@@ -28,7 +28,7 @@
   var Velocity;
   var Hammer;
 
-  if (typeof module === 'object' && typeof module.exports === 'object') {
+  if (typeof module === 'object' && module.exports) {
     /*eslint-disable */
     try { Velocity = require('velocity-animate'); } catch (e) {}
     try { Hammer = require('hammerjs'); } catch (e) {}

@@ -99,7 +99,7 @@ Add Muuri on your site and make sure to include the dependencies before Muuri.
 * The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element's width/height depending on the area the items cover and the layout algorithm configuration.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
 * The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
-* You can control the gaps between the tiles by giving some margin to the item elements.
+* You can control the gaps between the items by giving some margin to the item elements.
 
 ```css
 .grid {

@@ -146,6 +146,7 @@
    * @param {Boolean} [options.layout.horizontal=false]
    * @param {Boolean} [options.layout.alignRight=false]
    * @param {Boolean} [options.layout.alignBottom=false]
+   * @param {Boolean} [options.layout.rounding=true]
    * @param {(Boolean|Number)} [options.layoutOnResize=100]
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
@@ -3282,6 +3283,10 @@
    * started, rejected or pending. When true is returned the dragging is started
    * and when false is returned the dragging is rejected. If nothing is returned
    * the predicate will be called again on the next drag movement.
+   *
+   * @todo Add check that if delay or distance is set and the drag should start
+   *       if the cursor is not within any of the handles (or the item if no
+   *       handle is defined) then cancel the drag.
    *
    * @public
    * @memberof ItemDrag

@@ -1,5 +1,10 @@
 # Muuri
 
+[![Build Status](https://travis-ci.org/haltu/muuri.svg?branch=0.4.0)](https://travis-ci.org/haltu/muuri)
+[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri@0.4.0/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.4.0/muuri.min.js)
+[![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
+[![CDNJS](https://img.shields.io/cdnjs/v/muuri.svg)](https://cdnjs.com/libraries/muuri)
+
 Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
 
 Muuri's layout system allows positioning the grid items pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.

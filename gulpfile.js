@@ -69,7 +69,7 @@ gulp.task('test', function (done) {
   (new karma.Server({
     configFile: __dirname + '/karma.conf.js',
     action: 'run',
-    browsers: browsers.length ? browsers : ['slChrome', 'slFirefox', 'slEdge', 'slSafari']
+    browsers: browsers.length ? browsers : ['slChrome', 'slFirefox', 'slSafari']
   }, function (exitCode) {
     done(exitCode);
   })).start();

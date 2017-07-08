@@ -39,7 +39,9 @@ module.exports = function (config) {
     concurrency: 1,
     singleRun: true,
     hostname: '127.0.0.1',
-    sauceLabs: {testName: pkg.name + ' - ' + pkg.version + ' - unit tests'},
+    sauceLabs: {
+      testName: pkg.name + ' - ' + pkg.version + ' - unit tests'
+    },
     customLaunchers: {
       slChrome: {
         base: 'SauceLabs',
@@ -56,11 +58,13 @@ module.exports = function (config) {
       slSafari: {
         base: 'SauceLabs',
         browserName: 'safari',
+        platform: 'macOS 10.12',
         version: 'latest'
       },
       slEdge: {
         base: 'SauceLabs',
         browserName: 'MicrosoftEdge',
+        platform: 'Windows 10',
         version: 'latest'
       }
     }

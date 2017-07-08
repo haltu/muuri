@@ -149,7 +149,7 @@ var grid = new Muuri('.grid');
 
 * **element** &nbsp;&mdash;&nbsp; *element* / *string*
   * Default value: `null`.
-  * You can provide the element directly or use a selector (string) which uses [querySelectorAll()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelectorAll) internally. The first element of the query's result will be used.
+  * You can provide the element directly or use a selector (string) which uses [querySelector()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector) internally. The first element of the query's result will be used.
 * **options** &nbsp;&mdash;&nbsp; *object*
   * Optional. Check out the [detailed options reference](#grid-options).
 
@@ -190,7 +190,8 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
       fillGaps: false,
       horizontal: false,
       alignRight: false,
-      alignBottom: false
+      alignBottom: false,
+      rounding: true
     },
     layoutOnResize: 100,
     layoutOnInit: true,

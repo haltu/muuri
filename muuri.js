@@ -195,7 +195,7 @@
     }
 
     // Allow passing element as selector string. Store element for instance.
-    element = inst._element = typeof element === typeString ? doc.querySelectorAll(element)[0] : element;
+    element = inst._element = typeof element === typeString ? doc.querySelector(element) : element;
 
     // Throw an error if the container element is not body element or does not
     // exist within the body element.

@@ -3284,10 +3284,6 @@
    * and when false is returned the dragging is rejected. If nothing is returned
    * the predicate will be called again on the next drag movement.
    *
-   * @todo Add check that if delay or distance is set and the drag should start
-   *       if the cursor is not within any of the handles (or the item if no
-   *       handle is defined) then cancel the drag.
-   *
    * @public
    * @memberof ItemDrag
    * @param {Item} item
@@ -3296,17 +3292,21 @@
    *   - This is a special function that can be used to resolve the predicate.
    *     Very handy for scenarios where you need to start dragging
    *     asynchronously.
+   * @param {Object} [options]
+   *   - An optional options object which can be used to pass the predicate
+   *     it's options manually. By default the predicate retrieves the options
+   *     from the grid's settings.
    * @returns {Boolean}
    */
-  ItemDrag.defaultStartPredicate = function (item, event, resolve) {
+  ItemDrag.defaultStartPredicate = function (item, event, resolve, options) {
 
     var element = item._element;
     var drag = item._drag;
-    var rootGrid = drag.getGrid();
-    var config = rootGrid._settings.dragStartPredicate || {};
+    var config = options || drag.getGrid()._settings.dragStartPredicate || {};
     var distance = Math.abs(config.distance) || 0;
-    var delay = Math.max(config.delay, 0);
+    var delay = Math.max(config.delay, 0) || 0;
     var handle = typeof config.handle === 'string' ? config.handle : false;
+    var handleRect;
     var isAnchor;
     var href;
     var target;
@@ -3315,6 +3315,7 @@
     // the predicate is either resolved or it's not and there's nothing to do
     // about it. The stuff inside this if clause is used just for cleaning up.
     if (event.isFinal) {
+      drag._handle = null;
       if (drag._delayTimer) {
         drag._delayTimer = global.clearTimeout(drag._delayTimer);
       }
@@ -3337,17 +3338,31 @@
     // future events.
     else {
 
-      // If handle is defined, but it does not match the event target, reject
-      // predicate immediately.
-      if (handle && !elementMatches(event.srcEvent.target, handle)) {
-        if (drag._delayTimer) {
-          drag._delayTimer = global.clearTimeout(drag._delayTimer);
+      // Find and store the handle element so we can check later on if the
+      // cursor is within the handle. If no handle selector is defined we use
+      // the item element as the handle.
+      if (!drag._handle) {
+        if (handle) {
+          drag._handle = event.srcEvent.target;
+          while (drag._handle && !elementMatches(drag._handle, handle)) {
+            drag._handle = drag._handle !== element ? drag._handle.parentElement : null;
+          }
         }
+        else {
+          drag._handle = element;
+        }
+      }
+
+      // If no drag handle was found let's abort immediately.
+      if (!drag._handle) {
         return false;
       }
 
       // If delay is defined, but not initiated yet, let's set it up.
       if (delay && !drag._delayTimer) {
+        // TODO: Before resolving async make sure that distance is resolved and
+        // the cursor is within the handle. Consider making the finishing stuff
+        // a function which can be just called here.
         drag._delayTimer = global.setTimeout(resolve, delay);
       }
 
@@ -3363,8 +3378,17 @@
         drag._delayTimer = global.clearTimeout(drag._delayTimer);
       }
 
-      // In other cases, let's start the drag.
-      return true;
+      // Get handle rect data and nullify drag handle reference.
+      handleRect = drag._handle.getBoundingClientRect();
+      drag._handle = null;
+
+      // If the cursor is still within the handle let's start the drag.
+      return isPointWithinRect(event.srcEvent.pageX, event.srcEvent.pageY, {
+        width: handleRect.width,
+        height: handleRect.height,
+        left: handleRect.left + (global.pageXOffset || 0),
+        top: handleRect.top + (global.pageYOffset || 0)
+      });
 
     }
 
@@ -4834,8 +4858,8 @@
       elemB = getContainingBlock(elemB, true);
     }
 
-    var aOffset = getOffset(elemA);
-    var bOffset = getOffset(elemB);
+    var aOffset = getOffset(elemA, true);
+    var bOffset = getOffset(elemB, true);
 
     return {
       left: bOffset.left - aOffset.left,
@@ -4847,14 +4871,14 @@
   /**
    * Returns the element's document offset, which in practice means the vertical
    * and horizontal distance between the element's northwest corner and the
-   * document's northwest corner. Note that this function returns offset from
-   * element's padding edge, not border edge.
+   * document's northwest corner.
    *
    * @private
    * @param {(Document|Element|Window)} element
+   * @param {Boolean} [excludeElementBorders=false]
    * @returns {Offset}
    */
-  function getOffset(element) {
+  function getOffset(element, excludeElementBorders) {
 
     var gbcr;
     var ret = {
@@ -4876,10 +4900,16 @@
       return ret;
     }
 
-    // Add element's client rects and borders to the offsets.
+    // Add element's client rects to the offsets.
     gbcr = element.getBoundingClientRect();
-    ret.left += gbcr.left + getStyleAsFloat(element, 'border-left-width');
-    ret.top += gbcr.top + getStyleAsFloat(element, 'border-top-width');
+    ret.left += gbcr.left;
+    ret.top += gbcr.top;
+
+    // Exclude element's borders from the offset if needed.
+    if (excludeElementBorders) {
+      ret.left += getStyleAsFloat(element, 'border-left-width');
+      ret.top += getStyleAsFloat(element, 'border-top-width');
+    }
 
     return ret;
 
@@ -5213,6 +5243,26 @@
     Array.prototype.splice.apply(items, [0, items.length].concat(newItems).concat(currentItems));
 
     return items;
+
+  }
+
+  /**
+   * Check if a point (coordinate) is within a rectangle.
+   *
+   * @private
+   * @param {Number} x
+   * @param {Number} y
+   * @param {Rectangle} rect
+   * @return {Boolean}
+   */
+  function isPointWithinRect(x, y, rect) {
+
+    return rect.width
+      && rect.height
+      && x >= rect.left
+      && x < (rect.left + rect.width)
+      && y >= rect.top
+      && y < (rect.top + rect.height);
 
   }
 

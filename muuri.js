@@ -29,10 +29,10 @@
   var Hammer;
 
   if (typeof module === 'object' && module.exports) {
-    /*eslint-disable */
+    /* eslint-disable */
     try { Velocity = require('velocity-animate'); } catch (e) {}
     try { Hammer = require('hammerjs'); } catch (e) {}
-    /*eslint-enable */
+    /* eslint-enable */
     module.exports = factory(namespace, Velocity, Hammer);
   }
   else if (typeof define === 'function' && define.amd) {
@@ -3155,17 +3155,17 @@
     var element = item._element;
     var grid = item.getGrid();
     var settings = grid._settings;
-    var checkPredicate = typeof settings.dragStartPredicate === typeFunction ? settings.dragStartPredicate : ItemDrag.defaultStartPredicate;
-    var predicatePending = 0;
-    var predicateResolved = 1;
-    var predicateRejected = 2;
-    var predicateEvent = null;
-    var predicate = predicatePending;
+    var startPredicate = typeof settings.dragStartPredicate === typeFunction ? settings.dragStartPredicate : ItemDrag.defaultStartPredicate;
+    var startPredicatePending = 0;
+    var startPredicateResolved = 1;
+    var startPredicateRejected = 2;
+    var startPredicateEvent = null;
+    var startPredicateState = startPredicatePending;
     var resolvePredicate = function () {
-      if (predicate === predicatePending) {
-        predicate = predicateResolved;
-        drag.onStart(predicateEvent);
-        predicateEvent = null;
+      if (startPredicateState === startPredicatePending) {
+        startPredicateState = startPredicateResolved;
+        drag.onStart(startPredicateEvent);
+        startPredicateEvent = null;
       }
     };
     var hammer;
@@ -3217,26 +3217,27 @@
 
       rafLoop.add(drag._itemId + e.type, function () {
 
-        var predicateResult;
+        var startPredicateResult;
 
-        predicateEvent = e;
+        // Cache event for resolve function.
+        startPredicateEvent = e;
 
         // If predicate is pending try to resolve it.
-        if (predicate === predicatePending) {
-          predicateResult = checkPredicate(drag.getItem(), e, resolvePredicate);
-          if (predicateResult === true) {
-            predicateEvent = null;
-            predicate = predicateResolved;
+        if (startPredicateState === startPredicatePending) {
+          startPredicateResult = startPredicate(drag.getItem(), e, resolvePredicate);
+          if (startPredicateResult === true) {
+            startPredicateEvent = null;
+            startPredicateState = startPredicateResolved;
             drag.onStart(e);
           }
-          else if (predicateResult === false) {
-            predicateEvent = null;
-            predicate = predicateRejected;
+          else if (startPredicateResult === false) {
+            startPredicateEvent = null;
+            startPredicateState = startPredicateRejected;
           }
         }
 
         // Otherwise if predicate is resolved and drag is active, move the item.
-        else if (predicate === predicateResolved && drag._data.isActive) {
+        else if (startPredicateState === startPredicateResolved && drag._data.isActive) {
           drag.onMove(e);
         }
 
@@ -3249,16 +3250,16 @@
       // all queued callbacks.
       drag.unbindRafLoop(true);
 
-      var isResolved = predicate === predicateResolved;
+      var isResolved = startPredicateState === startPredicateResolved;
 
       // Do final predicate check to allow user to unbind stuff for the current
       // drag procedure within the predicate callback. The return value of this
       // check will have no effect to the state of the predicate.
-      checkPredicate(drag.getItem(), e);
+      startPredicate(drag.getItem(), e);
 
       // Reset predicate state.
-      predicateEvent = null;
-      predicate = predicatePending;
+      startPredicateEvent = null;
+      startPredicateState = startPredicatePending;
 
       // If predicate is resolved and dragging is active, call the end handler.
       if (isResolved && drag._data.isActive) {
@@ -3301,27 +3302,32 @@
   ItemDrag.defaultStartPredicate = function (item, event, resolve, options) {
 
     var element = item._element;
-    var drag = item._drag;
-    var config = options || drag.getGrid()._settings.dragStartPredicate || {};
-    var distance = Math.abs(config.distance) || 0;
-    var delay = Math.max(config.delay, 0) || 0;
-    var handle = typeof config.handle === 'string' ? config.handle : false;
-    var handleRect;
+    var predicate = item._drag._startPredicateData;
+    var config;
     var isAnchor;
     var href;
     var target;
 
+    // Setup data if it is not set up yet.
+    if (!predicate) {
+      config = options || item._drag.getGrid()._settings.dragStartPredicate;
+      config = isPlainObject(config) ? config : {};
+      predicate = item._drag._startPredicateData = {
+        distance: Math.abs(config.distance) || 0,
+        delay: Math.max(config.delay, 0) || 0,
+        handle: typeof config.handle === 'string' ? config.handle : false
+      };
+    }
+
     // Final event logic. At this stage return value does not matter anymore,
     // the predicate is either resolved or it's not and there's nothing to do
-    // about it. The stuff inside this if clause is used just for cleaning up.
+    // about it. Here we just reset data and if the item element is a link
+    // we follow it (if there has only been slight movement).
     if (event.isFinal) {
-      drag._handle = null;
-      if (drag._delayTimer) {
-        drag._delayTimer = global.clearTimeout(drag._delayTimer);
-      }
       isAnchor = element.tagName.toLowerCase() === 'a';
       href = element.getAttribute('href');
       target = element.getAttribute('target');
+      dragStartPredicateReset(item);
       if (isAnchor && href && Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200) {
         if (target && target !== '_self') {
           global.open(href, target);
@@ -3330,67 +3336,44 @@
           global.location.href = href;
         }
       }
+      return;
     }
 
-    // All other events logic. Returning true will resolve the predicate,
-    // returning false will reject the predicate and returning anything else
-    // will ignore this specific cycle of the predicate, but keep it capturing
-    // future events.
-    else {
+    // Find and store the handle element so we can check later on if the
+    // cursor is within the handle. If we have a handle selector let's find
+    // the corresponding element. Otherwise let's use the item element as the
+    // handle.
+    if (!predicate.handleElement) {
+      if (predicate.handle) {
+        predicate.handleElement = event.srcEvent.target;
+        while (predicate.handleElement && !elementMatches(predicate.handleElement, predicate.handle)) {
+          predicate.handleElement = predicate.handleElement !== element ? predicate.handleElement.parentElement : null;
+        }
+        if (!predicate.handleElement) {
+          return false;
+        }
+      }
+      else {
+        predicate.handleElement = element;
+      }
+    }
 
-      // Find and store the handle element so we can check later on if the
-      // cursor is within the handle. If no handle selector is defined we use
-      // the item element as the handle.
-      if (!drag._handle) {
-        if (handle) {
-          drag._handle = event.srcEvent.target;
-          while (drag._handle && !elementMatches(drag._handle, handle)) {
-            drag._handle = drag._handle !== element ? drag._handle.parentElement : null;
+    // If delay is defined let's keep track of the latest event and initiate
+    // delay if it has not been done yet.
+    if (predicate.delay) {
+      predicate.event = event;
+      if (!predicate.delayTimer) {
+        predicate.delayTimer = global.setTimeout(function () {
+          predicate.delay = 0;
+          if (dragStartPredicateResolve(item, predicate.event)) {
+            dragStartPredicateReset(item);
+            resolve();
           }
-        }
-        else {
-          drag._handle = element;
-        }
+        }, predicate.delay);
       }
-
-      // If no drag handle was found let's abort immediately.
-      if (!drag._handle) {
-        return false;
-      }
-
-      // If delay is defined, but not initiated yet, let's set it up.
-      if (delay && !drag._delayTimer) {
-        // TODO: Before resolving async make sure that distance is resolved and
-        // the cursor is within the handle. Consider making the finishing stuff
-        // a function which can be just called here.
-        drag._delayTimer = global.setTimeout(resolve, delay);
-      }
-
-      // If the moved distance is smaller than the threshold distance or the
-      // expired duration is smaller than the threshold delay, ignore this
-      // predicate cycle.
-      if (event.distance < distance || event.deltaTime < delay) {
-        return;
-      }
-
-      // Let's clear the possible delay timer.
-      if (drag._delayTimer) {
-        drag._delayTimer = global.clearTimeout(drag._delayTimer);
-      }
-
-      // Get handle rect data and nullify drag handle reference.
-      handleRect = drag._handle.getBoundingClientRect();
-      drag._handle = null;
-
-      // If the cursor is still within the handle let's start the drag.
-      return isPointWithinRect(event.srcEvent.pageX, event.srcEvent.pageY, {
-        width: handleRect.width,
-        height: handleRect.height,
-        left: handleRect.left + (global.pageXOffset || 0),
-        top: handleRect.top + (global.pageYOffset || 0)
-      });
-
     }
+
+    return dragStartPredicateResolve(item, event);
 
   };
 
@@ -5587,6 +5570,60 @@
   }
 
   /**
+   * Resolver for default drag start predicate function.
+   *
+   * @private
+   * @param {Item} item
+   * @param {Object} event
+   * @returns {Boolean}
+   */
+  function dragStartPredicateResolve(item, event) {
+
+    var predicate = item._drag._startPredicateData;
+    var handleRect;
+
+    // If the moved distance is smaller than the threshold distance or there is
+    // some delay left, ignore this predicate cycle.
+    if (event.distance < predicate.distance || predicate.delay) {
+      return;
+    }
+
+    // Get handle rect.
+    handleRect = predicate.handleElement.getBoundingClientRect();
+
+    // Reset predicate data.
+    dragStartPredicateReset(item);
+
+    // If the cursor is still within the handle let's start the drag.
+    return isPointWithinRect(event.srcEvent.pageX, event.srcEvent.pageY, {
+      width: handleRect.width,
+      height: handleRect.height,
+      left: handleRect.left + (global.pageXOffset || 0),
+      top: handleRect.top + (global.pageYOffset || 0)
+    });
+
+  }
+
+  /**
+   * Reset for default drag start predicate function.
+   *
+   * @private
+   * @param {Item} item
+   */
+  function dragStartPredicateReset(item) {
+
+    var predicate = item._drag._startPredicateData;
+
+    if (predicate) {
+      if (predicate.delayTimer) {
+        predicate.delayTimer = global.clearTimeout(predicate.delayTimer);
+      }
+      item._drag._startPredicateData = null;
+    }
+
+  }
+
+  /**
    * Default layout algorithm
    * ************************
    */
@@ -5990,20 +6027,15 @@
    * ****************
    */
 
+  /* eslint-disable */
   /**
    * The values by which multiple grid items can be queried. An html element or
    * an array of HTML elements. Item or an array of items. Node list, live or
    * static. Number (index) or a list of numbers (indices).
    *
-   * @typedef {(
-   *   HTMLElement|
-   *   HTMLElement[]|
-   *   Item|Item[]|
-   *   NodeList|
-   *   Number|
-   *   Number[]
-   * )} GridMultiItemQuery
+   * @typedef {(HTMLElement|HTMLElement[]|Item|Item[]|NodeList|Number|Number[])} GridMultiItemQuery
    */
+  /* eslint-enable */
 
   /**
    * The values by which a single grid item can be queried. An html element, an

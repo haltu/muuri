@@ -8,7 +8,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {width: '140px'});
@@ -42,7 +42,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {width: '140px'});
@@ -76,7 +76,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {width: '140px'});
@@ -110,7 +110,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {width: '140px'});
@@ -144,7 +144,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {width: '140px'});
@@ -178,7 +178,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {width: '140px'});
@@ -212,7 +212,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {width: '140px'});
@@ -246,7 +246,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {width: '140px'});
@@ -280,7 +280,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {height: '140px'});
@@ -314,7 +314,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {height: '140px'});
@@ -348,7 +348,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {height: '140px'});
@@ -382,7 +382,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {height: '140px'});
@@ -416,7 +416,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {height: '140px'});
@@ -450,7 +450,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {height: '140px'});
@@ -484,7 +484,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {height: '140px'});
@@ -518,7 +518,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({itemCount: 4}).container;
+    var container = utils.createGrid({itemCount: 4});
     var children = [].slice.call(container.children);
 
     utils.setStyles(container, {height: '140px'});
@@ -553,7 +553,7 @@
     assert.expect(33);
 
     for (var i = 1; i < 34; i++) {
-      var container = utils.createGridElements({
+      var container = utils.createGrid({
         itemCount: i,
         itemStyles: {
           position: 'absolute',
@@ -563,7 +563,7 @@
           border: '1px solid #ff0000',
           boxSizing: 'border-box'
         }
-      }).container;
+      });
       var grid = new Muuri(container, {layout: {rounding: false}});
       var hasIncorrectPosition = grid.getItems().some(function (item) {
         return item.getPosition().top !== 0;

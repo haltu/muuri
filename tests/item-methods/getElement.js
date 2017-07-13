@@ -8,9 +8,8 @@
 
     assert.expect(1);
 
-    var elements = utils.createGridElements();
-    var container = elements.container;
-    var itemElement = elements.items[1];
+    var container = utils.createGrid();
+    var itemElement = container.children[1];
     var grid = new Muuri(container);
     var item = grid.getItems(itemElement)[0];
     var teardown = function () {

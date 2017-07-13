@@ -8,7 +8,7 @@
   // Methods
   //
 
-  utils.createGridElements = function (options) {
+  utils.createGrid = function (options) {
 
     var opts = options || {};
     var container = opts.container || document.createElement('div');
@@ -43,10 +43,35 @@
       (opts.appendTo || document.body).appendChild(container);
     }
 
-    return {
-      container: container,
-      items: items
-    };
+    return container;
+
+  };
+
+  utils.pressElement = function(element, duration, onRelease) {
+
+    // Calculate start point.
+    var point = mezr.offset(element, window);
+    point.left += mezr.width(element) / 2;
+    point.top += mezr.height(element) / 2;
+
+    // Create the hand and finger istances.
+    var eventMode = supportsPointer ? 'pointer' : supportsTouch ? 'touch' : 'mouse';
+    var pointerType = supportsTouch ? 'touch' : 'mouse';
+    var hand = new Hand({timing: 'fastFrame'});
+    var finger = hand.growFinger(eventMode, {
+      pointerType: pointerType,
+      down: false,
+      width: 30,
+      height: 30,
+      x: point.left,
+      y: point.top
+    });
+
+    // Do the drag.
+    finger.down().wait(duration).up();
+    window.setTimeout(function () {
+      onRelease && onRelease();
+    }, duration + 200);
 
   };
 
@@ -83,7 +108,6 @@
       y: from.top
     });
 
-    // Do the drag.
     finger.down();
     window.setTimeout(function () {
       onStart();

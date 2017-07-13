@@ -9,7 +9,7 @@
     assert.expect(4);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var isChecked = false;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -47,7 +47,7 @@
     assert.expect(4);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -92,7 +92,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -134,7 +134,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -169,5 +169,45 @@
     });
 
   });
+
+  QUnit.test('dragStartPredicate: drag should start after a delay if delay is defined', function (assert) {
+
+    assert.expect(3);
+
+    var done = assert.async();
+    var container = utils.createGrid();
+    var grid = new Muuri(container, {
+      dragEnabled: true,
+      dragStartPredicate: {
+        delay: 100
+      }
+    });
+    var item = grid.getItems()[0];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+      done();
+    };
+
+    utils.pressElement(item.getElement(), 200, teardown);
+
+    window.setTimeout(function () {
+      assert.strictEqual(item.isDragging(), false, 'the item should not be in dragged state right before the delay is finished');
+    }, 50);
+
+    window.setTimeout(function () {
+      assert.strictEqual(item.isDragging(), true, 'the item should be in dragged state after the delay');
+    }, 150);
+
+    grid.on('dragStart', function () {
+      assert.ok(true, 'dragStart event should be emitted after the delay even if there was no movement');
+    });
+
+  });
+
+  // TODO:
+  // - Test handle and distance.
+  // - Test using a custom predicate that uses the default predicate.
+  // - Test that drag will not start if the pointer is dragged outside handle.
 
 })(this);

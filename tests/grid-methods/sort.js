@@ -8,7 +8,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();
@@ -24,7 +24,7 @@
 
     assert.expect(2);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var newIndices = [1, 0, 3, 2, 5, 4, 7, 6, 9, 8];
@@ -61,7 +61,7 @@
 
     assert.expect(3);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {
       sortData: {
         foo: function (item, element) {
@@ -104,7 +104,7 @@
 
     assert.expect(5);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {
       sortData: {
         foo: function (item, element) {
@@ -168,7 +168,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var newItems = items.concat().reverse();

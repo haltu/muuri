@@ -8,7 +8,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();
@@ -24,7 +24,7 @@
 
     assert.expect(5);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -55,7 +55,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -74,7 +74,7 @@
 
     assert.expect(2);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -95,7 +95,7 @@
     assert.expect(5);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var argItems = null;

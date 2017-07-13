@@ -8,7 +8,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {
       containerClass: 'foo'
     });

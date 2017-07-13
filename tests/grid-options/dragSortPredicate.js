@@ -9,12 +9,12 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true
     });
@@ -42,12 +42,12 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortPredicate: {
@@ -78,12 +78,12 @@
     assert.expect(3);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var isChecked = false;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -116,12 +116,12 @@
     assert.expect(0);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortPredicate: function (draggedItem, ev) {
@@ -152,12 +152,12 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortPredicate: function () {

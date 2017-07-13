@@ -9,12 +9,12 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '70px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true
     });
@@ -45,12 +45,12 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '70px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSort: false

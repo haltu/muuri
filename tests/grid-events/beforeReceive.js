@@ -119,16 +119,7 @@
       assert.strictEqual(data.item.isDragging(), true, 'callback: the item should be in dragging state');
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 70,
-        top: 0
-      },
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 70, 0, teardown);
 
   });
 

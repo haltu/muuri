@@ -19,24 +19,20 @@
       done();
     };
 
-    assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state when it`s not being dragged');
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      },
-      onStart: function () {
-        assert.strictEqual(item.isDragging(), true, 'An item should be in dragging state when dragging starts');
-      },
-      onStop: function () {
-        assert.strictEqual(item.isDragging(), true, 'An item should be in dragging state when dragging');
-      },
-      onRelease: function () {
-        assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state after dragging has ended');
-        teardown();
-      }
+    grid
+    .once('dragStart', function () {
+      assert.strictEqual(item.isDragging(), true, 'An item should be in dragging state when dragging starts');
+    })
+    .once('dragMove', function () {
+      assert.strictEqual(item.isDragging(), true, 'An item should be in dragging state when dragging');
+    })
+    .once('dragEnd', function () {
+      assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state after dragging has ended');
     });
+
+    assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state when it`s not being dragged');
+
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 

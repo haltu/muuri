@@ -31,14 +31,7 @@
       done();
     };
 
-    grid.on('dragStart', function () {
-      teardown();
-    });
-
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70}
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -63,27 +56,21 @@
       done();
     };
 
-    grid.once('dragStart', function () {
+    grid
+    .once('dragStart', function () {
       assert.strictEqual(true, true, 'a resolved predicate should start the dragging procedure and trigger dragStart event');
-    });
-
-    grid.once('dragMove', function () {
+    })
+    .once('dragMove', function () {
       assert.strictEqual(true, true, 'a resolved predicate should start the dragging procedure and trigger dragMove event');
-    });
-
-    grid.once('dragEnd', function () {
+    })
+    .once('dragEnd', function () {
       assert.strictEqual(true, true, 'a resolved predicate should start the dragging procedure and trigger dragEnd event');
-    });
-
-    grid.once('dragReleaseStart', function () {
+    })
+    .once('dragReleaseStart', function () {
       assert.strictEqual(counter, 2, 'predicate should be called twice');
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70}
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -108,23 +95,17 @@
       done();
     };
 
-    grid.on('dragStart', function () {
+    grid
+    .on('dragStart', function () {
+      assert.strictEqual(true, false, 'a rejected predicate should not start the dragging procedure');
+    })
+    .on('dragMove', function () {
       assert.strictEqual(true, false, 'a rejected predicate should not start the dragging procedure');
     });
 
-    grid.on('dragMove', function () {
-      assert.strictEqual(true, false, 'a rejected predicate should not start the dragging procedure');
-    });
-
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70},
-      onRelease: function () {
-        window.setTimeout(function () {
-          assert.strictEqual(counter, 2, 'predicate should be called twice');
-          teardown();
-        }, 300);
-      }
+    utils.dragElement(item.getElement(), 0, 70, function () {
+      assert.strictEqual(counter, 2, 'predicate should be called twice');
+      teardown();
     });
 
   });
@@ -149,23 +130,17 @@
       done();
     };
 
-    grid.on('dragStart', function () {
+    grid
+    .on('dragStart', function () {
+      assert.strictEqual(true, false, 'a rejected predicate should not start the dragging procedure');
+    })
+    .on('dragMove', function () {
       assert.strictEqual(true, false, 'a rejected predicate should not start the dragging procedure');
     });
 
-    grid.on('dragMove', function () {
-      assert.strictEqual(true, false, 'a rejected predicate should not start the dragging procedure');
-    });
-
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70},
-      onRelease: function () {
-        window.setTimeout(function () {
-          assert.strictEqual(counter > 2, true, 'predicate should be called more than twice');
-          teardown();
-        }, 300);
-      }
+    utils.dragElement(item.getElement(), 0, 70, function () {
+      assert.strictEqual(counter > 2, true, 'predicate should be called more than twice');
+      teardown();
     });
 
   });
@@ -189,19 +164,116 @@
       done();
     };
 
-    utils.pressElement(item.getElement(), 200, teardown);
-
-    window.setTimeout(function () {
-      assert.strictEqual(item.isDragging(), false, 'the item should not be in dragged state right before the delay is finished');
-    }, 50);
-
-    window.setTimeout(function () {
-      assert.strictEqual(item.isDragging(), true, 'the item should be in dragged state after the delay');
-    }, 150);
-
-    grid.on('dragStart', function () {
+    grid
+    .on('dragStart', function () {
       assert.ok(true, 'dragStart event should be emitted after the delay even if there was no movement');
+    })
+    .on('dragMove', function () {
+      assert.ok(false, 'dragMove event should not be emitted if there was no movement');
+    })
+    .on('dragEnd', function () {
+      assert.ok(true, 'dragEnd event should be emitted even if there was no movement');
     });
+
+    window.setTimeout(function () {
+      assert.strictEqual(item.isDragging(), false, 'the item should not be in dragged state before the delay is finished');
+    }, 90);
+
+    utils.dragElement(item.getElement(), 0, 0, teardown);
+
+  });
+
+  QUnit.test('dragStartPredicate: drag should start after a distance if distance is defined', function (assert) {
+
+    assert.expect(1);
+
+    var done = assert.async();
+    var container = utils.createGrid();
+    var grid = new Muuri(container, {
+      dragEnabled: true,
+      dragStartPredicate: {
+        distance: 10
+      }
+    });
+    var item = grid.getItems()[0];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+      done();
+    };
+
+    grid.on('dragStart', function (item, e) {
+      assert.ok(e.distance >= 10, 'dragStart event should be emitted after the specified distance is dragged');
+    });
+
+    utils.dragElement(item.getElement(), 15, 15, teardown);
+
+  });
+
+  QUnit.test('dragStartPredicate: if a handle is specified the drag should start when the handle is dragged.', function (assert) {
+
+    assert.expect(1);
+
+    var done = assert.async();
+    var container = utils.createGrid();
+    var grid = new Muuri(container, {
+      dragEnabled: true,
+      dragStartPredicate: {
+        handle: '.handle'
+      }
+    });
+    var item = grid.getItems()[0];
+    var handle = document.createElement('div');
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+      done();
+    };
+
+    item.getElement().appendChild(handle);
+    handle.classList.add('handle');
+    utils.setStyles(handle, {
+      position: 'absolute',
+      width: '30px',
+      height: '30px',
+      left: '-30px',
+      top: '-30px'
+    });
+
+    grid.on('dragStart', function (item, e) {
+      assert.ok(true);
+    });
+
+    utils.dragElement(item.getElement(), 15, 15, function () {
+      utils.dragElement(handle, 15, 15, teardown);
+    });
+
+  });
+
+    QUnit.test('dragStartPredicate: drag should not start if the drag pointer is outside the handle when dragging should start.', function (assert) {
+
+    assert.expect(0);
+
+    var done = assert.async();
+    var container = utils.createGrid();
+    var grid = new Muuri(container, {
+      dragEnabled: true,
+      dragStartPredicate: {
+        distance: 500
+      }
+    });
+    var item = grid.getItems()[0];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+      done();
+    };
+
+    grid.on('dragStart', function (item, e) {
+      assert.ok(false);
+    });
+
+    utils.dragElement(item.getElement(), 600, 600, teardown);
 
   });
 

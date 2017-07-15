@@ -22,16 +22,9 @@
 
     grid.on('dragStart', function () {
       assert.strictEqual(item.getElement().parentNode, container);
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 
@@ -54,16 +47,9 @@
 
     grid.on('dragStart', function () {
       assert.strictEqual(item.getElement().parentNode, document.body);
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 

@@ -49,15 +49,8 @@
     });
     grid.on('dragReleaseStart', function () {
       assert.deepEqual(grid.getItems('releasing'), [item], 'should allow providing "releasing" state as the first argument');
-      teardown();
     });
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 

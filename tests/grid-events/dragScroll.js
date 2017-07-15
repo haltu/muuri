@@ -46,16 +46,9 @@
       ++calls;
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 0,
-        top: 100
-      },
-      onRelease: function () {
-        assert.strictEqual(calls, 1, 'should be called only once');
-        teardown();
-      }
+    utils.dragElement(item.getElement(), 0, 100, function () {
+      assert.strictEqual(calls, 1, 'should be called only once');
+      teardown();
     });
 
   });

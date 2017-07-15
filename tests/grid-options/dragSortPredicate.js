@@ -27,13 +27,9 @@
 
     grid.once('move', function (data) {
       assert.strictEqual(data.action, 'move', 'the movement action should be "move"');
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70}
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -63,13 +59,9 @@
 
     grid.once('move', function (data) {
       assert.strictEqual(data.action, 'swap', 'the movement action should be "swap"');
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70}
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -103,11 +95,7 @@
       done();
     };
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70},
-      onRelease: teardown
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -139,11 +127,7 @@
       assert.strictEqual(true, false, 'move should not be triggered');
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70},
-      onRelease: teardown
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -177,13 +161,9 @@
     grid.once('move', function (data) {
       assert.strictEqual(data.action, 'swap', 'sort action should be "swap"');
       assert.strictEqual(data.toIndex, grid.getItems().length - 1, 'target index should be the last index');
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70}
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 

@@ -27,22 +27,15 @@
 
     grid.on('move', function () {
       assert.strictEqual(true, true);
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 0,
-        top: 70
-      }
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
   QUnit.test('dragSort: should be disabled if false is provided', function (assert) {
 
-    assert.expect(1);
+    assert.expect(0);
 
     var done = assert.async();
     var container = utils.createGrid({
@@ -63,21 +56,10 @@
     };
 
     grid.on('move', function () {
-      assert.strictEqual(true, false);
+      assert.strictEqual(true, false, 'items should not be moved');
     });
 
-    grid.on('dragEnd', function () {
-      assert.strictEqual(true, true);
-      teardown();
-    });
-
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 0,
-        top: 70
-      }
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 

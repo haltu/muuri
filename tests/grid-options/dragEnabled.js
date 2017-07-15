@@ -6,7 +6,7 @@
 
   QUnit.test('dragEnabled: drag should be disabled by default', function (assert) {
 
-    assert.expect(1);
+    assert.expect(0);
 
     var done = assert.async();
     var container = utils.createGrid();
@@ -19,21 +19,10 @@
     };
 
     grid.on('dragStart', function () {
-      assert.strictEqual(true, false);
+      assert.strictEqual(true, false, 'drag should not be started');
     });
 
-    window.setTimeout(function () {
-      assert.strictEqual(true, true);
-      teardown();
-    }, 500);
-
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 
@@ -54,17 +43,10 @@
     };
 
     grid.on('dragStart', function () {
-      assert.strictEqual(true, true);
-      teardown();
+      assert.strictEqual(true, true, 'drag should be started');
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 

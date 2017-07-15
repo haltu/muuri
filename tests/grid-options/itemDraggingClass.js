@@ -29,16 +29,9 @@
 
     grid.on('dragEnd', function () {
       assert.strictEqual(utils.matches(item.getElement(), '.foo'), false, 'the classname should be removed when dragging ends');
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 

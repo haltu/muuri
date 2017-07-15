@@ -68,13 +68,7 @@
       assert.strictEqual(true, false);
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 70, top: 0},
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 70, 0, teardown);
 
   });
 
@@ -144,13 +138,7 @@
       assert.strictEqual(true, true);
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 70, top: 0},
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 70, 0, teardown);
 
   });
 
@@ -253,24 +241,12 @@
       }
     });
 
-    utils.dragElement({
-      element: itemA.getElement(),
-      move: {left: 140, top: 0},
-      onRelease: function () {
-        if (++moved === 2) {
-          teardown();
-        }
-      }
+    utils.dragElement(itemA.getElement(), 140, 0, function () {
+      ++moved === 2 && teardown();
     });
 
-    utils.dragElement({
-      element: itemB.getElement(),
-      move: {left: 70, top: 0},
-      onRelease: function () {
-        if (++moved === 2) {
-          teardown();
-        }
-      }
+    utils.dragElement(itemB.getElement(), 70, 0, function () {
+      ++moved === 2 && teardown();
     });
 
   });
@@ -341,13 +317,7 @@
       assert.strictEqual(true, false);
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 70, top: 0},
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 70, 0, teardown);
 
   });
 

@@ -31,16 +31,9 @@
       ++calls;
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      },
-      onRelease: function () {
-        assert.strictEqual(calls, 1, 'should be called only once during drag process');
-        teardown();
-      }
+    utils.dragElement(item.getElement(), 100, 100, function () {
+      assert.strictEqual(calls, 1, 'should be called only once during drag process');
+      teardown();
     });
 
   });

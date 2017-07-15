@@ -66,16 +66,7 @@
       assert.strictEqual(data.toIndex, 1, 'callback: the argument toIndex property should be the index where the item was moved to');
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 0,
-        top: 70
-      },
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 

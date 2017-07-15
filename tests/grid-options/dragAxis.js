@@ -27,20 +27,14 @@
     var left = parseInt(item.getElement().getBoundingClientRect().left);
     var top = parseInt(item.getElement().getBoundingClientRect().top);
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 70,
-        top: 70
-      },
-      onStop: function () {
-        var newLeft = parseInt(item.getElement().getBoundingClientRect().left);
-        var newTop = parseInt(item.getElement().getBoundingClientRect().top);
-        assert.strictEqual(newLeft, left + 70, 'left');
-        assert.strictEqual(newTop, top + 70, 'top');
-        teardown();
-      }
+    grid.on('dragEnd', function () {
+      var newLeft = parseInt(item.getElement().getBoundingClientRect().left);
+      var newTop = parseInt(item.getElement().getBoundingClientRect().top);
+      assert.strictEqual(newLeft, left + 70, 'left');
+      assert.strictEqual(newTop, top + 70, 'top');
     });
+
+    utils.dragElement(item.getElement(), 70, 70, teardown);
 
   });
 
@@ -68,20 +62,14 @@
     var left = parseInt(item.getElement().getBoundingClientRect().left);
     var top = parseInt(item.getElement().getBoundingClientRect().top);
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 70,
-        top: 70
-      },
-      onStop: function () {
-        var newLeft = parseInt(item.getElement().getBoundingClientRect().left);
-        var newTop = parseInt(item.getElement().getBoundingClientRect().top);
-        assert.strictEqual(newLeft, left + 70, 'left');
-        assert.strictEqual(newTop, top + 70, 'top');
-        teardown();
-      }
+    grid.on('dragEnd', function () {
+      var newLeft = parseInt(item.getElement().getBoundingClientRect().left);
+      var newTop = parseInt(item.getElement().getBoundingClientRect().top);
+      assert.strictEqual(newLeft, left + 70, 'left');
+      assert.strictEqual(newTop, top + 70, 'top');
     });
+
+    utils.dragElement(item.getElement(), 70, 70, teardown);
 
   });
 
@@ -109,20 +97,14 @@
     var left = parseInt(item.getElement().getBoundingClientRect().left);
     var top = parseInt(item.getElement().getBoundingClientRect().top);
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 70,
-        top: 70
-      },
-      onStop: function () {
-        var newLeft = parseInt(item.getElement().getBoundingClientRect().left);
-        var newTop = parseInt(item.getElement().getBoundingClientRect().top);
-        assert.strictEqual(newLeft, left + 70, 'left');
-        assert.strictEqual(newTop, top, 'top');
-        teardown();
-      }
+    grid.on('dragEnd', function () {
+      var newLeft = parseInt(item.getElement().getBoundingClientRect().left);
+      var newTop = parseInt(item.getElement().getBoundingClientRect().top);
+      assert.strictEqual(newLeft, left + 70, 'left');
+      assert.strictEqual(newTop, top, 'top');
     });
+
+    utils.dragElement(item.getElement(), 70, 70, teardown);
 
   });
 
@@ -150,20 +132,14 @@
     var left = parseInt(item.getElement().getBoundingClientRect().left);
     var top = parseInt(item.getElement().getBoundingClientRect().top);
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 70,
-        top: 70
-      },
-      onStop: function () {
-        var newLeft = parseInt(item.getElement().getBoundingClientRect().left);
-        var newTop = parseInt(item.getElement().getBoundingClientRect().top);
-        assert.strictEqual(newLeft, left, 'left');
-        assert.strictEqual(newTop, top + 70, 'top');
-        teardown();
-      }
+    grid.on('dragEnd', function () {
+      var newLeft = parseInt(item.getElement().getBoundingClientRect().left);
+      var newTop = parseInt(item.getElement().getBoundingClientRect().top);
+      assert.strictEqual(newLeft, left, 'left');
+      assert.strictEqual(newTop, top + 70, 'top');
     });
+
+    utils.dragElement(item.getElement(), 70, 70, teardown);
 
   });
 

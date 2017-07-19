@@ -145,7 +145,7 @@
 
   });
 
-  QUnit.test('dragStartPredicate: drag should start after a delay if delay is defined', function (assert) {
+  QUnit.test('dragStartPredicate: delay - drag should start after a delay if delay is defined', function (assert) {
 
     assert.expect(3);
 
@@ -183,7 +183,7 @@
 
   });
 
-  QUnit.test('dragStartPredicate: drag should start after a distance if distance is defined', function (assert) {
+  QUnit.test('dragStartPredicate: distance - drag should start after a distance if distance is defined', function (assert) {
 
     assert.expect(1);
 
@@ -210,7 +210,7 @@
 
   });
 
-  QUnit.test('dragStartPredicate: if a handle is specified the drag should start when the handle is dragged.', function (assert) {
+  QUnit.test('dragStartPredicate: handle - if a handle is specified the drag should start when the handle is dragged', function (assert) {
 
     assert.expect(1);
 
@@ -250,7 +250,7 @@
 
   });
 
-    QUnit.test('dragStartPredicate: drag should not start if the drag pointer is outside the handle when dragging should start.', function (assert) {
+  QUnit.test('dragStartPredicate: handle - drag should not start if the drag pointer is outside the handle when dragging should start', function (assert) {
 
     assert.expect(0);
 
@@ -276,10 +276,5 @@
     utils.dragElement(item.getElement(), 600, 600, teardown);
 
   });
-
-  // TODO:
-  // - Test handle and distance.
-  // - Test using a custom predicate that uses the default predicate.
-  // - Test that drag will not start if the pointer is dragged outside handle.
 
 })(this);

@@ -22,6 +22,14 @@
  * SOFTWARE.
  */
 
+// TODO: Make dragSortGroup and dragSortWith dynamic (define values after init).
+// Either use a function or make it use selectors.
+
+// TODO: Try to create the most minimal drag library to replace Hammer.js so
+// that we could drop Hammer dependency. We only need the dragging. The first
+// step would creating the logic around touch/mouse/pointer events and then
+// making it support all input types intelligently.
+
 (function (global, factory) {
 
   var namespace = 'Muuri';
@@ -2046,8 +2054,8 @@
         translateX: (currentLeft + offsetLeft) + 'px',
         translateY: (currentTop + offsetTop) + 'px'
       }, {
-        translateX: inst._left + offsetLeft,
-        translateY: inst._top + offsetTop
+        translateX: inst._left + offsetLeft + 'px',
+        translateY: inst._top + offsetTop + 'px'
       }, {
         duration: animDuration,
         easing: animEasing,
@@ -2546,8 +2554,10 @@
    */
   function ItemAnimate(item, element) {
 
+    this._item = item;
     this._element = element;
-    this._queue = namespace + '-' + (++uuid);
+    this._id = namespace + '-' + (++uuid);
+    this._isLayout = element === item._element;
     this._isAnimating = false;
     this._isDestroyed = false;
 
@@ -2584,7 +2594,7 @@
     var velocityOpts = {
       duration: opts.duration || 300,
       easing: opts.easing || 'ease',
-      queue: inst._queue
+      queue: inst._id
     };
 
     // Stop current animation, if running.
@@ -2592,38 +2602,43 @@
       inst.stop();
     }
 
-    // Otherwise if current props exist force feed current values to Velocity.
-    if (propsCurrent) {
-      hookStyles(element, propsCurrent);
-    }
-
     // Set as animating.
     inst._isAnimating = true;
 
-    // Add callback if it exists.
-    if (callback) {
-      velocityOpts.complete = function () {
-        callback();
-      };
+    // If we can skip the animation and just set the styles, let's do that.
+    if (!inst._shouldAnimate(propsCurrent, propsTarget)) {
+      rafLoop.add(inst._id, function () {
+        hookStyles(element, propsTarget);
+        callback && callback();
+      });
+      return;
     }
 
-    // Set up and start the animation.
+    // Set up animation.
+    propsCurrent && hookStyles(element, propsCurrent);
+    callback && (velocityOpts.complete = callback);
     Velocity(element, propsTarget, velocityOpts);
-    Velocity.Utilities.dequeue(element, inst._queue);
+
+    // Start animation on the next animation frame so that multiple animations
+    // would run as smoothly as possible.
+    rafLoop.add(inst._id, function () {
+      Velocity.Utilities.dequeue(element, inst._id);
+    });
 
   };
 
   /**
    * Stop instance's current animation if running.
    *
-   * @public
+   * @private
    * @memberof ItemAnimate.prototype
    */
   ItemAnimate.prototype.stop = function () {
 
     if (!this._isDestroyed && this._isAnimating) {
       this._isAnimating = false;
-      Velocity(this._element, 'stop', this._queue);
+      Velocity(this._element, 'stop', this._id);
+      rafLoop.remove(this._id);
     }
 
   };
@@ -2639,9 +2654,69 @@
 
     if (!this._isDestroyed) {
       this.stop();
-      this._element = null;
+      this._item = this._element = null;
       this._isDestroyed = true;
     }
+
+  };
+
+  /**
+   * ItemAnimate - Protected prototype methods
+   * *****************************************
+   */
+
+  /**
+   * Check if item needs to animate at all.
+   *
+   * @protected
+   * @param {Object} from
+   * @param {Object} to
+   * @memberof ItemAnimate.prototype
+   */
+  ItemAnimate.prototype._shouldAnimate = function (from, to) {
+
+    // TODO: Account for scenarions where the grid is within some other
+    // scrollable element than the body. We might need to change winRect to
+    // scrollRect or something like that...
+
+    var moveX;
+    var moveY;
+    var rect;
+    var rectEnd;
+    var winRect;
+
+    if (this._isLayout) {
+      moveX = parseFloat(to.translateX) - parseFloat(from.translateX);
+      moveY = parseFloat(to.translateY) - parseFloat(from.translateY);
+      rect = this._element.getBoundingClientRect();
+      rectEnd = {
+        left: rect.left + moveX,
+        top: rect.top + moveY,
+        width: rect.width,
+        height: rect.height
+      };
+      winRect = {
+        left: 0,
+        top: 0,
+        width: global.innerWidth,
+        height: global.innerHeight
+      };
+      return muuriLayout.doRectsOverlap(winRect, rect) || muuriLayout.doRectsOverlap(winRect, rectEnd);
+    }
+
+    if (this.item._animate._isAnimating) {
+      return true;
+    }
+
+    rect = this.item._animate._element.getBoundingClientRect();
+    winRect = {
+      left: 0,
+      top: 0,
+      width: global.innerWidth,
+      height: global.innerHeight
+    };
+
+    return muuriLayout.doRectsOverlap(winRect, rect);
 
   };
 
@@ -3155,30 +3230,29 @@
     var element = item._element;
     var grid = item.getGrid();
     var settings = grid._settings;
+    var currentEvent = null;
+    var hammer;
+
+    // Start predicate stuff.
     var startPredicate = typeof settings.dragStartPredicate === typeFunction ? settings.dragStartPredicate : ItemDrag.defaultStartPredicate;
     var startPredicatePending = 0;
     var startPredicateResolved = 1;
     var startPredicateRejected = 2;
-    var startPredicateEvent = null;
     var startPredicateState = startPredicatePending;
     var resolvePredicate = function () {
       if (startPredicateState === startPredicatePending) {
         startPredicateState = startPredicateResolved;
-        drag.onStart(startPredicateEvent);
-        startPredicateEvent = null;
+        drag.onStart(currentEvent);
       }
     };
-    var hammer;
 
+    // Protected data.
     drag._itemId = item._id;
     drag._gridId = grid._id;
     drag._hammer = hammer = new Hammer.Manager(element);
     drag._isDestroyed = false;
     drag._isMigrating = false;
     drag._data = {};
-
-    // Setup item's initial drag data.
-    drag.reset();
 
     // Setup overlap checker function.
     drag._checkSortOverlap = debounce(function () {
@@ -3189,6 +3263,9 @@
 
     // Setup sort predicate.
     drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ? settings.dragSortPredicate : ItemDrag.defaultSortPredicate;
+
+    // Setup item's initial drag data.
+    drag.reset();
 
     // Add drag recognizer to hammer.
     hammer.add(new Hammer.Pan({
@@ -3215,30 +3292,32 @@
     hammer
     .on('draginit dragstart dragmove', function (e) {
 
+      // TODO: Test the situation where item is dragged with one finger and then
+      // another finger is place on the element. What happens and what should
+      // happen?
+
+      // Keep track of the current event.
+      currentEvent = e;
+
+      // Do the heavy lifting in the next animation frame. 
       rafLoop.add(drag._itemId + e.type, function () {
 
-        var startPredicateResult;
-
-        // Cache event for resolve function.
-        startPredicateEvent = e;
-
         // If predicate is pending try to resolve it.
+        var startPredicateResult;
         if (startPredicateState === startPredicatePending) {
-          startPredicateResult = startPredicate(drag.getItem(), e, resolvePredicate);
+          startPredicateResult = startPredicate(drag.getItem(), currentEvent, resolvePredicate);
           if (startPredicateResult === true) {
-            startPredicateEvent = null;
             startPredicateState = startPredicateResolved;
-            drag.onStart(e);
+            drag.onStart(currentEvent);
           }
           else if (startPredicateResult === false) {
-            startPredicateEvent = null;
             startPredicateState = startPredicateRejected;
           }
         }
 
         // Otherwise if predicate is resolved and drag is active, move the item.
         else if (startPredicateState === startPredicateResolved && drag._data.isActive) {
-          drag.onMove(e);
+          drag.onMove(currentEvent);
         }
 
       });
@@ -3246,11 +3325,19 @@
     })
     .on('dragend dragcancel draginitup', function (e) {
 
+      var isResolved;
+
       // Unbind item's callbacks from the requestAnimationFrame loop and call
       // all queued callbacks.
       drag.unbindRafLoop(true);
 
-      var isResolved = startPredicateState === startPredicateResolved;
+      // Check if the start predicate was resolved during drag. Note that this
+      // is checked on purpose after the raf loop unbinding process, since that
+      // might cause the result of this to change.
+      isResolved = startPredicateState === startPredicateResolved;
+
+      // Reset currentEvent data.
+      currentEvent = null;
 
       // Do final predicate check to allow user to unbind stuff for the current
       // drag procedure within the predicate callback. The return value of this
@@ -3258,7 +3345,6 @@
       startPredicate(drag.getItem(), e);
 
       // Reset predicate state.
-      startPredicateEvent = null;
       startPredicateState = startPredicatePending;
 
       // If predicate is resolved and dragging is active, call the end handler.
@@ -3593,7 +3679,7 @@
    * @memberof ItemDrag.prototype
    * @returns {ItemDrag}
    */
-  ItemDrag.prototype.bindScrollers = function () {
+  ItemDrag.prototype.bindScrollListeners = function () {
 
     var drag = this;
     var dragData = drag._data;
@@ -3635,7 +3721,7 @@
    * @memberof ItemDrag.prototype
    * @returns {ItemDrag}
    */
-  ItemDrag.prototype.unbindScrollers = function () {
+  ItemDrag.prototype.unbindScrollListeners = function () {
 
     var drag = this;
     var dragData = drag._data;
@@ -3909,7 +3995,7 @@
     drag.unbindRafLoop();
 
     // Remove scroll listeners.
-    drag.unbindScrollers();
+    drag.unbindScrollListeners();
 
     // Cancel overlap check.
     drag._checkSortOverlap('cancel');
@@ -4049,7 +4135,7 @@
     dragData.elementClientY = elementGBCR.top;
 
     // Bind drag scrollers.
-    drag.bindScrollers();
+    drag.bindScrollListeners();
 
     // Set drag class.
     addClass(element, settings.itemDraggingClass);
@@ -4220,7 +4306,7 @@
     }
 
     // Remove scroll listeners.
-    drag.unbindScrollers();
+    drag.unbindScrollListeners();
 
     // Remove drag classname from element.
     removeClass(element, settings.itemDraggingClass);
@@ -4519,6 +4605,10 @@
      */
     function update() {
 
+      var currentQueue;
+      var currentCallbacks;
+      var i;
+
       // If the queue is empty, let's kill the loop.
       if (!queue.length) {
         loop = null;
@@ -4526,11 +4616,10 @@
         return;
       }
 
-      var currentQueue = queue;
-      var currentCallbacks = callbacks;
-      var i;
-
-      // Reste queue anc callbacks.
+      // Cache the current queue and callbacks temporarily and create new queue
+      // and callbacks object.
+      currentQueue = queue;
+      currentCallbacks = callbacks;
       queue = [];
       callbacks = {};
 
@@ -4540,7 +4629,7 @@
       }
 
       // If the loop is still active, let's keep it running.
-      loop = loop && raf(update);
+      loop && (loop = raf(update));
 
     }
 
@@ -4573,7 +4662,7 @@
       queue.push(id);
 
       // Start the loop if it is not running yet.
-      loop = loop || raf(update);
+      !loop && (loop = raf(update));
 
     }
 

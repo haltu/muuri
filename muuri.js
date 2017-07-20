@@ -22,13 +22,13 @@
  * SOFTWARE.
  */
 
-// TODO: Make dragSortGroup and dragSortWith dynamic (define values after init).
-// Either use a function or make it use selectors.
-
-// TODO: Try to create the most minimal drag library to replace Hammer.js so
-// that we could drop Hammer dependency. We only need the dragging. The first
-// step would creating the logic around touch/mouse/pointer events and then
-// making it support all input types intelligently.
+/*
+TODO
+****
+- When layout is called and there are items animating. Don't stop/reanimate
+  those items that are already animating to correct place. Only stop/reanimate
+  those items that are not anymore animating towards their correct place.
+*/
 
 (function (global, factory) {
 
@@ -74,9 +74,6 @@
   var typeString = 'string';
   var typeNumber = 'number';
 
-  // The requestAnimationFrame loop.
-  var rafLoop = createRafLoop();
-
   // Keep track of Grid instances.
   var gridInstances = {};
 
@@ -88,6 +85,22 @@
 
   // No operation function.
   var noop = function () {};
+
+  // Get supported requestAnimationFrame.
+  var requestAnimationFrame = global.requestAnimationFrame ||
+    global.webkitRequestAnimationFrame ||
+    global.mozRequestAnimationFrame ||
+    global.msRequestAnimationFrame ||
+    global.oRequestAnimationFrame ||
+    function (fn) { fn(); };
+
+  // Get supported cancelAnimationFrame.
+  var cancelAnimationFrame = global.cancelAnimationFrame ||
+    global.webkitCancelAnimationFrame ||
+    global.mozCancelAnimationFrame ||
+    global.msCancelAnimationFrame ||
+    global.oCancelAnimationFrame ||
+    noop;
 
   // Unique id which is used for Grid instances and Item instances.
   // Should be incremented every time when used.
@@ -168,7 +181,7 @@
    * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
    * @param {?String} [options.dragAxis]
    * @param {Boolean} [options.dragSort=true]
-   * @param {Number} [options.dragSortInterval=50]
+   * @param {Number} [options.dragSortInterval=100]
    * @param {(Function|Object)} [options.dragSortPredicate]
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
@@ -194,10 +207,10 @@
     var layoutOnResize;
 
     // Muuri can be loaded inside the head tag also, but in that case Muuri can
-    // not cache body element and run the initial DOM tests. So, if detect that
-    // body element could not be fetched on init we do it here once and also run
-    // the DOM tests. If the Grid is instantiated before body is ready you are
-    // doing it wrong ;)
+    // not cache body element and run the initial DOM tests. So, if we detect
+    // that body element could not be fetched on init we do it here once and
+    // also run the DOM tests. If the Grid is instantiated before body is ready
+    // you are doing it wrong ;)
     if (!body) {
       body = document.body;
       transformLeaksFixed = doesTransformLeakFixed();
@@ -268,9 +281,7 @@
     layoutOnResize = layoutOnResize === true ? 0 : typeof layoutOnResize === typeNumber ? layoutOnResize : -1;
     if (layoutOnResize >= 0) {
       global.addEventListener('resize', inst._resizeHandler = debounce(function () {
-        rafLoop.add(inst._id + 'resize', function () {
-          inst.refreshItems().layout();
-        });
+        inst.refreshItems().layout();
       }, layoutOnResize));
     }
 
@@ -1229,7 +1240,6 @@
 
     // Unbind window resize event listener.
     if (inst._resizeHandler) {
-      rafLoop.remove(inst._id + 'resize');
       global.removeEventListener('resize', inst._resizeHandler);
     }
 
@@ -2035,8 +2045,7 @@
         currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
       }
 
-      // If the item is already in correct position there's no need to animate
-      // it.
+      // If the item is already in correct position let's quit early.
       if (inst._left === currentLeft && inst._top === currentTop) {
         inst._stopLayout();
         finishLayout();
@@ -2557,6 +2566,7 @@
     this._item = item;
     this._element = element;
     this._id = namespace + '-' + (++uuid);
+    this._raf = null;
     this._isLayout = element === item._element;
     this._isAnimating = false;
     this._isDestroyed = false;
@@ -2607,7 +2617,8 @@
 
     // If we can skip the animation and just set the styles, let's do that.
     if (!inst._shouldAnimate(propsCurrent, propsTarget)) {
-      rafLoop.add(inst._id, function () {
+     inst._raf = requestAnimationFrame.call(global, function () {
+        inst._raf = null;
         hookStyles(element, propsTarget);
         callback && callback();
       });
@@ -2621,7 +2632,8 @@
 
     // Start animation on the next animation frame so that multiple animations
     // would run as smoothly as possible.
-    rafLoop.add(inst._id, function () {
+    inst._raf = requestAnimationFrame.call(global, function () {
+      inst._raf = null;
       Velocity.Utilities.dequeue(element, inst._id);
     });
 
@@ -2635,10 +2647,14 @@
    */
   ItemAnimate.prototype.stop = function () {
 
-    if (!this._isDestroyed && this._isAnimating) {
-      this._isAnimating = false;
-      Velocity(this._element, 'stop', this._id);
-      rafLoop.remove(this._id);
+    var inst = this;
+    if (!inst._isDestroyed && inst._isAnimating) {
+      inst._isAnimating = false;
+      if (inst._raf) {
+        cancelAnimationFrame.call(global, inst._raf);
+        inst._raf = null;
+      }
+      Velocity(inst._element, 'stop', inst._id);
     }
 
   };
@@ -2704,11 +2720,11 @@
       return muuriLayout.doRectsOverlap(winRect, rect) || muuriLayout.doRectsOverlap(winRect, rectEnd);
     }
 
-    if (this.item._animate._isAnimating) {
+    if (this._item._animate._isAnimating) {
       return true;
     }
 
-    rect = this.item._animate._element.getBoundingClientRect();
+    rect = this._item._element.getBoundingClientRect();
     winRect = {
       left: 0,
       top: 0,
@@ -3101,11 +3117,11 @@
 
     if (!release._isDestroyed) {
       item = release.getItem();
-      removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
       release.isActive = false;
       release.isPositioningStarted = false;
       release.containerDiffX = 0;
       release.containerDiffY = 0;
+      removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
     }
 
     return release;
@@ -3123,7 +3139,6 @@
 
     var release = this;
     var item;
-    var element;
     var grid;
 
     if (release._isDestroyed || release.isActive) {
@@ -3131,14 +3146,13 @@
     }
 
     item = release.getItem();
-    element = item._element;
     grid = item.getGrid();
 
     // Flag release as active.
     release.isActive = true;
 
     // Add release classname to the released element.
-    addClass(element, grid._settings.itemReleasingClass);
+    addClass(item._element, grid._settings.itemReleasingClass);
 
     // Emit dragReleaseStart event.
     grid._emit(evDragReleaseStart, item);
@@ -3230,7 +3244,6 @@
     var element = item._element;
     var grid = item.getGrid();
     var settings = grid._settings;
-    var currentEvent = null;
     var hammer;
 
     // Start predicate stuff.
@@ -3239,12 +3252,7 @@
     var startPredicateResolved = 1;
     var startPredicateRejected = 2;
     var startPredicateState = startPredicatePending;
-    var resolvePredicate = function () {
-      if (startPredicateState === startPredicatePending) {
-        startPredicateState = startPredicateResolved;
-        drag.onStart(currentEvent);
-      }
-    };
+    var startPredicateResult;
 
     // Protected data.
     drag._itemId = item._id;
@@ -3254,14 +3262,26 @@
     drag._isMigrating = false;
     drag._data = {};
 
-    // Setup overlap checker function.
-    drag._checkSortOverlap = debounce(function () {
-      if (drag._data.isActive) {
-        drag.checkOverlap();
+    // Create a private drag start resolver that can be used to resolve the drag
+    // start predicate asynchronously.
+    drag._resolveStartPredicate = function (event) {
+      if (startPredicateState === startPredicatePending) {
+        startPredicateState = startPredicateResolved;
+        drag.onStart(event);
       }
+    };
+
+    // Create scroll listener.
+    drag._scrollListener = function (e) {
+      drag.onScroll(e);
+    };
+
+    // Create overlap checker function.
+    drag._checkSortOverlap = debounce(function () {
+      drag._data.isActive && drag.checkOverlap();
     }, settings.dragSortInterval);
 
-    // Setup sort predicate.
+    // Create sort predicate.
     drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ? settings.dragSortPredicate : ItemDrag.defaultSortPredicate;
 
     // Setup item's initial drag data.
@@ -3296,55 +3316,37 @@
       // another finger is place on the element. What happens and what should
       // happen?
 
-      // Keep track of the current event.
-      currentEvent = e;
-
-      // Do the heavy lifting in the next animation frame. 
-      rafLoop.add(drag._itemId + e.type, function () {
-
-        // If predicate is pending try to resolve it.
-        var startPredicateResult;
-        if (startPredicateState === startPredicatePending) {
-          startPredicateResult = startPredicate(drag.getItem(), currentEvent, resolvePredicate);
-          if (startPredicateResult === true) {
-            startPredicateState = startPredicateResolved;
-            drag.onStart(currentEvent);
-          }
-          else if (startPredicateResult === false) {
-            startPredicateState = startPredicateRejected;
-          }
+      // If predicate is pending try to resolve it.
+      if (startPredicateState === startPredicatePending) {
+        startPredicateResult = startPredicate(drag.getItem(), e);
+        if (startPredicateResult === true) {
+          startPredicateState = startPredicateResolved;
+          drag.onStart(e);
         }
-
-        // Otherwise if predicate is resolved and drag is active, move the item.
-        else if (startPredicateState === startPredicateResolved && drag._data.isActive) {
-          drag.onMove(currentEvent);
+        else if (startPredicateResult === false) {
+          startPredicateState = startPredicateRejected;
         }
+      }
 
-      });
+      // Otherwise if predicate is resolved and drag is active, move the item.
+      else if (startPredicateState === startPredicateResolved && drag._data.isActive) {
+        drag.onMove(e);
+      }
 
     })
     .on('dragend dragcancel draginitup', function (e) {
 
-      var isResolved;
-
-      // Unbind item's callbacks from the requestAnimationFrame loop and call
-      // all queued callbacks.
-      drag.unbindRafLoop(true);
-
       // Check if the start predicate was resolved during drag. Note that this
       // is checked on purpose after the raf loop unbinding process, since that
       // might cause the result of this to change.
-      isResolved = startPredicateState === startPredicateResolved;
-
-      // Reset currentEvent data.
-      currentEvent = null;
+      var isResolved = startPredicateState === startPredicateResolved;
 
       // Do final predicate check to allow user to unbind stuff for the current
       // drag procedure within the predicate callback. The return value of this
       // check will have no effect to the state of the predicate.
       startPredicate(drag.getItem(), e);
 
-      // Reset predicate state.
+      // Reset start predicate state.
       startPredicateState = startPredicatePending;
 
       // If predicate is resolved and dragging is active, call the end handler.
@@ -3375,17 +3377,13 @@
    * @memberof ItemDrag
    * @param {Item} item
    * @param {Object} event
-   * @param {Function} resolve
-   *   - This is a special function that can be used to resolve the predicate.
-   *     Very handy for scenarios where you need to start dragging
-   *     asynchronously.
    * @param {Object} [options]
    *   - An optional options object which can be used to pass the predicate
    *     it's options manually. By default the predicate retrieves the options
    *     from the grid's settings.
    * @returns {Boolean}
    */
-  ItemDrag.defaultStartPredicate = function (item, event, resolve, options) {
+  ItemDrag.defaultStartPredicate = function (item, event, options) {
 
     var element = item._element;
     var predicate = item._drag._startPredicateData;
@@ -3452,8 +3450,8 @@
         predicate.delayTimer = global.setTimeout(function () {
           predicate.delay = 0;
           if (dragStartPredicateResolve(item, predicate.event)) {
+            item._drag._resolveStartPredicate(predicate.event);
             dragStartPredicateReset(item);
-            resolve();
           }
         }, predicate.delay);
       }
@@ -3682,13 +3680,10 @@
   ItemDrag.prototype.bindScrollListeners = function () {
 
     var drag = this;
-    var dragData = drag._data;
-    var item = drag.getItem();
-    var grid = drag.getGrid();
-    var element = item._element;
-    var gridContainer = grid._element;
-    var dragContainer = dragData.container;
-    var scrollers = getScrollParents(element);
+    var gridContainer = drag.getGrid()._element;
+    var dragContainer = drag._data.container;
+    var scrollers = getScrollParents(drag.getItem()._element);
+    var i;
 
     // If drag container is defined and it's not the same element as grid
     // container then we need to add the grid container and it's scroll parents
@@ -3697,17 +3692,13 @@
       scrollers = arrayUnique(scrollers.concat(gridContainer).concat(getScrollParents(gridContainer)));
     }
 
-    // Bind scroll listeners and store the "scroller" objects to drag data.
-    dragData.scrollers = scrollers.map(function (element, index) {
-      var id = drag._itemId + 'scroll' + index;
-      var listener = function (e) {
-        rafLoop.add(id, function () {
-          drag.onScroll(e);
-        });
-      };
-      element.addEventListener('scroll', listener);
-      return [element, listener, id];
-    });
+    // Bind scroll listeners.
+    for (i = 0; i < scrollers.length; i++) {
+      scrollers[i].addEventListener('scroll', drag._scrollListener);
+    }
+
+    // Save scrollers to drag data.
+    drag._data.scrollers = scrollers;
 
     return drag;
 
@@ -3729,37 +3720,10 @@
     var i;
 
     for (i = 0; i < scrollers.length; i++) {
-      scrollers[i][0].removeEventListener('scroll', scrollers[i][1]);
+      scrollers[i].removeEventListener('scroll', drag._scrollListener);
     }
 
     dragData.scrollers = [];
-
-    return drag;
-
-  };
-
-  /**
-   * Unbind currently bound requestAnimationFrame loop callbacks.
-   *
-   * @public
-   * @memberof ItemDrag.prototype
-   * @param {Boolean} [callRemoved=false]
-   * @returns {ItemDrag}
-   */
-  ItemDrag.prototype.unbindRafLoop = function (callRemoved) {
-
-    var drag = this;
-    var dragData = drag._data;
-    var itemId = drag._itemId;
-    var rafIds = dragData.scrollers.map(function (scroller) {
-      return scroller[2];
-    });
-
-    rafLoop.remove(rafIds.concat([
-      itemId + 'draginit',
-      itemId + 'dragstart',
-      itemId + 'dragmove'
-    ]), callRemoved);
 
     return drag;
 
@@ -3984,15 +3948,11 @@
     // If the item is being dropped into another grid, finish it up and return
     // immediately.
     if (drag._isMigrating) {
-      drag.finishMigration(dragData.currentEvent);
-      return;
+      return drag.finishMigration(dragData.currentEvent);
     }
 
     element = drag.getItem()._element;
     grid = drag.getGrid();
-
-    // Unbind requestAnimationFrame loop callbacks.
-    drag.unbindRafLoop();
 
     // Remove scroll listeners.
     drag.unbindScrollListeners();
@@ -4308,15 +4268,15 @@
     // Remove scroll listeners.
     drag.unbindScrollListeners();
 
-    // Remove drag classname from element.
-    removeClass(element, settings.itemDraggingClass);
-
     // Setup release data.
     release.containerDiffX = dragData.containerDiffX;
     release.containerDiffY = dragData.containerDiffY;
 
     // Reset drag data.
     drag.reset();
+
+    // Remove drag classname from element.
+    removeClass(element, settings.itemDraggingClass);
 
     // Emit dragEnd event.
     grid._emit(evDragEnd, item, event);
@@ -4572,143 +4532,6 @@
         fn();
       }
 
-    };
-
-  }
-
-  /**
-   * Create a requestAnimationFrame loop, which returns an object that contains
-   * add and remove methods for adding/removing callbacks to/from the loop.
-   *
-   * @private
-   * @returns {Object}
-   */
-  function createRafLoop() {
-
-    var queue = [];
-    var callbacks = {};
-    var loop = null;
-    var raf = global.requestAnimationFrame ||
-              global.webkitRequestAnimationFrame ||
-              global.mozRequestAnimationFrame ||
-              global.msRequestAnimationFrame ||
-              global.oRequestAnimationFrame ||
-              null;
-
-    // Bind the window object to raf so it can be called directly.
-    raf = raf && raf.bind(global);
-
-    /**
-     * The update method. This will be process the queue and call the callbacks
-     * on the next available animation frame. If the queue is empty the loop
-     * will automatically be stopped.
-     */
-    function update() {
-
-      var currentQueue;
-      var currentCallbacks;
-      var i;
-
-      // If the queue is empty, let's kill the loop.
-      if (!queue.length) {
-        loop = null;
-        callbacks = {};
-        return;
-      }
-
-      // Cache the current queue and callbacks temporarily and create new queue
-      // and callbacks object.
-      currentQueue = queue;
-      currentCallbacks = callbacks;
-      queue = [];
-      callbacks = {};
-
-      // Call the callbacks.
-      for (i = 0; i < currentQueue.length; i++) {
-        currentCallbacks[currentQueue[i]]();
-      }
-
-      // If the loop is still active, let's keep it running.
-      loop && (loop = raf(update));
-
-    }
-
-    /**
-     * Add a one-time event to the raf loop. Starts the loop if it is not
-     * running already.
-     *
-     * @param {String} id
-     * @param {Function} callback
-     */
-    function add(id, callback) {
-
-      // If requestAnimationFrame is not supported let's just call the callback
-      // and be done with it.
-      if (!raf) {
-        callback();
-        return;
-      }
-
-      // Remove the id from the queue if it exists in it already.
-      var index = queue.indexOf(id);
-      if (index > -1) {
-        queue.splice(index, 1);
-      }
-
-      // Add the callback to the callbacks object.
-      callbacks[id] = callback;
-
-      // Add the callback to the queue.
-      queue.push(id);
-
-      // Start the loop if it is not running yet.
-      !loop && (loop = raf(update));
-
-    }
-
-    /**
-     * Remove one or more one-time events from the raf loop. Automatically
-     * stops the loop if there are no more callbacks in the loop. Optionally
-     * calls the removed callbacks in the binding order immediately (outside the
-     * loop).
-     *
-     * @param {(String|String[])} ids
-     * @param {Boolean} [callRemoved=false]
-     */
-    function remove(ids, callRemoved) {
-
-      // If requestAnimationFrame is not supported let's call it a day.
-      if (!raf) {
-        return;
-      }
-
-      var targetIds = [].concat(ids);
-      var removedIds = [];
-      var targetIndex;
-      var i;
-
-      // Remove target ids from the queue and add them to the removedIds array
-      // into correct index (keeps the callback execution order intact).
-      for (i = 0; i < targetIds.length; i++) {
-        targetIndex = queue.indexOf(targetIds[i]);
-        if (targetIndex > -1) {
-          removedIds[targetIndex] = queue.splice(targetIndex, 1)[0];
-        }
-      }
-
-      // Loop through removed ids in correct execution order and call the
-      // callbacks (forEach method ignores the possible holes in array which we
-      // can leverage here).
-      removedIds.forEach(function (id) {
-        callRemoved && callbacks[id]();
-        callbacks[id] = undefined;
-      });
-
-    }
-
-    return {
-      add: add,
-      remove: remove
     };
 
   }

@@ -87,20 +87,14 @@ TODO
   var noop = function () {};
 
   // Get supported requestAnimationFrame.
-  var requestAnimationFrame = global.requestAnimationFrame ||
+  var raf = (global.requestAnimationFrame ||
     global.webkitRequestAnimationFrame ||
     global.mozRequestAnimationFrame ||
     global.msRequestAnimationFrame ||
     global.oRequestAnimationFrame ||
-    function (fn) { fn(); };
-
-  // Get supported cancelAnimationFrame.
-  var cancelAnimationFrame = global.cancelAnimationFrame ||
-    global.webkitCancelAnimationFrame ||
-    global.mozCancelAnimationFrame ||
-    global.msCancelAnimationFrame ||
-    global.oCancelAnimationFrame ||
-    noop;
+    function (fn) {
+      fn();
+    }).bind(global);
 
   // Unique id which is used for Grid instances and Item instances.
   // Should be incremented every time when used.
@@ -2566,7 +2560,6 @@ TODO
     this._item = item;
     this._element = element;
     this._id = namespace + '-' + (++uuid);
-    this._raf = null;
     this._isLayout = element === item._element;
     this._isAnimating = false;
     this._isDestroyed = false;
@@ -2608,17 +2601,14 @@ TODO
     };
 
     // Stop current animation, if running.
-    if (inst._isAnimating) {
-      inst.stop();
-    }
+    inst._isAnimating && inst.stop();
 
     // Set as animating.
     inst._isAnimating = true;
 
     // If we can skip the animation and just set the styles, let's do that.
     if (!inst._shouldAnimate(propsCurrent, propsTarget)) {
-     inst._raf = requestAnimationFrame.call(global, function () {
-        inst._raf = null;
+      raf(function () {
         hookStyles(element, propsTarget);
         callback && callback();
       });
@@ -2632,8 +2622,7 @@ TODO
 
     // Start animation on the next animation frame so that multiple animations
     // would run as smoothly as possible.
-    inst._raf = requestAnimationFrame.call(global, function () {
-      inst._raf = null;
+    raf(function () {
       Velocity.Utilities.dequeue(element, inst._id);
     });
 
@@ -2650,10 +2639,6 @@ TODO
     var inst = this;
     if (!inst._isDestroyed && inst._isAnimating) {
       inst._isAnimating = false;
-      if (inst._raf) {
-        cancelAnimationFrame.call(global, inst._raf);
-        inst._raf = null;
-      }
       Velocity(inst._element, 'stop', inst._id);
     }
 
@@ -2702,6 +2687,7 @@ TODO
     var winRect;
 
     if (this._isLayout) {
+
       moveX = parseFloat(to.translateX) - parseFloat(from.translateX);
       moveY = parseFloat(to.translateY) - parseFloat(from.translateY);
       rect = this._element.getBoundingClientRect();
@@ -2717,7 +2703,9 @@ TODO
         width: global.innerWidth,
         height: global.innerHeight
       };
+
       return muuriLayout.doRectsOverlap(winRect, rect) || muuriLayout.doRectsOverlap(winRect, rectEnd);
+
     }
 
     if (this._item._animate._isAnimating) {
@@ -5310,31 +5298,20 @@ TODO
 
     return {
       start: function (item, instant, onFinish) {
-
         if (!isEnabled || !styles) {
-          if (onFinish) {
-            onFinish();
-          }
+          onFinish && onFinish();
         }
         else if (instant) {
-
           (item._isDefaultAnimate ? hookStyles : setStyles)(item._child, styles);
-
-          if (onFinish) {
-            onFinish();
-          }
-
+          onFinish && onFinish();
         }
         else {
-
           item._animateChild.start(null, styles, {
             duration: duration,
             easing: easing,
             onFinish: onFinish
           });
-
         }
-
       },
       stop: function (item) {
         item._animateChild.stop();

@@ -22,6 +22,7 @@
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
+      grid = null;
       done();
     };
 

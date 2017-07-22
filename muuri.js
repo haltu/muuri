@@ -2561,6 +2561,8 @@ TODO
     this._element = element;
     this._id = namespace + '-' + (++uuid);
     this._isLayout = element === item._element;
+    this._callback = null;
+    this._animateTo = null;
     this._isAnimating = false;
     this._isDestroyed = false;
 
@@ -2594,37 +2596,48 @@ TODO
     var element = inst._element;
     var opts = options || {};
     var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
-    var velocityOpts = {
-      duration: opts.duration || 300,
-      easing: opts.easing || 'ease',
-      queue: inst._id
-    };
 
-    // Stop current animation, if running.
-    inst._isAnimating && inst.stop();
+    // If item is being animate check if the target animation properties equal
+    // to the properties in the current animation. If they match we can just let
+    // the animation continue and be done with it (and of course change the
+    // cached callback). If the animation properties do not match we need to
+    // stop the ongoing animation.
+    if (inst._isAnimating) {
+      if (inst._shouldStop(propsTarget)) {
+        inst.stop();
+      }
+      else {
+        inst._callback = callback;
+        return;
+      }
+    }
 
-    // Set as animating.
+    // Set as animating and cache target props and callback.
     inst._isAnimating = true;
+    inst._animateTo = propsTarget;
+    inst._callback = callback;
 
     // If we can skip the animation and just set the styles, let's do that.
     if (!inst._shouldAnimate(propsCurrent, propsTarget)) {
       raf(function () {
         hookStyles(element, propsTarget);
-        callback && callback();
       });
-      return;
     }
-
-    // Set up animation.
-    propsCurrent && hookStyles(element, propsCurrent);
-    callback && (velocityOpts.complete = callback);
-    Velocity(element, propsTarget, velocityOpts);
-
-    // Start animation on the next animation frame so that multiple animations
-    // would run as smoothly as possible.
-    raf(function () {
-      Velocity.Utilities.dequeue(element, inst._id);
-    });
+    // Otherwise let's do the animation.
+    else {
+      propsCurrent && hookStyles(element, propsCurrent);
+      Velocity(element, propsTarget, {
+        duration: opts.duration || 300,
+        easing: opts.easing || 'ease',
+        queue: inst._id,
+        complete: function () {
+          inst._callback && inst._callback();
+        }
+      });
+      raf(function () {
+        Velocity.Utilities.dequeue(element, inst._id);
+      });
+    }
 
   };
 
@@ -2639,6 +2652,7 @@ TODO
     var inst = this;
     if (!inst._isDestroyed && inst._isAnimating) {
       inst._isAnimating = false;
+      inst._callback = inst._animateTo = null;
       Velocity(inst._element, 'stop', inst._id);
     }
 
@@ -2653,10 +2667,11 @@ TODO
    */
   ItemAnimate.prototype.destroy = function () {
 
-    if (!this._isDestroyed) {
-      this.stop();
-      this._item = this._element = null;
-      this._isDestroyed = true;
+    var inst = this;
+    if (!inst._isDestroyed) {
+      inst.stop();
+      inst._item = inst._element = null;
+      inst._isDestroyed = true;
     }
 
   };
@@ -2667,18 +2682,42 @@ TODO
    */
 
   /**
+   * Check if item needs to stop the current animation.
+   *
+   * @protected
+   * @memberof ItemAnimate.prototype
+   * @param {?Object} animateTo
+   * @return {Boolean}
+   */
+  ItemAnimate.prototype._shouldStop = function (animateTo) {
+
+    var props = Object.keys(animateTo);
+    var i;
+
+    for (i = 0; i < props.length; i++) {
+      if (animateTo[props[i]] !== this._animateTo[props[i]]) {
+        return true;
+      }
+    }
+
+    return false;
+
+  };
+
+  /**
    * Check if item needs to animate at all.
    *
    * @protected
-   * @param {Object} from
-   * @param {Object} to
    * @memberof ItemAnimate.prototype
+   * @param {Object} animateFrom
+   * @param {Object} animateTo
+   * @return {Boolean}
    */
-  ItemAnimate.prototype._shouldAnimate = function (from, to) {
+  ItemAnimate.prototype._shouldAnimate = function (animateFrom, animateTo) {
 
-    // TODO: Account for scenarions where the grid is within some other
-    // scrollable element than the body. We might need to change winRect to
-    // scrollRect or something like that...
+    // TODO: For maximum performance we need to account for scenarions where the
+    // grid is within some other scrollable element than the body. We might need
+    // to change winRect to scrollRect or something like that...
 
     var moveX;
     var moveY;
@@ -2688,8 +2727,8 @@ TODO
 
     if (this._isLayout) {
 
-      moveX = parseFloat(to.translateX) - parseFloat(from.translateX);
-      moveY = parseFloat(to.translateY) - parseFloat(from.translateY);
+      moveX = parseFloat(animateTo.translateX) - parseFloat(animateFrom.translateX);
+      moveY = parseFloat(animateTo.translateY) - parseFloat(animateFrom.translateY);
       rect = this._element.getBoundingClientRect();
       rectEnd = {
         left: rect.left + moveX,

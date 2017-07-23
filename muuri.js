@@ -22,14 +22,6 @@
  * SOFTWARE.
  */
 
-/*
-TODO
-****
-- When layout is called and there are items animating. Don't stop/reanimate
-  those items that are already animating to correct place. Only stop/reanimate
-  those items that are not anymore animating towards their correct place.
-*/
-
 (function (global, factory) {
 
   var namespace = 'Muuri';
@@ -74,6 +66,12 @@ TODO
   var typeString = 'string';
   var typeNumber = 'number';
 
+  // Drag start predicate states.
+  var startPredicateInactive = 0;
+  var startPredicatePending = 1;
+  var startPredicateResolved = 2;
+  var startPredicateRejected = 3;
+
   // Keep track of Grid instances.
   var gridInstances = {};
 
@@ -85,16 +83,6 @@ TODO
 
   // No operation function.
   var noop = function () {};
-
-  // Get supported requestAnimationFrame.
-  var raf = (global.requestAnimationFrame ||
-    global.webkitRequestAnimationFrame ||
-    global.mozRequestAnimationFrame ||
-    global.msRequestAnimationFrame ||
-    global.oRequestAnimationFrame ||
-    function (fn) {
-      fn();
-    }).bind(global);
 
   // Unique id which is used for Grid instances and Item instances.
   // Should be incremented every time when used.
@@ -1247,9 +1235,7 @@ TODO
 
     // Restore container.
     removeClass(container, inst._settings.containerClass);
-    setStyles(container, {
-      height: ''
-    });
+    setStyles(container, {height: ''});
 
     // Emit destroy event and unbind all events.
     inst._emit(evDestroy);
@@ -2133,20 +2119,24 @@ TODO
       // Stop ongoing hide animation.
       if (inst._isHiding) {
         grid._itemHideHandler.stop(inst);
+        inst._isHiding = false;
       }
-
-      // Update item's internal state.
-      inst._isActive = inst._isShowing = true;
-      inst._isHidden = inst._isHiding = false;
 
       // Update item classes.
       addClass(element, settings.itemVisibleClass);
       removeClass(element, settings.itemHiddenClass);
 
       // Set item element's display style to block.
-      setStyles(element, {
-        display: 'block'
-      });
+      setStyles(element, {display: 'block'});
+
+      // Refresh item's dimensions if item is hidden.
+      if (inst._isHidden) {
+        inst._isHidden = false;
+        inst._refreshDimensions();
+      }
+
+      // Update item's internal active and showing states.
+      inst._isActive = inst._isShowing = true;
 
       // Process the visibility callback queue with the interrupted flag active.
       processQueue(queue, true, inst);
@@ -2209,9 +2199,7 @@ TODO
         }
         grid._itemHideHandler.start(inst, instant, function () {
           inst._isHiding = false;
-          setStyles(element, {
-            display: 'none'
-          });
+          setStyles(element, {display: 'none'});
           processQueue(queue, false, inst);
         });
       }
@@ -2256,9 +2244,7 @@ TODO
       // succesful animation.
       grid._itemHideHandler.start(inst, instant, function () {
         inst._isHiding = false;
-        setStyles(element, {
-          display: 'none'
-        });
+        setStyles(element, {display: 'none'});
         processQueue(queue, false, inst);
       });
 
@@ -2560,7 +2546,6 @@ TODO
     this._item = item;
     this._element = element;
     this._id = namespace + '-' + (++uuid);
-    this._isLayout = element === item._element;
     this._callback = null;
     this._animateTo = null;
     this._isAnimating = false;
@@ -2612,16 +2597,15 @@ TODO
       }
     }
 
-    // Set as animating and cache target props and callback.
+    // Setup animation data.
     inst._isAnimating = true;
     inst._animateTo = propsTarget;
     inst._callback = callback;
 
-    // If we can skip the animation and just set the styles, let's do that.
+    // If we can skip the animation let's just set the styles.
     if (!inst._shouldAnimate(propsCurrent, propsTarget)) {
-      raf(function () {
-        hookStyles(element, propsTarget);
-      });
+      hookStyles(element, propsTarget);
+      inst._onFinish();
     }
     // Otherwise let's do the animation.
     else {
@@ -2631,12 +2615,10 @@ TODO
         easing: opts.easing || 'ease',
         queue: inst._id,
         complete: function () {
-          inst._callback && inst._callback();
+          inst._onFinish();
         }
       });
-      raf(function () {
-        Velocity.Utilities.dequeue(element, inst._id);
-      });
+      Velocity.Utilities.dequeue(element, inst._id);
     }
 
   };
@@ -2650,6 +2632,7 @@ TODO
   ItemAnimate.prototype.stop = function () {
 
     var inst = this;
+
     if (!inst._isDestroyed && inst._isAnimating) {
       inst._isAnimating = false;
       inst._callback = inst._animateTo = null;
@@ -2668,6 +2651,7 @@ TODO
   ItemAnimate.prototype.destroy = function () {
 
     var inst = this;
+
     if (!inst._isDestroyed) {
       inst.stop();
       inst._item = inst._element = null;
@@ -2680,6 +2664,23 @@ TODO
    * ItemAnimate - Protected prototype methods
    * *****************************************
    */
+
+  /**
+   * Stop instance's current animation if running.
+   *
+   * @private
+   * @memberof ItemAnimate.prototype
+   */
+  ItemAnimate.prototype._onFinish = function () {
+
+    var inst = this;
+    var callback = inst._callback;
+
+    inst._isAnimating = false;
+    inst._callback = inst._animateTo = null;
+    callback && callback();
+
+  };
 
   /**
    * Check if item needs to stop the current animation.
@@ -2715,51 +2716,52 @@ TODO
    */
   ItemAnimate.prototype._shouldAnimate = function (animateFrom, animateTo) {
 
-    // TODO: For maximum performance we need to account for scenarions where the
-    // grid is within some other scrollable element than the body. We might need
-    // to change winRect to scrollRect or something like that...
+    // TODO: Currently visibility animations are always animated because there
+    // are some major issues figuring out when to animate and when not to, which
+    // is why we always animate visibility animations. The main problem is that
+    // the visibility animation is triggered before the possible auto-layout
+    // which means that it does not have access to the latest layout data and
+    // thus can't accurately check if the item should animate or not. To fix
+    // this we need to change the order of the auto-layout so that it would be
+    // called before the visibility animations are triggered.
 
-    var moveX;
-    var moveY;
-    var rect;
-    var rectEnd;
-    var winRect;
+    var inst = this;
+    var item = inst._item;
+    var isLayoutAnimation = inst._element === item._element;
+    var grid;
+    var viewRect;
+    var itemRect;
 
-    if (this._isLayout) {
-
-      moveX = parseFloat(animateTo.translateX) - parseFloat(animateFrom.translateX);
-      moveY = parseFloat(animateTo.translateY) - parseFloat(animateFrom.translateY);
-      rect = this._element.getBoundingClientRect();
-      rectEnd = {
-        left: rect.left + moveX,
-        top: rect.top + moveY,
-        width: rect.width,
-        height: rect.height
-      };
-      winRect = {
-        left: 0,
-        top: 0,
-        width: global.innerWidth,
-        height: global.innerHeight
-      };
-
-      return muuriLayout.doRectsOverlap(winRect, rect) || muuriLayout.doRectsOverlap(winRect, rectEnd);
-
-    }
-
-    if (this._item._animate._isAnimating) {
+    // If this is visibility animation or if the item is being
+    // released/migrated/dragged let's always animate.
+    if (!isLayoutAnimation || item.isReleasing() || item.isDragging() || item._migrate.isActive) {
       return true;
     }
 
-    rect = this._item._element.getBoundingClientRect();
-    winRect = {
+    grid = item.getGrid();
+    viewRect = {
       left: 0,
       top: 0,
       width: global.innerWidth,
       height: global.innerHeight
     };
+    itemRect = {
+      left: grid._left + grid._border.left + parseFloat(animateFrom.translateX),
+      top: grid._top + grid._border.top + parseFloat(animateFrom.translateY),
+      width: item._width + item._margin.left + item._margin.right,
+      height: item._height + item._margin.top + item._margin.bottom
+    };
 
-    return muuriLayout.doRectsOverlap(winRect, rect);
+    // If the item is within the viewport currently let's animate.
+    if (muuriLayout.doRectsOverlap(viewRect, itemRect)) {
+      return true;
+    }
+
+    // If the item will be in the viewport when the animation ends let's also
+    // animate.
+    itemRect.left = grid._left + grid._border.left + parseFloat(animateTo.translateX);
+    itemRect.top = grid._top + grid._border.top + parseFloat(animateTo.translateY);
+    return muuriLayout.doRectsOverlap(viewRect, itemRect);
 
   };
 
@@ -3273,12 +3275,10 @@ TODO
     var settings = grid._settings;
     var hammer;
 
-    // Start predicate stuff.
-    var startPredicate = typeof settings.dragStartPredicate === typeFunction ? settings.dragStartPredicate : ItemDrag.defaultStartPredicate;
-    var startPredicatePending = 0;
-    var startPredicateResolved = 1;
-    var startPredicateRejected = 2;
-    var startPredicateState = startPredicatePending;
+    // Start predicate.
+    var startPredicate = typeof settings.dragStartPredicate === typeFunction ?
+      settings.dragStartPredicate : ItemDrag.defaultStartPredicate;
+    var startPredicateState = startPredicateInactive;
     var startPredicateResult;
 
     // Protected data.
@@ -3292,7 +3292,7 @@ TODO
     // Create a private drag start resolver that can be used to resolve the drag
     // start predicate asynchronously.
     drag._resolveStartPredicate = function (event) {
-      if (startPredicateState === startPredicatePending) {
+      if (!drag._isDestroyed && startPredicateState === startPredicatePending) {
         startPredicateState = startPredicateResolved;
         drag.onStart(event);
       }
@@ -3309,7 +3309,8 @@ TODO
     }, settings.dragSortInterval);
 
     // Create sort predicate.
-    drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ? settings.dragSortPredicate : ItemDrag.defaultSortPredicate;
+    drag._sortPredicate = typeof settings.dragSortPredicate === typeFunction ?
+      settings.dragSortPredicate : ItemDrag.defaultSortPredicate;
 
     // Setup item's initial drag data.
     drag.reset();
@@ -3339,9 +3340,10 @@ TODO
     hammer
     .on('draginit dragstart dragmove', function (e) {
 
-      // TODO: Test the situation where item is dragged with one finger and then
-      // another finger is place on the element. What happens and what should
-      // happen?
+      // Let's activate drag start predicate state.
+      if (startPredicateState === startPredicateInactive) {
+        startPredicateState = startPredicatePending;
+      }
 
       // If predicate is pending try to resolve it.
       if (startPredicateState === startPredicatePending) {
@@ -3363,9 +3365,7 @@ TODO
     })
     .on('dragend dragcancel draginitup', function (e) {
 
-      // Check if the start predicate was resolved during drag. Note that this
-      // is checked on purpose after the raf loop unbinding process, since that
-      // might cause the result of this to change.
+      // Check if the start predicate was resolved during drag.
       var isResolved = startPredicateState === startPredicateResolved;
 
       // Do final predicate check to allow user to unbind stuff for the current
@@ -3374,7 +3374,7 @@ TODO
       startPredicate(drag.getItem(), e);
 
       // Reset start predicate state.
-      startPredicateState = startPredicatePending;
+      startPredicateState = startPredicateInactive;
 
       // If predicate is resolved and dragging is active, call the end handler.
       if (isResolved && drag._data.isActive) {
@@ -5221,18 +5221,17 @@ TODO
     var needsLayout = false;
     var affectedItems = [];
     var completedItems = [];
-    var hiddenItems = [];
     var isAffected;
     var item;
     var i;
 
     // Get affected items: filter out items which will not be affected by this
-    // method at their current state.
+    // method in their current state.
     for (i = 0; i < targetItems.length; i++) {
 
       item = targetItems[i];
       isAffected = isShow ? item._isHidden || item._isHiding || (item._isShowing && isInstant) :
-                   !item._isHidden || item._isShowing || (item._isHiding && isInstant);
+        !item._isHidden || item._isShowing || (item._isHiding && isInstant);
 
       if (isAffected) {
         affectedItems[affectedItems.length] = item;
@@ -5271,12 +5270,9 @@ TODO
         // make the item not animate it's next positioning (layout). Without the
         // skipNextLayoutAnimation flag the item would animate to it's place
         // from the northwest corner of the grid, which (imho) has a buggy vibe
-        // to it. Also we are adding the item to the hidden items list here,
-        // which means that it's dimensions will be updated just before the
-        // layout.
+        // to it.
         if (isShow && !item._isActive) {
           item._skipNextLayoutAnimation = true;
-          hiddenItems[hiddenItems.length] = item;
         }
 
         // Show/hide the item.
@@ -5302,13 +5298,8 @@ TODO
       }
 
       // Layout if needed.
-      if (needsLayout) {
-        if (hiddenItems.length) {
-          inst.refreshItems(hiddenItems);
-        }
-        if (layout) {
-          inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
-        }
+      if (needsLayout && layout) {
+        inst.layout(layout === 'instant', typeof layout === typeFunction ? layout : undefined);
       }
 
     }

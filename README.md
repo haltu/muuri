@@ -1,7 +1,6 @@
 # Muuri
 
-[![Build Status](https://travis-ci.org/haltu/muuri.svg?branch=0.4.0)](https://travis-ci.org/haltu/muuri)
-[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri@0.4.0/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.4.0/muuri.min.js)
+[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri/muuri.min.js?compression=gzip)](https://unpkg.com/muuri/muuri.min.js)
 [![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
 [![CDNJS](https://img.shields.io/cdnjs/v/muuri.svg)](https://cdnjs.com/libraries/muuri)
 
@@ -9,7 +8,7 @@ Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, 
 
 Muuri's layout system allows positioning the grid items pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
-Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioining/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioning/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 ## Table of contents
 
@@ -20,6 +19,7 @@ Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (posi
   * [Grid methods](#grid-methods)
   * [Grid events](#grid-events)
   * [Item methods](#item-methods)
+* [FAQ](#faq)
 * [Credits](#credits)
 * [License](#license)
 
@@ -57,8 +57,6 @@ Muuri depends on the following libraries:
   * By default Muuri uses Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
   * Muuri uses Hammer.js to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
-
-For ease of use both Velocity and Hammer.js are marked as Muuri's dependencies in [package.json](package.json) and [bower.json](bower.json) configuration files. So if you're using npm or bower there is no need to manually download and set up the dependencies.
 
 ### 3. Add the script tags
 
@@ -117,8 +115,12 @@ Add Muuri on your site and make sure to include the dependencies before Muuri.
   height: 100px;
   margin: 5px;
   z-index: 1;
+  background: #000;
+  color: #fff;
 }
-.item.muuri-dragging,
+.item.muuri-dragging {
+  z-index: 3;
+}
 .item.muuri-releasing {
   z-index: 2;
 }
@@ -247,6 +249,8 @@ You can modify the default options easily:
 Muuri.defaultOptions.showDuration = 400;
 Muuri.defaultOptions.dragSortPredicate.action = 'swap';
 ```
+
+This is how you would use the options:
 
 ```javascript
 // Minimum configuration.
@@ -429,6 +433,9 @@ Provide an object to configure the default layout algorithm with the following p
 * **alignBottom** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * When `true` the items are aligned from the bottom up.
+* **rounding** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `true`.
+  * When `true` the dimensions of the items will be automatically rounded for the layout calculations using `Math.round()`. Set to `false` to use accurate dimensions. In practice you would want disable this if you are using relative dimension values for items (%, em, rem, etc.). If you have defined item dimensions with pixel values (px) it is recommended that you leave this on.
 
 ```javascript
 var grid = new Muuri(elem, {
@@ -436,7 +443,8 @@ var grid = new Muuri(elem, {
     fillGaps: true,
     horizontal: true,
     alignRight: true,
-    alignBottom: true
+    alignBottom: true,
+    rounding: false
   }
 });
 ```
@@ -1562,14 +1570,14 @@ grid.on('hideEnd', function (items) {
 
 ### filter
 
-Triggered after `grid.filter()` is called. Note that internally `grid.filter()` method uses `grid.show()` and `grid.hide()` methods which are called right before this event is emitted.
+Triggered after `grid.filter()` is called.
 
 **Arguments**
 
 * **shownItems** &nbsp;&mdash;&nbsp; *array*
-  * The items that will be shown.
+  * The items that are shown.
 * **hiddenItems** &nbsp;&mdash;&nbsp; *array*
-  * The items that will be hidden.
+  * The items that are hidden.
 
 ```javascript
 grid.on('filter', function (shownItems, hiddenItems) {
@@ -2009,9 +2017,27 @@ Check if the item is destroyed.
 var isDestroyed = item.isDestroyed();
 ```
 
+## FAQ
+
+**How can I do ... with Muuri?**
+
+Please join our official [gitter channel](https://gitter.im/muurijs/muuri) to discuss about Muuri with the community and the author. This is the place to ask your questions about *how to use* Muuri.
+
+**I think I found a bug, what should I do?**
+
+Please [create an issue](https://github.com/haltu/muuri/issues/new), explain the issue and include a reduced test case (link to a [codepen](https://codepen.io/) snippet for example) if possible.
+
+**I'd like to contribute, where should I start?**
+
+TODO INSTRUCTIONS
+
+**Is there a React/Vue version?**
+
+Not yet, but it is planned. Hold on tight!
+
 ## Credits
 
-Created and maintained by [Niklas Rämö](https://github.com/niklasramo).
+**Created and maintained by [Niklas Rämö](https://github.com/niklasramo).**
 
 * This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/) and [Packery](http://packery.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
 * Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!

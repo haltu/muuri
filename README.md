@@ -1522,7 +1522,7 @@ Triggered after `grid.show()` is called, after the items are shown.
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully shown without interruptions.
+  * The items that were succesfully shown without interruptions. If you, for example, call `grid.hide()` to some of the items that are currently being shown, those items will be omitted from this argument.
 
 ```javascript
 grid.on('showEnd', function (items) {
@@ -1547,12 +1547,12 @@ grid.on('hideStart', function (items) {
 
 ### hideEnd
 
-Triggered after `grid.hide()` is called, after the items are hidden (with or without animation).
+Triggered after `grid.hide()` is called, after the items are hidden.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully hidden without interruptions.
+  * The items that were succesfully hidden without interruptions. If you, for example, call `grid.show()` to some of the items that are currently being hidden, those items will be omitted from this argument.
 
 ```javascript
 grid.on('hideEnd', function (items) {
@@ -1562,14 +1562,14 @@ grid.on('hideEnd', function (items) {
 
 ### filter
 
-Triggered after `grid.filter()` is called.
+Triggered after `grid.filter()` is called. Note that internally `grid.filter()` method uses `grid.show()` and `grid.hide()` methods which are called right before this event is emitted.
 
 **Arguments**
 
 * **shownItems** &nbsp;&mdash;&nbsp; *array*
-  * The items that were shown.
+  * The items that will be shown.
 * **hiddenItems** &nbsp;&mdash;&nbsp; *array*
-  * The items that were hidden.
+  * The items that will be hidden.
 
 ```javascript
 grid.on('filter', function (shownItems, hiddenItems) {

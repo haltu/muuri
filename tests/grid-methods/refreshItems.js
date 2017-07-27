@@ -8,7 +8,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();
@@ -24,7 +24,7 @@
 
     assert.expect(7);
 
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       itemCount: 7,
       itemStyles: {
         position: 'absolute',
@@ -36,7 +36,7 @@
         boxSizing: 'border-box',
         background: '#000'
       }
-    }).container;
+    });
     var grid = new Muuri(container);
     var items = grid.getItems();
     var updateItemDimensions = function (items) {

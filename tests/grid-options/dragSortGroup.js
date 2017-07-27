@@ -9,7 +9,7 @@
     assert.expect(0);
 
     var done = assert.async();
-    var containerA = utils.createGridElements({
+    var containerA = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '0px',
@@ -23,8 +23,8 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
-    var containerB = utils.createGridElements({
+    });
+    var containerB = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '70px',
@@ -38,7 +38,7 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
+    });
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
       dragSortInterval: 100,
@@ -68,13 +68,7 @@
       assert.strictEqual(true, false);
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 70, top: 0},
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 70, 0, teardown);
 
   });
 
@@ -83,7 +77,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var containerA = utils.createGridElements({
+    var containerA = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '0px',
@@ -97,8 +91,8 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
-    var containerB = utils.createGridElements({
+    });
+    var containerB = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '70px',
@@ -112,7 +106,7 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
+    });
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
       dragSortWith: '*',
@@ -144,13 +138,7 @@
       assert.strictEqual(true, true);
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 70, top: 0},
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 70, 0, teardown);
 
   });
 
@@ -159,7 +147,7 @@
     assert.expect(2);
 
     var done = assert.async();
-    var containerA = utils.createGridElements({
+    var containerA = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '0px',
@@ -173,8 +161,8 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
-    var containerB = utils.createGridElements({
+    });
+    var containerB = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '70px',
@@ -188,8 +176,8 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
-    var containerC = utils.createGridElements({
+    });
+    var containerC = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '140px',
@@ -203,7 +191,7 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
+    });
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
       dragSortWith: 'a',
@@ -253,24 +241,12 @@
       }
     });
 
-    utils.dragElement({
-      element: itemA.getElement(),
-      move: {left: 140, top: 0},
-      onRelease: function () {
-        if (++moved === 2) {
-          teardown();
-        }
-      }
+    utils.dragElement(itemA.getElement(), 140, 0, function () {
+      ++moved === 2 && teardown();
     });
 
-    utils.dragElement({
-      element: itemB.getElement(),
-      move: {left: 70, top: 0},
-      onRelease: function () {
-        if (++moved === 2) {
-          teardown();
-        }
-      }
+    utils.dragElement(itemB.getElement(), 70, 0, function () {
+      ++moved === 2 && teardown();
     });
 
   });
@@ -280,7 +256,7 @@
     assert.expect(0);
 
     var done = assert.async();
-    var containerA = utils.createGridElements({
+    var containerA = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '0px',
@@ -294,8 +270,8 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
-    var containerB = utils.createGridElements({
+    });
+    var containerB = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '70px',
@@ -309,7 +285,7 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
+    });
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
       dragSortWith: 'a',
@@ -341,13 +317,7 @@
       assert.strictEqual(true, false);
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 70, top: 0},
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 70, 0, teardown);
 
   });
 

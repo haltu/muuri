@@ -9,7 +9,7 @@
     assert.expect(6);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {dragEnabled: true});
     var item = grid.getItems()[0];
     var calls = 0;
@@ -43,13 +43,7 @@
       teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100);
 
   });
 

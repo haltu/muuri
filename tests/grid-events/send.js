@@ -4,12 +4,12 @@
 
   QUnit.module('Grid events');
 
-  QUnit.test('send: should be triggered, for the sending grid, after grid.send()', function (assert) {
+  QUnit.test('send: should be triggered in the end of the send procedure (for the sending grid)', function (assert) {
 
-    assert.expect(8);
+    assert.expect(11);
 
-    var containerA = utils.createGridElements().container;
-    var containerB = utils.createGridElements().container;
+    var containerA = utils.createGrid();
+    var containerB = utils.createGrid();
     var gridA = new Muuri(containerA);
     var gridB = new Muuri(containerB);
     var item = gridA.getItems()[0];
@@ -29,6 +29,9 @@
       assert.strictEqual(data.fromIndex, 0, 'callback: the argument fromIndex property should be the index where the item was moved from');
       assert.strictEqual(data.toGrid, gridB, 'callback: the argument toGrid property should be the receiving grid instance');
       assert.strictEqual(data.toIndex, 1, 'callback: the argument toIndex property should be the index where the item was moved to');
+      assert.strictEqual(data.toGrid.getItems().indexOf(data.item), data.toIndex, 'callback: the item should be included in the target grid in correct position');
+      assert.strictEqual(data.fromGrid.getItems().indexOf(data.item), -1, 'callback: the item should not be included in the source grid');
+      assert.strictEqual(data.item.getElement().parentNode, document.body, 'callback: the item element should be appended to the send container');
     });
     gridB.on('send', function () {
       assert.ok(false, 'should not be triggered for the receiving grid');
@@ -38,12 +41,12 @@
 
   });
 
-  QUnit.test('send: should be triggered, for the sending grid, when an item is dragged into another grid', function (assert) {
+  QUnit.test('send: should be triggered when an item is dragged into another grid (for the sending grid)', function (assert) {
 
-    assert.expect(8);
+    assert.expect(11);
 
     var done = assert.async();
-    var containerA = utils.createGridElements({
+    var containerA = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '0px',
@@ -57,8 +60,8 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
-    var containerB = utils.createGridElements({
+    });
+    var containerB = utils.createGrid({
       containerStyles: {
         position: 'absolute',
         left: '70px',
@@ -72,7 +75,7 @@
         margin: '10px',
         background: '#000'
       }
-    }).container;
+    });
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
       dragSortGroup: '*',
@@ -111,18 +114,12 @@
       assert.strictEqual(data.fromIndex, 0, 'callback: the argument fromIndex property should be the index where the item was moved from');
       assert.strictEqual(data.toGrid, gridB, 'callback: the argument toGrid property should be the receiving grid instance');
       assert.strictEqual(data.toIndex, 0, 'callback: the argument toIndex property should be the index where the item was moved to');
+      assert.strictEqual(data.toGrid.getItems().indexOf(data.item), data.toIndex, 'callback: the item should be included in the target grid in correct position');
+      assert.strictEqual(data.fromGrid.getItems().indexOf(data.item), -1, 'callback: the item should not be included in the source grid');
+      assert.strictEqual(data.item.isDragging(), true, 'callback: the item should be in dragging state');
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 70,
-        top: 0
-      },
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 70, 0, teardown);
 
   });
 

@@ -8,7 +8,7 @@
   // Methods
   //
 
-  utils.createGridElements = function (options) {
+  utils.createGrid = function (options) {
 
     var opts = options || {};
     var container = opts.container || document.createElement('div');
@@ -43,39 +43,30 @@
       (opts.appendTo || document.body).appendChild(container);
     }
 
-    return {
-      container: container,
-      items: items
-    };
+    return container;
 
   };
 
-  utils.dragElement = function(options) {
+  utils.dragElement = function(element, moveLeft, moveTop, onStop) {
 
-    // Parse options.
-    var opts = options || {};
-    var noop = function () {};
-    var element = opts.element;
-    var move = opts.move;
-    var onStart = opts.onStart || noop;
-    var onStop = opts.onStop || noop;
-    var onRelease = opts.onRelease || noop;
-
-    // Calculate start and end points.
+    // Calculate start point.
     var from = mezr.offset(element, window);
     from.left += mezr.width(element) / 2;
     from.top += mezr.height(element) / 2;
-    var to = {
-      left: from.left + move.left,
-      top: from.top + move.top
-    };
 
-    // Create the hand and finger istances.
-    var eventMode = supportsPointer ? 'pointer' : supportsTouch ? 'touch' : 'mouse';
-    var pointerType = supportsTouch ? 'touch' : 'mouse';
-    var hand = new Hand({timing: 'fastFrame'});
-    var finger = hand.growFinger(eventMode, {
-      pointerType: pointerType,
+    // Create the hand istance.
+    var hand = new Hand({
+      timing: 'fastFrame',
+      onStop: function () {
+        if (typeof onStop === 'function') {
+          window.setTimeout(onStop, 100);
+        }
+      }
+    });
+
+    // Create finger instance.
+    var finger = hand.growFinger(supportsPointer ? 'pointer' : supportsTouch ? 'touch' : 'mouse', {
+      pointerType: supportsTouch ? 'touch' : 'mouse',
       down: false,
       width: 30,
       height: 30,
@@ -83,19 +74,14 @@
       y: from.top
     });
 
-    // Do the drag.
-    finger.down();
-    window.setTimeout(function () {
-      onStart();
-      finger.moveTo(to.left, to.top, 100);
-      window.setTimeout(function () {
-        onStop();
-        finger.up();
-        window.setTimeout(function () {
-          onRelease();
-        }, 100);
-      }, 200);
-    }, 100);
+    // Do the drag if movement is defined.
+    if (moveTop || moveLeft) {
+      finger.down().wait(100).moveTo(from.left + moveLeft, from.top + moveTop, 100).wait(200).up();
+    }
+    // Otherwise do a press.
+    else {
+      finger.down().wait(400).up();
+    }
 
   };
 
@@ -118,9 +104,7 @@
   };
 
   utils.isScrollEvent = function (e) {
-
     return e.type === 'scroll';
-
   };
 
   utils.isHammerEvent = function (e) {

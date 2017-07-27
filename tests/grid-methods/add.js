@@ -8,7 +8,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var teardown = function () {
@@ -25,7 +25,7 @@
 
     assert.expect(2);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var elemA = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var elemB = document.createElement('div').appendChild(document.createElement('div')).parentNode;
@@ -45,7 +45,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var item = grid.add(elem)[0];
@@ -63,7 +63,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var item = grid.add(elem, {index: 1})[0];
@@ -81,7 +81,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var teardown = function () {
@@ -101,7 +101,7 @@
 
     assert.expect(0);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var teardown = function () {
@@ -121,7 +121,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var teardown = function () {
@@ -142,7 +142,7 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var teardown = function () {

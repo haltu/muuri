@@ -9,7 +9,7 @@
     assert.expect(14);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {dragEnabled: true});
     var items = grid.getItems();
     var item = items[0];
@@ -49,15 +49,8 @@
     });
     grid.on('dragReleaseStart', function () {
       assert.deepEqual(grid.getItems('releasing'), [item], 'should allow providing "releasing" state as the first argument');
-      teardown();
     });
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 

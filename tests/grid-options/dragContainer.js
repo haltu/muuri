@@ -9,7 +9,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {
       dragEnabled: true
     });
@@ -22,16 +22,9 @@
 
     grid.on('dragStart', function () {
       assert.strictEqual(item.getElement().parentNode, container);
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 
@@ -40,7 +33,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragContainer: document.body
@@ -54,16 +47,9 @@
 
     grid.on('dragStart', function () {
       assert.strictEqual(item.getElement().parentNode, document.body);
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      }
-    });
+    utils.dragElement(item.getElement(), 100, 100, teardown);
 
   });
 

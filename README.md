@@ -1,10 +1,14 @@
 # Muuri
 
+[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri/muuri.min.js?compression=gzip)](https://unpkg.com/muuri/muuri.min.js)
+[![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
+[![CDNJS](https://img.shields.io/cdnjs/v/muuri.svg)](https://cdnjs.com/libraries/muuri)
+
 Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
 
 Muuri's layout system allows positioning the grid items pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
-Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioining/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioning/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 ## Table of contents
 
@@ -15,6 +19,7 @@ Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (posi
   * [Grid methods](#grid-methods)
   * [Grid events](#grid-events)
   * [Item methods](#item-methods)
+* [FAQ](#faq)
 * [Credits](#credits)
 * [License](#license)
 
@@ -23,14 +28,14 @@ Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (posi
 ### 1. Get Muuri
 
 Download from GitHub:
-* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.3.0/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.3.0/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.4.0/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.4.0/muuri.min.js) - for production (minified, no comments).
 
 Or link directly via CDNJS:
 
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.0/muuri.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.3.0/muuri.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.4.0/muuri.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.4.0/muuri.min.js"></script>
 ```
 
 Or install with [npm](https://www.npmjs.com/):
@@ -49,18 +54,17 @@ bower install muuri
 
 Muuri depends on the following libraries:
 * [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
-  * By default Muuri users Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
+  * By default Muuri uses Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
 * [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
-  * Hammer.js is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
+  * Muuri uses Hammer.js to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
 
 ### 3. Add the script tags
 
-Include Muuri inside the *body* element in your site and make sure to include the dependencies before Muuri. Muuri has to be inside the body element because it does some feature checking during initiation and might not work correctly if it does not have access to `document.body`.
+Add Muuri on your site and make sure to include the dependencies before Muuri.
 
 ```html
 <script src="velocity.js"></script>
 <script src="hammer.js"></script>
-<!-- Muuri needs to have access to document.body when initiated -->
 <script src="muuri.js"></script>
 ```
 
@@ -98,7 +102,7 @@ Include Muuri inside the *body* element in your site and make sure to include th
 * The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element's width/height depending on the area the items cover and the layout algorithm configuration.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
 * The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
-* You can control the gaps between the tiles by giving some margin to the item elements. Note that Muuri's items are positioned relative to the container element's content with padding excluded (intentionally) to provide more control over the gutter spacing (normally an absolutely positioned element is positioned relative to the containing element's content with padding included).
+* You can control the gaps between the items by giving some margin to the item elements.
 
 ```css
 .grid {
@@ -111,8 +115,12 @@ Include Muuri inside the *body* element in your site and make sure to include th
   height: 100px;
   margin: 5px;
   z-index: 1;
+  background: #000;
+  color: #fff;
 }
-.item.muuri-dragging,
+.item.muuri-dragging {
+  z-index: 3;
+}
 .item.muuri-releasing {
   z-index: 2;
 }
@@ -148,7 +156,7 @@ var grid = new Muuri('.grid');
 
 * **element** &nbsp;&mdash;&nbsp; *element* / *string*
   * Default value: `null`.
-  * You can provide the element directly or use a selector (string) which uses [querySelectorAll()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelectorAll) internally. The first element of the query's result will be used.
+  * You can provide the element directly or use a selector (string) which uses [querySelector()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector) internally. The first element of the query's result will be used.
 * **options** &nbsp;&mdash;&nbsp; *object*
   * Optional. Check out the [detailed options reference](#grid-options).
 
@@ -189,7 +197,8 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
       fillGaps: false,
       horizontal: false,
       alignRight: false,
-      alignBottom: false
+      alignBottom: false,
+      rounding: true
     },
     layoutOnResize: 100,
     layoutOnInit: true,
@@ -207,6 +216,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
       delay: 0,
       handle: false
     },
+    dragAxis: null,
     dragSort: true,
     dragSortInterval: 100,
     dragSortPredicate: {
@@ -240,6 +250,8 @@ Muuri.defaultOptions.showDuration = 400;
 Muuri.defaultOptions.dragSortPredicate.action = 'swap';
 ```
 
+This is how you would use the options:
+
 ```javascript
 // Minimum configuration.
 var gridA = new Muuri('.grid-a');
@@ -268,6 +280,7 @@ var gridB = new Muuri('.grid-b', {
 * [dragEnabled](#dragenabled-)
 * [dragContainer](#dragcontainer-)
 * [dragStartPredicate](#dragstartpredicate-)
+* [dragAxis](#dragaxis-)
 * [dragSort](#dragsort-)
 * [dragSortInterval](#dragsortinterval-)
 * [dragSortPredicate](#dragsortpredicate-)
@@ -420,6 +433,9 @@ Provide an object to configure the default layout algorithm with the following p
 * **alignBottom** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * When `true` the items are aligned from the bottom up.
+* **rounding** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `true`.
+  * When `true` the dimensions of the items will be automatically rounded for the layout calculations using `Math.round()`. Set to `false` to use accurate dimensions. In practice you would want disable this if you are using relative dimension values for items (%, em, rem, etc.). If you have defined item dimensions with pixel values (px) it is recommended that you leave this on.
 
 ```javascript
 var grid = new Muuri(elem, {
@@ -427,7 +443,8 @@ var grid = new Muuri(elem, {
     fillGaps: true,
     horizontal: true,
     alignRight: true,
-    alignBottom: true
+    alignBottom: true,
+    rounding: false
   }
 });
 ```
@@ -550,7 +567,7 @@ var grid = new Muuri(elem, {
 
 ### dragContainer &nbsp;
 
-The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid's container element will be used. Note that the provided element should be "positioned" meaning that it's CSS position property should be *relative*, *absolute* or *fixed*.
+The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid's container element will be used.
 
 * Default value: `null`.
 * Accepted types: element, null.
@@ -607,6 +624,26 @@ var grid = new Muuri(elem, {
       return true;
     }
   }
+});
+```
+
+### dragAxis &nbsp;
+
+Force items to be moved only vertically or horizontally when dragged. Set to `'x'` for horizontal movement and to `'y'` for vertical movement. By default items can be dragged both vertically and horizontally.
+
+* Default value: `null`.
+* Accepted types: string.
+* Allowed values: `'x'`, `'y'`.
+
+```javascript
+// Move items only horizontally when dragged.
+var grid = new Muuri(elem, {
+  dragAxis: 'x'
+});
+
+// Move items only vertically when dragged.
+var grid = new Muuri(elem, {
+  dragAxis: 'y'
 });
 ```
 
@@ -1259,7 +1296,7 @@ Move an item into another grid.
 * **position** &nbsp;&mdash;&nbsp; *element / Muuri.Item / number*
   * To which position should the item be placed to in the new grid? You can define the position with an item instance, element or index.
 * **options.appendTo** &nbsp;&mdash;&nbsp; *element*
-  * Which element the item element should be appended to for the duration of the layout animation? Note that the provided element should be "positioned" meaning that it's CSS position property should be *relative*, *absolute* or *fixed*.
+  * Which element the item element should be appended to for the duration of the layout animation?
   * Default value: `document.body`.
 * **options.layoutSender** &nbsp;&mdash;&nbsp; *boolean / function / string*
   * By default `grid.layout()` is called for the sending grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
@@ -1389,7 +1426,10 @@ grid.destroy(true);
 * [sort](#sort)
 * [move](#move)
 * [send](#send)
+* [beforeSend](#beforesend)
 * [receive](#receive)
+* [beforeReceive](#beforereceive)
+* [dragInit](#draginit)
 * [dragStart](#dragstart)
 * [dragMove](#dragmove)
 * [dragScroll](#dragscroll)
@@ -1490,7 +1530,7 @@ Triggered after `grid.show()` is called, after the items are shown.
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully shown without interruptions.
+  * The items that were succesfully shown without interruptions. If you, for example, call `grid.hide()` to some of the items that are currently being shown, those items will be omitted from this argument.
 
 ```javascript
 grid.on('showEnd', function (items) {
@@ -1515,12 +1555,12 @@ grid.on('hideStart', function (items) {
 
 ### hideEnd
 
-Triggered after `grid.hide()` is called, after the items are hidden (with or without animation).
+Triggered after `grid.hide()` is called, after the items are hidden.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully hidden without interruptions.
+  * The items that were succesfully hidden without interruptions. If you, for example, call `grid.show()` to some of the items that are currently being hidden, those items will be omitted from this argument.
 
 ```javascript
 grid.on('hideEnd', function (items) {
@@ -1535,9 +1575,9 @@ Triggered after `grid.filter()` is called.
 **Arguments**
 
 * **shownItems** &nbsp;&mdash;&nbsp; *array*
-  * The items that were shown.
+  * The items that are shown.
 * **hiddenItems** &nbsp;&mdash;&nbsp; *array*
-  * The items that were hidden.
+  * The items that are hidden.
 
 ```javascript
 grid.on('filter', function (shownItems, hiddenItems) {
@@ -1588,7 +1628,7 @@ grid.on('move', function (data) {
 
 ### send
 
-Triggered, for the originating grid, after `grid.send()` is called or when an item is dragged into another grid.
+Triggered for the originating grid in the end of the *send process* (after `grid.send()` is called or when an item is dragged into another grid). Note that this event is called *before* the item's layout starts.
 
 **Arguments**
 
@@ -1610,9 +1650,33 @@ grid.on('send', function (data) {
 });
 ```
 
+### beforeSend
+
+Triggered for the originating grid in the beginning of the *send process* (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the sent item (freeze it's dimensions for example) before it is appended to it's temporary layout container as defined in [send method options](#gridsend-item-grid-position-options-).
+
+**Arguments**
+
+* **data** &nbsp;&mdash;&nbsp; *object*
+    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The item that was sent.
+    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent from.
+    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved from.
+    * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent to.
+    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved to.
+
+```javascript
+grid.on('beforeSend', function (data) {
+  console.log(data);
+});
+```
+
 ### receive
 
-Triggered, for the receiving grid, after `grid.send()` is called or when an item is dragged into another grid.
+Triggered for the receiving grid in the end of the *send process* (after `grid.send()` is called or when an item is dragged into another grid). Note that this event is called *before* the item's layout starts.
 
 **Arguments**
 
@@ -1634,9 +1698,51 @@ grid.on('receive', function (data) {
 });
 ```
 
+### beforeReceive
+
+Triggered for the receiving grid in the beginning of the *send process* (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the received item (freeze it's dimensions for example) before it is appended to it's temporary layout container as defined in [send method options](#gridsend-item-grid-position-options-).
+
+**Arguments**
+
+* **data** &nbsp;&mdash;&nbsp; *object*
+    * **data.item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The item that was sent.
+    * **data.fromGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent from.
+    * **data.fromIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved from.
+    * **data.toGrid** &nbsp;&mdash;&nbsp; *Muuri*
+      * The grid the item was sent to.
+    * **data.toIndex** &nbsp;&mdash;&nbsp; *number*
+      * The index the item was moved to.
+
+```javascript
+grid.on('beforeReceive', function (data) {
+  console.log(data);
+});
+```
+
+### dragInit
+
+Triggered in the beginning of the *drag start* process when dragging of an item begins. This event is highly useful in situations where you need to manipulate the dragged item (freeze it's dimensions for example) before it is appended to the [dragContainer](#dragcontainer-).
+
+**Arguments**
+
+* **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+  * The dragged item.
+* **event** &nbsp;&mdash;&nbsp; *object*
+  * Hammer.js event data.
+
+```javascript
+grid.on('dragInit', function (item, event) {
+  console.log(event);
+  console.log(item);
+});
+```
+
 ### dragStart
 
-Triggered when dragging of an item begins.
+Triggered in the end of the *drag start* process when dragging of an item begins.
 
 **Arguments**
 
@@ -1761,6 +1867,7 @@ grid.on('destroy', function () {
 * [item.isPositioning()](#itemispositioning)
 * [item.isDragging()](#itemisdragging)
 * [item.isReleasing()](#itemisreleasing)
+* [item.isDestroyed()](#itemisdestroyed)
 
 ### item.getGrid()
 
@@ -1900,9 +2007,33 @@ Check if the item is currently being released.
 var isReleasing = item.isReleasing();
 ```
 
+### item.isDestroyed()
+
+Check if the item is destroyed.
+
+**Returns** &nbsp;&mdash;&nbsp; *boolean*
+
+```javascript
+var isDestroyed = item.isDestroyed();
+```
+
+## FAQ
+
+**Can you help me with ...?**
+
+First of all you should check out [the current questions](https://github.com/haltu/muuri/issues?q=label%3Aquestion%20) and see if your question has been asked/answered already. If not, you can create [create a new issue](https://github.com/haltu/muuri/issues/new) and explain your problem.
+
+**I think I found a bug, what should I do?**
+
+Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain the bug in detail. If possible create a [reduced test case](https://css-tricks.com/reduced-test-cases/) and share a link to it. You can, for example, fork [this CodePen example](https://codepen.io/niklasramo/pen/jyJLGM) and modify it to demonstrate the bug.
+
+**Is there a React/Vue version?**
+
+Not yet, but it is planned. Hold on tight!
+
 ## Credits
 
-Created and maintained by [Niklas Rämö](https://github.com/niklasramo).
+**Created and maintained by [Niklas Rämö](https://github.com/niklasramo).**
 
 * This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/) and [Packery](http://packery.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
 * Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!

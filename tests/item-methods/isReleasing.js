@@ -10,7 +10,7 @@
     assert.expect(6);
 
     var done = assert.async();
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {dragEnabled: true});
     var item = grid.getItems()[0];
     var teardown = function () {
@@ -19,33 +19,27 @@
       done();
     };
 
-    assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state when it`s not being released');
-
-    grid.on('dragReleaseStart', function () {
+    grid
+    .once('dragStart', function () {
+      assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state when dragging starts');
+    })
+    .once('dragMove', function () {
+      assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state when dragging');
+    })
+    .once('dragEnd', function () {
+      assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state when drag ends');
+    })
+    .once('dragReleaseStart', function () {
       assert.strictEqual(item.isReleasing(), true, 'An item should be in releasing state right after it has been released');
-    });
-
-    grid.on('dragReleaseEnd', function () {
+    })
+    .once('dragReleaseEnd', function () {
       assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state right after releasing has ended');
       teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 100,
-        top: 100
-      },
-      onStart: function () {
-        assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state when dragging starts');
-      },
-      onStop: function () {
-        assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state when dragging');
-      },
-      onRelease: function () {
-        assert.strictEqual(item.isReleasing(), true, 'An item should be in releasing state during release');
-      }
-    });
+    assert.strictEqual(item.isReleasing(), false, 'An item should not be in releasing state when it`s not being released');
+
+    utils.dragElement(item.getElement(), 100, 100);
 
   });
 

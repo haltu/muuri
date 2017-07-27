@@ -1,6 +1,6 @@
 {
   "name": "muuri",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Responsive, sortable, filterable and draggable grid layouts.",
   "keywords": [
     "grid",
@@ -29,32 +29,35 @@
   "scripts": {
     "test": "gulp"
   },
-  "optionalDependencies": {
+  "dependencies": {
     "hammerjs": "^2.0.0",
     "velocity-animate": "^1.2.0"
   },
   "devDependencies": {
     "dotenv": "^4.0.0",
     "gulp": "^3.9.1",
-    "gulp-eslint": "^3.0.1",
+    "gulp-eslint": "^4.0.0",
+    "gulp-header": "^1.8.8",
     "gulp-rename": "^1.2.2",
     "gulp-size": "^2.1.0",
-    "gulp-uglify": "^2.1.0",
+    "gulp-uglify": "^3.0.0",
     "gulp-util": "^3.0.8",
-    "hammer-simulator": "^0.0.1",
     "hammerjs": "^2.0.8",
     "jquery": "^3.2.1",
-    "karma": "^1.5.0",
+    "karma": "^1.7.0",
     "karma-chrome-launcher": "^2.0.0",
+    "karma-edge-launcher": "^0.4.1",
     "karma-firefox-launcher": "^1.0.1",
     "karma-qunit": "^1.2.1",
+    "karma-safari-launcher": "^1.0.0",
     "karma-sauce-launcher": "^1.1.0",
     "karma-story-reporter": "^0.3.1",
-    "mezr": "^0.6.1",
+    "mezr": "^0.6.2",
     "prosthetic-hand": "^1.3.1",
-    "qunitjs": "^2.2.0",
+    "qunitjs": "^2.4.0",
     "rimraf": "^2.6.1",
     "run-sequence": "^1.2.2",
-    "velocity-animate": "^1.5.0"
+    "velocity-animate": "^1.5.0",
+    "yargs": "^8.0.2"
   }
 }

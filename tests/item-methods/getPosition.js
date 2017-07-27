@@ -8,12 +8,12 @@
 
     assert.expect(4);
 
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container);
     var items = grid.getItems();
     var itemA = items[0];

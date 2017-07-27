@@ -8,7 +8,7 @@
 
     assert.expect(7);
 
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container);
     var item = grid.getItems()[0];
     var teardown = function () {
@@ -35,12 +35,12 @@
     assert.expect(7);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '70px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortInterval: 100,
@@ -66,16 +66,7 @@
       assert.strictEqual(data.toIndex, 1, 'callback: the argument toIndex property should be the index where the item was moved to');
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 0,
-        top: 70
-      },
-      onRelease: function () {
-        teardown();
-      }
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 

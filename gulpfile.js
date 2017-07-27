@@ -6,8 +6,22 @@ var karma = require('karma');
 var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
 var size = require('gulp-size');
+var header = require('gulp-header');
 var rimraf = require('rimraf');
 var runSequence = require('run-sequence');
+var argv = require('yargs').argv;
+
+// Helper method for retrieving all banners /*! foo */ in a file.
+function getBanners(filePath) {
+  var string = fs.readFileSync(filePath, 'utf8');
+  var banners = [];
+  var bannerRegex = /\/\*\!([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+\//g;
+  var banner;
+  while (banner = bannerRegex.exec(string)) {
+    banners.push(banner[0].replace(/^(\s+)/gm, ' ') + '\n');
+  }
+  return banners.length ? banners.join('') : '';
+}
 
 if (fs.existsSync('./.env')) {
   require('dotenv').load();
@@ -23,7 +37,8 @@ gulp.task('lint', function () {
 gulp.task('compress', function() {
   return gulp.src('./' + pkg.main)
     .pipe(size({title: 'development'}))
-    .pipe(uglify({preserveComments: 'some'}))
+    .pipe(uglify())
+    .pipe(header(getBanners('./' + pkg.main)))
     .pipe(size({title: 'minified'}))
     .pipe(size({title: 'gzipped', gzip: true}))
     .pipe(rename(pkg.main.replace('./', '').replace('.js', '.min.js')))
@@ -31,20 +46,30 @@ gulp.task('compress', function() {
 });
 
 gulp.task('test-local', function (done) {
+  var browsers = [];
+  argv.chrome && browsers.push('Chrome');
+  argv.firefox && browsers.push('Firefox');
+  argv.safari && browsers.push('Safari');
+  argv.edge && browsers.push('Edge');
   (new karma.Server({
     configFile: __dirname + '/karma.conf.js',
     action: 'run',
-    browsers: ['Chrome', 'Firefox']
+    browsers: browsers.length ? browsers : ['Chrome'] 
   }, function (exitCode) {
     done(exitCode);
   })).start();
 });
 
 gulp.task('test', function (done) {
+  var browsers = [];
+  argv.chrome && browsers.push('slChrome');
+  argv.firefox && browsers.push('slFirefox');
+  argv.safari && browsers.push('slSafari');
+  argv.edge && browsers.push('slEdge');
   (new karma.Server({
     configFile: __dirname + '/karma.conf.js',
     action: 'run',
-    browsers: ['slChrome', 'slFirefox', 'slEdge', 'slSafari']
+    browsers: browsers.length ? browsers : ['slChrome', 'slFirefox', 'slSafari']
   }, function (exitCode) {
     done(exitCode);
   })).start();

@@ -9,12 +9,12 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true
     });
@@ -27,13 +27,9 @@
 
     grid.once('move', function (data) {
       assert.strictEqual(data.action, 'move', 'the movement action should be "move"');
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70}
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -42,12 +38,12 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortPredicate: {
@@ -63,13 +59,9 @@
 
     grid.once('move', function (data) {
       assert.strictEqual(data.action, 'swap', 'the movement action should be "swap"');
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70}
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -78,12 +70,12 @@
     assert.expect(3);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var isChecked = false;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -103,11 +95,7 @@
       done();
     };
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70},
-      onRelease: teardown
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -116,12 +104,12 @@
     assert.expect(0);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortPredicate: function (draggedItem, ev) {
@@ -139,11 +127,7 @@
       assert.strictEqual(true, false, 'move should not be triggered');
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70},
-      onRelease: teardown
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 
@@ -152,12 +136,12 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGridElements({
+    var container = utils.createGrid({
       containerStyles: {
         position: 'relative',
         width: '140px'
       }
-    }).container;
+    });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortPredicate: function () {
@@ -177,13 +161,9 @@
     grid.once('move', function (data) {
       assert.strictEqual(data.action, 'swap', 'sort action should be "swap"');
       assert.strictEqual(data.toIndex, grid.getItems().length - 1, 'target index should be the last index');
-      teardown();
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {left: 0, top: 70}
-    });
+    utils.dragElement(item.getElement(), 0, 70, teardown);
 
   });
 

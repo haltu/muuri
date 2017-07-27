@@ -8,9 +8,7 @@
 
     assert.expect(3);
 
-    var container = utils.createGridElements({
-      itemCount: 3
-    }).container;
+    var container = utils.createGrid({itemCount: 3});
     var grid = new Muuri(container, {
       itemPositioningClass: 'foo'
     });

@@ -7,6 +7,8 @@ module.exports = function (config) {
       'karma-qunit',
       'karma-chrome-launcher',
       'karma-firefox-launcher',
+      'karma-safari-launcher',
+      'karma-edge-launcher',
       'karma-sauce-launcher',
       'karma-story-reporter'
     ],
@@ -33,11 +35,14 @@ module.exports = function (config) {
     autoWatch: false,
     captureTimeout: 240000,
     browserDisconnectTimeout: 60000,
+    browserNoActivityTimeout: 60000,
     browserDisconnectTolerance: 10,
     concurrency: 1,
     singleRun: true,
     hostname: '127.0.0.1',
-    sauceLabs: {testName: pkg.name + ' - ' + pkg.version + ' - unit tests'},
+    sauceLabs: {
+      testName: pkg.name + ' - ' + pkg.version + ' - unit tests'
+    },
     customLaunchers: {
       slChrome: {
         base: 'SauceLabs',
@@ -54,11 +59,13 @@ module.exports = function (config) {
       slSafari: {
         base: 'SauceLabs',
         browserName: 'safari',
+        platform: 'macOS 10.12',
         version: 'latest'
       },
       slEdge: {
         base: 'SauceLabs',
         browserName: 'MicrosoftEdge',
+        platform: 'Windows 10',
         version: 'latest'
       }
     }

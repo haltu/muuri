@@ -24,7 +24,7 @@
   "ignore": [
     "./!(muuri*.js)"
   ],
-  "moduleType": ["globals", "amd", "node"],
+  "moduleType": ["globals", "node", "amd"],
   "dependencies": {
     "hammerjs": "^2.0.0",
     "velocity": "^1.2.0"

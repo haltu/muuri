@@ -11,7 +11,7 @@
     var done = assert.async();
     var docElem = document.documentElement;
     var body = document.body;
-    var container = utils.createGridElements().container;
+    var container = utils.createGrid();
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortInterval: 100,
@@ -46,16 +46,9 @@
       ++calls;
     });
 
-    utils.dragElement({
-      element: item.getElement(),
-      move: {
-        left: 0,
-        top: 100
-      },
-      onRelease: function () {
-        assert.strictEqual(calls, 1, 'should be called only once');
-        teardown();
-      }
+    utils.dragElement(item.getElement(), 0, 100, function () {
+      assert.strictEqual(calls, 1, 'should be called only once');
+      teardown();
     });
 
   });

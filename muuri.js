@@ -72,6 +72,10 @@
   var startPredicateResolved = 2;
   var startPredicateRejected = 3;
 
+  // Keep track of window width/height.
+  var winWidth;
+  var winHeight;
+
   // Keep track of Grid instances.
   var gridInstances = {};
 
@@ -700,6 +704,12 @@
     if (!items.length) {
       tryFinish();
       return inst;
+    }
+    // If there are items let's get window's width/height for the layout
+    // animation optimization algorithm.
+    else {
+      winWidth = window.innerWidth;
+      winHeight = window.innerHeight;
     }
 
     // If there are items let's position them.
@@ -2742,8 +2752,8 @@
     viewRect = {
       left: 0,
       top: 0,
-      width: global.innerWidth,
-      height: global.innerHeight
+      width: winWidth,
+      height: winHeight
     };
     itemRect = {
       left: grid._left + grid._border.left + parseFloat(animateFrom.translateX),
@@ -3186,7 +3196,10 @@
     // Emit dragReleaseStart event.
     grid._emit(evDragReleaseStart, item);
 
-    // Position the released item.
+    // Position the released item and get window's width/height for the layout
+    // animation optimization algorithm.
+    winWidth = window.innerWidth;
+    winHeight = window.innerHeight;
     item._layout(false);
 
     return release;

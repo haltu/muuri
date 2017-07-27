@@ -2019,17 +2019,13 @@ var isDestroyed = item.isDestroyed();
 
 ## FAQ
 
-**How can I do ... with Muuri?**
+**How can I {{ problem }} with Muuri?**
 
-Please join our official [gitter channel](https://gitter.im/muurijs/muuri) to discuss about Muuri with the community and the author. This is the place to ask your questions about *how to use* Muuri.
+First of all you should check out [the current questions](https://github.com/haltu/muuri/issues?q=label%3Aquestion%20) and see if your question has been asked/answered already. If not, you can create [create a new issue](https://github.com/haltu/muuri/issues/new) and explain your problem.
 
 **I think I found a bug, what should I do?**
 
-Please [create an issue](https://github.com/haltu/muuri/issues/new), explain the issue and include a reduced test case (link to a [codepen](https://codepen.io/) snippet for example) if possible.
-
-**I'd like to contribute, where should I start?**
-
-TODO INSTRUCTIONS
+Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain the bug in detail. If possible create a [reduced test case](https://css-tricks.com/reduced-test-cases/) and share a link to it. You can, for example, fork [this CodePen example](https://codepen.io/niklasramo/pen/jyJLGM) and modify it to demonstrate the bug.
 
 **Is there a React/Vue version?**
 

@@ -72,13 +72,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     grid = new Muuri(gridElement, {
       items: generateElements(20),
+      layoutDuration: 400,
+      layoutEasing: 'ease',
       dragEnabled: true,
+      dragSortInterval: 50,
       dragContainer: document.body,
       dragStartPredicate: function (item, event) {
         var isDraggable = sortFieldValue === 'order';
         var isRemoveAction = elementMatches(event.target, '.card-remove, .card-remove i');
         return isDraggable && !isRemoveAction ? Muuri.ItemDrag.defaultStartPredicate(item, event) : false;
-      }
+      },
+      dragReleaseDuration: 400,
+      dragReleseEasing: 'ease'
     })
     .on('dragStart', function () {
       ++dragCounter;

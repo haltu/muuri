@@ -12,10 +12,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var muuri = new Muuri(container, {
       items: '.board-item',
+      layoutDuration: 400,
+      layoutEasing: 'ease',
       dragEnabled: true,
+      dragSortInterval: 0,
       dragSortGroup: 'column',
       dragSortWith: 'column',
-      dragContainer: document.body
+      dragContainer: document.body,
+      dragReleaseDuration: 400,
+      dragReleaseEasing: 'ease'
     })
     .on('dragStart', function (item) {
       ++dragCounter;
@@ -36,9 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     })
     .on('layoutStart', function () {
-      window.setTimeout(function () {
-        boardGrid.refreshItems().layout();
-      }, 0);
+      boardGrid.refreshItems().layout();
     });
 
     columnGrids.push(muuri);
@@ -46,10 +49,15 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   boardGrid = new Muuri(board, {
+    layoutDuration: 400,
+    layoutEasing: 'ease',
     dragEnabled: true,
+    dragSortInterval: 0,
     dragStartPredicate: {
       handle: '.board-column-header'
-    }
+    },
+    dragReleaseDuration: 400,
+    dragReleaseEasing: 'ease'
   });
 
 });

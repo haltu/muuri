@@ -22,6 +22,10 @@
  * SOFTWARE.
  */
 
+// TODO: Fix layout trashing caused by show/hide and dragging.
+// TODO: Consider bringing back the "freeze dimensions" functionality when
+//       dragging items.
+
 (function (global, factory) {
 
   var namespace = 'Muuri';
@@ -65,6 +69,10 @@
   var typeFunction = 'function';
   var typeString = 'string';
   var typeNumber = 'number';
+
+  // Raf loop that can be used to organize DOM write and read operations
+  // optimally in the next animation frame.
+  var rafLoop = createRafLoop();
 
   // Drag start predicate states.
   var startPredicateInactive = 0;
@@ -708,8 +716,10 @@
     // If there are items let's get window's width/height for the layout
     // animation optimization algorithm.
     else {
-      winWidth = window.innerWidth;
-      winHeight = window.innerHeight;
+      rafLoop.read(function () {
+        winWidth = global.innerWidth;
+        winHeight = global.innerHeight;
+      });
     }
 
     // If there are items let's position them.
@@ -1549,6 +1559,10 @@
     inst._isHiding = false;
     inst._isShowing = false;
 
+    // Layout animation init cache.
+    inst._layoutAnimateInitRead = null;
+    inst._layoutAnimateInitWrite = null;
+
     // Visibility animation callback queue. Whenever a callback is provided for
     // show/hide methods and animation is enabled the callback is stored
     // temporarily to this array. The callbacks are called with the first
@@ -1802,40 +1816,6 @@
    */
 
   /**
-   * Stop item's position animation if it is currently animating.
-   *
-   * @protected
-   * @memberof Item.prototype
-   * @param {Boolean} [processLayoutQueue=false]
-   * @returns {Item}
-   */
-  Item.prototype._stopLayout = function (processLayoutQueue) {
-
-    var inst = this;
-
-    if (inst._isDestroyed || !inst._isPositioning) {
-      return inst;
-    }
-
-    // Stop animation.
-    inst._animate.stop();
-
-    // Remove positioning class.
-    removeClass(inst._element, inst.getGrid()._settings.itemPositioningClass);
-
-    // Reset state.
-    inst._isPositioning = false;
-
-    // Process callback queue.
-    if (processLayoutQueue) {
-      processQueue(inst._layoutQueue, true, inst);
-    }
-
-    return inst;
-
-  };
-
-  /**
    * Recalculate item's dimensions.
    *
    * @protected
@@ -1935,7 +1915,6 @@
     var offsetTop;
     var currentLeft;
     var currentTop;
-    var finishLayout;
 
     // Return immediately if the instance is destroyed.
     if (inst._isDestroyed) {
@@ -1949,33 +1928,11 @@
     animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
     animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
 
-    // Create the layout callback.
-    finishLayout = function () {
-
-      // Mark the item as not positioning and remove positioning classes.
-      if (inst._isPositioning) {
-        inst._isPositioning = false;
-        removeClass(element, settings.itemPositioningClass);
-      }
-
-      // Finish up release.
-      if (release.isActive) {
-        release.stop();
-      }
-
-      // Finish up migration.
-      if (migrate.isActive) {
-        migrate.stop();
-      }
-
-      // Process the callback queue.
-      processQueue(inst._layoutQueue, false, inst);
-
-    };
-
     // Process current layout callback queue with interrupted flag on if the
-    // item is currently positioning.
+    // item is currently positioning. Also cancel the possible layout animation
+    // init if it has not yet been called.
     if (isPositioning) {
+      inst._cancelLayoutAnimationInit();
       processQueue(inst._layoutQueue, true, inst);
     }
 
@@ -1992,12 +1949,8 @@
     // Get item container offset. This applies only for release handling in the
     // scenario where the released element is not currently within the
     // grid container element.
-    offsetLeft = release.isActive ? release.containerDiffX :
-                 migrate.isActive ? migrate.containerDiffX :
-                 0;
-    offsetTop = release.isActive ? release.containerDiffY :
-                migrate.isActive ? migrate.containerDiffY :
-                0;
+    offsetLeft = release.isActive ? release.containerDiffX : migrate.isActive ? migrate.containerDiffX : 0;
+    offsetTop = release.isActive ? release.containerDiffY : migrate.isActive ? migrate.containerDiffY : 0;
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
@@ -2005,62 +1958,163 @@
       inst._stopLayout();
       inst._skipNextLayoutAnimation = false;
 
-      // Set the styles only if they are not set later on. If an item is being
-      // released after drag and the drag container is something else than the
-      // Grid's container element these styles will be set after the item has
-      // been moved back to the Grid's element, which also means that setting
-      // the styles here in that scenario is a waste of resources.
-      if (!(release.isActive && element.parentNode !== grid._element) || !(migrate.isActive && migrate.container !== grid._element)) {
-        setStyles(element, {
-          transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
-        });
-      }
+      setStyles(element, {
+        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
+      });
 
-      finishLayout();
+      inst._finishLayout();
 
     }
 
     // If animations are needed, let's dive in.
     else {
 
-      // Get current (relative) left and top position. Meaning that the
-      // container's offset (if applicable) is subtracted from the current
-      // translate values.
-      if (isPositioning && inst._isDefaultAnimate) {
-        currentLeft = parseFloat(Velocity.hook(element, 'translateX')) - offsetLeft;
-        currentTop = parseFloat(Velocity.hook(element, 'translateY')) - offsetTop;
-      }
-      else {
-        currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
-        currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
-      }
-
-      // If the item is already in correct position let's quit early.
-      if (inst._left === currentLeft && inst._top === currentTop) {
-        inst._stopLayout();
-        finishLayout();
-        return;
-      }
-
-      // Mark as positioning and add positioning class if necessary.
+      // Set item as positioning if it is not already.
       if (!isPositioning) {
         inst._isPositioning = true;
-        addClass(element, settings.itemPositioningClass);
       }
 
-      // Animate.
-      inst._animate.start({
-        translateX: (currentLeft + offsetLeft) + 'px',
-        translateY: (currentTop + offsetTop) + 'px'
-      }, {
-        translateX: inst._left + offsetLeft + 'px',
-        translateY: inst._top + offsetTop + 'px'
-      }, {
-        duration: animDuration,
-        easing: animEasing,
-        onFinish: finishLayout
+      // Read the item's current left and top values in the next frame.
+      inst._layoutAnimateInitRead = rafLoop.read(function () {
+        inst._layoutAnimateInitRead = null;
+        currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
+        currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
       });
 
+      // Apply the animation logic in the next frame after we have fetched the
+      // current left and top values.
+      inst._layoutAnimateInitWrite = rafLoop.write(function () {
+
+        inst._layoutAnimateInitWrite = null;
+
+        // If the item is already in correct position let's quit early.
+        if (inst._left === currentLeft && inst._top === currentTop) {
+          inst._stopLayout()._finishLayout();
+          return;
+        }
+
+        // Mark as positioning and add positioning class if necessary.
+        if (!isPositioning) {
+          addClass(element, settings.itemPositioningClass);
+        }
+
+        // Animate.
+        inst._animate.start({
+          translateX: (currentLeft + offsetLeft) + 'px',
+          translateY: (currentTop + offsetTop) + 'px'
+        }, {
+          translateX: inst._left + offsetLeft + 'px',
+          translateY: inst._top + offsetTop + 'px'
+        }, {
+          duration: animDuration,
+          easing: animEasing,
+          onFinish: function () {
+            inst._finishLayout();
+          }
+        });
+
+      });
+
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Position item based on it's current data.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @returns {Item}
+   */
+  Item.prototype._finishLayout = function () {
+
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    // Mark the item as not positioning and remove positioning classes.
+    if (inst._isPositioning) {
+      inst._isPositioning = false;
+      removeClass(inst._element, inst.getGrid()._settings.itemPositioningClass);
+    }
+
+    // Finish up release.
+    if (inst._release.isActive) {
+      inst._release.stop();
+    }
+
+    // Finish up migration.
+    if (inst._migrate.isActive) {
+      inst._migrate.stop();
+    }
+
+    // Process the callback queue.
+    processQueue(inst._layoutQueue, false, inst);
+
+    return inst;
+
+  };
+
+  /**
+   * Stop item's position animation if it is currently animating.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @param {Boolean} [processLayoutQueue=false]
+   * @returns {Item}
+   */
+  Item.prototype._stopLayout = function (processLayoutQueue) {
+
+    var inst = this;
+
+    if (inst._isDestroyed || !inst._isPositioning) {
+      return inst;
+    }
+
+    // Cancel animation init.
+    inst._cancelLayoutAnimationInit();
+
+    // Stop animation.
+    inst._animate.stop();
+
+    // Remove positioning class.
+    removeClass(inst._element, inst.getGrid()._settings.itemPositioningClass);
+
+    // Reset state.
+    inst._isPositioning = false;
+
+    // Process callback queue.
+    if (processLayoutQueue) {
+      processQueue(inst._layoutQueue, true, inst);
+    }
+
+    return inst;
+
+  };
+
+  /**
+   * Cancel queued layout animation init operations.
+   *
+   * @protected
+   * @memberof Item.prototype
+   * @returns {Item}
+   */
+  Item.prototype._cancelLayoutAnimationInit = function () {
+
+    var inst = this;
+
+    if (inst._layoutAnimateInitRead) {
+      rafLoop.remove(inst._layoutAnimateInitRead);
+      inst._layoutAnimateInitRead = null;
+    }
+
+    if (inst._layoutAnimateInitWrite) {
+      rafLoop.remove(inst._layoutAnimateInitWrite);
+      inst._layoutAnimateInitWrite = null;
     }
 
     return inst;
@@ -2140,6 +2194,8 @@
       setStyles(element, {display: 'block'});
 
       // Refresh item's dimensions if item is hidden.
+      // TODO: refreshing dimensions here after DOM manipulation causes
+      // layout thrashing. FIX IT!
       if (inst._isHidden) {
         inst._isHidden = false;
         inst._refreshDimensions();
@@ -3198,8 +3254,10 @@
 
     // Position the released item and get window's width/height for the layout
     // animation optimization algorithm.
-    winWidth = window.innerWidth;
-    winHeight = window.innerHeight;
+    rafLoop.read(function () {
+      winWidth = global.innerWidth;
+      winHeight = global.innerHeight;
+    });
     item._layout(false);
 
     return release;
@@ -4572,6 +4630,67 @@
         fn();
       }
 
+    };
+
+  }
+
+  /**
+   * Returns a raf loop queue system that allows pushing callbacks to either
+   * the read queue or the write queue.
+   *
+   * @private
+   * @returns {Object}
+   */
+  function createRafLoop() {
+
+    var raf = (global.requestAnimationFrame
+      || global.webkitRequestAnimationFrame
+      || global.mozRequestAnimationFrame
+      || global.msRequestAnimationFrame
+      || function (cb) {
+        return global.setTimeout(cb, 16);
+      }
+    ).bind(global);
+    var reads = [];
+    var writes = [];
+
+    function addWrite(cb) {
+      writes.push(cb);
+      writes.length === 1 && !reads.length && raf(flush);
+      return cb;
+    }
+
+    function addRead(cb) {
+      reads.push(cb);
+      reads.length === 1 && !writes.length && raf(flush);
+      return cb;
+    }
+
+    function remove(cb) {
+      [writes, reads].forEach(function (queue) {
+        var index = queue.indexOf(cb);
+        index > -1 && queue.splice(index, 1);
+      });
+    }
+
+    function flush() {
+      if (reads.length || writes.length) {
+        var currentReads = reads.splice(0, reads.length);
+        var currentWrites = writes.splice(0, writes.length);
+        var i;
+        for (i = 0; i < currentReads.length; i++) {
+          currentReads[i]();
+        }
+        for (i = 0; i < currentWrites.length; i++) {
+          currentWrites[i]();
+        }
+      }
+    }
+
+    return {
+      write: addWrite,
+      read: addRead,
+      remove: remove
     };
 
   }

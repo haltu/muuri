@@ -22,9 +22,10 @@
  * SOFTWARE.
  */
 
-// TODO: Fix layout trashing caused by show/hide and dragging.
+// TODO: Fix layout trashing caused by dragging.
 // TODO: Consider bringing back the "freeze dimensions" functionality when
 //       dragging items.
+// TODO: Get rid of bloat, streamline stuff...
 
 (function (global, factory) {
 
@@ -521,7 +522,7 @@
       for (i = 0; i < targetItems.length; i++) {
         item = hasTargets ? inst._getItem(targetItems[i]) : targetItems[i];
         if (item && (!targetState || isItemInState(item, targetState))) {
-          ret[ret.length] = item;
+          ret.push(item);
         }
       }
       return ret;
@@ -802,7 +803,7 @@
     for (i = 0; i < targetElements.length; i++) {
 
       item = new Grid.Item(inst, targetElements[i]);
-      newItems[newItems.length] = item;
+      newItems.push(item);
 
       // If the item to be added is active, we need to do a layout. Also, we
       // need to mark the item with the skipNextLayoutAnimation flag to make it
@@ -1943,7 +1944,7 @@
 
     // Push the callback to the callback queue.
     if (typeof onFinish === typeFunction) {
-      inst._layoutQueue[inst._layoutQueue.length] = onFinish;
+      inst._layoutQueue.push(onFinish);
     }
 
     // Get item container offset. This applies only for release handling in the
@@ -2151,23 +2152,17 @@
     // If item is showing.
     if (inst._isShowing) {
 
+      // Push the callback to the visibility callback queue.
+      callback && queue.push(callback);
+
       // If instant flag is on, interrupt the current animation and set the
       // visible styles.
       if (instant) {
         grid._itemShowHandler.stop(inst);
-        processQueue(queue, true, inst);
-        if (callback) {
-          queue[queue.length] = callback;
-        }
         grid._itemShowHandler.start(inst, instant, function () {
           inst._isShowing = false;
           processQueue(queue, false, inst);
         });
-      }
-
-      // Otherwise just push the callback to the queue.
-      else if (callback) {
-        queue[queue.length] = callback;
       }
 
     }
@@ -2181,36 +2176,22 @@
     else {
 
       // Stop ongoing hide animation.
-      if (inst._isHiding) {
-        grid._itemHideHandler.stop(inst);
-        inst._isHiding = false;
-      }
-
-      // Update item classes.
-      addClass(element, settings.itemVisibleClass);
-      removeClass(element, settings.itemHiddenClass);
-
-      // Set item element's display style to block.
-      setStyles(element, {display: 'block'});
-
-      // Refresh item's dimensions if item is hidden.
-      // TODO: refreshing dimensions here after DOM manipulation causes
-      // layout thrashing. FIX IT!
-      if (inst._isHidden) {
-        inst._isHidden = false;
-        inst._refreshDimensions();
-      }
-
-      // Update item's internal active and showing states.
-      inst._isActive = inst._isShowing = true;
+      inst._isHidden && grid._itemHideHandler.stop(inst);
 
       // Process the visibility callback queue with the interrupted flag active.
       processQueue(queue, true, inst);
 
+      // Update item's internal states.
+      inst._isActive = inst._isShowing = true;
+      inst._isHiding = inst._isHidden = false;
+
       // Push the callback to the visibility callback queue.
-      if (callback) {
-        queue[queue.length] = callback;
-      }
+      callback && queue.push(callback);
+
+      // Update item classes and set item element's display style to block.
+      addClass(element, settings.itemVisibleClass);
+      removeClass(element, settings.itemHiddenClass);
+      setStyles(element, {display: 'block'});
 
       // Animate child element and process the visibility callback queue after
       // succesful animation.
@@ -2255,24 +2236,18 @@
     // If item is hiding.
     if (inst._isHiding) {
 
+      // Push the callback to the queue.
+      callback && queue.push(callback);
+
       // If instant flag is on, interrupt the current animation and set the
       // hidden styles.
       if (instant) {
         grid._itemHideHandler.stop(inst);
-        processQueue(queue, true, inst);
-        if (callback) {
-          queue[queue.length] = callback;
-        }
         grid._itemHideHandler.start(inst, instant, function () {
           inst._isHiding = false;
           setStyles(element, {display: 'none'});
           processQueue(queue, false, inst);
         });
-      }
-
-      // Otherwise just push the callback to the queue.
-      else if (callback) {
-        queue[queue.length] = callback;
       }
 
     }
@@ -2286,25 +2261,21 @@
     else {
 
       // Stop ongoing show animation.
-      if (inst._isShowing) {
-        grid._itemShowHandler.stop(inst);
-      }
+      inst._isShowing && grid._itemShowHandler.stop(inst);
+
+      // Process the visibility callback queue with the interrupted flag active.
+      processQueue(queue, true, inst);
 
       // Update item's internal state.
       inst._isHidden = inst._isHiding = true;
       inst._isActive = inst._isShowing = false;
 
+      // Push the callback to the visibility callback queue.
+      callback && queue.push(callback);
+
       // Update item classes.
       addClass(element, settings.itemHiddenClass);
       removeClass(element, settings.itemVisibleClass);
-
-      // Process the visibility callback queue with the interrupted flag active.
-      processQueue(queue, true, inst);
-
-      // Push the callback to the visibility callback queue.
-      if (typeof callback === typeFunction) {
-        queue[queue.length] = callback;
-      }
 
       // Animate child element and process the visibility callback queue after
       // succesful animation.
@@ -2478,7 +2449,7 @@
     }
 
     var listeners = this._events[event] || [];
-    listeners[listeners.length] = listener;
+    listeners.push(listener);
     this._events[event] = listeners;
 
     return this;
@@ -4497,7 +4468,7 @@
       ret[0] = array[0];
       for (i = 1; i < len; i++) {
         if (ret.indexOf(array[i]) < 0) {
-          ret[ret.length] = array[i];
+          ret.push(array[i]);
         }
       }
     }
@@ -5025,16 +4996,14 @@
       // Find scroll parents.
       while (parent && parent !== doc && parent !== docElem) {
         if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
-          ret[ret.length] = parent;
+          ret.push(parent);
         }
         parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
       }
 
       // If parent is not fixed element, add window object as the last scroll
       // parent.
-      if (parent !== null) {
-        ret[ret.length] = global;
-      }
+      parent !== null && ret.push(global);
 
     }
     // If fixed elements behave as defined in the W3C specification.
@@ -5052,7 +5021,7 @@
 
         // Add the parent element to return items if it is scrollable.
         if (overflowRegex.test(getStyle(parent, 'overflow') + getStyle(parent, 'overflow-y') + getStyle(parent, 'overflow-x'))) {
-          ret[ret.length] = parent;
+          ret.push(parent);
         }
 
         // Update element and parent references.
@@ -5069,7 +5038,7 @@
 
       // Otherwise add global object (window) as the last scroll parent.
       else {
-        ret[ret.length] = global;
+        ret.push(global);
       }
 
     }
@@ -5351,33 +5320,15 @@
     var startEvent = isShow ? evShowStart : evHideStart;
     var endEvent = isShow ? evShowEnd : evHideEnd;
     var needsLayout = false;
-    var affectedItems = [];
     var completedItems = [];
-    var isAffected;
+    var hiddenItems = [];
     var item;
     var i;
-
-    // Get affected items: filter out items which will not be affected by this
-    // method in their current state.
-    for (i = 0; i < targetItems.length; i++) {
-
-      item = targetItems[i];
-      isAffected = isShow ? item._isHidden || item._isHiding || (item._isShowing && isInstant) :
-        !item._isHidden || item._isShowing || (item._isHiding && isInstant);
-
-      if (isAffected) {
-        affectedItems[affectedItems.length] = item;
-      }
-
-    }
-
-    // Set up counter based on valid items.
-    counter = affectedItems.length;
 
     // If there are no items call the callback, but don't emit any events.
     if (!counter) {
       if (typeof callback === typeFunction) {
-        callback(affectedItems);
+        callback(targetItems);
       }
     }
 
@@ -5385,12 +5336,12 @@
     else {
 
       // Emit showStart/hideStart event.
-      inst._emit(startEvent, affectedItems.concat());
+      inst._emit(startEvent, targetItems.concat());
 
       // Show/hide items.
-      for (i = 0; i < affectedItems.length; i++) {
+      for (i = 0; i < targetItems.length; i++) {
 
-        item = affectedItems[i];
+        item = targetItems[i];
 
         // If inactive item is shown or active item is hidden we need to do
         // layout.
@@ -5399,13 +5350,14 @@
         }
 
         // If inactive item is shown we also need to do some special hackery to
-        // make the item not animate it's next positioning (layout). Without the
-        // skipNextLayoutAnimation flag the item would animate to it's place
-        // from the northwest corner of the grid, which (imho) has a buggy vibe
-        // to it.
+        // make the item not animate it's next positioning (layout).
         if (isShow && !item._isActive) {
           item._skipNextLayoutAnimation = true;
         }
+
+        // If the a hidden item is being shown we need to refresh the item's
+        // dimensions.
+        isShow && item._isHidden && hiddenItems.push(item);
 
         // Show/hide the item.
         item['_' + method](isInstant, function (interrupted, item) {
@@ -5413,7 +5365,7 @@
           // If the current item's animation was not interrupted add it to the
           // completedItems array.
           if (!interrupted) {
-            completedItems[completedItems.length] = item;
+            completedItems.push(item);
           }
 
           // If all items have finished their animations call the callback
@@ -5428,6 +5380,9 @@
         });
 
       }
+
+      // Refresh hidden items.
+      hiddenItems.length && inst.refreshItems(hiddenItems);
 
       // Layout if needed.
       if (needsLayout && layout) {
@@ -5836,22 +5791,22 @@
 
       // If item is not aligned to the left edge, create a new slot.
       if (item.left > 0) {
-        newSlots[newSlots.length] = {
+        newSlots.push({
           left: 0,
           top: layout.height,
           width: item.left,
           height: Infinity
-        };
+        });
       }
 
       // If item is not aligned to the right edge, create a new slot.
       if ((item.left + item.width) < layout.width) {
-        newSlots[newSlots.length] = {
+        newSlots.push({
           left: item.left + item.width,
           top: layout.height,
           width: layout.width - item.left - item.width,
           height: Infinity
-        };
+        });
       }
 
       // Update grid height.
@@ -5864,22 +5819,22 @@
 
       // If item is not aligned to the top, create a new slot.
       if (item.top > 0) {
-        newSlots[newSlots.length] = {
+        newSlots.push({
           left: layout.width,
           top: 0,
           width: Infinity,
           height: item.top
-        };
+        });
       }
 
       // If item is not aligned to the bottom, create a new slot.
       if ((item.top + item.height) < layout.height) {
-        newSlots[newSlots.length] = {
+        newSlots.push({
           left: layout.width,
           top: item.top + item.height,
           width: Infinity,
           height: layout.height - item.top - item.height
-        };
+        });
       }
 
       // Update grid width.
@@ -5898,7 +5853,7 @@
         // (width/height > 0.49px) and also let's make sure that the slot is
         // within the boundaries of the grid.
         if (slot.width > 0.49 && slot.height > 0.49 && ((vertical && slot.top < layout.height) || (!vertical && slot.left < layout.width))) {
-          newSlots[newSlots.length] = slot;
+          newSlots.push(slot);
         }
       }
     }
@@ -5939,42 +5894,42 @@
 
     // Left split.
     if (rect.left < hole.left) {
-      ret[ret.length] = {
+      ret.push({
         left: rect.left,
         top: rect.top,
         width: hole.left - rect.left,
         height: rect.height
-      };
+      });
     }
 
     // Right split.
     if ((rect.left + rect.width) > (hole.left + hole.width)) {
-      ret[ret.length] = {
+      ret.push({
         left: hole.left + hole.width,
         top: rect.top,
         width: (rect.left + rect.width) - (hole.left + hole.width),
         height: rect.height
-      };
+      });
     }
 
     // Top split.
     if (rect.top < hole.top) {
-      ret[ret.length] = {
+      ret.push({
         left: rect.left,
         top: rect.top,
         width: rect.width,
         height: hole.top - rect.top
-      };
+      });
     }
 
     // Bottom split.
     if ((rect.top + rect.height) > (hole.top + hole.height)) {
-      ret[ret.length] = {
+      ret.push({
         left: rect.left,
         top: hole.top + hole.height,
         width: rect.width,
         height: (rect.top + rect.height) - (hole.top + hole.height)
-      };
+      });
     }
 
     return ret;

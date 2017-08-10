@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.4.0
+ * Muuri v0.5.0-dev
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -22,10 +22,12 @@
  * SOFTWARE.
  */
 
-// TODO: Fix layout trashing caused by dragging.
-// TODO: Consider bringing back the "freeze dimensions" functionality when
-//       dragging items.
-// TODO: Get rid of bloat, streamline stuff...
+// TODO: Define prototype methods in a more compact matter. 
+// TODO: Drop Velocity and bring in CSS transitions... once again.
+// TODO: Minimize garbage collection.
+// TODO: Consider bringing back the "freeze dimensions" functionality when dragging items.
+// TODO: Get rid of bloat, streamline stuff.
+// TODO: Rethink when to flush interrupted visibility queues.
 
 (function (global, factory) {
 
@@ -3920,6 +3922,8 @@
    * If item is dragged into another grid, finish the migration process
    * gracefully.
    *
+   * TODO: trashes layout twice, can be reduced to one layout thrash.
+   * 
    * @public
    * @memberof ItemDrag.prototype
    * @returns {ItemDrag}
@@ -3932,9 +3936,9 @@
     var element = item._element;
     var targetGrid = item.getGrid();
     var targetGridElement = targetGrid._element;
-    var targetStn = targetGrid._settings;
-    var targetContainer = targetStn.dragContainer || targetGridElement;
-    var currentStn = drag.getGrid()._settings;
+    var targetSettings = targetGrid._settings;
+    var targetContainer = targetSettings.dragContainer || targetGridElement;
+    var currentSettings = drag.getGrid()._settings;
     var currentContainer = element.parentNode;
     var translateX;
     var translateY;
@@ -3951,13 +3955,13 @@
     item._animateChild.destroy();
 
     // Remove current classnames.
-    removeClass(element, currentStn.itemClass);
-    removeClass(element, currentStn.itemVisibleClass);
-    removeClass(element, currentStn.itemHiddenClass);
+    removeClass(element, currentSettings.itemClass);
+    removeClass(element, currentSettings.itemVisibleClass);
+    removeClass(element, currentSettings.itemHiddenClass);
 
     // Add new classnames.
-    addClass(element, targetStn.itemClass);
-    addClass(element, targetStn.itemVisibleClass);
+    addClass(element, targetSettings.itemClass);
+    addClass(element, targetSettings.itemVisibleClass);
 
     // Instantiate new animation controllers.
     item._animate = new Grid.ItemAnimate(item, element);
@@ -3976,15 +3980,15 @@
       });
     }
 
-    // Update item's cached dimensions and sort data.
-    item._refreshDimensions()._refreshSortData();
-
     // Update child element's styles to reflect the current visibility state.
     item._child.removeAttribute('style');
     targetGrid._itemShowHandler.start(item, true);
 
+    // Update item's cached dimensions and sort data.
+    item._refreshDimensions()._refreshSortData();
+
     // Recreate item's drag handler.
-    item._drag = targetStn.dragEnabled ? new Grid.ItemDrag(item) : null;
+    item._drag = targetSettings.dragEnabled ? new Grid.ItemDrag(item) : null;
 
     // Setup release data and start the release.
     offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
@@ -4050,6 +4054,8 @@
 
   /**
    * Drag start handler.
+   * 
+   * TODO: Thrashes layout 3-4 times potentially, can be reduced for sure...
    *
    * @public
    * @memberof ItemDrag.prototype
@@ -4158,13 +4164,13 @@
 
     }
 
+    // Bind drag scrollers.
+    drag.bindScrollListeners();
+
     // Get and store element's current offset from window's northwest corner.
     elementGBCR = element.getBoundingClientRect();
     dragData.elementClientX = elementGBCR.left;
     dragData.elementClientY = elementGBCR.top;
-
-    // Bind drag scrollers.
-    drag.bindScrollListeners();
 
     // Set drag class.
     addClass(element, settings.itemDraggingClass);
@@ -4229,15 +4235,13 @@
       dragData.elementClientY += yDiff;
     }
 
+    // Overlap handling.
+    settings.dragSort && drag._checkSortOverlap();
+
     // Update element's translateX/Y values.
     setStyles(element, {
       transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
-
-    // Overlap handling.
-    if (settings.dragSort) {
-      drag._checkSortOverlap();
-    }
 
     // Emit dragMove event.
     grid._emit(evDragMove, item, event);
@@ -4288,15 +4292,13 @@
       dragData.gridY = dragData.top - dragData.containerDiffY;
     }
 
+    // Overlap handling.
+    settings.dragSort && drag._checkSortOverlap();
+
     // Update element's translateX/Y values.
     setStyles(element, {
       transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
-
-    // Overlap handling.
-    if (settings.dragSort) {
-      drag._checkSortOverlap();
-    }
 
     // Emit dragScroll event.
     grid._emit(evDragScroll, item, event);
@@ -4325,14 +4327,11 @@
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      drag.stop();
-      return;
+      return drag.stop();
     }
 
     // Finish currently queued overlap check.
-    if (settings.dragSort) {
-      drag._checkSortOverlap('finish');
-    }
+    settings.dragSort && drag._checkSortOverlap('finish');
 
     // Remove scroll listeners.
     drag.unbindScrollListeners();
@@ -4351,12 +4350,7 @@
     grid._emit(evDragEnd, item, event);
 
     // Finish up the migration process or start the release process.
-    if (drag._isMigrating) {
-      drag.finishMigration();
-    }
-    else {
-      release.start();
-    }
+    drag._isMigrating ? drag.finishMigration() : release.start();
 
     return drag;
 
@@ -5635,7 +5629,7 @@
    */
 
   /*!
-   * muuriLayout v0.4.0
+   * muuriLayout v0.5.0-dev
    * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
    * Released under the MIT license
    */

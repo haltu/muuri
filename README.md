@@ -28,14 +28,14 @@ Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (posi
 ### 1. Get Muuri
 
 Download from GitHub:
-* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.4.0/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.4.0/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.5.0/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.5.0/muuri.min.js) - for production (minified, no comments).
 
 Or link directly via CDNJS:
 
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.4.0/muuri.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.4.0/muuri.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.0/muuri.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.0/muuri.min.js"></script>
 ```
 
 Or install with [npm](https://www.npmjs.com/):

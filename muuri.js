@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+// TODO: Debounce drag handlers: https://developers.google.com/web/fundamentals/performance/rendering/debounce-your-input-handlers?hl=en
 // TODO: Define prototype methods in a more compact matter. 
 // TODO: Drop Velocity and bring in CSS transitions... once again.
 // TODO: Minimize garbage collection.
@@ -3921,8 +3922,6 @@
   /**
    * If item is dragged into another grid, finish the migration process
    * gracefully.
-   *
-   * TODO: trashes layout twice, can be reduced to one layout thrash.
    * 
    * @public
    * @memberof ItemDrag.prototype
@@ -3973,8 +3972,26 @@
     if (targetContainer !== currentContainer) {
       targetContainer.appendChild(element);
       offsetDiff = getOffsetDiff(currentContainer, targetContainer, true);
-      translateX = getTranslateAsFloat(element, 'x') + offsetDiff.left;
-      translateY = getTranslateAsFloat(element, 'y') + offsetDiff.top;
+      translateX = getTranslateAsFloat(element, 'x') - offsetDiff.left;
+      translateY = getTranslateAsFloat(element, 'y') - offsetDiff.top;
+    }
+
+    // Update item's cached dimensions and sort data.
+    item._refreshDimensions()._refreshSortData();
+
+    // Calculate the offset difference between target's drag container (if any)
+    // and actual grid container element. We save it later for the release
+    // process.
+    offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
+    release.containerDiffX = offsetDiff.left;
+    release.containerDiffY = offsetDiff.top;
+
+    // Recreate item's drag handler.
+    item._drag = targetSettings.dragEnabled ? new Grid.ItemDrag(item) : null;
+
+    // Adjust the position of the item element if it was moved from a container
+    // to another.
+    if (targetContainer !== currentContainer) {
       setStyles(element, {
         transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
       });
@@ -3984,16 +4001,7 @@
     item._child.removeAttribute('style');
     targetGrid._itemShowHandler.start(item, true);
 
-    // Update item's cached dimensions and sort data.
-    item._refreshDimensions()._refreshSortData();
-
-    // Recreate item's drag handler.
-    item._drag = targetSettings.dragEnabled ? new Grid.ItemDrag(item) : null;
-
-    // Setup release data and start the release.
-    offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
-    release.containerDiffX = offsetDiff.left;
-    release.containerDiffY = offsetDiff.top;
+    // Start the release.
     release.start();
 
     return drag;
@@ -4054,8 +4062,6 @@
 
   /**
    * Drag start handler.
-   * 
-   * TODO: Thrashes layout 3-4 times potentially, can be reduced for sure...
    *
    * @public
    * @memberof ItemDrag.prototype
@@ -4078,7 +4084,6 @@
     var containingBlock;
     var offsetDiff;
     var elementGBCR;
-    var isWithinDragContainer;
 
     // If item is not active, don't start the drag.
     if (!item._isActive) {
@@ -4131,15 +4136,6 @@
     // grid's container element we need to cast some extra spells.
     if (dragContainer !== gridContainer) {
 
-      // Check if dragged element is already a child of the drag container.
-      isWithinDragContainer = element.parentNode === dragContainer;
-
-      // If dragged elment is not yet a child of the drag container our first
-      // job is to move it there.
-      if (!isWithinDragContainer) {
-        dragContainer.appendChild(element);
-      }
-
       // Store the container offset diffs to drag data.
       offsetDiff = getOffsetDiff(containingBlock, gridContainer);
       dragData.containerDiffX = offsetDiff.left;
@@ -4147,22 +4143,27 @@
 
       // If the dragged element is a child of the drag container all we need to
       // do is setup the relative drag position data.
-      if (isWithinDragContainer) {
+      if (element.parentNode === dragContainer) {
         dragData.gridX = currentLeft - dragData.containerDiffX;
         dragData.gridY = currentTop - dragData.containerDiffY;
       }
 
-      // Otherwise, we need to setup the actual drag position data and adjust
-      // the element's translate values to account for the DOM position shift.
+      // Otherwise we need to append the element inside the correct container,
+      // setup the actual drag position data and adjust the element's translate
+      // values to account for the DOM position shift.
       else {
         dragData.left = currentLeft + dragData.containerDiffX;
         dragData.top = currentTop + dragData.containerDiffY;
+        dragContainer.appendChild(element);
         setStyles(element, {
           transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
         });
       }
 
     }
+
+    // Set drag class.
+    addClass(element, settings.itemDraggingClass);
 
     // Bind drag scrollers.
     drag.bindScrollListeners();
@@ -4171,9 +4172,6 @@
     elementGBCR = element.getBoundingClientRect();
     dragData.elementClientX = elementGBCR.left;
     dragData.elementClientY = elementGBCR.top;
-
-    // Set drag class.
-    addClass(element, settings.itemDraggingClass);
 
     // Emit dragStart event.
     grid._emit(evDragStart, item, event);

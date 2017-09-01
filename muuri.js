@@ -22,13 +22,12 @@
  * SOFTWARE.
  */
 
-// TODO: Debounce drag handlers: https://developers.google.com/web/fundamentals/performance/rendering/debounce-your-input-handlers?hl=en
-// TODO: Define prototype methods in a more compact matter. 
-// TODO: Drop Velocity and bring in CSS transitions... once again.
-// TODO: Minimize garbage collection.
-// TODO: Consider bringing back the "freeze dimensions" functionality when dragging items.
-// TODO: Get rid of bloat, streamline stuff.
-// TODO: Rethink when to flush interrupted visibility queues.
+// TODO: Some performance issue on Firefox. When there are a lot of items and
+//       you try to hide a few items, the animation is really janky.
+// TODO: Debounce drag handlers: https://developers.google.com/web/fundamentals/
+//       performance/rendering/debounce-your-input-handlers?hl=en
+// TODO: Minimize layout thrashing.
+// TODO: Make sure that the offsets are correct after append procedures.
 
 (function (global, factory) {
 
@@ -226,7 +225,7 @@
     // Create instance settings by merging the options with default options.
     settings = inst._settings = mergeSettings(Grid.defaultOptions, options);
 
-    // Create instance id and store it to the grid instances collection.;
+    // Create instance id and store it to the grid instances collection.
     gridInstances[inst._id = ++uuid] = inst;
 
     // Destroyed flag.
@@ -717,14 +716,13 @@
       tryFinish();
       return inst;
     }
+
     // If there are items let's get window's width/height for the layout
     // animation optimization algorithm.
-    else {
-      rafLoop.read(function () {
-        winWidth = global.innerWidth;
-        winHeight = global.innerHeight;
-      });
-    }
+    rafLoop.inspect(function () {
+      winWidth = global.innerWidth;
+      winHeight = global.innerHeight;
+    });
 
     // If there are items let's position them.
     for (i = 0; i < items.length; i++) {
@@ -1979,7 +1977,7 @@
       }
 
       // Read the item's current left and top values in the next frame.
-      inst._layoutAnimateInitRead = rafLoop.read(function () {
+      inst._layoutAnimateInitRead = rafLoop.inspect(function () {
         inst._layoutAnimateInitRead = null;
         currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
         currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
@@ -1987,7 +1985,7 @@
 
       // Apply the animation logic in the next frame after we have fetched the
       // current left and top values.
-      inst._layoutAnimateInitWrite = rafLoop.write(function () {
+      inst._layoutAnimateInitWrite = rafLoop.modify(function () {
 
         inst._layoutAnimateInitWrite = null;
 
@@ -2125,15 +2123,6 @@
 
   };
 
-  /**
-   * Show item.
-   *
-   * @protected
-   * @memberof Item.prototype
-   * @param {Boolean} instant
-   * @param {Function} [onFinish]
-   * @returns {Item}
-   */
   Item.prototype._show = function (instant, onFinish) {
 
     var inst = this;
@@ -2148,34 +2137,23 @@
       return inst;
     }
 
+    // If item is visible call the callback and be done with it.
+    if (!inst._isShowing && !inst._isHidden) {
+      callback && callback(false, inst);
+      return inst;
+    }
+
     // Get grid and settings.
     grid = inst.getGrid();
     settings = grid._settings;
 
     // If item is showing.
     if (inst._isShowing) {
-
-      // Push the callback to the visibility callback queue.
       callback && queue.push(callback);
-
-      // If instant flag is on, interrupt the current animation and set the
-      // visible styles.
-      if (instant) {
-        grid._itemShowHandler.stop(inst);
-        grid._itemShowHandler.start(inst, instant, function () {
-          inst._isShowing = false;
-          processQueue(queue, false, inst);
-        });
-      }
-
+      instant && grid._itemShowHandler.stop(inst);
     }
 
-    // Otherwise if item is visible call the callback and be done with it.
-    else if (!inst._isHidden) {
-      callback && callback(false, inst);
-    }
-
-    // Finally if item is hidden or hiding, show it.
+    // Otherwise if item is hidden or hiding, show it.
     else {
 
       // Stop ongoing hide animation.
@@ -2192,18 +2170,18 @@
       callback && queue.push(callback);
 
       // Update item classes and set item element's display style to block.
-      addClass(element, settings.itemVisibleClass);
-      removeClass(element, settings.itemHiddenClass);
       setStyles(element, {display: 'block'});
-
-      // Animate child element and process the visibility callback queue after
-      // succesful animation.
-      grid._itemShowHandler.start(inst, instant, function () {
-        inst._isShowing = false;
-        processQueue(queue, false, inst);
-      });
+      removeClass(element, settings.itemHiddenClass);
+      addClass(element, settings.itemVisibleClass);
 
     }
+
+    // Animate child element and process the visibility callback queue after
+    // succesful animation.
+    grid._itemShowHandler.start(inst, instant, function () {
+      inst._isShowing = false;
+      processQueue(queue, false, inst);
+    });
 
     return inst;
 
@@ -2236,31 +2214,19 @@
     grid = inst.getGrid();
     settings = grid._settings;
 
+    // If item is already hidden call the callback and be done with it.
+    if (!inst._isHiding && inst._isHidden) {
+      callback && callback(false, inst);
+      return inst;
+    }
+
     // If item is hiding.
     if (inst._isHiding) {
-
-      // Push the callback to the queue.
       callback && queue.push(callback);
-
-      // If instant flag is on, interrupt the current animation and set the
-      // hidden styles.
-      if (instant) {
-        grid._itemHideHandler.stop(inst);
-        grid._itemHideHandler.start(inst, instant, function () {
-          inst._isHiding = false;
-          setStyles(element, {display: 'none'});
-          processQueue(queue, false, inst);
-        });
-      }
-
+      instant && grid._itemHideHandler.stop(inst);
     }
 
-    // Otherwise if item is hidden call the callback and be done with it.
-    else if (inst._isHidden) {
-      callback && callback(false, inst);
-    }
-
-    // Finally if item is visible or showing, hide it.
+    // Otherwise if item is visible or showing, hide it.
     else {
 
       // Stop ongoing show animation.
@@ -2280,15 +2246,16 @@
       addClass(element, settings.itemHiddenClass);
       removeClass(element, settings.itemVisibleClass);
 
-      // Animate child element and process the visibility callback queue after
-      // succesful animation.
-      grid._itemHideHandler.start(inst, instant, function () {
-        inst._isHiding = false;
-        setStyles(element, {display: 'none'});
-        processQueue(queue, false, inst);
-      });
-
     }
+
+    // Animate child element and process the visibility callback queue after
+    // succesful animation.
+    grid._itemHideHandler.start(inst, instant, function () {
+      inst._isHiding = false;
+      inst._stopLayout(true);
+      setStyles(element, {display: 'none'});
+      processQueue(queue, false, inst);
+    });
 
     return inst;
 
@@ -2621,13 +2588,14 @@
     var element = inst._element;
     var opts = options || {};
     var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
+    var isAnimating = inst._isAnimating;
 
     // If item is being animate check if the target animation properties equal
     // to the properties in the current animation. If they match we can just let
     // the animation continue and be done with it (and of course change the
     // cached callback). If the animation properties do not match we need to
     // stop the ongoing animation.
-    if (inst._isAnimating) {
+    if (isAnimating) {
       if (inst._shouldStop(propsTarget)) {
         inst.stop();
       }
@@ -2642,14 +2610,20 @@
     inst._animateTo = propsTarget;
     inst._callback = callback;
 
-    // If we can skip the animation let's just set the styles.
+    // If we can skip the animation let's just set the styles and finish up.
     if (!inst._shouldAnimate(propsCurrent, propsTarget)) {
       hookStyles(element, propsTarget);
       inst._onFinish();
     }
+
     // Otherwise let's do the animation.
     else {
-      propsCurrent && hookStyles(element, propsCurrent);
+
+      // If the element was not animating and we have access to current props,
+      // let's hook them up before starting the animation.
+      !isAnimating && propsCurrent && hookStyles(element, propsCurrent);
+
+      // Setup the Velocity animation.
       Velocity(element, propsTarget, {
         duration: opts.duration || 300,
         easing: opts.easing || 'ease',
@@ -2658,7 +2632,10 @@
           inst._onFinish();
         }
       });
+
+      // Start the Velocity animation.
       Velocity.Utilities.dequeue(element, inst._id);
+
     }
 
   };
@@ -2746,7 +2723,9 @@
   };
 
   /**
-   * Check if item needs to animate at all.
+   * Check if item needs to animate at all. This optimization is effective only
+   * for layout animations in specific scenarios. Visibility animations are
+   * always triggered.
    *
    * @protected
    * @memberof ItemAnimate.prototype
@@ -2756,15 +2735,6 @@
    */
   ItemAnimate.prototype._shouldAnimate = function (animateFrom, animateTo) {
 
-    // TODO: Currently visibility animations are always animated because there
-    // are some major issues figuring out when to animate and when not to, which
-    // is why we always animate visibility animations. The main problem is that
-    // the visibility animation is triggered before the possible auto-layout
-    // which means that it does not have access to the latest layout data and
-    // thus can't accurately check if the item should animate or not. To fix
-    // this we need to change the order of the auto-layout so that it would be
-    // called before the visibility animations are triggered.
-
     var inst = this;
     var item = inst._item;
     var isLayoutAnimation = inst._element === item._element;
@@ -2772,8 +2742,8 @@
     var viewRect;
     var itemRect;
 
-    // If this is visibility animation or if the item is being
-    // released/migrated/dragged let's always animate.
+    // If this is visibility animation or if the item is being released,
+    // migrated or dragged let's always animate.
     if (!isLayoutAnimation || item.isReleasing() || item.isDragging() || item._migrate.isActive) {
       return true;
     }
@@ -3228,7 +3198,7 @@
 
     // Position the released item and get window's width/height for the layout
     // animation optimization algorithm.
-    rafLoop.read(function () {
+    rafLoop.inspect(function () {
       winWidth = global.innerWidth;
       winHeight = global.innerHeight;
     });
@@ -4200,6 +4170,10 @@
     var yDiff;
     var axis;
 
+    // Cancel queued raf inspect and modify.
+    drag._moveInspect && rafLoop.remove(drag._moveInspect);
+    drag._moveModify && rafLoop.remove(drag._moveModify);
+
     // If item is not active, reset drag.
     if (!item._isActive) {
       drag.stop();
@@ -4234,15 +4208,19 @@
     }
 
     // Overlap handling.
-    settings.dragSort && drag._checkSortOverlap();
-
-    // Update element's translateX/Y values.
-    setStyles(element, {
-      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
+    drag._moveInspect = rafLoop.inspect(function () {
+      drag._moveInspect = null;
+      settings.dragSort && drag._checkSortOverlap();
     });
 
-    // Emit dragMove event.
-    grid._emit(evDragMove, item, event);
+    // Update element's translateX/Y values and emit dragMove event.
+    drag._moveModify = rafLoop.modify(function () {
+      drag._moveModify = null;
+      setStyles(element, {
+        transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
+      });
+      grid._emit(evDragMove, item, event);
+    });
 
     return drag;
 
@@ -4651,8 +4629,8 @@
     }
 
     return {
-      write: addWrite,
-      read: addRead,
+      modify: addWrite,
+      inspect: addRead,
       remove: remove
     };
 

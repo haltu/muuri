@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.5.0-dev
+ * Muuri v0.4.1
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -21,13 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-// TODO: Some performance issue on Firefox. When there are a lot of items and
-//       you try to hide a few items, the animation is really janky.
-// TODO: Debounce drag handlers: https://developers.google.com/web/fundamentals/
-//       performance/rendering/debounce-your-input-handlers?hl=en
-// TODO: Minimize layout thrashing.
-// TODO: Make sure that the offsets are correct after append procedures.
 
 (function (global, factory) {
 
@@ -72,10 +65,6 @@
   var typeFunction = 'function';
   var typeString = 'string';
   var typeNumber = 'number';
-
-  // Raf loop that can be used to organize DOM write and read operations
-  // optimally in the next animation frame.
-  var rafLoop = createRafLoop();
 
   // Drag start predicate states.
   var startPredicateInactive = 0;
@@ -719,10 +708,8 @@
 
     // If there are items let's get window's width/height for the layout
     // animation optimization algorithm.
-    rafLoop.inspect(function () {
-      winWidth = global.innerWidth;
-      winHeight = global.innerHeight;
-    });
+    winWidth = global.innerWidth;
+    winHeight = global.innerHeight;
 
     // If there are items let's position them.
     for (i = 0; i < items.length; i++) {
@@ -1931,10 +1918,8 @@
     animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
 
     // Process current layout callback queue with interrupted flag on if the
-    // item is currently positioning. Also cancel the possible layout animation
-    // init if it has not yet been called.
+    // item is currently positioning.
     if (isPositioning) {
-      inst._cancelLayoutAnimationInit();
       processQueue(inst._layoutQueue, true, inst);
     }
 
@@ -1971,50 +1956,35 @@
     // If animations are needed, let's dive in.
     else {
 
-      // Set item as positioning if it is not already.
-      if (!isPositioning) {
-        inst._isPositioning = true;
+      // Get item's current left and top values.
+      currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
+      currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
+
+      // If the item is already in correct position let's quit early.
+      if (inst._left === currentLeft && inst._top === currentTop) {
+        inst._stopLayout()._finishLayout();
+        return;
       }
 
-      // Read the item's current left and top values in the next frame.
-      inst._layoutAnimateInitRead = rafLoop.inspect(function () {
-        inst._layoutAnimateInitRead = null;
-        currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
-        currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
-      });
+      // Mark as positioning and add positioning class if necessary.
+      if (!isPositioning) {
+        inst._isPositioning = true;
+        addClass(element, settings.itemPositioningClass);
+      }
 
-      // Apply the animation logic in the next frame after we have fetched the
-      // current left and top values.
-      inst._layoutAnimateInitWrite = rafLoop.modify(function () {
-
-        inst._layoutAnimateInitWrite = null;
-
-        // If the item is already in correct position let's quit early.
-        if (inst._left === currentLeft && inst._top === currentTop) {
-          inst._stopLayout()._finishLayout();
-          return;
+      // Animate.
+      inst._animate.start({
+        translateX: (currentLeft + offsetLeft) + 'px',
+        translateY: (currentTop + offsetTop) + 'px'
+      }, {
+        translateX: inst._left + offsetLeft + 'px',
+        translateY: inst._top + offsetTop + 'px'
+      }, {
+        duration: animDuration,
+        easing: animEasing,
+        onFinish: function () {
+          inst._finishLayout();
         }
-
-        // Mark as positioning and add positioning class if necessary.
-        if (!isPositioning) {
-          addClass(element, settings.itemPositioningClass);
-        }
-
-        // Animate.
-        inst._animate.start({
-          translateX: (currentLeft + offsetLeft) + 'px',
-          translateY: (currentTop + offsetTop) + 'px'
-        }, {
-          translateX: inst._left + offsetLeft + 'px',
-          translateY: inst._top + offsetTop + 'px'
-        }, {
-          duration: animDuration,
-          easing: animEasing,
-          onFinish: function () {
-            inst._finishLayout();
-          }
-        });
-
       });
 
     }
@@ -2077,9 +2047,6 @@
       return inst;
     }
 
-    // Cancel animation init.
-    inst._cancelLayoutAnimationInit();
-
     // Stop animation.
     inst._animate.stop();
 
@@ -2092,31 +2059,6 @@
     // Process callback queue.
     if (processLayoutQueue) {
       processQueue(inst._layoutQueue, true, inst);
-    }
-
-    return inst;
-
-  };
-
-  /**
-   * Cancel queued layout animation init operations.
-   *
-   * @protected
-   * @memberof Item.prototype
-   * @returns {Item}
-   */
-  Item.prototype._cancelLayoutAnimationInit = function () {
-
-    var inst = this;
-
-    if (inst._layoutAnimateInitRead) {
-      rafLoop.remove(inst._layoutAnimateInitRead);
-      inst._layoutAnimateInitRead = null;
-    }
-
-    if (inst._layoutAnimateInitWrite) {
-      rafLoop.remove(inst._layoutAnimateInitWrite);
-      inst._layoutAnimateInitWrite = null;
     }
 
     return inst;
@@ -3198,10 +3140,8 @@
 
     // Position the released item and get window's width/height for the layout
     // animation optimization algorithm.
-    rafLoop.inspect(function () {
-      winWidth = global.innerWidth;
-      winHeight = global.innerHeight;
-    });
+    winWidth = global.innerWidth;
+    winHeight = global.innerHeight;
     item._layout(false);
 
     return release;
@@ -4170,10 +4110,6 @@
     var yDiff;
     var axis;
 
-    // Cancel queued raf inspect and modify.
-    drag._moveInspect && rafLoop.remove(drag._moveInspect);
-    drag._moveModify && rafLoop.remove(drag._moveModify);
-
     // If item is not active, reset drag.
     if (!item._isActive) {
       drag.stop();
@@ -4208,19 +4144,15 @@
     }
 
     // Overlap handling.
-    drag._moveInspect = rafLoop.inspect(function () {
-      drag._moveInspect = null;
-      settings.dragSort && drag._checkSortOverlap();
+    settings.dragSort && drag._checkSortOverlap();
+
+    // Update element's translateX/Y values.
+    setStyles(element, {
+      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
 
-    // Update element's translateX/Y values and emit dragMove event.
-    drag._moveModify = rafLoop.modify(function () {
-      drag._moveModify = null;
-      setStyles(element, {
-        transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
-      });
-      grid._emit(evDragMove, item, event);
-    });
+    // Emit dragMove event.
+    grid._emit(evDragMove, item, event);
 
     return drag;
 
@@ -4571,67 +4503,6 @@
         fn();
       }
 
-    };
-
-  }
-
-  /**
-   * Returns a raf loop queue system that allows pushing callbacks to either
-   * the read queue or the write queue.
-   *
-   * @private
-   * @returns {Object}
-   */
-  function createRafLoop() {
-
-    var raf = (global.requestAnimationFrame
-      || global.webkitRequestAnimationFrame
-      || global.mozRequestAnimationFrame
-      || global.msRequestAnimationFrame
-      || function (cb) {
-        return global.setTimeout(cb, 16);
-      }
-    ).bind(global);
-    var reads = [];
-    var writes = [];
-
-    function addWrite(cb) {
-      writes.push(cb);
-      writes.length === 1 && !reads.length && raf(flush);
-      return cb;
-    }
-
-    function addRead(cb) {
-      reads.push(cb);
-      reads.length === 1 && !writes.length && raf(flush);
-      return cb;
-    }
-
-    function remove(cb) {
-      [writes, reads].forEach(function (queue) {
-        var index = queue.indexOf(cb);
-        index > -1 && queue.splice(index, 1);
-      });
-    }
-
-    function flush() {
-      if (reads.length || writes.length) {
-        var currentReads = reads.splice(0, reads.length);
-        var currentWrites = writes.splice(0, writes.length);
-        var i;
-        for (i = 0; i < currentReads.length; i++) {
-          currentReads[i]();
-        }
-        for (i = 0; i < currentWrites.length; i++) {
-          currentWrites[i]();
-        }
-      }
-    }
-
-    return {
-      modify: addWrite,
-      inspect: addRead,
-      remove: remove
     };
 
   }
@@ -5605,7 +5476,7 @@
    */
 
   /*!
-   * muuriLayout v0.5.0-dev
+   * muuriLayout v0.4.1
    * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
    * Released under the MIT license
    */

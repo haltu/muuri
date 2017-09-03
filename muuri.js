@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.5.0-dev
+ * Muuri v0.6.0-dev
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -22,38 +22,37 @@
  * SOFTWARE.
  */
 
-// TODO: Some performance issue on Firefox. When there are a lot of items and
-//       you try to hide a few items, the animation is really janky.
-// TODO: Debounce drag handlers: https://developers.google.com/web/fundamentals/
-//       performance/rendering/debounce-your-input-handlers?hl=en
-// TODO: Minimize layout thrashing.
-// TODO: Make sure that the offsets are correct after append procedures.
+/*
+TODO
+****
+- [x] Use web animations API.
+- [ ] Minimize layout thrashing. There are some major issues that can be
+      noticed when animating hundreds of elements.
+- [ ] Dynamic drag sort groups system.
+- [ ] Fix will-change issue (that causes containing block).
+*/
 
 (function (global, factory) {
 
   var namespace = 'Muuri';
-  var Velocity;
   var Hammer;
 
   if (typeof module === 'object' && module.exports) {
     /* eslint-disable */
-    try { Velocity = require('velocity-animate'); } catch (e) {}
     try { Hammer = require('hammerjs'); } catch (e) {}
     /* eslint-enable */
-    module.exports = factory(namespace, Velocity, Hammer);
+    module.exports = factory(namespace, Hammer);
   }
   else if (typeof define === 'function' && define.amd) {
-    define(['velocity-animate', 'hammerjs'], function (Velocity, Hammer) {
-      return factory(namespace, Velocity, Hammer);
+    define(['hammerjs'], function (Hammer) {
+      return factory(namespace, Hammer);
     });
   }
   else {
-    Velocity = global.Velocity || (global.jQuery && global.jQuery.Velocity);
-    Hammer = global.Hammer;
-    global[namespace] = factory(namespace, Velocity, Hammer);
+    global[namespace] = factory(namespace, global.Hammer);
   }
 
-}(typeof window !== 'undefined' ? window : this, function (namespace, Velocity, Hammer, undefined) {
+}(typeof window !== 'undefined' ? window : this, function (namespace, Hammer, undefined) {
 
   'use strict';
 
@@ -73,19 +72,12 @@
   var typeString = 'string';
   var typeNumber = 'number';
 
-  // Raf loop that can be used to organize DOM write and read operations
-  // optimally in the next animation frame.
-  var rafLoop = createRafLoop();
-
   // Drag start predicate states.
   var startPredicateInactive = 0;
   var startPredicatePending = 1;
   var startPredicateResolved = 2;
   var startPredicateRejected = 3;
 
-  // Keep track of window width/height.
-  var winWidth;
-  var winHeight;
 
   // Keep track of Grid instances.
   var gridInstances = {};
@@ -153,11 +145,11 @@
    * @param {(?HTMLElement[]|NodeList|String)} [options.items]
    * @param {?Function} [options.showAnimation=null]
    * @param {Number} [options.showDuration=300]
-   * @param {(Number[]|String)} [options.showEasing="ease"]
+   * @param {String} [options.showEasing="ease"]
    * @param {Object} [options.visibleStyles]
    * @param {?Function} [options.hideAnimation=null]
    * @param {Number} [options.hideDuration=300]
-   * @param {(Number[]|String)} [options.hideEasing="ease"]
+   * @param {String} [options.hideEasing="ease"]
    * @param {Object} [options.hiddenStyles]
    * @param {(Function|Object)} [options.layout]
    * @param {Boolean} [options.layout.fillGaps=false]
@@ -168,7 +160,7 @@
    * @param {(Boolean|Number)} [options.layoutOnResize=100]
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
-   * @param {(Number[]|String)} [options.layoutEasing="ease"]
+   * @param {String} [options.layoutEasing="ease"]
    * @param {?Object} [options.sortData=null]
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?HtmlElement} [options.dragContainer=null]
@@ -186,7 +178,7 @@
    * @param {?(Array|String)} [options.dragSortGroup=null]
    * @param {?(Array|String)} [options.dragSortWith=null]
    * @param {Number} [options.dragReleaseDuration=300]
-   * @param {(Number[]|String)} [options.dragReleaseEasing="ease"]
+   * @param {String} [options.dragReleaseEasing="ease"]
    * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
@@ -354,12 +346,12 @@
 
     // Item's visible/hidden state styles
     visibleStyles: {
-      opacity: 1,
-      scale: 1
+      opacity: '1',
+      transform: 'scale(1)'
     },
     hiddenStyles: {
-      opacity: 0,
-      scale: 0.5
+      opacity: '0',
+      transform: 'scale(0.5)'
     },
 
     // Layout
@@ -716,13 +708,6 @@
       tryFinish();
       return inst;
     }
-
-    // If there are items let's get window's width/height for the layout
-    // animation optimization algorithm.
-    rafLoop.inspect(function () {
-      winWidth = global.innerWidth;
-      winHeight = global.innerHeight;
-    });
 
     // If there are items let's position them.
     for (i = 0; i < items.length; i++) {
@@ -1545,9 +1530,6 @@
     inst._animate = new Grid.ItemAnimate(inst, element);
     inst._animateChild = new Grid.ItemAnimate(inst, inst._child);
 
-    // Check if default animation engine is used.
-    inst._isDefaultAnimate = inst._animate instanceof ItemAnimate;
-
     // Set up active state (defines if the item is considered part of the layout
     // or not).
     inst._isActive = isHidden ? false : true;
@@ -1934,7 +1916,6 @@
     // item is currently positioning. Also cancel the possible layout animation
     // init if it has not yet been called.
     if (isPositioning) {
-      inst._cancelLayoutAnimationInit();
       processQueue(inst._layoutQueue, true, inst);
     }
 
@@ -1971,51 +1952,34 @@
     // If animations are needed, let's dive in.
     else {
 
+      // Read the item's current left and top values in the next frame.
+      currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
+      currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
+
+      // If the item is already in correct position let's quit early.
+      if (inst._left === currentLeft && inst._top === currentTop) {
+        inst._stopLayout()._finishLayout();
+        return;
+      }
+
       // Set item as positioning if it is not already.
       if (!isPositioning) {
         inst._isPositioning = true;
+        addClass(element, settings.itemPositioningClass);
       }
 
-      // Read the item's current left and top values in the next frame.
-      inst._layoutAnimateInitRead = rafLoop.inspect(function () {
-        inst._layoutAnimateInitRead = null;
-        currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
-        currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
-      });
-
-      // Apply the animation logic in the next frame after we have fetched the
-      // current left and top values.
-      inst._layoutAnimateInitWrite = rafLoop.modify(function () {
-
-        inst._layoutAnimateInitWrite = null;
-
-        // If the item is already in correct position let's quit early.
-        if (inst._left === currentLeft && inst._top === currentTop) {
-          inst._stopLayout()._finishLayout();
-          return;
-        }
-
-        // Mark as positioning and add positioning class if necessary.
-        if (!isPositioning) {
-          addClass(element, settings.itemPositioningClass);
-        }
-
-        // Animate.
-        inst._animate.start({
-          translateX: (currentLeft + offsetLeft) + 'px',
-          translateY: (currentTop + offsetTop) + 'px'
-        }, {
-          translateX: inst._left + offsetLeft + 'px',
-          translateY: inst._top + offsetTop + 'px'
-        }, {
+      // Animate.
+      inst._animate.start(
+        {transform: 'translateX(' + (currentLeft + offsetLeft) + 'px) translateY(' + (currentTop + offsetTop) + 'px)'},
+        {transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'},
+        {
           duration: animDuration,
           easing: animEasing,
           onFinish: function () {
             inst._finishLayout();
           }
-        });
-
-      });
+        }
+      );
 
     }
 
@@ -2077,9 +2041,6 @@
       return inst;
     }
 
-    // Cancel animation init.
-    inst._cancelLayoutAnimationInit();
-
     // Stop animation.
     inst._animate.stop();
 
@@ -2092,31 +2053,6 @@
     // Process callback queue.
     if (processLayoutQueue) {
       processQueue(inst._layoutQueue, true, inst);
-    }
-
-    return inst;
-
-  };
-
-  /**
-   * Cancel queued layout animation init operations.
-   *
-   * @protected
-   * @memberof Item.prototype
-   * @returns {Item}
-   */
-  Item.prototype._cancelLayoutAnimationInit = function () {
-
-    var inst = this;
-
-    if (inst._layoutAnimateInitRead) {
-      rafLoop.remove(inst._layoutAnimateInitRead);
-      inst._layoutAnimateInitRead = null;
-    }
-
-    if (inst._layoutAnimateInitWrite) {
-      rafLoop.remove(inst._layoutAnimateInitWrite);
-      inst._layoutAnimateInitWrite = null;
     }
 
     return inst;
@@ -2541,7 +2477,7 @@
    */
 
   /**
-   * Muuri's internal animation engine. Uses Velocity.
+   * Muuri's internal animation engine. Uses Web Animations API.
    *
    * @public
    * @class
@@ -2552,10 +2488,8 @@
 
     this._item = item;
     this._element = element;
-    this._id = namespace + '-' + (++uuid);
-    this._callback = null;
-    this._animateTo = null;
-    this._isAnimating = false;
+    this._animation = null;
+    this._propsTo = null;
     this._isDestroyed = false;
 
   }
@@ -2571,72 +2505,59 @@
    *
    * @public
    * @memberof ItemAnimate.prototype
-   * @param {?Object} propsCurrent
-   * @param {Object} propsTarget
+   * @param {?Object} propsFrom
+   * @param {Object} propsTo
    * @param {Object} [options]
    * @param {Number} [options.duration=300]
    * @param {String} [options.easing='ease']
    * @param {Function} [options.onFinish]
    */
-  ItemAnimate.prototype.start = function (propsCurrent, propsTarget, options) {
+  ItemAnimate.prototype.start = function (propsFrom, propsTo, options) {
 
     if (this._isDestroyed) {
       return;
     }
 
     var inst = this;
-    var element = inst._element;
     var opts = options || {};
     var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
-    var isAnimating = inst._isAnimating;
 
     // If item is being animate check if the target animation properties equal
     // to the properties in the current animation. If they match we can just let
     // the animation continue and be done with it (and of course change the
     // cached callback). If the animation properties do not match we need to
     // stop the ongoing animation.
-    if (isAnimating) {
-      if (inst._shouldStop(propsTarget)) {
-        inst.stop();
+    if (inst._animation) {
+      if (inst._shouldStop(propsTo)) {
+        propsFrom = propsFrom || inst._getCurrentProps(propsTo);
+        inst._animation.cancel();
       }
       else {
-        inst._callback = callback;
+        inst._animation.onfinish = function () {
+          inst._animation = inst._propsTo = null;
+          callback && callback();
+        };
         return;
       }
     }
 
-    // Setup animation data.
-    inst._isAnimating = true;
-    inst._animateTo = propsTarget;
-    inst._callback = callback;
+    // Cache target props.
+    inst._propsTo = propsTo;
 
-    // If we can skip the animation let's just set the styles and finish up.
-    if (!inst._shouldAnimate(propsCurrent, propsTarget)) {
-      hookStyles(element, propsTarget);
-      inst._onFinish();
-    }
+    // Start the animation.
+    inst._animation = inst._element.animate([propsFrom || inst._getCurrentProps(propsTo), propsTo], {
+      duration: opts.duration || 300,
+      easing: opts.easing || 'ease'
+    });
 
-    // Otherwise let's do the animation.
-    else {
+    // Bind animation finish callback.
+    inst._animation.onfinish = function () {
+      inst._animation = inst._propsTo = null;
+      callback && callback();
+    };
 
-      // If the element was not animating and we have access to current props,
-      // let's hook them up before starting the animation.
-      !isAnimating && propsCurrent && hookStyles(element, propsCurrent);
-
-      // Setup the Velocity animation.
-      Velocity(element, propsTarget, {
-        duration: opts.duration || 300,
-        easing: opts.easing || 'ease',
-        queue: inst._id,
-        complete: function () {
-          inst._onFinish();
-        }
-      });
-
-      // Start the Velocity animation.
-      Velocity.Utilities.dequeue(element, inst._id);
-
-    }
+    // Set the end styles.
+    setStyles(inst._element, propsTo);
 
   };
 
@@ -2650,10 +2571,11 @@
 
     var inst = this;
 
-    if (!inst._isDestroyed && inst._isAnimating) {
-      inst._isAnimating = false;
-      inst._callback = inst._animateTo = null;
-      Velocity(inst._element, 'stop', inst._id);
+    if (!inst._isDestroyed && inst._animation) {
+      inst._animation.pause();
+      setStyles(inst._element, inst._getCurrentProps(inst._propsTo));
+      inst._animation.cancel();
+      inst._animation = inst._propsTo = null;
     }
 
   };
@@ -2683,95 +2605,45 @@
    */
 
   /**
-   * Stop instance's current animation if running.
-   *
-   * @private
-   * @memberof ItemAnimate.prototype
-   */
-  ItemAnimate.prototype._onFinish = function () {
-
-    var inst = this;
-    var callback = inst._callback;
-
-    inst._isAnimating = false;
-    inst._callback = inst._animateTo = null;
-    callback && callback();
-
-  };
-
-  /**
    * Check if item needs to stop the current animation.
    *
    * @protected
    * @memberof ItemAnimate.prototype
-   * @param {?Object} animateTo
+   * @param {?Object} propsTo
    * @return {Boolean}
    */
-  ItemAnimate.prototype._shouldStop = function (animateTo) {
+  ItemAnimate.prototype._shouldStop = function (propsTo) {
 
-    var props = Object.keys(animateTo);
+    var keys = Object.keys(propsTo);
     var i;
 
-    for (i = 0; i < props.length; i++) {
-      if (animateTo[props[i]] !== this._animateTo[props[i]]) {
+    for (i = 0; i < keys.length; i++) {
+      if (propsTo[keys[i]] !== this._propsTo[keys[i]]) {
         return true;
       }
     }
 
-    return false;
-
   };
 
   /**
-   * Check if item needs to animate at all. This optimization is effective only
-   * for layout animations in specific scenarios. Visibility animations are
-   * always triggered.
+   * Get current values of the provided animation properties.
    *
    * @protected
    * @memberof ItemAnimate.prototype
-   * @param {Object} animateFrom
-   * @param {Object} animateTo
-   * @return {Boolean}
+   * @param {Object} propsTo
+   * @return {Object}
    */
-  ItemAnimate.prototype._shouldAnimate = function (animateFrom, animateTo) {
+  ItemAnimate.prototype._getCurrentProps = function (propsTo) {
 
-    var inst = this;
-    var item = inst._item;
-    var isLayoutAnimation = inst._element === item._element;
-    var grid;
-    var viewRect;
-    var itemRect;
+    var currentProps = {};
+    var keys = Object.keys(propsTo);
+    var i;
 
-    // If this is visibility animation or if the item is being released,
-    // migrated or dragged let's always animate.
-    if (!isLayoutAnimation || item.isReleasing() || item.isDragging() || item._migrate.isActive) {
-      return true;
+    for (i = 0; i < keys.length; i++) {
+      currentProps[keys[i]] = getStyle(this._element, keys[i]);
     }
 
-    grid = item.getGrid();
-    viewRect = {
-      left: 0,
-      top: 0,
-      width: winWidth,
-      height: winHeight
-    };
-    itemRect = {
-      left: grid._left + grid._border.left + parseFloat(animateFrom.translateX),
-      top: grid._top + grid._border.top + parseFloat(animateFrom.translateY),
-      width: item._width + item._margin.left + item._margin.right,
-      height: item._height + item._margin.top + item._margin.bottom
-    };
-
-    // If the item is within the viewport currently let's animate.
-    if (muuriLayout.doRectsOverlap(viewRect, itemRect)) {
-      return true;
-    }
-
-    // If the item will be in the viewport when the animation ends let's also
-    // animate.
-    itemRect.left = grid._left + grid._border.left + parseFloat(animateTo.translateX);
-    itemRect.top = grid._top + grid._border.top + parseFloat(animateTo.translateY);
-    return muuriLayout.doRectsOverlap(viewRect, itemRect);
+    return currentProps;
 
   };
 
@@ -2960,7 +2832,6 @@
     // Instantiate new animation controllers.
     item._animate = new Grid.ItemAnimate(item, itemElement);
     item._animateChild = new Grid.ItemAnimate(item, item._child);
-    item._isDefaultAnimate = item._animate instanceof ItemAnimate;
 
     // Get current container
     currentContainer = itemElement.parentNode;
@@ -3198,10 +3069,6 @@
 
     // Position the released item and get window's width/height for the layout
     // animation optimization algorithm.
-    rafLoop.inspect(function () {
-      winWidth = global.innerWidth;
-      winHeight = global.innerHeight;
-    });
     item._layout(false);
 
     return release;
@@ -3935,7 +3802,6 @@
     // Instantiate new animation controllers.
     item._animate = new Grid.ItemAnimate(item, element);
     item._animateChild = new Grid.ItemAnimate(item, item._child);
-    item._isDefaultAnimate = item._animate instanceof ItemAnimate;
 
     // Move the item inside the target container if it's different than the
     // current container.
@@ -4170,10 +4036,6 @@
     var yDiff;
     var axis;
 
-    // Cancel queued raf inspect and modify.
-    drag._moveInspect && rafLoop.remove(drag._moveInspect);
-    drag._moveModify && rafLoop.remove(drag._moveModify);
-
     // If item is not active, reset drag.
     if (!item._isActive) {
       drag.stop();
@@ -4208,19 +4070,15 @@
     }
 
     // Overlap handling.
-    drag._moveInspect = rafLoop.inspect(function () {
-      drag._moveInspect = null;
-      settings.dragSort && drag._checkSortOverlap();
+    settings.dragSort && drag._checkSortOverlap();
+
+    // Update element's translateX/Y values.
+    setStyles(element, {
+      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
 
-    // Update element's translateX/Y values and emit dragMove event.
-    drag._moveModify = rafLoop.modify(function () {
-      drag._moveModify = null;
-      setStyles(element, {
-        transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
-      });
-      grid._emit(evDragMove, item, event);
-    });
+    // Emit dragMove event.
+    grid._emit(evDragMove, item, event);
 
     return drag;
 
@@ -4576,67 +4434,6 @@
   }
 
   /**
-   * Returns a raf loop queue system that allows pushing callbacks to either
-   * the read queue or the write queue.
-   *
-   * @private
-   * @returns {Object}
-   */
-  function createRafLoop() {
-
-    var raf = (global.requestAnimationFrame
-      || global.webkitRequestAnimationFrame
-      || global.mozRequestAnimationFrame
-      || global.msRequestAnimationFrame
-      || function (cb) {
-        return global.setTimeout(cb, 16);
-      }
-    ).bind(global);
-    var reads = [];
-    var writes = [];
-
-    function addWrite(cb) {
-      writes.push(cb);
-      writes.length === 1 && !reads.length && raf(flush);
-      return cb;
-    }
-
-    function addRead(cb) {
-      reads.push(cb);
-      reads.length === 1 && !writes.length && raf(flush);
-      return cb;
-    }
-
-    function remove(cb) {
-      [writes, reads].forEach(function (queue) {
-        var index = queue.indexOf(cb);
-        index > -1 && queue.splice(index, 1);
-      });
-    }
-
-    function flush() {
-      if (reads.length || writes.length) {
-        var currentReads = reads.splice(0, reads.length);
-        var currentWrites = writes.splice(0, writes.length);
-        var i;
-        for (i = 0; i < currentReads.length; i++) {
-          currentReads[i]();
-        }
-        for (i = 0; i < currentWrites.length; i++) {
-          currentWrites[i]();
-        }
-      }
-    }
-
-    return {
-      modify: addWrite,
-      inspect: addRead,
-      remove: remove
-    };
-
-  }
-
-  /**
    * Helpers - DOM utils
    * *******************
    */
@@ -4704,24 +4501,6 @@
       prop = props[i];
       val = styles[prop];
       element.style[prop === 'transform' && transform ? transform.propName : prop] = val;
-    }
-
-  }
-
-  /**
-   * Set inline styles to an element using Velocity's hook method.
-   *
-   * @private
-   * @param {HTMLElement} element
-   * @param {Object} styles
-   */
-  function hookStyles(element, styles) {
-
-    var props = Object.keys(styles);
-    var i;
-
-    for (i = 0; i < props.length; i++) {
-      Velocity.hook(element, props[i], styles[props[i]]);
     }
 
   }
@@ -5389,7 +5168,7 @@
           onFinish && onFinish();
         }
         else if (instant) {
-          (item._isDefaultAnimate ? hookStyles : setStyles)(item._child, styles);
+          setStyles(item._child, styles);
           onFinish && onFinish();
         }
         else {
@@ -5605,7 +5384,7 @@
    */
 
   /*!
-   * muuriLayout v0.5.0-dev
+   * muuriLayout v0.6.0-dev
    * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
    * Released under the MIT license
    */

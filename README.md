@@ -8,7 +8,7 @@ Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, 
 
 Muuri's layout system allows positioning the grid items pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
 
-Muuri uses [Velocity](http://velocityjs.org/) for animating the grid items (positioning/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri uses [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) for animating the grid items (positioning/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 ## Table of contents
 
@@ -52,20 +52,18 @@ bower install muuri
 
 ### 2. Get the dependencies
 
-Muuri depends on the following libraries:
-* [Velocity](https://github.com/julianshapiro/velocity) (v1.2.0+)
-  * By default Muuri uses Velocity to power all the animations. However, it is possible to replace Velocity with any other animation engine by overwriting the `Muuri.ItemAnimate` constructor.
-* [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+)
-  * Muuri uses Hammer.js to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
+* Muuri uses [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations yet you need to use a [polyfill](https://github.com/web-animations/web-animations-js). If you're feeling lucky you might be interested to know that it is possible to replace Muuri's default animation engine with your own implementation by overwriting the `Muuri.ItemAnimate` constructor.
+
+* Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
 
 ### 3. Add the script tags
 
 Add Muuri on your site and make sure to include the dependencies before Muuri.
 
 ```html
-<script src="velocity.js"></script>
-<script src="hammer.js"></script>
-<script src="muuri.js"></script>
+<script src="web-animations.min.js"></script>
+<script src="hammer.min.js"></script>
+<script src="muuri.min.js"></script>
 ```
 
 ### 4. Add the markup
@@ -101,7 +99,7 @@ Add Muuri on your site and make sure to include the dependencies before Muuri.
 
 * The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element's width/height depending on the area the items cover and the layout algorithm configuration.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
-* The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Velocity's animations. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
+* The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Muuri's internal animation engine. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
 * You can control the gaps between the items by giving some margin to the item elements.
 
 ```css
@@ -335,10 +333,10 @@ var grid = new Muuri(elem, {
 
 ### showEasing &nbsp;
 
-Show animation easing. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+Show animation easing. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
 
 * Default value: `'ease'`.
-* Accepted types: array, string.
+* Accepted types: string.
 
 ```javascript
 var grid = new Muuri(elem, {
@@ -361,10 +359,10 @@ var grid = new Muuri(elem, {
 
 ### hideEasing &nbsp;
 
-Hide animation easing. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+Hide animation easing. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
 
 * Default value: `'ease'`.
-* Accepted types: array, string.
+* Accepted types: string.
 
 ```javascript
 var grid = new Muuri(elem, {
@@ -501,7 +499,7 @@ var grid = new Muuri(elem, {
 
 ### layoutEasing &nbsp;
 
-The easing for item's layout animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+The easing for item's layout animation. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
 
 * Default value: `'ease'`.
 * Accepted types: string.
@@ -797,10 +795,10 @@ var grid = new Muuri(elem, {
 
 ### dragReleaseEasing &nbsp;
 
-The easing for item's drag release animation. Accepts any valid [Velocity.js easing](http://velocityjs.org/#easing) value.
+The easing for item's drag release animation. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
 
 * Default value: `'ease'`.
-* Accepted types: array, string.
+* Accepted types: string.
 
 ```javascript
 var grid = new Muuri(elem, {
@@ -2037,7 +2035,7 @@ Not yet, but it is planned. Hold on tight!
 
 * This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/) and [Packery](http://packery.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
 * Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!
-* Big thanks to the people behind [Velocity.js](http://velocityjs.org/) and [Hammer.js](http://hammerjs.github.io/) for providing such awesome libraries. Muuri would be much less cool without animations and dragging.
+* Big thanks to the people behind [Web Animations API polyfill](https://github.com/web-animations/web-animations-js) and [Hammer.js](http://hammerjs.github.io/) for providing such awesome libraries. Muuri would be much less cool without animations and dragging.
 * [Haltu Oy](http://www.haltu.fi/) was responsible for initiating this project in the first place and funded the intial development. Thanks Haltu!
 
 ## License

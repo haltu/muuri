@@ -28,6 +28,12 @@ TODO
 - [x] Use web animations API.
 - [ ] Minimize layout thrashing. There are some major issues that can be
       noticed when animating hundreds of elements.
+      - [ ] Layout system (test perf between raf technique and manually batching
+            the reads and writes into separate queues).
+      - [ ] Visibility system
+      - [ ] Animation stopping
+      - [ ] Migration API
+      - [ ] Drag handlers
 - [ ] Dynamic drag sort groups system.
 - [ ] Fix will-change issue (that causes containing block).
 */
@@ -78,6 +84,9 @@ TODO
   var startPredicateResolved = 2;
   var startPredicateRejected = 3;
 
+  // Layout read and wrtie queues.
+  var layoutReadQueue = [];
+  var layoutWriteQueue = [];
 
   // Keep track of Grid instances.
   var gridInstances = {};
@@ -728,6 +737,10 @@ TODO
       }
 
     }
+
+    // Process layout read and write queues.
+    processQueue(layoutReadQueue);
+    processQueue(layoutWriteQueue);
 
     return inst;
 
@@ -1938,48 +1951,57 @@ TODO
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
 
-      inst._stopLayout();
-      inst._skipNextLayoutAnimation = false;
+      layoutWriteQueue.push(function () {
 
-      setStyles(element, {
-        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
+        inst._stopLayout();
+        inst._skipNextLayoutAnimation = false;
+
+        setStyles(element, {
+          transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
+        });
+
+        inst._finishLayout();
+
       });
-
-      inst._finishLayout();
 
     }
 
     // If animations are needed, let's dive in.
     else {
 
-      // Read the item's current left and top values in the next frame.
-      currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
-      currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
+      // Get the element's current left and top position.
+      layoutReadQueue.push(function () {
+        currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
+        currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
+      });
 
-      // If the item is already in correct position let's quit early.
-      if (inst._left === currentLeft && inst._top === currentTop) {
-        inst._stopLayout()._finishLayout();
-        return;
-      }
+      layoutWriteQueue.push(function () {
 
-      // Set item as positioning if it is not already.
-      if (!isPositioning) {
-        inst._isPositioning = true;
-        addClass(element, settings.itemPositioningClass);
-      }
-
-      // Animate.
-      inst._animate.start(
-        {transform: 'translateX(' + (currentLeft + offsetLeft) + 'px) translateY(' + (currentTop + offsetTop) + 'px)'},
-        {transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'},
-        {
-          duration: animDuration,
-          easing: animEasing,
-          onFinish: function () {
-            inst._finishLayout();
-          }
+        // If the item is already in correct position let's quit early.
+        if (inst._left === currentLeft && inst._top === currentTop) {
+          return inst._stopLayout()._finishLayout();
         }
-      );
+
+        // Set item as positioning if it is not already.
+        if (!isPositioning) {
+          inst._isPositioning = true;
+          addClass(element, settings.itemPositioningClass);
+        }
+
+        // Animate.
+        inst._animate.start(
+          {transform: 'translateX(' + (currentLeft + offsetLeft) + 'px) translateY(' + (currentTop + offsetTop) + 'px)'},
+          {transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'},
+          {
+            duration: animDuration,
+            easing: animEasing,
+            onFinish: function () {
+              inst._finishLayout();
+            }
+          }
+        );
+
+      });
 
     }
 
@@ -2505,7 +2527,7 @@ TODO
    *
    * @public
    * @memberof ItemAnimate.prototype
-   * @param {?Object} propsFrom
+   * @param {Object} propsFrom
    * @param {Object} propsTo
    * @param {Object} [options]
    * @param {Number} [options.duration=300]
@@ -2521,6 +2543,7 @@ TODO
     var inst = this;
     var opts = options || {};
     var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
+    var shouldStop;
 
     // If item is being animate check if the target animation properties equal
     // to the properties in the current animation. If they match we can just let
@@ -2528,8 +2551,10 @@ TODO
     // cached callback). If the animation properties do not match we need to
     // stop the ongoing animation.
     if (inst._animation) {
-      if (inst._shouldStop(propsTo)) {
-        propsFrom = propsFrom || inst._getCurrentProps(propsTo);
+      shouldStop = Object.keys(propsTo).some(function (propName) {
+        return propsTo[propName] !== inst._propsTo[propName];
+      });
+      if (shouldStop) {
         inst._animation.cancel();
       }
       else {
@@ -2545,7 +2570,7 @@ TODO
     inst._propsTo = propsTo;
 
     // Start the animation.
-    inst._animation = inst._element.animate([propsFrom || inst._getCurrentProps(propsTo), propsTo], {
+    inst._animation = inst._element.animate([propsFrom, propsTo], {
       duration: opts.duration || 300,
       easing: opts.easing || 'ease'
     });
@@ -2566,14 +2591,14 @@ TODO
    *
    * @private
    * @memberof ItemAnimate.prototype
+   * @param {Object} [currentStyles]
    */
-  ItemAnimate.prototype.stop = function () {
+  ItemAnimate.prototype.stop = function (currentStyles) {
 
     var inst = this;
 
     if (!inst._isDestroyed && inst._animation) {
-      inst._animation.pause();
-      setStyles(inst._element, inst._getCurrentProps(inst._propsTo));
+      setStyles(inst._element, currentStyles || getCurrentStyles(inst._element, inst._propsTo));
       inst._animation.cancel();
       inst._animation = inst._propsTo = null;
     }
@@ -2596,54 +2621,6 @@ TODO
       inst._item = inst._element = null;
       inst._isDestroyed = true;
     }
-
-  };
-
-  /**
-   * ItemAnimate - Protected prototype methods
-   * *****************************************
-   */
-
-  /**
-   * Check if item needs to stop the current animation.
-   *
-   * @protected
-   * @memberof ItemAnimate.prototype
-   * @param {?Object} propsTo
-   * @return {Boolean}
-   */
-  ItemAnimate.prototype._shouldStop = function (propsTo) {
-
-    var keys = Object.keys(propsTo);
-    var i;
-
-    for (i = 0; i < keys.length; i++) {
-      if (propsTo[keys[i]] !== this._propsTo[keys[i]]) {
-        return true;
-      }
-    }
-
-  };
-
-  /**
-   * Get current values of the provided animation properties.
-   *
-   * @protected
-   * @memberof ItemAnimate.prototype
-   * @param {Object} propsTo
-   * @return {Object}
-   */
-  ItemAnimate.prototype._getCurrentProps = function (propsTo) {
-
-    var currentProps = {};
-    var keys = Object.keys(propsTo);
-    var i;
-
-    for (i = 0; i < keys.length; i++) {
-      currentProps[keys[i]] = getStyle(this._element, keys[i]);
-    }
-
-    return currentProps;
 
   };
 
@@ -3070,6 +3047,10 @@ TODO
     // Position the released item and get window's width/height for the layout
     // animation optimization algorithm.
     item._layout(false);
+
+    // Process layout read and write queues.
+    processQueue(layoutReadQueue);
+    processQueue(layoutWriteQueue);
 
     return release;
 
@@ -4484,6 +4465,28 @@ TODO
   }
 
   /**
+   * Get current values of the provided styles definition object.
+   *
+   * @private
+   * @param {HTMLElement} element
+   * @param {Object} styles
+   * @return {Object}
+   */
+  function getCurrentStyles(element, styles) {
+
+        var current = {};
+        var keys = Object.keys(styles);
+        var i;
+    
+        for (i = 0; i < keys.length; i++) {
+          current[keys[i]] = getStyle(element, keys[i]);
+        }
+    
+        return current;
+
+      }
+
+  /**
    * Set inline styles to an element.
    *
    * @private
@@ -4493,14 +4496,10 @@ TODO
   function setStyles(element, styles) {
 
     var props = Object.keys(styles);
-    var prop;
-    var val;
     var i;
 
     for (i = 0; i < props.length; i++) {
-      prop = props[i];
-      val = styles[prop];
-      element.style[prop === 'transform' && transform ? transform.propName : prop] = val;
+      element.style[props[i] === 'transform' && transform ? transform.propName : props[i]] = styles[props[i]];
     }
 
   }
@@ -5172,7 +5171,7 @@ TODO
           onFinish && onFinish();
         }
         else {
-          item._animateChild.start(null, styles, {
+          item._animateChild.start(getCurrentStyles(item._child, styles), styles, {
             duration: duration,
             easing: easing,
             onFinish: onFinish

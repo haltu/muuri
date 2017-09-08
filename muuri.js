@@ -28,8 +28,7 @@ TODO
 - [x] Use web animations API.
 - [ ] Minimize layout thrashing. There are some major issues that can be
       noticed when animating hundreds of elements.
-      - [ ] Layout system (test perf between raf technique and manually batching
-            the reads and writes into separate queues).
+      - [x] Layout system
       - [ ] Visibility system
       - [ ] Animation stopping
       - [ ] Migration API
@@ -78,15 +77,15 @@ TODO
   var typeString = 'string';
   var typeNumber = 'number';
 
+  // Raf loop that can be used to organize DOM write and read operations
+  // optimally in the next animation frame.
+  var rafLoop = createRafLoop();
+
   // Drag start predicate states.
   var startPredicateInactive = 0;
   var startPredicatePending = 1;
   var startPredicateResolved = 2;
   var startPredicateRejected = 3;
-
-  // Layout read and wrtie queues.
-  var layoutReadQueue = [];
-  var layoutWriteQueue = [];
 
   // Keep track of Grid instances.
   var gridInstances = {};
@@ -737,10 +736,6 @@ TODO
       }
 
     }
-
-    // Process layout read and write queues.
-    processQueue(layoutReadQueue);
-    processQueue(layoutWriteQueue);
 
     return inst;
 
@@ -1556,10 +1551,6 @@ TODO
     inst._isHiding = false;
     inst._isShowing = false;
 
-    // Layout animation init cache.
-    inst._layoutAnimateInitRead = null;
-    inst._layoutAnimateInitWrite = null;
-
     // Visibility animation callback queue. Whenever a callback is provided for
     // show/hide methods and animation is enabled the callback is stored
     // temporarily to this array. The callbacks are called with the first
@@ -1925,11 +1916,16 @@ TODO
     animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
     animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
 
-    // Process current layout callback queue with interrupted flag on if the
-    // item is currently positioning. Also cancel the possible layout animation
-    // init if it has not yet been called.
+    // If the item is currently positioning.
     if (isPositioning) {
+
+      // Cancel animation init.
+      rafLoop.cancelRead('layout' + inst._id).cancelWrite('layout' + inst._id);
+
+      // Process current layout callback queue with interrupted flag on if the
+      // item is currently positioning.
       processQueue(inst._layoutQueue, true, inst);
+
     }
 
     // Mark release positioning as started.
@@ -1948,43 +1944,45 @@ TODO
     offsetLeft = release.isActive ? release.containerDiffX : migrate.isActive ? migrate.containerDiffX : 0;
     offsetTop = release.isActive ? release.containerDiffY : migrate.isActive ? migrate.containerDiffY : 0;
 
+    // Set item as positioning if it is not already.
+    if (!isPositioning) {
+      inst._isPositioning = true;
+    }
+
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
 
-      layoutWriteQueue.push(function () {
+      inst._stopLayout();
+      inst._skipNextLayoutAnimation = false;
 
-        inst._stopLayout();
-        inst._skipNextLayoutAnimation = false;
-
-        setStyles(element, {
-          transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
-        });
-
-        inst._finishLayout();
-
+      setStyles(element, {
+        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
       });
+
+      inst._finishLayout();
 
     }
 
     // If animations are needed, let's dive in.
     else {
 
-      // Get the element's current left and top position.
-      layoutReadQueue.push(function () {
+      // Get the element's current left and top position (in the next frame's
+      // read batch).
+      rafLoop.addRead('layout' + inst._id, function () {
         currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
         currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
       });
 
-      layoutWriteQueue.push(function () {
+      // Start animation in the next frame's write batch.
+      rafLoop.addWrite('layout' + inst._id, function () {
 
         // If the item is already in correct position let's quit early.
         if (inst._left === currentLeft && inst._top === currentTop) {
           return inst._stopLayout()._finishLayout();
         }
 
-        // Set item as positioning if it is not already.
+        // Set item's positioning class.
         if (!isPositioning) {
-          inst._isPositioning = true;
           addClass(element, settings.itemPositioningClass);
         }
 
@@ -2062,6 +2060,9 @@ TODO
     if (inst._isDestroyed || !inst._isPositioning) {
       return inst;
     }
+
+    // Cancel animation init.
+    rafLoop.cancelRead('layout' + inst._id).cancelWrite('layout' + inst._id);
 
     // Stop animation.
     inst._animate.stop();
@@ -3044,13 +3045,8 @@ TODO
     // Emit dragReleaseStart event.
     grid._emit(evDragReleaseStart, item);
 
-    // Position the released item and get window's width/height for the layout
-    // animation optimization algorithm.
+    // Position the released item.
     item._layout(false);
-
-    // Process layout read and write queues.
-    processQueue(layoutReadQueue);
-    processQueue(layoutWriteQueue);
 
     return release;
 
@@ -4415,6 +4411,108 @@ TODO
   }
 
   /**
+   * Returns a raf loop queue system that allows pushing callbacks to either
+   * the read queue or the write queue.
+   *
+   * @private
+   * @returns {Object}
+   */
+  function createRafLoop() {
+
+    var nextTick = null;
+    var readQueue = [];
+    var writeQueue = [];
+    var readMap = {};
+    var writeMap = {};
+    var raf = (global.requestAnimationFrame
+      || global.webkitRequestAnimationFrame
+      || global.mozRequestAnimationFrame
+      || global.msRequestAnimationFrame
+      || function (cb) {
+        return global.setTimeout(cb, 16);
+      }
+    ).bind(global);
+    var ret = {
+      addWrite: function (id, cb) {
+        return add(id, cb, writeQueue, writeMap);
+      },
+      addRead: function (id, cb) {
+        return add(id, cb, readQueue, readMap);
+      },
+      cancelWrite: function (id) {
+        return cancel(id, writeQueue, writeMap);
+      },
+      cancelRead: function (id) {
+        return cancel(id, readQueue, readMap);
+      }
+    };
+
+    function add(id, cb, targetQueue, targetMap) {
+
+      // First, let's check if an item has been added to the queue with the
+      // same id and remove it.
+      var currentIndex = targetMap[id] ? targetMap[id][1] : -1;
+      if (currentIndex > -1) {
+        targetQueue.splice(currentIndex, 1);
+      }
+
+      // Then let's add the id to the end of the queue, and update the map.
+      targetQueue.push(id);
+      targetMap[id] = [cb, targetQueue.length - 1];
+
+      // Finally, let's kickstart the next tick if it is not running yet.
+      !nextTick && (nextTick = raf(flush));
+
+      return ret;
+
+    }
+
+    function cancel(id, targetQueue, targetMap) {
+
+      // Let's check if an item has been added to the queue with the id and
+      // if so -> remove it.
+      var currentIndex = targetMap[id] ? targetMap[id][1] : -1;
+      if (currentIndex > -1) {
+        targetQueue.splice(currentIndex, 1);
+        targetMap[id] = undefined;
+      }
+
+      return ret;
+
+    }
+
+    function flush() {
+
+      var readQueueCopy = readQueue;
+      var writeQueueCopy = writeQueue;
+      var readMapCopy = readMap;
+      var writeMapCopy = writeMap;
+      var i;
+
+      // Reset read/write queues and maps, and next tick.
+      readQueue = [];
+      writeQueue = [];
+      readMap = {};
+      writeMap = {};
+      nextTick = null;
+
+      // Process read queue.
+      for (i = 0; i < readQueueCopy.length; i++) {
+        readMapCopy[readQueueCopy[i]][0]();
+      }
+
+      // Process write queue.
+      for (i = 0; i < writeQueueCopy.length; i++) {
+        writeMapCopy[writeQueueCopy[i]][0]();
+      }
+
+    }
+
+    return ret;
+
+  }
+
+  /**
    * Helpers - DOM utils
    * *******************
    */
@@ -4474,17 +4572,17 @@ TODO
    */
   function getCurrentStyles(element, styles) {
 
-        var current = {};
-        var keys = Object.keys(styles);
-        var i;
-    
-        for (i = 0; i < keys.length; i++) {
-          current[keys[i]] = getStyle(element, keys[i]);
-        }
-    
-        return current;
+    var current = {};
+    var keys = Object.keys(styles);
+    var i;
 
-      }
+    for (i = 0; i < keys.length; i++) {
+      current[keys[i]] = getStyle(element, keys[i]);
+    }
+
+    return current;
+
+  }
 
   /**
    * Set inline styles to an element.

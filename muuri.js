@@ -29,12 +29,14 @@ TODO
 - [ ] Minimize layout thrashing. There are some major issues that can be
       noticed when animating hundreds of elements.
       - [x] Layout system
-      - [ ] Visibility system
+      - [x] Visibility system
       - [ ] Animation stopping
       - [ ] Migration API
       - [ ] Drag handlers
 - [ ] Dynamic drag sort groups system.
 - [ ] Fix will-change issue (that causes containing block).
+- [ ] Consider getting rid of custom show/hide functions.
+- [ ] Consider bringing back the freeze item functionality. 
 */
 
 (function (global, factory) {
@@ -1944,11 +1946,6 @@ TODO
     offsetLeft = release.isActive ? release.containerDiffX : migrate.isActive ? migrate.containerDiffX : 0;
     offsetTop = release.isActive ? release.containerDiffY : migrate.isActive ? migrate.containerDiffY : 0;
 
-    // Set item as positioning if it is not already.
-    if (!isPositioning) {
-      inst._isPositioning = true;
-    }
-
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
 
@@ -1966,6 +1963,11 @@ TODO
     // If animations are needed, let's dive in.
     else {
 
+      // Set item as positioning if it is not already.
+      if (!isPositioning) {
+        inst._isPositioning = true;
+      }
+
       // Get the element's current left and top position (in the next frame's
       // read batch).
       rafLoop.addRead('layout' + inst._id, function () {
@@ -1978,7 +1980,13 @@ TODO
 
         // If the item is already in correct position let's quit early.
         if (inst._left === currentLeft && inst._top === currentTop) {
-          return inst._stopLayout()._finishLayout();
+          if (isPositioning) {
+            inst._stopLayout();
+          }
+          else {
+            inst._isPositioning = false;
+          }
+          return inst._finishLayout();
         }
 
         // Set item's positioning class.
@@ -2109,6 +2117,8 @@ TODO
     // If item is showing.
     if (inst._isShowing) {
       callback && queue.push(callback);
+      // TODO: This is unnecessary stop, since we are setting the new
+      // styles later on synchronously.
       instant && grid._itemShowHandler.stop(inst);
     }
 
@@ -2116,7 +2126,7 @@ TODO
     else {
 
       // Stop ongoing hide animation.
-      inst._isHidden && grid._itemHideHandler.stop(inst);
+      inst._isHiding && grid._itemHideHandler.stop(inst);
 
       // Process the visibility callback queue with the interrupted flag active.
       processQueue(queue, true, inst);
@@ -2182,6 +2192,8 @@ TODO
     // If item is hiding.
     if (inst._isHiding) {
       callback && queue.push(callback);
+      // TODO: This is unnecessary stop, since we are setting the new
+      // styles later on synchronously.
       instant && grid._itemHideHandler.stop(inst);
     }
 
@@ -5258,25 +5270,35 @@ TODO
     styles = isPlainObject(styles) ? styles : null;
 
     var isEnabled = duration > 0;
+    var currentStyles;
 
     return {
       start: function (item, instant, onFinish) {
         if (!isEnabled || !styles) {
           onFinish && onFinish();
         }
-        else if (instant) {
-          setStyles(item._child, styles);
-          onFinish && onFinish();
-        }
         else {
-          item._animateChild.start(getCurrentStyles(item._child, styles), styles, {
-            duration: duration,
-            easing: easing,
-            onFinish: onFinish
-          });
+          rafLoop.cancelRead(type + item._id).cancelWrite(type + item._id);
+          if (instant) {
+            setStyles(item._child, styles);
+            onFinish && onFinish();
+          }
+          else {
+            rafLoop.addRead(type + item._id, function () {
+              currentStyles = getCurrentStyles(item._child, styles);
+            });
+            rafLoop.addWrite(type + item._id, function () {
+              item._animateChild.start(currentStyles, styles, {
+                duration: duration,
+                easing: easing,
+                onFinish: onFinish
+              });
+            });
+          }
         }
       },
       stop: function (item) {
+        rafLoop.cancelRead(type + item._id).cancelWrite(type + item._id);
         item._animateChild.stop();
       }
     };

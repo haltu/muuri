@@ -2104,14 +2104,27 @@ TODO
 
     // If item is showing.
     if (inst._isShowing) {
+
+      // Push callback to the callback queue.
       callback && queue.push(callback);
-      // TODO: This is unnecessary stop, since we are setting the new
-      // styles later on synchronously.
-      instant && grid._itemShowHandler.stop(inst);
+
+      // If the item should be shown instantly we can do a little shortcut here
+      // and return immediately.
+      if (instant) {
+        grid._itemShowHandler.stop(inst, settings.visibleStyles);
+        inst._isShowing = false;
+        processQueue(queue, false, inst);
+        return inst;
+      }
+
     }
 
     // Otherwise if item is hidden or hiding, show it.
     else {
+
+      // TODO: We can greatly simplify the instant logic here.
+      // TODO: When we stop the hide handler here we are causing layout trashing
+      //       within a loop, which is BAD! Fix it!
 
       // Stop ongoing hide animation.
       inst._isHiding && grid._itemHideHandler.stop(inst);
@@ -2179,14 +2192,29 @@ TODO
 
     // If item is hiding.
     if (inst._isHiding) {
+
+      // Push callback to the callback queue.
       callback && queue.push(callback);
-      // TODO: This is unnecessary stop, since we are setting the new
-      // styles later on synchronously.
-      instant && grid._itemHideHandler.stop(inst);
+
+      // If the item should be hidden instantly we can do a little shortcut here
+      // and return immediately.
+      if (instant) {
+        grid._itemHideHandler.stop(inst, settings.hiddenStyles);
+        inst._isHiding = false;
+        inst._stopLayout(true);
+        setStyles(element, {display: 'none'});
+        processQueue(queue, false, inst);
+        return inst;
+      }
+
     }
 
     // Otherwise if item is visible or showing, hide it.
     else {
+
+      // TODO: We can greatly simplify the instant logic here.
+      // TODO: When we stop the show handler here we are causing layout trashing
+      //       within a loop, which is BAD! Fix it!
 
       // Stop ongoing show animation.
       inst._isShowing && grid._itemShowHandler.stop(inst);
@@ -5285,9 +5313,9 @@ TODO
           }
         }
       },
-      stop: function (item) {
+      stop: function (item, styles) {
         rafLoop.cancelRead(type + item._id).cancelWrite(type + item._id);
-        item._animateChild.stop();
+        item._animateChild.stop(styles);
       }
     };
 

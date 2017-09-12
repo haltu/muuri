@@ -153,11 +153,9 @@ TODO
    * @param {(HTMLElement|String)} element
    * @param {Object} [options]
    * @param {(?HTMLElement[]|NodeList|String)} [options.items]
-   * @param {?Function} [options.showAnimation=null]
    * @param {Number} [options.showDuration=300]
    * @param {String} [options.showEasing="ease"]
    * @param {Object} [options.visibleStyles]
-   * @param {?Function} [options.hideAnimation=null]
    * @param {Number} [options.hideDuration=300]
    * @param {String} [options.hideEasing="ease"]
    * @param {Object} [options.hiddenStyles]
@@ -245,15 +243,9 @@ TODO
     // Setup instance's sort connections.
     inst._sortConnections = settings.dragSortWith && settings.dragSortWith.length ? [].concat(settings.dragSortWith) : null;
 
-    // Setup show animations for items.
-    inst._itemShowHandler = typeof settings.showAnimation === typeFunction ?
-      settings.showAnimation(settings.showDuration, settings.showEasing, settings.visibleStyles) :
-      getItemVisibilityHandler('show', settings.showDuration, settings.showEasing, settings.visibleStyles);
-
-    // Setup hide animations for items.
-    inst._itemHideHandler = typeof settings.hideAnimation === typeFunction ?
-      settings.hideAnimation(settings.hideDuration, settings.hideEasing, settings.hiddenStyles) :
-      getItemVisibilityHandler('hide', settings.hideDuration, settings.hideEasing, settings.hiddenStyles);
+    // Setup grid's show/hide animation handler for items.
+    inst._itemShowHandler = getItemVisibilityHandler('show', settings);
+    inst._itemHideHandler = getItemVisibilityHandler('hide', settings);
 
     // Add container element's class name.
     addClass(element, settings.containerClass);
@@ -349,10 +341,6 @@ TODO
     // Default hide animation
     hideDuration: 300,
     hideEasing: 'ease',
-
-    // Custom show/hide animations
-    showAnimation: null,
-    hideAnimation: null,
 
     // Item's visible/hidden state styles
     visibleStyles: {
@@ -5258,19 +5246,19 @@ TODO
    * show/hide process.
    *
    * @param {String} type
-   * @param {Number} duration
-   * @param {(Number[]|String)} easing
-   * @param {Object} styles
+   * @param {Object} settings
    * @returns {Object}
    */
-  function getItemVisibilityHandler(type, duration, easing, styles) {
+  function getItemVisibilityHandler(type, settings) {
 
-    duration = parseInt(duration) || 0;
-    easing = easing || 'ease';
-    styles = isPlainObject(styles) ? styles : null;
-
+    var isShow = type === 'show';
+    var duration = parseInt(isShow ? settings.showDuration : settings.hideDuration) || 0;
+    var easing = (isShow ? settings.showEasing : settings.hideEasing) || 'ease';
+    var styles = isShow ? settings.visibleStyles : settings.hiddenStyles;
     var isEnabled = duration > 0;
     var currentStyles;
+
+    styles = isPlainObject(styles) ? styles : null;
 
     return {
       start: function (item, instant, onFinish) {

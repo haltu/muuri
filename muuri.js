@@ -492,6 +492,11 @@ TODO
    */
   Grid.prototype.getItems = function (targets, state) {
 
+    // Return an empty array immediately if the instance is destroyed.
+    if (this._isDestroyed) {
+      return [];
+    }
+
     var inst = this;
     var hasTargets = targets === 0 || (targets && typeof targets !== typeString);
     var targetItems = !hasTargets ? null : isNodeList(targets) ? nodeListToArray(targets) : [].concat(targets);
@@ -499,11 +504,6 @@ TODO
     var ret = [];
     var item;
     var i;
-
-    // Return an empty array immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return ret;
-    }
 
     // Sanitize target state.
     targetState = typeof targetState === typeString ? targetState : null;
@@ -537,18 +537,18 @@ TODO
    */
   Grid.prototype.refreshItems = function (items) {
 
-    var inst = this;
-    var targetItems;
-    var i;
-
-    if (!inst._isDestroyed) {
-      targetItems = inst.getItems(items || 'active');
-      for (i = 0; i < targetItems.length; i++) {
-        targetItems[i]._refreshDimensions();
-      }
+    if (this._isDestroyed) {
+      return this;
     }
 
-    return inst;
+    var targetItems = this.getItems(items || 'active');
+    var i;
+
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._refreshDimensions();
+    }
+
+    return this;
 
   };
 
@@ -562,18 +562,18 @@ TODO
    */
   Grid.prototype.refreshSortData = function (items) {
 
-    var inst = this;
-    var targetItems;
-    var i;
-
-    if (!inst._isDestroyed) {
-      targetItems = inst.getItems(items);
-      for (i = 0; i < targetItems.length; i++) {
-        targetItems[i]._refreshSortData();
-      }
+    if (this._isDestroyed) {
+      return this;
     }
 
-    return inst;
+    var targetItems = this.getItems(items);
+    var i;
+
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._refreshSortData();
+    }
+
+    return this;
 
   };
 
@@ -590,17 +590,16 @@ TODO
    */
   Grid.prototype.synchronize = function () {
 
+    if (this._isDestroyed) {
+      return this;
+    }
+
     var inst = this;
     var container = inst._element;
     var items = inst._items;
     var fragment;
     var element;
     var i;
-
-    // Return immediately if instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
 
     // Append all elements in order to the container element.
     if (items.length) {
@@ -634,6 +633,10 @@ TODO
    */
   Grid.prototype.layout = function (instant, onFinish) {
 
+    if (this._isDestroyed) {
+      return this;
+    }
+
     var inst = this;
     var callback = typeof instant === typeFunction ? instant : onFinish;
     var isInstant = instant === true;
@@ -644,11 +647,6 @@ TODO
     var item;
     var position;
     var i;
-
-    // Return immediately if instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
 
     // The finish function, which will be used for checking if all the items
     // have laid out yet. After all items have finished their animations call
@@ -754,6 +752,10 @@ TODO
    */
   Grid.prototype.add = function (elements, options) {
 
+    if (this._isDestroyed) {
+      return [];
+    }
+
     var inst = this;
     var targetElements = [].concat(elements);
     var opts = options || {};
@@ -764,11 +766,6 @@ TODO
     var elementIndex;
     var item;
     var i;
-
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return [];
-    }
 
     // Filter out all elements that exist already in current instance.
     for (i = 0; i < items.length; i++) {
@@ -830,21 +827,19 @@ TODO
    */
   Grid.prototype.remove = function (items, options) {
 
+    if (this._isDestroyed) {
+      return this;
+    }
+
     var inst = this;
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var needsLayout = false;
-    var targetItems;
+    var targetItems = inst.getItems(items);
     var item;
     var i;
 
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return [];
-    }
-
     // Remove the individual items.
-    targetItems = inst.getItems(items);
     for (i = 0; i < targetItems.length; i++) {
       item = targetItems[i];
       if (item._isActive) {
@@ -922,6 +917,11 @@ TODO
    */
   Grid.prototype.filter = function (predicate, options) {
 
+    // Return immediately if there are no items or if the instance id destroyed.
+    if (this._isDestroyed || !this._items.length) {
+      return this;
+    }
+
     var inst = this;
     var items = inst._items;
     var predicateType = typeof predicate;
@@ -934,21 +934,11 @@ TODO
     var itemsToShow = [];
     var itemsToHide = [];
     var tryFinishCounter = -1;
-    var tryFinish;
+    var tryFinish = !onFinish ? noop : function () {
+      ++tryFinishCounter && onFinish(itemsToShow.concat(), itemsToHide.concat());
+    };
     var item;
     var i;
-
-    // Return immediately if there are no items or if the instance id destroyed.
-    if (inst._isDestroyed || !items.length) {
-      return inst;
-    }
-
-    // Create finisher function.
-    tryFinish = !onFinish ? noop : function () {
-      if (++tryFinishCounter) {
-        onFinish(itemsToShow.concat(), itemsToHide.concat());
-      }
-    };
 
     // Check which items need to be shown and which hidden.
     if (isPredicateFn || isPredicateString) {
@@ -1024,21 +1014,18 @@ TODO
    */
   Grid.prototype.sort = function (comparer, options) {
 
+    // Let's not sort if it has no effect.
+    if (this._isDestroyed || !this._items.length < 2) {
+      return this;
+    }
+
     var inst = this;
     var items = inst._items;
     var opts = options || {};
     var isDescending = !!opts.descending;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var origItems;
+    var origItems = items.concat();
     var indexMap;
-
-    // Let's not sort if it has no effect.
-    if (inst._isDestroyed || items.length < 2) {
-      return inst;
-    }
-
-    // Clone current set of items for the event.
-    origItems = items.concat();
 
     // If function is provided do a native array sort.
     if (typeof comparer === typeFunction) {
@@ -1102,24 +1089,21 @@ TODO
    */
   Grid.prototype.move = function (item, position, options) {
 
+    // Return immediately, if moving an item is not possible.
+    if (this._isDestroyed || this._items.length < 2) {
+      return this;
+    }
+
     var inst = this;
     var items = inst._items;
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var isSwap = opts.action === 'swap';
     var action = isSwap ? 'swap' : 'move';
-    var fromItem;
-    var toItem;
+    var fromItem = inst._getItem(item);
+    var toItem = inst._getItem(position);
     var fromIndex;
     var toIndex;
-
-    // Return immediately, if moving an item is not possible.
-    if (inst._isDestroyed || items.length < 2) {
-      return inst;
-    }
-
-    fromItem = inst._getItem(item);
-    toItem = inst._getItem(position);
 
     // Make sure the items exist and are not the same.
     if (fromItem && toItem && (fromItem !== toItem)) {
@@ -1215,15 +1199,14 @@ TODO
    */
   Grid.prototype.destroy = function (removeElements) {
 
+    if (this._isDestroyed) {
+      return this;
+    }
+
     var inst = this;
     var container = inst._element;
     var items = inst._items.concat();
     var i;
-
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
 
     // Unbind window resize event listener.
     if (inst._resizeHandler) {
@@ -1878,33 +1861,25 @@ TODO
    */
   Item.prototype._layout = function (instant, onFinish) {
 
+    if (this._isDestroyed) {
+      return this;
+    }
+
     var inst = this;
     var element = inst._element;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
     var release = inst._release;
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
-    var grid;
-    var settings;
-    var animDuration;
-    var animEasing;
-    var animEnabled;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
+    var animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
+    var animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
+    var animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
     var offsetLeft;
     var offsetTop;
     var currentLeft;
     var currentTop;
-
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
-
-    // Get grid and settings.
-    grid = inst.getGrid();
-    settings = grid._settings;
-    animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
-    animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
-    animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
 
     // If the item is currently positioning.
     if (isPositioning) {
@@ -2080,17 +2055,17 @@ TODO
 
   Item.prototype._show = function (instant, onFinish) {
 
+    // Return immediately if the instance is destroyed.
+    if (this._isDestroyed) {
+      return inst;
+    }
+
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
     var callback = typeof onFinish === typeFunction ? onFinish : null;
-    var grid;
-    var settings;
-
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
+    var grid = inst.getGrid();
+    var settings = grid._settings;
 
     // If item is visible call the callback and be done with it.
     if (!inst._isShowing && !inst._isHidden) {
@@ -2098,60 +2073,57 @@ TODO
       return inst;
     }
 
-    // Get grid and settings.
-    grid = inst.getGrid();
-    settings = grid._settings;
-
-    // If item is showing.
-    if (inst._isShowing) {
-
-      // Push callback to the callback queue.
+    // If item is showing and does not need to be shown instantly, let's just
+    // push callback to the callback queue and be done with it.
+    if (inst._isShowing && !instant) {
       callback && queue.push(callback);
-
-      // If the item should be shown instantly we can do a little shortcut here
-      // and return immediately.
-      if (instant) {
-        grid._itemShowHandler.stop(inst, settings.visibleStyles);
-        inst._isShowing = false;
-        processQueue(queue, false, inst);
-        return inst;
-      }
-
+      return inst;
     }
 
-    // Otherwise if item is hidden or hiding, show it.
-    else {
-
-      // TODO: We can greatly simplify the instant logic here.
-      // TODO: When we stop the hide handler here we are causing layout trashing
-      //       within a loop, which is BAD! Fix it!
-
-      // Stop ongoing hide animation.
-      inst._isHiding && grid._itemHideHandler.stop(inst);
-
-      // Process the visibility callback queue with the interrupted flag active.
+    // If the item is hiding or hidden process the current visibility callback
+    // queue with the interrupted flag active, update classes and set display
+    // to block if necessary.
+    if (!inst._isShowing) {
       processQueue(queue, true, inst);
-
-      // Update item's internal states.
-      inst._isActive = inst._isShowing = true;
-      inst._isHiding = inst._isHidden = false;
-
-      // Push the callback to the visibility callback queue.
-      callback && queue.push(callback);
-
-      // Update item classes and set item element's display style to block.
-      setStyles(element, {display: 'block'});
       removeClass(element, settings.itemHiddenClass);
       addClass(element, settings.itemVisibleClass);
+      !inst._isHiding && setStyles(element, {display: 'block'});
+    }
+
+    // Push callback to the callback queue.
+    callback && queue.push(callback);
+
+    // Update item's internal states.
+    inst._isActive = inst._isShowing = true;
+    inst._isHiding = inst._isHidden = false;
+
+    // If we need to show instantly.
+    if (instant) {
+
+      // Stop the current visibility animation and set the visible styles
+      // to the element after which process the callback queue.
+      grid._itemShowHandler.stop(inst, settings.visibleStyles);
+      inst._isShowing = false;
+      processQueue(queue, false, inst);
 
     }
 
-    // Animate child element and process the visibility callback queue after
-    // succesful animation.
-    grid._itemShowHandler.start(inst, instant, function () {
-      inst._isShowing = false;
-      processQueue(queue, false, inst);
-    });
+    // If we need to animate.
+    else {
+
+      // Animate child element and process the visibility callback queue after
+      // succesful animation.
+      grid._itemShowHandler.start(inst, instant, function () {
+        // We need this "is not hidden" guard here because firefox bugs out
+        // sometimes when there are a lot of animated items and does not call
+        // callbacks in right order.
+        if (!inst._isHidden) {
+          inst._isShowing = false;
+          processQueue(queue, false, inst);
+        }
+      });
+
+    }
 
     return inst;
 
@@ -2168,21 +2140,17 @@ TODO
    */
   Item.prototype._hide = function (instant, onFinish) {
 
+    // Return immediately if the instance is destroyed.
+    if (this._isDestroyed) {
+      return this;
+    }
+
     var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
     var callback = typeof onFinish === typeFunction ? onFinish : null;
-    var grid;
-    var settings;
-
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
-
-    // Get grid and settings.
-    grid = inst.getGrid();
-    settings = grid._settings;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
 
     // If item is already hidden call the callback and be done with it.
     if (!inst._isHiding && inst._isHidden) {
@@ -2190,59 +2158,60 @@ TODO
       return inst;
     }
 
-    // If item is hiding.
-    if (inst._isHiding) {
-
-      // Push callback to the callback queue.
+    // If item is hiding and does not need to be hidden instantly, let's just
+    // push callback to the callback queue and be done with it.
+    if (inst._isHiding && !instant) {
       callback && queue.push(callback);
-
-      // If the item should be hidden instantly we can do a little shortcut here
-      // and return immediately.
-      if (instant) {
-        grid._itemHideHandler.stop(inst, settings.hiddenStyles);
-        inst._isHiding = false;
-        inst._stopLayout(true);
-        setStyles(element, {display: 'none'});
-        processQueue(queue, false, inst);
-        return inst;
-      }
-
+      return inst;
     }
 
-    // Otherwise if item is visible or showing, hide it.
-    else {
-
-      // TODO: We can greatly simplify the instant logic here.
-      // TODO: When we stop the show handler here we are causing layout trashing
-      //       within a loop, which is BAD! Fix it!
-
-      // Stop ongoing show animation.
-      inst._isShowing && grid._itemShowHandler.stop(inst);
-
-      // Process the visibility callback queue with the interrupted flag active.
+    // If the item is showing or visible process the current visibility callback
+    // queue with the interrupted flag active, update classes and set display
+    // to block if necessary.
+    if (!inst._isHiding) {
       processQueue(queue, true, inst);
-
-      // Update item's internal state.
-      inst._isHidden = inst._isHiding = true;
-      inst._isActive = inst._isShowing = false;
-
-      // Push the callback to the visibility callback queue.
-      callback && queue.push(callback);
-
-      // Update item classes.
       addClass(element, settings.itemHiddenClass);
       removeClass(element, settings.itemVisibleClass);
-
     }
 
-    // Animate child element and process the visibility callback queue after
-    // succesful animation.
-    grid._itemHideHandler.start(inst, instant, function () {
+    // Push callback to the callback queue.
+    callback && queue.push(callback);
+
+    // Update item's internal states.
+    inst._isHidden = inst._isHiding = true;
+    inst._isActive = inst._isShowing = false;
+
+    // If we need to show instantly.
+    if (instant) {
+
+      // Stop the current visibility animation and set the visible styles
+      // to the element after which process the callback queue.
+      grid._itemHideHandler.stop(inst, settings.hiddenStyles);
       inst._isHiding = false;
       inst._stopLayout(true);
       setStyles(element, {display: 'none'});
       processQueue(queue, false, inst);
-    });
+
+    }
+
+    // If we need to animate.
+    else {
+
+      // Animate child element and process the visibility callback queue after
+      // succesful animation.
+      grid._itemHideHandler.start(inst, instant, function () {
+        // We need this "is hidden" guard here because firefox bugs out
+        // sometimes when there are a lot of animated items and does not call
+        // callbacks in right order.
+        if (inst._isHidden) {
+          inst._isHiding = false;
+          inst._stopLayout(true);
+          setStyles(element, {display: 'none'});
+          processQueue(queue, false, inst);
+        }
+      });
+
+    }
 
     return inst;
 

@@ -2055,9 +2055,8 @@ TODO
 
   Item.prototype._show = function (instant, onFinish) {
 
-    // Return immediately if the instance is destroyed.
     if (this._isDestroyed) {
-      return inst;
+      return this;
     }
 
     var inst = this;
@@ -2099,30 +2098,22 @@ TODO
 
     // If we need to show instantly.
     if (instant) {
-
-      // Stop the current visibility animation and set the visible styles
-      // to the element after which process the callback queue.
       grid._itemShowHandler.stop(inst, settings.visibleStyles);
       inst._isShowing = false;
       processQueue(queue, false, inst);
-
     }
 
     // If we need to animate.
     else {
-
-      // Animate child element and process the visibility callback queue after
-      // succesful animation.
       grid._itemShowHandler.start(inst, instant, function () {
         // We need this "is not hidden" guard here because firefox bugs out
-        // sometimes when there are a lot of animated items and does not call
-        // callbacks in right order.
+        // sometimes when there are a lot of animated items and the callbacks
+        // get called in unwanted order.
         if (!inst._isHidden) {
           inst._isShowing = false;
           processQueue(queue, false, inst);
         }
       });
-
     }
 
     return inst;
@@ -2181,36 +2172,30 @@ TODO
     inst._isHidden = inst._isHiding = true;
     inst._isActive = inst._isShowing = false;
 
-    // If we need to show instantly.
+    // If we need to hide instantly.
     if (instant) {
-
-      // Stop the current visibility animation and set the visible styles
-      // to the element after which process the callback queue.
       grid._itemHideHandler.stop(inst, settings.hiddenStyles);
       inst._isHiding = false;
+      // TODO: This causes layout thrashing!!!
       inst._stopLayout(true);
       setStyles(element, {display: 'none'});
       processQueue(queue, false, inst);
-
     }
 
     // If we need to animate.
     else {
-
-      // Animate child element and process the visibility callback queue after
-      // succesful animation.
       grid._itemHideHandler.start(inst, instant, function () {
         // We need this "is hidden" guard here because firefox bugs out
-        // sometimes when there are a lot of animated items and does not call
-        // callbacks in right order.
+        // sometimes when there are a lot of animated items and the callbacks
+        // get called in unwanted order.
         if (inst._isHidden) {
           inst._isHiding = false;
+          // TODO: This causes layout thrashing!!!
           inst._stopLayout(true);
           setStyles(element, {display: 'none'});
           processQueue(queue, false, inst);
         }
       });
-
     }
 
     return inst;
@@ -2227,21 +2212,15 @@ TODO
    */
   Item.prototype._destroy = function (removeElement) {
 
-    var inst = this;
-    var element = inst._element;
-    var grid;
-    var settings;
-    var index;
-
-    // Return immediately if the instance is already destroyed.
-    if (inst._isDestroyed) {
-      return inst;
+    if (this._isDestroyed) {
+      return this;
     }
 
-    // Get grid and settings.
-    grid = inst.getGrid();
-    settings = grid._settings;
-    index = grid._items.indexOf(inst);
+    var inst = this;
+    var element = inst._element;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
+    var index = grid._items.indexOf(inst);
 
     // Destroy release and migration.
     inst._release.destroy();
@@ -2700,39 +2679,25 @@ TODO
    */
   ItemMigrate.prototype.start = function (targetGrid, position, container) {
 
+    if (this._isDestroyed) {
+      return this;
+    }
+
     var migrate = this;
-    var item;
-    var itemElement;
-    var isItemVisible;
-    var currentGrid;
-    var currentGridStn;
-    var targetGridStn;
-    var targetGridElement;
-    var currentIndex;
-    var targetIndex;
-    var targetContainer;
+    var item = migrate.getItem();
+    var itemElement = item._element;
+    var isItemVisible = item.isVisible();
+    var currentGrid = item.getGrid();
+    var currentGridStn = currentGrid._settings;
+    var targetGridStn = targetGrid._settings;
+    var targetGridElement = targetGrid._element;
+    var currentIndex = currentGrid._items.indexOf(item);
+    var targetIndex = typeof position === typeNumber ? position : targetGrid._items.indexOf(targetGrid._getItem(position));
+    var targetContainer = container || body;
     var currentContainer;
     var offsetDiff;
     var translateX;
     var translateY;
-
-    // Return immediately if the instance is destroyed.
-    if (migrate._isDestroyed) {
-      return migrate;
-    }
-
-    item = migrate.getItem();
-    itemElement = item._element;
-    isItemVisible = item.isVisible();
-    currentGrid = item.getGrid();
-    currentGridStn = currentGrid._settings;
-    targetGridStn = targetGrid._settings;
-    targetGridElement = targetGrid._element;
-    targetContainer = container || body;
-
-    // Get current index and target index
-    currentIndex = currentGrid._items.indexOf(item);
-    targetIndex = typeof position === typeNumber ? position : targetGrid._items.indexOf(targetGrid._getItem(position));
 
     // If we have invalid new index, let's return immediately.
     if (targetIndex === null) {
@@ -2884,22 +2849,17 @@ TODO
    */
   ItemMigrate.prototype.stop = function (abort) {
 
-    var migrate = this;
-    var item;
-    var element;
-    var grid;
-    var gridElement;
-    var translateX;
-    var translateY;
-
-    if (migrate._isDestroyed || !migrate.isActive) {
-      return migrate;
+    if (this._isDestroyed || !this.isActive) {
+      return this;
     }
 
-    item = migrate.getItem();
-    element = item._element;
-    grid = item.getGrid();
-    gridElement = grid._element;
+    var migrate = this;
+    var item = migrate.getItem();
+    var element = item._element;
+    var grid = item.getGrid();
+    var gridElement = grid._element;
+    var translateX;
+    var translateY;
 
     if (migrate.container !== gridElement) {
       translateX = abort ? getTranslateAsFloat(element, 'x') - migrate.containerDiffX : item._left;
@@ -3022,16 +2982,13 @@ TODO
    */
   ItemRelease.prototype.start = function () {
 
-    var release = this;
-    var item;
-    var grid;
-
-    if (release._isDestroyed || release.isActive) {
-      return release;
+    if (this._isDestroyed || this.isActive) {
+      return this;
     }
 
-    item = release.getItem();
-    grid = item.getGrid();
+    var release = this;
+    var item = release.getItem();
+    var grid = item.getGrid();
 
     // Flag release as active.
     release.isActive = true;
@@ -3063,26 +3020,19 @@ TODO
    */
   ItemRelease.prototype.stop = function (abort) {
 
-    var release = this;
-    var item;
-    var element;
-    var grid;
-    var container;
-    var containerDiffX;
-    var containerDiffY;
-    var translateX;
-    var translateY;
-
-    if (release._isDestroyed || !release.isActive) {
-      return release;
+    if (this._isDestroyed || !this.isActive) {
+      return this;
     }
 
-    item = release.getItem();
-    element = item._element;
-    grid = item.getGrid();
-    container = grid._element;
-    containerDiffX = release.containerDiffX;
-    containerDiffY = release.containerDiffY;
+    var release = this;
+    var item = release.getItem();
+    var element = item._element;
+    var grid = item.getGrid();
+    var container = grid._element;
+    var containerDiffX = release.containerDiffX;
+    var containerDiffY = release.containerDiffY;
+    var translateX;
+    var translateY;
 
     // Reset data and remove releasing classname from the element.
     release.reset();

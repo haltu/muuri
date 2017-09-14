@@ -35,8 +35,8 @@ TODO
       - [ ] Drag handlers
 - [ ] Dynamic drag sort groups system.
 - [ ] Fix will-change issue (that causes containing block).
-- [ ] Consider getting rid of custom show/hide functions.
-- [ ] Consider bringing back the freeze item functionality. 
+- [x] Deprecate custom show/hide functions.
+- [ ] Freeze item functionality for the duration of drag.
 */
 
 (function (global, factory) {
@@ -2227,6 +2227,9 @@ TODO
     inst._migrate.destroy();
 
     // Stop animations.
+    // TODO: The inline styles are removed later on so we should probably add
+    // somekind of mechanism here to let the stop methods know that there's no
+    // need to get the current styles.
     inst._stopLayout(true);
     grid._itemShowHandler.stop(inst);
     grid._itemHideHandler.stop(inst);
@@ -2246,6 +2249,7 @@ TODO
 
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.
+    // TODO: Is this really the right place to call these?
     processQueue(inst._visibilityQueue, true, inst);
 
     // Remove classes.

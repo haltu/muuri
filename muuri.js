@@ -30,9 +30,10 @@ TODO
       noticed when animating hundreds of elements.
       - [x] Layout system
       - [x] Visibility system
-      - [ ] Animation stopping
+      - [x] Drag onMove/onScroll
+      - [ ] Drag onStart
       - [ ] Migration API
-      - [ ] Drag handlers
+      - [ ] Animation stopping
 - [ ] Dynamic drag sort groups system.
 - [ ] Fix will-change issue (that causes containing block).
 - [x] Deprecate custom show/hide functions.
@@ -1883,16 +1884,10 @@ TODO
     var currentTop;
     var targetStyles;
 
-    // If the item is currently positioning.
+    // If the item is currently positioning process current layout callback
+    // queue with interrupted flag on if the item is currently positioning.
     if (isPositioning) {
-
-      // Cancel animation init.
-      rafLoop.cancelRead('layout' + inst._id).cancelWrite('layout' + inst._id);
-
-      // Process current layout callback queue with interrupted flag on if the
-      // item is currently positioning.
       processQueue(inst._layoutQueue, true, inst);
-
     }
 
     // Mark release positioning as started.
@@ -1912,6 +1907,7 @@ TODO
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
+      isPositioning && rafLoop.cancelRead('layout' + inst._id).cancelWrite('layout' + inst._id);
       isAnimating = inst._animate.isAnimating();
       inst._stopLayout(false, targetStyles);
       !isAnimating && setStyles(element, targetStyles);
@@ -3771,6 +3767,27 @@ TODO
   };
 
   /**
+   * cancel move/scroll event raf loop action.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.cancelRafLoop = function () {
+
+    var id = this.getItem()._id;
+
+    rafLoop
+    .cancelRead('scroll' + id)
+    .cancelRead('move' + id)
+    .cancelWrite('scroll' + id)
+    .cancelWrite('move' + id);
+
+    return this;
+
+  };
+
+  /**
    * Abort dragging and reset drag data.
    *
    * @public
@@ -3781,8 +3798,9 @@ TODO
 
     var drag = this;
     var dragData = drag._data;
-    var element;
-    var grid;
+    var item = drag.getItem();
+    var element = item._element;
+    var grid = drag.getGrid();
 
     if (!dragData.isActive) {
       return drag;
@@ -3794,8 +3812,8 @@ TODO
       return drag.finishMigration(dragData.currentEvent);
     }
 
-    element = drag.getItem()._element;
-    grid = drag.getGrid();
+    // Cancel raf loop actions.
+    drag.cancelRafLoop();
 
     // Remove scroll listeners.
     drag.unbindScrollListeners();
@@ -3834,29 +3852,24 @@ TODO
 
     var drag = this;
     var item = drag.getItem();
-    var element;
-    var grid;
-    var settings;
-    var dragData;
-    var release;
-    var currentLeft;
-    var currentTop;
-    var gridContainer;
-    var dragContainer;
-    var containingBlock;
-    var offsetDiff;
-    var elementGBCR;
 
     // If item is not active, don't start the drag.
     if (!item._isActive) {
-      return;
+      return drag;
     }
 
-    element = item._element;
-    grid = drag.getGrid();
-    settings = grid._settings;
-    dragData = drag._data;
-    release = item._release;
+    var element = item._element;
+    var grid = drag.getGrid();
+    var settings = grid._settings;
+    var dragData = drag._data;
+    var release = item._release;
+    var currentLeft;
+    var currentTop;
+    var gridContainer = grid._element;
+    var dragContainer = settings.dragContainer || gridContainer;
+    var containingBlock;
+    var offsetDiff;
+    var elementGBCR;
 
     // Stop current positioning animation.
     // TODO: Could we utilize the event data here to provide the current styles
@@ -3877,21 +3890,16 @@ TODO
       release.reset();
     }
 
+    // Get element's current position and containing block.
+    currentLeft = getTranslateAsFloat(element, 'x');
+    currentTop = getTranslateAsFloat(element, 'y');
+    containingBlock = getContainingBlock(dragContainer, true);
+
     // Setup drag data.
     dragData.isActive = true;
     dragData.startEvent = dragData.currentEvent = event;
-
-    // Get element's current position.
-    currentLeft = getTranslateAsFloat(element, 'x');
-    currentTop = getTranslateAsFloat(element, 'y');
-
-    // Get container element references, and store drag container and containing
-    // block.
-    gridContainer = grid._element;
-    dragData.container = dragContainer = settings.dragContainer || gridContainer;
-    dragData.containingBlock = containingBlock = getContainingBlock(dragContainer, true);
-
-    // Set initial left/top drag value.
+    dragData.container = dragContainer;
+    dragData.containingBlock = containingBlock;
     dragData.left = dragData.gridX = currentLeft;
     dragData.top = dragData.gridY = currentTop;
 
@@ -3958,57 +3966,55 @@ TODO
 
     var drag = this;
     var item = drag.getItem();
-    var element;
-    var grid;
-    var settings;
-    var dragData;
-    var xDiff;
-    var yDiff;
-    var axis;
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      drag.stop();
-      return;
+      return drag.stop();
     }
 
-    element = item._element;
-    grid = drag.getGrid();
-    settings = grid._settings;
-    dragData = drag._data;
-    axis = settings.dragAxis;
+    var element = item._element;
+    var grid = drag.getGrid();
+    var settings = grid._settings;
+    var dragData = drag._data;
+    var axis = settings.dragAxis;
+    var xDiff = event.deltaX - dragData.currentEvent.deltaX;
+    var yDiff = event.deltaY - dragData.currentEvent.deltaY;
 
-    // Get delta difference from last dragmove event.
-    xDiff = event.deltaX - dragData.currentEvent.deltaX;
-    yDiff = event.deltaY - dragData.currentEvent.deltaY;
+    rafLoop.addRead('move' + item._id, function () {
 
-    // Update current event.
-    dragData.currentEvent = event;
+      // Update current event.
+      dragData.currentEvent = event;
 
-    // Update horizontal position data.
-    if (axis !== 'y') {
-      dragData.left += xDiff;
-      dragData.gridX += xDiff;
-      dragData.elementClientX += xDiff;
-    }
+      // Update horizontal position data.
+      if (axis !== 'y') {
+        dragData.left += xDiff;
+        dragData.gridX += xDiff;
+        dragData.elementClientX += xDiff;
+      }
 
-    // Update vertical position data.
-    if (axis !== 'x') {
-      dragData.top += yDiff;
-      dragData.gridY += yDiff;
-      dragData.elementClientY += yDiff;
-    }
+      // Update vertical position data.
+      if (axis !== 'x') {
+        dragData.top += yDiff;
+        dragData.gridY += yDiff;
+        dragData.elementClientY += yDiff;
+      }
 
-    // Overlap handling.
-    settings.dragSort && drag._checkSortOverlap();
+      // Overlap handling.
+      settings.dragSort && drag._checkSortOverlap();
 
-    // Update element's translateX/Y values.
-    setStyles(element, {
-      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
     });
 
-    // Emit dragMove event.
-    grid._emit(evDragMove, item, event);
+    rafLoop.addWrite('move' + item._id, function () {
+
+      // Update element's translateX/Y values.
+      setStyles(element, {
+        transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
+      });
+
+      // Emit dragMove event.
+      grid._emit(evDragMove, item, event);
+
+    });
 
     return drag;
 
@@ -4032,40 +4038,53 @@ TODO
     var axis = settings.dragAxis;
     var dragData = drag._data;
     var gridContainer = grid._element;
-    var elementGBCR = element.getBoundingClientRect();
-    var xDiff = dragData.elementClientX - elementGBCR.left;
-    var yDiff = dragData.elementClientY - elementGBCR.top;
+    var elementGBCR;
+    var xDiff;
+    var yDiff;
     var offsetDiff;
 
-    // Update container diff.
-    if (dragData.container !== gridContainer) {
-      offsetDiff = getOffsetDiff(dragData.containingBlock, gridContainer);
-      dragData.containerDiffX = offsetDiff.left;
-      dragData.containerDiffY = offsetDiff.top;
-    }
+    rafLoop.addRead('scroll' + item._id, function () {
 
-    // Update horizontal position data.
-    if (axis !== 'y') {
-      dragData.left += xDiff;
-      dragData.gridX = dragData.left - dragData.containerDiffX;
-    }
+      // Calculate element's rect and x/y diff.
+      elementGBCR = element.getBoundingClientRect();
+      xDiff = dragData.elementClientX - elementGBCR.left;
+      yDiff = dragData.elementClientY - elementGBCR.top;
 
-    // Update vertical position data.
-    if (axis !== 'x') {
-      dragData.top += yDiff;
-      dragData.gridY = dragData.top - dragData.containerDiffY;
-    }
+      // Update container diff.
+      if (dragData.container !== gridContainer) {
+        offsetDiff = getOffsetDiff(dragData.containingBlock, gridContainer);
+        dragData.containerDiffX = offsetDiff.left;
+        dragData.containerDiffY = offsetDiff.top;
+      }
 
-    // Overlap handling.
-    settings.dragSort && drag._checkSortOverlap();
+      // Update horizontal position data.
+      if (axis !== 'y') {
+        dragData.left += xDiff;
+        dragData.gridX = dragData.left - dragData.containerDiffX;
+      }
 
-    // Update element's translateX/Y values.
-    setStyles(element, {
-      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
+      // Update vertical position data.
+      if (axis !== 'x') {
+        dragData.top += yDiff;
+        dragData.gridY = dragData.top - dragData.containerDiffY;
+      }
+
+      // Overlap handling.
+      settings.dragSort && drag._checkSortOverlap();
+
     });
 
-    // Emit dragScroll event.
-    grid._emit(evDragScroll, item, event);
+    rafLoop.addWrite('scroll' + item._id, function () {
+
+      // Update element's translateX/Y values.
+      setStyles(element, {
+        transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
+      });
+
+      // Emit dragScroll event.
+      grid._emit(evDragScroll, item, event);
+
+    });
 
     return drag;
 
@@ -4093,6 +4112,9 @@ TODO
     if (!item._isActive) {
       return drag.stop();
     }
+
+    // Cancel raf loop actions.
+    drag.cancelRafLoop();
 
     // Finish currently queued overlap check.
     settings.dragSort && drag._checkSortOverlap('finish');

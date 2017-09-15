@@ -1876,10 +1876,12 @@ TODO
     var animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
     var animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
     var animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
+    var isAnimating;
     var offsetLeft;
     var offsetTop;
     var currentLeft;
     var currentTop;
+    var targetStyles;
 
     // If the item is currently positioning.
     if (isPositioning) {
@@ -1903,76 +1905,63 @@ TODO
       inst._layoutQueue.push(onFinish);
     }
 
-    // Get item container offset. This applies only for release handling in the
-    // scenario where the released element is not currently within the
-    // grid container element.
+    // Get item container offsets and target styles.
     offsetLeft = release.isActive ? release.containerDiffX : migrate.isActive ? migrate.containerDiffX : 0;
     offsetTop = release.isActive ? release.containerDiffY : migrate.isActive ? migrate.containerDiffY : 0;
+    targetStyles = {transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'};
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
-
-      inst._stopLayout();
+      isAnimating = inst._animate.isAnimating();
+      inst._stopLayout(false, targetStyles);
+      !isAnimating && setStyles(element, targetStyles);
       inst._skipNextLayoutAnimation = false;
-
-      setStyles(element, {
-        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
-      });
-
-      inst._finishLayout();
-
+      return inst._finishLayout();
     }
 
-    // If animations are needed, let's dive in.
-    else {
+    // Set item as positioning if it is not already.
+    if (!isPositioning) {
+      inst._isPositioning = true;
+    }
 
-      // Set item as positioning if it is not already.
-      if (!isPositioning) {
-        inst._isPositioning = true;
+    // Get the element's current left and top position (in the next frame's
+    // read batch).
+    rafLoop.addRead('layout' + inst._id, function () {
+      currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
+      currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
+    });
+
+    // Start animation in the next frame's write batch.
+    rafLoop.addWrite('layout' + inst._id, function () {
+
+      // If the item is already in correct position let's quit early.
+      if (inst._left === currentLeft && inst._top === currentTop) {
+        if (isPositioning) {
+          inst._stopLayout(false, targetStyles);
+        }
+        else {
+          inst._isPositioning = false;
+        }
+        return inst._finishLayout();
       }
 
-      // Get the element's current left and top position (in the next frame's
-      // read batch).
-      rafLoop.addRead('layout' + inst._id, function () {
-        currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
-        currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
-      });
+      // Set item's positioning class.
+      !isPositioning && addClass(element, settings.itemPositioningClass);
 
-      // Start animation in the next frame's write batch.
-      rafLoop.addWrite('layout' + inst._id, function () {
-
-        // If the item is already in correct position let's quit early.
-        if (inst._left === currentLeft && inst._top === currentTop) {
-          if (isPositioning) {
-            inst._stopLayout();
+      // Animate.
+      inst._animate.start(
+        {transform: 'translateX(' + (currentLeft + offsetLeft) + 'px) translateY(' + (currentTop + offsetTop) + 'px)'},
+        targetStyles,
+        {
+          duration: animDuration,
+          easing: animEasing,
+          onFinish: function () {
+            inst._finishLayout();
           }
-          else {
-            inst._isPositioning = false;
-          }
-          return inst._finishLayout();
         }
+      );
 
-        // Set item's positioning class.
-        if (!isPositioning) {
-          addClass(element, settings.itemPositioningClass);
-        }
-
-        // Animate.
-        inst._animate.start(
-          {transform: 'translateX(' + (currentLeft + offsetLeft) + 'px) translateY(' + (currentTop + offsetTop) + 'px)'},
-          {transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'},
-          {
-            duration: animDuration,
-            easing: animEasing,
-            onFinish: function () {
-              inst._finishLayout();
-            }
-          }
-        );
-
-      });
-
-    }
+    });
 
     return inst;
 
@@ -2022,9 +2011,10 @@ TODO
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} [processLayoutQueue=false]
+   * @param {Object} [targetStyles]
    * @returns {Item}
    */
-  Item.prototype._stopLayout = function (processLayoutQueue) {
+  Item.prototype._stopLayout = function (processLayoutQueue, targetStyles) {
 
     var inst = this;
 
@@ -2036,7 +2026,7 @@ TODO
     rafLoop.cancelRead('layout' + inst._id).cancelWrite('layout' + inst._id);
 
     // Stop animation.
-    inst._animate.stop();
+    inst._animate.stop(targetStyles);
 
     // Remove positioning class.
     removeClass(inst._element, inst.getGrid()._settings.itemPositioningClass);
@@ -2227,17 +2217,12 @@ TODO
     inst._migrate.destroy();
 
     // Stop animations.
-    // TODO: The inline styles are removed later on so we should probably add
-    // somekind of mechanism here to let the stop methods know that there's no
-    // need to get the current styles.
-    inst._stopLayout(true);
-    grid._itemShowHandler.stop(inst);
-    grid._itemHideHandler.stop(inst);
+    inst._stopLayout(true, {});
+    grid._itemShowHandler.stop(inst, {});
+    grid._itemHideHandler.stop(inst, {});
 
     // Destroy drag.
-    if (inst._drag) {
-      inst._drag.destroy();
-    }
+    inst._drag && inst._drag.destroy();
 
     // Destroy animation handlers.
     inst._animate.destroy();
@@ -2261,14 +2246,10 @@ TODO
     removeClass(element, settings.itemHiddenClass);
 
     // Remove item from Grid instance if it still exists there.
-    if (index > -1) {
-      grid._items.splice(index, 1);
-    }
+    index > -1 && grid._items.splice(index, 1);
 
     // Remove element from DOM.
-    if (removeElement) {
-      element.parentNode.removeChild(element);
-    }
+    removeElement && element.parentNode.removeChild(element);
 
     // Remove item instance from the item instances collection.
     itemInstances[inst._id] = undefined;
@@ -2572,17 +2553,30 @@ TODO
    *
    * @private
    * @memberof ItemAnimate.prototype
-   * @param {Object} [currentStyles]
+   * @param {Object} [currentProps]
    */
-  ItemAnimate.prototype.stop = function (currentStyles) {
+  ItemAnimate.prototype.stop = function (currentProps) {
 
     var inst = this;
 
     if (!inst._isDestroyed && inst._animation) {
-      setStyles(inst._element, currentStyles || getCurrentStyles(inst._element, inst._propsTo));
+      setStyles(inst._element, currentProps || getCurrentStyles(inst._element, inst._propsTo));
       inst._animation.cancel();
       inst._animation = inst._propsTo = null;
     }
+
+  };
+
+  /**
+   * Check if the item is being animated currently.
+   *
+   * @private
+   * @memberof ItemAnimate.prototype
+   * @return {Boolean}
+   */
+  ItemAnimate.prototype.isAnimating = function () {
+
+    return !!this._animation;
 
   };
 
@@ -2724,6 +2718,10 @@ TODO
     }
 
     // Stop current visibility animations.
+    // TODO: This causes potentially layout thrashing, because we are not
+    // feeding any styles to the stop handlers. Also there's a big problem if
+    // the grids have different visibility styles, since the old styles are not
+    // fully removed, just frozen.
     currentGrid._itemShowHandler.stop(item);
     currentGrid._itemHideHandler.stop(item);
 
@@ -3861,6 +3859,10 @@ TODO
     release = item._release;
 
     // Stop current positioning animation.
+    // TODO: Could we utilize the event data here to provide the current styles
+    // to the stop method? In any case, we should be able to calculate the
+    // current left/top data before everything so we don't cause layout
+    // thrashing here more than needed.
     if (item.isPositioning()) {
       item._stopLayout(true);
     }
@@ -5236,9 +5238,9 @@ TODO
           }
         }
       },
-      stop: function (item, styles) {
+      stop: function (item, targetStyles) {
         rafLoop.cancelRead(type + item._id).cancelWrite(type + item._id);
-        item._animateChild.stop(styles);
+        item._animateChild.stop(targetStyles);
       }
     };
 

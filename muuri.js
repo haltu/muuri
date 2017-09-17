@@ -26,7 +26,7 @@
 TODO
 ****
 - [x] Use web animations API.
-- [ ] Minimize layout thrashing. There are some major issues that can be
+- [x] Minimize layout thrashing. There are some major issues that can be
       noticed when animating hundreds of elements.
       - [x] Layout system
       - [x] Visibility system
@@ -34,8 +34,7 @@ TODO
       - [x] Drag onStart
       - [x] Migration API
       - [ ] Animation stopping
-- [ ] Dynamic drag sort groups system.
-- [ ] Fix will-change issue (that causes containing block).
+- [x] Dynamic drag sort groups system.
 - [x] Deprecate custom show/hide functions.
 - [ ] Freeze item functionality for the duration of drag.
 */
@@ -95,9 +94,6 @@ TODO
 
   // Keep track of Item instances.
   var itemInstances = {};
-
-  // Keep track of the drag sort groups.
-  var dragSortGroups = {};
 
   // No operation function.
   var noop = function () {};
@@ -184,8 +180,7 @@ TODO
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {String} [options.dragSortPredicate.gaps=true]
-   * @param {?(Array|String)} [options.dragSortGroup=null]
-   * @param {?(Array|String)} [options.dragSortWith=null]
+   * @param {?Array} [options.dragSortWith=null]
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {String} [options.dragReleaseEasing="ease"]
    * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
@@ -237,12 +232,6 @@ TODO
 
     // Create private Emitter instance.
     inst._emitter = new Grid.Emitter();
-
-    // Setup instance's sort group.
-    inst._setSortGroups(settings.dragSortGroup);
-
-    // Setup instance's sort connections.
-    inst._sortConnections = settings.dragSortWith && settings.dragSortWith.length ? [].concat(settings.dragSortWith) : null;
 
     // Setup grid's show/hide animation handler for items.
     inst._itemShowHandler = getItemVisibilityHandler('show', settings);
@@ -384,7 +373,6 @@ TODO
       threshold: 50,
       action: 'move'
     },
-    dragSortGroup: null,
     dragSortWith: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
@@ -1219,9 +1207,6 @@ TODO
       items[i]._destroy(removeElements);
     }
 
-    // Unset sort group.
-    inst._unsetSortGroups();
-
     // Restore container.
     removeClass(container, inst._settings.containerClass);
     setStyles(container, {height: ''});
@@ -1348,115 +1333,6 @@ TODO
     }
 
     return inst;
-
-  };
-
-  /**
-   * Set instance's drag sort groups.
-   *
-   * @protected
-   * @memberof Grid.prototype
-   * @param {?(Array|String)} sortGroups
-   * @returns {Grid}
-   */
-  Grid.prototype._setSortGroups = function (sortGroups) {
-
-    var inst = this;
-    var instSortGroups = [];
-
-    // Set the initial instance sort group.
-    inst._sortGroups = null;
-
-    // Sanitize sort groups and add them to the instance sort groups as well as
-    // to the global sort groups collection.
-    [].concat(sortGroups).forEach(function (sortGroup) {
-      if (typeof sortGroup === 'string' && instSortGroups.indexOf(sortGroup) < 0) {
-        instSortGroups.push(sortGroup);
-        if (!dragSortGroups[sortGroup]) {
-          dragSortGroups[sortGroup] = [];
-        }
-        dragSortGroups[sortGroup].push(inst._id);
-      }
-    });
-
-    // If there were valid sort groups update the instance sort groups.
-    if (instSortGroups.length) {
-      inst._sortGroups = instSortGroups;
-    }
-
-    return inst;
-
-  };
-
-  /**
-   * Unset instance's drag sort group.
-   *
-   * @protected
-   * @memberof Grid.prototype
-   * @returns {Grid}
-   */
-  Grid.prototype._unsetSortGroups = function () {
-
-    var inst = this;
-    var sortGroups = inst._sortGroups;
-    var sortGroupItems;
-    var i;
-    var ii;
-
-    if (sortGroups) {
-      for (i = 0; i < sortGroups.length; i++) {
-        sortGroupItems = dragSortGroups[sortGroups[i]];
-        for (ii = 0; ii < sortGroupItems.length; ii++) {
-          if (sortGroupItems[ii] === inst._id) {
-            sortGroupItems.splice(ii, 1);
-            break;
-          }
-        }
-      }
-      inst._sortGroups = null;
-    }
-
-    return inst;
-
-  };
-
-  /**
-   * Get connected Grid instances.
-   *
-   * @protected
-   * @memberof Grid.prototype
-   * @param {Boolean} [includeSelf=false]
-   * @returns {Grid[]}
-   */
-  Grid.prototype._getSortConnections = function (includeSelf) {
-
-    var inst = this;
-    var ret = includeSelf ? [inst] : [];
-    var connections = inst._sortConnections;
-    var sortGroup;
-    var connectedGrid;
-    var ii;
-    var i;
-
-    if (inst._isDestroyed) {
-      return ret;
-    }
-
-    if (connections && connections.length) {
-      for (i = 0; i < connections.length; i++) {
-        sortGroup = dragSortGroups[connections[i]];
-        if (sortGroup && sortGroup.length) {
-          for (ii = 0; ii < sortGroup.length; ii++) {
-            connectedGrid = gridInstances[sortGroup[ii]];
-            if (connectedGrid !== inst && ret.indexOf(connectedGrid) < 0) {
-              ret.push(connectedGrid);
-            }
-          }
-        }
-      }
-    }
-
-    return ret;
 
   };
 
@@ -5288,7 +5164,7 @@ TODO
   function getTargetGrid(itemRect, rootGrid, threshold) {
 
     var ret = null;
-    var grids = rootGrid._getSortConnections(true);
+    var grids = [rootGrid].concat(rootGrid._settings.dragSortWith || []);
     var bestScore = -1;
     var gridScore;
     var grid;
@@ -5297,6 +5173,11 @@ TODO
     for (i = 0; i < grids.length; i++) {
 
       grid = grids[i];
+
+      // Filter out all duplicate instances of the root grid.
+      if (i && grid === rootGrid) {
+        continue;
+      }
 
       // We need to update the grid's offset since it may have changed during
       // scrolling. This could be left as problem for the userland, but it's
@@ -5409,6 +5290,10 @@ TODO
     // overriden instead of the props.
     ret.visibleStyles = (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
     ret.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
+
+    // We need to take special care with dragSortWith option since it must not
+    // be cloned. The provided array is meaningful.
+    ret.dragSortWith = (userSettings && Object.keys(userSettings).indexOf('dragSortWith') > -1 ? userSettings : defaultSettings).dragSortWith;
 
     return ret;
 

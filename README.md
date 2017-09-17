@@ -221,7 +221,6 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
       threshold: 50,
       action: 'move'
     },
-    dragSortGroup: null,
     dragSortWith: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
@@ -282,8 +281,7 @@ var gridB = new Muuri('.grid-b', {
 * [dragSort](#dragsort-)
 * [dragSortInterval](#dragsortinterval-)
 * [dragSortPredicate](#dragsortpredicate-)
-* [dragSortGroup](#dragsortgroup-)
-* [dragSortWith](#dragsortconnections-)
+* [dragSortWith](#dragsortwith-)
 * [dragReleaseDuration](#dragreleaseduration-)
 * [dragReleaseEasing](#dragreleaseeasing-)
 * [containerClass](#containerclass-)
@@ -738,46 +736,23 @@ var grid = new Muuri(elem, {
 });
 ```
 
-### dragSortGroup &nbsp;
-
-The grid's sort group(s), e.g. `'groupA'` or `['groupA', 'groupB']`. If you provide no sort group the grid cannot be targeted with `dragSortWith` option, which means that items can not be dragged into the grid from other grids.
-
-* Default value: `null`.
-* Accepted types: array, string, null.
-
-```javascript
-var gridA = new Muuri(elemA, {
-  dragSortGroup: 'groupA'
-});
-var gridB = new Muuri(elemB, {
-  dragSortGroup: ['groupA', 'groupB']
-});
-```
-
 ### dragSortWith &nbsp;
 
-Defines the sort group(s) that this instance's item's can be dragged to. Provide a string to target a single sort group, e.g. `'groupA'`, or an array of targeted sort groups using an array, e.g. `['groupA', 'groupC']`.
+Defines the grid instances this instance's items can be dragged into. Provide an array of grid instances. The provided array is used as is whenever there is a need to check the drag sort connections so you can later on mutate the array (remove or add instances) and the changes are immediately reflected in the grid's behaviour.
 
 * Default value: `null`.
 * Accepted types: array, null.
 
 ```javascript
-// This grid's items can not be dragged into any other grids.
-var gridA = new Muuri(elemA, {
-  dragSortGroup: 'a'
-});
-
-// This grid's items can be dragged into gridC.
-var gridB = new Muuri(elemB, {
-  dragSortGroup: 'b',
-  dragSortWith: 'c'
-});
-
-// This grid's items can be dragged into gridA and gridB.
-var gridC = new Muuri(elemC, {
-  dragSortGroup: 'c',
-  dragSortWith: ['a', 'b']
-});
+// Create an array to store all the grid instances.
+var grids = [];
+// Instantiate multiple grid instances and provide grids collection to the
+// dragSortWith option. 
+var gridA = new Muuri(elemA, {dragSortWith: grids});
+var gridB = new Muuri(elemB, {dragSortWith: grids});
+var gridC = new Muuri(elemC, {dragSortWith: grids});
+// Push the grid instances to the grids collection.
+grids.push(gridA, gridB, gridC);
 ```
 
 ### dragReleaseDuration &nbsp;

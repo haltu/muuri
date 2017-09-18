@@ -12,10 +12,10 @@
     var container = utils.createGrid();
     var grid = new Muuri(container, {
       visibleStyles: {
-        fontSize: '30px'
+        'font-size': '30px'
       },
       hiddenStyles: {
-        fontSize: '10px'
+        'font-size': '10px'
       }
     });
     var item = grid.getItems()[0];

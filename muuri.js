@@ -1791,10 +1791,8 @@ TODO
       return inst._finishLayout();
     }
 
-    // Set item as positioning if it is not already.
-    if (!isPositioning) {
-      inst._isPositioning = true;
-    }
+    // Set item as positioning.
+    inst._isPositioning = true;
 
     // Get the element's current left and top position (in the next frame's
     // read batch).
@@ -1808,12 +1806,8 @@ TODO
 
       // If the item is already in correct position let's quit early.
       if (inst._left === currentLeft && inst._top === currentTop) {
-        if (isPositioning) {
-          inst._stopLayout(false, targetStyles);
-        }
-        else {
-          inst._isPositioning = false;
-        }
+        isPositioning && inst._stopLayout(false, targetStyles);
+        inst._isPositioning = false;
         return inst._finishLayout();
       }
 
@@ -1968,13 +1962,8 @@ TODO
     // If we need to animate.
     else {
       grid._itemShowHandler.start(inst, instant, function () {
-        // We need this "is not hidden" guard here because firefox bugs out
-        // sometimes when there are a lot of animated items and the callbacks
-        // get called in unwanted order.
-        if (!inst._isHidden) {
-          inst._isShowing = false;
-          processQueue(queue, false, inst);
-        }
+        inst._isShowing = false;
+        processQueue(queue, false, inst);
       });
     }
 
@@ -2047,16 +2036,11 @@ TODO
     // If we need to animate.
     else {
       grid._itemHideHandler.start(inst, instant, function () {
-        // We need this "is hidden" guard here because firefox bugs out
-        // sometimes when there are a lot of animated items and the callbacks
-        // get called in unwanted order.
-        if (inst._isHidden) {
-          inst._isHiding = false;
-          // TODO: This causes layout thrashing!!!
-          inst._stopLayout(true);
-          setStyles(element, {display: 'none'});
-          processQueue(queue, false, inst);
-        }
+        inst._isHiding = false;
+        // TODO: This causes layout thrashing!!!
+        inst._stopLayout(true);
+        setStyles(element, {display: 'none'});
+        processQueue(queue, false, inst);
       });
     }
 
@@ -4263,6 +4247,8 @@ TODO
    */
   function createRafLoop() {
 
+    // TODO: It seems cancel does not work as supposed to, check it out!
+
     var nextTick = null;
     var readQueue = [];
     var writeQueue = [];
@@ -4295,14 +4281,14 @@ TODO
 
       // First, let's check if an item has been added to the queue with the
       // same id and remove it.
-      var currentIndex = targetMap[id] ? targetMap[id][1] : -1;
+      var currentIndex = targetQueue.indexOf(id);
       if (currentIndex > -1) {
         targetQueue.splice(currentIndex, 1);
       }
 
       // Then let's add the id to the end of the queue, and update the map.
       targetQueue.push(id);
-      targetMap[id] = [cb, targetQueue.length - 1];
+      targetMap[id] = cb;
 
       // Finally, let's kickstart the next tick if it is not running yet.
       !nextTick && (nextTick = raf(flush));
@@ -4315,7 +4301,7 @@ TODO
 
       // Let's check if an item has been added to the queue with the id and
       // if so -> remove it.
-      var currentIndex = targetMap[id] ? targetMap[id][1] : -1;
+      var currentIndex = targetQueue.indexOf(id);
       if (currentIndex > -1) {
         targetQueue.splice(currentIndex, 1);
         targetMap[id] = undefined;
@@ -4342,12 +4328,12 @@ TODO
 
       // Process read queue.
       for (i = 0; i < readQueueCopy.length; i++) {
-        readMapCopy[readQueueCopy[i]][0]();
+        readMapCopy[readQueueCopy[i]]();
       }
 
       // Process write queue.
       for (i = 0; i < writeQueueCopy.length; i++) {
-        writeMapCopy[writeQueueCopy[i]][0]();
+        writeMapCopy[writeQueueCopy[i]]();
       }
 
     }
@@ -5111,30 +5097,38 @@ TODO
   function getItemVisibilityHandler(type, settings) {
 
     var isShow = type === 'show';
+    var rafQueueName = 'visibility';
     var duration = parseInt(isShow ? settings.showDuration : settings.hideDuration) || 0;
     var easing = (isShow ? settings.showEasing : settings.hideEasing) || 'ease';
     var styles = isShow ? settings.visibleStyles : settings.hiddenStyles;
     var isEnabled = duration > 0;
     var currentStyles;
 
+    console.log(duration);
+
     styles = isPlainObject(styles) ? styles : null;
 
     return {
       start: function (item, instant, onFinish) {
-        if (!isEnabled || !styles) {
+        if (!styles) {
           onFinish && onFinish();
         }
         else {
-          rafLoop.cancelRead(type + item._id).cancelWrite(type + item._id);
-          if (instant) {
-            setStyles(item._child, styles);
+          rafLoop.cancelRead(rafQueueName + item._id).cancelWrite(rafQueueName + item._id);
+          if (!isEnabled || instant) {
+            if (item._animateChild.isAnimating()) {
+              item._animateChild.stop(styles);
+            }
+            else {
+              setStyles(item._child, styles);
+            }
             onFinish && onFinish();
           }
           else {
-            rafLoop.addRead(type + item._id, function () {
+            rafLoop.addRead(rafQueueName + item._id, function () {
               currentStyles = getCurrentStyles(item._child, styles);
             });
-            rafLoop.addWrite(type + item._id, function () {
+            rafLoop.addWrite(rafQueueName + item._id, function () {
               item._animateChild.start(currentStyles, styles, {
                 duration: duration,
                 easing: easing,
@@ -5145,7 +5139,7 @@ TODO
         }
       },
       stop: function (item, targetStyles) {
-        rafLoop.cancelRead(type + item._id).cancelWrite(type + item._id);
+        rafLoop.cancelRead(rafQueueName + item._id).cancelWrite(rafQueueName + item._id);
         item._animateChild.stop(targetStyles);
       }
     };

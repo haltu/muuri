@@ -5104,8 +5104,6 @@ TODO
     var isEnabled = duration > 0;
     var currentStyles;
 
-    console.log(duration);
-
     styles = isPlainObject(styles) ? styles : null;
 
     return {

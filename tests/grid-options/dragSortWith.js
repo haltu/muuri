@@ -72,7 +72,7 @@
 
   });
 
-  QUnit.test('dragSortGroup: should accept an array of grid instances', function (assert) {
+  QUnit.test('dragSortWith: should accept an array of grid instances', function (assert) {
 
     assert.expect(1);
 

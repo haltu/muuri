@@ -1,6 +1,7 @@
 (function (window) {
 
   var Muuri = window.Muuri;
+  var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
@@ -155,7 +156,7 @@
 
     grid.on('layoutEnd', function (items) {
       assert.notStrictEqual(args, items, 'layout callback items argument should not the same object as the layoutEnd event callback`s argument');
-      assert.deepEqual(args, items, 'layout callback should receive the same items as the layoutEnd event callback');
+      assert.deepEqual(idList(args), idList(items), 'layout callback should receive the same items as the layoutEnd event callback');
       teardown();
     });
 

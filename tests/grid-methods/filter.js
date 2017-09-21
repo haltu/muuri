@@ -1,6 +1,7 @@
 (function (window) {
 
   var Muuri = window.Muuri;
+  var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
@@ -35,12 +36,12 @@
     };
 
     grid.filter(function (item) {
-      assert.strictEqual(item, items[i], 'predicate function should be called in ascending order for each item');
+      assert.strictEqual(item._id, items[i]._id, 'predicate function should be called in ascending order for each item');
       ++i;
       return item === firstItem;
     });
     assert.strictEqual(i, 10), 'predicate function should be called for each item';
-    assert.deepEqual(grid.getItems('visible'), [firstItem], 'the items for which true were returned should be shown and others hidden');
+    assert.deepEqual(idList(grid.getItems('visible')), idList([firstItem]), 'the items for which true were returned should be shown and others hidden');
     teardown();
 
   });
@@ -60,7 +61,7 @@
 
     firstItem.getElement().classList.add('foo');
     grid.filter('.foo');
-    assert.deepEqual(grid.getItems('visible'), [firstItem]);
+    assert.deepEqual(idList(grid.getItems('visible')), idList([firstItem]));
     teardown();
 
   });
@@ -82,8 +83,8 @@
     .filter(function (item) {
       return item === items[0];
     });
-    assert.deepEqual(grid.getItems('showing'), items.slice(0, 1));
-    assert.deepEqual(grid.getItems('hiding'), items.slice(1));
+    assert.deepEqual(idList(grid.getItems('showing')), idList(items.slice(0, 1)));
+    assert.deepEqual(idList(grid.getItems('hiding')), idList(items.slice(1)));
 
     teardown();
 
@@ -108,8 +109,8 @@
     }, {instant: true});
     assert.strictEqual(grid.getItems('showing').length, 0);
     assert.strictEqual(grid.getItems('hiding').length, 0);
-    assert.deepEqual(grid.getItems('visible'), items.slice(0, 1));
-    assert.deepEqual(grid.getItems('hidden'), items.slice(1));
+    assert.deepEqual(idList(grid.getItems('visible')), idList(items.slice(0, 1)));
+    assert.deepEqual(idList(grid.getItems('hidden')), idList(items.slice(1)));
 
     teardown();
 
@@ -137,8 +138,8 @@
       return item === items[0];
     }, {onFinish: function (itemsToShow, itemsToHide) {
       assert.strictEqual(arguments.length, 2, 'callback: should receive two arguments');
-      assert.deepEqual(itemsToShow, items.slice(0, 1), 'callback: should receive the shown items as it`s first argument');
-      assert.deepEqual(itemsToHide, items.slice(1), 'callback: should receive the hidden items as it`s second argument');
+      assert.deepEqual(idList(itemsToShow), idList(items.slice(0, 1)), 'callback: should receive the shown items as it`s first argument');
+      assert.deepEqual(idList(itemsToHide), idList(items.slice(1)), 'callback: should receive the hidden items as it`s second argument');
       assert.strictEqual(items[0].isVisible(), true, 'callback: the first argument items should be visible');
       assert.strictEqual(items[1].isVisible(), false, 'callback: the second argument items should be hidden');
       teardown();

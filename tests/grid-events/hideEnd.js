@@ -20,7 +20,7 @@
     grid.hide(0, {layout: false, instant: true});
     grid.on('hideEnd', function (items) {
       assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems([1, 2])), 'callback: first argument should be an array of all the valid items that are were hidden');
+      assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(grid.getItems([0, 1, 2])), 'callback: first argument should be an array of all the items that are were hidden');
       teardown();
     });
     grid.hide([0, 1, 2], {layout: false});

@@ -19,8 +19,8 @@
 
     grid.on('sort', function (itemsNew, itemsPrev) {
       assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
-      assert.deepEqual(utils.sortItemsById(itemsNew), utils.sortItemsById(newOrder), 'callback: first argument should be an array of all the items in their new order');
-      assert.deepEqual(utils.sortItemsById(itemsPrev), utils.sortItemsById(currentOrder), 'callback: second argument should be an array of all the items in their previous order');
+      assert.deepEqual(utils.sortedIdList(itemsNew), utils.sortedIdList(newOrder), 'callback: first argument should be an array of all the items in their new order');
+      assert.deepEqual(utils.sortedIdList(itemsPrev), utils.sortedIdList(currentOrder), 'callback: second argument should be an array of all the items in their previous order');
     });
     grid.sort(newOrder);
 

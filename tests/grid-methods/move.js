@@ -1,6 +1,7 @@
 (function (window) {
 
   var Muuri = window.Muuri;
+  var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
@@ -37,15 +38,15 @@
 
     grid.move(0, 1);
     move(items, 0, 1);
-    assert.deepEqual(grid.getItems(), items, 'should accept indices');
+    assert.deepEqual(idList(grid.getItems()), idList(items), 'should accept indices');
 
     grid.move(items[0].getElement(), items[1].getElement());
     move(items, 0, 1);
-    assert.deepEqual(grid.getItems(), items, 'should accept elements');
+    assert.deepEqual(idList(grid.getItems()), idList(items), 'should accept elements');
 
     grid.move(items[0], items[1]);
     move(items, 0, 1);
-    assert.deepEqual(grid.getItems(), items, 'should accept items');
+    assert.deepEqual(idList(grid.getItems()), idList(items), 'should accept items');
 
     teardown();
 
@@ -68,14 +69,14 @@
 
     grid.move(0, -1);
     move(items, 0, items.length - 1);
-    assert.deepEqual(grid.getItems(), items, 'should normalize -1 to last index');
+    assert.deepEqual(idList(grid.getItems()), idList(items), 'should normalize -1 to last index');
 
     grid.move(0, -2);
     move(items, 0, items.length - 2);
-    assert.deepEqual(grid.getItems(), items, 'should normalize -2 to second last index');
+    assert.deepEqual(idList(grid.getItems()), idList(items), 'should normalize -2 to second last index');
 
     grid.move(0, -1000);
-    assert.deepEqual(grid.getItems(), items, 'should normalize too large negative index to 0');
+    assert.deepEqual(idList(grid.getItems()), idList(items), 'should normalize too large negative index to 0');
 
     teardown();
 
@@ -98,7 +99,7 @@
 
     grid.move(0, 2);
     move(items, 0, 2);
-    assert.deepEqual(grid.getItems(), items);
+    assert.deepEqual(idList(grid.getItems()), idList(items));
 
     teardown();
 

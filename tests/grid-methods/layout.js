@@ -1,6 +1,7 @@
 (function (window) {
 
   var Muuri = window.Muuri;
+  var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
@@ -77,7 +78,7 @@
     .layout(function (isInterrupted, items) {
       assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
       assert.strictEqual(isInterrupted, false, 'callback: first argument should be a boolean that is true if the layout process was interrupted');
-      assert.deepEqual(items, grid.getItems('active'), 'callback: second argument should be an array of the positioned items (all active items)');
+      assert.deepEqual(idList(items), idList(grid.getItems('active')), 'callback: second argument should be an array of the positioned items (all active items)');
       assert.strictEqual(items[0].isPositioning(), false, 'callback: items should not be in positioning state');
       teardown();
     });

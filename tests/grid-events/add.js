@@ -1,6 +1,7 @@
 (function (window) {
 
   var Muuri = window.Muuri;
+  var idList = utils.idList;
 
   QUnit.module('Grid events');
 
@@ -21,7 +22,7 @@
 
     grid.on('add', function (items) {
       assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems(newElems)), 'callback: first argument should be an array of the added items');
+      assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(grid.getItems(newElems)), 'callback: first argument should be an array of the added items');
     });
     grid.add(newElems);
     teardown();

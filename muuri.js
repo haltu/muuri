@@ -1004,7 +1004,7 @@ TODO
   Grid.prototype.sort = function (comparer, options) {
 
     // Let's not sort if it has no effect.
-    if (this._isDestroyed || !this._items.length < 2) {
+    if (this._isDestroyed || this._items.length < 2) {
       return this;
     }
 
@@ -4246,8 +4246,6 @@ TODO
    * @returns {Object}
    */
   function createRafLoop() {
-
-    // TODO: It seems cancel does not work as supposed to, check it out!
 
     var nextTick = null;
     var readQueue = [];

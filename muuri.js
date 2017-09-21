@@ -4341,6 +4341,19 @@ TODO
   }
 
   /**
+   * Transforms a camel case string to kebab case.
+   *
+   * @private
+   * @param {String} string
+   * @returns {String}
+   */
+  function camelToKebab(string) {
+
+    return string.replace(/([A-Z])/g, '-$1').toLowerCase();
+
+  }
+
+  /**
    * Helpers - DOM utils
    * *******************
    */
@@ -4420,7 +4433,7 @@ TODO
     var i;
 
     for (i = 0; i < keys.length; i++) {
-      current[keys[i]] = getStyle(element, keys[i]);
+      current[keys[i]] = getStyle(element, camelToKebab(keys[i]));
     }
 
     return current;

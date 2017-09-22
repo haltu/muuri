@@ -5209,8 +5209,8 @@ TODO
 
       grid = grids[i];
 
-      // Filter out all duplicate instances of the root grid.
-      if (i && grid === rootGrid) {
+      // Filter out all destroyed grids and duplicates of the root grid.
+      if (grid._isDestroyed || (i && grid === rootGrid)) {
         continue;
       }
 

@@ -83,6 +83,12 @@ TODO
   // optimally in the next animation frame.
   var rafLoop = createRafLoop();
 
+  // Raf loop queue names.
+  var rafQueueLayout = 'layout';
+  var rafQueueVisibility = 'visibility';
+  var rafQueueMove = 'move';
+  var rafQueueScroll = 'scroll';
+
   // Drag start predicate states.
   var startPredicateInactive = 0;
   var startPredicatePending = 1;
@@ -407,11 +413,13 @@ TODO
    */
   Grid.prototype.on = function (event, listener) {
 
-    if (!this._isDestroyed) {
-      this._emitter.on(event, listener);
+    var inst = this;
+
+    if (!inst._isDestroyed) {
+      inst._emitter.on(event, listener);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -426,11 +434,13 @@ TODO
    */
   Grid.prototype.once = function (event, listener) {
 
-    if (!this._isDestroyed) {
-      this._emitter.once(event, listener);
+    var inst = this;
+
+    if (!inst._isDestroyed) {
+      inst._emitter.once(event, listener);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -445,11 +455,13 @@ TODO
    */
   Grid.prototype.off = function (event, listener) {
 
-    if (!this._isDestroyed) {
-      this._emitter.off(event, listener);
+    var inst = this;
+
+    if (!inst._isDestroyed) {
+      inst._emitter.off(event, listener);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -481,12 +493,13 @@ TODO
    */
   Grid.prototype.getItems = function (targets, state) {
 
+    var inst = this;
+
     // Return an empty array immediately if the instance is destroyed.
-    if (this._isDestroyed) {
+    if (inst._isDestroyed) {
       return [];
     }
 
-    var inst = this;
     var hasTargets = targets === 0 || (targets && typeof targets !== typeString);
     var targetItems = !hasTargets ? null : isNodeList(targets) ? nodeListToArray(targets) : [].concat(targets);
     var targetState = !hasTargets ? targets : state;
@@ -526,18 +539,20 @@ TODO
    */
   Grid.prototype.refreshItems = function (items) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var targetItems = this.getItems(items || 'active');
+    var targetItems = inst.getItems(items || 'active');
     var i;
 
     for (i = 0; i < targetItems.length; i++) {
       targetItems[i]._refreshDimensions();
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -551,18 +566,20 @@ TODO
    */
   Grid.prototype.refreshSortData = function (items) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var targetItems = this.getItems(items);
+    var targetItems = inst.getItems(items);
     var i;
 
     for (i = 0; i < targetItems.length; i++) {
       targetItems[i]._refreshSortData();
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -579,11 +596,12 @@ TODO
    */
   Grid.prototype.synchronize = function () {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var inst = this;
     var container = inst._element;
     var items = inst._items;
     var fragment;
@@ -622,11 +640,12 @@ TODO
    */
   Grid.prototype.layout = function (instant, onFinish) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var inst = this;
     var callback = typeof instant === typeFunction ? instant : onFinish;
     var isInstant = instant === true;
     var counter = 0;
@@ -741,11 +760,12 @@ TODO
    */
   Grid.prototype.add = function (elements, options) {
 
-    if (this._isDestroyed) {
+    var inst = this;
+
+    if (inst._isDestroyed) {
       return [];
     }
 
-    var inst = this;
     var targetElements = [].concat(elements);
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
@@ -816,11 +836,12 @@ TODO
    */
   Grid.prototype.remove = function (items, options) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var inst = this;
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var needsLayout = false;
@@ -906,12 +927,13 @@ TODO
    */
   Grid.prototype.filter = function (predicate, options) {
 
+    var inst = this;
+
     // Return immediately if there are no items or if the instance id destroyed.
-    if (this._isDestroyed || !this._items.length) {
-      return this;
+    if (inst._isDestroyed || !inst._items.length) {
+      return inst;
     }
 
-    var inst = this;
     var items = inst._items;
     var predicateType = typeof predicate;
     var isPredicateString = predicateType === typeString;
@@ -1003,12 +1025,13 @@ TODO
    */
   Grid.prototype.sort = function (comparer, options) {
 
+    var inst = this;
+
     // Let's not sort if it has no effect.
-    if (this._isDestroyed || this._items.length < 2) {
-      return this;
+    if (inst._isDestroyed || inst._items.length < 2) {
+      return inst;
     }
 
-    var inst = this;
     var items = inst._items;
     var opts = options || {};
     var isDescending = !!opts.descending;
@@ -1078,12 +1101,13 @@ TODO
    */
   Grid.prototype.move = function (item, position, options) {
 
+    var inst = this;
+
     // Return immediately, if moving an item is not possible.
-    if (this._isDestroyed || this._items.length < 2) {
-      return this;
+    if (inst._isDestroyed || inst._items.length < 2) {
+      return inst;
     }
 
-    var inst = this;
     var items = inst._items;
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
@@ -1139,26 +1163,19 @@ TODO
    */
   Grid.prototype.send = function (item, grid, position, options) {
 
+    var currentGrid = this;
+
     // Return immediately if either grid is destroyed or if the grids are the
-    // same.
-    if (this._isDestroyed || grid._isDestroyed || this === grid) {
-      return this;
+    // same, or if target item was not found.
+    if (currentGrid._isDestroyed || grid._isDestroyed || currentGrid === grid || !(item = currentGrid._getItem(item))) {
+      return currentGrid;
     }
 
-    var currentGrid = this;
     var targetGrid = grid;
     var opts = options || {};
     var container = opts.appendTo || body;
     var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
     var layoutReceiver = opts.layoutReceiver ? opts.layoutReceiver : opts.layoutReceiver === undefined;
-
-    // Get the target item.
-    item = currentGrid._getItem(item);
-
-    // If no valid item was found, let's stop here.
-    if (!item) {
-      return currentGrid;
-    }
 
     // Start the migration process.
     item._migrate.start(targetGrid, position, container);
@@ -1188,11 +1205,12 @@ TODO
    */
   Grid.prototype.destroy = function (removeElements) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var inst = this;
     var container = inst._element;
     var items = inst._items.concat();
     var i;
@@ -1299,11 +1317,13 @@ TODO
    */
   Grid.prototype._emit = function () {
 
-    if (!this._isDestroyed) {
-      this._emitter.emit.apply(this._emitter, arguments);
+    var inst = this;
+
+    if (!inst._isDestroyed) {
+      inst._emitter.emit.apply(inst._emitter, arguments);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -1663,27 +1683,23 @@ TODO
   Item.prototype._refreshDimensions = function () {
 
     var inst = this;
-    var element;
-    var rect;
-    var sides;
-    var side;
-    var margin;
-    var i;
 
     if (inst._isDestroyed || inst._isHidden) {
       return inst;
     }
 
-    element = inst._element;
+    var element = inst._element;
+    var rect = element.getBoundingClientRect();
+    var sides = ['left', 'right', 'top', 'bottom'];
+    var margin = inst._margin = inst._margin || {};
+    var side;
+    var i;
 
     // Calculate width and height.
-    rect = element.getBoundingClientRect();
     inst._width = rect.width;
     inst._height = rect.height;
 
     // Calculate margins (ignore negative margins).
-    sides = ['left', 'right', 'top', 'bottom'];
-    margin = inst._margin = inst._margin || {};
     for (i = 0; i < 4; i++) {
       side = getStyleAsFloat(element, 'margin-' + sides[i]);
       margin[sides[i]] = side > 0 ? side : 0;
@@ -1703,25 +1719,23 @@ TODO
   Item.prototype._refreshSortData = function () {
 
     var inst = this;
-    var sortData;
-    var getters;
 
-    if (!inst._isDestroyed) {
-
-      sortData = {};
-      getters = inst.getGrid()._settings.sortData;
-
-      // Fetch sort data.
-      if (getters) {
-        Object.keys(getters).forEach(function (key) {
-          sortData[key] = getters[key](inst, inst._element);
-        });
-      }
-
-      // Store sort data to the instance.
-      inst._sortData = sortData;
-
+    if (inst._isDestroyed) {
+      return inst;
     }
+
+    var sortData = {};
+    var getters = inst.getGrid()._settings.sortData;
+
+    // Fetch sort data.
+    if (getters) {
+      Object.keys(getters).forEach(function (key) {
+        sortData[key] = getters[key](inst, inst._element);
+      });
+    }
+
+    // Store sort data to the instance.
+    inst._sortData = sortData;
 
     return inst;
 
@@ -1738,11 +1752,12 @@ TODO
    */
   Item.prototype._layout = function (instant, onFinish) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var inst = this;
     var element = inst._element;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
@@ -1783,7 +1798,7 @@ TODO
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
-      isPositioning && rafLoop.cancelRead('layout' + inst._id).cancelWrite('layout' + inst._id);
+      isPositioning && rafLoop.cancelRead(rafQueueLayout + inst._id).cancelWrite(rafQueueLayout + inst._id);
       isAnimating = inst._animate.isAnimating();
       inst._stopLayout(false, targetStyles);
       !isAnimating && setStyles(element, targetStyles);
@@ -1796,13 +1811,13 @@ TODO
 
     // Get the element's current left and top position (in the next frame's
     // read batch).
-    rafLoop.addRead('layout' + inst._id, function () {
+    rafLoop.addRead(rafQueueLayout + inst._id, function () {
       currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
       currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
     });
 
     // Start animation in the next frame's write batch.
-    rafLoop.addWrite('layout' + inst._id, function () {
+    rafLoop.addWrite(rafQueueLayout + inst._id, function () {
 
       // If the item is already in correct position let's quit early.
       if (inst._left === currentLeft && inst._top === currentTop) {
@@ -1889,7 +1904,7 @@ TODO
     }
 
     // Cancel animation init.
-    rafLoop.cancelRead('layout' + inst._id).cancelWrite('layout' + inst._id);
+    rafLoop.cancelRead(rafQueueLayout + inst._id).cancelWrite(rafQueueLayout + inst._id);
 
     // Stop animation.
     inst._animate.stop(targetStyles);
@@ -1911,11 +1926,12 @@ TODO
 
   Item.prototype._show = function (instant, onFinish) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
     var callback = typeof onFinish === typeFunction ? onFinish : null;
@@ -1982,12 +1998,13 @@ TODO
    */
   Item.prototype._hide = function (instant, onFinish) {
 
+    var inst = this;
+
     // Return immediately if the instance is destroyed.
-    if (this._isDestroyed) {
-      return this;
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var inst = this;
     var element = inst._element;
     var queue = inst._visibilityQueue;
     var callback = typeof onFinish === typeFunction ? onFinish : null;
@@ -2058,11 +2075,12 @@ TODO
    */
   Item.prototype._destroy = function (removeElement) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var inst = this;
     var element = inst._element;
     var grid = inst.getGrid();
     var settings = grid._settings;
@@ -2190,15 +2208,17 @@ TODO
    */
   Emitter.prototype.on = function (event, listener) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var listeners = this._events[event] || [];
+    var listeners = inst._events[event] || [];
     listeners.push(listener);
-    this._events[event] = listeners;
+    inst._events[event] = listeners;
 
-    return this;
+    return inst;
 
   };
 
@@ -2232,11 +2252,13 @@ TODO
    */
   Emitter.prototype.off = function (event, listener) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var listeners = this._events[event] || [];
+    var listeners = inst._events[event] || [];
     var i = listeners.length;
 
     while (i--) {
@@ -2245,7 +2267,7 @@ TODO
       }
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -2262,11 +2284,13 @@ TODO
    */
   Emitter.prototype.emit = function (event, arg1, arg2, arg3) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var listeners = this._events[event] || [];
+    var listeners = inst._events[event] || [];
     var listenersLength = listeners.length;
     var argsLength = arguments.length - 1;
     var i;
@@ -2281,7 +2305,7 @@ TODO
       }
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -2294,20 +2318,22 @@ TODO
    */
   Emitter.prototype.destroy = function () {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var eventNames = Object.keys(this._events);
+    var eventNames = Object.keys(inst._events);
     var i;
 
     for (i = 0; i < eventNames.length; i++) {
-      this._events[eventNames[i]] = null;
+      inst._events[eventNames[i]] = null;
     }
 
-    this._isDestroyed = true;
+    inst._isDestroyed = true;
 
-    return this;
+    return inst;
 
   };
 
@@ -2326,11 +2352,12 @@ TODO
    */
   function ItemAnimate(item, element) {
 
-    this._item = item;
-    this._element = element;
-    this._animation = null;
-    this._propsTo = null;
-    this._isDestroyed = false;
+    var inst = this;
+    inst._item = item;
+    inst._element = element;
+    inst._animation = null;
+    inst._propsTo = null;
+    inst._isDestroyed = false;
 
   }
 
@@ -2354,11 +2381,12 @@ TODO
    */
   ItemAnimate.prototype.start = function (propsFrom, propsTo, options) {
 
-    if (this._isDestroyed) {
+    var inst = this;
+
+    if (inst._isDestroyed) {
       return;
     }
 
-    var inst = this;
     var opts = options || {};
     var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
     var shouldStop;
@@ -2533,11 +2561,12 @@ TODO
    */
   ItemMigrate.prototype.start = function (targetGrid, position, container) {
 
-    if (this._isDestroyed) {
-      return this;
+    var migrate = this;
+
+    if (migrate._isDestroyed) {
+      return migrate;
     }
 
-    var migrate = this;
     var item = migrate.getItem();
     var itemElement = item._element;
     var isItemVisible = item.isVisible();
@@ -2720,11 +2749,12 @@ TODO
    */
   ItemMigrate.prototype.stop = function (abort, currentStyles) {
 
-    if (this._isDestroyed || !this.isActive) {
-      return this;
+    var migrate = this;
+
+    if (migrate._isDestroyed || !migrate.isActive) {
+      return migrate;
     }
 
-    var migrate = this;
     var item = migrate.getItem();
     var element = item._element;
     var grid = item.getGrid();
@@ -2830,16 +2860,17 @@ TODO
   ItemRelease.prototype.reset = function () {
 
     var release = this;
-    var item;
 
-    if (!release._isDestroyed) {
-      item = release.getItem();
-      release.isActive = false;
-      release.isPositioningStarted = false;
-      release.containerDiffX = 0;
-      release.containerDiffY = 0;
-      removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
+    if (release._isDestroyed) {
+      return release;
     }
+
+    var item = release.getItem();
+    release.isActive = false;
+    release.isPositioningStarted = false;
+    release.containerDiffX = 0;
+    release.containerDiffY = 0;
+    removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
 
     return release;
 
@@ -2854,11 +2885,12 @@ TODO
    */
   ItemRelease.prototype.start = function () {
 
-    if (this._isDestroyed || this.isActive) {
-      return this;
+    var release = this;
+
+    if (release._isDestroyed || release.isActive) {
+      return release;
     }
 
-    var release = this;
     var item = release.getItem();
     var grid = item.getGrid();
 
@@ -2894,11 +2926,12 @@ TODO
    */
   ItemRelease.prototype.stop = function (abort, currentStyles) {
 
-    if (this._isDestroyed || !this.isActive) {
-      return this;
+    var release = this;
+
+    if (release._isDestroyed || !release.isActive) {
+      return release;
     }
 
-    var release = this;
     var item = release.getItem();
     var element = item._element;
     var grid = item.getGrid();
@@ -3653,10 +3686,10 @@ TODO
     var id = this.getItem()._id;
 
     rafLoop
-    .cancelRead('scroll' + id)
-    .cancelRead('move' + id)
-    .cancelWrite('scroll' + id)
-    .cancelWrite('move' + id);
+    .cancelRead(rafQueueScroll + id)
+    .cancelRead(rafQueueMove + id)
+    .cancelWrite(rafQueueScroll + id)
+    .cancelWrite(rafQueueMove + id);
 
     return this;
 
@@ -3837,7 +3870,7 @@ TODO
     var xDiff = event.deltaX - dragData.currentEvent.deltaX;
     var yDiff = event.deltaY - dragData.currentEvent.deltaY;
 
-    rafLoop.addRead('move' + item._id, function () {
+    rafLoop.addRead(rafQueueMove + item._id, function () {
 
       // Update current event.
       dragData.currentEvent = event;
@@ -3861,7 +3894,7 @@ TODO
 
     });
 
-    rafLoop.addWrite('move' + item._id, function () {
+    rafLoop.addWrite(rafQueueMove + item._id, function () {
 
       // Update element's translateX/Y values.
       setStyles(element, {transform: getTranslateString(dragData.left, dragData.top)});
@@ -3898,7 +3931,7 @@ TODO
     var yDiff;
     var offsetDiff;
 
-    rafLoop.addRead('scroll' + item._id, function () {
+    rafLoop.addRead(rafQueueScroll + item._id, function () {
 
       // Calculate element's rect and x/y diff.
       elementRect = element.getBoundingClientRect();
@@ -3929,7 +3962,7 @@ TODO
 
     });
 
-    rafLoop.addWrite('scroll' + item._id, function () {
+    rafLoop.addWrite(rafQueueScroll + item._id, function () {
 
       // Update element's translateX/Y values.
       setStyles(element, {transform: getTranslateString(dragData.left, dragData.top)});
@@ -4341,22 +4374,22 @@ TODO
   }
 
   /**
-   * Transforms a camel case string to kebab case.
+   * Helpers - DOM utils
+   * *******************
+   */
+
+  /**
+   * Transforms a camel case style property to kebab case style property.
    *
    * @private
    * @param {String} string
    * @returns {String}
    */
-  function camelToKebab(string) {
+  function getStyleName(string) {
 
     return string.replace(/([A-Z])/g, '-$1').toLowerCase();
 
   }
-
-  /**
-   * Helpers - DOM utils
-   * *******************
-   */
 
   /**
    * Returns the computed value of an element's style property as a string.
@@ -4433,7 +4466,7 @@ TODO
     var i;
 
     for (i = 0; i < keys.length; i++) {
-      current[keys[i]] = getStyle(element, camelToKebab(keys[i]));
+      current[keys[i]] = getStyle(element, getStyleName(keys[i]));
     }
 
     return current;
@@ -5108,7 +5141,6 @@ TODO
   function getItemVisibilityHandler(type, settings) {
 
     var isShow = type === 'show';
-    var rafQueueName = 'visibility';
     var duration = parseInt(isShow ? settings.showDuration : settings.hideDuration) || 0;
     var easing = (isShow ? settings.showEasing : settings.hideEasing) || 'ease';
     var styles = isShow ? settings.visibleStyles : settings.hiddenStyles;
@@ -5123,7 +5155,7 @@ TODO
           onFinish && onFinish();
         }
         else {
-          rafLoop.cancelRead(rafQueueName + item._id).cancelWrite(rafQueueName + item._id);
+          rafLoop.cancelRead(rafQueueVisibility + item._id).cancelWrite(rafQueueVisibility + item._id);
           if (!isEnabled || instant) {
             if (item._animateChild.isAnimating()) {
               item._animateChild.stop(styles);
@@ -5134,10 +5166,10 @@ TODO
             onFinish && onFinish();
           }
           else {
-            rafLoop.addRead(rafQueueName + item._id, function () {
+            rafLoop.addRead(rafQueueVisibility + item._id, function () {
               currentStyles = getCurrentStyles(item._child, styles);
             });
-            rafLoop.addWrite(rafQueueName + item._id, function () {
+            rafLoop.addWrite(rafQueueVisibility + item._id, function () {
               item._animateChild.start(currentStyles, styles, {
                 duration: duration,
                 easing: easing,
@@ -5148,7 +5180,7 @@ TODO
         }
       },
       stop: function (item, targetStyles) {
-        rafLoop.cancelRead(rafQueueName + item._id).cancelWrite(rafQueueName + item._id);
+        rafLoop.cancelRead(rafQueueVisibility + item._id).cancelWrite(rafQueueVisibility + item._id);
         item._animateChild.stop(targetStyles);
       }
     };

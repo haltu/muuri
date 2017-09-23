@@ -28,14 +28,14 @@ Muuri uses [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API
 ### 1. Get Muuri
 
 Download from GitHub:
-* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.4.1/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.4.1/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.5.0/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.5.0/muuri.min.js) - for production (minified, no comments).
 
 Or link directly via CDNJS:
 
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.4.1/muuri.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.4.1/muuri.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.0/muuri.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.0/muuri.min.js"></script>
 ```
 
 Or install with [npm](https://www.npmjs.com/):
@@ -1733,7 +1733,7 @@ grid.on('dragStart', function (item, event) {
 
 ### dragMove
 
-Triggered when an item is dragged.
+Triggered when an item is dragged after the *drag start* process.
 
 **Arguments**
 

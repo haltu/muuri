@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.6.0-dev
+ * Muuri v0.5.0-dev
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -36,7 +36,10 @@ TODO
       - [ ] Animation stopping
 - [x] Dynamic drag sort groups system.
 - [x] Deprecate custom show/hide functions.
-- [ ] Freeze item functionality for the duration of drag.
+- [ ] Use WeakMap to make the getItems method work even faster and avoiding
+      excessive looping. Other methods would benefit from this too (.add()).
+- [ ] Changing layout animation on the fly with many items causes items to jump
+      a bit on Firefox. Try to fix it.
 */
 
 (function (global, factory) {
@@ -648,9 +651,9 @@ TODO
 
     var callback = typeof instant === typeFunction ? instant : onFinish;
     var isInstant = instant === true;
-    var counter = 0;
-    var layout;
-    var items;
+    var items = inst.getItems('active');
+    var layout = inst._layout = new Grid.Layout(inst, items);
+    var counter = items.length;
     var isBorderBox;
     var item;
     var position;
@@ -670,12 +673,6 @@ TODO
         }
       }
     }
-
-    // Create a new layout and store the new layout instance into the grid
-    // instance.
-    items = inst.getItems('active');
-    layout = inst._layout = new Grid.Layout(inst, items);
-    counter = items.length;
 
     // If grid's width or height was modified, we need to update it's cached
     // dimensions. Also keep in mind that grid's cached width/height should
@@ -767,9 +764,15 @@ TODO
     }
 
     var targetElements = [].concat(elements);
+    var newItems = [];
+
+    // Return early if there are no items.
+    if (!targetElements.length) {
+      return newItems;
+    }
+
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var newItems = [];
     var items = inst._items;
     var needsLayout = false;
     var elementIndex;
@@ -781,12 +784,10 @@ TODO
       elementIndex = targetElements.indexOf(items[i]._element);
       if (elementIndex > -1) {
         targetElements.splice(elementIndex, 1);
+        if (!targetElements.length) {
+          return newItems;
+        }
       }
-    }
-
-    // Return early if there are no valid items.
-    if (!targetElements.length) {
-      return newItems;
     }
 
     // Create new items.
@@ -1798,7 +1799,7 @@ TODO
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
-      isPositioning && rafLoop.cancelRead(rafQueueLayout + inst._id).cancelWrite(rafQueueLayout + inst._id);
+      isPositioning && rafLoop.cancel(rafQueueLayout, inst._id);
       isAnimating = inst._animate.isAnimating();
       inst._stopLayout(false, targetStyles);
       !isAnimating && setStyles(element, targetStyles);
@@ -1809,15 +1810,12 @@ TODO
     // Set item as positioning.
     inst._isPositioning = true;
 
-    // Get the element's current left and top position (in the next frame's
-    // read batch).
-    rafLoop.addRead(rafQueueLayout + inst._id, function () {
+    // Get the element's current left and top position in the read callback.
+    // Then in the write callback do the animation if necessary.
+    rafLoop.add(rafQueueLayout, inst._id, function () {
       currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
       currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
-    });
-
-    // Start animation in the next frame's write batch.
-    rafLoop.addWrite(rafQueueLayout + inst._id, function () {
+    }, function () {
 
       // If the item is already in correct position let's quit early.
       if (inst._left === currentLeft && inst._top === currentTop) {
@@ -1904,7 +1902,7 @@ TODO
     }
 
     // Cancel animation init.
-    rafLoop.cancelRead(rafQueueLayout + inst._id).cancelWrite(rafQueueLayout + inst._id);
+    rafLoop.cancel(rafQueueLayout, inst._id);
 
     // Stop animation.
     inst._animate.stop(targetStyles);
@@ -1978,8 +1976,10 @@ TODO
     // If we need to animate.
     else {
       grid._itemShowHandler.start(inst, instant, function () {
-        inst._isShowing = false;
-        processQueue(queue, false, inst);
+        if (!inst._isHidden) {
+          inst._isShowing = false;
+          processQueue(queue, false, inst);
+        }
       });
     }
 
@@ -2053,11 +2053,13 @@ TODO
     // If we need to animate.
     else {
       grid._itemHideHandler.start(inst, instant, function () {
-        inst._isHiding = false;
-        // TODO: This causes layout thrashing!!!
-        inst._stopLayout(true);
-        setStyles(element, {display: 'none'});
-        processQueue(queue, false, inst);
+        if (inst._isHidden) {
+          inst._isHiding = false;
+          // TODO: This causes layout thrashing!!!
+          inst._stopLayout(true);
+          setStyles(element, {display: 'none'});
+          processQueue(queue, false, inst);
+        }
       });
     }
 
@@ -3685,11 +3687,8 @@ TODO
 
     var id = this.getItem()._id;
 
-    rafLoop
-    .cancelRead(rafQueueScroll + id)
-    .cancelRead(rafQueueMove + id)
-    .cancelWrite(rafQueueScroll + id)
-    .cancelWrite(rafQueueMove + id);
+    rafLoop.cancel(rafQueueScroll, id);
+    rafLoop.cancel(rafQueueMove, id);
 
     return this;
 
@@ -3870,7 +3869,7 @@ TODO
     var xDiff = event.deltaX - dragData.currentEvent.deltaX;
     var yDiff = event.deltaY - dragData.currentEvent.deltaY;
 
-    rafLoop.addRead(rafQueueMove + item._id, function () {
+    rafLoop.add(rafQueueMove, item._id, function () {
 
       // Update current event.
       dragData.currentEvent = event;
@@ -3892,9 +3891,7 @@ TODO
       // Overlap handling.
       settings.dragSort && drag._checkSortOverlap();
 
-    });
-
-    rafLoop.addWrite(rafQueueMove + item._id, function () {
+    }, function () {
 
       // Update element's translateX/Y values.
       setStyles(element, {transform: getTranslateString(dragData.left, dragData.top)});
@@ -3903,9 +3900,6 @@ TODO
       grid._emit(evDragMove, item, event);
 
     });
-
-    // Emit dragMove event.
-    grid._emit(evDragMove, item, event);
 
     return drag;
 
@@ -3934,7 +3928,7 @@ TODO
     var yDiff;
     var offsetDiff;
 
-    rafLoop.addRead(rafQueueScroll + item._id, function () {
+    rafLoop.add(rafQueueScroll, item._id, function () {
 
       // Calculate element's rect and x/y diff.
       elementRect = element.getBoundingClientRect();
@@ -3963,9 +3957,7 @@ TODO
       // Overlap handling.
       settings.dragSort && drag._checkSortOverlap();
 
-    });
-
-    rafLoop.addWrite(rafQueueScroll + item._id, function () {
+    }, function () {
 
       // Update element's translateX/Y values.
       setStyles(element, {transform: getTranslateString(dragData.left, dragData.top)});
@@ -4284,10 +4276,9 @@ TODO
   function createRafLoop() {
 
     var nextTick = null;
-    var readQueue = [];
-    var writeQueue = [];
-    var readMap = {};
-    var writeMap = {};
+    var maxBatchSize = 100;
+    var queue = [];
+    var map = {};
     var raf = (global.requestAnimationFrame
       || global.webkitRequestAnimationFrame
       || global.mozRequestAnimationFrame
@@ -4296,83 +4287,68 @@ TODO
         return global.setTimeout(cb, 16);
       }
     ).bind(global);
-    var ret = {
-      addWrite: function (id, cb) {
-        return add(id, cb, writeQueue, writeMap);
-      },
-      addRead: function (id, cb) {
-        return add(id, cb, readQueue, readMap);
-      },
-      cancelWrite: function (id) {
-        return cancel(id, writeQueue, writeMap);
-      },
-      cancelRead: function (id) {
-        return cancel(id, readQueue, readMap);
-      }
-    };
 
-    function add(id, cb, targetQueue, targetMap) {
+    function add(type, id, readCallback, writeCallback) {
 
-      // First, let's check if an item has been added to the queue with the
+      // First, let's check if an item has been added to the queues with the
       // same id and remove it.
-      var currentIndex = targetQueue.indexOf(id);
+      var currentIndex = queue.indexOf(type + id);
       if (currentIndex > -1) {
-        targetQueue.splice(currentIndex, 1);
+        queue.splice(currentIndex, 1);
       }
 
-      // Then let's add the id to the end of the queue, and update the map.
-      targetQueue.push(id);
-      targetMap[id] = cb;
+      // Add all move/scroll event callbacks to the beginning of the queue
+      // and other callbacks to the end of the queue.
+      type === rafQueueMove || type === rafQueueScroll ? queue.unshift(type + id) : queue.push(type + id);
+      map[type + id] = [readCallback, writeCallback];
 
       // Finally, let's kickstart the next tick if it is not running yet.
       !nextTick && (nextTick = raf(flush));
 
-      return ret;
-
     }
 
-    function cancel(id, targetQueue, targetMap) {
+    function cancel(type, id) {
 
       // Let's check if an item has been added to the queue with the id and
       // if so -> remove it.
-      var currentIndex = targetQueue.indexOf(id);
+      var currentIndex = queue.indexOf(type + id);
       if (currentIndex > -1) {
-        targetQueue.splice(currentIndex, 1);
-        targetMap[id] = undefined;
+        queue.splice(currentIndex, 1);
+        map[type + id] = undefined;
       }
-
-      return ret;
 
     }
 
     function flush() {
 
-      var readQueueCopy = readQueue;
-      var writeQueueCopy = writeQueue;
-      var readMapCopy = readMap;
-      var writeMapCopy = writeMap;
+      var batch = queue.splice(0, maxBatchSize);
       var i;
 
-      // Reset read/write queues and maps, and next tick.
-      readQueue = [];
-      writeQueue = [];
-      readMap = {};
-      writeMap = {};
+      // Reset ticker.
       nextTick = null;
 
-      // Process read queue.
-      for (i = 0; i < readQueueCopy.length; i++) {
-        readMapCopy[readQueueCopy[i]]();
+      // Process read callbacks.
+      for (i = 0; i < batch.length; i++) {
+        map[batch[i]][0]();
       }
 
-      // Process write queue.
-      for (i = 0; i < writeQueueCopy.length; i++) {
-        writeMapCopy[writeQueueCopy[i]]();
+      // Process write callbacks and clear map items.
+      for (i = 0; i < batch.length; i++) {
+        map[batch[i]][1]();
+        map[batch[i]] = undefined;
+      }
+
+      // Restart the ticker if needed.
+      if (!nextTick && queue.length) {
+        nextTick = raf(flush);
       }
 
     }
 
-    return ret;
+    return {
+      add: add,
+      cancel: cancel
+    };
 
   }
 
@@ -5158,7 +5134,7 @@ TODO
           onFinish && onFinish();
         }
         else {
-          rafLoop.cancelRead(rafQueueVisibility + item._id).cancelWrite(rafQueueVisibility + item._id);
+          rafLoop.cancel(rafQueueVisibility, item._id);
           if (!isEnabled || instant) {
             if (item._animateChild.isAnimating()) {
               item._animateChild.stop(styles);
@@ -5169,10 +5145,9 @@ TODO
             onFinish && onFinish();
           }
           else {
-            rafLoop.addRead(rafQueueVisibility + item._id, function () {
+            rafLoop.add(rafQueueVisibility, item._id, function () {
               currentStyles = getCurrentStyles(item._child, styles);
-            });
-            rafLoop.addWrite(rafQueueVisibility + item._id, function () {
+            }, function () {
               item._animateChild.start(currentStyles, styles, {
                 duration: duration,
                 easing: easing,
@@ -5183,7 +5158,7 @@ TODO
         }
       },
       stop: function (item, targetStyles) {
-        rafLoop.cancelRead(rafQueueVisibility + item._id).cancelWrite(rafQueueVisibility + item._id);
+        rafLoop.cancel(rafQueueVisibility, item._id);
         item._animateChild.stop(targetStyles);
       }
     };
@@ -5397,7 +5372,7 @@ TODO
    */
 
   /*!
-    * muuriLayout v0.6.0-dev
+    * muuriLayout v0.5.0-dev
     * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
     * Released under the MIT license
     */

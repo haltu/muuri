@@ -1,6 +1,7 @@
 (function (window) {
 
   var Muuri = window.Muuri;
+  var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
@@ -16,7 +17,7 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(grid.add(elem), grid.getItems(elem));
+    assert.deepEqual(idList(grid.add(elem)), idList(grid.getItems(elem)));
     teardown();
 
   });
@@ -35,8 +36,8 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(grid.add(elemA), grid.getItems(elemA));
-    assert.deepEqual(grid.add([elemB, elemC]), grid.getItems([elemB, elemC]));
+    assert.deepEqual(idList(grid.add(elemA)), idList(grid.getItems(elemA)));
+    assert.deepEqual(idList(grid.add([elemB, elemC])), idList(grid.getItems([elemB, elemC])));
     teardown();
 
   });
@@ -154,7 +155,7 @@
 
     grid.on('layoutEnd', function (items) {
       assert.notStrictEqual(args, items, 'layout callback items argument should not the same object as the layoutEnd event callback`s argument');
-      assert.deepEqual(args, items, 'layout callback should receive the same items as the layoutEnd event callback');
+      assert.deepEqual(idList(args), idList(items), 'layout callback should receive the same items as the layoutEnd event callback');
       teardown();
     });
 

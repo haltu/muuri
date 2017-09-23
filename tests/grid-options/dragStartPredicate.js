@@ -13,9 +13,9 @@
     var isChecked = false;
     var grid = new Muuri(container, {
       dragEnabled: true,
-      dragStartPredicate: function (draggedItem, ev, resolve) {
+      dragStartPredicate: function (draggedItem, ev) {
         if (!isChecked) {
-          assert.strictEqual(arguments.length, 2, 'predicate should receive three aguments');
+          assert.strictEqual(arguments.length, 2, 'predicate should receive two aguments');
           assert.strictEqual(draggedItem, item, 'predicate first argument should be the dragged item');
           assert.strictEqual(utils.isHammerEvent(ev), true, 'predicate second argument should be a hammer event');
           isChecked = true;

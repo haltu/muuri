@@ -19,7 +19,7 @@
     utils.setStyles(container, {height: ''});
     grid.on('layoutStart', function (items) {
       assert.strictEqual(arguments.length, 1, 'should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems('active')), 'should be an array of the items that are about to be laid out');
+      assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(grid.getItems('active')), 'should be an array of the items that are about to be laid out');
       assert.notStrictEqual(grid._layout, layout, 'should be called after layout is created');
       assert.notStrictEqual(container.style.height, '', 'should be called after container dimensions are updated');
     });

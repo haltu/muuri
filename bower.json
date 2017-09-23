@@ -26,7 +26,6 @@
   ],
   "moduleType": ["globals", "node", "amd"],
   "dependencies": {
-    "hammerjs": "^2.0.0",
-    "velocity": "^1.2.0"
+    "hammerjs": "^2.0.0"
   }
 }

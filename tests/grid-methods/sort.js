@@ -1,6 +1,7 @@
 (function (window) {
 
   var Muuri = window.Muuri;
+  var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
@@ -47,11 +48,11 @@
 
     // Test the default ascending order.
     grid.sort(sortByFoo);
-    assert.deepEqual(grid.getItems(), newItems, 'the items should be in ascending order by default');
+    assert.deepEqual(idList(grid.getItems()), idList(newItems), 'the items should be in ascending order by default');
 
     // Test descending flag.
     grid.sort(sortByFoo, {descending: true});
-    assert.deepEqual(grid.getItems(), newItems.reverse(), 'the items should be in descending order when descending option is true');
+    assert.deepEqual(idList(grid.getItems()), idList(newItems.reverse()), 'the items should be in descending order when descending option is true');
 
     teardown();
 
@@ -86,15 +87,15 @@
 
     // Test the default ascending order.
     grid.sort('foo');
-    assert.deepEqual(grid.getItems(), newItems.concat(), 'the items should be in ascending order by default');
+    assert.deepEqual(idList(grid.getItems()), idList(newItems.concat()), 'the items should be in ascending order by default');
 
     // Test property's descending flag.
     grid.sort('foo:desc');
-    assert.deepEqual(grid.getItems(), newItems.concat().reverse(), 'the items should be in descending order when "desc" flag is added to the property');
+    assert.deepEqual(idList(grid.getItems()), idList(newItems.concat().reverse()), 'the items should be in descending order when "desc" flag is added to the property');
 
     // Test property's descending flag.
     grid.sort('foo', {descending: true});
-    assert.deepEqual(grid.getItems(), newItems.concat().reverse(), 'the items should be in descending order when descending option is true');
+    assert.deepEqual(idList(grid.getItems()), idList(newItems.concat().reverse()), 'the items should be in descending order when descending option is true');
 
     teardown();
 
@@ -146,19 +147,19 @@
     grid.refreshSortData();
 
     grid.sort('foo bar');
-    assert.deepEqual(grid.getItems(), itemsFooBar, 'foo bar');
+    assert.deepEqual(idList(grid.getItems()), idList(itemsFooBar), 'foo bar');
 
     grid.sort('bar foo');
-    assert.deepEqual(grid.getItems(), itemsBarFoo, 'bar foo');
+    assert.deepEqual(idList(grid.getItems()), idList(itemsBarFoo), 'bar foo');
 
     grid.sort('foo bar', {descending: true});
-    assert.deepEqual(grid.getItems(), itemsFooBarDesc, 'foo bar (descending)');
+    assert.deepEqual(idList(grid.getItems()), idList(itemsFooBarDesc), 'foo bar (descending)');
 
     grid.sort('bar foo', {descending: true});
-    assert.deepEqual(grid.getItems(), itemsBarFooDesc, 'bar foo (descending)');
+    assert.deepEqual(idList(grid.getItems()), idList(itemsBarFooDesc), 'bar foo (descending)');
 
     grid.sort('bar:desc foo');
-    assert.deepEqual(grid.getItems(), itemsBarFooSpecial, 'bar:desc foo');
+    assert.deepEqual(idList(grid.getItems()), idList(itemsBarFooSpecial), 'bar:desc foo');
 
     teardown();
 
@@ -178,7 +179,7 @@
     };
 
     grid.sort(newItems);
-    assert.deepEqual(grid.getItems(), newItems);
+    assert.deepEqual(idList(grid.getItems()), idList(newItems));
 
     teardown();
 

@@ -26,7 +26,7 @@
         }
       });
       assert.strictEqual(arguments.length, 1, 'callback: should have a single argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(expectedItems), 'callback: first argument should be an array of items that were active when the layout was triggered');
+      assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(expectedItems), 'callback: first argument should be an array of items that were active when the layout was triggered');
       assert.strictEqual(isAnyItemPositioning, false, 'callback: none of the items in the first argument should be in positioning state');
       teardown();
     });

@@ -76,10 +76,10 @@
         background: '#000'
       }
     });
+    var grids = [];
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
-      dragSortGroup: '*',
-      dragSortWith: ['*'],
+      dragSortWith: grids,
       dragSortInterval: 100,
       dragSortPredicate: {
         threshold: 50,
@@ -88,8 +88,7 @@
     });
     var gridB = new Muuri(containerB, {
       dragEnabled: true,
-      dragSortGroup: '*',
-      dragSortWith: ['*'],
+      dragSortWith: grids,
       dragSortInterval: 100,
       dragSortPredicate: {
         threshold: 50,
@@ -104,6 +103,8 @@
       containerB.parentNode.removeChild(containerB);
       done();
     };
+
+    grids.push(gridA, gridB);
 
     gridB.on('receive', function (data) {
       assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');

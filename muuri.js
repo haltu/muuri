@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.4.1
+ * Muuri v0.6.0-dev
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -22,31 +22,44 @@
  * SOFTWARE.
  */
 
+/*
+TODO
+****
+- [x] Use web animations API.
+- [x] Minimize layout thrashing. There are some major issues that can be
+      noticed when animating hundreds of elements.
+      - [x] Layout system
+      - [x] Visibility system
+      - [x] Drag onMove/onScroll
+      - [x] Drag onStart
+      - [x] Migration API
+      - [ ] Animation stopping
+- [x] Dynamic drag sort groups system.
+- [x] Deprecate custom show/hide functions.
+- [ ] Freeze item functionality for the duration of drag.
+*/
+
 (function (global, factory) {
 
   var namespace = 'Muuri';
-  var Velocity;
   var Hammer;
 
   if (typeof module === 'object' && module.exports) {
     /* eslint-disable */
-    try { Velocity = require('velocity-animate'); } catch (e) {}
     try { Hammer = require('hammerjs'); } catch (e) {}
     /* eslint-enable */
-    module.exports = factory(namespace, Velocity, Hammer);
+    module.exports = factory(namespace, Hammer);
   }
   else if (typeof define === 'function' && define.amd) {
-    define(['velocity-animate', 'hammerjs'], function (Velocity, Hammer) {
-      return factory(namespace, Velocity, Hammer);
+    define(['hammerjs'], function (Hammer) {
+      return factory(namespace, Hammer);
     });
   }
   else {
-    Velocity = global.Velocity || (global.jQuery && global.jQuery.Velocity);
-    Hammer = global.Hammer;
-    global[namespace] = factory(namespace, Velocity, Hammer);
+    global[namespace] = factory(namespace, global.Hammer);
   }
 
-}(typeof window !== 'undefined' ? window : this, function (namespace, Velocity, Hammer, undefined) {
+}(typeof window !== 'undefined' ? window : this, function (namespace, Hammer, undefined) {
 
   'use strict';
 
@@ -66,24 +79,27 @@
   var typeString = 'string';
   var typeNumber = 'number';
 
+  // Raf loop that can be used to organize DOM write and read operations
+  // optimally in the next animation frame.
+  var rafLoop = createRafLoop();
+
+  // Raf loop queue names.
+  var rafQueueLayout = 'layout';
+  var rafQueueVisibility = 'visibility';
+  var rafQueueMove = 'move';
+  var rafQueueScroll = 'scroll';
+
   // Drag start predicate states.
   var startPredicateInactive = 0;
   var startPredicatePending = 1;
   var startPredicateResolved = 2;
   var startPredicateRejected = 3;
 
-  // Keep track of window width/height.
-  var winWidth;
-  var winHeight;
-
   // Keep track of Grid instances.
   var gridInstances = {};
 
   // Keep track of Item instances.
   var itemInstances = {};
-
-  // Keep track of the drag sort groups.
-  var dragSortGroups = {};
 
   // No operation function.
   var noop = function () {};
@@ -140,13 +156,11 @@
    * @param {(HTMLElement|String)} element
    * @param {Object} [options]
    * @param {(?HTMLElement[]|NodeList|String)} [options.items]
-   * @param {?Function} [options.showAnimation=null]
    * @param {Number} [options.showDuration=300]
-   * @param {(Number[]|String)} [options.showEasing="ease"]
+   * @param {String} [options.showEasing="ease"]
    * @param {Object} [options.visibleStyles]
-   * @param {?Function} [options.hideAnimation=null]
    * @param {Number} [options.hideDuration=300]
-   * @param {(Number[]|String)} [options.hideEasing="ease"]
+   * @param {String} [options.hideEasing="ease"]
    * @param {Object} [options.hiddenStyles]
    * @param {(Function|Object)} [options.layout]
    * @param {Boolean} [options.layout.fillGaps=false]
@@ -157,7 +171,7 @@
    * @param {(Boolean|Number)} [options.layoutOnResize=100]
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
-   * @param {(Number[]|String)} [options.layoutEasing="ease"]
+   * @param {String} [options.layoutEasing="ease"]
    * @param {?Object} [options.sortData=null]
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?HtmlElement} [options.dragContainer=null]
@@ -172,10 +186,9 @@
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {String} [options.dragSortPredicate.gaps=true]
-   * @param {?(Array|String)} [options.dragSortGroup=null]
-   * @param {?(Array|String)} [options.dragSortWith=null]
+   * @param {?Array} [options.dragSortWith=null]
    * @param {Number} [options.dragReleaseDuration=300]
-   * @param {(Number[]|String)} [options.dragReleaseEasing="ease"]
+   * @param {String} [options.dragReleaseEasing="ease"]
    * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
@@ -226,21 +239,9 @@
     // Create private Emitter instance.
     inst._emitter = new Grid.Emitter();
 
-    // Setup instance's sort group.
-    inst._setSortGroups(settings.dragSortGroup);
-
-    // Setup instance's sort connections.
-    inst._sortConnections = settings.dragSortWith && settings.dragSortWith.length ? [].concat(settings.dragSortWith) : null;
-
-    // Setup show animations for items.
-    inst._itemShowHandler = typeof settings.showAnimation === typeFunction ?
-      settings.showAnimation(settings.showDuration, settings.showEasing, settings.visibleStyles) :
-      getItemVisibilityHandler('show', settings.showDuration, settings.showEasing, settings.visibleStyles);
-
-    // Setup hide animations for items.
-    inst._itemHideHandler = typeof settings.hideAnimation === typeFunction ?
-      settings.hideAnimation(settings.hideDuration, settings.hideEasing, settings.hiddenStyles) :
-      getItemVisibilityHandler('hide', settings.hideDuration, settings.hideEasing, settings.hiddenStyles);
+    // Setup grid's show/hide animation handler for items.
+    inst._itemShowHandler = getItemVisibilityHandler('show', settings);
+    inst._itemHideHandler = getItemVisibilityHandler('hide', settings);
 
     // Add container element's class name.
     addClass(element, settings.containerClass);
@@ -337,18 +338,14 @@
     hideDuration: 300,
     hideEasing: 'ease',
 
-    // Custom show/hide animations
-    showAnimation: null,
-    hideAnimation: null,
-
     // Item's visible/hidden state styles
     visibleStyles: {
-      opacity: 1,
-      scale: 1
+      opacity: '1',
+      transform: 'scale(1)'
     },
     hiddenStyles: {
-      opacity: 0,
-      scale: 0.5
+      opacity: '0',
+      transform: 'scale(0.5)'
     },
 
     // Layout
@@ -382,7 +379,6 @@
       threshold: 50,
       action: 'move'
     },
-    dragSortGroup: null,
     dragSortWith: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
@@ -417,11 +413,13 @@
    */
   Grid.prototype.on = function (event, listener) {
 
-    if (!this._isDestroyed) {
-      this._emitter.on(event, listener);
+    var inst = this;
+
+    if (!inst._isDestroyed) {
+      inst._emitter.on(event, listener);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -436,11 +434,13 @@
    */
   Grid.prototype.once = function (event, listener) {
 
-    if (!this._isDestroyed) {
-      this._emitter.once(event, listener);
+    var inst = this;
+
+    if (!inst._isDestroyed) {
+      inst._emitter.once(event, listener);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -455,11 +455,13 @@
    */
   Grid.prototype.off = function (event, listener) {
 
-    if (!this._isDestroyed) {
-      this._emitter.off(event, listener);
+    var inst = this;
+
+    if (!inst._isDestroyed) {
+      inst._emitter.off(event, listener);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -492,17 +494,18 @@
   Grid.prototype.getItems = function (targets, state) {
 
     var inst = this;
+
+    // Return an empty array immediately if the instance is destroyed.
+    if (inst._isDestroyed) {
+      return [];
+    }
+
     var hasTargets = targets === 0 || (targets && typeof targets !== typeString);
     var targetItems = !hasTargets ? null : isNodeList(targets) ? nodeListToArray(targets) : [].concat(targets);
     var targetState = !hasTargets ? targets : state;
     var ret = [];
     var item;
     var i;
-
-    // Return an empty array immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return ret;
-    }
 
     // Sanitize target state.
     targetState = typeof targetState === typeString ? targetState : null;
@@ -537,14 +540,16 @@
   Grid.prototype.refreshItems = function (items) {
 
     var inst = this;
-    var targetItems;
+
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    var targetItems = inst.getItems(items || 'active');
     var i;
 
-    if (!inst._isDestroyed) {
-      targetItems = inst.getItems(items || 'active');
-      for (i = 0; i < targetItems.length; i++) {
-        targetItems[i]._refreshDimensions();
-      }
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._refreshDimensions();
     }
 
     return inst;
@@ -562,14 +567,16 @@
   Grid.prototype.refreshSortData = function (items) {
 
     var inst = this;
-    var targetItems;
+
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
+    var targetItems = inst.getItems(items);
     var i;
 
-    if (!inst._isDestroyed) {
-      targetItems = inst.getItems(items);
-      for (i = 0; i < targetItems.length; i++) {
-        targetItems[i]._refreshSortData();
-      }
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._refreshSortData();
     }
 
     return inst;
@@ -590,16 +597,16 @@
   Grid.prototype.synchronize = function () {
 
     var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
     var container = inst._element;
     var items = inst._items;
     var fragment;
     var element;
     var i;
-
-    // Return immediately if instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
 
     // Append all elements in order to the container element.
     if (items.length) {
@@ -634,6 +641,11 @@
   Grid.prototype.layout = function (instant, onFinish) {
 
     var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
     var callback = typeof instant === typeFunction ? instant : onFinish;
     var isInstant = instant === true;
     var counter = 0;
@@ -643,11 +655,6 @@
     var item;
     var position;
     var i;
-
-    // Return immediately if instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
 
     // The finish function, which will be used for checking if all the items
     // have laid out yet. After all items have finished their animations call
@@ -706,11 +713,6 @@
       return inst;
     }
 
-    // If there are items let's get window's width/height for the layout
-    // animation optimization algorithm.
-    winWidth = global.innerWidth;
-    winHeight = global.innerHeight;
-
     // If there are items let's position them.
     for (i = 0; i < items.length; i++) {
 
@@ -759,6 +761,11 @@
   Grid.prototype.add = function (elements, options) {
 
     var inst = this;
+
+    if (inst._isDestroyed) {
+      return [];
+    }
+
     var targetElements = [].concat(elements);
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
@@ -768,11 +775,6 @@
     var elementIndex;
     var item;
     var i;
-
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return [];
-    }
 
     // Filter out all elements that exist already in current instance.
     for (i = 0; i < items.length; i++) {
@@ -835,20 +837,19 @@
   Grid.prototype.remove = function (items, options) {
 
     var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var needsLayout = false;
-    var targetItems;
+    var targetItems = inst.getItems(items);
     var item;
     var i;
 
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return [];
-    }
-
     // Remove the individual items.
-    targetItems = inst.getItems(items);
     for (i = 0; i < targetItems.length; i++) {
       item = targetItems[i];
       if (item._isActive) {
@@ -927,6 +928,12 @@
   Grid.prototype.filter = function (predicate, options) {
 
     var inst = this;
+
+    // Return immediately if there are no items or if the instance id destroyed.
+    if (inst._isDestroyed || !inst._items.length) {
+      return inst;
+    }
+
     var items = inst._items;
     var predicateType = typeof predicate;
     var isPredicateString = predicateType === typeString;
@@ -938,21 +945,11 @@
     var itemsToShow = [];
     var itemsToHide = [];
     var tryFinishCounter = -1;
-    var tryFinish;
+    var tryFinish = !onFinish ? noop : function () {
+      ++tryFinishCounter && onFinish(itemsToShow.concat(), itemsToHide.concat());
+    };
     var item;
     var i;
-
-    // Return immediately if there are no items or if the instance id destroyed.
-    if (inst._isDestroyed || !items.length) {
-      return inst;
-    }
-
-    // Create finisher function.
-    tryFinish = !onFinish ? noop : function () {
-      if (++tryFinishCounter) {
-        onFinish(itemsToShow.concat(), itemsToHide.concat());
-      }
-    };
 
     // Check which items need to be shown and which hidden.
     if (isPredicateFn || isPredicateString) {
@@ -1029,20 +1026,18 @@
   Grid.prototype.sort = function (comparer, options) {
 
     var inst = this;
+
+    // Let's not sort if it has no effect.
+    if (inst._isDestroyed || inst._items.length < 2) {
+      return inst;
+    }
+
     var items = inst._items;
     var opts = options || {};
     var isDescending = !!opts.descending;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var origItems;
+    var origItems = items.concat();
     var indexMap;
-
-    // Let's not sort if it has no effect.
-    if (inst._isDestroyed || items.length < 2) {
-      return inst;
-    }
-
-    // Clone current set of items for the event.
-    origItems = items.concat();
 
     // If function is provided do a native array sort.
     if (typeof comparer === typeFunction) {
@@ -1107,23 +1102,21 @@
   Grid.prototype.move = function (item, position, options) {
 
     var inst = this;
+
+    // Return immediately, if moving an item is not possible.
+    if (inst._isDestroyed || inst._items.length < 2) {
+      return inst;
+    }
+
     var items = inst._items;
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var isSwap = opts.action === 'swap';
     var action = isSwap ? 'swap' : 'move';
-    var fromItem;
-    var toItem;
+    var fromItem = inst._getItem(item);
+    var toItem = inst._getItem(position);
     var fromIndex;
     var toIndex;
-
-    // Return immediately, if moving an item is not possible.
-    if (inst._isDestroyed || items.length < 2) {
-      return inst;
-    }
-
-    fromItem = inst._getItem(item);
-    toItem = inst._getItem(position);
 
     // Make sure the items exist and are not the same.
     if (fromItem && toItem && (fromItem !== toItem)) {
@@ -1170,26 +1163,19 @@
    */
   Grid.prototype.send = function (item, grid, position, options) {
 
+    var currentGrid = this;
+
     // Return immediately if either grid is destroyed or if the grids are the
-    // same.
-    if (this._isDestroyed || grid._isDestroyed || this === grid) {
-      return this;
+    // same, or if target item was not found.
+    if (currentGrid._isDestroyed || grid._isDestroyed || currentGrid === grid || !(item = currentGrid._getItem(item))) {
+      return currentGrid;
     }
 
-    var currentGrid = this;
     var targetGrid = grid;
     var opts = options || {};
     var container = opts.appendTo || body;
     var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
     var layoutReceiver = opts.layoutReceiver ? opts.layoutReceiver : opts.layoutReceiver === undefined;
-
-    // Get the target item.
-    item = currentGrid._getItem(item);
-
-    // If no valid item was found, let's stop here.
-    if (!item) {
-      return currentGrid;
-    }
 
     // Start the migration process.
     item._migrate.start(targetGrid, position, container);
@@ -1220,14 +1206,14 @@
   Grid.prototype.destroy = function (removeElements) {
 
     var inst = this;
-    var container = inst._element;
-    var items = inst._items.concat();
-    var i;
 
-    // Return immediately if the instance is destroyed.
     if (inst._isDestroyed) {
       return inst;
     }
+
+    var container = inst._element;
+    var items = inst._items.concat();
+    var i;
 
     // Unbind window resize event listener.
     if (inst._resizeHandler) {
@@ -1238,9 +1224,6 @@
     for (i = 0; i < items.length; i++) {
       items[i]._destroy(removeElements);
     }
-
-    // Unset sort group.
-    inst._unsetSortGroups();
 
     // Restore container.
     removeClass(container, inst._settings.containerClass);
@@ -1334,11 +1317,13 @@
    */
   Grid.prototype._emit = function () {
 
-    if (!this._isDestroyed) {
-      this._emitter.emit.apply(this._emitter, arguments);
+    var inst = this;
+
+    if (!inst._isDestroyed) {
+      inst._emitter.emit.apply(inst._emitter, arguments);
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -1368,115 +1353,6 @@
     }
 
     return inst;
-
-  };
-
-  /**
-   * Set instance's drag sort groups.
-   *
-   * @protected
-   * @memberof Grid.prototype
-   * @param {?(Array|String)} sortGroups
-   * @returns {Grid}
-   */
-  Grid.prototype._setSortGroups = function (sortGroups) {
-
-    var inst = this;
-    var instSortGroups = [];
-
-    // Set the initial instance sort group.
-    inst._sortGroups = null;
-
-    // Sanitize sort groups and add them to the instance sort groups as well as
-    // to the global sort groups collection.
-    [].concat(sortGroups).forEach(function (sortGroup) {
-      if (typeof sortGroup === 'string' && instSortGroups.indexOf(sortGroup) < 0) {
-        instSortGroups.push(sortGroup);
-        if (!dragSortGroups[sortGroup]) {
-          dragSortGroups[sortGroup] = [];
-        }
-        dragSortGroups[sortGroup].push(inst._id);
-      }
-    });
-
-    // If there were valid sort groups update the instance sort groups.
-    if (instSortGroups.length) {
-      inst._sortGroups = instSortGroups;
-    }
-
-    return inst;
-
-  };
-
-  /**
-   * Unset instance's drag sort group.
-   *
-   * @protected
-   * @memberof Grid.prototype
-   * @returns {Grid}
-   */
-  Grid.prototype._unsetSortGroups = function () {
-
-    var inst = this;
-    var sortGroups = inst._sortGroups;
-    var sortGroupItems;
-    var i;
-    var ii;
-
-    if (sortGroups) {
-      for (i = 0; i < sortGroups.length; i++) {
-        sortGroupItems = dragSortGroups[sortGroups[i]];
-        for (ii = 0; ii < sortGroupItems.length; ii++) {
-          if (sortGroupItems[ii] === inst._id) {
-            sortGroupItems.splice(ii, 1);
-            break;
-          }
-        }
-      }
-      inst._sortGroups = null;
-    }
-
-    return inst;
-
-  };
-
-  /**
-   * Get connected Grid instances.
-   *
-   * @protected
-   * @memberof Grid.prototype
-   * @param {Boolean} [includeSelf=false]
-   * @returns {Grid[]}
-   */
-  Grid.prototype._getSortConnections = function (includeSelf) {
-
-    var inst = this;
-    var ret = includeSelf ? [inst] : [];
-    var connections = inst._sortConnections;
-    var sortGroup;
-    var connectedGrid;
-    var ii;
-    var i;
-
-    if (inst._isDestroyed) {
-      return ret;
-    }
-
-    if (connections && connections.length) {
-      for (i = 0; i < connections.length; i++) {
-        sortGroup = dragSortGroups[connections[i]];
-        if (sortGroup && sortGroup.length) {
-          for (ii = 0; ii < sortGroup.length; ii++) {
-            connectedGrid = gridInstances[sortGroup[ii]];
-            if (connectedGrid !== inst && ret.indexOf(connectedGrid) < 0) {
-              ret.push(connectedGrid);
-            }
-          }
-        }
-      }
-    }
-
-    return ret;
 
   };
 
@@ -1532,9 +1408,6 @@
     inst._animate = new Grid.ItemAnimate(inst, element);
     inst._animateChild = new Grid.ItemAnimate(inst, inst._child);
 
-    // Check if default animation engine is used.
-    inst._isDefaultAnimate = inst._animate instanceof ItemAnimate;
-
     // Set up active state (defines if the item is considered part of the layout
     // or not).
     inst._isActive = isHidden ? false : true;
@@ -1547,10 +1420,6 @@
     inst._isHidden = isHidden;
     inst._isHiding = false;
     inst._isShowing = false;
-
-    // Layout animation init cache.
-    inst._layoutAnimateInitRead = null;
-    inst._layoutAnimateInitWrite = null;
 
     // Visibility animation callback queue. Whenever a callback is provided for
     // show/hide methods and animation is enabled the callback is stored
@@ -1574,7 +1443,7 @@
     setStyles(element, {
       left: '0',
       top: '0',
-      transform: 'translateX(0px) translateY(0px)',
+      transform: getTranslateString(0, 0),
       display: isHidden ? 'none' : 'block'
     });
 
@@ -1814,27 +1683,23 @@
   Item.prototype._refreshDimensions = function () {
 
     var inst = this;
-    var element;
-    var rect;
-    var sides;
-    var side;
-    var margin;
-    var i;
 
     if (inst._isDestroyed || inst._isHidden) {
       return inst;
     }
 
-    element = inst._element;
+    var element = inst._element;
+    var rect = element.getBoundingClientRect();
+    var sides = ['left', 'right', 'top', 'bottom'];
+    var margin = inst._margin = inst._margin || {};
+    var side;
+    var i;
 
     // Calculate width and height.
-    rect = element.getBoundingClientRect();
     inst._width = rect.width;
     inst._height = rect.height;
 
     // Calculate margins (ignore negative margins).
-    sides = ['left', 'right', 'top', 'bottom'];
-    margin = inst._margin = inst._margin || {};
     for (i = 0; i < 4; i++) {
       side = getStyleAsFloat(element, 'margin-' + sides[i]);
       margin[sides[i]] = side > 0 ? side : 0;
@@ -1854,25 +1719,23 @@
   Item.prototype._refreshSortData = function () {
 
     var inst = this;
-    var sortData;
-    var getters;
 
-    if (!inst._isDestroyed) {
-
-      sortData = {};
-      getters = inst.getGrid()._settings.sortData;
-
-      // Fetch sort data.
-      if (getters) {
-        Object.keys(getters).forEach(function (key) {
-          sortData[key] = getters[key](inst, inst._element);
-        });
-      }
-
-      // Store sort data to the instance.
-      inst._sortData = sortData;
-
+    if (inst._isDestroyed) {
+      return inst;
     }
+
+    var sortData = {};
+    var getters = inst.getGrid()._settings.sortData;
+
+    // Fetch sort data.
+    if (getters) {
+      Object.keys(getters).forEach(function (key) {
+        sortData[key] = getters[key](inst, inst._element);
+      });
+    }
+
+    // Store sort data to the instance.
+    inst._sortData = sortData;
 
     return inst;
 
@@ -1890,35 +1753,30 @@
   Item.prototype._layout = function (instant, onFinish) {
 
     var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
+    }
+
     var element = inst._element;
     var isPositioning = inst._isPositioning;
     var migrate = inst._migrate;
     var release = inst._release;
     var isJustReleased = release.isActive && release.isPositioningStarted === false;
-    var grid;
-    var settings;
-    var animDuration;
-    var animEasing;
-    var animEnabled;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
+    var animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
+    var animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
+    var animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
+    var isAnimating;
     var offsetLeft;
     var offsetTop;
     var currentLeft;
     var currentTop;
+    var targetStyles;
 
-    // Return immediately if the instance is destroyed.
-    if (inst._isDestroyed) {
-      return inst;
-    }
-
-    // Get grid and settings.
-    grid = inst.getGrid();
-    settings = grid._settings;
-    animDuration = isJustReleased ? settings.dragReleaseDuration : settings.layoutDuration;
-    animEasing = isJustReleased ? settings.dragReleaseEasing : settings.layoutEasing;
-    animEnabled = !instant && !inst._skipNextLayoutAnimation && animDuration > 0;
-
-    // Process current layout callback queue with interrupted flag on if the
-    // item is currently positioning.
+    // If the item is currently positioning process current layout callback
+    // queue with interrupted flag on if the item is currently positioning.
     if (isPositioning) {
       processQueue(inst._layoutQueue, true, inst);
     }
@@ -1933,61 +1791,58 @@
       inst._layoutQueue.push(onFinish);
     }
 
-    // Get item container offset. This applies only for release handling in the
-    // scenario where the released element is not currently within the
-    // grid container element.
+    // Get item container offsets and target styles.
     offsetLeft = release.isActive ? release.containerDiffX : migrate.isActive ? migrate.containerDiffX : 0;
     offsetTop = release.isActive ? release.containerDiffY : migrate.isActive ? migrate.containerDiffY : 0;
+    targetStyles = {transform: getTranslateString(inst._left + offsetLeft, inst._top + offsetTop)};
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
-
-      inst._stopLayout();
+      isPositioning && rafLoop.cancelRead(rafQueueLayout + inst._id).cancelWrite(rafQueueLayout + inst._id);
+      isAnimating = inst._animate.isAnimating();
+      inst._stopLayout(false, targetStyles);
+      !isAnimating && setStyles(element, targetStyles);
       inst._skipNextLayoutAnimation = false;
-
-      setStyles(element, {
-        transform: 'translateX(' + (inst._left + offsetLeft) + 'px) translateY(' + (inst._top + offsetTop) + 'px)'
-      });
-
-      inst._finishLayout();
-
+      return inst._finishLayout();
     }
 
-    // If animations are needed, let's dive in.
-    else {
+    // Set item as positioning.
+    inst._isPositioning = true;
 
-      // Get item's current left and top values.
+    // Get the element's current left and top position (in the next frame's
+    // read batch).
+    rafLoop.addRead(rafQueueLayout + inst._id, function () {
       currentLeft = getTranslateAsFloat(element, 'x') - offsetLeft;
       currentTop = getTranslateAsFloat(element, 'y') - offsetTop;
+    });
+
+    // Start animation in the next frame's write batch.
+    rafLoop.addWrite(rafQueueLayout + inst._id, function () {
 
       // If the item is already in correct position let's quit early.
       if (inst._left === currentLeft && inst._top === currentTop) {
-        inst._stopLayout()._finishLayout();
-        return;
+        isPositioning && inst._stopLayout(false, targetStyles);
+        inst._isPositioning = false;
+        return inst._finishLayout();
       }
 
-      // Mark as positioning and add positioning class if necessary.
-      if (!isPositioning) {
-        inst._isPositioning = true;
-        addClass(element, settings.itemPositioningClass);
-      }
+      // Set item's positioning class.
+      !isPositioning && addClass(element, settings.itemPositioningClass);
 
       // Animate.
-      inst._animate.start({
-        translateX: (currentLeft + offsetLeft) + 'px',
-        translateY: (currentTop + offsetTop) + 'px'
-      }, {
-        translateX: inst._left + offsetLeft + 'px',
-        translateY: inst._top + offsetTop + 'px'
-      }, {
-        duration: animDuration,
-        easing: animEasing,
-        onFinish: function () {
-          inst._finishLayout();
+      inst._animate.start(
+        {transform: getTranslateString(currentLeft + offsetLeft, currentTop + offsetTop)},
+        targetStyles,
+        {
+          duration: animDuration,
+          easing: animEasing,
+          onFinish: function () {
+            inst._finishLayout();
+          }
         }
-      });
+      );
 
-    }
+    });
 
     return inst;
 
@@ -2037,9 +1892,10 @@
    * @protected
    * @memberof Item.prototype
    * @param {Boolean} [processLayoutQueue=false]
+   * @param {Object} [targetStyles]
    * @returns {Item}
    */
-  Item.prototype._stopLayout = function (processLayoutQueue) {
+  Item.prototype._stopLayout = function (processLayoutQueue, targetStyles) {
 
     var inst = this;
 
@@ -2047,8 +1903,11 @@
       return inst;
     }
 
+    // Cancel animation init.
+    rafLoop.cancelRead(rafQueueLayout + inst._id).cancelWrite(rafQueueLayout + inst._id);
+
     // Stop animation.
-    inst._animate.stop();
+    inst._animate.stop(targetStyles);
 
     // Remove positioning class.
     removeClass(inst._element, inst.getGrid()._settings.itemPositioningClass);
@@ -2068,16 +1927,16 @@
   Item.prototype._show = function (instant, onFinish) {
 
     var inst = this;
-    var element = inst._element;
-    var queue = inst._visibilityQueue;
-    var callback = typeof onFinish === typeFunction ? onFinish : null;
-    var grid;
-    var settings;
 
-    // Return immediately if the instance is destroyed.
     if (inst._isDestroyed) {
       return inst;
     }
+
+    var element = inst._element;
+    var queue = inst._visibilityQueue;
+    var callback = typeof onFinish === typeFunction ? onFinish : null;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
 
     // If item is visible call the callback and be done with it.
     if (!inst._isShowing && !inst._isHidden) {
@@ -2085,45 +1944,44 @@
       return inst;
     }
 
-    // Get grid and settings.
-    grid = inst.getGrid();
-    settings = grid._settings;
-
-    // If item is showing.
-    if (inst._isShowing) {
+    // If item is showing and does not need to be shown instantly, let's just
+    // push callback to the callback queue and be done with it.
+    if (inst._isShowing && !instant) {
       callback && queue.push(callback);
-      instant && grid._itemShowHandler.stop(inst);
+      return inst;
     }
 
-    // Otherwise if item is hidden or hiding, show it.
-    else {
-
-      // Stop ongoing hide animation.
-      inst._isHidden && grid._itemHideHandler.stop(inst);
-
-      // Process the visibility callback queue with the interrupted flag active.
+    // If the item is hiding or hidden process the current visibility callback
+    // queue with the interrupted flag active, update classes and set display
+    // to block if necessary.
+    if (!inst._isShowing) {
       processQueue(queue, true, inst);
-
-      // Update item's internal states.
-      inst._isActive = inst._isShowing = true;
-      inst._isHiding = inst._isHidden = false;
-
-      // Push the callback to the visibility callback queue.
-      callback && queue.push(callback);
-
-      // Update item classes and set item element's display style to block.
-      setStyles(element, {display: 'block'});
       removeClass(element, settings.itemHiddenClass);
       addClass(element, settings.itemVisibleClass);
-
+      !inst._isHiding && setStyles(element, {display: 'block'});
     }
 
-    // Animate child element and process the visibility callback queue after
-    // succesful animation.
-    grid._itemShowHandler.start(inst, instant, function () {
+    // Push callback to the callback queue.
+    callback && queue.push(callback);
+
+    // Update item's internal states.
+    inst._isActive = inst._isShowing = true;
+    inst._isHiding = inst._isHidden = false;
+
+    // If we need to show instantly.
+    if (instant) {
+      grid._itemShowHandler.stop(inst, settings.visibleStyles);
       inst._isShowing = false;
       processQueue(queue, false, inst);
-    });
+    }
+
+    // If we need to animate.
+    else {
+      grid._itemShowHandler.start(inst, instant, function () {
+        inst._isShowing = false;
+        processQueue(queue, false, inst);
+      });
+    }
 
     return inst;
 
@@ -2141,20 +1999,17 @@
   Item.prototype._hide = function (instant, onFinish) {
 
     var inst = this;
-    var element = inst._element;
-    var queue = inst._visibilityQueue;
-    var callback = typeof onFinish === typeFunction ? onFinish : null;
-    var grid;
-    var settings;
 
     // Return immediately if the instance is destroyed.
     if (inst._isDestroyed) {
       return inst;
     }
 
-    // Get grid and settings.
-    grid = inst.getGrid();
-    settings = grid._settings;
+    var element = inst._element;
+    var queue = inst._visibilityQueue;
+    var callback = typeof onFinish === typeFunction ? onFinish : null;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
 
     // If item is already hidden call the callback and be done with it.
     if (!inst._isHiding && inst._isHidden) {
@@ -2162,42 +2017,49 @@
       return inst;
     }
 
-    // If item is hiding.
-    if (inst._isHiding) {
+    // If item is hiding and does not need to be hidden instantly, let's just
+    // push callback to the callback queue and be done with it.
+    if (inst._isHiding && !instant) {
       callback && queue.push(callback);
-      instant && grid._itemHideHandler.stop(inst);
+      return inst;
     }
 
-    // Otherwise if item is visible or showing, hide it.
-    else {
-
-      // Stop ongoing show animation.
-      inst._isShowing && grid._itemShowHandler.stop(inst);
-
-      // Process the visibility callback queue with the interrupted flag active.
+    // If the item is showing or visible process the current visibility callback
+    // queue with the interrupted flag active, update classes and set display
+    // to block if necessary.
+    if (!inst._isHiding) {
       processQueue(queue, true, inst);
-
-      // Update item's internal state.
-      inst._isHidden = inst._isHiding = true;
-      inst._isActive = inst._isShowing = false;
-
-      // Push the callback to the visibility callback queue.
-      callback && queue.push(callback);
-
-      // Update item classes.
       addClass(element, settings.itemHiddenClass);
       removeClass(element, settings.itemVisibleClass);
-
     }
 
-    // Animate child element and process the visibility callback queue after
-    // succesful animation.
-    grid._itemHideHandler.start(inst, instant, function () {
+    // Push callback to the callback queue.
+    callback && queue.push(callback);
+
+    // Update item's internal states.
+    inst._isHidden = inst._isHiding = true;
+    inst._isActive = inst._isShowing = false;
+
+    // If we need to hide instantly.
+    if (instant) {
+      grid._itemHideHandler.stop(inst, settings.hiddenStyles);
       inst._isHiding = false;
+      // TODO: This causes layout thrashing!!!
       inst._stopLayout(true);
       setStyles(element, {display: 'none'});
       processQueue(queue, false, inst);
-    });
+    }
+
+    // If we need to animate.
+    else {
+      grid._itemHideHandler.start(inst, instant, function () {
+        inst._isHiding = false;
+        // TODO: This causes layout thrashing!!!
+        inst._stopLayout(true);
+        setStyles(element, {display: 'none'});
+        processQueue(queue, false, inst);
+      });
+    }
 
     return inst;
 
@@ -2214,34 +2076,27 @@
   Item.prototype._destroy = function (removeElement) {
 
     var inst = this;
-    var element = inst._element;
-    var grid;
-    var settings;
-    var index;
 
-    // Return immediately if the instance is already destroyed.
     if (inst._isDestroyed) {
       return inst;
     }
 
-    // Get grid and settings.
-    grid = inst.getGrid();
-    settings = grid._settings;
-    index = grid._items.indexOf(inst);
+    var element = inst._element;
+    var grid = inst.getGrid();
+    var settings = grid._settings;
+    var index = grid._items.indexOf(inst);
 
     // Destroy release and migration.
     inst._release.destroy();
     inst._migrate.destroy();
 
     // Stop animations.
-    inst._stopLayout(true);
-    grid._itemShowHandler.stop(inst);
-    grid._itemHideHandler.stop(inst);
+    inst._stopLayout(true, {});
+    grid._itemShowHandler.stop(inst, {});
+    grid._itemHideHandler.stop(inst, {});
 
     // Destroy drag.
-    if (inst._drag) {
-      inst._drag.destroy();
-    }
+    inst._drag && inst._drag.destroy();
 
     // Destroy animation handlers.
     inst._animate.destroy();
@@ -2253,6 +2108,7 @@
 
     // Handle visibility callback queue, fire all uncompleted callbacks with
     // interrupted flag.
+    // TODO: Is this really the right place to call these?
     processQueue(inst._visibilityQueue, true, inst);
 
     // Remove classes.
@@ -2264,14 +2120,10 @@
     removeClass(element, settings.itemHiddenClass);
 
     // Remove item from Grid instance if it still exists there.
-    if (index > -1) {
-      grid._items.splice(index, 1);
-    }
+    index > -1 && grid._items.splice(index, 1);
 
     // Remove element from DOM.
-    if (removeElement) {
-      element.parentNode.removeChild(element);
-    }
+    removeElement && element.parentNode.removeChild(element);
 
     // Remove item instance from the item instances collection.
     itemInstances[inst._id] = undefined;
@@ -2356,15 +2208,17 @@
    */
   Emitter.prototype.on = function (event, listener) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var listeners = this._events[event] || [];
+    var listeners = inst._events[event] || [];
     listeners.push(listener);
-    this._events[event] = listeners;
+    inst._events[event] = listeners;
 
-    return this;
+    return inst;
 
   };
 
@@ -2398,11 +2252,13 @@
    */
   Emitter.prototype.off = function (event, listener) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var listeners = this._events[event] || [];
+    var listeners = inst._events[event] || [];
     var i = listeners.length;
 
     while (i--) {
@@ -2411,7 +2267,7 @@
       }
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -2428,11 +2284,13 @@
    */
   Emitter.prototype.emit = function (event, arg1, arg2, arg3) {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var listeners = this._events[event] || [];
+    var listeners = inst._events[event] || [];
     var listenersLength = listeners.length;
     var argsLength = arguments.length - 1;
     var i;
@@ -2443,11 +2301,11 @@
         argsLength === 0 ? listeners[i]() :
         argsLength === 1 ? listeners[i](arg1) :
         argsLength === 2 ? listeners[i](arg1, arg2) :
-                           listeners[i](arg1, arg2, arg3);
+                            listeners[i](arg1, arg2, arg3);
       }
     }
 
-    return this;
+    return inst;
 
   };
 
@@ -2460,20 +2318,22 @@
    */
   Emitter.prototype.destroy = function () {
 
-    if (this._isDestroyed) {
-      return this;
+    var inst = this;
+
+    if (inst._isDestroyed) {
+      return inst;
     }
 
-    var eventNames = Object.keys(this._events);
+    var eventNames = Object.keys(inst._events);
     var i;
 
     for (i = 0; i < eventNames.length; i++) {
-      this._events[eventNames[i]] = null;
+      inst._events[eventNames[i]] = null;
     }
 
-    this._isDestroyed = true;
+    inst._isDestroyed = true;
 
-    return this;
+    return inst;
 
   };
 
@@ -2483,7 +2343,7 @@
    */
 
   /**
-   * Muuri's internal animation engine. Uses Velocity.
+   * Muuri's internal animation engine. Uses Web Animations API.
    *
    * @public
    * @class
@@ -2492,13 +2352,12 @@
    */
   function ItemAnimate(item, element) {
 
-    this._item = item;
-    this._element = element;
-    this._id = namespace + '-' + (++uuid);
-    this._callback = null;
-    this._animateTo = null;
-    this._isAnimating = false;
-    this._isDestroyed = false;
+    var inst = this;
+    inst._item = item;
+    inst._element = element;
+    inst._animation = null;
+    inst._propsTo = null;
+    inst._isDestroyed = false;
 
   }
 
@@ -2513,72 +2372,63 @@
    *
    * @public
    * @memberof ItemAnimate.prototype
-   * @param {?Object} propsCurrent
-   * @param {Object} propsTarget
+   * @param {Object} propsFrom
+   * @param {Object} propsTo
    * @param {Object} [options]
    * @param {Number} [options.duration=300]
    * @param {String} [options.easing='ease']
    * @param {Function} [options.onFinish]
    */
-  ItemAnimate.prototype.start = function (propsCurrent, propsTarget, options) {
+  ItemAnimate.prototype.start = function (propsFrom, propsTo, options) {
 
-    if (this._isDestroyed) {
+    var inst = this;
+
+    if (inst._isDestroyed) {
       return;
     }
 
-    var inst = this;
-    var element = inst._element;
     var opts = options || {};
     var callback = typeof opts.onFinish === typeFunction ? opts.onFinish : null;
-    var isAnimating = inst._isAnimating;
+    var shouldStop;
 
     // If item is being animate check if the target animation properties equal
     // to the properties in the current animation. If they match we can just let
     // the animation continue and be done with it (and of course change the
     // cached callback). If the animation properties do not match we need to
     // stop the ongoing animation.
-    if (isAnimating) {
-      if (inst._shouldStop(propsTarget)) {
-        inst.stop();
+    if (inst._animation) {
+      shouldStop = Object.keys(propsTo).some(function (propName) {
+        return propsTo[propName] !== inst._propsTo[propName];
+      });
+      if (shouldStop) {
+        inst._animation.cancel();
       }
       else {
-        inst._callback = callback;
+        inst._animation.onfinish = function () {
+          inst._animation = inst._propsTo = null;
+          callback && callback();
+        };
         return;
       }
     }
 
-    // Setup animation data.
-    inst._isAnimating = true;
-    inst._animateTo = propsTarget;
-    inst._callback = callback;
+    // Cache target props.
+    inst._propsTo = propsTo;
 
-    // If we can skip the animation let's just set the styles and finish up.
-    if (!inst._shouldAnimate(propsCurrent, propsTarget)) {
-      hookStyles(element, propsTarget);
-      inst._onFinish();
-    }
+    // Start the animation.
+    inst._animation = inst._element.animate([propsFrom, propsTo], {
+      duration: opts.duration || 300,
+      easing: opts.easing || 'ease'
+    });
 
-    // Otherwise let's do the animation.
-    else {
+    // Bind animation finish callback.
+    inst._animation.onfinish = function () {
+      inst._animation = inst._propsTo = null;
+      callback && callback();
+    };
 
-      // If the element was not animating and we have access to current props,
-      // let's hook them up before starting the animation.
-      !isAnimating && propsCurrent && hookStyles(element, propsCurrent);
-
-      // Setup the Velocity animation.
-      Velocity(element, propsTarget, {
-        duration: opts.duration || 300,
-        easing: opts.easing || 'ease',
-        queue: inst._id,
-        complete: function () {
-          inst._onFinish();
-        }
-      });
-
-      // Start the Velocity animation.
-      Velocity.Utilities.dequeue(element, inst._id);
-
-    }
+    // Set the end styles.
+    setStyles(inst._element, propsTo);
 
   };
 
@@ -2587,16 +2437,30 @@
    *
    * @private
    * @memberof ItemAnimate.prototype
+   * @param {Object} [currentProps]
    */
-  ItemAnimate.prototype.stop = function () {
+  ItemAnimate.prototype.stop = function (currentProps) {
 
     var inst = this;
 
-    if (!inst._isDestroyed && inst._isAnimating) {
-      inst._isAnimating = false;
-      inst._callback = inst._animateTo = null;
-      Velocity(inst._element, 'stop', inst._id);
+    if (!inst._isDestroyed && inst._animation) {
+      setStyles(inst._element, currentProps || getCurrentStyles(inst._element, inst._propsTo));
+      inst._animation.cancel();
+      inst._animation = inst._propsTo = null;
     }
+
+  };
+
+  /**
+   * Check if the item is being animated currently.
+   *
+   * @private
+   * @memberof ItemAnimate.prototype
+   * @return {Boolean}
+   */
+  ItemAnimate.prototype.isAnimating = function () {
+
+    return !!this._animation;
 
   };
 
@@ -2616,104 +2480,6 @@
       inst._item = inst._element = null;
       inst._isDestroyed = true;
     }
-
-  };
-
-  /**
-   * ItemAnimate - Protected prototype methods
-   * *****************************************
-   */
-
-  /**
-   * Stop instance's current animation if running.
-   *
-   * @private
-   * @memberof ItemAnimate.prototype
-   */
-  ItemAnimate.prototype._onFinish = function () {
-
-    var inst = this;
-    var callback = inst._callback;
-
-    inst._isAnimating = false;
-    inst._callback = inst._animateTo = null;
-    callback && callback();
-
-  };
-
-  /**
-   * Check if item needs to stop the current animation.
-   *
-   * @protected
-   * @memberof ItemAnimate.prototype
-   * @param {?Object} animateTo
-   * @return {Boolean}
-   */
-  ItemAnimate.prototype._shouldStop = function (animateTo) {
-
-    var props = Object.keys(animateTo);
-    var i;
-
-    for (i = 0; i < props.length; i++) {
-      if (animateTo[props[i]] !== this._animateTo[props[i]]) {
-        return true;
-      }
-    }
-
-    return false;
-
-  };
-
-  /**
-   * Check if item needs to animate at all. This optimization is effective only
-   * for layout animations in specific scenarios. Visibility animations are
-   * always triggered.
-   *
-   * @protected
-   * @memberof ItemAnimate.prototype
-   * @param {Object} animateFrom
-   * @param {Object} animateTo
-   * @return {Boolean}
-   */
-  ItemAnimate.prototype._shouldAnimate = function (animateFrom, animateTo) {
-
-    var inst = this;
-    var item = inst._item;
-    var isLayoutAnimation = inst._element === item._element;
-    var grid;
-    var viewRect;
-    var itemRect;
-
-    // If this is visibility animation or if the item is being released,
-    // migrated or dragged let's always animate.
-    if (!isLayoutAnimation || item.isReleasing() || item.isDragging() || item._migrate.isActive) {
-      return true;
-    }
-
-    grid = item.getGrid();
-    viewRect = {
-      left: 0,
-      top: 0,
-      width: winWidth,
-      height: winHeight
-    };
-    itemRect = {
-      left: grid._left + grid._border.left + parseFloat(animateFrom.translateX),
-      top: grid._top + grid._border.top + parseFloat(animateFrom.translateY),
-      width: item._width + item._margin.left + item._margin.right,
-      height: item._height + item._margin.top + item._margin.bottom
-    };
-
-    // If the item is within the viewport currently let's animate.
-    if (muuriLayout.doRectsOverlap(viewRect, itemRect)) {
-      return true;
-    }
-
-    // If the item will be in the viewport when the animation ends let's also
-    // animate.
-    itemRect.left = grid._left + grid._border.left + parseFloat(animateTo.translateX);
-    itemRect.top = grid._top + grid._border.top + parseFloat(animateTo.translateY);
-    return muuriLayout.doRectsOverlap(viewRect, itemRect);
 
   };
 
@@ -2796,60 +2562,60 @@
   ItemMigrate.prototype.start = function (targetGrid, position, container) {
 
     var migrate = this;
-    var item;
-    var itemElement;
-    var isItemVisible;
-    var currentGrid;
-    var currentGridStn;
-    var targetGridStn;
-    var targetGridElement;
-    var currentIndex;
-    var targetIndex;
-    var targetContainer;
-    var currentContainer;
-    var offsetDiff;
-    var translateX;
-    var translateY;
 
-    // Return immediately if the instance is destroyed.
     if (migrate._isDestroyed) {
       return migrate;
     }
 
-    item = migrate.getItem();
-    itemElement = item._element;
-    isItemVisible = item.isVisible();
-    currentGrid = item.getGrid();
-    currentGridStn = currentGrid._settings;
-    targetGridStn = targetGrid._settings;
-    targetGridElement = targetGrid._element;
-    targetContainer = container || body;
-
-    // Get current index and target index
-    currentIndex = currentGrid._items.indexOf(item);
-    targetIndex = typeof position === typeNumber ? position : targetGrid._items.indexOf(targetGrid._getItem(position));
+    var item = migrate.getItem();
+    var itemElement = item._element;
+    var isItemVisible = item.isVisible();
+    var currentGrid = item.getGrid();
+    var currentGridStn = currentGrid._settings;
+    var targetGridStn = targetGrid._settings;
+    var targetGridElement = targetGrid._element;
+    var currentIndex = currentGrid._items.indexOf(item);
+    var targetIndex = typeof position === typeNumber ? position : targetGrid._items.indexOf(targetGrid._getItem(position));
+    var targetContainer = container || body;
+    var currentContainer;
+    var offsetDiff;
+    var containerDiff;
+    var translateX;
+    var translateY;
 
     // If we have invalid new index, let's return immediately.
     if (targetIndex === null) {
       return migrate;
     }
 
+    // Get current translateX and translateY values if needed.
+    if (item.isPositioning() || migrate.isActive || item.isReleasing()) {
+      translateX = getTranslateAsFloat(itemElement, 'x');
+      translateY = getTranslateAsFloat(itemElement, 'y');
+    }
+
     // Abort current positioning.
     if (item.isPositioning()) {
-      item._stopLayout(true);
+      item._stopLayout(true, {transform: getTranslateString(translateX, translateY)});
     }
 
     // Abort current migration.
     if (migrate.isActive) {
-      migrate.stop(true);
+      translateX -= migrate.containerDiffX;
+      translateY -= migrate.containerDiffY;
+      migrate.stop(true, {transform: getTranslateString(translateX, translateY)});
     }
 
     // Abort current release.
     if (item.isReleasing()) {
-      item._release.stop(true);
+      translateX -= item._release.containerDiffX;
+      translateY -= item._release.containerDiffY;
+      item._release.stop(true, {transform: getTranslateString(translateX, translateY)});
     }
 
     // Stop current visibility animations.
+    // TODO: This causes potentially layout thrashing, because we are not
+    // feeding any styles to the stop handlers.
     currentGrid._itemShowHandler.stop(item);
     currentGrid._itemHideHandler.stop(item);
 
@@ -2902,7 +2668,6 @@
     // Instantiate new animation controllers.
     item._animate = new Grid.ItemAnimate(item, itemElement);
     item._animateChild = new Grid.ItemAnimate(item, item._child);
-    item._isDefaultAnimate = item._animate instanceof ItemAnimate;
 
     // Get current container
     currentContainer = itemElement.parentNode;
@@ -2912,20 +2677,12 @@
     if (targetContainer !== currentContainer) {
       targetContainer.appendChild(itemElement);
       offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
-      translateX = getTranslateAsFloat(itemElement, 'x') + offsetDiff.left;
-      translateY = getTranslateAsFloat(itemElement, 'y') + offsetDiff.top;
-      setStyles(itemElement, {
-        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
-      });
+      if (translateX === undefined) {
+        translateX = getTranslateAsFloat(itemElement, 'x');
+        translateY = getTranslateAsFloat(itemElement, 'y');
+      }
+      setStyles(itemElement, {transform: getTranslateString(translateX + offsetDiff.left, translateY + offsetDiff.top)});
     }
-
-    // Update display styles.
-    setStyles(itemElement, {
-      display: isItemVisible ? 'block' : 'hidden'
-    });
-
-    // Update item's cached dimensions and sort data.
-    item._refreshDimensions()._refreshSortData();
 
     // Update child element's styles to reflect the current visibility state.
     item._child.removeAttribute('style');
@@ -2936,15 +2693,25 @@
       targetGrid._itemHideHandler.start(item, true);
     }
 
+    // Update display styles.
+    setStyles(itemElement, {
+      display: isItemVisible ? 'block' : 'hidden'
+    });
+
+    // Get offset diff for the migration data.
+    containerDiff = getOffsetDiff(targetContainer, targetGridElement, true);
+
+    // Update item's cached dimensions and sort data.
+    item._refreshDimensions()._refreshSortData();
+
     // Create new drag handler.
     item._drag = targetGridStn.dragEnabled ? new Grid.ItemDrag(item) : null;
 
     // Setup migration data.
-    offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
     migrate.isActive = true;
     migrate.container = targetContainer;
-    migrate.containerDiffX = offsetDiff.left;
-    migrate.containerDiffY = offsetDiff.top;
+    migrate.containerDiffX = containerDiff.left;
+    migrate.containerDiffY = containerDiff.top;
 
     // Emit send event.
     currentGrid._emit(evSend, {
@@ -2976,34 +2743,33 @@
    * @memberof ItemMigrate.prototype
    * @param {Boolean} [abort=false]
    *  - Should the migration be aborted?
+   * @param {Object} [currentStyles]
+   *  - Optional current translateX and translateY styles.
    * @returns {ItemMigrate}
    */
-  ItemMigrate.prototype.stop = function (abort) {
+  ItemMigrate.prototype.stop = function (abort, currentStyles) {
 
     var migrate = this;
-    var item;
-    var element;
-    var grid;
-    var gridElement;
-    var translateX;
-    var translateY;
 
     if (migrate._isDestroyed || !migrate.isActive) {
       return migrate;
     }
 
-    item = migrate.getItem();
-    element = item._element;
-    grid = item.getGrid();
-    gridElement = grid._element;
+    var item = migrate.getItem();
+    var element = item._element;
+    var grid = item.getGrid();
+    var gridElement = grid._element;
+    var translateX;
+    var translateY;
 
     if (migrate.container !== gridElement) {
-      translateX = abort ? getTranslateAsFloat(element, 'x') - migrate.containerDiffX : item._left;
-      translateY = abort ? getTranslateAsFloat(element, 'y') - migrate.containerDiffY : item._top;
+      if (!currentStyles) {
+        translateX = abort ? getTranslateAsFloat(element, 'x') - migrate.containerDiffX : item._left;
+        translateY = abort ? getTranslateAsFloat(element, 'y') - migrate.containerDiffY : item._top;
+        currentStyles = {transform: getTranslateString(translateX, translateY)};
+      }
       gridElement.appendChild(element);
-      setStyles(element, {
-        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
-      });
+      setStyles(element, currentStyles);
     }
 
     migrate.isActive = false;
@@ -3094,16 +2860,17 @@
   ItemRelease.prototype.reset = function () {
 
     var release = this;
-    var item;
 
-    if (!release._isDestroyed) {
-      item = release.getItem();
-      release.isActive = false;
-      release.isPositioningStarted = false;
-      release.containerDiffX = 0;
-      release.containerDiffY = 0;
-      removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
+    if (release._isDestroyed) {
+      return release;
     }
+
+    var item = release.getItem();
+    release.isActive = false;
+    release.isPositioningStarted = false;
+    release.containerDiffX = 0;
+    release.containerDiffY = 0;
+    removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
 
     return release;
 
@@ -3119,15 +2886,13 @@
   ItemRelease.prototype.start = function () {
 
     var release = this;
-    var item;
-    var grid;
 
     if (release._isDestroyed || release.isActive) {
       return release;
     }
 
-    item = release.getItem();
-    grid = item.getGrid();
+    var item = release.getItem();
+    var grid = item.getGrid();
 
     // Flag release as active.
     release.isActive = true;
@@ -3138,10 +2903,7 @@
     // Emit dragReleaseStart event.
     grid._emit(evDragReleaseStart, item);
 
-    // Position the released item and get window's width/height for the layout
-    // animation optimization algorithm.
-    winWidth = global.innerWidth;
-    winHeight = global.innerHeight;
+    // Position the released item.
     item._layout(false);
 
     return release;
@@ -3158,30 +2920,26 @@
    *  - Should the release be aborted? When true, the release end event won't be
    *    emitted. Set to true only when you need to abort the release process
    *    while the item is animating to it's position.
+   * @param {Object} [currentStyles]
+   *  - Optional current translateX and translateY styles.
    * @returns {ItemRelease}
    */
-  ItemRelease.prototype.stop = function (abort) {
+  ItemRelease.prototype.stop = function (abort, currentStyles) {
 
     var release = this;
-    var item;
-    var element;
-    var grid;
-    var container;
-    var containerDiffX;
-    var containerDiffY;
-    var translateX;
-    var translateY;
 
     if (release._isDestroyed || !release.isActive) {
       return release;
     }
 
-    item = release.getItem();
-    element = item._element;
-    grid = item.getGrid();
-    container = grid._element;
-    containerDiffX = release.containerDiffX;
-    containerDiffY = release.containerDiffY;
+    var item = release.getItem();
+    var element = item._element;
+    var grid = item.getGrid();
+    var container = grid._element;
+    var containerDiffX = release.containerDiffX;
+    var containerDiffY = release.containerDiffY;
+    var translateX;
+    var translateY;
 
     // Reset data and remove releasing classname from the element.
     release.reset();
@@ -3189,12 +2947,13 @@
     // If the released element is outside the grid's container element put it
     // back there and adjust position accordingly.
     if (element.parentNode !== container) {
-      translateX = abort ? getTranslateAsFloat(element, 'x') - containerDiffX : item._left;
-      translateY = abort ? getTranslateAsFloat(element, 'y') - containerDiffY : item._top;
+      if (!currentStyles) {
+        translateX = abort ? getTranslateAsFloat(element, 'x') - containerDiffX : item._left;
+        translateY = abort ? getTranslateAsFloat(element, 'y') - containerDiffY : item._top;
+        currentStyles = {transform: getTranslateString(translateX, translateY)};
+      }
       container.appendChild(element);
-      setStyles(element, {
-        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
-      });
+      setStyles(element, currentStyles);
     }
 
     // Emit dragReleaseEnd event.
@@ -3875,7 +3634,6 @@
     // Instantiate new animation controllers.
     item._animate = new Grid.ItemAnimate(item, element);
     item._animateChild = new Grid.ItemAnimate(item, item._child);
-    item._isDefaultAnimate = item._animate instanceof ItemAnimate;
 
     // Move the item inside the target container if it's different than the
     // current container.
@@ -3902,9 +3660,7 @@
     // Adjust the position of the item element if it was moved from a container
     // to another.
     if (targetContainer !== currentContainer) {
-      setStyles(element, {
-        transform: 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)'
-      });
+      setStyles(element, {transform: getTranslateString(translateX, translateY)});
     }
 
     // Update child element's styles to reflect the current visibility state.
@@ -3919,6 +3675,27 @@
   };
 
   /**
+   * cancel move/scroll event raf loop action.
+   *
+   * @public
+   * @memberof ItemDrag.prototype
+   * @returns {ItemDrag}
+   */
+  ItemDrag.prototype.cancelRafLoop = function () {
+
+    var id = this.getItem()._id;
+
+    rafLoop
+    .cancelRead(rafQueueScroll + id)
+    .cancelRead(rafQueueMove + id)
+    .cancelWrite(rafQueueScroll + id)
+    .cancelWrite(rafQueueMove + id);
+
+    return this;
+
+  };
+
+  /**
    * Abort dragging and reset drag data.
    *
    * @public
@@ -3929,8 +3706,9 @@
 
     var drag = this;
     var dragData = drag._data;
-    var element;
-    var grid;
+    var item = drag.getItem();
+    var element = item._element;
+    var grid = drag.getGrid();
 
     if (!dragData.isActive) {
       return drag;
@@ -3942,8 +3720,8 @@
       return drag.finishMigration(dragData.currentEvent);
     }
 
-    element = drag.getItem()._element;
-    grid = drag.getGrid();
+    // Cancel raf loop actions.
+    drag.cancelRafLoop();
 
     // Remove scroll listeners.
     drag.unbindScrollListeners();
@@ -3955,9 +3733,7 @@
     // sure the translate values are adjusted to account for the DOM shift.
     if (element.parentNode !== grid._element) {
       grid._element.appendChild(element);
-      setStyles(element, {
-        transform: 'translateX(' + dragData.gridX + 'px) translateY(' + dragData.gridY + 'px)'
-      });
+      setStyles(element, {transform: getTranslateString(dragData.gridX, dragData.gridY)});
     }
 
     // Remove dragging class.
@@ -3982,38 +3758,36 @@
 
     var drag = this;
     var item = drag.getItem();
-    var element;
-    var grid;
-    var settings;
-    var dragData;
-    var release;
-    var currentLeft;
-    var currentTop;
-    var gridContainer;
-    var dragContainer;
-    var containingBlock;
-    var offsetDiff;
-    var elementGBCR;
 
     // If item is not active, don't start the drag.
     if (!item._isActive) {
-      return;
+      return drag;
     }
 
-    element = item._element;
-    grid = drag.getGrid();
-    settings = grid._settings;
-    dragData = drag._data;
-    release = item._release;
+    var element = item._element;
+    var grid = drag.getGrid();
+    var settings = grid._settings;
+    var dragData = drag._data;
+    var release = item._release;
+    var migrate = item._migrate;
+    var gridContainer = grid._element;
+    var dragContainer = settings.dragContainer || gridContainer;
+    var containingBlock = getContainingBlock(dragContainer, true);
+    var offsetDiff = dragContainer !== gridContainer ? getOffsetDiff(containingBlock, gridContainer) : 0;
+    var currentLeft = getTranslateAsFloat(element, 'x');
+    var currentTop = getTranslateAsFloat(element, 'y');
+    var elementRect = element.getBoundingClientRect();
 
     // Stop current positioning animation.
     if (item.isPositioning()) {
-      item._stopLayout(true);
+      item._stopLayout(true, {transform: getTranslateString(currentLeft, currentTop)});
     }
 
     // Stop current migration animation.
-    if (item._migrate.isActive) {
-      item._migrate.stop(true);
+    if (migrate.isActive) {
+      currentLeft -= migrate.containerDiffX;
+      currentTop -= migrate.containerDiffY;
+      migrate.stop(true, {transform: getTranslateString(currentLeft, currentTop)});
     }
 
     // If item is being released reset release data.
@@ -4024,18 +3798,10 @@
     // Setup drag data.
     dragData.isActive = true;
     dragData.startEvent = dragData.currentEvent = event;
-
-    // Get element's current position.
-    currentLeft = getTranslateAsFloat(element, 'x');
-    currentTop = getTranslateAsFloat(element, 'y');
-
-    // Get container element references, and store drag container and containing
-    // block.
-    gridContainer = grid._element;
-    dragData.container = dragContainer = settings.dragContainer || gridContainer;
-    dragData.containingBlock = containingBlock = getContainingBlock(dragContainer, true);
-
-    // Set initial left/top drag value.
+    dragData.container = dragContainer;
+    dragData.containingBlock = containingBlock;
+    dragData.elementClientX = elementRect.left;
+    dragData.elementClientY = elementRect.top;
     dragData.left = dragData.gridX = currentLeft;
     dragData.top = dragData.gridY = currentTop;
 
@@ -4047,7 +3813,6 @@
     if (dragContainer !== gridContainer) {
 
       // Store the container offset diffs to drag data.
-      offsetDiff = getOffsetDiff(containingBlock, gridContainer);
       dragData.containerDiffX = offsetDiff.left;
       dragData.containerDiffY = offsetDiff.top;
 
@@ -4065,25 +3830,14 @@
         dragData.left = currentLeft + dragData.containerDiffX;
         dragData.top = currentTop + dragData.containerDiffY;
         dragContainer.appendChild(element);
-        setStyles(element, {
-          transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
-        });
+        setStyles(element, {transform: getTranslateString(dragData.left, dragData.top)});
       }
 
     }
 
-    // Set drag class.
+    // Set drag class, bind scrollers and emit dragStart event.
     addClass(element, settings.itemDraggingClass);
-
-    // Bind drag scrollers.
     drag.bindScrollListeners();
-
-    // Get and store element's current offset from window's northwest corner.
-    elementGBCR = element.getBoundingClientRect();
-    dragData.elementClientX = elementGBCR.left;
-    dragData.elementClientY = elementGBCR.top;
-
-    // Emit dragStart event.
     grid._emit(evDragStart, item, event);
 
     return drag;
@@ -4102,53 +3856,52 @@
 
     var drag = this;
     var item = drag.getItem();
-    var element;
-    var grid;
-    var settings;
-    var dragData;
-    var xDiff;
-    var yDiff;
-    var axis;
 
     // If item is not active, reset drag.
     if (!item._isActive) {
-      drag.stop();
-      return;
+      return drag.stop();
     }
 
-    element = item._element;
-    grid = drag.getGrid();
-    settings = grid._settings;
-    dragData = drag._data;
-    axis = settings.dragAxis;
+    var element = item._element;
+    var grid = drag.getGrid();
+    var settings = grid._settings;
+    var dragData = drag._data;
+    var axis = settings.dragAxis;
+    var xDiff = event.deltaX - dragData.currentEvent.deltaX;
+    var yDiff = event.deltaY - dragData.currentEvent.deltaY;
 
-    // Get delta difference from last dragmove event.
-    xDiff = event.deltaX - dragData.currentEvent.deltaX;
-    yDiff = event.deltaY - dragData.currentEvent.deltaY;
+    rafLoop.addRead(rafQueueMove + item._id, function () {
 
-    // Update current event.
-    dragData.currentEvent = event;
+      // Update current event.
+      dragData.currentEvent = event;
 
-    // Update horizontal position data.
-    if (axis !== 'y') {
-      dragData.left += xDiff;
-      dragData.gridX += xDiff;
-      dragData.elementClientX += xDiff;
-    }
+      // Update horizontal position data.
+      if (axis !== 'y') {
+        dragData.left += xDiff;
+        dragData.gridX += xDiff;
+        dragData.elementClientX += xDiff;
+      }
 
-    // Update vertical position data.
-    if (axis !== 'x') {
-      dragData.top += yDiff;
-      dragData.gridY += yDiff;
-      dragData.elementClientY += yDiff;
-    }
+      // Update vertical position data.
+      if (axis !== 'x') {
+        dragData.top += yDiff;
+        dragData.gridY += yDiff;
+        dragData.elementClientY += yDiff;
+      }
 
-    // Overlap handling.
-    settings.dragSort && drag._checkSortOverlap();
+      // Overlap handling.
+      settings.dragSort && drag._checkSortOverlap();
 
-    // Update element's translateX/Y values.
-    setStyles(element, {
-      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
+    });
+
+    rafLoop.addWrite(rafQueueMove + item._id, function () {
+
+      // Update element's translateX/Y values.
+      setStyles(element, {transform: getTranslateString(dragData.left, dragData.top)});
+
+      // Emit dragMove event.
+      grid._emit(evDragMove, item, event);
+
     });
 
     // Emit dragMove event.
@@ -4176,40 +3929,51 @@
     var axis = settings.dragAxis;
     var dragData = drag._data;
     var gridContainer = grid._element;
-    var elementGBCR = element.getBoundingClientRect();
-    var xDiff = dragData.elementClientX - elementGBCR.left;
-    var yDiff = dragData.elementClientY - elementGBCR.top;
+    var elementRect;
+    var xDiff;
+    var yDiff;
     var offsetDiff;
 
-    // Update container diff.
-    if (dragData.container !== gridContainer) {
-      offsetDiff = getOffsetDiff(dragData.containingBlock, gridContainer);
-      dragData.containerDiffX = offsetDiff.left;
-      dragData.containerDiffY = offsetDiff.top;
-    }
+    rafLoop.addRead(rafQueueScroll + item._id, function () {
 
-    // Update horizontal position data.
-    if (axis !== 'y') {
-      dragData.left += xDiff;
-      dragData.gridX = dragData.left - dragData.containerDiffX;
-    }
+      // Calculate element's rect and x/y diff.
+      elementRect = element.getBoundingClientRect();
+      xDiff = dragData.elementClientX - elementRect.left;
+      yDiff = dragData.elementClientY - elementRect.top;
 
-    // Update vertical position data.
-    if (axis !== 'x') {
-      dragData.top += yDiff;
-      dragData.gridY = dragData.top - dragData.containerDiffY;
-    }
+      // Update container diff.
+      if (dragData.container !== gridContainer) {
+        offsetDiff = getOffsetDiff(dragData.containingBlock, gridContainer);
+        dragData.containerDiffX = offsetDiff.left;
+        dragData.containerDiffY = offsetDiff.top;
+      }
 
-    // Overlap handling.
-    settings.dragSort && drag._checkSortOverlap();
+      // Update horizontal position data.
+      if (axis !== 'y') {
+        dragData.left += xDiff;
+        dragData.gridX = dragData.left - dragData.containerDiffX;
+      }
 
-    // Update element's translateX/Y values.
-    setStyles(element, {
-      transform: 'translateX(' + dragData.left + 'px) translateY(' + dragData.top + 'px)'
+      // Update vertical position data.
+      if (axis !== 'x') {
+        dragData.top += yDiff;
+        dragData.gridY = dragData.top - dragData.containerDiffY;
+      }
+
+      // Overlap handling.
+      settings.dragSort && drag._checkSortOverlap();
+
     });
 
-    // Emit dragScroll event.
-    grid._emit(evDragScroll, item, event);
+    rafLoop.addWrite(rafQueueScroll + item._id, function () {
+
+      // Update element's translateX/Y values.
+      setStyles(element, {transform: getTranslateString(dragData.left, dragData.top)});
+
+      // Emit dragScroll event.
+      grid._emit(evDragScroll, item, event);
+
+    });
 
     return drag;
 
@@ -4237,6 +4001,9 @@
     if (!item._isActive) {
       return drag.stop();
     }
+
+    // Cancel raf loop actions.
+    drag.cancelRafLoop();
 
     // Finish currently queued overlap check.
     settings.dragSort && drag._checkSortOverlap('finish');
@@ -4508,9 +4275,124 @@
   }
 
   /**
+   * Returns a raf loop queue system that allows pushing callbacks to either
+   * the read queue or the write queue.
+   *
+   * @private
+   * @returns {Object}
+   */
+  function createRafLoop() {
+
+    var nextTick = null;
+    var readQueue = [];
+    var writeQueue = [];
+    var readMap = {};
+    var writeMap = {};
+    var raf = (global.requestAnimationFrame
+      || global.webkitRequestAnimationFrame
+      || global.mozRequestAnimationFrame
+      || global.msRequestAnimationFrame
+      || function (cb) {
+        return global.setTimeout(cb, 16);
+      }
+    ).bind(global);
+    var ret = {
+      addWrite: function (id, cb) {
+        return add(id, cb, writeQueue, writeMap);
+      },
+      addRead: function (id, cb) {
+        return add(id, cb, readQueue, readMap);
+      },
+      cancelWrite: function (id) {
+        return cancel(id, writeQueue, writeMap);
+      },
+      cancelRead: function (id) {
+        return cancel(id, readQueue, readMap);
+      }
+    };
+
+    function add(id, cb, targetQueue, targetMap) {
+
+      // First, let's check if an item has been added to the queue with the
+      // same id and remove it.
+      var currentIndex = targetQueue.indexOf(id);
+      if (currentIndex > -1) {
+        targetQueue.splice(currentIndex, 1);
+      }
+
+      // Then let's add the id to the end of the queue, and update the map.
+      targetQueue.push(id);
+      targetMap[id] = cb;
+
+      // Finally, let's kickstart the next tick if it is not running yet.
+      !nextTick && (nextTick = raf(flush));
+
+      return ret;
+
+    }
+
+    function cancel(id, targetQueue, targetMap) {
+
+      // Let's check if an item has been added to the queue with the id and
+      // if so -> remove it.
+      var currentIndex = targetQueue.indexOf(id);
+      if (currentIndex > -1) {
+        targetQueue.splice(currentIndex, 1);
+        targetMap[id] = undefined;
+      }
+
+      return ret;
+
+    }
+
+    function flush() {
+
+      var readQueueCopy = readQueue;
+      var writeQueueCopy = writeQueue;
+      var readMapCopy = readMap;
+      var writeMapCopy = writeMap;
+      var i;
+
+      // Reset read/write queues and maps, and next tick.
+      readQueue = [];
+      writeQueue = [];
+      readMap = {};
+      writeMap = {};
+      nextTick = null;
+
+      // Process read queue.
+      for (i = 0; i < readQueueCopy.length; i++) {
+        readMapCopy[readQueueCopy[i]]();
+      }
+
+      // Process write queue.
+      for (i = 0; i < writeQueueCopy.length; i++) {
+        writeMapCopy[writeQueueCopy[i]]();
+      }
+
+    }
+
+    return ret;
+
+  }
+
+  /**
    * Helpers - DOM utils
    * *******************
    */
+
+  /**
+   * Transforms a camel case style property to kebab case style property.
+   *
+   * @private
+   * @param {String} string
+   * @returns {String}
+   */
+  function getStyleName(string) {
+
+    return string.replace(/([A-Z])/g, '-$1').toLowerCase();
+
+  }
 
   /**
    * Returns the computed value of an element's style property as a string.
@@ -4558,6 +4440,43 @@
   }
 
   /**
+   * Transform translateX and translateY value into CSS transform style
+   * property's value.
+   *
+   * @private
+   * @param {Number} translateX
+   * @param {Number} translateY
+   * @returns {String}
+   */
+  function getTranslateString(translateX, translateY) {
+
+    return 'translateX(' + translateX + 'px) translateY(' + translateY + 'px)';
+
+  }
+
+  /**
+   * Get current values of the provided styles definition object.
+   *
+   * @private
+   * @param {HTMLElement} element
+   * @param {Object} styles
+   * @return {Object}
+   */
+  function getCurrentStyles(element, styles) {
+
+    var current = {};
+    var keys = Object.keys(styles);
+    var i;
+
+    for (i = 0; i < keys.length; i++) {
+      current[keys[i]] = getStyle(element, getStyleName(keys[i]));
+    }
+
+    return current;
+
+  }
+
+  /**
    * Set inline styles to an element.
    *
    * @private
@@ -4567,32 +4486,10 @@
   function setStyles(element, styles) {
 
     var props = Object.keys(styles);
-    var prop;
-    var val;
     var i;
 
     for (i = 0; i < props.length; i++) {
-      prop = props[i];
-      val = styles[prop];
-      element.style[prop === 'transform' && transform ? transform.propName : prop] = val;
-    }
-
-  }
-
-  /**
-   * Set inline styles to an element using Velocity's hook method.
-   *
-   * @private
-   * @param {HTMLElement} element
-   * @param {Object} styles
-   */
-  function hookStyles(element, styles) {
-
-    var props = Object.keys(styles);
-    var i;
-
-    for (i = 0; i < props.length; i++) {
-      Velocity.hook(element, props[i], styles[props[i]]);
+      element.style[props[i] === 'transform' && transform ? transform.propName : props[i]] = styles[props[i]];
     }
 
   }
@@ -4746,7 +4643,7 @@
    */
   function getOffset(element, excludeElementBorders) {
 
-    var gbcr;
+    var rect;
     var ret = {
       left: 0,
       top: 0
@@ -4767,9 +4664,9 @@
     }
 
     // Add element's client rects to the offsets.
-    gbcr = element.getBoundingClientRect();
-    ret.left += gbcr.left;
-    ret.top += gbcr.top;
+    rect = element.getBoundingClientRect();
+    ret.left += rect.left;
+    ret.top += rect.top;
 
     // Exclude element's borders from the offset if needed.
     if (excludeElementBorders) {
@@ -5241,38 +5138,53 @@
    * show/hide process.
    *
    * @param {String} type
-   * @param {Number} duration
-   * @param {(Number[]|String)} easing
-   * @param {Object} styles
+   * @param {Object} settings
    * @returns {Object}
    */
-  function getItemVisibilityHandler(type, duration, easing, styles) {
+  function getItemVisibilityHandler(type, settings) {
 
-    duration = parseInt(duration) || 0;
-    easing = easing || 'ease';
-    styles = isPlainObject(styles) ? styles : null;
-
+    var isShow = type === 'show';
+    var duration = parseInt(isShow ? settings.showDuration : settings.hideDuration) || 0;
+    var easing = (isShow ? settings.showEasing : settings.hideEasing) || 'ease';
+    var styles = isShow ? settings.visibleStyles : settings.hiddenStyles;
     var isEnabled = duration > 0;
+    var currentStyles;
+
+    styles = isPlainObject(styles) ? styles : null;
 
     return {
       start: function (item, instant, onFinish) {
-        if (!isEnabled || !styles) {
-          onFinish && onFinish();
-        }
-        else if (instant) {
-          (item._isDefaultAnimate ? hookStyles : setStyles)(item._child, styles);
+        if (!styles) {
           onFinish && onFinish();
         }
         else {
-          item._animateChild.start(null, styles, {
-            duration: duration,
-            easing: easing,
-            onFinish: onFinish
-          });
+          rafLoop.cancelRead(rafQueueVisibility + item._id).cancelWrite(rafQueueVisibility + item._id);
+          if (!isEnabled || instant) {
+            if (item._animateChild.isAnimating()) {
+              item._animateChild.stop(styles);
+            }
+            else {
+              setStyles(item._child, styles);
+            }
+            onFinish && onFinish();
+          }
+          else {
+            rafLoop.addRead(rafQueueVisibility + item._id, function () {
+              currentStyles = getCurrentStyles(item._child, styles);
+            });
+            rafLoop.addWrite(rafQueueVisibility + item._id, function () {
+              item._animateChild.start(currentStyles, styles, {
+                duration: duration,
+                easing: easing,
+                onFinish: onFinish
+              });
+            });
+          }
         }
       },
-      stop: function (item) {
-        item._animateChild.stop();
+      stop: function (item, targetStyles) {
+        rafLoop.cancelRead(rafQueueVisibility + item._id).cancelWrite(rafQueueVisibility + item._id);
+        item._animateChild.stop(targetStyles);
       }
     };
 
@@ -5290,7 +5202,7 @@
   function getTargetGrid(itemRect, rootGrid, threshold) {
 
     var ret = null;
-    var grids = rootGrid._getSortConnections(true);
+    var grids = [rootGrid].concat(rootGrid._settings.dragSortWith || []);
     var bestScore = -1;
     var gridScore;
     var grid;
@@ -5299,6 +5211,11 @@
     for (i = 0; i < grids.length; i++) {
 
       grid = grids[i];
+
+      // Filter out all destroyed grids and duplicates of the root grid.
+      if (grid._isDestroyed || (i && grid === rootGrid)) {
+        continue;
+      }
 
       // We need to update the grid's offset since it may have changed during
       // scrolling. This could be left as problem for the userland, but it's
@@ -5412,6 +5329,10 @@
     ret.visibleStyles = (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
     ret.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
 
+    // We need to take special care with dragSortWith option since it must not
+    // be cloned. The provided array is meaningful.
+    ret.dragSortWith = (userSettings && Object.keys(userSettings).indexOf('dragSortWith') > -1 ? userSettings : defaultSettings).dragSortWith;
+
     return ret;
 
   }
@@ -5476,10 +5397,10 @@
    */
 
   /*!
-   * muuriLayout v0.4.1
-   * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
-   * Released under the MIT license
-   */
+    * muuriLayout v0.6.0-dev
+    * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
+    * Released under the MIT license
+    */
 
   /**
    * The default Muuri layout algorithm. Based on MAXRECTS approach as described

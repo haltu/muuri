@@ -85,10 +85,16 @@
 
   };
 
-  utils.sortItemsById = function (items) {
-    return items.sort(function (a, b) {
-      return a._id - b._id;
+  utils.idList = function (collection) {
+    return collection.map(function (item) {
+      return item._id;
     });
+  };
+
+  utils.sortedIdList = function (items) {
+    return utils.idList(items.sort(function (a, b) {
+      return a._id - b._id;
+    }));
   };
 
   utils.setStyles = function (element, styles) {
@@ -101,6 +107,17 @@
   utils.matches = function (el, selector) {
     var p = Element.prototype;
     return (p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector).call(el, selector);
+  };
+
+  utils.raf = function (cb) {
+    return (window.requestAnimationFrame
+      || window.webkitRequestAnimationFrame
+      || window.mozRequestAnimationFrame
+      || window.msRequestAnimationFrame
+      || function (cb) {
+        return window.setTimeout(cb, 16);
+      }
+    )(cb);
   };
 
   utils.isScrollEvent = function (e) {

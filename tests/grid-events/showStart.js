@@ -17,7 +17,7 @@
 
     grid.on('showStart', function (items) {
       assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(grid.getItems([0, 1, 2])), 'callback: first argument should be an array of all the items that are about to be shown');
+      assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(grid.getItems([0, 1, 2])), 'callback: first argument should be an array of all the items that are about to be shown');
     });
     grid.hide([0, 1], {layout: false, instant: true});
     grid.show([0, 1, 2], {layout: false});

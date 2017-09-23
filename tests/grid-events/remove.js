@@ -18,7 +18,7 @@
 
     grid.on('remove', function (items) {
       assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
-      assert.deepEqual(utils.sortItemsById(items), utils.sortItemsById(removedItems), 'callback: first argument should be an array of the removed items');
+      assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(removedItems), 'callback: first argument should be an array of the removed items');
     });
     grid.remove(removedItems);
     teardown();

@@ -19,8 +19,8 @@
 
     grid.on('filter', function (shownItems, hiddenItems) {
       assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
-      assert.deepEqual(utils.sortItemsById(shownItems), utils.sortItemsById(itemsToShow), 'callback: array of shown items should be the first argument');
-      assert.deepEqual(utils.sortItemsById(hiddenItems), utils.sortItemsById(itemsToHide), 'callback: array of hidden items should be the second argument');
+      assert.deepEqual(utils.sortedIdList(shownItems), utils.sortedIdList(itemsToShow), 'callback: array of shown items should be the first argument');
+      assert.deepEqual(utils.sortedIdList(hiddenItems), utils.sortedIdList(itemsToHide), 'callback: array of hidden items should be the second argument');
     });
     grid.filter(function (item) {
       return itemsToShow.indexOf(item) > -1;

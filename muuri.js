@@ -35,7 +35,10 @@ TODO
       - [x] Migration API
       - [ ] Animation stopping
 - [x] Dynamic drag sort groups system.
-- [x] Deprecate custom show/hide functions.
+- [x] Deprecate custom show/hide functions. Also consider giving more priorities
+      in the queue. For example, favour visibility callbacks over layout, and
+      always set release layout callback over normal layout callback.
+- [ ] Allow providing raf queue batch size via "experimental" option.
 - [ ] Use WeakMap to make the getItems method work even faster and avoiding
       excessive looping. Other methods would benefit from this too (.add()).
 - [ ] Changing layout animation on the fly with many items causes items to jump
@@ -4321,7 +4324,7 @@ TODO
 
     function flush() {
 
-      var batch = queue.splice(0, maxBatchSize);
+      var batch = queue.splice(0, Math.min(maxBatchSize, queue.length));
       var i;
 
       // Reset ticker.

@@ -165,77 +165,73 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
 ```javascript
 {
 
-    // Item elements
-    items: '*',
+  // Item elements
+  items: '*',
 
-    // Default show animation
-    showDuration: 300,
-    showEasing: 'ease',
+  // Default show animation
+  showDuration: 300,
+  showEasing: 'ease',
 
-    // Default hide animation
-    hideDuration: 300,
-    hideEasing: 'ease',
+  // Default hide animation
+  hideDuration: 300,
+  hideEasing: 'ease',
 
-    // Custom show/hide animations
-    showAnimation: null,
-    hideAnimation: null,
+  // Item's visible/hidden state styles
+  visibleStyles: {
+    opacity: '1',
+    transform: 'scale(1)'
+  },
+  hiddenStyles: {
+    opacity: '0',
+    transform: 'scale(0.5)'
+  },
 
-    // Item's visible/hidden state styles
-    visibleStyles: {
-      opacity: 1,
-      scale: 1
-    },
-    hiddenStyles: {
-      opacity: 0,
-      scale: 0.5
-    },
+  // Layout
+  layout: {
+    fillGaps: false,
+    horizontal: false,
+    alignRight: false,
+    alignBottom: false,
+    rounding: true
+  },
+  layoutOnResize: 100,
+  layoutOnInit: true,
+  layoutDuration: 300,
+  layoutEasing: 'ease',
 
-    // Layout
-    layout: {
-      fillGaps: false,
-      horizontal: false,
-      alignRight: false,
-      alignBottom: false,
-      rounding: true
-    },
-    layoutOnResize: 100,
-    layoutOnInit: true,
-    layoutDuration: 300,
-    layoutEasing: 'ease',
+  // Sorting
+  sortData: null,
 
-    // Sorting
-    sortData: null,
+  // Drag & Drop
+  dragEnabled: false,
+  dragContainer: null,
+  dragStartPredicate: {
+    distance: 0,
+    delay: 0,
+    handle: false
+  },
+  dragAxis: null,
+  dragSort: true,
+  dragSortInterval: 100,
+  dragSortPredicate: {
+    threshold: 50,
+    action: 'move'
+  },
+  dragSortWith: null,
+  dragReleaseDuration: 300,
+  dragReleaseEasing: 'ease',
+  dragHammerSettings: {
+    touchAction: 'none'
+  },
 
-    // Drag & Drop
-    dragEnabled: false,
-    dragContainer: null,
-    dragStartPredicate: {
-      distance: 0,
-      delay: 0,
-      handle: false
-    },
-    dragAxis: null,
-    dragSort: true,
-    dragSortInterval: 100,
-    dragSortPredicate: {
-      threshold: 50,
-      action: 'move'
-    },
-    dragSortWith: null,
-    dragReleaseDuration: 300,
-    dragReleaseEasing: 'ease',
-    dragHammerSettings: {
-      touchAction: 'none'
-    },
-
-    // Classnames
-    containerClass: 'muuri',
-    itemClass: 'muuri-item',
-    itemVisibleClass: 'muuri-item-shown',
-    itemHiddenClass: 'muuri-item-hidden',
-    itemPositioningClass: 'muuri-item-positioning',
-    itemDraggingClass: 'muuri-item-dragging',
-    itemReleasingClass: 'muuri-item-releasing'
+  // Classnames
+  containerClass: 'muuri',
+  itemClass: 'muuri-item',
+  itemVisibleClass: 'muuri-item-shown',
+  itemHiddenClass: 'muuri-item-hidden',
+  itemPositioningClass: 'muuri-item-positioning',
+  itemDraggingClass: 'muuri-item-dragging',
+  itemReleasingClass: 'muuri-item-releasing'
 
 }
 ```
@@ -370,40 +366,40 @@ var grid = new Muuri(elem, {
 
 ### visibleStyles &nbsp;
 
-The styles that will be applied to all visible items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options.
+The styles that will be applied to all visible items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options. Be sure to define all style properties camel cased.
 
-* Default value: `{opacity: 1, scale: 1}`.
+* Default value: `{opacity: 1, transform: 'scale(1)'}`.
 * Accepted types: object.
 
 ```javascript
 var grid = new Muuri(elem, {
   visibleStyles: {
     opacity: 1,
-    rotateZ: '45deg'
+    transform: 'rotate(45deg)'
   },
   hiddenStyles: {
     opacity: 0,
-    rotateZ: '-45deg'
+    transform: 'rotate(-45deg)'
   }
 });
 ```
 
 ### hiddenStyles &nbsp;
 
-The styles that will be applied to all hidden items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options.
+The styles that will be applied to all hidden items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options. Be sure to define all style properties camel cased.
 
-* Default value: `{opacity: 0, scale: 0.5}`.
+* Default value: `{opacity: 0, transform: 'scale(0.5)'}`.
 * Accepted types: object.
 
 ```javascript
 var grid = new Muuri(elem, {
   visibleStyles: {
     opacity: 1,
-    rotateZ: '45deg'
+    transform: 'rotate(45deg)'
   },
   hiddenStyles: {
     opacity: 0,
-    rotateZ: '-45deg'
+    transform: 'rotate(-45deg)'
   }
 });
 ```
@@ -1864,7 +1860,7 @@ var elem = item.getElement();
 
 ### item.getWidth()
 
-Get instance element's cached width. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
+Get instance element's cached width. The returned value includes the element's paddings and borders.
 
 **Returns** &nbsp;&mdash;&nbsp; *number*
 
@@ -1874,7 +1870,7 @@ var width = item.getWidth();
 
 ### item.getHeight()
 
-Get instance element's cached height. The returned value includes the element's paddings and borders. Note that the values are rounded with `Math.round()`.
+Get instance element's cached height. The returned value includes the element's paddings and borders.
 
 **Returns** &nbsp;&mdash;&nbsp; *number*
 
@@ -1884,7 +1880,7 @@ var height = item.getHeight();
 
 ### item.getMargin()
 
-Get instance element's cached margins. Note that the values are rounded with `Math.round()`.
+Get instance element's cached margins.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 

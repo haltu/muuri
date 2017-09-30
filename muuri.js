@@ -33,16 +33,8 @@ TODO
       - [x] Drag onMove/onScroll
       - [x] Drag onStart
       - [x] Migration API
-      - [ ] Animation stopping
 - [x] Dynamic drag sort groups system.
-- [x] Deprecate custom show/hide functions. Also consider giving more priorities
-      in the queue. For example, favour visibility callbacks over layout, and
-      always set release layout callback over normal layout callback.
-- [ ] Allow providing raf queue batch size via "experimental" option.
-- [ ] Use WeakMap to make the getItems method work even faster and avoiding
-      excessive looping. Other methods would benefit from this too (.add()).
-- [ ] Changing layout animation on the fly with many items causes items to jump
-      a bit on Firefox. Try to fix it.
+- [x] Deprecate custom show/hide functions.
 */
 
 (function (global, factory) {
@@ -402,6 +394,13 @@ TODO
     itemReleasingClass: 'muuri-item-releasing'
 
   };
+
+  /**
+   * Grid - Private properties
+   * *************************
+   */
+
+  Grid._maxRafBatchSize = 100;
 
   /**
    * Grid - Public prototype methods
@@ -783,6 +782,9 @@ TODO
     var i;
 
     // Filter out all elements that exist already in current instance.
+    // TODO: This filtering can be made a lot faster by storing item elements
+    // in a Map or WeakMap. Other option would be to transfer the reponsibility
+    // completely to the user and get rid of this sanity check.
     for (i = 0; i < items.length; i++) {
       elementIndex = targetElements.indexOf(items[i]._element);
       if (elementIndex > -1) {
@@ -1266,15 +1268,20 @@ TODO
   Grid.prototype._getItem = function (target) {
 
     var inst = this;
-    var index;
-    var ret;
-    var item;
+    var items = inst._items;
     var i;
 
     // If no target is specified or the instance is destroyed, return the first
     // item or null.
     if (inst._isDestroyed || !target) {
-      return inst._items[0] || null;
+      return items[0] || null;
+    }
+
+    // If target is number return the item in that index. If the number is lower
+    // than zero look for the item starting from the end of the items array. For
+    // example -1 for the last item, -2 for the second last item, etc.
+    else if (typeof target === typeNumber) {
+      return items[target > -1 ? target : items.length + target] || null;
     }
 
     // If the target is an instance of Item return it if it is attached to this
@@ -1283,27 +1290,17 @@ TODO
       return target._gridId === inst._id ? target : null;
     }
 
-    // If target is number return the item in that index. If the number is lower
-    // than zero look for the item starting from the end of the items array. For
-    // example -1 for the last item, -2 for the second last item, etc.
-    else if (typeof target === typeNumber) {
-      index = target > -1 ? target : inst._items.length + target;
-      return inst._items[index] || null;
-    }
-
     // In other cases let's assume that the target is an element, so let's try
     // to find an item that matches the element and return it. If item is not
     // found return null.
     else {
-      ret = null;
-      for (i = 0; i < inst._items.length; i++) {
-        item = inst._items[i];
-        if (item._element === target) {
-          ret = item;
-          break;
+      // TODO: This could be made a lot faster by using WeakMap or Map.
+      for (i = 0; i < items.length; i++) {
+        if (items[i]._element === target) {
+          return items[i];
         }
       }
-      return ret;
+      return null;
     }
 
   };
@@ -2107,14 +2104,13 @@ TODO
     inst._animate.destroy();
     inst._animateChild.destroy();
 
+    // Handle visibility callback queue, fire all uncompleted callbacks with
+    // interrupted flag.
+    processQueue(inst._visibilityQueue, true, inst);
+
     // Remove all inline styles.
     element.removeAttribute('style');
     inst._child.removeAttribute('style');
-
-    // Handle visibility callback queue, fire all uncompleted callbacks with
-    // interrupted flag.
-    // TODO: Is this really the right place to call these?
-    processQueue(inst._visibilityQueue, true, inst);
 
     // Remove classes.
     removeClass(element, settings.itemPositioningClass);
@@ -2156,6 +2152,9 @@ TODO
    */
   function Layout(grid, items) {
 
+    var inst = this;
+    var settings = grid._settings.layout;
+
     // Clone items.
     items = items.concat();
 
@@ -2163,8 +2162,6 @@ TODO
     // further.
     grid._refreshDimensions();
 
-    var inst = this;
-    var settings = grid._settings.layout;
     var width = grid._width - grid._border.left - grid._border.right;
     var height = grid._height - grid._border.top - grid._border.bottom;
     var isCustomLayout = typeof settings === typeFunction;
@@ -4043,16 +4040,10 @@ TODO
   function normalizeArrayIndex(array, index) {
 
     var length = array.length;
-    var maxIndex = length - 1;
 
-    if (index > maxIndex) {
-      return maxIndex;
-    }
-    else if (index < 0) {
-      return Math.max(length + index, 0);
-    }
-
-    return index;
+    return index > (length - 1) ? length - 1 :
+      index < 0 ? Math.max(length + index, 0) :
+      index;
 
   }
 
@@ -4279,7 +4270,6 @@ TODO
   function createRafLoop() {
 
     var nextTick = null;
-    var maxBatchSize = 100;
     var queue = [];
     var map = {};
     var raf = (global.requestAnimationFrame
@@ -4324,6 +4314,7 @@ TODO
 
     function flush() {
 
+      var maxBatchSize = +Grid._maxRafBatchSize || 100;
       var batch = queue.splice(0, Math.min(maxBatchSize, queue.length));
       var i;
 
@@ -4980,7 +4971,7 @@ TODO
       }
     }
 
-    Array.prototype.splice.apply(items, [0, items.length].concat(newItems).concat(currentItems));
+    items.splice.apply(items, [0, items.length].concat(newItems).concat(currentItems));
 
     return items;
 

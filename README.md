@@ -217,7 +217,6 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     threshold: 50,
     action: 'move'
   },
-  dragSortWith: null,
   dragReleaseDuration: 300,
   dragReleaseEasing: 'ease',
   dragHammerSettings: {
@@ -277,7 +276,6 @@ var gridB = new Muuri('.grid-b', {
 * [dragSort](#dragsort-)
 * [dragSortInterval](#dragsortinterval-)
 * [dragSortPredicate](#dragsortpredicate-)
-* [dragSortWith](#dragsortwith-)
 * [dragReleaseDuration](#dragreleaseduration-)
 * [dragReleaseEasing](#dragreleaseeasing-)
 * [containerClass](#containerclass-)
@@ -334,7 +332,7 @@ Show animation easing. Accepts any valid [Animation easing](https://developer.mo
 
 ```javascript
 var grid = new Muuri(elem, {
-  showEasing: 'ease-out'
+  showEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)'
 });
 ```
 
@@ -360,7 +358,7 @@ Hide animation easing. Accepts any valid [Animation easing](https://developer.mo
 
 ```javascript
 var grid = new Muuri(elem, {
-  hideEasing: 'ease-out'
+  hideEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)'
 });
 ```
 
@@ -453,12 +451,16 @@ Should Muuri automatically trigger `layout` method on window resize? Set to `fal
 var grid = new Muuri(elem, {
   layoutOnResize: false
 });
+```
 
+```javascript
 // Layout on resize (instantly).
 var grid = new Muuri(elem, {
   layoutOnResize: true
 });
+```
 
+```javascript
 // Layout on resize (with 200ms debounce).
 var grid = new Muuri(elem, {
   layoutOnResize: 200
@@ -499,24 +501,8 @@ The easing for item's layout animation. Accepts any valid [Animation easing](htt
 * Accepted types: string.
 
 ```javascript
-// jQuery UI easings.
 var grid = new Muuri(elem, {
-  layoutEasing: 'easeInSine'
-});
-
-// Custom bezier curve.
-var grid = new Muuri(elem, {
-  layoutEasing: [0.17, 0.67, 0.83, 0.67]
-});
-
-// Spring physics.
-var grid = new Muuri(elem, {
-  layoutEasing: [250, 15]
-});
-
-// Step easing.
-var grid = new Muuri(elem, {
-  layoutEasing: [8]
+  layoutEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)'
 });
 ```
 
@@ -607,7 +593,9 @@ var grid = new Muuri(elem, {
     handle: '.foo, .bar'
   }
 });
+```
 
+```javascript
 // Provide your own predicate
 var grid = new Muuri(elem, {
   dragStartPredicate: function (item, e) {
@@ -632,7 +620,9 @@ Force items to be moved only vertically or horizontally when dragged. Set to `'x
 var grid = new Muuri(elem, {
   dragAxis: 'x'
 });
+```
 
+```javascript
 // Move items only vertically when dragged.
 var grid = new Muuri(elem, {
   dragAxis: 'y'
@@ -641,16 +631,28 @@ var grid = new Muuri(elem, {
 
 ### dragSort &nbsp;
 
-Should the items be sorted during drag?
+Should the items be sorted during drag? A simple boolean will do just fine here.
+
+Alternatively you can do some advanced stuff and control within which grids a specific item can be sorted and dragged into. To do that you need to provide a function which receives the dragged item as its first argument and should return an array of grid instances. An important thing to note here is that you need to return *all* the grid instances you want the dragged item to sort within, even the current grid instance. If you return an empty array the dragged item will not cause sorting at all.
 
 * Default value: `true`.
-* Accepted types: boolean.
+* Accepted types: boolean, function.
 
 ```javascript
 // Disable drag sorting.
 var grid = new Muuri(elem, {
   dragSort: false
 });
+```
+```javascript
+// Multigrid drag sorting.
+var gridA = new Muuri(elemA, {dragSort: getAllGrids});
+var gridB = new Muuri(elemB, {dragSort: getAllGrids});
+var gridC = new Muuri(elemC, {dragSort: getAllGrids});
+
+function getAllGrids(item) {
+  return [gridA, gridB, gridC];
+}
 ```
 
 ### dragSortInterval &nbsp;
@@ -665,7 +667,9 @@ Defines the amount of time the dragged item must be still before `dragSortPredic
 var grid = new Muuri(elem, {
   dragSortInterval: 0
 });
+```
 
+```javascript
 // Sort with a decent buffer.
 var grid = new Muuri(elem, {
   dragSortInterval: 150
@@ -718,7 +722,9 @@ var grid = new Muuri(elem, {
     action: 'swap'
   }
 });
+```
 
+```javascript
 // Provide your own predicate.
 var grid = new Muuri(elem, {
   dragSortPredicate: function (item, e) {
@@ -730,25 +736,6 @@ var grid = new Muuri(elem, {
     }
   }
 });
-```
-
-### dragSortWith &nbsp;
-
-Defines the grid instances this instance's items can be dragged into. Provide an array of grid instances. The provided array is used as is whenever there is a need to check the drag sort connections so you can later on mutate the array (remove or add instances) and the changes are immediately reflected in the grid's behaviour.
-
-* Default value: `null`.
-* Accepted types: array, null.
-
-```javascript
-// Create an array to store all the grid instances.
-var grids = [];
-// Instantiate multiple grid instances and provide grids collection to the
-// dragSortWith option. 
-var gridA = new Muuri(elemA, {dragSortWith: grids});
-var gridB = new Muuri(elemB, {dragSortWith: grids});
-var gridC = new Muuri(elemC, {dragSortWith: grids});
-// Push the grid instances to the grids collection.
-grids.push(gridA, gridB, gridC);
 ```
 
 ### dragReleaseDuration &nbsp;
@@ -980,6 +967,7 @@ Synchronize the item elements to match the order of the items in the DOM. This c
 ```javascript
 // Let's say we have to move the first item in the grid as the last.
 grid.move(0, -1);
+
 // Now the DOM order of the items is not in sync anymore with the
 // order of the items. We can sync the DOM with synchronize method.
 grid.synchronize();

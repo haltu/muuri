@@ -33,8 +33,14 @@ TODO
       - [x] Drag onMove/onScroll
       - [x] Drag onStart
       - [x] Migration API
-- [x] Dynamic drag sort groups system.
+- [x] Dynamic drag sort groups system. UPDATE UNIT TESTS.
 - [x] Deprecate custom show/hide functions.
+- [ ] Even more frendlier Layout Engine API (with good docs). Allow providing
+      '', 'auto' and percentage values for width and height (for resetting w/h).
+- [ ] Moar unit tests (looking at you grid.send())!
+- [ ] Take another look at the events keeping in mind that people might also be
+      interested in when the changes happen in the DOM (although mutation
+      observer can be used for that also).
 */
 
 (function (global, factory) {
@@ -178,13 +184,12 @@ TODO
    * @param {Number} [options.dragStartPredicate.delay=0]
    * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
    * @param {?String} [options.dragAxis]
-   * @param {Boolean} [options.dragSort=true]
+   * @param {(Boolean|Function)} [options.dragSort=true]
    * @param {Number} [options.dragSortInterval=100]
    * @param {(Function|Object)} [options.dragSortPredicate]
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {String} [options.dragSortPredicate.gaps=true]
-   * @param {?Array} [options.dragSortWith=null]
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {String} [options.dragReleaseEasing="ease"]
    * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
@@ -224,6 +229,11 @@ TODO
 
     // Create instance settings by merging the options with default options.
     settings = inst._settings = mergeSettings(Grid.defaultOptions, options);
+
+    // Sanitize dragSort setting.
+    if (typeof settings.dragSort !== typeFunction) {
+      settings.dragSort = !!settings.dragSort;
+    }
 
     // Create instance id and store it to the grid instances collection.
     gridInstances[inst._id = ++uuid] = inst;
@@ -377,7 +387,6 @@ TODO
       threshold: 50,
       action: 'move'
     },
-    dragSortWith: null,
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
     dragHammerSettings: {
@@ -2044,8 +2053,7 @@ TODO
     if (instant) {
       grid._itemHideHandler.stop(inst, settings.hiddenStyles);
       inst._isHiding = false;
-      // TODO: This causes layout thrashing!!!
-      inst._stopLayout(true);
+      inst._stopLayout(true, {transform: getTranslateString(0, 0)});
       setStyles(element, {display: 'none'});
       processQueue(queue, false, inst);
     }
@@ -2055,8 +2063,7 @@ TODO
       grid._itemHideHandler.start(inst, instant, function () {
         if (inst._isHidden) {
           inst._isHiding = false;
-          // TODO: This causes layout thrashing!!!
-          inst._stopLayout(true);
+          inst._stopLayout(true, {transform: getTranslateString(0, 0)});
           setStyles(element, {display: 'none'});
           processQueue(queue, false, inst);
         }
@@ -2153,7 +2160,7 @@ TODO
   function Layout(grid, items) {
 
     var inst = this;
-    var settings = grid._settings.layout;
+    var layoutSettings = grid._settings.layout;
 
     // Clone items.
     items = items.concat();
@@ -2164,8 +2171,9 @@ TODO
 
     var width = grid._width - grid._border.left - grid._border.right;
     var height = grid._height - grid._border.top - grid._border.bottom;
-    var isCustomLayout = typeof settings === typeFunction;
-    var layout = isCustomLayout ? settings(items, width, height) : muuriLayout(items, width, height, isPlainObject(settings) ? settings : {});
+    var isCustomLayout = typeof layoutSettings === typeFunction;
+    var layout = isCustomLayout ? layoutSettings(items, width, height) :
+      muuriLayout(items, width, height, isPlainObject(layoutSettings) ? layoutSettings : {});
 
     // Set instance data based on layout data.
     inst.slots = layout.slots;
@@ -2589,6 +2597,9 @@ TODO
     if (targetIndex === null) {
       return migrate;
     }
+
+    // Normalize target index (for event data).
+    targetIndex = normalizeArrayIndex(targetGrid._items, targetIndex, true);
 
     // Get current translateX and translateY values if needed.
     if (item.isPositioning() || migrate.isActive || item.isReleasing()) {
@@ -3230,7 +3241,7 @@ TODO
       left: dragData.elementClientX,
       top: dragData.elementClientY
     };
-    var grid = getTargetGrid(itemRect, rootGrid, sortThreshold);
+    var grid = getTargetGrid(item, rootGrid, itemRect, sortThreshold);
     var gridOffsetLeft = 0;
     var gridOffsetTop = 0;
     var matchScore = -1;
@@ -3490,6 +3501,7 @@ TODO
     var targetGrid;
     var targetIndex;
     var sortAction;
+    var isMigration;
 
     // Let's make sure the result object has a valid index before going further.
     if (!isPlainObject(result) || typeof result.index !== typeNumber) {
@@ -3497,13 +3509,14 @@ TODO
     }
 
     currentGrid = item.getGrid();
-    currentIndex = currentGrid._items.indexOf(item);
     targetGrid = result.grid || currentGrid;
-    targetIndex = normalizeArrayIndex(currentGrid._items, result.index);
+    isMigration = currentGrid !== targetGrid;
+    currentIndex = currentGrid._items.indexOf(item);
+    targetIndex = normalizeArrayIndex(currentGrid._items, result.index, isMigration);
     sortAction = result.action === 'swap' ? 'swap' : 'move';
 
     // If the item was moved within it's current grid.
-    if (currentGrid === targetGrid) {
+    if (!isMigration) {
 
       // Make sure the target index is not the current index.
       if (currentIndex !== targetIndex) {
@@ -4036,13 +4049,15 @@ TODO
    * @private
    * @param {Array} array
    * @param {Number} index
+   * @param {Boolean} isMigration
    */
-  function normalizeArrayIndex(array, index) {
+  function normalizeArrayIndex(array, index, isMigration) {
 
     var length = array.length;
+    var maxIndex = Math.max(0, isMigration ? length : length - 1);
 
-    return index > (length - 1) ? length - 1 :
-      index < 0 ? Math.max(length + index, 0) :
+    return index > maxIndex ? maxIndex :
+      index < 0 ? Math.max(maxIndex + index + 1, 0) :
       index;
 
   }
@@ -5163,26 +5178,34 @@ TODO
    * Get target grid for the default drag sort predicate.
    *
    * @private
-   * @param {Rectangle} itemRect
+   * @param {Item} item
    * @param {Grid} rootGrid
+   * @param {Rectangle} itemRect
    * @param {Number} threshold
    * @returns {?Grid}
    */
-  function getTargetGrid(itemRect, rootGrid, threshold) {
+  function getTargetGrid(item, rootGrid, itemRect, threshold) {
 
     var ret = null;
-    var grids = [rootGrid].concat(rootGrid._settings.dragSortWith || []);
+    var dragSort = rootGrid._settings.dragSort;
+    var grids = dragSort === true ? [rootGrid] : dragSort.call(rootGrid, item);
     var bestScore = -1;
     var gridScore;
     var grid;
     var i;
 
+    // Return immediately if there are no grids.
+    if (!Array.isArray(grids)) {
+      return ret;
+    }
+
+    // Loop through the grids and get the best match.
     for (i = 0; i < grids.length; i++) {
 
       grid = grids[i];
 
-      // Filter out all destroyed grids and duplicates of the root grid.
-      if (grid._isDestroyed || (i && grid === rootGrid)) {
+      // Filter out all destroyed grids.
+      if (grid._isDestroyed) {
         continue;
       }
 
@@ -5297,10 +5320,6 @@ TODO
     // overriden instead of the props.
     ret.visibleStyles = (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
     ret.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
-
-    // We need to take special care with dragSortWith option since it must not
-    // be cloned. The provided array is meaningful.
-    ret.dragSortWith = (userSettings && Object.keys(userSettings).indexOf('dragSortWith') > -1 ? userSettings : defaultSettings).dragSortWith;
 
     return ret;
 

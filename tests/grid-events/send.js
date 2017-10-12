@@ -79,7 +79,9 @@
     var grids = [];
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
-      dragSortWith: grids,
+      dragSort: function () {
+        return grids
+      },
       dragSortInterval: 100,
       dragSortPredicate: {
         threshold: 50,
@@ -88,7 +90,9 @@
     });
     var gridB = new Muuri(containerB, {
       dragEnabled: true,
-      dragSortWith: grids,
+      dragSort: function () {
+        return grids
+      },
       dragSortInterval: 100,
       dragSortPredicate: {
         threshold: 50,

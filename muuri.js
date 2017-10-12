@@ -35,12 +35,9 @@ TODO
       - [x] Migration API
 - [x] Dynamic drag sort groups system. UPDATE UNIT TESTS.
 - [x] Deprecate custom show/hide functions.
-- [ ] Even more frendlier Layout Engine API (with good docs). Allow providing
+- [x] Even more frendlier Layout Engine API (with good docs). Allow providing
       '', 'auto' and percentage values for width and height (for resetting w/h).
 - [ ] Moar unit tests (looking at you grid.send())!
-- [ ] Take another look at the events keeping in mind that people might also be
-      interested in when the changes happen in the DOM (although mutation
-      observer can be used for that also).
 */
 
 (function (global, factory) {
@@ -666,6 +663,7 @@ TODO
     var layout = inst._layout = new Grid.Layout(inst, items);
     var counter = items.length;
     var isBorderBox;
+    var containerStyles;
     var item;
     var position;
     var i;
@@ -692,21 +690,28 @@ TODO
     // it's box-sizing is border-box.
     if (layout.setWidth || layout.setHeight) {
 
+      containerStyles = {};
       isBorderBox = getStyle(inst._element, 'box-sizing') === 'border-box';
 
-      // Set container element's height if needed.
       if (layout.setHeight) {
-        setStyles(inst._element, {
-          height: (isBorderBox ? layout.height + inst._border.top + inst._border.bottom : layout.height) + 'px'
-        });
+        if (typeof layout.height === typeNumber) {
+          containerStyles.height = (isBorderBox ? layout.height + inst._border.top + inst._border.bottom : layout.height) + 'px';
+        }
+        else {
+          containerStyles.height = layout.height;
+        }
       }
 
-      // Set container element's width if needed.
       if (layout.setWidth) {
-        setStyles(inst._element, {
-          width: (isBorderBox ? layout.width + inst._border.left + inst._border.right : layout.width) + 'px'
-        });
+        if (typeof layout.width === typeNumber) {
+          containerStyles.width = (isBorderBox ? layout.width + inst._border.left + inst._border.right : layout.width) + 'px';
+        }
+        else {
+          containerStyles.width = layout.width;
+        }
       }
+
+      setStyles(inst._element, containerStyles);
 
     }
 

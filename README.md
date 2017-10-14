@@ -4,11 +4,20 @@
 [![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
 [![CDNJS](https://img.shields.io/cdnjs/v/muuri.svg)](https://cdnjs.com/libraries/muuri)
 
-Muuri creates responsive, sortable, filterable and draggable grid layouts. Yep, that's a lot of features in one library, but we have tried to make it as tiny as possible. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [jQuery UI sortable](https://jqueryui.com/sortable/). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
+Muuri is a magical JavaScript layout engine that allows you to build all kinds of layouts and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
 
-Muuri's layout system allows positioning the grid items pretty much any way imaginable. The default "First Fit" bin packing layout algorithm generates similar layouts as [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). However, you can also provide your own layout algorithm to position the items in any way you want.
+Muuri's default "First Fit" bin packing layout algorithm generates layouts similar to [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). If that's not your cup of tea you can always provide your own layout algorithm to position the items as you wish.
 
-Muuri uses [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) for animating the grid items (positioning/showing/hiding) and [Hammer.js](http://hammerjs.github.io/) for handling the dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri uses [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to power it's internal animation engine and [Hammer.js](http://hammerjs.github.io/) to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+
+**Features**
+
+* Fully customizable layout
+* Drag & drop (even between grids)
+* Nested grids
+* Fast animations
+* Filtering
+* Sorting
 
 ## Table of contents
 
@@ -154,7 +163,7 @@ var grid = new Muuri('.grid');
 
 * **element** &nbsp;&mdash;&nbsp; *element* / *string*
   * Default value: `null`.
-  * You can provide the element directly or use a selector (string) which uses [querySelector()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector) internally. The first element of the query's result will be used.
+  * You can provide the element directly or use a selector (string) which uses [querySelector()](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector) internally.
 * **options** &nbsp;&mdash;&nbsp; *object*
   * Optional. Check out the [detailed options reference](#grid-options).
 

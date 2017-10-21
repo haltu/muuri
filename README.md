@@ -653,6 +653,7 @@ var grid = new Muuri(elem, {
   dragSort: false
 });
 ```
+
 ```javascript
 // Multigrid drag sorting.
 var gridA = new Muuri(elemA, {dragSort: getAllGrids});

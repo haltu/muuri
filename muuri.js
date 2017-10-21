@@ -22,24 +22,6 @@
  * SOFTWARE.
  */
 
-/*
-TODO
-****
-- [x] Use web animations API.
-- [x] Minimize layout thrashing. There are some major issues that can be
-      noticed when animating hundreds of elements.
-      - [x] Layout system
-      - [x] Visibility system
-      - [x] Drag onMove/onScroll
-      - [x] Drag onStart
-      - [x] Migration API
-- [x] Dynamic drag sort groups system. UPDATE UNIT TESTS.
-- [x] Deprecate custom show/hide functions.
-- [x] Even more frendlier Layout Engine API (with good docs). Allow providing
-      '', 'auto' and percentage values for width and height (for resetting w/h).
-- [ ] Moar unit tests (looking at you grid.send())!
-*/
-
 (function (global, factory) {
 
   var namespace = 'Muuri';

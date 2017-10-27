@@ -5,3 +5,4 @@ website
 /demos
 *.log
 *.env
+*.DS_Store

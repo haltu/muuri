@@ -1,6 +1,6 @@
 {
   "name": "muuri",
-  "version": "0.5.0-dev",
+  "version": "0.5.0",
   "description": "Responsive, sortable, filterable and draggable grid layouts.",
   "keywords": [
     "grid",

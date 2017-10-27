@@ -8,7 +8,7 @@ Muuri is a magical JavaScript layout engine that allows you to build all kinds o
 
 Muuri's default "First Fit" bin packing layout algorithm generates layouts similar to [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). If that's not your cup of tea you can always provide your own layout algorithm to position the items as you wish.
 
-Muuri uses [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to power it's internal animation engine and [Hammer.js](http://hammerjs.github.io/) to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to power it's internal animation engine and [Hammer.js](http://hammerjs.github.io/) to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 **Features**
 
@@ -61,7 +61,7 @@ bower install muuri
 
 ### 2. Get the dependencies
 
-* Muuri uses [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations yet you need to use a [polyfill](https://github.com/web-animations/web-animations-js). If you're feeling lucky you might be interested to know that it is possible to replace Muuri's default animation engine with your own implementation by overwriting the `Muuri.ItemAnimate` constructor.
+* Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations yet you need to use a [polyfill](https://github.com/web-animations/web-animations-js). If you're feeling lucky you might be interested to know that it is possible to replace Muuri's default animation engine with your own implementation by overwriting the `Muuri.ItemAnimate` constructor.
 
 * Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
 
@@ -1994,17 +1994,13 @@ First of all you should check out [the current questions](https://github.com/hal
 
 Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain the bug in detail. If possible create a [reduced test case](https://css-tricks.com/reduced-test-cases/) and share a link to it. You can, for example, fork [this CodePen example](https://codepen.io/niklasramo/pen/jyJLGM) and modify it to demonstrate the bug.
 
-**Is there a React/Vue version?**
-
-Not yet, but it is planned. Hold on tight!
-
 ## Credits
 
 **Created and maintained by [Niklas Rämö](https://github.com/niklasramo).**
 
-* This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/) and [Packery](http://packery.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
+* This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/), [Packery](http://packery.metafizzy.co/) and [Isotope](https://isotope.metafizzy.co/)libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
 * Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!
-* Big thanks to the people behind [Web Animations API polyfill](https://github.com/web-animations/web-animations-js) and [Hammer.js](http://hammerjs.github.io/) for providing such awesome libraries. Muuri would be much less cool without animations and dragging.
+* Big thanks to the people behind [Web Animations polyfill](https://github.com/web-animations/web-animations-js) and [Hammer.js](http://hammerjs.github.io/) for providing such awesome libraries. Muuri would be much less cool without animations and dragging.
 * [Haltu Oy](http://www.haltu.fi/) was responsible for initiating this project in the first place and funded the intial development. Thanks Haltu!
 
 ## License

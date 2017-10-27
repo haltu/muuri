@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.5.0-dev
+ * Muuri v0.5.0
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -3834,9 +3834,11 @@
 
     }
 
-    // Set drag class, bind scrollers and emit dragStart event.
+    // Set drag class and bind scrollers.
     addClass(element, settings.itemDraggingClass);
     drag.bindScrollListeners();
+
+    // Emit dragStart event.
     grid._emit(evDragStart, item, event);
 
     return drag;
@@ -5372,7 +5374,7 @@
    */
 
   /*!
-    * muuriLayout v0.5.0-dev
+    * muuriLayout v0.5.0
     * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
     * Released under the MIT license
     */

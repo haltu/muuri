@@ -54,7 +54,6 @@
   line-height: 100px;
   margin: 10px;
   z-index: 1;
-  will-change: transform;
 }
 .item.muuri-item-positioning {
   z-index: 2;

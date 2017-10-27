@@ -15,9 +15,10 @@ document.addEventListener('DOMContentLoaded', function () {
       layoutDuration: 400,
       layoutEasing: 'ease',
       dragEnabled: true,
+      dragSort: function () {
+        return columnGrids;
+      },
       dragSortInterval: 0,
-      dragSortGroup: 'column',
-      dragSortWith: 'column',
       dragContainer: document.body,
       dragReleaseDuration: 400,
       dragReleaseEasing: 'ease'

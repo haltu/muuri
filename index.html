@@ -9,9 +9,9 @@
     <meta name="author" content="Niklas Rämö">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira+Sans:400,300,300italic,400italic,500,500italic,700,700italic">
-    <link rel="stylesheet" href="styles/main.css?v=3">
-    <link rel="stylesheet" href="styles/demo-grid.css?v=3">
-    <link rel="stylesheet" href="styles/demo-kanban.css?v=3">
+    <link rel="stylesheet" href="styles/main.css?v=4">
+    <link rel="stylesheet" href="styles/demo-grid.css?v=4">
+    <link rel="stylesheet" href="styles/demo-kanban.css?v=4">
   </head>
   <body>
 
@@ -184,7 +184,7 @@
           </div>
           <div class="feature-list-text">
             <h4>Fast animations</h4>
-            <p>Fast and highly customizable positioning and show/hide animations powered by <a href="http://velocityjs.org/">Velocity.js</a>.</p>
+            <p>Fast positioning, show and hide animations powered by <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API">Web Animations</a>.</p>
           </div>
         </li>
         <li class="feature-list-item">
@@ -193,7 +193,7 @@
           </div>
           <div class="feature-list-text">
             <h4>Good browser support</h4>
-            <p>Works in all modern browsers and IE9+.</p>
+            <p>Works in all modern browsers and IE9+ (needs polyfills for web animations and request animation frame).</p>
           </div>
         </li>
         <li class="feature-list-item">
@@ -228,11 +228,11 @@
 
       <h2 class="section-title"><span>Credits</span></h2>
 
-      <p>This project owes much to <a href="http://desandro.com/">David DeSandro's<a> <a href="http://masonry.desandro.com/">Masonry</a> and <a href="http://packery.metafizzy.co/">Packery</a> libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!</p>
+      <p>This project owes much to <a href="http://desandro.com/">David DeSandro's<a> <a href="http://masonry.desandro.com/">Masonry</a>, <a href="http://packery.metafizzy.co/">Packery</a> and <a href="http://isotope.metafizzy.co/">Isotope</a> libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!</p>
 
       <p><a href="http://clb.demon.fi/">Jukka Jylänki's</a> research <a href="http://clb.demon.fi/files/RectangleBinPack.pdf">A Thousand Ways to Pack the Bin</a> came in handy when building Muuri's layout algorithms. Thanks Jukka!</p>
 
-      <p>Big thanks to the people behind <a href="http://velocityjs.org/">Velocity.js</a> and <a href="http://hammerjs.github.io/">Hammer.js</a> for providing such awesome libraries. Muuri would be much less cool without animations and dragging.</p>
+      <p>Big thanks to the people behind <a href="https://github.com/web-animations/web-animations-js">Web Animations polyfill</a> and <a href="http://hammerjs.github.io/">Hammer.js</a> for providing such awesome libraries. Muuri would be much less cool without animations and dragging.</p>
 
       <p><a href="http://www.haltu.fi/">Haltu Oy</a> was responsible for initiating this project in the first place and funded the intial development. Thanks Haltu!</p>
 
@@ -242,14 +242,14 @@
 
     <footer>
       <p class="credits">Logo and website designed by <a href="https://github.com/niklasramo">Niklas Rämö</a></p>
-      <p class="copyright">Copyright <i>&copy;</i> 2015-2017 <a href="http://www.haltu.fi/">Haltu Oy</a> &nbsp;&bull;&nbsp; <a href="https://github.com/haltu/muuri/blob/master/LICENSE.md">MIT License</a></p>
+      <p class="copyright">Copyright <i>&copy;</i> 2015 <a href="http://www.haltu.fi/">Haltu Oy</a> &nbsp;&bull;&nbsp; <a href="https://github.com/haltu/muuri/blob/master/LICENSE.md">MIT License</a></p>
     </footer>
 
-    <script src="scripts/vendor/velocity.min.js?v=3"></script>
-    <script src="scripts/vendor/hammer.min.js?v=3"></script>
-    <script src="scripts/vendor/muuri.js?v=3"></script>
-    <script src="scripts/demo-grid.js?v=3"></script>
-    <script src="scripts/demo-kanban.js?v=3"></script>
+    <script src="scripts/vendor/web-animations-2.3.1.min.js"></script>
+    <script src="scripts/vendor/hammer-2.0.8.min.js"></script>
+    <script src="scripts/vendor/muuri-0.5.0.js"></script>
+    <script src="scripts/demo-grid.js?v=4"></script>
+    <script src="scripts/demo-kanban.js?v=4"></script>
 
   </body>
 

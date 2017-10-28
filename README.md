@@ -1998,7 +1998,7 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
 
 **Created and maintained by [Niklas Rämö](https://github.com/niklasramo).**
 
-* This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/), [Packery](http://packery.metafizzy.co/) and [Isotope](https://isotope.metafizzy.co/)libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
+* This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/), [Packery](http://packery.metafizzy.co/) and [Isotope](https://isotope.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
 * Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!
 * Big thanks to the people behind [Web Animations polyfill](https://github.com/web-animations/web-animations-js) and [Hammer.js](http://hammerjs.github.io/) for providing such awesome libraries. Muuri would be much less cool without animations and dragging.
 * [Haltu Oy](http://www.haltu.fi/) was responsible for initiating this project in the first place and funded the intial development. Thanks Haltu!

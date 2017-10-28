@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.5.0
+ * Muuri v0.5.1
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -4320,20 +4320,26 @@
 
       var maxBatchSize = +Grid._maxRafBatchSize || 100;
       var batch = queue.splice(0, Math.min(maxBatchSize, queue.length));
+      var batchMap = {};
       var i;
 
       // Reset ticker.
       nextTick = null;
 
-      // Process read callbacks.
+      // Create batch map and clear map items.
       for (i = 0; i < batch.length; i++) {
-        map[batch[i]][0]();
+        batchMap[batch[i]] = map[batch[i]];
+        map[batch[i]] = undefined;
       }
 
-      // Process write callbacks and clear map items.
+      // Process read callbacks.
       for (i = 0; i < batch.length; i++) {
-        map[batch[i]][1]();
-        map[batch[i]] = undefined;
+        batchMap[batch[i]][0]();
+      }
+
+      // Process write callbacks.
+      for (i = 0; i < batch.length; i++) {
+        batchMap[batch[i]][1]();
       }
 
       // Restart the ticker if needed.
@@ -5374,7 +5380,7 @@
    */
 
   /*!
-    * muuriLayout v0.5.0
+    * muuriLayout v0.5.1
     * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
     * Released under the MIT license
     */

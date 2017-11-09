@@ -1843,7 +1843,7 @@ Get the instance's grid instance.
 **Returns** &nbsp;&mdash;&nbsp; *Muuri*
 
 ```javascript
-var grid = item.getMuuri();
+var grid = item.getGrid();
 ```
 
 ### item.getElement()

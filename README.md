@@ -125,13 +125,13 @@ Add Muuri on your site and make sure to include the dependencies before Muuri.
   background: #000;
   color: #fff;
 }
-.item.muuri-dragging {
+.item.muuri-item-dragging {
   z-index: 3;
 }
-.item.muuri-releasing {
+.item.muuri-item-releasing {
   z-index: 2;
 }
-.item.muuri-hidden {
+.item.muuri-item-hidden {
   z-index: 0;
 }
 .item-content {
@@ -1178,7 +1178,7 @@ grid.filter('.foo');
 
 ### grid.sort( comparer, [options] )
 
-Sort items. There are three ways to sort the items. The first is simply by providing a function as the comparer which works almost identically to [native array sort](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort). Th only difference is that the sort is always stable. Alternatively you can sort by the sort data you have provided in the instance's options. Just provide the sort data key(s) as a string (separated by space) and the items will be sorted based on the provided sort data keys. Lastly you have the opportunity to provide a presorted array of items which will be used to sync the internal items array in the same order.
+Sort items. There are three ways to sort the items. The first is simply by providing a function as the comparer which works almost identically to [native array sort](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort). The only difference is that the sort is always stable. Alternatively you can sort by the sort data you have provided in the instance's options. Just provide the sort data key(s) as a string (separated by space) and the items will be sorted based on the provided sort data keys. Lastly you have the opportunity to provide a presorted array of items which will be used to sync the internal items array in the same order.
 
 **Parameters**
 

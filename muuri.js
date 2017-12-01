@@ -761,7 +761,7 @@
       return [];
     }
 
-    var targetElements = [].concat(elements);
+    var targetElements = Array.isArray(elements) || isNodeList(elements) ? elements : [elements];
     var newItems = [];
 
     // Return early if there are no items.

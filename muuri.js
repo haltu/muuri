@@ -761,7 +761,7 @@
       return [];
     }
 
-    var targetElements = [].concat(elements);
+    var targetElements = isNodeList(elements) ? nodeListToArray(elements) : [].concat(elements);
     var newItems = [];
 
     // Return early if there are no items.
@@ -3593,7 +3593,7 @@
   /**
    * If item is dragged into another grid, finish the migration process
    * gracefully.
-   * 
+   *
    * @public
    * @memberof ItemDrag.prototype
    * @returns {ItemDrag}

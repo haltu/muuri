@@ -108,6 +108,36 @@
 .item.blue .card {
   color: #4A9FF9;
 }
+.item.blue.finland .card {
+  background-color: #002ba9;
+  color: #fff;
+  border: 0;
+}
+.item.blue.finland-flag .card {
+  background-color: rgba(255,255,255,0.9);
+  color: #002ba9;
+  border: 2px solid;
+}
+.item.blue.finland-flag .card:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 40px;
+  margin-top: -20px;
+  background-color: #002ba9;
+}
+.item.blue.finland-flag .card:after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 40px;
+  margin-left: -20px;
+  background-color: #002ba9;
+}
 .card-id {
   position: absolute;
   left: 7px;

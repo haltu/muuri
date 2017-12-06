@@ -21,9 +21,6 @@ document.addEventListener('DOMContentLoaded', function () {
   var sortFieldValue;
   var layoutFieldValue;
   var searchFieldValue;
-  var finElem1;
-  var finElem2;
-  var isSurpriseShown;
 
   //
   // Grid helper functions
@@ -74,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var dragCounter = 0;
 
     grid = new Muuri(gridElement, {
-      items: generateElements(20, true),
+      items: generateElements(20),
       layoutDuration: 400,
       layoutEasing: 'ease',
       dragEnabled: true,
@@ -97,10 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
         docElem.classList.remove('dragging');
       }
     })
-    .on('move', function () {
-      updateIndices();
-      tryShowSurprise();
-    })
+    .on('move', updateIndices)
     .on('sort', updateIndices);
 
   }
@@ -206,49 +200,30 @@ document.addEventListener('DOMContentLoaded', function () {
   // Generic helper functions
   //
 
-  function generateElements(amount, withSpecials) {
+  function generateElements(amount) {
 
     var ret = [];
-    var i;
-    var specials;
 
-    if (withSpecials) {
-      specials = [
-        getRandomInt(0, 9),
-        getRandomInt(11, 19)
-      ];
-    }
-
-    for (i = 0; i < amount; i++) {
-      if (withSpecials && i === specials[0]) {
-        finElem1 = generateElement(++uuid, 'Finland', 'blue', 2, 2, 'finland finland-1');
-        ret.push(finElem1);
-      }
-      else if (withSpecials && i === specials[1]) {
-        finElem2 = generateElement(++uuid, '100', 'blue', 2, 2, 'finland finland-2');
-        ret.push(finElem2);
-      }
-      else {
-        ret.push(generateElement(
-          ++uuid,
-          generateRandomWord(2),
-          getRandomItem(filterOptions),
-          getRandomInt(1, 2),
-          getRandomInt(1, 2)
-        ));
-      }
+    for (var i = 0; i < amount; i++) {
+      ret.push(generateElement(
+        ++uuid,
+        generateRandomWord(2),
+        getRandomItem(filterOptions),
+        getRandomInt(1, 2),
+        getRandomInt(1, 2)
+      ));
     }
 
     return ret;
 
   }
 
-  function generateElement(id, title, color, width, height, extraClasses) {
+  function generateElement(id, title, color, width, height) {
 
     var itemElem = document.createElement('div');
-    extraClasses = extraClasses || '';
+    var classNames = 'item h' + height + ' w' + width + ' ' + color;
     var itemTemplate = '' +
-        '<div class="item h' + height + ' w' + width + ' ' + color + ' ' + extraClasses + '" data-id="' + id + '" data-color="' + color + '" data-title="' + title + '">' +
+        '<div class="' + classNames + '" data-id="' + id + '" data-color="' + color + '" data-title="' + title + '">' +
           '<div class="item-content">' +
             '<div class="card">' +
               '<div class="card-id">' + id + '</div>' +
@@ -332,74 +307,6 @@ document.addEventListener('DOMContentLoaded', function () {
       return element.closest(selector);
     }
 
-  }
-
-  function finland100() {
-
-    // Get elements to remove.
-    var garbage = grid.getItems().filter(function (item) {
-      var elem = item.getElement();
-      return elem !== finElem1 && elem !== finElem2;
-    });
-
-    // Create an array of the new elements with the existing
-    // Finland elements included.
-    var elements = [
-      'Today',
-      finElem1,
-      '',
-      'celebrates',
-      finElem2,
-      'years',
-      'of',
-      'independence'
-    ].map(function (item) {
-      if (typeof item !== 'string') return item;
-      var elem = generateElement(++uuid, item, 'blue', 2, 2, item ? 'finland' : 'finland finland-flag');
-      elem.style.display = 'none';
-      return elem;
-    });
-
-    // Get elements to remove.
-    var garbage = grid.getItems().filter(function (item) {
-      var elem = item.getElement();
-      return elem !== finElem1 && elem !== finElem2;
-    });
-
-    // Add new elements.
-    grid.add(elements, {layout: false});
-
-    // Hide and remove garbage.
-    grid.hide(garbage, {layout: false, onFinish: function (items) {
-      grid.remove(items, {removeElements: true, layout: false});
-    }});
-
-    // Sort items.
-    grid.sort(grid.getItems(elements), {layout: false});
-
-    // Show new items and do layout.
-    grid.show(elements);
-
-    updateIndices();
-
-  }
-
-  function tryShowSurprise () {
-    if (isSurpriseShown) return;
-    var index1 = null;
-    var index2 = null;
-    grid.getItems().forEach(function (item, i) {
-      var elem = item.getElement();
-      if (elem === finElem1) {
-        index1 = i;
-      } else if (elem === finElem2) {
-        index2 = i;
-      }
-    });
-    if (index1 !== null && index2 !== null && (index2 - index1) === 1) {
-      isSurpriseShown = true;
-      finland100();
-    }
   }
 
   //

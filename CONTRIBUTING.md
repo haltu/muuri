@@ -18,13 +18,13 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
 
 ## Creating a pull request
 
-1. Discuss first.
+1. **Discuss first.**
    * The first step should always be [creating a new issue](https://github.com/haltu/muuri/issues/new) and discussing your pull request suggestion with the authors and the community.
    * After you get green light it's time to get coding.
-2. Fork the repo and create a new branch for your pull request.
+2. **Fork the repo and create a new branch for your pull request.**
    * [Fork Muuri](https://github.com/haltu/muuri#fork-destination-box).
    * Create a new branch for your pull request from the master branch. The name of the pull request branch should start with the id of the issue you opened for the pull request, e.g. `#123-fix-something`.
-3. Setup the development environment.
+3. **Setup the development environment.**
    * Install gulp-cli: `npm install gulp-cli -g`
    * Run `npm install` in the repository's directory.
    * You can now run the following gulp commands:
@@ -44,16 +44,16 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
        * Runs the unit tests locally.
        * Launches only chrome by default.
        * You can provide arguments to launch specific browsers: `gulp test-local --chrome --firefox --safari --edge`
-4. Do the updates.
+4. **Do the updates.**
    * Now is the time to make the actual updates to Muuri.
    * Remember scope. Don't refactor things that are not related to the pull request. 
    * After you're done update unit tests and docs (`README.md`) if necessary.
    * Also, if this is your first pull request to Muuri remember to add yourself to the `AUTHORS.txt` file, e.g. `John Doe <https://github.com/johndoe>`.
-5. Make sure nothing is broken.
+5. **Create `muuri.min.js` and make sure nothing is broken.**
    * Run `gulp` _successfully_ and try to do some manual testing if possible.
-6. Create the pull request.
+6. **Create the pull request.**
    * Do your best to explain what the pull request fixes.
    * Mention which issue(s) will be closed by the pull request, e.g. `Closes #123`.
    * Request a review from [@niklasramo](https://github.com/niklasramo)
    * After your pull request is accepted it will be merged to the [dev branch](https://github.com/haltu/muuri/tree/dev) and released with the next release. If you did only some minor change in the documentation it may be merged directly to the master branch.
-7. You made it! Thank you so much for contributing to Muuri!
+7. **You made it! Thank you so much for contributing to Muuri!**

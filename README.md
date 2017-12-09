@@ -36,14 +36,14 @@ Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web
 ### 1. Get Muuri
 
 Download from GitHub:
-* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.5.1/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.5.1/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://raw.githubusercontent.com/haltu/muuri/0.5.2/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://raw.githubusercontent.com/haltu/muuri/0.5.2/muuri.min.js) - for production (minified, no comments).
 
 Or link directly via CDNJS:
 
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.1/muuri.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.1/muuri.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.2/muuri.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/muuri/0.5.2/muuri.min.js"></script>
 ```
 
 Or install with [npm](https://www.npmjs.com/):

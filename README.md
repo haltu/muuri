@@ -28,7 +28,6 @@ Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web
   * [Grid methods](#grid-methods)
   * [Grid events](#grid-events)
   * [Item methods](#item-methods)
-* [FAQ](#faq)
 * [Credits](#credits)
 * [License](#license)
 
@@ -1984,16 +1983,6 @@ Check if the item is destroyed.
 var isDestroyed = item.isDestroyed();
 ```
 
-## FAQ
-
-**Can you help me with ...?**
-
-First of all you should check out the existing [questions](https://github.com/haltu/muuri/issues?q=label%3Aquestion%20) and see if your question has been asked/answered already. If not, you can [create a new issue](https://github.com/haltu/muuri/issues/new) and explain your problem.
-
-**I think I found a bug, what should I do?**
-
-Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain the bug in detail. If possible create a [reduced test case](https://css-tricks.com/reduced-test-cases/) and share a link to it. You can, for example, fork [this CodePen example](https://codepen.io/niklasramo/pen/jyJLGM) and modify it to demonstrate the bug.
-
 ## Credits
 
 **Created and maintained by [Niklas Rämö](https://github.com/niklasramo).**
@@ -2006,4 +1995,3 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
 ## License
 
 Copyright &copy; 2015 Haltu Oy. Licensed under **[the MIT license](LICENSE.md)**.
-

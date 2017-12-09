@@ -32,7 +32,7 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
        * Lint, compress and test `muuri.js` file.
        * This is the command you should execute _successfully_ before opening the pull request.
      * `gulp lint`
-       * Makes sure `muuri.js` file conforms with the project's eslint config.
+       * Makes sure `muuri.js` file conforms to the project's ESLint config.
      * `gulp compress`
        * Creates a minified version of `muuri.js` file as `muuri.min.js`.
      * `gulp test`
@@ -53,6 +53,7 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
    * Run `gulp` _successfully_ and try to do some manual testing if possible.
 6. Create the pull request.
    * Do your best to explain what the pull request fixes.
-   * Write in the description field which issue(s) will be closed by the pull request, e.g. `Closes #123`.
+   * Mention which issue(s) will be closed by the pull request, e.g. `Closes #123`.
    * Request a review from [@niklasramo](https://github.com/niklasramo)
-   * After your pull request is accepted it will be merged to the [dev branch](https://github.com/haltu/muuri/tree/dev) and released with the next release.
+   * After your pull request is accepted it will be merged to the [dev branch](https://github.com/haltu/muuri/tree/dev) and released with the next release. If you did only some minor change in the documentation it may be merged directly to the master branch.
+7. You made it! Thank you so much for contributing to Muuri!

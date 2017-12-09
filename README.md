@@ -1988,7 +1988,7 @@ var isDestroyed = item.isDestroyed();
 
 **Can you help me with ...?**
 
-First of all you should check out [the current questions](https://github.com/haltu/muuri/issues?q=label%3Aquestion%20) and see if your question has been asked/answered already. If not, you can create [create a new issue](https://github.com/haltu/muuri/issues/new) and explain your problem.
+First of all you should check out the existing [questions](https://github.com/haltu/muuri/issues?q=label%3Aquestion%20) and see if your question has been asked/answered already. If not, you can [create a new issue](https://github.com/haltu/muuri/issues/new) and explain your problem.
 
 **I think I found a bug, what should I do?**
 

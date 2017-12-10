@@ -3499,7 +3499,7 @@
     targetGrid = result.grid || currentGrid;
     isMigration = currentGrid !== targetGrid;
     currentIndex = currentGrid._items.indexOf(item);
-    targetIndex = normalizeArrayIndex(currentGrid._items, result.index, isMigration);
+    targetIndex = normalizeArrayIndex(targetGrid._items, result.index, isMigration);
     sortAction = result.action === 'swap' ? 'swap' : 'move';
 
     // If the item was moved within it's current grid.

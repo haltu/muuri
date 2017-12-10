@@ -3170,7 +3170,7 @@
     // handle.
     if (!predicate.handleElement) {
       if (predicate.handle) {
-        predicate.handleElement = event.srcEvent.target;
+        predicate.handleElement = (event.changedPointers[0] || {}).target;
         while (predicate.handleElement && !elementMatches(predicate.handleElement, predicate.handle)) {
           predicate.handleElement = predicate.handleElement !== element ? predicate.handleElement.parentElement : null;
         }
@@ -5331,6 +5331,9 @@
   function dragStartPredicateResolve(item, event) {
 
     var predicate = item._drag._startPredicateData;
+    var pointer = event.changedPointers[0];
+    var pageX = pointer && pointer.pageX || 0;
+    var pageY = pointer && pointer.pageY || 0;
     var handleRect;
 
     // If the moved distance is smaller than the threshold distance or there is
@@ -5346,7 +5349,7 @@
     dragStartPredicateReset(item);
 
     // If the cursor is still within the handle let's start the drag.
-    return isPointWithinRect(event.srcEvent.pageX, event.srcEvent.pageY, {
+    return isPointWithinRect(pageX, pageY, {
       width: handleRect.width,
       height: handleRect.height,
       left: handleRect.left + (global.pageXOffset || 0),

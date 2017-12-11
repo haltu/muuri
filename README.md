@@ -148,6 +148,8 @@ The bare minimum configuration is demonstrated below. You must always provide th
 var grid = new Muuri('.grid');
 ```
 
+You can view this little tutorial demo [here](https://codepen.io/niklasramo/pen/wpwNjK). After that you might want to check some [other demos](https://codepen.io/collection/AWopag/) as well.
+
 ## API
 
 ### Grid constructor

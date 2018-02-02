@@ -1280,13 +1280,13 @@ Move an item into another grid.
 gridA.send(0, gridB, -1);
 
 // Move the first item of gridA as the last item of gridB.
-gridA.send(0, gridB, -1 {
+gridA.send(0, gridB, -1, {
   appendTo: someElem
 });
 
 // Do something after the item has been sent and the layout
 // processes have finished.
-gridA.send(0, gridB, -1 {
+gridA.send(0, gridB, -1, {
   layoutSender: function (isAborted, items) {
     // Do your thing here...
   },

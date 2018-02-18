@@ -106,6 +106,7 @@
   var evLayoutEnd = 'layoutEnd';
   var evAdd = 'add';
   var evRemove = 'remove';
+  var evRemoveIndices = 'removeIndices';
   var evShowStart = 'showStart';
   var evShowEnd = 'showEnd';
   var evHideStart = 'hideStart';
@@ -847,6 +848,8 @@
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var needsLayout = false;
+    var allItems = inst.getItems();
+    var removeIndices = [];
     var targetItems = inst.getItems(items);
     var item;
     var i;
@@ -854,6 +857,7 @@
     // Remove the individual items.
     for (i = 0; i < targetItems.length; i++) {
       item = targetItems[i];
+      removeIndices.push(allItems.indexOf(item));
       if (item._isActive) {
         needsLayout = true;
       }
@@ -862,6 +866,9 @@
 
     // Emit remove event.
     inst._emit(evRemove, targetItems.concat());
+
+    // Emit removeIndices event.
+    inst._emit(evRemoveIndices, removeIndices);
 
     // If layout is needed.
     if (needsLayout && layout) {

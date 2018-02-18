@@ -1386,6 +1386,7 @@ grid.destroy(true);
 * [layoutEnd](#layoutend)
 * [add](#add)
 * [remove](#remove)
+* [removeIndices](#removeIndices)
 * [showStart](#showstart)
 * [showEnd](#showend)
 * [hideStart](#hidestart)
@@ -1467,11 +1468,26 @@ Triggered after `grid.remove()` is called.
 
 **Arguments**
 
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * The items that were succesfully removed.
+
+```javascript
+grid.on('remove', function (items) {
+  console.log(items);
+});
+```
+
+### removeIndices
+
+Triggered after `grid.remove()` is called.
+
+**Arguments**
+
 * **indices** &nbsp;&mdash;&nbsp; *array*
   * Indices of the items that were succesfully removed.
 
 ```javascript
-grid.on('remove', function (indices) {
+grid.on('removeIndices', function (indices) {
   console.log(indices);
 });
 ```

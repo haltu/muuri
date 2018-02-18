@@ -1386,7 +1386,6 @@ grid.destroy(true);
 * [layoutEnd](#layoutend)
 * [add](#add)
 * [remove](#remove)
-* [removeIndices](#removeIndices)
 * [showStart](#showstart)
 * [showEnd](#showend)
 * [hideStart](#hidestart)

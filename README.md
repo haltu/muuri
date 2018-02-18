@@ -1470,25 +1470,12 @@ Triggered after `grid.remove()` is called.
 
 * **items** &nbsp;&mdash;&nbsp; *array*
   * The items that were succesfully removed.
-
-```javascript
-grid.on('remove', function (items) {
-  console.log(items);
-});
-```
-
-### removeIndices
-
-Triggered after `grid.remove()` is called.
-
-**Arguments**
-
 * **indices** &nbsp;&mdash;&nbsp; *array*
   * Indices of the items that were succesfully removed.
 
 ```javascript
-grid.on('removeIndices', function (indices) {
-  console.log(indices);
+grid.on('remove', function (items, indices) {
+  console.log(items, indices);
 });
 ```
 

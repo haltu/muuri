@@ -6,7 +6,7 @@
 
   QUnit.test('remove: should be triggered after grid.remove()', function (assert) {
 
-    assert.expect(4);
+    assert.expect(3);
 
     var container = utils.createGrid();
     var grid = new Muuri(container);
@@ -17,13 +17,10 @@
       container.parentNode.removeChild(container);
     };
 
-    grid.on('remove', function (items) {
-      assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
+    grid.on('remove', function (items, indices) {
+      assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
       assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(removedItems), 'callback: first argument should be an array of the removed items');
-    });
-    grid.on('removeIndices', function (itemIndices) {
-      assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
-      assert.deepEqual(itemIndices, removedIndices, 'callback: first argument should be an array of the removed item indices');
+      assert.deepEqual(indices, removedIndices, 'callback: second argument should be an array of the removed item indices');
     });
     grid.remove(removedItems);
     teardown();

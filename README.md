@@ -1280,13 +1280,13 @@ Move an item into another grid.
 gridA.send(0, gridB, -1);
 
 // Move the first item of gridA as the last item of gridB.
-gridA.send(0, gridB, -1 {
+gridA.send(0, gridB, -1, {
   appendTo: someElem
 });
 
 // Do something after the item has been sent and the layout
 // processes have finished.
-gridA.send(0, gridB, -1 {
+gridA.send(0, gridB, -1, {
   layoutSender: function (isAborted, items) {
     // Do your thing here...
   },
@@ -1467,12 +1467,14 @@ Triggered after `grid.remove()` is called.
 
 **Arguments**
 
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * The items that were succesfully removed.
 * **indices** &nbsp;&mdash;&nbsp; *array*
   * Indices of the items that were succesfully removed.
 
 ```javascript
-grid.on('remove', function (indices) {
-  console.log(indices);
+grid.on('remove', function (items, indices) {
+  console.log(items, indices);
 });
 ```
 

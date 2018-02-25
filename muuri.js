@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.5.3
+ * Muuri v0.5.4
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -5385,7 +5385,7 @@
    */
 
   /*!
-    * muuriLayout v0.5.3
+    * muuriLayout v0.5.4
     * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
     * Released under the MIT license
     */

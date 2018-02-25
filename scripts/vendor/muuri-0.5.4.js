@@ -1,5 +1,5 @@
 /*!
- * Muuri v0.5.3
+ * Muuri v0.5.4
  * https://github.com/haltu/muuri
  * Copyright (c) 2015, Haltu Oy
  *
@@ -168,7 +168,6 @@
    * @param {(Function|Object)} [options.dragSortPredicate]
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
-   * @param {String} [options.dragSortPredicate.gaps=true]
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {String} [options.dragReleaseEasing="ease"]
    * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
@@ -847,13 +846,16 @@
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var needsLayout = false;
+    var allItems = inst.getItems();
     var targetItems = inst.getItems(items);
+    var indices = [];
     var item;
     var i;
 
     // Remove the individual items.
     for (i = 0; i < targetItems.length; i++) {
       item = targetItems[i];
+      indices.push(allItems.indexOf(item));
       if (item._isActive) {
         needsLayout = true;
       }
@@ -861,7 +863,7 @@
     }
 
     // Emit remove event.
-    inst._emit(evRemove, targetItems.concat());
+    inst._emit(evRemove, targetItems.concat(), indices);
 
     // If layout is needed.
     if (needsLayout && layout) {
@@ -5383,7 +5385,7 @@
    */
 
   /*!
-    * muuriLayout v0.5.3
+    * muuriLayout v0.5.4
     * Copyright (c) 2016 Niklas Rämö <inramo@gmail.com>
     * Released under the MIT license
     */

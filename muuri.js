@@ -3774,10 +3774,18 @@
     var gridContainer = grid._element;
     var dragContainer = settings.dragContainer || gridContainer;
     var containingBlock = getContainingBlock(dragContainer, true);
-    var offsetDiff = dragContainer !== gridContainer ? getOffsetDiff(containingBlock, gridContainer) : 0;
     var currentLeft = getTranslateAsFloat(element, 'x');
     var currentTop = getTranslateAsFloat(element, 'y');
     var elementRect = element.getBoundingClientRect();
+    var hasDragContainer = dragContainer !== gridContainer;
+    var offsetDiff;
+
+    // If grid container is not the drag container, we need to calculate the
+    // offset difference between grid container and drag container's containing
+    // element.
+    if (hasDragContainer) {
+      offsetDiff = getOffsetDiff(containingBlock, gridContainer);
+    }
 
     // Stop current positioning animation.
     if (item.isPositioning()) {
@@ -3811,7 +3819,7 @@
 
     // If a specific drag container is set and it is different from the
     // grid's container element we need to cast some extra spells.
-    if (dragContainer !== gridContainer) {
+    if (hasDragContainer) {
 
       // Store the container offset diffs to drag data.
       dragData.containerDiffX = offsetDiff.left;

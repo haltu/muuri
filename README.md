@@ -691,7 +691,7 @@ var grid = new Muuri(elem, {
 
 Defines the logic for the sort procedure during dragging an item.
 
-* Default value: `{action: 'move', tolerance: 50}`.
+* Default value: `{action: 'move', threshold: 50}`.
 * Accepted types: function, object.
 
 If an object is provided the default sort predicate handler will be used. You can define the following properties:

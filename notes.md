@@ -41,3 +41,5 @@ This release contains _a lot_ of memory allocation optimizations, which should a
 * Take a look at the current drag start predicate, it's a bit huge. Could we simplify it a bit?
 
 * Migrations are a bit painful on perf. Let's try to make them less so. Also there's a bunch of overlapping logic within drag's migrate and the actual `ItemMigrate`.
+
+* Update `CONTRIBUTING.md`.

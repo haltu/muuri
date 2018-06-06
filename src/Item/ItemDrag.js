@@ -22,8 +22,6 @@ import {
   ticker
 } from '../shared.js';
 
-import ItemAnimate from './ItemAnimate.js';
-
 import addClass from '../utils/addClass.js';
 import arrayMove from '../utils/arrayMove.js';
 import arraySwap from '../utils/arraySwap.js';

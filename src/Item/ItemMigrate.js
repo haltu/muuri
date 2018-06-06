@@ -6,7 +6,6 @@
 
 import { eventBeforeSend, eventBeforeReceive, eventSend, eventReceive } from '../shared.js';
 
-import ItemAnimate from './ItemAnimate.js';
 import ItemDrag from './ItemDrag.js';
 
 import addClass from '../utils/addClass.js';

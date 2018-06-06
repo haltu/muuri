@@ -9,7 +9,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGrid({
+    var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
         width: '70px'
@@ -38,7 +38,7 @@
     assert.expect(0);
 
     var done = assert.async();
-    var container = utils.createGrid({
+    var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
         width: '70px'
@@ -68,7 +68,7 @@
     assert.expect(0);
 
     var done = assert.async();
-    var containerA = utils.createGrid({
+    var containerA = utils.createGridElements({
       containerStyles: {
         position: 'absolute',
         left: '0px',
@@ -83,7 +83,7 @@
         background: '#000'
       }
     });
-    var containerB = utils.createGrid({
+    var containerB = utils.createGridElements({
       containerStyles: {
         position: 'absolute',
         left: '70px',
@@ -136,7 +136,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var containerA = utils.createGrid({
+    var containerA = utils.createGridElements({
       containerStyles: {
         position: 'absolute',
         left: '0px',
@@ -151,7 +151,7 @@
         background: '#000'
       }
     });
-    var containerB = utils.createGrid({
+    var containerB = utils.createGridElements({
       containerStyles: {
         position: 'absolute',
         left: '70px',

@@ -9,7 +9,7 @@
     assert.expect(3);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var isChecked = false;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -39,7 +39,7 @@
     assert.expect(4);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -78,7 +78,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -114,7 +114,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
@@ -149,7 +149,7 @@
     assert.expect(3);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragStartPredicate: {
@@ -187,7 +187,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragStartPredicate: {
@@ -214,7 +214,7 @@
     assert.expect(1);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragStartPredicate: {
@@ -254,7 +254,7 @@
     assert.expect(0);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragStartPredicate: {

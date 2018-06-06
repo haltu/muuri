@@ -9,7 +9,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();
@@ -25,7 +25,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -44,7 +44,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -64,7 +64,7 @@
     assert.expect(4);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -78,7 +78,7 @@
     .layout(function (isInterrupted, items) {
       assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
       assert.strictEqual(isInterrupted, false, 'callback: first argument should be a boolean that is true if the layout process was interrupted');
-      assert.deepEqual(idList(items), idList(grid.getItems('active')), 'callback: second argument should be an array of the positioned items (all active items)');
+      assert.deepEqual(idList(items), idList(utils.getActiveItems(grid)), 'callback: second argument should be an array of the positioned items (all active items)');
       assert.strictEqual(items[0].isPositioning(), false, 'callback: items should not be in positioning state');
       teardown();
     });

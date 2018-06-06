@@ -8,7 +8,7 @@
   // Methods
   //
 
-  utils.createGrid = function (options) {
+  utils.createGridElements = function (options) {
 
     var opts = options || {};
     var container = opts.container || document.createElement('div');
@@ -95,6 +95,54 @@
     return utils.idList(items.sort(function (a, b) {
       return a._id - b._id;
     }));
+  };
+
+  utils.getActiveItems = function (grid) {
+    return grid.getItems().filter(function (item) {
+      return item.isActive();
+    });
+  };
+
+  utils.getInactiveItems = function (grid) {
+    return grid.getItems().filter(function (item) {
+      return !item.isActive();
+    });
+  };
+
+  utils.getVisibleItems = function (grid) {
+    return grid.getItems().filter(function (item) {
+      return item.isVisible();
+    });
+  };
+
+  utils.getHiddenItems = function (grid) {
+    return grid.getItems().filter(function (item) {
+      return !item.isVisible();
+    });
+  };
+
+  utils.getShowingItems = function (grid) {
+    return grid.getItems().filter(function (item) {
+      return item.isShowing();
+    });
+  };
+
+  utils.getHidingItems = function (grid) {
+    return grid.getItems().filter(function (item) {
+      return item.isHiding();
+    });
+  };
+
+  utils.getPositioningItems = function (grid) {
+    return grid.getItems().filter(function (item) {
+      return item.isPositioning();
+    });
+  };
+
+  utils.getReleasingItems = function (grid) {
+    return grid.getItems().filter(function (item) {
+      return item.isReleasing();
+    });
   };
 
   utils.setStyles = function (element, styles) {

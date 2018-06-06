@@ -8,7 +8,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();
@@ -24,7 +24,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var children = [].slice.call(container.children);
     var targets = [0, 1, 2].map(function (i) {
       children[i].classList.add('foo');
@@ -48,7 +48,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var children = [].slice.call(container.children);
     var targets = [0, 1, 2].map(function (i) {
       children[i].classList.add('foo');
@@ -71,7 +71,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var children = [].slice.call(container.children);
     var targets = [0, 1, 2].map(function (i) { return children[i]; });
     var grid = new Muuri(container, {

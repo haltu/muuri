@@ -11,7 +11,7 @@
     var done = assert.async();
     var docElem = document.documentElement;
     var body = document.body;
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortInterval: 100,

@@ -1,0 +1,32 @@
+/**
+ * Copyright (c) 2015-present, Haltu Oy
+ * Released under the MIT license
+ * https://github.com/haltu/muuri/blob/master/LICENSE.md
+ */
+
+import getStyle from './getStyle.js';
+import isTransformed from './isTransformed';
+
+/**
+ * Returns an absolute positioned element's containing block, which is
+ * considered to be the closest ancestor element that the target element's
+ * positioning is relative to. Disclaimer: this only works as intended for
+ * abolute positioned elements.
+ *
+ * @param {HTMLElement} element
+ * @param {Boolean} [includeSelf=false]
+ *   - When this is set to true the containing block checking is started from
+ *     the provided element. Otherwise the checking is started from the
+ *     provided element's parent element.
+ * @returns {(Document|Element)}
+ */
+export default function getContainingBlock(element, includeSelf) {
+  // As long as the containing block is an element, static and not
+  // transformed, try to get the element's parent element and fallback to
+  // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
+  var ret = (includeSelf ? element : element.parentElement) || document;
+  while (ret && ret !== document && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
+    ret = ret.parentElement || document;
+  }
+  return ret;
+}

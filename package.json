@@ -1,6 +1,6 @@
 {
   "name": "muuri",
-  "version": "0.5.4",
+  "version": "0.6.0-dev",
   "description": "Responsive, sortable, filterable and draggable grid layouts.",
   "keywords": [
     "grid",
@@ -21,42 +21,49 @@
     "type": "git",
     "url": "git@github.com:haltu/muuri.git"
   },
-  "main": "muuri.js",
-  "files": [
-    "muuri.js",
-    "muuri.min.js"
-  ],
+  "main": "dist/muuri.js",
   "scripts": {
-    "test": "gulp"
+    "test": "./node_modules/.bin/gulp test",
+    "test-sauce": "./node_modules/.bin/gulp test-sauce",
+    "test-sauce-min": "./node_modules/.bin/gulp test-sauce-min",
+    "test-local": "./node_modules/.bin/gulp test-local",
+    "test-local-min": "./node_modules/.bin/gulp test-local-min",
+    "build": "./node_modules/.bin/rollup -c",
+    "lint": "./node_modules/.bin/gulp lint",
+    "format": "find ./src/**/*.js | xargs -I{} ./node_modules/.bin/prettier --write {}",
+    "size": "./node_modules/.bin/gulp size"
   },
   "dependencies": {
     "hammerjs": "^2.0.0"
   },
   "devDependencies": {
-    "dotenv": "^4.0.0",
+    "dotenv": "^5.0.1",
     "gulp": "^3.9.1",
-    "gulp-eslint": "^4.0.0",
-    "gulp-header": "^1.8.8",
+    "gulp-eslint": "^4.0.2",
+    "gulp-header": "^2.0.5",
     "gulp-rename": "^1.2.2",
-    "gulp-size": "^2.1.0",
-    "gulp-uglify": "^3.0.0",
+    "gulp-size": "^3.0.0",
     "gulp-util": "^3.0.8",
-    "hammerjs": "^2.0.8",
-    "jquery": "^3.2.1",
-    "karma": "^1.7.0",
-    "karma-chrome-launcher": "^2.0.0",
-    "karma-edge-launcher": "^0.4.1",
-    "karma-firefox-launcher": "^1.0.1",
-    "karma-qunit": "^1.2.1",
+    "karma": "^2.0.0",
+    "karma-chrome-launcher": "^2.2.0",
+    "karma-edge-launcher": "^0.4.2",
+    "karma-firefox-launcher": "^1.1.0",
+    "karma-qunit": "^2.0.1",
     "karma-safari-launcher": "^1.0.0",
-    "karma-sauce-launcher": "^1.1.0",
+    "karma-sauce-launcher": "^1.2.0",
     "karma-story-reporter": "^0.3.1",
     "mezr": "^0.6.2",
+    "prettier": "^1.12.1",
     "prosthetic-hand": "^1.3.1",
-    "qunitjs": "^2.4.0",
-    "rimraf": "^2.6.1",
-    "run-sequence": "^1.2.2",
+    "qunit": "^2.6.0",
+    "rimraf": "^2.6.2",
+    "rollup": "^0.58.2",
+    "rollup-plugin-commonjs": "^9.1.3",
+    "rollup-plugin-node-resolve": "^3.3.0",
+    "rollup-plugin-strip-banner": "^0.2.0",
+    "rollup-plugin-uglify": "^4.0.0",
+    "run-sequence": "^2.2.1",
     "web-animations-js": "^2.3.1",
-    "yargs": "^8.0.2"
+    "yargs": "^11.0.0"
   }
 }

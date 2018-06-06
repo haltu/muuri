@@ -8,8 +8,8 @@
 
     assert.expect(11);
 
-    var containerA = utils.createGrid();
-    var containerB = utils.createGrid();
+    var containerA = utils.createGridElements();
+    var containerB = utils.createGridElements();
     var gridA = new Muuri(containerA);
     var gridB = new Muuri(containerB);
     var item = gridA.getItems()[0];
@@ -46,7 +46,7 @@
     assert.expect(11);
 
     var done = assert.async();
-    var containerA = utils.createGrid({
+    var containerA = utils.createGridElements({
       containerStyles: {
         position: 'absolute',
         left: '0px',
@@ -61,7 +61,7 @@
         background: '#000'
       }
     });
-    var containerB = utils.createGrid({
+    var containerB = utils.createGridElements({
       containerStyles: {
         position: 'absolute',
         left: '70px',

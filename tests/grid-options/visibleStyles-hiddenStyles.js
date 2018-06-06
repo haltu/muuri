@@ -9,7 +9,7 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container, {
       visibleStyles: {
         fontSize: '30px'

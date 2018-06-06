@@ -8,7 +8,7 @@
 
     assert.expect(4);
 
-    var container = utils.createGrid({
+    var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
         width: '140px'

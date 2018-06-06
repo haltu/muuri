@@ -8,9 +8,9 @@
 
     assert.expect(4);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var layout = grid._layout;
+    var layoutId = grid._layout.id;
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -19,8 +19,8 @@
     utils.setStyles(container, {height: ''});
     grid.on('layoutStart', function (items) {
       assert.strictEqual(arguments.length, 1, 'should have one argument');
-      assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(grid.getItems('active')), 'should be an array of the items that are about to be laid out');
-      assert.notStrictEqual(grid._layout, layout, 'should be called after layout is created');
+      assert.deepEqual(utils.sortedIdList(items), utils.sortedIdList(utils.getActiveItems(grid)), 'should be an array of the items that are about to be laid out');
+      assert.notStrictEqual(grid._layout.id, layoutId, 'should be called after layout is created');
       assert.notStrictEqual(container.style.height, '', 'should be called after container dimensions are updated');
     });
     grid.move(0, -1);

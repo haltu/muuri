@@ -1,6 +1,6 @@
 # Contributing to Muuri
 
-First of all thanks for the interest in contributing to Muuri! Here you will find some instructions on how to create an issue or a pull request.
+Thanks for the interest in contributing to Muuri! Here you will find some instructions on how to create an issue or a pull request.
 
 ## Creating an issue
 
@@ -25,32 +25,30 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
    * [Fork Muuri](https://github.com/haltu/muuri#fork-destination-box).
    * Create a new branch for your pull request from the master branch. The name of the pull request branch should start with the id of the issue you opened for the pull request, e.g. `#123-fix-something`.
 3. **Setup the development environment.**
-   * Install gulp-cli: `npm install gulp-cli -g`
    * Run `npm install` in the repository's directory.
-   * You can now run the following gulp commands:
-     * `gulp`
-       * Lint, compress and test `muuri.js` file.
-       * This is the command you should execute _successfully_ before opening the pull request.
-     * `gulp lint`
-       * Makes sure `muuri.js` file conforms to the project's ESLint config.
-     * `gulp compress`
+   * You can now run the following commands:
+     * `npm run lint`
+       * Lints `muuri.js` file.
+     * `npm run minify`
        * Creates a minified version of `muuri.js` file as `muuri.min.js`.
-     * `gulp test`
+     * `npm run test-sauce`
        * Runs the unit tests in Sauce Labs.
        * To make this work you need to create an `.env` file the project root, which should contain `SAUCE_USERNAME` and `SAUCE_ACCESS_KEY` variables.
        * Launches chrome, firefox and safari by default.
-       * You can provide arguments to launch specific browsers: `gulp test --chrome --firefox --safari --edge`
-     * `gulp test-local`
+       * You can provide arguments to launch specific browsers: `npm run test-sauce --chrome --firefox --safari --edge`
+     * `npm run test-local`
        * Runs the unit tests locally.
        * Launches only chrome by default.
-       * You can provide arguments to launch specific browsers: `gulp test-local --chrome --firefox --safari --edge`
+       * You can provide arguments to launch specific browsers: `npm run test-local --chrome --firefox --safari --edge`
+     * `npm test`
+       * Lint `muuri.js` and run the unit tests in Sauce Labs.
 4. **Do the updates.**
    * Now is the time to make the actual updates to Muuri.
    * Remember scope. Don't refactor things that are not related to the pull request. 
    * After you're done update unit tests and docs (`README.md`) if necessary.
    * Also, if this is your first pull request to Muuri remember to add yourself to the `AUTHORS.txt` file, e.g. `John Doe <https://github.com/johndoe>`.
 5. **Create `muuri.min.js` and make sure nothing is broken.**
-   * Run `gulp` _successfully_ and try to do some manual testing if possible.
+   * Run `npm run minify` and `npm test` _successfully_ and try to do some manual testing if possible.
 6. **Create the pull request.**
    * Do your best to explain what the pull request fixes.
    * Mention which issue(s) will be closed by the pull request, e.g. `Closes #123`.

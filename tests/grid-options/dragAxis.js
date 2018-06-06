@@ -9,7 +9,7 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGrid({
+    var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
         width: '70px'
@@ -43,7 +43,7 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGrid({
+    var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
         width: '70px'
@@ -78,7 +78,7 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGrid({
+    var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
         width: '70px'
@@ -113,7 +113,7 @@
     assert.expect(2);
 
     var done = assert.async();
-    var container = utils.createGrid({
+    var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
         width: '70px'

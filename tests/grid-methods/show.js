@@ -9,7 +9,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();
@@ -25,7 +25,7 @@
 
     assert.expect(5);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -34,19 +34,19 @@
     };
 
     grid.hide(items, {instant: true});
-    assert.strictEqual(grid.getItems('visible').length, 0, 'there should be no visible items before the tests commence');
+    assert.strictEqual(utils.getVisibleItems(grid).length, 0, 'there should be no visible items before the tests commence');
 
     grid.show(0);
-    assert.deepEqual(idList(grid.getItems('visible')), idList(items.slice(0, 1)), 'should accept an index as the first argument');
+    assert.deepEqual(idList(utils.getVisibleItems(grid)), idList(items.slice(0, 1)), 'should accept an index as the first argument');
 
     grid.show(items[1]);
-    assert.deepEqual(idList(grid.getItems('visible')), idList(items.slice(0, 2)), 'should accept an item as the first argument');
+    assert.deepEqual(idList(utils.getVisibleItems(grid)), idList(items.slice(0, 2)), 'should accept an item as the first argument');
 
     grid.show(items[2].getElement());
-    assert.deepEqual(idList(grid.getItems('visible')), idList(items.slice(0, 3)), 'should accept an element as the first argument');
+    assert.deepEqual(idList(utils.getVisibleItems(grid)), idList(items.slice(0, 3)), 'should accept an element as the first argument');
 
     grid.show([3, items[4].getElement(), items[5]]);
-    assert.deepEqual(idList(grid.getItems('visible')), idList(items.slice(0, 6)), 'should accept an array of items, elements and indices as the first argument');
+    assert.deepEqual(idList(utils.getVisibleItems(grid)), idList(items.slice(0, 6)), 'should accept an array of items, elements and indices as the first argument');
 
     teardown();
 
@@ -56,7 +56,7 @@
 
     assert.expect(1);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -65,7 +65,7 @@
     };
 
     grid.hide(items, {instant: true}).show(0);
-    assert.deepEqual(idList(grid.getItems('showing')), idList(items.slice(0, 1)));
+    assert.deepEqual(idList(utils.getShowingItems(grid)), idList(items.slice(0, 1)));
 
     teardown();
 
@@ -75,7 +75,7 @@
 
     assert.expect(2);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var teardown = function () {
@@ -96,7 +96,7 @@
     assert.expect(5);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var argItems = null;

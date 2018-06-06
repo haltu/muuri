@@ -9,7 +9,7 @@
     assert.expect(3);
 
     var done = assert.async();
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var isAnyItemPositioning = false;
     var expectedItems = [];
@@ -31,7 +31,7 @@
       teardown();
     });
     grid.hide(0, {instant: true, layout: false});
-    expectedItems = grid.getItems('active');
+    expectedItems = utils.getActiveItems(grid);
     grid.move(1, -1);
 
   });

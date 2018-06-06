@@ -8,7 +8,7 @@
 
     assert.expect(7);
 
-    var container = utils.createGrid();
+    var container = utils.createGridElements();
     var grid = new Muuri(container);
     var item = grid.getItems()[0];
     var teardown = function () {
@@ -35,7 +35,7 @@
     assert.expect(7);
 
     var done = assert.async();
-    var container = utils.createGrid({
+    var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
         width: '70px'

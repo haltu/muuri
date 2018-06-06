@@ -27,28 +27,24 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
 3. **Setup the development environment.**
    * Run `npm install` in the repository's directory.
    * You can now run the following commands:
+     * `npm run build`
+       * Builds `dist/muuri.js` and `dist/muuri.min.js` from `src` directory.
      * `npm run lint`
-       * Lints `muuri.js` file.
-     * `npm run minify`
-       * Creates a minified version of `muuri.js` file as `muuri.min.js`.
-     * `npm run test-sauce`
-       * Runs the unit tests in Sauce Labs.
+       * Lints all files in `src` directory with ESLint.
+     * `npm run format`
+       * Formats all files in `src` directory with Prettier.
+     * `npm run test`
+       * Runs unit tests for `dist/muuri.js` and `dist/muuri.min.js` files in Sauce Labs. 
        * To make this work you need to create an `.env` file the project root, which should contain `SAUCE_USERNAME` and `SAUCE_ACCESS_KEY` variables.
        * Launches chrome, firefox and safari by default.
-       * You can provide arguments to launch specific browsers: `npm run test-sauce --chrome --firefox --safari --edge`
-     * `npm run test-local`
-       * Runs the unit tests locally.
-       * Launches only chrome by default.
-       * You can provide arguments to launch specific browsers: `npm run test-local --chrome --firefox --safari --edge`
-     * `npm test`
-       * Lint `muuri.js` and run the unit tests in Sauce Labs.
-4. **Do the updates.**
+       * You can provide arguments to launch specific browsers: `npm run test --chrome --firefox --safari --edge`.
+4. **Do the updates in `src` folder.**
    * Now is the time to make the actual updates to Muuri.
    * Remember scope. Don't refactor things that are not related to the pull request. 
    * After you're done update unit tests and docs (`README.md`) if necessary.
    * Also, if this is your first pull request to Muuri remember to add yourself to the `AUTHORS.txt` file, e.g. `John Doe <https://github.com/johndoe>`.
-5. **Create `muuri.min.js` and make sure nothing is broken.**
-   * Run `npm run minify` and `npm test` _successfully_ and try to do some manual testing if possible.
+5. **Build and test changes.**
+   * Run `npm run build` followed by `npm run test`.
 6. **Create the pull request.**
    * Do your best to explain what the pull request fixes.
    * Mention which issue(s) will be closed by the pull request, e.g. `Closes #123`.

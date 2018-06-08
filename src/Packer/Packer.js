@@ -23,7 +23,7 @@ function Packer() {
   this._freeSlots = [];
   this._newSlots = [];
   this._rectItem = {};
-  this._rectStore = {};
+  this._rectStore = [];
   this._rectId = 0;
 
   // Bind sort handlers.
@@ -44,7 +44,7 @@ function Packer() {
  * @param {Boolean} [options.alignBottom=false]
  * @returns {LayoutData}
  */
-Packer.prototype.getLayout = function (items, width, height, options) {
+Packer.prototype.getLayout = function(items, width, height, options) {
   var layout = this._layout;
   var fillGaps = !!(options && options.fillGaps);
   var isHorizontal = !!(options && options.horizontal);
@@ -105,7 +105,7 @@ Packer.prototype.getLayout = function (items, width, height, options) {
 Packer.prototype._addSlot = (function() {
   var leeway = 0.001;
   var itemSlot = {};
-  return function (item, isHorizontal, fillGaps, rounding) {
+  return function(item, isHorizontal, fillGaps, rounding) {
     var layout = this._layout;
     var freeSlots = this._freeSlots;
     var newSlots = this._newSlots;
@@ -206,11 +206,7 @@ Packer.prototype._addSlot = (function() {
     // Clean up the current slots making sure there are no old slots that
     // overlap with the item. If an old slot overlaps with the item, split it
     // into smaller slots if necessary.
-    for (
-      i = fillGaps ? 0 : ignoreCurrentSlots ? freeSlots.length : i;
-      i < freeSlots.length;
-      i++
-    ) {
+    for (i = fillGaps ? 0 : ignoreCurrentSlots ? freeSlots.length : i; i < freeSlots.length; i++) {
       rectId = freeSlots[i];
       if (!rectId) continue;
       rect = this._getRect(rectId);
@@ -270,14 +266,14 @@ Packer.prototype._addSlot = (function() {
  * @param {Number} height
  * @returns {RectId}
  */
-Packer.prototype._addRect = function (left, top, width, height) {
+Packer.prototype._addRect = function(left, top, width, height) {
   var rectId = ++this._rectId;
   var rectStore = this._rectStore;
 
-  rectStore[rectId + 'x'] = left || 0;
-  rectStore[rectId + 'y'] = top || 0;
-  rectStore[rectId + 'w'] = width || 0;
-  rectStore[rectId + 'h'] = height || 0;
+  rectStore[rectId] = left || 0;
+  rectStore[++this._rectId] = top || 0;
+  rectStore[++this._rectId] = width || 0;
+  rectStore[++this._rectId] = height || 0;
 
   return rectId;
 };
@@ -293,14 +289,14 @@ Packer.prototype._addRect = function (left, top, width, height) {
  * @param {Object} [target]
  * @returns {Object}
  */
-Packer.prototype._getRect = function (id, target) {
+Packer.prototype._getRect = function(id, target) {
   var rectItem = target ? target : this._rectItem;
   var rectStore = this._rectStore;
 
-  rectItem.left = rectStore[id + 'x'] || 0;
-  rectItem.top = rectStore[id + 'y'] || 0;
-  rectItem.width = rectStore[id + 'w'] || 0;
-  rectItem.height = rectStore[id + 'h'] || 0;
+  rectItem.left = rectStore[id] || 0;
+  rectItem.top = rectStore[++id] || 0;
+  rectItem.width = rectStore[++id] || 0;
+  rectItem.height = rectStore[++id] || 0;
 
   return rectItem;
 };
@@ -317,7 +313,7 @@ Packer.prototype._getRect = function (id, target) {
  */
 Packer.prototype._splitRect = (function() {
   var results = [];
-  return function (rect, hole) {
+  return function(rect, hole) {
     // Reset old results.
     results.length = 0;
 
@@ -375,7 +371,7 @@ Packer.prototype._splitRect = (function() {
  * @param {Rectangle} b
  * @returns {Boolean}
  */
-Packer.prototype._doRectsOverlap = function (a, b) {
+Packer.prototype._doRectsOverlap = function(a, b) {
   return !(
     a.left + a.width <= b.left ||
     b.left + b.width <= a.left ||
@@ -393,7 +389,7 @@ Packer.prototype._doRectsOverlap = function (a, b) {
  * @param {Rectangle} b
  * @returns {Boolean}
  */
-Packer.prototype._isRectWithinRect = function (a, b) {
+Packer.prototype._isRectWithinRect = function(a, b) {
   return (
     a.left >= b.left &&
     a.top >= b.top &&
@@ -413,19 +409,19 @@ Packer.prototype._isRectWithinRect = function (a, b) {
  * @returns {RectId[]}
  */
 Packer.prototype._purgeRects = (function() {
-  var aRect = {};
-  var bRect = {};
-  return function (rectIds) {
+  var rectA = {};
+  var rectB = {};
+  return function(rectIds) {
     var i = rectIds.length;
     var ii;
 
     while (i--) {
       ii = rectIds.length;
       if (!rectIds[i]) continue;
-      this._getRect(rectIds[i], aRect);
+      this._getRect(rectIds[i], rectA);
       while (ii--) {
         if (!rectIds[ii] || i === ii) continue;
-        if (this._isRectWithinRect(aRect, this._getRect(rectIds[ii], bRect))) {
+        if (this._isRectWithinRect(rectA, this._getRect(rectIds[ii], rectB))) {
           rectIds[i] = 0;
           break;
         }
@@ -448,7 +444,7 @@ Packer.prototype._purgeRects = (function() {
 Packer.prototype._sortRectsTopLeft = (function() {
   var rectA = {};
   var rectB = {};
-  return function (aId, bId) {
+  return function(aId, bId) {
     this._getRect(aId, rectA);
     this._getRect(bId, rectB);
     // prettier-ignore
@@ -471,7 +467,7 @@ Packer.prototype._sortRectsTopLeft = (function() {
 Packer.prototype._sortRectsLeftTop = (function() {
   var rectA = {};
   var rectB = {};
-  return function (aId, bId) {
+  return function(aId, bId) {
     this._getRect(aId, rectA);
     this._getRect(bId, rectB);
     // prettier-ignore

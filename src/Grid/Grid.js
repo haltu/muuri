@@ -47,7 +47,6 @@ import removeClass from '../utils/removeClass.js';
 import toArray from '../utils/toArray.js';
 
 var packer = new Packer();
-var placeholderObject = {};
 var noop = function() {};
 
 /**
@@ -595,7 +594,7 @@ Grid.prototype.add = function(elements, options) {
     return newItems;
   }
 
-  var opts = options || placeholderObject;
+  var opts = options || 0;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var items = this._items;
   var needsLayout = false;
@@ -646,7 +645,7 @@ Grid.prototype.add = function(elements, options) {
 Grid.prototype.remove = function(items, options) {
   if (this._isDestroyed) return this;
 
-  var opts = options || placeholderObject;
+  var opts = options || 0;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var needsLayout = false;
   var allItems = this.getItems();
@@ -734,18 +733,21 @@ Grid.prototype.filter = function(predicate, options) {
   var itemsToHide = [];
   var isPredicateString = typeof predicate === 'string';
   var isPredicateFn = typeof predicate === 'function';
-  var opts = options || placeholderObject;
+  var opts = options || 0;
   var isInstant = opts.instant === true;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var onFinish = typeof opts.onFinish === 'function' ? opts.onFinish : null;
   var tryFinishCounter = -1;
-  var tryFinish = !onFinish
-    ? noop
-    : function() {
-        ++tryFinishCounter && onFinish(itemsToShow.slice(0), itemsToHide.slice(0));
-      };
+  var tryFinish = noop;
   var item;
   var i;
+
+  // If we have onFinish callback, let's create proper tryFinish callback.
+  if (onFinish) {
+    tryFinish = function() {
+      ++tryFinishCounter && onFinish(itemsToShow.slice(0), itemsToHide.slice(0));
+    };
+  }
 
   // Check which items need to be shown and which hidden.
   if (isPredicateFn || isPredicateString) {
@@ -898,7 +900,7 @@ Grid.prototype.sort = (function() {
     if (this._isDestroyed || this._items.length < 2) return this;
 
     var items = this._items;
-    var opts = options || placeholderObject;
+    var opts = options || 0;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var i;
 
@@ -968,7 +970,7 @@ Grid.prototype.move = function(item, position, options) {
   if (this._isDestroyed || this._items.length < 2) return this;
 
   var items = this._items;
-  var opts = options || placeholderObject;
+  var opts = options || 0;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var isSwap = opts.action === 'swap';
   var action = isSwap ? 'swap' : 'move';
@@ -1024,7 +1026,7 @@ Grid.prototype.send = function(item, grid, position, options) {
   item = this._getItem(item);
   if (!item) return this;
 
-  var opts = options || placeholderObject;
+  var opts = options || 0;
   var container = opts.appendTo || document.body;
   var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
   var layoutReceiver = opts.layoutReceiver
@@ -1248,7 +1250,7 @@ Grid.prototype._refreshDimensions = function() {
 Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   var grid = this;
   var targetItems = this.getItems(items);
-  var opts = options || placeholderObject;
+  var opts = options || 0;
   var isInstant = opts.instant === true;
   var callback = opts.onFinish;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
@@ -1342,12 +1344,8 @@ function mergeSettings(defaultSettings, userSettings) {
 
   // Handle visible/hidden styles manually so that the whole object is
   // overriden instead of the props.
-  ret.visibleStyles =
-    (userSettings || placeholderObject).visibleStyles ||
-    (defaultSettings || placeholderObject).visibleStyles;
-  ret.hiddenStyles =
-    (userSettings || placeholderObject).hiddenStyles ||
-    (defaultSettings || placeholderObject).hiddenStyles;
+  ret.visibleStyles = (userSettings || 0).visibleStyles || (defaultSettings || 0).visibleStyles;
+  ret.hiddenStyles = (userSettings || 0).hiddenStyles || (defaultSettings || 0).hiddenStyles;
 
   return ret;
 }

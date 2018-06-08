@@ -12,7 +12,7 @@ import elementMatches from './elementMatches.js';
  * @param {HTMLElement} element
  * @param {String} className
  */
-function removeClass(element, className) {
+function removeClassModern(element, className) {
   element.classList.remove(className);
 }
 
@@ -28,4 +28,4 @@ function removeClassLegacy(element, className) {
   }
 }
 
-export default ('classList' in Element.prototype ? removeClass : removeClassLegacy);
+export default ('classList' in Element.prototype ? removeClassModern : removeClassLegacy);

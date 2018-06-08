@@ -24,134 +24,9 @@
 
   Hammer = Hammer && Hammer.hasOwnProperty('default') ? Hammer['default'] : Hammer;
 
-  var raf = (
-    window.requestAnimationFrame ||
-    window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame ||
-    window.msRequestAnimationFrame ||
-    rafFallback
-  ).bind(window);
-
-  function rafFallback(cb) {
-    return window.setTimeout(cb, 16);
-  }
-
-  /**
-   * A ticker system for handling DOM reads and writes in an efficient way.
-   * Contains a read queue and a write queue that are processed on the next
-   * animation frame when needed.
-   *
-   * @class
-   */
-  function Ticker() {
-    this._nextTick = null;
-
-    this._queue = [];
-    this._reads = {};
-    this._writes = {};
-
-    this._batch = [];
-    this._batchReads = {};
-    this._batchWrites = {};
-
-    this._flush = this._flush.bind(this);
-  }
-
-  Ticker.prototype.add = function(id, readCallback, writeCallback, isImportant) {
-    // First, let's check if an item has been added to the queues with the same id
-    // and if so -> remove it.
-    var currentIndex = this._queue.indexOf(id);
-    if (currentIndex > -1) this._queue[currentIndex] = undefined;
-
-    // Add all important callbacks to the beginning of the queue and other
-    // callbacks to the end of the queue.
-    isImportant ? this._queue.unshift(id) : this._queue.push(id);
-
-    // Store callbacks.
-    this._reads[id] = readCallback;
-    this._writes[id] = writeCallback;
-
-    // Finally, let's kickstart the next tick if it is not running yet.
-    if (!this._nextTick) this._nextTick = raf(this._flush);
-  };
-
-  Ticker.prototype.cancel = function(id) {
-    var currentIndex = this._queue.indexOf(id);
-    if (currentIndex > -1) {
-      this._queue[currentIndex] = undefined;
-      this._reads[id] = undefined;
-      this._writes[id] = undefined;
-    }
-  };
-
-  Ticker.prototype._flush = function() {
-    var queue = this._queue;
-    var reads = this._reads;
-    var writes = this._writes;
-    var batch = this._batch;
-    var batchReads = this._batchReads;
-    var batchWrites = this._batchWrites;
-    var length = queue.length;
-    var id;
-    var i;
-
-    // Reset ticker.
-    this._nextTick = null;
-
-    // Setup queues and callback placeholders.
-    for (i = 0; i < length; i++) {
-      id = queue[i];
-      if (!id) continue;
-
-      batch.push(id);
-
-      batchReads[id] = reads[id];
-      reads[id] = undefined;
-
-      batchWrites[id] = writes[id];
-      writes[id] = undefined;
-    }
-
-    // Reset queue.
-    queue.length = 0;
-
-    // Process read callbacks.
-    for (i = 0; i < length; i++) {
-      id = batch[i];
-      if (batchReads[id]) {
-        batchReads[id]();
-        batchReads[id] = undefined;
-      }
-    }
-
-    // Process write callbacks.
-    for (i = 0; i < length; i++) {
-      id = batch[i];
-      if (batchWrites[id]) {
-        batchWrites[id]();
-        batchWrites[id] = undefined;
-      }
-    }
-
-    // Reset batch.
-    batch.length = 0;
-
-    // Restart the ticker if needed.
-    if (!this._nextTick && queue.length) {
-      this._nextTick = raf(this._flush);
-    }
-  };
-
-  // Library namespace (mainly for error messages).
   var namespace = 'Muuri';
-
-  // Keep track of Grid instances.
   var gridInstances = {};
 
-  // Shared ticker instance.
-  var ticker = new Ticker();
-
-  // Event names.
   var eventSynchronize = 'synchronize';
   var eventLayoutStart = 'layoutStart';
   var eventLayoutEnd = 'layoutEnd';
@@ -436,8 +311,6 @@
     }
   }
 
-  var placeholderObject = {};
-
   /**
    * Item animation handler powered by Web Animations API.
    *
@@ -478,7 +351,7 @@
   ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
     if (this._isDestroyed) return;
 
-    var opts = options || placeholderObject;
+    var opts = options || 0;
     var callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
     var shouldStop = false;
     var propName;
@@ -586,6 +459,126 @@
     callback && callback();
   };
 
+  var raf = (
+    window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame ||
+    window.msRequestAnimationFrame ||
+    rafFallback
+  ).bind(window);
+
+  function rafFallback(cb) {
+    return window.setTimeout(cb, 16);
+  }
+
+  /**
+   * A ticker system for handling DOM reads and writes in an efficient way.
+   * Contains a read queue and a write queue that are processed on the next
+   * animation frame when needed.
+   *
+   * @class
+   */
+  function Ticker() {
+    this._nextTick = null;
+
+    this._queue = [];
+    this._reads = {};
+    this._writes = {};
+
+    this._batch = [];
+    this._batchReads = {};
+    this._batchWrites = {};
+
+    this._flush = this._flush.bind(this);
+  }
+
+  Ticker.prototype.add = function(id, readCallback, writeCallback, isImportant) {
+    // First, let's check if an item has been added to the queues with the same id
+    // and if so -> remove it.
+    var currentIndex = this._queue.indexOf(id);
+    if (currentIndex > -1) this._queue[currentIndex] = undefined;
+
+    // Add all important callbacks to the beginning of the queue and other
+    // callbacks to the end of the queue.
+    isImportant ? this._queue.unshift(id) : this._queue.push(id);
+
+    // Store callbacks.
+    this._reads[id] = readCallback;
+    this._writes[id] = writeCallback;
+
+    // Finally, let's kickstart the next tick if it is not running yet.
+    if (!this._nextTick) this._nextTick = raf(this._flush);
+  };
+
+  Ticker.prototype.cancel = function(id) {
+    var currentIndex = this._queue.indexOf(id);
+    if (currentIndex > -1) {
+      this._queue[currentIndex] = undefined;
+      this._reads[id] = undefined;
+      this._writes[id] = undefined;
+    }
+  };
+
+  Ticker.prototype._flush = function() {
+    var queue = this._queue;
+    var reads = this._reads;
+    var writes = this._writes;
+    var batch = this._batch;
+    var batchReads = this._batchReads;
+    var batchWrites = this._batchWrites;
+    var length = queue.length;
+    var id;
+    var i;
+
+    // Reset ticker.
+    this._nextTick = null;
+
+    // Setup queues and callback placeholders.
+    for (i = 0; i < length; i++) {
+      id = queue[i];
+      if (!id) continue;
+
+      batch.push(id);
+
+      batchReads[id] = reads[id];
+      reads[id] = undefined;
+
+      batchWrites[id] = writes[id];
+      writes[id] = undefined;
+    }
+
+    // Reset queue.
+    queue.length = 0;
+
+    // Process read callbacks.
+    for (i = 0; i < length; i++) {
+      id = batch[i];
+      if (batchReads[id]) {
+        batchReads[id]();
+        batchReads[id] = undefined;
+      }
+    }
+
+    // Process write callbacks.
+    for (i = 0; i < length; i++) {
+      id = batch[i];
+      if (batchWrites[id]) {
+        batchWrites[id]();
+        batchWrites[id] = undefined;
+      }
+    }
+
+    // Reset batch.
+    batch.length = 0;
+
+    // Restart the ticker if needed.
+    if (!this._nextTick && queue.length) {
+      this._nextTick = raf(this._flush);
+    }
+  };
+
+  var ticker = new Ticker();
+
   var proto = Element.prototype;
   var matches =
     proto.matches ||
@@ -611,7 +604,7 @@
    * @param {HTMLElement} element
    * @param {String} className
    */
-  function addClass(element, className) {
+  function addClassModern(element, className) {
     element.classList.add(className);
   }
 
@@ -627,7 +620,7 @@
     }
   }
 
-  var addClass$1 = ('classList' in Element.prototype ? addClass : addClassLegacy);
+  var addClass = ('classList' in Element.prototype ? addClassModern : addClassLegacy);
 
   /**
    * Normalize array index. Basically this function makes sure that the provided
@@ -691,18 +684,6 @@
       array[indexA] = array[indexB];
       array[indexB] = temp;
     }
-  }
-
-  /**
-   * Transform translateX and translateY value into CSS transform style
-   * property's value.
-   *
-   * @param {Number} x
-   * @param {Number} y
-   * @returns {String}
-   */
-  function createTranslateStyle(x, y) {
-    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
   }
 
   var actionCancel = 'cancel';
@@ -908,6 +889,18 @@
     return translateData;
   }
 
+  /**
+   * Transform translateX and translateY value into CSS transform style
+   * property's value.
+   *
+   * @param {Number} x
+   * @param {Number} y
+   * @returns {String}
+   */
+  function getTranslateString(x, y) {
+    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
+  }
+
   var tempArray = [];
 
   /**
@@ -945,7 +938,7 @@
    * @param {HTMLElement} element
    * @param {String} className
    */
-  function removeClass(element, className) {
+  function removeClassModern(element, className) {
     element.classList.remove(className);
   }
 
@@ -961,7 +954,7 @@
     }
   }
 
-  var removeClass$1 = ('classList' in Element.prototype ? removeClass : removeClassLegacy);
+  var removeClass = ('classList' in Element.prototype ? removeClassModern : removeClassLegacy);
 
   // To provide consistently correct dragging experience we need to know if
   // transformed elements leak fixed elements or not.
@@ -972,8 +965,6 @@
   var startPredicatePending = 1;
   var startPredicateResolved = 2;
   var startPredicateRejected = 3;
-
-  var placeholderObject$1 = {};
 
   /**
    * Bind Hammer touch interaction to an item.
@@ -1184,7 +1175,7 @@
     // handle.
     if (!predicate.handleElement) {
       if (predicate.handle) {
-        predicate.handleElement = (event.changedPointers[0] || placeholderObject$1).target;
+        predicate.handleElement = (event.changedPointers[0] || 0).target;
         while (
           predicate.handleElement &&
           !elementMatches(predicate.handleElement, predicate.handle)
@@ -1412,11 +1403,11 @@
     // sure the translate values are adjusted to account for the DOM shift.
     if (element.parentNode !== grid._element) {
       grid._element.appendChild(element);
-      element.style[transformProp] = createTranslateStyle(this._gridX, this._gridY);
+      element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
     }
 
     // Remove dragging class.
-    removeClass$1(element, grid._settings.itemDraggingClass);
+    removeClass(element, grid._settings.itemDraggingClass);
 
     // Reset drag data.
     this._reset();
@@ -1710,13 +1701,13 @@
     this.destroy();
 
     // Remove current classnames.
-    removeClass$1(element, currentSettings.itemClass);
-    removeClass$1(element, currentSettings.itemVisibleClass);
-    removeClass$1(element, currentSettings.itemHiddenClass);
+    removeClass(element, currentSettings.itemClass);
+    removeClass(element, currentSettings.itemVisibleClass);
+    removeClass(element, currentSettings.itemHiddenClass);
 
     // Add new classnames.
-    addClass$1(element, targetSettings.itemClass);
-    addClass$1(
+    addClass(element, targetSettings.itemClass);
+    addClass(
       element,
       isActive ? targetSettings.itemVisibleClass : setargetSettingsttings.itemHiddenClass
     );
@@ -1747,7 +1738,7 @@
     // Adjust the position of the item element if it was moved from a container
     // to another.
     if (targetContainer !== currentContainer) {
-      element.style[transformProp] = createTranslateStyle(translate.x, translate.y);
+      element.style[transformProp] = getTranslateString(translate.x, translate.y);
     }
 
     // Update child element's styles to reflect the current visibility state.
@@ -1812,14 +1803,14 @@
 
     // Stop current positioning animation.
     if (item.isPositioning()) {
-      item._layout.stop(true, { transform: createTranslateStyle(currentLeft, currentTop) });
+      item._layout.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
     }
 
     // Stop current migration animation.
     if (migrate._isActive) {
       currentLeft -= migrate._containerDiffX;
       currentTop -= migrate._containerDiffY;
-      migrate.stop(true, { transform: createTranslateStyle(currentLeft, currentTop) });
+      migrate.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
     }
 
     // If item is being released reset release data.
@@ -1859,12 +1850,12 @@
         this._left = currentLeft + this._containerDiffX;
         this._top = currentTop + this._containerDiffY;
         dragContainer.appendChild(element);
-        element.style[transformProp] = createTranslateStyle(this._left, this._top);
+        element.style[transformProp] = getTranslateString(this._left, this._top);
       }
     }
 
     // Set drag class and bind scrollers.
-    addClass$1(element, settings.itemDraggingClass);
+    addClass(element, settings.itemDraggingClass);
     this._bindScrollListeners();
 
     // Emit dragStart event.
@@ -1944,7 +1935,7 @@
     if (!item._isActive) return this;
 
     // Update element's translateX/Y values.
-    element.style[transformProp] = createTranslateStyle(this._left, this._top);
+    element.style[transformProp] = getTranslateString(this._left, this._top);
 
     // Emit dragMove event.
     this._getGrid()._emit(eventDragMove, item, this._lastEvent);
@@ -2041,7 +2032,7 @@
     var grid = this._getGrid();
 
     // Update element's translateX/Y values.
-    element.style[transformProp] = createTranslateStyle(this._left, this._top);
+    element.style[transformProp] = getTranslateString(this._left, this._top);
 
     // Emit dragScroll event.
     grid._emit(eventDragScroll, item, this._lastScrollEvent);
@@ -2084,7 +2075,7 @@
     this._reset();
 
     // Remove drag classname from element.
-    removeClass$1(element, settings.itemDraggingClass);
+    removeClass(element, settings.itemDraggingClass);
 
     // Emit dragEnd event.
     grid._emit(eventDragEnd, item, event);
@@ -2490,7 +2481,7 @@
         : 0;
 
     // Get target styles.
-    this._targetStyles.transform = createTranslateStyle(
+    this._targetStyles.transform = getTranslateString(
       item._left + offsetLeft,
       item._top + offsetTop
     );
@@ -2541,7 +2532,7 @@
     item._animate.stop(targetStyles);
 
     // Remove positioning class.
-    removeClass$1(item._element, item.getGrid()._settings.itemPositioningClass);
+    removeClass(item._element, item.getGrid()._settings.itemPositioningClass);
 
     // Reset active state.
     this._isActive = false;
@@ -2590,7 +2581,7 @@
     // Mark the item as inactive and remove positioning classes.
     if (this._isActive) {
       this._isActive = false;
-      removeClass$1(item._element, item.getGrid()._settings.itemPositioningClass);
+      removeClass(item._element, item.getGrid()._settings.itemPositioningClass);
     }
 
     // Finish up release and migration.
@@ -2639,10 +2630,10 @@
     }
 
     // Set item's positioning class if needed.
-    !this._isInterrupted && addClass$1(element, settings.itemPositioningClass);
+    !this._isInterrupted && addClass(element, settings.itemPositioningClass);
 
     // Get current styles for animation.
-    this._currentStyles.transform = createTranslateStyle(
+    this._currentStyles.transform = getTranslateString(
       this._currentLeft + this._offsetLeft,
       this._currentTop + this._offsetTop
     );
@@ -2652,6 +2643,8 @@
 
     return this;
   };
+
+  var tempStyles = {};
 
   /**
    * The migrate process handler constructor.
@@ -2726,21 +2719,21 @@
 
     // Abort current positioning.
     if (item.isPositioning()) {
-      item._layout.stop(true, { transform: createTranslateStyle(translateX, translateY) });
+      item._layout.stop(true, { transform: getTranslateString(translateX, translateY) });
     }
 
     // Abort current migration.
     if (this._isActive) {
       translateX -= this._containerDiffX;
       translateY -= this._containerDiffY;
-      this.stop(true, { transform: createTranslateStyle(translateX, translateY) });
+      this.stop(true, { transform: getTranslateString(translateX, translateY) });
     }
 
     // Abort current release.
     if (item.isReleasing()) {
       translateX -= item._release._containerDiffX;
       translateY -= item._release._containerDiffY;
-      item._release.stop(true, { transform: createTranslateStyle(translateX, translateY) });
+      item._release.stop(true, { transform: getTranslateString(translateX, translateY) });
     }
 
     // Stop current visibility animations.
@@ -2773,13 +2766,13 @@
     });
 
     // Remove current classnames.
-    removeClass$1(itemElement, currentGridStn.itemClass);
-    removeClass$1(itemElement, currentGridStn.itemVisibleClass);
-    removeClass$1(itemElement, currentGridStn.itemHiddenClass);
+    removeClass(itemElement, currentGridStn.itemClass);
+    removeClass(itemElement, currentGridStn.itemVisibleClass);
+    removeClass(itemElement, currentGridStn.itemHiddenClass);
 
     // Add new classnames.
-    addClass$1(itemElement, targetGridStn.itemClass);
-    addClass$1(
+    addClass(itemElement, targetGridStn.itemClass);
+    addClass(
       itemElement,
       isItemVisible ? targetGridStn.itemVisibleClass : targetGridStn.itemHiddenClass
     );
@@ -2804,7 +2797,7 @@
         translateX = translate.x;
         translateY = translate.y;
       }
-      itemElement.style[transformProp] = createTranslateStyle(
+      itemElement.style[transformProp] = getTranslateString(
         translateX + offsetDiff.left,
         translateY + offsetDiff.top
       );
@@ -2867,7 +2860,6 @@
    *  - Optional current translateX and translateY styles.
    * @returns {ItemMigrate}
    */
-  var currentStylesFallback = {};
   ItemMigrate.prototype.stop = function(abort, currentStyles) {
     if (this._isDestroyed || !this._isActive) return this;
 
@@ -2881,14 +2873,14 @@
       if (!currentStyles) {
         if (abort) {
           translate = getTranslate(element);
-          currentStylesFallback.transform = createTranslateStyle(
+          tempStyles.transform = getTranslateString(
             translate.x - this._containerDiffX,
             translate.y - this._containerDiffY
           );
         } else {
-          currentStylesFallback.transform = createTranslateStyle(item._left, item._top);
+          tempStyles.transform = getTranslateString(item._left, item._top);
         }
-        currentStyles = currentStylesFallback;
+        currentStyles = tempStyles;
       }
       gridElement.appendChild(element);
       setStyles(element, currentStyles);
@@ -2916,6 +2908,8 @@
     this._isDestroyed = true;
     return this;
   };
+
+  var tempStyles$1 = {};
 
   /**
    * The release process handler constructor. Although this might seem as proper
@@ -2957,7 +2951,7 @@
     this._isActive = true;
 
     // Add release classname to the released element.
-    addClass$1(item._element, grid._settings.itemReleasingClass);
+    addClass(item._element, grid._settings.itemReleasingClass);
 
     // Emit dragReleaseStart event.
     grid._emit(eventDragReleaseStart, item);
@@ -2982,7 +2976,6 @@
    *  - Optional current translateX and translateY styles.
    * @returns {ItemRelease}
    */
-  var currentStylesFallback$1 = {};
   ItemRelease.prototype.stop = function(abort, currentStyles) {
     if (this._isDestroyed || !this._isActive) return this;
 
@@ -3001,14 +2994,14 @@
       if (!currentStyles) {
         if (abort) {
           translate = getTranslate(element);
-          currentStylesFallback$1.transform = createTranslateStyle(
+          tempStyles$1.transform = getTranslateString(
             translate.x - this._containerDiffX,
             translate.y - this._containerDiffY
           );
         } else {
-          currentStylesFallback$1.transform = createTranslateStyle(item._left, item._top);
+          tempStyles$1.transform = getTranslateString(item._left, item._top);
         }
-        currentStyles = currentStylesFallback$1;
+        currentStyles = tempStyles$1;
       }
       container.appendChild(element);
       setStyles(element, currentStyles);
@@ -3054,7 +3047,7 @@
     this._isPositioningStarted = false;
     this._containerDiffX = 0;
     this._containerDiffY = 0;
-    removeClass$1(item._element, item.getGrid()._settings.itemReleasingClass);
+    removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
     return this;
   };
 
@@ -3088,7 +3081,7 @@
     element.style.display = isActive ? 'block' : 'none';
 
     // Set visible/hidden class.
-    addClass$1(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
+    addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
 
     // Set initial styles for the child element.
     setStyles(item._child, isActive ? settings.visibleStyles : settings.hiddenStyles);
@@ -3136,8 +3129,8 @@
     // to block if necessary.
     if (!this._isShowing) {
       queue.flush(true, item);
-      removeClass$1(element, settings.itemHiddenClass);
-      addClass$1(element, settings.itemVisibleClass);
+      removeClass(element, settings.itemHiddenClass);
+      addClass(element, settings.itemVisibleClass);
       if (!this._isHiding) element.style.display = 'block';
     }
 
@@ -3191,8 +3184,8 @@
     // to block if necessary.
     if (!this._isHiding) {
       queue.flush(true, item);
-      addClass$1(element, settings.itemHiddenClass);
-      removeClass$1(element, settings.itemVisibleClass);
+      addClass(element, settings.itemHiddenClass);
+      removeClass(element, settings.itemVisibleClass);
     }
 
     // Push callback to the callback queue.
@@ -3231,8 +3224,8 @@
     queue.flush(true, item).destroy();
 
     // Remove visible/hidden classes.
-    removeClass$1(element, settings.itemVisibleClass);
-    removeClass$1(element, settings.itemHiddenClass);
+    removeClass(element, settings.itemVisibleClass);
+    removeClass(element, settings.itemHiddenClass);
 
     // Reset state.
     this._item = null;
@@ -3341,7 +3334,7 @@
     if (!this._isHidden) return;
     var item = this._item;
     this._isHiding = false;
-    finishStyles.transform = createTranslateStyle(0, 0);
+    finishStyles.transform = getTranslateString(0, 0);
     item._layout.stop(true, finishStyles);
     item._element.style.display = 'none';
     this._queue.flush(false, item);
@@ -3392,7 +3385,7 @@
     }
 
     // Set item class.
-    addClass$1(element, settings.itemClass);
+    addClass(element, settings.itemClass);
 
     // If isActive is not defined, let's try to auto-detect it.
     if (typeof isActive !== 'boolean') {
@@ -3406,7 +3399,7 @@
     // Set element's initial position styles.
     element.style.left = '0';
     element.style.top = '0';
-    element.style[transformProp] = createTranslateStyle(0, 0);
+    element.style[transformProp] = getTranslateString(0, 0);
 
     // Initiate item's animation controllers.
     this._animate = new ItemAnimate(this, element);
@@ -3686,7 +3679,7 @@
     this._child.removeAttribute('style');
 
     // Remove item class.
-    removeClass$1(element, settings.itemClass);
+    removeClass(element, settings.itemClass);
 
     // Remove item from Grid instance if it still exists there.
     index > -1 && grid._items.splice(index, 1);
@@ -3719,7 +3712,7 @@
     this._freeSlots = [];
     this._newSlots = [];
     this._rectItem = {};
-    this._rectStore = {};
+    this._rectStore = [];
     this._rectId = 0;
 
     // Bind sort handlers.
@@ -3740,7 +3733,7 @@
    * @param {Boolean} [options.alignBottom=false]
    * @returns {LayoutData}
    */
-  Packer.prototype.getLayout = function (items, width, height, options) {
+  Packer.prototype.getLayout = function(items, width, height, options) {
     var layout = this._layout;
     var fillGaps = !!(options && options.fillGaps);
     var isHorizontal = !!(options && options.horizontal);
@@ -3801,7 +3794,7 @@
   Packer.prototype._addSlot = (function() {
     var leeway = 0.001;
     var itemSlot = {};
-    return function (item, isHorizontal, fillGaps, rounding) {
+    return function(item, isHorizontal, fillGaps, rounding) {
       var layout = this._layout;
       var freeSlots = this._freeSlots;
       var newSlots = this._newSlots;
@@ -3902,11 +3895,7 @@
       // Clean up the current slots making sure there are no old slots that
       // overlap with the item. If an old slot overlaps with the item, split it
       // into smaller slots if necessary.
-      for (
-        i = fillGaps ? 0 : ignoreCurrentSlots ? freeSlots.length : i;
-        i < freeSlots.length;
-        i++
-      ) {
+      for (i = fillGaps ? 0 : ignoreCurrentSlots ? freeSlots.length : i; i < freeSlots.length; i++) {
         rectId = freeSlots[i];
         if (!rectId) continue;
         rect = this._getRect(rectId);
@@ -3966,14 +3955,14 @@
    * @param {Number} height
    * @returns {RectId}
    */
-  Packer.prototype._addRect = function (left, top, width, height) {
+  Packer.prototype._addRect = function(left, top, width, height) {
     var rectId = ++this._rectId;
     var rectStore = this._rectStore;
 
-    rectStore[rectId + 'x'] = left || 0;
-    rectStore[rectId + 'y'] = top || 0;
-    rectStore[rectId + 'w'] = width || 0;
-    rectStore[rectId + 'h'] = height || 0;
+    rectStore[rectId] = left || 0;
+    rectStore[++this._rectId] = top || 0;
+    rectStore[++this._rectId] = width || 0;
+    rectStore[++this._rectId] = height || 0;
 
     return rectId;
   };
@@ -3989,14 +3978,14 @@
    * @param {Object} [target]
    * @returns {Object}
    */
-  Packer.prototype._getRect = function (id, target) {
+  Packer.prototype._getRect = function(id, target) {
     var rectItem = target ? target : this._rectItem;
     var rectStore = this._rectStore;
 
-    rectItem.left = rectStore[id + 'x'] || 0;
-    rectItem.top = rectStore[id + 'y'] || 0;
-    rectItem.width = rectStore[id + 'w'] || 0;
-    rectItem.height = rectStore[id + 'h'] || 0;
+    rectItem.left = rectStore[id] || 0;
+    rectItem.top = rectStore[++id] || 0;
+    rectItem.width = rectStore[++id] || 0;
+    rectItem.height = rectStore[++id] || 0;
 
     return rectItem;
   };
@@ -4013,7 +4002,7 @@
    */
   Packer.prototype._splitRect = (function() {
     var results = [];
-    return function (rect, hole) {
+    return function(rect, hole) {
       // Reset old results.
       results.length = 0;
 
@@ -4071,7 +4060,7 @@
    * @param {Rectangle} b
    * @returns {Boolean}
    */
-  Packer.prototype._doRectsOverlap = function (a, b) {
+  Packer.prototype._doRectsOverlap = function(a, b) {
     return !(
       a.left + a.width <= b.left ||
       b.left + b.width <= a.left ||
@@ -4089,7 +4078,7 @@
    * @param {Rectangle} b
    * @returns {Boolean}
    */
-  Packer.prototype._isRectWithinRect = function (a, b) {
+  Packer.prototype._isRectWithinRect = function(a, b) {
     return (
       a.left >= b.left &&
       a.top >= b.top &&
@@ -4109,19 +4098,19 @@
    * @returns {RectId[]}
    */
   Packer.prototype._purgeRects = (function() {
-    var aRect = {};
-    var bRect = {};
-    return function (rectIds) {
+    var rectA = {};
+    var rectB = {};
+    return function(rectIds) {
       var i = rectIds.length;
       var ii;
 
       while (i--) {
         ii = rectIds.length;
         if (!rectIds[i]) continue;
-        this._getRect(rectIds[i], aRect);
+        this._getRect(rectIds[i], rectA);
         while (ii--) {
           if (!rectIds[ii] || i === ii) continue;
-          if (this._isRectWithinRect(aRect, this._getRect(rectIds[ii], bRect))) {
+          if (this._isRectWithinRect(rectA, this._getRect(rectIds[ii], rectB))) {
             rectIds[i] = 0;
             break;
           }
@@ -4144,7 +4133,7 @@
   Packer.prototype._sortRectsTopLeft = (function() {
     var rectA = {};
     var rectB = {};
-    return function (aId, bId) {
+    return function(aId, bId) {
       this._getRect(aId, rectA);
       this._getRect(bId, rectB);
       // prettier-ignore
@@ -4167,7 +4156,7 @@
   Packer.prototype._sortRectsLeftTop = (function() {
     var rectA = {};
     var rectB = {};
-    return function (aId, bId) {
+    return function(aId, bId) {
       this._getRect(aId, rectA);
       this._getRect(bId, rectB);
       // prettier-ignore
@@ -4203,7 +4192,6 @@
   }
 
   var packer = new Packer();
-  var placeholderObject$2 = {};
   var noop = function() {};
 
   /**
@@ -4298,7 +4286,7 @@
     this._emitter = new Emitter();
 
     // Add container element's class name.
-    addClass$1(element, settings.containerClass);
+    addClass(element, settings.containerClass);
 
     // Create initial items.
     this._items = [];
@@ -4751,7 +4739,7 @@
       return newItems;
     }
 
-    var opts = options || placeholderObject$2;
+    var opts = options || 0;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var items = this._items;
     var needsLayout = false;
@@ -4802,7 +4790,7 @@
   Grid.prototype.remove = function(items, options) {
     if (this._isDestroyed) return this;
 
-    var opts = options || placeholderObject$2;
+    var opts = options || 0;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var needsLayout = false;
     var allItems = this.getItems();
@@ -4890,18 +4878,21 @@
     var itemsToHide = [];
     var isPredicateString = typeof predicate === 'string';
     var isPredicateFn = typeof predicate === 'function';
-    var opts = options || placeholderObject$2;
+    var opts = options || 0;
     var isInstant = opts.instant === true;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var onFinish = typeof opts.onFinish === 'function' ? opts.onFinish : null;
     var tryFinishCounter = -1;
-    var tryFinish = !onFinish
-      ? noop
-      : function() {
-          ++tryFinishCounter && onFinish(itemsToShow.slice(0), itemsToHide.slice(0));
-        };
+    var tryFinish = noop;
     var item;
     var i;
+
+    // If we have onFinish callback, let's create proper tryFinish callback.
+    if (onFinish) {
+      tryFinish = function() {
+        ++tryFinishCounter && onFinish(itemsToShow.slice(0), itemsToHide.slice(0));
+      };
+    }
 
     // Check which items need to be shown and which hidden.
     if (isPredicateFn || isPredicateString) {
@@ -5054,7 +5045,7 @@
       if (this._isDestroyed || this._items.length < 2) return this;
 
       var items = this._items;
-      var opts = options || placeholderObject$2;
+      var opts = options || 0;
       var layout = opts.layout ? opts.layout : opts.layout === undefined;
       var i;
 
@@ -5124,7 +5115,7 @@
     if (this._isDestroyed || this._items.length < 2) return this;
 
     var items = this._items;
-    var opts = options || placeholderObject$2;
+    var opts = options || 0;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var isSwap = opts.action === 'swap';
     var action = isSwap ? 'swap' : 'move';
@@ -5180,7 +5171,7 @@
     item = this._getItem(item);
     if (!item) return this;
 
-    var opts = options || placeholderObject$2;
+    var opts = options || 0;
     var container = opts.appendTo || document.body;
     var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
     var layoutReceiver = opts.layoutReceiver
@@ -5236,7 +5227,7 @@
     }
 
     // Restore container.
-    removeClass$1(container, this._settings.containerClass);
+    removeClass(container, this._settings.containerClass);
     container.style.height = '';
     container.style.width = '';
 
@@ -5404,7 +5395,7 @@
   Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
     var grid = this;
     var targetItems = this.getItems(items);
-    var opts = options || placeholderObject$2;
+    var opts = options || 0;
     var isInstant = opts.instant === true;
     var callback = opts.onFinish;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
@@ -5498,12 +5489,8 @@
 
     // Handle visible/hidden styles manually so that the whole object is
     // overriden instead of the props.
-    ret.visibleStyles =
-      (userSettings || placeholderObject$2).visibleStyles ||
-      (defaultSettings || placeholderObject$2).visibleStyles;
-    ret.hiddenStyles =
-      (userSettings || placeholderObject$2).hiddenStyles ||
-      (defaultSettings || placeholderObject$2).hiddenStyles;
+    ret.visibleStyles = (userSettings || 0).visibleStyles || (defaultSettings || 0).visibleStyles;
+    ret.hiddenStyles = (userSettings || 0).hiddenStyles || (defaultSettings || 0).hiddenStyles;
 
     return ret;
   }

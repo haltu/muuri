@@ -18,20 +18,20 @@ import {
   eventDragScroll,
   eventDragEnd,
   gridInstances,
-  namespace,
-  ticker
+  namespace
 } from '../shared.js';
+import ticker from '../ticker.js';
 
 import addClass from '../utils/addClass.js';
 import arrayMove from '../utils/arrayMove.js';
 import arraySwap from '../utils/arraySwap.js';
-import createTranslateStyle from '../utils/createTranslateStyle.js';
 import debounce from '../utils/debounce.js';
 import elementMatches from '../utils/elementMatches.js';
 import getContainingBlock from '../utils/getContainingBlock.js';
 import getOffsetDiff from '../utils/getOffsetDiff.js';
 import getStyle from '../utils/getStyle.js';
 import getTranslate from '../utils/getTranslate.js';
+import getTranslateString from '../utils/getTranslateString.js';
 import arrayInsert from '../utils/arrayInsert.js';
 import isPlainObject from '../utils/isPlainObject.js';
 import isTransformed from '../utils/isTransformed.js';
@@ -49,8 +49,6 @@ var startPredicateInactive = 0;
 var startPredicatePending = 1;
 var startPredicateResolved = 2;
 var startPredicateRejected = 3;
-
-var placeholderObject = {};
 
 /**
  * Bind Hammer touch interaction to an item.
@@ -261,7 +259,7 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
   // handle.
   if (!predicate.handleElement) {
     if (predicate.handle) {
-      predicate.handleElement = (event.changedPointers[0] || placeholderObject).target;
+      predicate.handleElement = (event.changedPointers[0] || 0).target;
       while (
         predicate.handleElement &&
         !elementMatches(predicate.handleElement, predicate.handle)
@@ -489,7 +487,7 @@ ItemDrag.prototype.stop = function() {
   // sure the translate values are adjusted to account for the DOM shift.
   if (element.parentNode !== grid._element) {
     grid._element.appendChild(element);
-    element.style[transformProp] = createTranslateStyle(this._gridX, this._gridY);
+    element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
   }
 
   // Remove dragging class.
@@ -824,7 +822,7 @@ ItemDrag.prototype._finishMigration = function() {
   // Adjust the position of the item element if it was moved from a container
   // to another.
   if (targetContainer !== currentContainer) {
-    element.style[transformProp] = createTranslateStyle(translate.x, translate.y);
+    element.style[transformProp] = getTranslateString(translate.x, translate.y);
   }
 
   // Update child element's styles to reflect the current visibility state.
@@ -889,14 +887,14 @@ ItemDrag.prototype._onStart = function(event) {
 
   // Stop current positioning animation.
   if (item.isPositioning()) {
-    item._layout.stop(true, { transform: createTranslateStyle(currentLeft, currentTop) });
+    item._layout.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
   }
 
   // Stop current migration animation.
   if (migrate._isActive) {
     currentLeft -= migrate._containerDiffX;
     currentTop -= migrate._containerDiffY;
-    migrate.stop(true, { transform: createTranslateStyle(currentLeft, currentTop) });
+    migrate.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
   }
 
   // If item is being released reset release data.
@@ -936,7 +934,7 @@ ItemDrag.prototype._onStart = function(event) {
       this._left = currentLeft + this._containerDiffX;
       this._top = currentTop + this._containerDiffY;
       dragContainer.appendChild(element);
-      element.style[transformProp] = createTranslateStyle(this._left, this._top);
+      element.style[transformProp] = getTranslateString(this._left, this._top);
     }
   }
 
@@ -1021,7 +1019,7 @@ ItemDrag.prototype._applyMove = function() {
   if (!item._isActive) return this;
 
   // Update element's translateX/Y values.
-  element.style[transformProp] = createTranslateStyle(this._left, this._top);
+  element.style[transformProp] = getTranslateString(this._left, this._top);
 
   // Emit dragMove event.
   this._getGrid()._emit(eventDragMove, item, this._lastEvent);
@@ -1118,7 +1116,7 @@ ItemDrag.prototype._applyScroll = function() {
   var grid = this._getGrid();
 
   // Update element's translateX/Y values.
-  element.style[transformProp] = createTranslateStyle(this._left, this._top);
+  element.style[transformProp] = getTranslateString(this._left, this._top);
 
   // Emit dragScroll event.
   grid._emit(eventDragScroll, item, this._lastScrollEvent);

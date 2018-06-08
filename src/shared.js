@@ -4,18 +4,9 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import Ticker from './Ticker/Ticker.js';
-
-// Library namespace (mainly for error messages).
 export var namespace = 'Muuri';
-
-// Keep track of Grid instances.
 export var gridInstances = {};
 
-// Shared ticker instance.
-export var ticker = new Ticker();
-
-// Event names.
 export var eventSynchronize = 'synchronize';
 export var eventLayoutStart = 'layoutStart';
 export var eventLayoutEnd = 'layoutEnd';

@@ -7,8 +7,6 @@
 import getCurrentStyles from '../utils/getCurrentStyles.js';
 import setStyles from '../utils/setStyles.js';
 
-var placeholderObject = {};
-
 /**
  * Item animation handler powered by Web Animations API.
  *
@@ -49,7 +47,7 @@ function ItemAnimate(item, element) {
 ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   if (this._isDestroyed) return;
 
-  var opts = options || placeholderObject;
+  var opts = options || 0;
   var callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
   var shouldStop = false;
   var propName;

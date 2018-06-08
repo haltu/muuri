@@ -12,7 +12,7 @@ import elementMatches from './elementMatches.js';
  * @param {HTMLElement} element
  * @param {String} className
  */
-function addClass(element, className) {
+function addClassModern(element, className) {
   element.classList.add(className);
 }
 
@@ -28,4 +28,4 @@ function addClassLegacy(element, className) {
   }
 }
 
-export default ('classList' in Element.prototype ? addClass : addClassLegacy);
+export default ('classList' in Element.prototype ? addClassModern : addClassLegacy);

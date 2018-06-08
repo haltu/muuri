@@ -9,14 +9,16 @@ import { eventBeforeSend, eventBeforeReceive, eventSend, eventReceive } from '..
 import ItemDrag from './ItemDrag.js';
 
 import addClass from '../utils/addClass.js';
-import createTranslateStyle from '../utils/createTranslateStyle.js';
 import getOffsetDiff from '../utils/getOffsetDiff.js';
 import getTranslate from '../utils/getTranslate.js';
+import getTranslateString from '../utils/getTranslateString.js';
 import arrayInsert from '../utils/arrayInsert.js';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex.js';
 import removeClass from '../utils/removeClass.js';
 import setStyles from '../utils/setStyles.js';
 import { transformProp } from '../utils/supportedTransform.js';
+
+var tempStyles = {};
 
 /**
  * The migrate process handler constructor.
@@ -91,21 +93,21 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
 
   // Abort current positioning.
   if (item.isPositioning()) {
-    item._layout.stop(true, { transform: createTranslateStyle(translateX, translateY) });
+    item._layout.stop(true, { transform: getTranslateString(translateX, translateY) });
   }
 
   // Abort current migration.
   if (this._isActive) {
     translateX -= this._containerDiffX;
     translateY -= this._containerDiffY;
-    this.stop(true, { transform: createTranslateStyle(translateX, translateY) });
+    this.stop(true, { transform: getTranslateString(translateX, translateY) });
   }
 
   // Abort current release.
   if (item.isReleasing()) {
     translateX -= item._release._containerDiffX;
     translateY -= item._release._containerDiffY;
-    item._release.stop(true, { transform: createTranslateStyle(translateX, translateY) });
+    item._release.stop(true, { transform: getTranslateString(translateX, translateY) });
   }
 
   // Stop current visibility animations.
@@ -169,7 +171,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
       translateX = translate.x;
       translateY = translate.y;
     }
-    itemElement.style[transformProp] = createTranslateStyle(
+    itemElement.style[transformProp] = getTranslateString(
       translateX + offsetDiff.left,
       translateY + offsetDiff.top
     );
@@ -232,7 +234,6 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
  *  - Optional current translateX and translateY styles.
  * @returns {ItemMigrate}
  */
-var currentStylesFallback = {};
 ItemMigrate.prototype.stop = function(abort, currentStyles) {
   if (this._isDestroyed || !this._isActive) return this;
 
@@ -246,14 +247,14 @@ ItemMigrate.prototype.stop = function(abort, currentStyles) {
     if (!currentStyles) {
       if (abort) {
         translate = getTranslate(element);
-        currentStylesFallback.transform = createTranslateStyle(
+        tempStyles.transform = getTranslateString(
           translate.x - this._containerDiffX,
           translate.y - this._containerDiffY
         );
       } else {
-        currentStylesFallback.transform = createTranslateStyle(item._left, item._top);
+        tempStyles.transform = getTranslateString(item._left, item._top);
       }
-      currentStyles = currentStylesFallback;
+      currentStyles = tempStyles;
     }
     gridElement.appendChild(element);
     setStyles(element, currentStyles);

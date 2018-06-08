@@ -12,6 +12,6 @@
  * @param {Number} y
  * @returns {String}
  */
-export default function createTranslateStyle(x, y) {
+export default function getTranslateString(x, y) {
   return 'translateX(' + x + 'px) translateY(' + y + 'px)';
 }

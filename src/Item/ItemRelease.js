@@ -7,10 +7,12 @@
 import { eventDragReleaseStart, eventDragReleaseEnd } from '../shared.js';
 
 import addClass from '../utils/addClass.js';
-import createTranslateStyle from '../utils/createTranslateStyle.js';
 import getTranslate from '../utils/getTranslate.js';
+import getTranslateString from '../utils/getTranslateString.js';
 import removeClass from '../utils/removeClass.js';
 import setStyles from '../utils/setStyles.js';
+
+var tempStyles = {};
 
 /**
  * The release process handler constructor. Although this might seem as proper
@@ -77,7 +79,6 @@ ItemRelease.prototype.start = function() {
  *  - Optional current translateX and translateY styles.
  * @returns {ItemRelease}
  */
-var currentStylesFallback = {};
 ItemRelease.prototype.stop = function(abort, currentStyles) {
   if (this._isDestroyed || !this._isActive) return this;
 
@@ -96,14 +97,14 @@ ItemRelease.prototype.stop = function(abort, currentStyles) {
     if (!currentStyles) {
       if (abort) {
         translate = getTranslate(element);
-        currentStylesFallback.transform = createTranslateStyle(
+        tempStyles.transform = getTranslateString(
           translate.x - this._containerDiffX,
           translate.y - this._containerDiffY
         );
       } else {
-        currentStylesFallback.transform = createTranslateStyle(item._left, item._top);
+        tempStyles.transform = getTranslateString(item._left, item._top);
       }
-      currentStyles = currentStylesFallback;
+      currentStyles = tempStyles;
     }
     container.appendChild(element);
     setStyles(element, currentStyles);

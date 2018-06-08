@@ -4,13 +4,13 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { ticker } from '../shared.js';
+import ticker from '../ticker.js';
 
 import Queue from '../Queue/Queue.js';
 
 import addClass from '../utils/addClass.js';
-import createTranslateStyle from '../utils/createTranslateStyle.js';
 import getTranslate from '../utils/getTranslate.js';
+import getTranslateString from '../utils/getTranslateString.js';
 import removeClass from '../utils/removeClass.js';
 import setStyles from '../utils/setStyles.js';
 
@@ -100,7 +100,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
       : 0;
 
   // Get target styles.
-  this._targetStyles.transform = createTranslateStyle(
+  this._targetStyles.transform = getTranslateString(
     item._left + offsetLeft,
     item._top + offsetTop
   );
@@ -252,7 +252,7 @@ ItemLayout.prototype._startAnimation = function() {
   !this._isInterrupted && addClass(element, settings.itemPositioningClass);
 
   // Get current styles for animation.
-  this._currentStyles.transform = createTranslateStyle(
+  this._currentStyles.transform = getTranslateString(
     this._currentLeft + this._offsetLeft,
     this._currentTop + this._offsetTop
   );

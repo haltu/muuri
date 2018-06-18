@@ -98,7 +98,7 @@ Ticker.prototype._flush = function() {
 
   // Process read callbacks.
   for (i = 0; i < length; i++) {
-    id = batch[i]
+    id = batch[i];
     if (batchReads[id]) {
       batchReads[id]();
       batchReads[id] = undefined;
@@ -107,7 +107,7 @@ Ticker.prototype._flush = function() {
 
   // Process write callbacks.
   for (i = 0; i < length; i++) {
-    id = batch[i]
+    id = batch[i];
     if (batchWrites[id]) {
       batchWrites[id]();
       batchWrites[id] = undefined;

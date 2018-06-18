@@ -102,7 +102,7 @@ function ItemDrag(item) {
 
   // Create a private drag start resolver that can be used to resolve the drag
   // start predicate asynchronously.
-  this._resolveStartPredicate = function(event) {
+  this._forceResolveStartPredicate = function(event) {
     if (!this._isDestroyed && startPredicateState === startPredicatePending) {
       startPredicateState = startPredicateResolved;
       this._onStart(event);
@@ -210,46 +210,15 @@ function ItemDrag(item) {
  * @returns {Boolean}
  */
 ItemDrag.defaultStartPredicate = function(item, event, options) {
-  var element = item._element;
-  var predicate = item._drag._startPredicateData;
-  var config;
-  var isAnchor;
-  var href;
-  var target;
-
-  // Setup data if it is not set up yet.
-  if (!predicate) {
-    config = options || item._drag._getGrid()._settings.dragStartPredicate;
-    config = isPlainObject(config) ? config : {};
-    predicate = item._drag._startPredicateData = {
-      distance: Math.abs(config.distance) || 0,
-      delay: Math.max(config.delay, 0) || 0,
-      handle: typeof config.handle === 'string' ? config.handle : false
-    };
-  }
+  var drag = item._drag;
+  var predicate = drag._startPredicateData || drag._setupStartPredicate(options);
 
   // Final event logic. At this stage return value does not matter anymore,
   // the predicate is either resolved or it's not and there's nothing to do
   // about it. Here we just reset data and if the item element is a link
   // we follow it (if there has only been slight movement).
   if (event.isFinal) {
-    isAnchor = element.tagName.toLowerCase() === 'a';
-    href = element.getAttribute('href');
-    target = element.getAttribute('target');
-    dragStartPredicateReset(item);
-    if (
-      isAnchor &&
-      href &&
-      Math.abs(event.deltaX) < 2 &&
-      Math.abs(event.deltaY) < 2 &&
-      event.deltaTime < 200
-    ) {
-      if (target && target !== '_self') {
-        window.open(href, target);
-      } else {
-        window.location.href = href;
-      }
-    }
+    drag._finishStartPredicate(event);
     return;
   }
 
@@ -257,22 +226,8 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
   // cursor is within the handle. If we have a handle selector let's find
   // the corresponding element. Otherwise let's use the item element as the
   // handle.
-  if (!predicate.handleElement) {
-    if (predicate.handle) {
-      predicate.handleElement = (event.changedPointers[0] || 0).target;
-      while (
-        predicate.handleElement &&
-        !elementMatches(predicate.handleElement, predicate.handle)
-      ) {
-        predicate.handleElement =
-          predicate.handleElement !== element ? predicate.handleElement.parentElement : null;
-      }
-      if (!predicate.handleElement) {
-        return false;
-      }
-    } else {
-      predicate.handleElement = element;
-    }
+  if (!predicate.handleElement && !drag._setupStartPredicateHandle(event)) {
+    return false;
   }
 
   // If delay is defined let's keep track of the latest event and initiate
@@ -282,15 +237,15 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
     if (!predicate.delayTimer) {
       predicate.delayTimer = window.setTimeout(function() {
         predicate.delay = 0;
-        if (dragStartPredicateResolve(item, predicate.event)) {
-          item._drag._resolveStartPredicate(predicate.event);
-          dragStartPredicateReset(item);
+        if (drag._resolveStartPredicate(predicate.event)) {
+          drag._forceResolveStartPredicate(predicate.event);
+          drag._resetStartPredicate();
         }
       }, predicate.delay);
     }
   }
 
-  return dragStartPredicateResolve(item, event);
+  return drag._resolveStartPredicate(event);
 };
 
 /**
@@ -472,7 +427,10 @@ ItemDrag.prototype.stop = function() {
 
   // If the item is being dropped into another grid, finish it up and return
   // immediately.
-  if (this._isMigrating) return this._finishMigration();
+  if (this._isMigrating) {
+    this._finishMigration();
+    return this;
+  }
 
   // Cancel raf loop actions.
   this._cancelAsyncUpdates();
@@ -536,7 +494,6 @@ ItemDrag.prototype._getGrid = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._reset = function() {
   // Is item being dragged?
@@ -573,8 +530,6 @@ ItemDrag.prototype._reset = function() {
   // container and it's original container.
   this._containerDiffX = 0;
   this._containerDiffY = 0;
-
-  return this;
 };
 
 /**
@@ -583,7 +538,6 @@ ItemDrag.prototype._reset = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._bindScrollListeners = function() {
   var gridContainer = this._getGrid()._element;
@@ -614,8 +568,6 @@ ItemDrag.prototype._bindScrollListeners = function() {
   for (i = 0; i < scrollers.length; i++) {
     scrollers[i].addEventListener('scroll', this._onScroll);
   }
-
-  return this;
 };
 
 /**
@@ -624,7 +576,6 @@ ItemDrag.prototype._bindScrollListeners = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._unbindScrollListeners = function() {
   var scrollers = this._scrollers;
@@ -635,8 +586,145 @@ ItemDrag.prototype._unbindScrollListeners = function() {
   }
 
   scrollers.length = 0;
+};
 
-  return this;
+/**
+ * Setup default start predicate.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} [options]
+ * @returns {Object}
+ */
+ItemDrag.prototype._setupStartPredicate = function(options) {
+  var config = options || this._getGrid()._settings.dragStartPredicate || 0;
+  return (this._startPredicateData = {
+    distance: Math.abs(config.distance) || 0,
+    delay: Math.max(config.delay, 0) || 0,
+    handle: typeof config.handle === 'string' ? config.handle : false
+  });
+};
+
+/**
+ * Setup default start predicate handle.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} event
+ * @returns {(HTMLElement|Boolean)}
+ */
+ItemDrag.prototype._setupStartPredicateHandle = function(event) {
+  var predicate = this._startPredicateData;
+  var element = this._item._element;
+
+  if (predicate.handle) {
+    predicate.handleElement = (event.changedPointers[0] || 0).target;
+    while (predicate.handleElement && !elementMatches(predicate.handleElement, predicate.handle)) {
+      predicate.handleElement =
+        predicate.handleElement !== element ? predicate.handleElement.parentElement : null;
+    }
+    return predicate.handleElement || false;
+  }
+
+  return (predicate.handleElement = element);
+};
+
+/**
+ * Unbind currently bound drag scroll handlers from all scrollable ancestor
+ * elements of the dragged element and the drag container element.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} event
+ * @returns {Boolean}
+ */
+ItemDrag.prototype._resolveStartPredicate = function(event) {
+  var predicate = this._startPredicateData;
+  var pointer = event.changedPointers[0];
+  var pageX = (pointer && pointer.pageX) || 0;
+  var pageY = (pointer && pointer.pageY) || 0;
+  var handleRect;
+  var handleLeft;
+  var handleTop;
+  var handleWidth;
+  var handleHeight;
+
+  // If the moved distance is smaller than the threshold distance or there is
+  // some delay left, ignore this predicate cycle.
+  if (event.distance < predicate.distance || predicate.delay) {
+    return;
+  }
+
+  // Get handle rect data.
+  handleRect = predicate.handleElement.getBoundingClientRect();
+  handleLeft = handleRect.left + (window.pageXOffset || 0);
+  handleTop = handleRect.top + (window.pageYOffset || 0);
+  handleWidth = handleRect.width;
+  handleHeight = handleRect.height;
+
+  // Reset predicate data.
+  this._resetStartPredicate();
+
+  // If the cursor is still within the handle let's start the drag.
+  return (
+    handleWidth &&
+    handleHeight &&
+    pageX >= handleLeft &&
+    pageX < handleLeft + handleWidth &&
+    pageY >= handleTop &&
+    pageY < handleTop + handleHeight
+  );
+};
+
+/**
+ * Finalize start predicate.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} event
+ */
+ItemDrag.prototype._finishStartPredicate = function(event) {
+  var element = this._item._element;
+  var href;
+  var target;
+
+  // Reset predicate.
+  this._resetStartPredicate();
+
+  // Make sure the element is anchor element.
+  if (element.tagName.toLowerCase() !== 'a') return;
+
+  // Get href and make sure it exists.
+  href = element.getAttribute('href');
+  if (!href) return;
+
+  // If the element has moved more than a pixel or has been pressed down more
+  // than 200 milliseconds, let's call it day.
+  if (Math.abs(event.deltaX) > 1 || Math.abs(event.deltaY) > 1 || event.deltaTime > 200) return;
+
+  // Finally let's navigate to the link href.
+  target = element.getAttribute('target');
+  if (target && target !== '_self') {
+    window.open(href, target);
+  } else {
+    window.location.href = href;
+  }
+};
+
+/**
+ * Reset for default drag start predicate function.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ */
+ItemDrag.prototype._resetStartPredicate = function() {
+  var predicate = this._startPredicateData;
+  if (predicate) {
+    if (predicate.delayTimer) {
+      predicate.delayTimer = window.clearTimeout(predicate.delayTimer);
+    }
+    this._startPredicateData = null;
+  }
 };
 
 /**
@@ -645,10 +733,9 @@ ItemDrag.prototype._unbindScrollListeners = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._checkOverlap = function() {
-  if (!this._isActive) return this;
+  if (!this._isActive) return;
 
   var item = this._item;
   var result = this._sortPredicate(item, this._lastEvent);
@@ -661,7 +748,7 @@ ItemDrag.prototype._checkOverlap = function() {
 
   // Let's make sure the result object has a valid index before going further.
   if (!isPlainObject(result) || typeof result.index !== 'number') {
-    return this;
+    return;
   }
 
   currentGrid = item.getGrid();
@@ -683,12 +770,14 @@ ItemDrag.prototype._checkOverlap = function() {
       );
 
       // Emit move event.
-      currentGrid._emit(eventMove, {
-        item: item,
-        fromIndex: currentIndex,
-        toIndex: targetIndex,
-        action: sortAction
-      });
+      if (currentGrid._hasListeners(eventMove)) {
+        currentGrid._emit(eventMove, {
+          item: item,
+          fromIndex: currentIndex,
+          toIndex: targetIndex,
+          action: sortAction
+        });
+      }
 
       // Layout the grid.
       currentGrid.layout();
@@ -698,22 +787,26 @@ ItemDrag.prototype._checkOverlap = function() {
   // If the item was moved to another grid.
   else {
     // Emit beforeSend event.
-    currentGrid._emit(eventBeforeSend, {
-      item: item,
-      fromGrid: currentGrid,
-      fromIndex: currentIndex,
-      toGrid: targetGrid,
-      toIndex: targetIndex
-    });
+    if (currentGrid._hasListeners(eventBeforeSend)) {
+      currentGrid._emit(eventBeforeSend, {
+        item: item,
+        fromGrid: currentGrid,
+        fromIndex: currentIndex,
+        toGrid: targetGrid,
+        toIndex: targetIndex
+      });
+    }
 
     // Emit beforeReceive event.
-    targetGrid._emit(eventBeforeReceive, {
-      item: item,
-      fromGrid: currentGrid,
-      fromIndex: currentIndex,
-      toGrid: targetGrid,
-      toIndex: targetIndex
-    });
+    if (targetGrid._hasListeners(eventBeforeReceive)) {
+      targetGrid._emit(eventBeforeReceive, {
+        item: item,
+        fromGrid: currentGrid,
+        fromIndex: currentIndex,
+        toGrid: targetGrid,
+        toIndex: targetIndex
+      });
+    }
 
     // Update item's grid id reference.
     item._gridId = targetGrid._id;
@@ -731,29 +824,31 @@ ItemDrag.prototype._checkOverlap = function() {
     item._sortData = null;
 
     // Emit send event.
-    currentGrid._emit(eventSend, {
-      item: item,
-      fromGrid: currentGrid,
-      fromIndex: currentIndex,
-      toGrid: targetGrid,
-      toIndex: targetIndex
-    });
+    if (currentGrid._hasListeners(eventSend)) {
+      currentGrid._emit(eventSend, {
+        item: item,
+        fromGrid: currentGrid,
+        fromIndex: currentIndex,
+        toGrid: targetGrid,
+        toIndex: targetIndex
+      });
+    }
 
     // Emit receive event.
-    targetGrid._emit(eventReceive, {
-      item: item,
-      fromGrid: currentGrid,
-      fromIndex: currentIndex,
-      toGrid: targetGrid,
-      toIndex: targetIndex
-    });
+    if (targetGrid._hasListeners(eventReceive)) {
+      targetGrid._emit(eventReceive, {
+        item: item,
+        fromGrid: currentGrid,
+        fromIndex: currentIndex,
+        toGrid: targetGrid,
+        toIndex: targetIndex
+      });
+    }
 
     // Layout both grids.
     currentGrid.layout();
     targetGrid.layout();
   }
-
-  return this;
 };
 
 /**
@@ -762,7 +857,6 @@ ItemDrag.prototype._checkOverlap = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._finishMigration = function() {
   var item = this._item;
@@ -807,7 +901,8 @@ ItemDrag.prototype._finishMigration = function() {
   }
 
   // Update item's cached dimensions and sort data.
-  item._refreshDimensions()._refreshSortData();
+  item._refreshDimensions();
+  item._refreshSortData();
 
   // Calculate the offset difference between target's drag container (if any)
   // and actual grid container element. We save it later for the release
@@ -831,8 +926,6 @@ ItemDrag.prototype._finishMigration = function() {
 
   // Start the release.
   release.start();
-
-  return this;
 };
 
 /**
@@ -840,13 +933,11 @@ ItemDrag.prototype._finishMigration = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._cancelAsyncUpdates = function() {
   var id = this._item._id;
   ticker.cancel(id + 'move');
   ticker.cancel(id + 'scroll');
-  return this;
 };
 
 /**
@@ -855,13 +946,12 @@ ItemDrag.prototype._cancelAsyncUpdates = function() {
  * @private
  * @memberof ItemDrag.prototype
  * @param {Object} event
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._onStart = function(event) {
   var item = this._item;
 
   // If item is not active, don't start the drag.
-  if (!item._isActive) return this;
+  if (!item._isActive) return;
 
   var element = item._element;
   var grid = this._getGrid();
@@ -944,8 +1034,6 @@ ItemDrag.prototype._onStart = function(event) {
 
   // Emit dragStart event.
   grid._emit(eventDragStart, item, event);
-
-  return this;
 };
 
 /**
@@ -954,13 +1042,15 @@ ItemDrag.prototype._onStart = function(event) {
  * @private
  * @memberof ItemDrag.prototype
  * @param {Object} event
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._onMove = function(event) {
   var item = this._item;
 
   // If item is not active, reset drag.
-  if (!item._isActive) return this.stop();
+  if (!item._isActive) {
+    this.stop();
+    return;
+  }
 
   var settings = this._getGrid()._settings;
   var axis = settings.dragAxis;
@@ -986,8 +1076,6 @@ ItemDrag.prototype._onMove = function(event) {
 
   // Do move prepare/apply handling in the next tick.
   ticker.add(item._id + 'move', this._prepareMove, this._applyMove, true);
-
-  return this;
 };
 
 /**
@@ -995,13 +1083,13 @@ ItemDrag.prototype._onMove = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._prepareMove = function() {
-  var isActive = this._item._isActive;
-  var isSortEnabled = this._getGrid()._settings.dragSort;
-  if (isActive && isSortEnabled) this._checkOverlapDebounced();
-  return this;
+  // Do nothing if item is not active.
+  if (!this._item._isActive) return;
+
+  // If drag sort is enabled -> check overlap.
+  if (this._getGrid()._settings.dragSort) this._checkOverlapDebounced();
 };
 
 /**
@@ -1009,22 +1097,18 @@ ItemDrag.prototype._prepareMove = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._applyMove = function() {
   var item = this._item;
-  var element = item._element;
 
   // Do nothing if item is not active.
-  if (!item._isActive) return this;
+  if (!item._isActive) return;
 
   // Update element's translateX/Y values.
-  element.style[transformProp] = getTranslateString(this._left, this._top);
+  item._element.style[transformProp] = getTranslateString(this._left, this._top);
 
   // Emit dragMove event.
   this._getGrid()._emit(eventDragMove, item, this._lastEvent);
-
-  return this;
 };
 
 /**
@@ -1033,20 +1117,21 @@ ItemDrag.prototype._applyMove = function() {
  * @private
  * @memberof ItemDrag.prototype
  * @param {Object} event
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._onScroll = function(event) {
   var item = this._item;
 
   // If item is not active, reset drag.
-  if (!item._isActive) return this.stop();
+  if (!item._isActive) {
+    this.stop();
+    return;
+  }
 
   // Update last scroll event.
   this._lastScrollEvent = event;
 
+  // Do scroll prepare/apply handling in the next tick.
   ticker.add(item._id + 'scroll', this._prepareScroll, this._applyScroll, true);
-
-  return this;
 };
 
 /**
@@ -1054,13 +1139,12 @@ ItemDrag.prototype._onScroll = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._prepareScroll = function() {
   var item = this._item;
 
   // If item is not active do nothing.
-  if (!item._isActive) return this;
+  if (!item._isActive) return;
 
   var element = item._element;
   var grid = this._getGrid();
@@ -1095,8 +1179,6 @@ ItemDrag.prototype._prepareScroll = function() {
 
   // Overlap handling.
   if (settings.dragSort) this._checkOverlapDebounced();
-
-  return this;
 };
 
 /**
@@ -1104,24 +1186,18 @@ ItemDrag.prototype._prepareScroll = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._applyScroll = function() {
   var item = this._item;
 
   // If item is not active do nothing.
-  if (!item._isActive) return this;
-
-  var element = item._element;
-  var grid = this._getGrid();
+  if (!item._isActive) return;
 
   // Update element's translateX/Y values.
-  element.style[transformProp] = getTranslateString(this._left, this._top);
+  item._element.style[transformProp] = getTranslateString(this._left, this._top);
 
   // Emit dragScroll event.
-  grid._emit(eventDragScroll, item, this._lastScrollEvent);
-
-  return this;
+  this._getGrid()._emit(eventDragScroll, item, this._lastScrollEvent);
 };
 
 /**
@@ -1130,7 +1206,6 @@ ItemDrag.prototype._applyScroll = function() {
  * @private
  * @memberof ItemDrag.prototype
  * @param {Object} event
- * @returns {ItemDrag}
  */
 ItemDrag.prototype._onEnd = function(event) {
   var item = this._item;
@@ -1140,7 +1215,10 @@ ItemDrag.prototype._onEnd = function(event) {
   var release = item._release;
 
   // If item is not active, reset drag.
-  if (!item._isActive) return this.stop();
+  if (!item._isActive) {
+    this.stop();
+    return;
+  }
 
   // Cancel ticker actions.
   this._cancelAsyncUpdates();
@@ -1166,8 +1244,6 @@ ItemDrag.prototype._onEnd = function(event) {
 
   // Finish up the migration process or start the release process.
   this._isMigrating ? this._finishMigration() : release.start();
-
-  return this;
 };
 
 /**
@@ -1295,66 +1371,6 @@ function isScrollable(element) {
   if (overflow === 'auto' || overflow === 'scroll') return true;
 
   return false;
-}
-
-/**
- * Resolver for default drag start predicate function.
- *
- * @param {Item} item
- * @param {Object} event
- * @returns {Boolean}
- */
-function dragStartPredicateResolve(item, event) {
-  var predicate = item._drag._startPredicateData;
-  var pointer = event.changedPointers[0];
-  var pageX = (pointer && pointer.pageX) || 0;
-  var pageY = (pointer && pointer.pageY) || 0;
-  var handleRect;
-  var handleLeft;
-  var handleTop;
-  var handleWidth;
-  var handleHeight;
-
-  // If the moved distance is smaller than the threshold distance or there is
-  // some delay left, ignore this predicate cycle.
-  if (event.distance < predicate.distance || predicate.delay) {
-    return;
-  }
-
-  // Get handle rect data.
-  handleRect = predicate.handleElement.getBoundingClientRect();
-  handleLeft = handleRect.left + (window.pageXOffset || 0);
-  handleTop = handleRect.top + (window.pageYOffset || 0);
-  handleWidth = handleRect.width;
-  handleHeight = handleRect.height;
-
-  // Reset predicate data.
-  dragStartPredicateReset(item);
-
-  // If the cursor is still within the handle let's start the drag.
-  return (
-    handleWidth &&
-    handleHeight &&
-    pageX >= handleLeft &&
-    pageX < handleLeft + handleWidth &&
-    pageY >= handleTop &&
-    pageY < handleTop + handleHeight
-  );
-}
-
-/**
- * Reset for default drag start predicate function.
- *
- * @param {Item} item
- */
-function dragStartPredicateReset(item) {
-  var predicate = item._drag._startPredicateData;
-  if (predicate) {
-    if (predicate.delayTimer) {
-      predicate.delayTimer = window.clearTimeout(predicate.delayTimer);
-    }
-    item._drag._startPredicateData = null;
-  }
 }
 
 /**

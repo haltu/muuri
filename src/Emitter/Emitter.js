@@ -97,7 +97,7 @@ Emitter.prototype.off = function(event, listener) {
 
 /**
  * Emit all listeners in a specified event with the provided arguments.
- * 
+ *
  * @public
  * @memberof Emitter.prototype
  * @param {String} event

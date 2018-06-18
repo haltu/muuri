@@ -141,17 +141,15 @@ ItemRelease.prototype.destroy = function() {
  *
  * @private
  * @memberof ItemRelease.prototype
- * @returns {ItemRelease}
  */
 ItemRelease.prototype._reset = function() {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
   var item = this._item;
   this._isActive = false;
   this._isPositioningStarted = false;
   this._containerDiffX = 0;
   this._containerDiffY = 0;
   removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
-  return this;
 };
 
 export default ItemRelease;

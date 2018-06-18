@@ -211,7 +211,6 @@ ItemVisibility.prototype.destroy = function() {
  * @param {Boolean} toVisible
  * @param {Boolean} [instant]
  * @param {Function} [onFinish]
- * @returns {ItemVisibility}
  */
 ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish) {
   if (this._isDestroyed) return;

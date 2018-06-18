@@ -43,10 +43,7 @@ function ItemMigrate(item) {
 
 /**
  * Start the migrate process of an item.
- *
- * @todo Make this smoother, currently there is way too much destroying and
- * reinitialization going on. Just do what's needed and get out of the way
- * quickly.
+ * @todo Refactor to allow visibility animation to play out during migration.
  *
  * @public
  * @memberof ItemMigrate.prototype
@@ -59,18 +56,17 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   if (this._isDestroyed) return this;
 
   var item = this._item;
-  var itemElement = item._element;
-  var isItemVisible = item.isVisible();
-  var currentGrid = item.getGrid();
-  var currentGridStn = currentGrid._settings;
-  var targetGridStn = targetGrid._settings;
-  var targetGridElement = targetGrid._element;
-  var currentIndex = currentGrid._items.indexOf(item);
-  var targetIndex =
-    typeof position === 'number'
-      ? position
-      : targetGrid._items.indexOf(targetGrid._getItem(position));
+  var element = item._element;
+  var isVisible = item.isVisible();
+  var grid = item.getGrid();
+  var settings = grid._settings;
+  var targetSettings = targetGrid._settings;
+  var targetElement = targetGrid._element;
+  var targetItems = targetGrid._items;
+  var currentIndex = grid._items.indexOf(item);
   var targetContainer = container || document.body;
+  var targetIndex;
+  var targetItem;
   var currentContainer;
   var offsetDiff;
   var containerDiff;
@@ -78,15 +74,19 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   var translateX;
   var translateY;
 
-  // If we have invalid new index, let's return immediately.
-  if (targetIndex === null) return this;
-
-  // Normalize target index (for event data).
-  targetIndex = normalizeArrayIndex(targetGrid._items, targetIndex, true);
+  // Get target index.
+  if (typeof position === 'number') {
+    targetIndex = normalizeArrayIndex(targetItems, position, true);
+  } else {
+    targetItem = targetGrid._getItem(position);
+    /** @todo Consider throwing an error here instad of silently failing. */
+    if (!targetItem) return this;
+    targetIndex = targetItems.indexOf(targetItem);
+  }
 
   // Get current translateX and translateY values if needed.
   if (item.isPositioning() || this._isActive || item.isReleasing()) {
-    translate = getTranslate(itemElement);
+    translate = getTranslate(element);
     translateX = translate.x;
     translateY = translate.y;
   }
@@ -111,8 +111,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   }
 
   // Stop current visibility animations.
-  // TODO: This causes potentially layout thrashing, because we are not
-  // feeding any styles to the stop handlers.
+  /** @todo This causes potentially layout thrashing, because we are not feeding any styles to the stop handlers. */
   item._visibility._stopAnimation();
 
   // Destroy current drag.
@@ -122,56 +121,57 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   item._visibility._queue.flush(true, item);
 
   // Emit beforeSend event.
-  currentGrid._emit(eventBeforeSend, {
-    item: item,
-    fromGrid: currentGrid,
-    fromIndex: currentIndex,
-    toGrid: targetGrid,
-    toIndex: targetIndex
-  });
+  if (grid._hasListeners(eventBeforeSend)) {
+    grid._emit(eventBeforeSend, {
+      item: item,
+      fromGrid: grid,
+      fromIndex: currentIndex,
+      toGrid: targetGrid,
+      toIndex: targetIndex
+    });
+  }
 
   // Emit beforeReceive event.
-  targetGrid._emit(eventBeforeReceive, {
-    item: item,
-    fromGrid: currentGrid,
-    fromIndex: currentIndex,
-    toGrid: targetGrid,
-    toIndex: targetIndex
-  });
+  if (targetGrid._hasListeners(eventBeforeReceive)) {
+    targetGrid._emit(eventBeforeReceive, {
+      item: item,
+      fromGrid: grid,
+      fromIndex: currentIndex,
+      toGrid: targetGrid,
+      toIndex: targetIndex
+    });
+  }
 
   // Remove current classnames.
-  removeClass(itemElement, currentGridStn.itemClass);
-  removeClass(itemElement, currentGridStn.itemVisibleClass);
-  removeClass(itemElement, currentGridStn.itemHiddenClass);
+  removeClass(element, settings.itemClass);
+  removeClass(element, settings.itemVisibleClass);
+  removeClass(element, settings.itemHiddenClass);
 
   // Add new classnames.
-  addClass(itemElement, targetGridStn.itemClass);
-  addClass(
-    itemElement,
-    isItemVisible ? targetGridStn.itemVisibleClass : targetGridStn.itemHiddenClass
-  );
+  addClass(element, targetSettings.itemClass);
+  addClass(element, isVisible ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass);
 
   // Move item instance from current grid to target grid.
-  currentGrid._items.splice(currentIndex, 1);
-  arrayInsert(targetGrid._items, item, targetIndex);
+  grid._items.splice(currentIndex, 1);
+  arrayInsert(targetItems, item, targetIndex);
 
   // Update item's grid id reference.
   item._gridId = targetGrid._id;
 
   // Get current container
-  currentContainer = itemElement.parentNode;
+  currentContainer = element.parentNode;
 
   // Move the item inside the target container if it's different than the
   // current container.
   if (targetContainer !== currentContainer) {
-    targetContainer.appendChild(itemElement);
+    targetContainer.appendChild(element);
     offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
     if (!translate) {
-      translate = getTranslate(itemElement);
+      translate = getTranslate(element);
       translateX = translate.x;
       translateY = translate.y;
     }
-    itemElement.style[transformProp] = getTranslateString(
+    element.style[transformProp] = getTranslateString(
       translateX + offsetDiff.left,
       translateY + offsetDiff.top
     );
@@ -179,21 +179,20 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
 
   // Update child element's styles to reflect the current visibility state.
   item._child.removeAttribute('style');
-  setStyles(item._child, isItemVisible ? targetGridStn.visibleStyles : targetGridStn.hiddenStyles);
+  setStyles(item._child, isVisible ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
 
   // Update display style.
-  itemElement.style.display = isItemVisible ? 'block' : 'hidden';
+  element.style.display = isVisible ? 'block' : 'hidden';
 
   // Get offset diff for the migration data.
-  containerDiff = getOffsetDiff(targetContainer, targetGridElement, true);
+  containerDiff = getOffsetDiff(targetContainer, targetElement, true);
 
   // Update item's cached dimensions and sort data.
-  item._refreshDimensions()._refreshSortData();
+  item._refreshDimensions();
+  item._refreshSortData();
 
   // Create new drag handler.
-  // TODO: Could we here also modify the existing drag handler to avoid
-  // memory allocations?
-  item._drag = targetGridStn.dragEnabled ? new ItemDrag(item) : null;
+  item._drag = targetSettings.dragEnabled ? new ItemDrag(item) : null;
 
   // Setup migration data.
   this._isActive = true;
@@ -202,22 +201,26 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   this._containerDiffY = containerDiff.top;
 
   // Emit send event.
-  currentGrid._emit(eventSend, {
-    item: item,
-    fromGrid: currentGrid,
-    fromIndex: currentIndex,
-    toGrid: targetGrid,
-    toIndex: targetIndex
-  });
+  if (grid._hasListeners(eventSend)) {
+    grid._emit(eventSend, {
+      item: item,
+      fromGrid: grid,
+      fromIndex: currentIndex,
+      toGrid: targetGrid,
+      toIndex: targetIndex
+    });
+  }
 
   // Emit receive event.
-  targetGrid._emit(eventReceive, {
-    item: item,
-    fromGrid: currentGrid,
-    fromIndex: currentIndex,
-    toGrid: targetGrid,
-    toIndex: targetIndex
-  });
+  if (targetGrid._hasListeners(eventReceive)) {
+    targetGrid._emit(eventReceive, {
+      item: item,
+      fromGrid: grid,
+      fromIndex: currentIndex,
+      toGrid: targetGrid,
+      toIndex: targetIndex
+    });
+  }
 
   return this;
 };

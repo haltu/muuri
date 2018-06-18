@@ -504,7 +504,9 @@ Grid.prototype.layout = function(instant, onFinish) {
     if (--counter > 0) return;
     var hasLayoutChanged = inst._layout.id !== layoutId;
     isCallbackFunction && callback(hasLayoutChanged, callbackItems);
-    !hasLayoutChanged && inst._emit(eventLayoutEnd, layout.items.slice(0));
+    if (!hasLayoutChanged && inst._hasListeners(eventLayoutEnd)) {
+      inst._emit(eventLayoutEnd, layout.items.slice(0));
+    }
   }
 
   // If grid's width or height was modified, we need to update it's cached
@@ -538,7 +540,9 @@ Grid.prototype.layout = function(instant, onFinish) {
   // Emit layoutStart event. Note that this is intentionally emitted after the
   // container element's dimensions are set, because otherwise there would be
   // no hook for reacting to container dimension changes.
-  this._emit(eventLayoutStart, layout.items.slice(0));
+  if (this._hasListeners(eventLayoutStart)) {
+    this._emit(eventLayoutStart, layout.items.slice(0));
+  }
 
   // If there are no items let's finish quickly.
   if (!itemsLength) {
@@ -621,7 +625,9 @@ Grid.prototype.add = function(elements, options) {
   arrayInsert(items, newItems, opts.index);
 
   // Emit add event.
-  this._emit(eventAdd, newItems.slice(0));
+  if (this._hasListeners(eventAdd)) {
+    this._emit(eventAdd, newItems.slice(0));
+  }
 
   // If layout is needed.
   if (needsLayout && layout) {
@@ -663,7 +669,9 @@ Grid.prototype.remove = function(items, options) {
   }
 
   // Emit remove event.
-  this._emit(eventRemove, targetItems.slice(0), indices);
+  if (this._hasListeners(eventRemove)) {
+    this._emit(eventRemove, targetItems.slice(0), indices);
+  }
 
   // If layout is needed.
   if (needsLayout && layout) {
@@ -687,7 +695,8 @@ Grid.prototype.remove = function(items, options) {
  */
 Grid.prototype.show = function(items, options) {
   if (this._isDestroyed) return this;
-  return this._setItemsVisibility(items, true, options);
+  this._setItemsVisibility(items, true, options);
+  return this;
 };
 
 /**
@@ -704,7 +713,8 @@ Grid.prototype.show = function(items, options) {
  */
 Grid.prototype.hide = function(items, options) {
   if (this._isDestroyed) return this;
-  return this._setItemsVisibility(items, false, options);
+  this._setItemsVisibility(items, false, options);
+  return this;
 };
 
 /**
@@ -786,7 +796,9 @@ Grid.prototype.filter = function(predicate, options) {
   // If there are any items to filter.
   if (itemsToShow.length || itemsToHide.length) {
     // Emit filter event.
-    this._emit(eventFilter, itemsToShow.slice(0), itemsToHide.slice(0));
+    if (this._hasListeners(eventFilter)) {
+      this._emit(eventFilter, itemsToShow.slice(0), itemsToHide.slice(0));
+    }
 
     // If layout is needed.
     if (layout) {
@@ -940,7 +952,9 @@ Grid.prototype.sort = (function() {
     }
 
     // Emit sort event.
-    this._emit(eventSort, items.slice(0), origItems);
+    if (this._hasListeners(eventSort)) {
+      this._emit(eventSort, items.slice(0), origItems);
+    }
 
     // If layout is needed.
     if (layout) {
@@ -989,12 +1003,14 @@ Grid.prototype.move = function(item, position, options) {
     (isSwap ? arraySwap : arrayMove)(items, fromIndex, toIndex);
 
     // Emit move event.
-    this._emit(eventMove, {
-      item: fromItem,
-      fromIndex: fromIndex,
-      toIndex: toIndex,
-      action: action
-    });
+    if (this._hasListeners(eventMove)) {
+      this._emit(eventMove, {
+        item: fromItem,
+        fromIndex: fromIndex,
+        toIndex: toIndex,
+        action: action
+      });
+    }
 
     // If layout is needed.
     if (layout) {
@@ -1137,7 +1153,7 @@ Grid.prototype._getItem = function(target) {
   // In other cases let's assume that the target is an element, so let's try
   // to find an item that matches the element and return it. If item is not
   // found return null.
-  // TODO: This could be made a lot faster by using WeakMap.
+  /** @todo This could be made a lot faster by using WeakMap. */
   for (var i = 0; i < this._items.length; i++) {
     if (this._items[i]._element === target) {
       return this._items[i];
@@ -1170,7 +1186,7 @@ Grid.prototype._updateLayout = function() {
 
   // Let's make sure we have the correct container dimensions before going
   // further.
-  // TODO: Could this be avoided in any way?
+  /** @todo Could this be avoided in any way? */
   this._refreshDimensions();
 
   // Calculate container width and height (without borders).
@@ -1199,16 +1215,24 @@ Grid.prototype._updateLayout = function() {
  * @private
  * @memberof Grid.prototype
  * @param {String} event
- * @param {*} [arg1]
- * @param {*} [arg2]
- * @param {*} [arg3]
- * @returns {Grid}
+ * @param {...*} [arg]
  */
 Grid.prototype._emit = function() {
-  if (!this._isDestroyed) {
-    this._emitter.emit.apply(this._emitter, arguments);
-  }
-  return this;
+  if (this._isDestroyed) return;
+  this._emitter.emit.apply(this._emitter, arguments);
+};
+
+/**
+ * Check if there are any events listeners for an event.
+ *
+ * @private
+ * @memberof Grid.prototype
+ * @param {String} event
+ * @returns {Boolean}
+ */
+Grid.prototype._hasListeners = function(event) {
+  var listeners = this._emitter._events[event];
+  return !!(listeners && listeners.length);
 };
 
 /**
@@ -1216,7 +1240,6 @@ Grid.prototype._emit = function() {
  *
  * @private
  * @memberof Grid.prototype
- * @returns {Grid}
  */
 Grid.prototype._refreshDimensions = function() {
   var element = this._element;
@@ -1230,8 +1253,6 @@ Grid.prototype._refreshDimensions = function() {
   this._borderRight = getStyleAsFloat(element, 'border-right-width');
   this._borderTop = getStyleAsFloat(element, 'border-top-width');
   this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
-
-  return this;
 };
 
 /**
@@ -1245,7 +1266,6 @@ Grid.prototype._refreshDimensions = function() {
  * @param {Boolean} [options.instant=false]
  * @param {(ShowCallback|HideCallback)} [options.onFinish]
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
- * @returns {Grid}
  */
 Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   var grid = this;
@@ -1267,11 +1287,13 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   // If there are no items call the callback, but don't emit any events.
   if (!counter) {
     if (typeof callback === 'function') callback(targetItems);
-    return this;
+    return;
   }
 
   // Emit showStart/hideStart event.
-  this._emit(startEvent, targetItems.slice(0));
+  if (this._hasListeners(startEvent)) {
+    this._emit(startEvent, targetItems.slice(0));
+  }
 
   // Show/hide items.
   for (i = 0; i < targetItems.length; i++) {
@@ -1303,7 +1325,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
       // and emit showEnd/hideEnd event.
       if (--counter < 1) {
         if (typeof callback === 'function') callback(completedItems.slice(0));
-        grid._emit(endEvent, completedItems.slice(0));
+        if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
       }
     });
   }
@@ -1315,8 +1337,6 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   if (needsLayout && layout) {
     this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
   }
-
-  return this;
 };
 
 /**

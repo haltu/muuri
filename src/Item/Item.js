@@ -92,7 +92,8 @@ function Item(grid, element, isActive) {
   this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
 
   // Set up the initial dimensions and sort data.
-  this._refreshDimensions()._refreshSortData();
+  this._refreshDimensions();
+  this._refreshSortData();
 }
 
 /**
@@ -276,12 +277,9 @@ Item.prototype.isDestroyed = function() {
  *
  * @private
  * @memberof Item.prototype
- * @returns {Item}
  */
 Item.prototype._refreshDimensions = function() {
-  if (this._isDestroyed || this._visibility._isHidden) {
-    return this;
-  }
+  if (this._isDestroyed || this._visibility._isHidden) return;
 
   var element = this._element;
   var rect = element.getBoundingClientRect();
@@ -295,8 +293,6 @@ Item.prototype._refreshDimensions = function() {
   this._marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
   this._marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
   this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
-
-  return this;
 };
 
 /**
@@ -304,10 +300,9 @@ Item.prototype._refreshDimensions = function() {
  *
  * @private
  * @memberof Item.prototype
- * @returns {Item}
  */
 Item.prototype._refreshSortData = function() {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
 
   var data = (this._sortData = {});
   var getters = this.getGrid()._settings.sortData;
@@ -316,8 +311,6 @@ Item.prototype._refreshSortData = function() {
   for (prop in getters) {
     data[prop] = getters[prop](this, this._element);
   }
-
-  return this;
 };
 
 /**
@@ -326,10 +319,9 @@ Item.prototype._refreshSortData = function() {
  * @private
  * @memberof Item.prototype
  * @param {Boolean} [removeElement=false]
- * @returns {Item}
  */
 Item.prototype._destroy = function(removeElement) {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
 
   var element = this._element;
   var grid = this.getGrid();
@@ -361,8 +353,6 @@ Item.prototype._destroy = function(removeElement) {
   // Reset state.
   this._isActive = false;
   this._isDestroyed = true;
-
-  return this;
 };
 
 export default Item;

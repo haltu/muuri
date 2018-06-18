@@ -229,9 +229,6 @@ Packer.prototype._addSlot = (function() {
     }
 
     // Sanitize new slots.
-    // TODO: Think about ways how we could minimize the usage of this stuff
-    // here and/or optimize it. The purging is most certainly not always
-    // needed.
     if (newSlots.length) {
       this._purgeRects(newSlots).sort(
         isHorizontal ? this._sortRectsLeftTop : this._sortRectsTopLeft
@@ -449,9 +446,9 @@ Packer.prototype._sortRectsTopLeft = (function() {
     this._getRect(bId, rectB);
     // prettier-ignore
     return rectA.top < rectB.top ? -1 :
-            rectA.top > rectB.top ? 1 :
-            rectA.left < rectB.left ? -1 :
-            rectA.left > rectB.left ? 1 : 0;
+           rectA.top > rectB.top ? 1 :
+           rectA.left < rectB.left ? -1 :
+           rectA.left > rectB.left ? 1 : 0;
   };
 })();
 

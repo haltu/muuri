@@ -100,10 +100,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
       : 0;
 
   // Get target styles.
-  this._targetStyles.transform = getTranslateString(
-    item._left + offsetLeft,
-    item._top + offsetTop
-  );
+  this._targetStyles.transform = getTranslateString(item._left + offsetLeft, item._top + offsetTop);
 
   // If no animations are needed, easy peasy!
   if (!animEnabled) {
@@ -188,10 +185,9 @@ ItemLayout.prototype.destroy = function() {
  *
  * @private
  * @memberof ItemLayout.prototype
- * @returns {ItemLayout}
  */
 ItemLayout.prototype._finish = function() {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
 
   var item = this._item;
   var migrate = item._migrate;
@@ -209,8 +205,6 @@ ItemLayout.prototype._finish = function() {
 
   // Process the callback queue.
   this._queue.flush(false, item);
-
-  return this;
 };
 
 /**
@@ -218,14 +212,12 @@ ItemLayout.prototype._finish = function() {
  *
  * @private
  * @memberof ItemLayout.prototype
- * @returns {ItemLayout}
  */
 ItemLayout.prototype._setupAnimation = function() {
   var element = this._item._element;
   var translate = getTranslate(element);
   this._currentLeft = translate.x - this._offsetLeft;
   this._currentTop = translate.y - this._offsetTop;
-  return this;
 };
 
 /**
@@ -233,7 +225,6 @@ ItemLayout.prototype._setupAnimation = function() {
  *
  * @private
  * @memberof ItemLayout.prototype
- * @returns {ItemLayout}
  */
 ItemLayout.prototype._startAnimation = function() {
   var item = this._item;
@@ -245,7 +236,8 @@ ItemLayout.prototype._startAnimation = function() {
   if (item._left === this._currentLeft && item._top === this._currentTop) {
     this._isInterrupted && this.stop(false, this._targetStyles);
     this._isActive = false;
-    return this._finish();
+    this._finish();
+    return;
   }
 
   // Set item's positioning class if needed.
@@ -259,8 +251,6 @@ ItemLayout.prototype._startAnimation = function() {
 
   // Animate.
   item._animate.start(this._currentStyles, this._targetStyles, this._animateOptions);
-
-  return this;
 };
 
 export default ItemLayout;

@@ -15,6 +15,7 @@
 function Packer() {
   this._layout = {
     slots: [],
+    slotSizes: [],
     setWidth: false,
     setHeight: false,
     width: false,
@@ -54,7 +55,7 @@ Packer.prototype.getLayout = function(items, width, height, options) {
   var i;
 
   // Reset layout data.
-  layout.slots.length = 0;
+  layout.slots.length = layout.slotSizes.length = 0;
   layout.width = isHorizontal ? 0 : rounding ? Math.round(width) : width;
   layout.height = !isHorizontal ? 0 : rounding ? Math.round(height) : height;
   layout.setWidth = isHorizontal;
@@ -70,15 +71,15 @@ Packer.prototype.getLayout = function(items, width, height, options) {
 
   // If the alignment is set to right we need to adjust the results.
   if (alignRight) {
-    for (i = 0; i < layout.slots.length; i = i + 4) {
-      layout.slots[i] = layout.width - (layout.slots[i] + layout.slots[i + 2]);
+    for (i = 0; i < layout.slots.length; i = i + 2) {
+      layout.slots[i] = layout.width - (layout.slots[i] + layout.slotSizes[i]);
     }
   }
 
   // If the alignment is set to bottom we need to adjust the results.
   if (alignBottom) {
-    for (i = 1; i < layout.slots.length; i = i + 4) {
-      layout.slots[i] = layout.height - (layout.slots[i] + layout.slots[i + 2]);
+    for (i = 1; i < layout.slots.length; i = i + 2) {
+      layout.slots[i] = layout.height - (layout.slots[i] + layout.slotSizes[i]);
     }
   }
 
@@ -242,8 +243,10 @@ Packer.prototype._addSlot = (function() {
       layout.height = Math.max(layout.height, itemSlot.top + itemSlot.height);
     }
 
-    // Add item slot data to layout slots.
-    layout.slots.push(itemSlot.left, itemSlot.top, itemSlot.width, itemSlot.height);
+    // Add item slot data to layout slots (and store the slot size for later
+    // usage too).
+    layout.slots.push(itemSlot.left, itemSlot.top);
+    layout.slotSizes.push(itemSlot.width, itemSlot.height);
 
     // Free/new slots switcharoo!
     this._freeSlots = newSlots;

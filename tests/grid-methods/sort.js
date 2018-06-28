@@ -167,7 +167,7 @@
 
   QUnit.test('sort: should accept an array of items as the first argument', function (assert) {
 
-    assert.expect(1);
+    assert.expect(4);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
@@ -180,6 +180,24 @@
 
     grid.sort(newItems);
     assert.deepEqual(idList(grid.getItems()), idList(newItems));
+
+    newItems.push(newItems[0]);
+    assert.throws(
+      function () { grid.sort(newItems); },
+      'Should throw error if the number of provided items is more than the amount of current items.'
+    );
+
+    newItems.length = newItems.length - 2;
+    assert.throws(
+      function () { grid.sort(newItems); },
+      'Should throw error if the number of provided items is less than the amount of current items.'
+    );
+
+    newItems.push(1);
+    assert.throws(
+      function () { grid.sort(newItems); },
+      'Should throw if there one or more of the provided items does not exists within the current items.'
+    );
 
     teardown();
 

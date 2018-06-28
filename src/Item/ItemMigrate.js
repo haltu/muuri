@@ -43,7 +43,6 @@ function ItemMigrate(item) {
 
 /**
  * Start the migrate process of an item.
- * @todo Refactor to allow visibility animation to play out during migration.
  *
  * @public
  * @memberof ItemMigrate.prototype
@@ -111,7 +110,6 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   }
 
   // Stop current visibility animations.
-  /** @todo This causes potentially layout thrashing, because we are not feeding any styles to the stop handlers. */
   item._visibility._stopAnimation();
 
   // Destroy current drag.
@@ -158,7 +156,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   // Update item's grid id reference.
   item._gridId = targetGrid._id;
 
-  // Get current container
+  // Get current container.
   currentContainer = element.parentNode;
 
   // Move the item inside the target container if it's different than the

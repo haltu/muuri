@@ -990,7 +990,7 @@
     var settings = grid._settings;
     var hammer;
 
-    // Start predicate.
+    // Start predicate private data.
     var startPredicate =
       typeof settings.dragStartPredicate === 'function'
         ? settings.dragStartPredicate
@@ -1142,8 +1142,9 @@
     // cursor is within the handle. If we have a handle selector let's find
     // the corresponding element. Otherwise let's use the item element as the
     // handle.
-    if (!predicate.handleElement && !drag._setupStartPredicateHandle(event)) {
-      return false;
+    if (!predicate.handleElement) {
+      predicate.handleElement = drag._getStartPredicateHandle(event);
+      if (!predicate.handleElement) return false;
     }
 
     // If delay is defined let's keep track of the latest event and initiate
@@ -1182,7 +1183,7 @@
     var rootGridArray = [];
 
     function getTargetGrid(item, rootGrid, threshold) {
-      var ret = null;
+      var target = null;
       var dragSort = rootGrid._settings.dragSort;
       var bestScore = -1;
       var gridScore;
@@ -1199,7 +1200,7 @@
       }
 
       // Return immediately if there are no grids.
-      if (!Array.isArray(grids)) return ret;
+      if (!Array.isArray(grids)) return target;
 
       // Loop through the grids and get the best match.
       for (i = 0; i < grids.length; i++) {
@@ -1223,14 +1224,14 @@
         // Check if this grid is the best match so far.
         if (gridScore > threshold && gridScore > bestScore) {
           bestScore = gridScore;
-          ret = grid;
+          target = grid;
         }
       }
 
       // Always reset root grid array.
       rootGridArray.length = 0;
 
-      return ret;
+      return target;
     }
 
     return function(item) {
@@ -1527,22 +1528,22 @@
    * @private
    * @memberof ItemDrag.prototype
    * @param {Object} event
-   * @returns {(HTMLElement|Boolean)}
+   * @returns {?HTMLElement}
    */
-  ItemDrag.prototype._setupStartPredicateHandle = function(event) {
+  ItemDrag.prototype._getStartPredicateHandle = function(event) {
     var predicate = this._startPredicateData;
     var element = this._item._element;
+    var handleElement = element;
 
-    if (predicate.handle) {
-      predicate.handleElement = (event.changedPointers[0] || 0).target;
-      while (predicate.handleElement && !elementMatches(predicate.handleElement, predicate.handle)) {
-        predicate.handleElement =
-          predicate.handleElement !== element ? predicate.handleElement.parentElement : null;
-      }
-      return predicate.handleElement || false;
+    // No handle, no hassle -> let's use the item element as the handle.
+    if (!predicate.handle) return handleElement;
+
+    // If there is a specific predicate handle defined, let's try to get it.
+    handleElement = (event.changedPointers[0] || 0).target;
+    while (handleElement && !elementMatches(handleElement, predicate.handle)) {
+      handleElement = handleElement !== element ? handleElement.parentElement : null;
     }
-
-    return (predicate.handleElement = element);
+    return handleElement || null;
   };
 
   /**
@@ -1567,9 +1568,7 @@
 
     // If the moved distance is smaller than the threshold distance or there is
     // some delay left, ignore this predicate cycle.
-    if (event.distance < predicate.distance || predicate.delay) {
-      return;
-    }
+    if (event.distance < predicate.distance || predicate.delay) return;
 
     // Get handle rect data.
     handleRect = predicate.handleElement.getBoundingClientRect();
@@ -1601,30 +1600,13 @@
    */
   ItemDrag.prototype._finishStartPredicate = function(event) {
     var element = this._item._element;
-    var href;
-    var target;
 
     // Reset predicate.
     this._resetStartPredicate();
 
-    // Make sure the element is anchor element.
-    if (element.tagName.toLowerCase() !== 'a') return;
-
-    // Get href and make sure it exists.
-    href = element.getAttribute('href');
-    if (!href) return;
-
-    // If the element has moved more than a pixel or has been pressed down more
-    // than 200 milliseconds, let's call it day.
-    if (Math.abs(event.deltaX) > 1 || Math.abs(event.deltaY) > 1 || event.deltaTime > 200) return;
-
-    // Finally let's navigate to the link href.
-    target = element.getAttribute('target');
-    if (target && target !== '_self') {
-      window.open(href, target);
-    } else {
-      window.location.href = href;
-    }
+    // If the gesture can be interpreted as click let's try to open the element's
+    // href url (if it is an anchor element).
+    if (isClick(event)) openAnchorHref(element);
   };
 
   /**
@@ -2290,6 +2272,39 @@
   }
 
   /**
+   * Check if drag gesture can be interpreted as a click, based on final drag
+   * event data.
+   *
+   * @param {Object} element
+   * @returns {Boolean}
+   */
+  function isClick(event) {
+    return Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200;
+  }
+
+  /**
+   * Check if an element is an anchor element and open the href url if possible.
+   *
+   * @param {HTMLElement} element
+   */
+  function openAnchorHref(element) {
+    // Make sure the element is anchor element.
+    if (element.tagName.toLowerCase() !== 'a') return;
+
+    // Get href and make sure it exists.
+    href = element.getAttribute('href');
+    if (!href) return;
+
+    // Finally let's navigate to the link href.
+    target = element.getAttribute('target');
+    if (target && target !== '_self') {
+      window.open(href, target);
+    } else {
+      window.location.href = href;
+    }
+  }
+
+  /**
    * Detects if transformed elements leak fixed elements. According W3C
    * transform rendering spec a transformed element should contain even fixed
    * elements. Meaning that fixed elements are positioned relative to the
@@ -2675,7 +2690,6 @@
 
   /**
    * Start the migrate process of an item.
-   * @todo Refactor to allow visibility animation to play out during migration.
    *
    * @public
    * @memberof ItemMigrate.prototype
@@ -2743,7 +2757,6 @@
     }
 
     // Stop current visibility animations.
-    /** @todo This causes potentially layout thrashing, because we are not feeding any styles to the stop handlers. */
     item._visibility._stopAnimation();
 
     // Destroy current drag.
@@ -2790,7 +2803,7 @@
     // Update item's grid id reference.
     item._gridId = targetGrid._id;
 
-    // Get current container
+    // Get current container.
     currentContainer = element.parentNode;
 
     // Move the item inside the target container if it's different than the
@@ -3700,6 +3713,7 @@
   function Packer() {
     this._layout = {
       slots: [],
+      slotSizes: [],
       setWidth: false,
       setHeight: false,
       width: false,
@@ -3739,7 +3753,7 @@
     var i;
 
     // Reset layout data.
-    layout.slots.length = 0;
+    layout.slots.length = layout.slotSizes.length = 0;
     layout.width = isHorizontal ? 0 : rounding ? Math.round(width) : width;
     layout.height = !isHorizontal ? 0 : rounding ? Math.round(height) : height;
     layout.setWidth = isHorizontal;
@@ -3755,15 +3769,15 @@
 
     // If the alignment is set to right we need to adjust the results.
     if (alignRight) {
-      for (i = 0; i < layout.slots.length; i = i + 4) {
-        layout.slots[i] = layout.width - (layout.slots[i] + layout.slots[i + 2]);
+      for (i = 0; i < layout.slots.length; i = i + 2) {
+        layout.slots[i] = layout.width - (layout.slots[i] + layout.slotSizes[i]);
       }
     }
 
     // If the alignment is set to bottom we need to adjust the results.
     if (alignBottom) {
-      for (i = 1; i < layout.slots.length; i = i + 4) {
-        layout.slots[i] = layout.height - (layout.slots[i] + layout.slots[i + 2]);
+      for (i = 1; i < layout.slots.length; i = i + 2) {
+        layout.slots[i] = layout.height - (layout.slots[i] + layout.slotSizes[i]);
       }
     }
 
@@ -3927,8 +3941,10 @@
         layout.height = Math.max(layout.height, itemSlot.top + itemSlot.height);
       }
 
-      // Add item slot data to layout slots.
-      layout.slots.push(itemSlot.left, itemSlot.top, itemSlot.width, itemSlot.height);
+      // Add item slot data to layout slots (and store the slot size for later
+      // usage too).
+      layout.slots.push(itemSlot.left, itemSlot.top);
+      layout.slotSizes.push(itemSlot.width, itemSlot.height);
 
       // Free/new slots switcharoo!
       this._freeSlots = newSlots;
@@ -4598,9 +4614,8 @@
           fragment.appendChild(element);
         }
       }
-      if (fragment) {
-        container.appendChild(fragment);
-      }
+
+      if (fragment) container.appendChild(fragment);
     }
 
     // Emit synchronize event.
@@ -4694,8 +4709,8 @@
       if (!item) continue;
 
       // Update item's position.
-      item._left = layout.slots[i * 4];
-      item._top = layout.slots[i * 4 + 1];
+      item._left = layout.slots[i * 2];
+      item._top = layout.slots[i * 2 + 1];
 
       // Layout item if it is not dragegd.
       item.isDragging() ? tryFinish() : item._layout.start(instant === true, tryFinish);
@@ -4727,14 +4742,10 @@
    * @returns {Item[]}
    */
   Grid.prototype.add = function(elements, options) {
-    if (this._isDestroyed || !elements) {
-      return [];
-    }
+    if (this._isDestroyed || !elements) return [];
 
     var newItems = toArray(elements);
-    if (!newItems.length) {
-      return newItems;
-    }
+    if (!newItems.length) return newItems;
 
     var opts = options || 0;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
@@ -5074,11 +5085,11 @@
       // items and order the items based on it.
       else if (Array.isArray(sortComparer)) {
         if (sortComparer.length !== items.length) {
-          throw new Error('[' + namespace + '] reference items do not match with grid items.');
+          throw new Error('[' + namespace + '] sort reference items do not match with grid items.');
         }
         for (i = 0; i < items.length; i++) {
           if (sortComparer.indexOf(items[i]) < 0) {
-            throw new Error('[' + namespace + '] reference items do not match with grid items.');
+            throw new Error('[' + namespace + '] sort reference items do not match with grid items.');
           }
           items[i] = sortComparer[i];
         }
@@ -5086,6 +5097,7 @@
       }
       // Otherwise let's just skip it, nothing we can do here.
       else {
+        /** @todo Maybe throw an error here? */
         return this;
       }
 
@@ -5138,7 +5150,11 @@
       toIndex = items.indexOf(toItem);
 
       // Do the move/swap.
-      (isSwap ? arraySwap : arrayMove)(items, fromIndex, toIndex);
+      if (isSwap) {
+        arraySwap(items, fromIndex, toIndex);
+      } else {
+        arrayMove(items, fromIndex, toIndex);
+      }
 
       // Emit move event.
       if (this._hasListeners(eventMove)) {
@@ -5291,7 +5307,7 @@
     // In other cases let's assume that the target is an element, so let's try
     // to find an item that matches the element and return it. If item is not
     // found return null.
-    /** @todo This could be made a lot faster by using WeakMap. */
+    /** @todo This could be made a lot faster by using Map/WeakMap of elements. */
     for (var i = 0; i < this._items.length; i++) {
       if (this._items[i]._element === target) {
         return this._items[i];
@@ -5319,7 +5335,7 @@
     // Let's update layout items
     layout.items.length = 0;
     for (i = 0; i < this._items.length; i++) {
-      this._items[i]._isActive && layout.items.push(this._items[i]);
+      if (this._items[i]._isActive) layout.items.push(this._items[i]);
     }
 
     // Let's make sure we have the correct container dimensions before going

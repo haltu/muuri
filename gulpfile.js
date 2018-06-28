@@ -7,6 +7,7 @@ const rimraf = require('rimraf');
 const runSequence = require('run-sequence');
 const argv = require('yargs').argv;
 const dotenv = require('dotenv');
+const exec = require('child_process').exec;
 
 const pkg = require('./package.json');
 const karmaDefaults = require('./karma.defaults.js');
@@ -131,6 +132,14 @@ gulp.task('test-sauce-min', (done) => {
   })).start();
 });
 
+gulp.task('format-test', (cb) => {
+  exec('npm run format-test', function (err, stdout, stderr) {
+    console.log(stdout);
+    console.log(stderr);
+    cb(err);
+  });
+});
+
 gulp.task('test', (done) => {
-  runSequence('lint', 'test-sauce', 'test-sauce-min', 'clean', done);
+  runSequence('lint', 'format-test', 'test-sauce', 'test-sauce-min', 'clean', done);
 });

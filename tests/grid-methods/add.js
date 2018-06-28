@@ -165,4 +165,6 @@
 
   });
 
+  // TODO: Should go bonkers if the provided elements already exist in the grid.
+
 })(this);

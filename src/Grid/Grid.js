@@ -460,9 +460,8 @@ Grid.prototype.synchronize = function() {
         fragment.appendChild(element);
       }
     }
-    if (fragment) {
-      container.appendChild(fragment);
-    }
+
+    if (fragment) container.appendChild(fragment);
   }
 
   // Emit synchronize event.
@@ -556,8 +555,8 @@ Grid.prototype.layout = function(instant, onFinish) {
     if (!item) continue;
 
     // Update item's position.
-    item._left = layout.slots[i * 4];
-    item._top = layout.slots[i * 4 + 1];
+    item._left = layout.slots[i * 2];
+    item._top = layout.slots[i * 2 + 1];
 
     // Layout item if it is not dragegd.
     item.isDragging() ? tryFinish() : item._layout.start(instant === true, tryFinish);
@@ -589,14 +588,10 @@ Grid.prototype.layout = function(instant, onFinish) {
  * @returns {Item[]}
  */
 Grid.prototype.add = function(elements, options) {
-  if (this._isDestroyed || !elements) {
-    return [];
-  }
+  if (this._isDestroyed || !elements) return [];
 
   var newItems = toArray(elements);
-  if (!newItems.length) {
-    return newItems;
-  }
+  if (!newItems.length) return newItems;
 
   var opts = options || 0;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
@@ -936,11 +931,11 @@ Grid.prototype.sort = (function() {
     // items and order the items based on it.
     else if (Array.isArray(sortComparer)) {
       if (sortComparer.length !== items.length) {
-        throw new Error('[' + namespace + '] reference items do not match with grid items.');
+        throw new Error('[' + namespace + '] sort reference items do not match with grid items.');
       }
       for (i = 0; i < items.length; i++) {
         if (sortComparer.indexOf(items[i]) < 0) {
-          throw new Error('[' + namespace + '] reference items do not match with grid items.');
+          throw new Error('[' + namespace + '] sort reference items do not match with grid items.');
         }
         items[i] = sortComparer[i];
       }
@@ -948,6 +943,7 @@ Grid.prototype.sort = (function() {
     }
     // Otherwise let's just skip it, nothing we can do here.
     else {
+      /** @todo Maybe throw an error here? */
       return this;
     }
 
@@ -1000,7 +996,11 @@ Grid.prototype.move = function(item, position, options) {
     toIndex = items.indexOf(toItem);
 
     // Do the move/swap.
-    (isSwap ? arraySwap : arrayMove)(items, fromIndex, toIndex);
+    if (isSwap) {
+      arraySwap(items, fromIndex, toIndex);
+    } else {
+      arrayMove(items, fromIndex, toIndex);
+    }
 
     // Emit move event.
     if (this._hasListeners(eventMove)) {
@@ -1153,7 +1153,7 @@ Grid.prototype._getItem = function(target) {
   // In other cases let's assume that the target is an element, so let's try
   // to find an item that matches the element and return it. If item is not
   // found return null.
-  /** @todo This could be made a lot faster by using WeakMap. */
+  /** @todo This could be made a lot faster by using Map/WeakMap of elements. */
   for (var i = 0; i < this._items.length; i++) {
     if (this._items[i]._element === target) {
       return this._items[i];
@@ -1181,7 +1181,7 @@ Grid.prototype._updateLayout = function() {
   // Let's update layout items
   layout.items.length = 0;
   for (i = 0; i < this._items.length; i++) {
-    this._items[i]._isActive && layout.items.push(this._items[i]);
+    if (this._items[i]._isActive) layout.items.push(this._items[i]);
   }
 
   // Let's make sure we have the correct container dimensions before going

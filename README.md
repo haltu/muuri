@@ -52,12 +52,6 @@ Or install with [npm](https://www.npmjs.com/):
 npm install muuri
 ```
 
-Or install with [bower](http://bower.io):
-
-```bash
-bower install muuri
-```
-
 ### 2. Get the dependencies
 
 * Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations yet you need to use a [polyfill](https://github.com/web-animations/web-animations-js). If you're feeling lucky you might be interested to know that it is possible to replace Muuri's default animation engine with your own implementation by overwriting the `Muuri.ItemAnimate` constructor.
@@ -584,7 +578,7 @@ If an object is provided the default sort predicate handler will be used. You ca
   * How long (in milliseconds) the user must drag before the dragging starts.
 * **handle** &nbsp;&mdash;&nbsp; *string / boolean*
   * Default value: `false`.
-  * The selector(s) which much match the event target element for the dragging to start.
+  * The selector(s) which much match the event target element for the dragging to start. Note that if the event target element is a descendant of the handle element(s) it is also considered a match, which should be pretty useful in most scenarios.
 
 If you provide a function you can totally customize the drag start logic. When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
 
@@ -596,7 +590,7 @@ The predicate function receives two arguments:
   * The drag event (Hammer.js event).
 
 ```javascript
-// Configure the default preficate
+// Configure the default predicate
 var grid = new Muuri(elem, {
   dragStartPredicate: {
     distance: 10,
@@ -614,6 +608,31 @@ var grid = new Muuri(elem, {
     if (e.deltaTime > 1000) {
       return true;
     }
+  }
+});
+```
+
+```javascript
+// Pro tip: provide your own predicate and fall back to the default predicate.
+var grid = new Muuri(elem, {
+  dragStartPredicate: function (item, e) {
+    // If this is final event in the drag process, let's prepare the predicate
+    // for the next round (do some resetting/teardown). The default predicate
+    // always needs to be called during the final event if there's a chance it
+    // has been triggered during the drag process because it does some necessary
+    // state resetting.
+    if (e.isFinal) {
+      Muuri.ItemDrag.defaultStartPredicate(item, e);
+      return;
+    }
+
+    // Prevent first item from being dragged. 
+    if (grid.getItems().indexOf(item) === 0) {
+      return false;
+    }
+
+    // For other items use the default drag start predicate.
+    return Muuri.ItemDrag.defaultStartPredicate(item, e);
   }
 });
 ```

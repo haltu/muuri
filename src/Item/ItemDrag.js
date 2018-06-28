@@ -74,7 +74,7 @@ function ItemDrag(item) {
   var settings = grid._settings;
   var hammer;
 
-  // Start predicate.
+  // Start predicate private data.
   var startPredicate =
     typeof settings.dragStartPredicate === 'function'
       ? settings.dragStartPredicate
@@ -226,8 +226,9 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
   // cursor is within the handle. If we have a handle selector let's find
   // the corresponding element. Otherwise let's use the item element as the
   // handle.
-  if (!predicate.handleElement && !drag._setupStartPredicateHandle(event)) {
-    return false;
+  if (!predicate.handleElement) {
+    predicate.handleElement = drag._getStartPredicateHandle(event);
+    if (!predicate.handleElement) return false;
   }
 
   // If delay is defined let's keep track of the latest event and initiate
@@ -266,7 +267,7 @@ ItemDrag.defaultSortPredicate = (function() {
   var rootGridArray = [];
 
   function getTargetGrid(item, rootGrid, threshold) {
-    var ret = null;
+    var target = null;
     var dragSort = rootGrid._settings.dragSort;
     var bestScore = -1;
     var gridScore;
@@ -283,7 +284,7 @@ ItemDrag.defaultSortPredicate = (function() {
     }
 
     // Return immediately if there are no grids.
-    if (!Array.isArray(grids)) return ret;
+    if (!Array.isArray(grids)) return target;
 
     // Loop through the grids and get the best match.
     for (i = 0; i < grids.length; i++) {
@@ -307,14 +308,14 @@ ItemDrag.defaultSortPredicate = (function() {
       // Check if this grid is the best match so far.
       if (gridScore > threshold && gridScore > bestScore) {
         bestScore = gridScore;
-        ret = grid;
+        target = grid;
       }
     }
 
     // Always reset root grid array.
     rootGridArray.length = 0;
 
-    return ret;
+    return target;
   }
 
   return function(item) {
@@ -611,22 +612,22 @@ ItemDrag.prototype._setupStartPredicate = function(options) {
  * @private
  * @memberof ItemDrag.prototype
  * @param {Object} event
- * @returns {(HTMLElement|Boolean)}
+ * @returns {?HTMLElement}
  */
-ItemDrag.prototype._setupStartPredicateHandle = function(event) {
+ItemDrag.prototype._getStartPredicateHandle = function(event) {
   var predicate = this._startPredicateData;
   var element = this._item._element;
+  var handleElement = element;
 
-  if (predicate.handle) {
-    predicate.handleElement = (event.changedPointers[0] || 0).target;
-    while (predicate.handleElement && !elementMatches(predicate.handleElement, predicate.handle)) {
-      predicate.handleElement =
-        predicate.handleElement !== element ? predicate.handleElement.parentElement : null;
-    }
-    return predicate.handleElement || false;
+  // No handle, no hassle -> let's use the item element as the handle.
+  if (!predicate.handle) return handleElement;
+
+  // If there is a specific predicate handle defined, let's try to get it.
+  handleElement = (event.changedPointers[0] || 0).target;
+  while (handleElement && !elementMatches(handleElement, predicate.handle)) {
+    handleElement = handleElement !== element ? handleElement.parentElement : null;
   }
-
-  return (predicate.handleElement = element);
+  return handleElement || null;
 };
 
 /**
@@ -651,9 +652,7 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
 
   // If the moved distance is smaller than the threshold distance or there is
   // some delay left, ignore this predicate cycle.
-  if (event.distance < predicate.distance || predicate.delay) {
-    return;
-  }
+  if (event.distance < predicate.distance || predicate.delay) return;
 
   // Get handle rect data.
   handleRect = predicate.handleElement.getBoundingClientRect();
@@ -685,30 +684,13 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
  */
 ItemDrag.prototype._finishStartPredicate = function(event) {
   var element = this._item._element;
-  var href;
-  var target;
 
   // Reset predicate.
   this._resetStartPredicate();
 
-  // Make sure the element is anchor element.
-  if (element.tagName.toLowerCase() !== 'a') return;
-
-  // Get href and make sure it exists.
-  href = element.getAttribute('href');
-  if (!href) return;
-
-  // If the element has moved more than a pixel or has been pressed down more
-  // than 200 milliseconds, let's call it day.
-  if (Math.abs(event.deltaX) > 1 || Math.abs(event.deltaY) > 1 || event.deltaTime > 200) return;
-
-  // Finally let's navigate to the link href.
-  target = element.getAttribute('target');
-  if (target && target !== '_self') {
-    window.open(href, target);
-  } else {
-    window.location.href = href;
-  }
+  // If the gesture can be interpreted as click let's try to open the element's
+  // href url (if it is an anchor element).
+  if (isClick(event)) openAnchorHref(element);
 };
 
 /**
@@ -1371,6 +1353,39 @@ function isScrollable(element) {
   if (overflow === 'auto' || overflow === 'scroll') return true;
 
   return false;
+}
+
+/**
+ * Check if drag gesture can be interpreted as a click, based on final drag
+ * event data.
+ *
+ * @param {Object} element
+ * @returns {Boolean}
+ */
+function isClick(event) {
+  return Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200;
+}
+
+/**
+ * Check if an element is an anchor element and open the href url if possible.
+ *
+ * @param {HTMLElement} element
+ */
+function openAnchorHref(element) {
+  // Make sure the element is anchor element.
+  if (element.tagName.toLowerCase() !== 'a') return;
+
+  // Get href and make sure it exists.
+  href = element.getAttribute('href');
+  if (!href) return;
+
+  // Finally let's navigate to the link href.
+  target = element.getAttribute('target');
+  if (target && target !== '_self') {
+    window.open(href, target);
+  } else {
+    window.location.href = href;
+  }
 }
 
 /**

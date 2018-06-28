@@ -9,7 +9,7 @@ This release contains _a lot_ of memory allocation optimizations, which should a
 * `grid.getItems()` does not accept the state parameter anymore. Just use `.filter()` on the items when needed, much simpler and less maintaining.
 
 * Default layout algorithm refactored and internal API changed.
-  - `grid._layout.slots` is now an array (instead of an object) in the format of: [itemLeft, itemTop, itemWidth, itemHeight, ...etc].
+  - `grid._layout.slots` is now an array (instead of an object) in the format of: [itemLeft, itemTop, itemLeft, itemTop, ...etc].
   - `grid._layout` object is mutated instead of replaced. It now contains an id property which is inceremented on every layout.
 
 * `grid.add()` is not safeguarded against adding the same element twice in the grid anymore. If you do that some weird stuff will happen, probably. It was removed due to performance reasons (that check was pretty heavy) and there was no easy way to make it faster. The responsibility to check that is now in the userland.
@@ -39,4 +39,8 @@ This release contains _a lot_ of memory allocation optimizations, which should a
 * TEST: Quantify memory allocation optimizations by adding runnable tests:
   * https://github.com/samccone/drool/blob/master/docs/api.md#quick-start
 
-* REFACTOR: Take a look at the current drag start predicate, it's a bit huge. Could we simplify it a bit?
+* REFACTOR: Try to fix hammer's memory leaks... or finish up the custom drag solution. Since Hammer seems not to be maintained at all anymore maybe the custom drag solution would be fine, and also provide better perf.
+
+* FEATURE: Scroll on drag!
+
+* ENHANCEMENT: TS type definitions or rewrite with TS?

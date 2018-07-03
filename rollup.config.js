@@ -1,6 +1,6 @@
 import resolve from 'rollup-plugin-node-resolve';
 import commonjs from 'rollup-plugin-commonjs';
-import { uglify } from 'rollup-plugin-uglify';
+import { terser } from 'rollup-plugin-terser';
 import stripBanner from 'rollup-plugin-strip-banner';
 import pkg from './package.json';
 
@@ -49,7 +49,7 @@ export default [
     plugins: [
       resolve(),
       commonjs(),
-      uglify({
+      terser({
         output: {
           comments(node, comment) {
             return /@license/i.test(comment.value);

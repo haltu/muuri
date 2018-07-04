@@ -1268,7 +1268,7 @@ function getRectOverlapScore(a, b) {
   var maxWidth = Math.min(a.width, b.width);
   var maxHeight = Math.min(a.height, b.height);
 
-  return width * height / (maxWidth * maxHeight) * 100;
+  return ((width * height) / (maxWidth * maxHeight)) * 100;
 }
 
 /**

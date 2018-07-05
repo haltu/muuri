@@ -35,7 +35,7 @@ function Item(grid, element, isActive) {
   // Create instance id.
   this._id = createUid();
 
-  // Refrence to connected Grid instance's id.
+  // Reference to connected Grid instance's id.
   this._gridId = grid._id;
 
   // Destroyed flag.

@@ -167,7 +167,7 @@
     var i;
 
     // Add the current listeners to the callback queue before we process them.
-    // This is necessary to quarantee that all of the listeners are called in
+    // This is necessary to guarantee that all of the listeners are called in
     // correct order even if new event listeners are removed/added during
     // processing and/or events are emitted during processing.
     for (i = 0; i < listeners.length; i++) {
@@ -506,7 +506,7 @@
     this._reads[id] = readCallback;
     this._writes[id] = writeCallback;
 
-    // Finally, let's kickstart the next tick if it is not running yet.
+    // Finally, let's kick-start the next tick if it is not running yet.
     if (!this._nextTick) this._nextTick = raf(this._flush);
   };
 
@@ -693,7 +693,7 @@
    * Returns a function, that, as long as it continues to be invoked, will not
    * be triggered. The function will be called after it stops being called for
    * N milliseconds. The returned function accepts one argument which, when
-   * being "finish", calls the debounced function immediately if it is currently
+   * being "finish", calls the debounce function immediately if it is currently
    * waiting to be called, and when being "cancel" cancels the currently queued
    * function call.
    *
@@ -751,7 +751,7 @@
    * Returns an absolute positioned element's containing block, which is
    * considered to be the closest ancestor element that the target element's
    * positioning is relative to. Disclaimer: this only works as intended for
-   * abolute positioned elements.
+   * absolute positioned elements.
    *
    * @param {HTMLElement} element
    * @param {Boolean} [includeSelf=false]
@@ -810,11 +810,11 @@
     // Document's offsets are always 0.
     if (element === document) return ret;
 
-    // Add viewport's scroll left/top to the respective offsets.
+    // Add viewport scroll left/top to the respective offsets.
     ret.left = window.pageXOffset || 0;
     ret.top = window.pageYOffset || 0;
 
-    // Window's offsets are the viewport's scroll left/top values.
+    // Window's offsets are the viewport scroll left/top values.
     if (element.self === window.self) return ret;
 
     // Add element's client rects to the offsets.
@@ -1031,8 +1031,8 @@
         ? settings.dragSortPredicate
         : ItemDrag.defaultSortPredicate;
 
-    // Create debounced overlap checker function.
-    this._checkOverlapDebounced = debounce(this._checkOverlap, settings.dragSortInterval);
+    // Create debounce overlap checker function.
+    this._checkOverlapDebounce = debounce(this._checkOverlap, settings.dragSortInterval);
 
     // Add drag recognizer to hammer.
     hammer.add(
@@ -1044,7 +1044,7 @@
       })
     );
 
-    // Add draginit recognizer to hammer.
+    // Add drag init recognizer to hammer.
     hammer.add(
       new Hammer.Press({
         event: 'draginit',
@@ -1210,8 +1210,10 @@
         if (grid._isDestroyed) continue;
 
         // We need to update the grid's offset since it may have changed during
-        // scrolling. This could be left as problem for the userland, but it's
-        // much nicer this way. One less hack for the user to worry about =)
+        // scrolling. This could be left as problem for the library user which
+        // would also be better for perf so let's keep tabs on this one and see
+        // if we might want to remove this in the future.
+        /** @todo call this only if scrolling has occurred since the last check */
         grid._refreshDimensions();
 
         // Check how much dragged element overlaps the container element.
@@ -1356,7 +1358,7 @@
     this._unbindScrollListeners();
 
     // Cancel overlap check.
-    this._checkOverlapDebounced('cancel');
+    this._checkOverlapDebounce('cancel');
 
     // Append item element to the container if it's not it's child. Also make
     // sure the translate values are adjusted to account for the DOM shift.
@@ -1709,7 +1711,7 @@
       // Update item's grid id reference.
       item._gridId = targetGrid._id;
 
-      // Update drag instances's migrating indicator.
+      // Update drag instance's migrating indicator.
       this._isMigrating = item._gridId !== this._gridId;
 
       // Move item instance from current grid to target grid.
@@ -1785,7 +1787,7 @@
     addClass(element, targetSettings.itemClass);
     addClass(
       element,
-      isActive ? targetSettings.itemVisibleClass : setargetSettingsttings.itemHiddenClass
+      isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass
     );
 
     // Move the item inside the target container if it's different than the
@@ -1987,7 +1989,7 @@
     if (!this._item._isActive) return;
 
     // If drag sort is enabled -> check overlap.
-    if (this._getGrid()._settings.dragSort) this._checkOverlapDebounced();
+    if (this._getGrid()._settings.dragSort) this._checkOverlapDebounce();
   };
 
   /**
@@ -2076,7 +2078,7 @@
     }
 
     // Overlap handling.
-    if (settings.dragSort) this._checkOverlapDebounced();
+    if (settings.dragSort) this._checkOverlapDebounce();
   };
 
   /**
@@ -2122,7 +2124,7 @@
     this._cancelAsyncUpdates();
 
     // Finish currently queued overlap check.
-    settings.dragSort && this._checkOverlapDebounced('finish');
+    settings.dragSort && this._checkOverlapDebounce('finish');
 
     // Remove scroll listeners.
     this._unbindScrollListeners();
@@ -2134,7 +2136,7 @@
     // Reset drag data.
     this._reset();
 
-    // Remove drag classname from element.
+    // Remove drag class name from element.
     removeClass(element, settings.itemDraggingClass);
 
     // Emit dragEnd event.
@@ -2725,7 +2727,7 @@
       targetIndex = normalizeArrayIndex(targetItems, position, true);
     } else {
       targetItem = targetGrid._getItem(position);
-      /** @todo Consider throwing an error here instad of silently failing. */
+      /** @todo Consider throwing an error here instead of silently failing. */
       if (!targetItem) return this;
       targetIndex = targetItems.indexOf(targetItem);
     }
@@ -2972,7 +2974,7 @@
     // Flag release as active.
     this._isActive = true;
 
-    // Add release classname to the released element.
+    // Add release class name to the released element.
     addClass(item._element, grid._settings.itemReleasingClass);
 
     // Emit dragReleaseStart event.
@@ -3007,7 +3009,7 @@
     var container = grid._element;
     var translate;
 
-    // Reset data and remove releasing classname from the element.
+    // Reset data and remove releasing class name from the element.
     this._reset();
 
     // If the released element is outside the grid's container element put it
@@ -3362,7 +3364,7 @@
   var id = 0;
 
   /**
-   * Returns a unique numeric id (incerements a base value on every call).
+   * Returns a unique numeric id (increments a base value on every call).
    * @returns {Number}
    */
   function createUid() {
@@ -3383,7 +3385,7 @@
     // Create instance id.
     this._id = createUid();
 
-    // Refrence to connected Grid instance's id.
+    // Reference to connected Grid instance's id.
     this._gridId = grid._id;
 
     // Destroyed flag.
@@ -3946,7 +3948,7 @@
       layout.slots.push(itemSlot.left, itemSlot.top);
       layout.slotSizes.push(itemSlot.width, itemSlot.height);
 
-      // Free/new slots switcharoo!
+      // Free/new slots switcheroo!
       this._freeSlots = newSlots;
       this._newSlots = freeSlots;
     };
@@ -4191,7 +4193,7 @@
   }
 
   /**
-   * Converts a value to an array / clones an array.
+   * Converts a value to an array or clones an array.
    *
    * @param {*} target
    * @returns {Array}
@@ -4312,8 +4314,8 @@
       });
     }
 
-    // Sanitize layoutOnResize option and bind debounced resize handler if the
-    // layoutOnResize option a valid number.
+    // If layoutOnResize option is a valid number sanitize it and bind the resize
+    // handler.
     layoutOnResize = settings.layoutOnResize;
     if (typeof layoutOnResize !== 'number') {
       layoutOnResize = layoutOnResize === true ? 0 : -1;
@@ -4712,7 +4714,7 @@
       item._left = layout.slots[i * 2];
       item._top = layout.slots[i * 2 + 1];
 
-      // Layout item if it is not dragegd.
+      // Layout item if it is not dragged.
       item.isDragging() ? tryFinish() : item._layout.start(instant === true, tryFinish);
     }
 
@@ -4982,7 +4984,7 @@
     var origItems;
     var indexMap;
 
-    function parseCriterias(data) {
+    function parseCriteria(data) {
       return data
         .trim()
         .split(' ')
@@ -5012,7 +5014,7 @@
       var valA;
       var valB;
 
-      // Loop through the list of sort criterias.
+      // Loop through the list of sort criteria.
       for (var i = 0; i < sortComparer.length; i++) {
         // Get the criteria name, which should match an item's sort data key.
         criteriaName = sortComparer[i][0];
@@ -5078,7 +5080,7 @@
       // Otherwise if we got a string, let's sort by the sort data as provided in
       // the instance's options.
       else if (typeof sortComparer === 'string') {
-        sortComparer = parseCriterias(comparer);
+        sortComparer = parseCriteria(comparer);
         items.sort(defaultComparer);
       }
       // Otherwise if we got an array, let's assume it's a presorted array of the
@@ -5206,7 +5208,7 @@
     // Start the migration process.
     item._migrate.start(grid, position, container);
 
-    // If migration was started succesfully and the item is active, let's layout
+    // If migration was started successfully and the item is active, let's layout
     // the grids.
     if (item._migrate._isActive && item._isActive) {
       if (layoutSender) {
@@ -5459,8 +5461,8 @@
         needsLayout = true;
       }
 
-      // If inactive item is shown we also need to do some special hackery to
-      // make the item not animate it's next positioning (layout).
+      // If inactive item is shown we also need to do a little hack to make the
+      // item not animate it's next positioning (layout).
       if (toVisible && !item._isActive) {
         item._layout._skipNextAnimation = true;
       }
@@ -5517,7 +5519,7 @@
     ret = userSettings ? mergeObjects(ret, userSettings) : ret;
 
     // Handle visible/hidden styles manually so that the whole object is
-    // overriden instead of the props.
+    // overridden instead of the props.
     ret.visibleStyles = (userSettings || 0).visibleStyles || (defaultSettings || 0).visibleStyles;
     ret.hiddenStyles = (userSettings || 0).hiddenStyles || (defaultSettings || 0).hiddenStyles;
 

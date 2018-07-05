@@ -52,7 +52,7 @@ Ticker.prototype.add = function(id, readCallback, writeCallback, isImportant) {
   this._reads[id] = readCallback;
   this._writes[id] = writeCallback;
 
-  // Finally, let's kickstart the next tick if it is not running yet.
+  // Finally, let's kick-start the next tick if it is not running yet.
   if (!this._nextTick) this._nextTick = raf(this._flush);
 };
 

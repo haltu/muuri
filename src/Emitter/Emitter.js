@@ -120,7 +120,7 @@ Emitter.prototype.emit = function(event, arg1, arg2, arg3) {
   var i;
 
   // Add the current listeners to the callback queue before we process them.
-  // This is necessary to quarantee that all of the listeners are called in
+  // This is necessary to guarantee that all of the listeners are called in
   // correct order even if new event listeners are removed/added during
   // processing and/or events are emitted during processing.
   for (i = 0; i < listeners.length; i++) {

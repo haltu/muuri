@@ -115,8 +115,8 @@ function ItemDrag(item) {
       ? settings.dragSortPredicate
       : ItemDrag.defaultSortPredicate;
 
-  // Create debounced overlap checker function.
-  this._checkOverlapDebounced = debounce(this._checkOverlap, settings.dragSortInterval);
+  // Create debounce overlap checker function.
+  this._checkOverlapDebounce = debounce(this._checkOverlap, settings.dragSortInterval);
 
   // Add drag recognizer to hammer.
   hammer.add(
@@ -128,7 +128,7 @@ function ItemDrag(item) {
     })
   );
 
-  // Add draginit recognizer to hammer.
+  // Add drag init recognizer to hammer.
   hammer.add(
     new Hammer.Press({
       event: 'draginit',
@@ -294,8 +294,10 @@ ItemDrag.defaultSortPredicate = (function() {
       if (grid._isDestroyed) continue;
 
       // We need to update the grid's offset since it may have changed during
-      // scrolling. This could be left as problem for the userland, but it's
-      // much nicer this way. One less hack for the user to worry about =)
+      // scrolling. This could be left as problem for the library user which
+      // would also be better for perf so let's keep tabs on this one and see
+      // if we might want to remove this in the future.
+      /** @todo call this only if scrolling has occurred since the last check */
       grid._refreshDimensions();
 
       // Check how much dragged element overlaps the container element.
@@ -440,7 +442,7 @@ ItemDrag.prototype.stop = function() {
   this._unbindScrollListeners();
 
   // Cancel overlap check.
-  this._checkOverlapDebounced('cancel');
+  this._checkOverlapDebounce('cancel');
 
   // Append item element to the container if it's not it's child. Also make
   // sure the translate values are adjusted to account for the DOM shift.
@@ -793,7 +795,7 @@ ItemDrag.prototype._checkOverlap = function() {
     // Update item's grid id reference.
     item._gridId = targetGrid._id;
 
-    // Update drag instances's migrating indicator.
+    // Update drag instance's migrating indicator.
     this._isMigrating = item._gridId !== this._gridId;
 
     // Move item instance from current grid to target grid.
@@ -869,7 +871,7 @@ ItemDrag.prototype._finishMigration = function() {
   addClass(element, targetSettings.itemClass);
   addClass(
     element,
-    isActive ? targetSettings.itemVisibleClass : setargetSettingsttings.itemHiddenClass
+    isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass
   );
 
   // Move the item inside the target container if it's different than the
@@ -1071,7 +1073,7 @@ ItemDrag.prototype._prepareMove = function() {
   if (!this._item._isActive) return;
 
   // If drag sort is enabled -> check overlap.
-  if (this._getGrid()._settings.dragSort) this._checkOverlapDebounced();
+  if (this._getGrid()._settings.dragSort) this._checkOverlapDebounce();
 };
 
 /**
@@ -1160,7 +1162,7 @@ ItemDrag.prototype._prepareScroll = function() {
   }
 
   // Overlap handling.
-  if (settings.dragSort) this._checkOverlapDebounced();
+  if (settings.dragSort) this._checkOverlapDebounce();
 };
 
 /**
@@ -1206,7 +1208,7 @@ ItemDrag.prototype._onEnd = function(event) {
   this._cancelAsyncUpdates();
 
   // Finish currently queued overlap check.
-  settings.dragSort && this._checkOverlapDebounced('finish');
+  settings.dragSort && this._checkOverlapDebounce('finish');
 
   // Remove scroll listeners.
   this._unbindScrollListeners();
@@ -1218,7 +1220,7 @@ ItemDrag.prototype._onEnd = function(event) {
   // Reset drag data.
   this._reset();
 
-  // Remove drag classname from element.
+  // Remove drag class name from element.
   removeClass(element, settings.itemDraggingClass);
 
   // Emit dragEnd event.

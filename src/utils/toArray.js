@@ -7,7 +7,7 @@
 import isNodeList from './isNodeList.js';
 
 /**
- * Converts a value to an array / clones an array.
+ * Converts a value to an array or clones an array.
  *
  * @param {*} target
  * @returns {Array}

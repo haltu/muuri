@@ -8,7 +8,7 @@ Muuri is a JavaScript layout engine that allows you to build all kinds of layout
 
 Muuri's default "First Fit" bin packing layout algorithm generates layouts similar to [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). If that's not your cup of tea you can always provide your own layout algorithm to position the items as you wish.
 
-Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to power it's internal animation engine and [Hammer.js](http://hammerjs.github.io/) to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) for animations and [Hammer.js](http://hammerjs.github.io/) to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 **Features**
 
@@ -56,7 +56,7 @@ npm install muuri
 
 * Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations yet you need to use a [polyfill](https://github.com/web-animations/web-animations-js). If you're feeling lucky you might be interested to know that it is possible to replace Muuri's default animation engine with your own implementation by overwriting the `Muuri.ItemAnimate` constructor.
 
-* Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behaviour beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
+* Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behavior beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
 
 ### 3. Add the script tags
 
@@ -797,7 +797,7 @@ var grid = new Muuri(elem, {
 
 ### containerClass &nbsp;
 
-Container element's classname.
+Container element's class name.
 
 * Default value: `'muuri'`.
 * Accepted types: string.
@@ -810,7 +810,7 @@ var grid = new Muuri(elem, {
 
 ### itemClass &nbsp;
 
-Item element's classname.
+Item element's class name.
 
 * Default value: `'muuri-item'`.
 * Accepted types: string.
@@ -823,7 +823,7 @@ var grid = new Muuri(elem, {
 
 ### itemVisibleClass &nbsp;
 
-Visible item's classname.
+Visible item's class name.
 
 * Default value: `'muuri-item-shown'`.
 * Accepted types: string.
@@ -836,7 +836,7 @@ var grid = new Muuri(elem, {
 
 ### itemHiddenClass &nbsp;
 
-Hidden item's classname.
+Hidden item's class name.
 
 * Default value: `'muuri-item-hidden'`.
 * Accepted types: string.
@@ -849,7 +849,7 @@ var grid = new Muuri(elem, {
 
 ### itemPositioningClass &nbsp;
 
-This classname will be added to the item element for the duration of positioning.
+This class name will be added to the item element for the duration of positioning.
 
 * Default value: `'muuri-item-positioning'`.
 * Accepted types: string.
@@ -862,7 +862,7 @@ var grid = new Muuri(elem, {
 
 ### itemDraggingClass &nbsp;
 
-This classname will be added to the item element for the duration of drag.
+This class name will be added to the item element for the duration of drag.
 
 * Default value: `'muuri-item-dragging'`.
 * Accepted types: string.
@@ -875,7 +875,7 @@ var grid = new Muuri(elem, {
 
 ### itemReleasingClass &nbsp;
 
-This classname will be added to the item element for the duration of release.
+This class name will be added to the item element for the duration of release.
 
 * Default value: `'muuri-item-releasing'`.
 * Accepted types: string.
@@ -1038,7 +1038,7 @@ Add new items by providing the elements you wish to add to the instance and opti
 * **elements** &nbsp;&mdash;&nbsp; *array / element*
   * An array of DOM elements.
 * **options.index** &nbsp;&mdash;&nbsp; *number*
-  * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `grid.synchronize()` method to arrange the DOM elments to the same order as the items.
+  * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `grid.synchronize()` method to arrange the DOM elements to the same order as the items.
   * Default value: `-1`.
   * Optional.
 * **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
@@ -1470,7 +1470,7 @@ Triggered after `grid.add()` is called.
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully added.
+  * The items that were successfully added.
 
 ```javascript
 grid.on('add', function (items) {
@@ -1485,9 +1485,9 @@ Triggered after `grid.remove()` is called.
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully removed.
+  * The items that were successfully removed.
 * **indices** &nbsp;&mdash;&nbsp; *array*
-  * Indices of the items that were succesfully removed.
+  * Indices of the items that were successfully removed.
 
 ```javascript
 grid.on('remove', function (items, indices) {
@@ -1517,7 +1517,7 @@ Triggered after `grid.show()` is called, after the items are shown.
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully shown without interruptions. If you, for example, call `grid.hide()` to some of the items that are currently being shown, those items will be omitted from this argument.
+  * The items that were successfully shown without interruptions. If you, for example, call `grid.hide()` to some of the items that are currently being shown, those items will be omitted from this argument.
 
 ```javascript
 grid.on('showEnd', function (items) {
@@ -1547,7 +1547,7 @@ Triggered after `grid.hide()` is called, after the items are hidden.
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were succesfully hidden without interruptions. If you, for example, call `grid.show()` to some of the items that are currently being hidden, those items will be omitted from this argument.
+  * The items that were successfully hidden without interruptions. If you, for example, call `grid.show()` to some of the items that are currently being hidden, those items will be omitted from this argument.
 
 ```javascript
 grid.on('hideEnd', function (items) {

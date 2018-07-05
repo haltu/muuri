@@ -158,8 +158,8 @@ function Grid(element, options) {
     });
   }
 
-  // Sanitize layoutOnResize option and bind debounced resize handler if the
-  // layoutOnResize option a valid number.
+  // If layoutOnResize option is a valid number sanitize it and bind the resize
+  // handler.
   layoutOnResize = settings.layoutOnResize;
   if (typeof layoutOnResize !== 'number') {
     layoutOnResize = layoutOnResize === true ? 0 : -1;
@@ -558,7 +558,7 @@ Grid.prototype.layout = function(instant, onFinish) {
     item._left = layout.slots[i * 2];
     item._top = layout.slots[i * 2 + 1];
 
-    // Layout item if it is not dragegd.
+    // Layout item if it is not dragged.
     item.isDragging() ? tryFinish() : item._layout.start(instant === true, tryFinish);
   }
 
@@ -828,7 +828,7 @@ Grid.prototype.sort = (function() {
   var origItems;
   var indexMap;
 
-  function parseCriterias(data) {
+  function parseCriteria(data) {
     return data
       .trim()
       .split(' ')
@@ -858,7 +858,7 @@ Grid.prototype.sort = (function() {
     var valA;
     var valB;
 
-    // Loop through the list of sort criterias.
+    // Loop through the list of sort criteria.
     for (var i = 0; i < sortComparer.length; i++) {
       // Get the criteria name, which should match an item's sort data key.
       criteriaName = sortComparer[i][0];
@@ -924,7 +924,7 @@ Grid.prototype.sort = (function() {
     // Otherwise if we got a string, let's sort by the sort data as provided in
     // the instance's options.
     else if (typeof sortComparer === 'string') {
-      sortComparer = parseCriterias(comparer);
+      sortComparer = parseCriteria(comparer);
       items.sort(defaultComparer);
     }
     // Otherwise if we got an array, let's assume it's a presorted array of the
@@ -1052,7 +1052,7 @@ Grid.prototype.send = function(item, grid, position, options) {
   // Start the migration process.
   item._migrate.start(grid, position, container);
 
-  // If migration was started succesfully and the item is active, let's layout
+  // If migration was started successfully and the item is active, let's layout
   // the grids.
   if (item._migrate._isActive && item._isActive) {
     if (layoutSender) {
@@ -1305,8 +1305,8 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
       needsLayout = true;
     }
 
-    // If inactive item is shown we also need to do some special hackery to
-    // make the item not animate it's next positioning (layout).
+    // If inactive item is shown we also need to do a little hack to make the
+    // item not animate it's next positioning (layout).
     if (toVisible && !item._isActive) {
       item._layout._skipNextAnimation = true;
     }
@@ -1363,7 +1363,7 @@ function mergeSettings(defaultSettings, userSettings) {
   ret = userSettings ? mergeObjects(ret, userSettings) : ret;
 
   // Handle visible/hidden styles manually so that the whole object is
-  // overriden instead of the props.
+  // overridden instead of the props.
   ret.visibleStyles = (userSettings || 0).visibleStyles || (defaultSettings || 0).visibleStyles;
   ret.hiddenStyles = (userSettings || 0).hiddenStyles || (defaultSettings || 0).hiddenStyles;
 

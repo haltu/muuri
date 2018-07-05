@@ -11,7 +11,7 @@ var actionFinish = 'finish';
  * Returns a function, that, as long as it continues to be invoked, will not
  * be triggered. The function will be called after it stops being called for
  * N milliseconds. The returned function accepts one argument which, when
- * being "finish", calls the debounced function immediately if it is currently
+ * being "finish", calls the debounce function immediately if it is currently
  * waiting to be called, and when being "cancel" cancels the currently queued
  * function call.
  *

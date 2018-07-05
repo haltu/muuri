@@ -248,7 +248,7 @@ Packer.prototype._addSlot = (function() {
     layout.slots.push(itemSlot.left, itemSlot.top);
     layout.slotSizes.push(itemSlot.width, itemSlot.height);
 
-    // Free/new slots switcharoo!
+    // Free/new slots switcheroo!
     this._freeSlots = newSlots;
     this._newSlots = freeSlots;
   };

@@ -7,7 +7,7 @@
 var id = 0;
 
 /**
- * Returns a unique numeric id (incerements a base value on every call).
+ * Returns a unique numeric id (increments a base value on every call).
  * @returns {Number}
  */
 export default function createUid() {

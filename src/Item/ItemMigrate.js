@@ -78,7 +78,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
     targetIndex = normalizeArrayIndex(targetItems, position, true);
   } else {
     targetItem = targetGrid._getItem(position);
-    /** @todo Consider throwing an error here instad of silently failing. */
+    /** @todo Consider throwing an error here instead of silently failing. */
     if (!targetItem) return this;
     targetIndex = targetItems.indexOf(targetItem);
   }

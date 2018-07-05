@@ -34,11 +34,11 @@ function getOffset(element, offsetData) {
   // Document's offsets are always 0.
   if (element === document) return ret;
 
-  // Add viewport's scroll left/top to the respective offsets.
+  // Add viewport scroll left/top to the respective offsets.
   ret.left = window.pageXOffset || 0;
   ret.top = window.pageYOffset || 0;
 
-  // Window's offsets are the viewport's scroll left/top values.
+  // Window's offsets are the viewport scroll left/top values.
   if (element.self === window.self) return ret;
 
   // Add element's client rects to the offsets.

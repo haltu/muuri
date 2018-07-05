@@ -53,7 +53,7 @@ ItemRelease.prototype.start = function() {
   // Flag release as active.
   this._isActive = true;
 
-  // Add release classname to the released element.
+  // Add release class name to the released element.
   addClass(item._element, grid._settings.itemReleasingClass);
 
   // Emit dragReleaseStart event.
@@ -88,7 +88,7 @@ ItemRelease.prototype.stop = function(abort, currentStyles) {
   var container = grid._element;
   var translate;
 
-  // Reset data and remove releasing classname from the element.
+  // Reset data and remove releasing class name from the element.
   this._reset();
 
   // If the released element is outside the grid's container element put it

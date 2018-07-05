@@ -11,7 +11,7 @@ import isTransformed from './isTransformed';
  * Returns an absolute positioned element's containing block, which is
  * considered to be the closest ancestor element that the target element's
  * positioning is relative to. Disclaimer: this only works as intended for
- * abolute positioned elements.
+ * absolute positioned elements.
  *
  * @param {HTMLElement} element
  * @param {Boolean} [includeSelf=false]

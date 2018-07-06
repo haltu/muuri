@@ -869,10 +869,7 @@ ItemDrag.prototype._finishMigration = function() {
 
   // Add new classnames.
   addClass(element, targetSettings.itemClass);
-  addClass(
-    element,
-    isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass
-  );
+  addClass(element, isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass);
 
   // Move the item inside the target container if it's different than the
   // current container.

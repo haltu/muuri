@@ -43,8 +43,8 @@ Please [create an issue](https://github.com/haltu/muuri/issues/new) and explain 
    * Remember scope. Don't refactor things that are not related to the pull request. 
    * After you're done update unit tests and docs (`README.md`) if necessary.
    * Also, if this is your first pull request to Muuri remember to add yourself to the `AUTHORS.txt` file, e.g. `John Doe <https://github.com/johndoe>`.
-5. **Build and test changes.**
-   * Run `npm run build` followed by `npm run test`.
+5. **Format, build and test changes.**
+   * Run `npm run format`, `npm run build` and finally `npm run test`.
 6. **Create the pull request.**
    * Do your best to explain what the pull request fixes.
    * Mention which issue(s) will be closed by the pull request, e.g. `Closes #123`.

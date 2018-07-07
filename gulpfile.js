@@ -157,9 +157,12 @@ gulp.task('format-test', cb => {
   });
 });
 
-gulp.task('test', done => {
-  runSequence('lint', 'format-test', 'test-sauce', 'test-sauce-min', 'clean', done);
-});
+gulp.task(
+  'pre-commit',
+  gulp.series('lint', 'format-test', done => {
+    done();
+  })
+);
 
 gulp.task(
   'test',

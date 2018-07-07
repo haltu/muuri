@@ -34,6 +34,12 @@
     "format-test": "find ./src/**/*.js | xargs -I{} ./node_modules/.bin/prettier --list-different {}",
     "size": "./node_modules/.bin/gulp size"
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "./node_modules/.bin/gulp pre-commit",
+      "pre-push": "npm run test"
+    }
+  },
   "dependencies": {
     "hammerjs": "^2.0.0"
   },
@@ -42,6 +48,7 @@
     "gulp": "^4.0.0",
     "gulp-eslint": "^4.0.2",
     "gulp-size": "^3.0.0",
+    "husky": "^1.0.0-rc.12",
     "karma": "^2.0.4",
     "karma-chrome-launcher": "^2.2.0",
     "karma-edge-launcher": "^0.4.2",

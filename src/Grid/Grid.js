@@ -1313,7 +1313,9 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
 
     // If a hidden item is being shown we need to refresh the item's
     // dimensions.
-    toVisible && item._visibility._isHidden && hiddenItems.push(item);
+    if (toVisible && item._visibility._isHidden) {
+      hiddenItems.push(item);
+    }
 
     // Show/hide the item.
     item._visibility[method](isInstant, function(interrupted, item) {
@@ -1331,7 +1333,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   }
 
   // Refresh hidden items.
-  hiddenItems.length && this.refreshItems(hiddenItems);
+  if (hiddenItems.length) this.refreshItems(hiddenItems);
 
   // Layout if needed.
   if (needsLayout && layout) {
@@ -1360,7 +1362,9 @@ function mergeSettings(defaultSettings, userSettings) {
   var ret = mergeObjects({}, defaultSettings);
 
   // Merge user settings to default settings.
-  ret = userSettings ? mergeObjects(ret, userSettings) : ret;
+  if (userSettings) {
+    ret = mergeObjects(ret, userSettings);
+  }
 
   // Handle visible/hidden styles manually so that the whole object is
   // overridden instead of the props.
@@ -1381,27 +1385,41 @@ function mergeSettings(defaultSettings, userSettings) {
  * @returns {Object} Returns the target object.
  */
 function mergeObjects(target, source) {
-  // Loop through the surce object's props.
-  Object.keys(source).forEach(function(propName) {
-    var isObject = isPlainObject(source[propName]);
+  var sourceKeys = Object.keys(source);
+  var length = sourceKeys.length;
+  var isSourceObject;
+  var propName;
+  var i;
+
+  for (i = 0; i < length; i++) {
+    propName = sourceKeys[i];
+    isSourceObject = isPlainObject(source[propName]);
 
     // If target and source values are both objects, merge the objects and
     // assign the merged value to the target property.
-    if (isPlainObject(target[propName]) && isObject) {
-      target[propName] = mergeObjects({}, target[propName]);
-      target[propName] = mergeObjects(target[propName], source[propName]);
+    if (isPlainObject(target[propName]) && isSourceObject) {
+      target[propName] = mergeObjects(mergeObjects({}, target[propName]), source[propName]);
+      continue;
     }
 
-    // Otherwise set the source object's value to target object and make sure
-    // that object and array values are cloned and directly assigned.
-    else {
-      target[propName] = isObject
-        ? mergeObjects({}, source[propName])
-        : Array.isArray(source[propName])
-          ? source[propName].slice(0)
-          : source[propName];
+    // If source's value is object and target's is not let's clone the object as
+    // the target's value.
+    if (isSourceObject) {
+      target[propName] = mergeObjects({}, source[propName]);
+      continue;
     }
-  });
+
+    // If source's value is an array let's clone the array as the target's
+    // value.
+    if (Array.isArray(source[propName])) {
+      target[propName] = source[propName].slice(0);
+      continue;
+    }
+
+    // In all other cases let's just directly assign the source's value as the
+    // target's value.
+    target[propName] = source[propName];
+  }
 
   return target;
 }

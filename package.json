@@ -36,8 +36,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "./node_modules/.bin/gulp pre-commit",
-      "pre-push": "npm run test"
+      "pre-commit": "./node_modules/.bin/gulp pre-commit"
     }
   },
   "dependencies": {

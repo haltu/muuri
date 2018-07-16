@@ -19,6 +19,6 @@ var styleCap = 'Transform';
     prefix = prefix.toLowerCase();
     transformStyle = prefix ? '-' + prefix + '-' + style : style;
     transformProp = propName;
-    isTransformSupported = true;
+    isTransformSupported = false; //true
   }
 });

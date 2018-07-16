@@ -92,7 +92,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
 
   // Abort current positioning.
   if (item.isPositioning()) {
-    item._layout.stop(true, { transform: getTranslateString(translateX, translateY) });
+    item._layout.stop(true, { top: translateY, left: translateX });
   }
 
   // Abort current migration.

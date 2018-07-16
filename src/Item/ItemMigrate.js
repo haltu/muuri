@@ -169,7 +169,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
       translateX = translate.x;
       translateY = translate.y;
     }
-    element.style= getTranslateString(
+    element.style+= getTranslateString(
       translateX + offsetDiff.left,
       translateY + offsetDiff.top
     );
@@ -248,12 +248,12 @@ ItemMigrate.prototype.stop = function(abort, currentStyles) {
     if (!currentStyles) {
       if (abort) {
         translate = getTranslate(element);
-        tempStyles.style = getTranslateString(
+        tempStyles.style += getTranslateString(
           translate.x - this._containerDiffX,
           translate.y - this._containerDiffY
         );
       } else {
-        tempStyles.style = getTranslateString(item._left, item._top);
+        tempStyles.style += getTranslateString(item._left, item._top);
       }
       currentStyles = tempStyles;
     }

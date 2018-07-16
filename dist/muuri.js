@@ -1357,7 +1357,7 @@
     // sure the translate values are adjusted to account for the DOM shift.
     if (element.parentNode !== grid._element) {
       grid._element.appendChild(element);
-      element.style = getTranslateString(this._gridX, this._gridY);
+      element.style += getTranslateString(this._gridX, this._gridY);
     }
 
     // Remove dragging class.
@@ -1785,7 +1785,7 @@
     if (targetContainer !== currentContainer) {
       targetContainer.appendChild(element);
       offsetDiff = getOffsetDiff(currentContainer, targetContainer, true);
-      translate = getTranslate(element);
+      translate += getTranslate(element);
       translate.x -= offsetDiff.left;
       translate.y -= offsetDiff.top;
     }
@@ -1807,7 +1807,7 @@
     // Adjust the position of the item element if it was moved from a container
     // to another.
     if (targetContainer !== currentContainer) {
-      element.style = getTranslateString(translate.x, translate.y);
+      element.style += getTranslateString(translate.x, translate.y);
     }
 
     // Update child element's styles to reflect the current visibility state.
@@ -1914,7 +1914,7 @@
         this._left = currentLeft + this._containerDiffX;
         this._top = currentTop + this._containerDiffY;
         dragContainer.appendChild(element);
-        element.style = getTranslateString(this._left, this._top);
+        element.style += getTranslateString(this._left, this._top);
       }
     }
 
@@ -1995,7 +1995,7 @@
     if (!item._isActive) return;
 
     // Update element's translateX/Y values.
-    item._element.style = getTranslateString(this._left, this._top);
+    item._element.style += getTranslateString(this._left, this._top);
 
     // Emit dragMove event.
     this._getGrid()._emit(eventDragMove, item, this._lastEvent);
@@ -2084,7 +2084,7 @@
     if (!item._isActive) return;
 
     // Update element's translateX/Y values.
-    item._element.style = getTranslateString(this._left, this._top);
+    item._element.style += getTranslateString(this._left, this._top);
 
     // Emit dragScroll event.
     this._getGrid()._emit(eventDragScroll, item, this._lastScrollEvent);
@@ -2501,7 +2501,7 @@
         : 0;
 
     // Get target styles.
-    this._targetStyles.style = getTranslateString(item._left + offsetLeft, item._top + offsetTop);
+    this._targetStyles.style += getTranslateString(item._left + offsetLeft, item._top + offsetTop);
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
@@ -2645,7 +2645,7 @@
     !this._isInterrupted && addClass(element, settings.itemPositioningClass);
 
     // Get current styles for animation.
-    this._currentStyles.style = getTranslateString(
+    this._currentStyles.style += getTranslateString(
       this._currentLeft + this._offsetLeft,
       this._currentTop + this._offsetTop
     );
@@ -2805,7 +2805,7 @@
         translateX = translate.x;
         translateY = translate.y;
       }
-      element.style= getTranslateString(
+      element.style+= getTranslateString(
         translateX + offsetDiff.left,
         translateY + offsetDiff.top
       );
@@ -2884,12 +2884,12 @@
       if (!currentStyles) {
         if (abort) {
           translate = getTranslate(element);
-          tempStyles.style = getTranslateString(
+          tempStyles.style += getTranslateString(
             translate.x - this._containerDiffX,
             translate.y - this._containerDiffY
           );
         } else {
-          tempStyles.style = getTranslateString(item._left, item._top);
+          tempStyles.style += getTranslateString(item._left, item._top);
         }
         currentStyles = tempStyles;
       }
@@ -3005,12 +3005,12 @@
       if (!currentStyles) {
         if (abort) {
           translate = getTranslate(element);
-          tempStyles$1.style = getTranslateString(
+          tempStyles$1.style += getTranslateString(
             translate.x - this._containerDiffX,
             translate.y - this._containerDiffY
           );
         } else {
-          tempStyles$1.style = getTranslateString(item._left, item._top);
+          tempStyles$1.style += getTranslateString(item._left, item._top);
         }
         currentStyles = tempStyles$1;
       }
@@ -3342,7 +3342,7 @@
     if (!this._isHidden) return;
     var item = this._item;
     this._isHiding = false;
-    finishStyles.style = getTranslateString(0, 0);
+    finishStyles.style += getTranslateString(0, 0);
     item._layout.stop(true, finishStyles);
     item._element.style.display = 'none';
     this._queue.flush(false, item);

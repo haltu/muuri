@@ -19,7 +19,6 @@ import getStyle from '../utils/getStyle.js';
 import getStyleAsFloat from '../utils/getStyleAsFloat.js';
 import getTranslateString from '../utils/getTranslateString.js';
 import removeClass from '../utils/removeClass.js';
-import { transformProp } from '../utils/supportedTransform.js';
 
 /**
  * Creates a new Item instance for a Grid instance.
@@ -70,7 +69,7 @@ function Item(grid, element, isActive) {
   // Set element's initial position styles.
   element.style.left = '0';
   element.style.top = '0';
-  element.style[transformProp] = getTranslateString(0, 0);
+  element.style = getTranslateString(0, 0);
 
   // Initiate item's animation controllers.
   this._animate = new ItemAnimate(this, element);

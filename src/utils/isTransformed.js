@@ -19,8 +19,8 @@ import getStyle from './getStyle.js';
  * @returns {Boolean}
  */
 export default function isTransformed(element) {
-  var transform = getStyle(element, 'transform');
-  if (!transform || transform === 'none') return false;
+  // var transform = getStyle(element, 'transform');
+  // if (!transform || transform === 'none') return false;
 
   var display = getStyle(element, 'display');
   if (display === 'inline' || display === 'none') return false;

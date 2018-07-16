@@ -97,11 +97,12 @@ ItemRelease.prototype.stop = function(abort, currentStyles) {
     if (!currentStyles) {
       if (abort) {
         translate = getTranslate(element);
-        tempStyles.left = translate.x - this._containerDiffX;
-        tempStyles.top = translate.y - this._containerDiffY;
+        tempStyles.style = getTranslateString(
+          translate.x - this._containerDiffX,
+          translate.y - this._containerDiffY
+        );
       } else {
-        tempStyles.left = item._left;
-        tempStyles.top = item._top;
+        tempStyles.style = getTranslateString(item._left, item._top);
       }
       currentStyles = tempStyles;
     }

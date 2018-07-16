@@ -448,10 +448,7 @@ ItemDrag.prototype.stop = function() {
   // sure the translate values are adjusted to account for the DOM shift.
   if (element.parentNode !== grid._element) {
     grid._element.appendChild(element);
-    //element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
-    element.style.left=this._gridX;
-    element.style.top=this._gridY;
-
+    element.style = getTranslateString(this._gridX, this._gridY);
   }
 
   // Remove dragging class.
@@ -901,9 +898,7 @@ ItemDrag.prototype._finishMigration = function() {
   // Adjust the position of the item element if it was moved from a container
   // to another.
   if (targetContainer !== currentContainer) {
-    //element.style[transformProp] = getTranslateString(translate.x, translate.y);
-    element.style.left=this._gridX;
-    element.style.top=this._gridY;
+    element.style = getTranslateString(translate.x, translate.y);
   }
 
   // Update child element's styles to reflect the current visibility state.
@@ -963,16 +958,14 @@ ItemDrag.prototype._onStart = function(event) {
 
   // Stop current positioning animation.
   if (item.isPositioning()) {
-    //item._layout.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
-    item._layout.stop(true, {top: currentTop, left: currentLeft});
+    item._layout.stop(true, getTranslateString(currentLeft, currentTop));
   }
 
   // Stop current migration animation.
   if (migrate._isActive) {
     currentLeft -= migrate._containerDiffX;
     currentTop -= migrate._containerDiffY;
-    //migrate.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
-    migrate.stop(true, {top: currentTop ,left:currentLeft});
+    migrate.stop(true, getTranslateString(currentLeft, currentTop));
   }
 
   // If item is being released reset release data.
@@ -1012,9 +1005,7 @@ ItemDrag.prototype._onStart = function(event) {
       this._left = currentLeft + this._containerDiffX;
       this._top = currentTop + this._containerDiffY;
       dragContainer.appendChild(element);
-      //element.style[transformProp] = getTranslateString(this._left, this._top);
-      element.style.top=this._top;
-      element.style.left=this._left;
+      element.style = getTranslateString(this._left, this._top);
     }
   }
 
@@ -1095,9 +1086,7 @@ ItemDrag.prototype._applyMove = function() {
   if (!item._isActive) return;
 
   // Update element's translateX/Y values.
- //item._element.style[transformProp] = getTranslateString(this._left, this._top);
-  item._element.style.top=this._top;
-  item._element.style.left=this._left;
+  item._element.style = getTranslateString(this._left, this._top);
 
   // Emit dragMove event.
   this._getGrid()._emit(eventDragMove, item, this._lastEvent);
@@ -1186,9 +1175,7 @@ ItemDrag.prototype._applyScroll = function() {
   if (!item._isActive) return;
 
   // Update element's translateX/Y values.
-  //item._element.style[transformProp] = getTranslateString(this._left, this._top);
-  item._element.style.top=this._top;
-  item._element.style.left=this._left;
+  item._element.style = getTranslateString(this._left, this._top);
 
   // Emit dragScroll event.
   this._getGrid()._emit(eventDragScroll, item, this._lastScrollEvent);
@@ -1425,13 +1412,12 @@ function checkTransformLeak() {
     elem.style.display = 'block';
     elem.style.visibility = 'hidden';
     elem.style.left = isInner ? '0px' : '1px';
-    //elem.style[transformProp] = 'none';
     return elem;
   });
   var outer = document.body.appendChild(elems[0]);
   var inner = outer.appendChild(elems[1]);
   var left = inner.getBoundingClientRect().left;
-  //outer.style[transformProp] = 'scale(1)';
+
   var ret = left === inner.getBoundingClientRect().left;
   document.body.removeChild(outer);
   return ret;

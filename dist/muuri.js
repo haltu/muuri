@@ -239,7 +239,6 @@
 
   // Set up the default export values.
   var isTransformSupported = false;
-  var transformStyle = 'transform';
   var transformProp = 'transform';
 
   // Find the supported transform prop and style names.
@@ -250,7 +249,6 @@
     var propName = prefix ? prefix + styleCap : style;
     if (document.documentElement.style[propName] !== undefined) {
       prefix = prefix.toLowerCase();
-      transformStyle = prefix ? '-' + prefix + '-' + style : style;
       transformProp = propName;
       isTransformSupported = false; //true
     }
@@ -271,7 +269,8 @@
       styles = window.getComputedStyle(element, null);
       stylesCache && stylesCache.set(element, styles);
     }
-    return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
+    // return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
+    return '';
   }
 
   /**
@@ -897,9 +896,6 @@
    * @param {Number} y
    * @returns {String}
    */
-  function getTranslateString(x, y) {
-    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
-  }
 
   var tempArray = [];
 
@@ -2524,7 +2520,9 @@
         : 0;
 
     // Get target styles.
-    this._targetStyles.transform = getTranslateString(item._left + offsetLeft, item._top + offsetTop);
+    this._targetStyles.left = item._left + offsetLeft;
+    this._targetStyles.top = item._top + offsetTop;
+
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
@@ -2668,10 +2666,8 @@
     !this._isInterrupted && addClass(element, settings.itemPositioningClass);
 
     // Get current styles for animation.
-    this._currentStyles.transform = getTranslateString(
-      this._currentLeft + this._offsetLeft,
-      this._currentTop + this._offsetTop
-    );
+    this._currentStyles.left =  this._currentLeft + this._offsetLeft;
+    this._currentStyles.top = this._currentTop + this._offsetTop;
 
     // Animate.
     item._animate.start(this._currentStyles, this._targetStyles, this._animateOptions);
@@ -2758,14 +2754,14 @@
     if (this._isActive) {
       translateX -= this._containerDiffX;
       translateY -= this._containerDiffY;
-      this.stop(true, { transform: getTranslateString(translateX, translateY) });
+      this.stop(true, { left: translateX, top:translateY });
     }
 
     // Abort current release.
     if (item.isReleasing()) {
       translateX -= item._release._containerDiffX;
       translateY -= item._release._containerDiffY;
-      item._release.stop(true, { transform: getTranslateString(translateX, translateY) });
+      item._release.stop(true, { left: translateX, top:translateY });
     }
 
     // Stop current visibility animations.
@@ -2828,10 +2824,8 @@
         translateX = translate.x;
         translateY = translate.y;
       }
-      element.style[transformProp] = getTranslateString(
-        translateX + offsetDiff.left,
-        translateY + offsetDiff.top
-      );
+      element.style.left = translateX + offsetDiff.left;
+      element.style.top =  translateY + offsetDiff.top;
     }
 
     // Update child element's styles to reflect the current visibility state.
@@ -2907,12 +2901,11 @@
       if (!currentStyles) {
         if (abort) {
           translate = getTranslate(element);
-          tempStyles.transform = getTranslateString(
-            translate.x - this._containerDiffX,
-            translate.y - this._containerDiffY
-          );
+          tempStyles.left = translate.x - this._containerDiffX;
+          tempStyles.top =   translate.y - this._containerDiffY;
         } else {
-          tempStyles.transform = getTranslateString(item._left, item._top);
+          tempStyles.left =item._left;
+          tempStyles.top =item._top;
         }
         currentStyles = tempStyles;
       }
@@ -3028,12 +3021,11 @@
       if (!currentStyles) {
         if (abort) {
           translate = getTranslate(element);
-          tempStyles$1.transform = getTranslateString(
-            translate.x - this._containerDiffX,
-            translate.y - this._containerDiffY
-          );
+          tempStyles$1.left = translate.x - this._containerDiffX;
+          tempStyles$1.top = translate.y - this._containerDiffY;
         } else {
-          tempStyles$1.transform = getTranslateString(item._left, item._top);
+          tempStyles$1.left = item._left;
+          tempStyles$1.top = item._top;
         }
         currentStyles = tempStyles$1;
       }
@@ -3365,7 +3357,8 @@
     if (!this._isHidden) return;
     var item = this._item;
     this._isHiding = false;
-    finishStyles.transform = getTranslateString(0, 0);
+    finishStyles.left =0;
+    finishStyles.top = 0;
     item._layout.stop(true, finishStyles);
     item._element.style.display = 'none';
     this._queue.flush(false, item);
@@ -3430,7 +3423,6 @@
     // Set element's initial position styles.
     element.style.left = '0';
     element.style.top = '0';
-    element.style[transformProp] = getTranslateString(0, 0);
 
     // Initiate item's animation controllers.
     this._animate = new ItemAnimate(this, element);
@@ -4411,11 +4403,9 @@
     // Item's visible/hidden state styles
     visibleStyles: {
       opacity: '1',
-      transform: 'scale(1)'
     },
     hiddenStyles: {
       opacity: '0',
-      transform: 'scale(0.5)'
     },
 
     // Layout

@@ -21,5 +21,6 @@ export default function getStyle(element, style) {
     styles = window.getComputedStyle(element, null);
     stylesCache && stylesCache.set(element, styles);
   }
-  return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
+  // return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
+  return '';
 }

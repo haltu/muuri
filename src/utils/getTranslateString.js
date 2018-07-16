@@ -13,5 +13,5 @@
  * @returns {String}
  */
 export default function getTranslateString(x, y) {
-  return 'translateX(' + x + 'px) translateY(' + y + 'px)';
+  return 'left:'+x+'top:'+y;
 }

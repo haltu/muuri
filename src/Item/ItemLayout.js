@@ -100,7 +100,9 @@ ItemLayout.prototype.start = function(instant, onFinish) {
       : 0;
 
   // Get target styles.
-  this._targetStyles.transform = getTranslateString(item._left + offsetLeft, item._top + offsetTop);
+  this._targetStyles.left = item._left + offsetLeft;
+  this._targetStyles.top = item._top + offsetTop;
+
 
   // If no animations are needed, easy peasy!
   if (!animEnabled) {
@@ -244,10 +246,8 @@ ItemLayout.prototype._startAnimation = function() {
   !this._isInterrupted && addClass(element, settings.itemPositioningClass);
 
   // Get current styles for animation.
-  this._currentStyles.transform = getTranslateString(
-    this._currentLeft + this._offsetLeft,
-    this._currentTop + this._offsetTop
-  );
+  this._currentStyles.left =  this._currentLeft + this._offsetLeft;
+  this._currentStyles.top = this._currentTop + this._offsetTop;
 
   // Animate.
   item._animate.start(this._currentStyles, this._targetStyles, this._animateOptions);

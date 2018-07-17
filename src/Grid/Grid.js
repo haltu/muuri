@@ -1200,7 +1200,11 @@ Grid.prototype._updateLayout = function() {
       : packer.getLayout(layout.items, width, height, settings);
 
   // Let's update the grid's layout.
-  layout.slots = newLayout.slots || [];
+  /**
+   * @todo Instead of slicing create a slots array for each grid and provide
+   * that to the `packer.getLayout` method, which in turn can populate it.
+   */
+  layout.slots = newLayout.slots.slice(0);
   layout.setWidth = Boolean(newLayout.setWidth);
   layout.setHeight = Boolean(newLayout.setHeight);
   layout.width = newLayout.width;

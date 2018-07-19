@@ -1,6 +1,6 @@
 # Muuri
 
-[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri@0.6.1/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.6.1/dist/muuri.min.js)
+[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri@0.6.2/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.6.2/dist/muuri.min.js)
 [![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
 
 Muuri is a JavaScript layout engine that allows you to build all kinds of layouts and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
@@ -35,13 +35,13 @@ Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web
 ### 1. Get Muuri
 
 Download:
-* [muuri.js](https://unpkg.com/muuri@0.6.1/dist/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://unpkg.com/muuri@0.6.1/dist/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://unpkg.com/muuri@0.6.2/dist/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://unpkg.com/muuri@0.6.2/dist/muuri.min.js) - for production (minified, no comments).
 
 Or link directly:
 
 ```html
-<script src="https://unpkg.com/muuri@0.6.1/dist/muuri.min.js"></script>
+<script src="https://unpkg.com/muuri@0.6.2/dist/muuri.min.js"></script>
 ```
 
 Or install with [npm](https://www.npmjs.com/):

@@ -1375,11 +1375,11 @@ function openAnchorHref(element) {
   if (element.tagName.toLowerCase() !== 'a') return;
 
   // Get href and make sure it exists.
-  href = element.getAttribute('href');
+  var href = element.getAttribute('href');
   if (!href) return;
 
   // Finally let's navigate to the link href.
-  target = element.getAttribute('target');
+  var target = element.getAttribute('target');
   if (target && target !== '_self') {
     window.open(href, target);
   } else {

@@ -1,6 +1,6 @@
 
 /**
- * Muuri v0.6.1
+ * Muuri v0.6.2
  * https://github.com/haltu/muuri
  * Copyright (c) 2015-present, Haltu Oy
  * Released under the MIT license
@@ -2291,11 +2291,11 @@
     if (element.tagName.toLowerCase() !== 'a') return;
 
     // Get href and make sure it exists.
-    href = element.getAttribute('href');
+    var href = element.getAttribute('href');
     if (!href) return;
 
     // Finally let's navigate to the link href.
-    target = element.getAttribute('target');
+    var target = element.getAttribute('target');
     if (target && target !== '_self') {
       window.open(href, target);
     } else {

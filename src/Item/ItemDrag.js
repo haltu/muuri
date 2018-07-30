@@ -109,12 +109,6 @@ function ItemDrag(item) {
     }
   };
 
-  // Create sort predicate.
-  this._sortPredicate =
-    typeof settings.dragSortPredicate === 'function'
-      ? settings.dragSortPredicate
-      : ItemDrag.defaultSortPredicate;
-
   // Create debounce overlap checker function.
   this._checkOverlapDebounce = debounce(this._checkOverlap, settings.dragSortInterval);
 
@@ -255,7 +249,9 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
  * @public
  * @memberof ItemDrag
  * @param {Item} item
- * @param {Object} event
+ * @param {Object} [options]
+ * @param {Number} [options.threshold=50]
+ * @param {String} [options.action='move']
  * @returns {(Boolean|DragSortCommand)}
  *   - Returns false if no valid index was found. Otherwise returns drag sort
  *     command.
@@ -320,14 +316,13 @@ ItemDrag.defaultSortPredicate = (function() {
     return target;
   }
 
-  return function(item) {
+  return function(item, options) {
     var drag = item._drag;
     var rootGrid = drag._getGrid();
 
     // Get drag sort predicate settings.
-    var settings = rootGrid._settings.dragSortPredicate;
-    var sortThreshold = settings ? settings.threshold : 50;
-    var sortAction = settings ? settings.action : 'move';
+    var sortThreshold = options && typeof options.threshold === 'number' ? options.threshold : 50;
+    var sortAction = options && options.action === 'swap' ? 'swap' : 'move';
 
     // Populate item rect data.
     itemRect.width = item._width;
@@ -722,13 +717,21 @@ ItemDrag.prototype._checkOverlap = function() {
   if (!this._isActive) return;
 
   var item = this._item;
-  var result = this._sortPredicate(item, this._lastEvent);
+  var settings = this._getGrid()._settings;
+  var result;
   var currentGrid;
   var currentIndex;
   var targetGrid;
   var targetIndex;
   var sortAction;
   var isMigration;
+
+  // Get overlap check result.
+  if (typeof settings.dragSortPredicate === 'function') {
+    result = settings.dragSortPredicate(item, this._lastEvent);
+  } else {
+    result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);
+  }
 
   // Let's make sure the result object has a valid index before going further.
   if (!isPlainObject(result) || typeof result.index !== 'number') {

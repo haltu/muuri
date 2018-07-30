@@ -131,7 +131,7 @@
 
   });
 
-  QUnit.test('dragSortPredicate: should trigger sorting if an object with index', function (assert) {
+  QUnit.test('dragSortPredicate: should trigger sorting if an object with index is returned', function (assert) {
 
     assert.expect(2);
 
@@ -161,6 +161,73 @@
     grid.once('move', function (data) {
       assert.strictEqual(data.action, 'swap', 'sort action should be "swap"');
       assert.strictEqual(data.toIndex, grid.getItems().length - 1, 'target index should be the last index');
+    });
+
+    utils.dragElement(item.getElement(), 0, 70, teardown);
+
+  });
+
+  QUnit.test('dragSortPredicate: should allow using Muuri.ItemDrag.defaultSortPredicate manually without options', function (assert) {
+
+    assert.expect(1);
+
+    var done = assert.async();
+    var container = utils.createGridElements({
+      containerStyles: {
+        position: 'relative',
+        width: '140px'
+      }
+    });
+    var grid = new Muuri(container, {
+      dragEnabled: true,
+      dragSortPredicate: function (item) {
+        return Muuri.ItemDrag.defaultSortPredicate(item);
+      }
+    });
+    var item = grid.getItems()[0];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+      done();
+    };
+
+    grid.once('move', function (data) {
+      assert.strictEqual(data.action, 'move', 'sort action should be "move"');
+    });
+
+    utils.dragElement(item.getElement(), 0, 70, teardown);
+
+  });
+
+  QUnit.test('dragSortPredicate: should allow using Muuri.ItemDrag.defaultSortPredicate manually with options', function (assert) {
+
+    assert.expect(1);
+
+    var done = assert.async();
+    var container = utils.createGridElements({
+      containerStyles: {
+        position: 'relative',
+        width: '140px'
+      }
+    });
+    var grid = new Muuri(container, {
+      dragEnabled: true,
+      dragSortPredicate: function (item) {
+        return Muuri.ItemDrag.defaultSortPredicate(item, {
+          threshold: 30,
+          action: 'swap'
+        });
+      }
+    });
+    var item = grid.getItems()[0];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+      done();
+    };
+
+    grid.once('move', function (data) {
+      assert.strictEqual(data.action, 'swap', 'sort action should be "swap"');
     });
 
     utils.dragElement(item.getElement(), 0, 70, teardown);

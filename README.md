@@ -803,12 +803,24 @@ var grid = new Muuri(elem, {
 // Provide your own predicate.
 var grid = new Muuri(elem, {
   dragSortPredicate: function (item, e) {
-    if (e.deltaTime > 1000) {
-      return {
-        index: Math.round(e.deltaTime / 1000) % 2 === 0 ? -1 : 0,
-        action: 'swap'
-      };
-    }
+    if (e.deltaTime < 1000) return false;
+    return {
+      index: Math.round(e.deltaTime / 1000) % 2 === 0 ? -1 : 0,
+      action: 'swap'
+    };
+  }
+});
+```
+
+```javascript
+// Pro tip: use the default predicate as fallback in your custom predicate.
+var grid = new Muuri(elem, {
+  dragSortPredicate: function (item, e) {
+    if (item.classList.contains('no-sort')) return false;
+    return Muuri.ItemDrag.defaultSortPredicate(item, {
+      action: 'swap',
+      threshold: 75
+    });
   }
 });
 ```

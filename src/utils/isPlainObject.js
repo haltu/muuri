@@ -5,6 +5,7 @@
  */
 
 var objectType = '[object Object]';
+var toString = Object.prototype.toString;
 
 /**
  * Check if a value is a plain object.
@@ -13,5 +14,5 @@ var objectType = '[object Object]';
  * @returns {Boolean}
  */
 export default function isPlainObject(val) {
-  return typeof val === 'object' && Object.prototype.toString.call(val) === objectType;
+  return typeof val === 'object' && toString.call(val) === objectType;
 }

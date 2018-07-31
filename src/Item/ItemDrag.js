@@ -734,9 +734,7 @@ ItemDrag.prototype._checkOverlap = function() {
   }
 
   // Let's make sure the result object has a valid index before going further.
-  if (!isPlainObject(result) || typeof result.index !== 'number') {
-    return;
-  }
+  if (!result || typeof result.index !== 'number') return;
 
   currentGrid = item.getGrid();
   targetGrid = result.grid || currentGrid;

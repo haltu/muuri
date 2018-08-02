@@ -1184,9 +1184,7 @@ Grid.prototype._updateLayout = function() {
     if (this._items[i]._isActive) layout.items.push(this._items[i]);
   }
 
-  // Let's make sure we have the correct container dimensions before going
-  // further.
-  /** @todo Could this be avoided in any way? */
+  // Let's make sure we have the correct container dimensions.
   this._refreshDimensions();
 
   // Calculate container width and height (without borders).
@@ -1240,23 +1238,47 @@ Grid.prototype._hasListeners = function(event) {
 };
 
 /**
- * Refresh container's internal dimensions.
+ * Update container's width, height and offsets.
+ *
+ * @private
+ * @memberof Grid.prototype
+ */
+Grid.prototype._updateBoundingRect = function() {
+  var element = this._element;
+  var rect = element.getBoundingClientRect();
+  this._width = rect.width;
+  this._height = rect.height;
+  this._left = rect.left;
+  this._top = rect.top;
+};
+
+/**
+ * Update container's border sizes.
+ *
+ * @private
+ * @memberof Grid.prototype
+ * @param {Boolean} left
+ * @param {Boolean} right
+ * @param {Boolean} top
+ * @param {Boolean} bottom
+ */
+Grid.prototype._updateBorders = function(left, right, top, bottom) {
+  var element = this._element;
+  if (left) this._borderLeft = getStyleAsFloat(element, 'border-left-width');
+  if (right) this._borderRight = getStyleAsFloat(element, 'border-right-width');
+  if (top) this._borderTop = getStyleAsFloat(element, 'border-top-width');
+  if (bottom) this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
+};
+
+/**
+ * Refresh all of container's internal dimensions and offsets.
  *
  * @private
  * @memberof Grid.prototype
  */
 Grid.prototype._refreshDimensions = function() {
-  var element = this._element;
-  var rect = element.getBoundingClientRect();
-
-  this._width = rect.width;
-  this._height = rect.height;
-  this._left = rect.left;
-  this._top = rect.top;
-  this._borderLeft = getStyleAsFloat(element, 'border-left-width');
-  this._borderRight = getStyleAsFloat(element, 'border-right-width');
-  this._borderTop = getStyleAsFloat(element, 'border-top-width');
-  this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
+  this._updateBoundingRect();
+  this._updateBorders(1, 1, 1, 1);
 };
 
 /**

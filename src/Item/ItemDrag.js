@@ -289,12 +289,9 @@ ItemDrag.defaultSortPredicate = (function() {
       // Filter out all destroyed grids.
       if (grid._isDestroyed) continue;
 
-      // We need to update the grid's offset since it may have changed during
-      // scrolling. This could be left as problem for the library user which
-      // would also be better for perf so let's keep tabs on this one and see
-      // if we might want to remove this in the future.
-      /** @todo call this only if scrolling has occurred since the last check */
-      grid._refreshDimensions();
+      // We need to update the grid's offsets and dimensions since they might
+      // have changed (e.g during scrolling).
+      grid._updateBoundingRect();
 
       // Check how much dragged element overlaps the container element.
       targetRect.width = grid._width;
@@ -353,6 +350,7 @@ ItemDrag.defaultSortPredicate = (function() {
       itemRect.left = drag._gridX + item._marginLeft;
       itemRect.top = drag._gridY + item._marginTop;
     } else {
+      grid._updateBorders(1, 0, 1, 0);
       gridOffsetLeft = grid._left + grid._borderLeft;
       gridOffsetTop = grid._top + grid._borderTop;
     }

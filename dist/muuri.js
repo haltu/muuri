@@ -1,6 +1,6 @@
 
 /**
- * Muuri v0.6.2
+ * Muuri v0.6.3
  * https://github.com/haltu/muuri
  * Copyright (c) 2015-present, Haltu Oy
  * Released under the MIT license

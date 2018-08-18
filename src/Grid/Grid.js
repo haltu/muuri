@@ -1172,6 +1172,9 @@ Grid.prototype._getItem = function(target) {
 Grid.prototype._updateLayout = function() {
   var layout = this._layout;
   var settings = this._settings.layout;
+  var width;
+  var height;
+  var newLayout;
   var i;
 
   // Let's increment layout id.
@@ -1187,21 +1190,18 @@ Grid.prototype._updateLayout = function() {
   this._refreshDimensions();
 
   // Calculate container width and height (without borders).
-  var width = this._width - this._borderLeft - this._borderRight;
-  var height = this._height - this._borderTop - this._borderBottom;
+  width = this._width - this._borderLeft - this._borderRight;
+  height = this._height - this._borderTop - this._borderBottom;
 
   // Calculate new layout.
-  var newLayout =
-    typeof settings === 'function'
-      ? settings(layout.items.slice(0), width, height)
-      : packer.getLayout(layout.items, width, height, settings);
+  if (typeof settings === 'function') {
+    newLayout = settings(layout.items, width, height);
+  } else {
+    newLayout = packer.getLayout(layout.items, width, height, layout.slots, settings);
+  }
 
   // Let's update the grid's layout.
-  /**
-   * @todo Instead of slicing create a slots array for each grid and provide
-   * that to the `packer.getLayout` method, which in turn can populate it.
-   */
-  layout.slots = newLayout.slots.slice(0);
+  layout.slots = newLayout.slots;
   layout.setWidth = Boolean(newLayout.setWidth);
   layout.setHeight = Boolean(newLayout.setHeight);
   layout.width = newLayout.width;

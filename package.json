@@ -30,8 +30,8 @@
     "test-local-min": "./node_modules/.bin/gulp test-local-min",
     "build": "./node_modules/.bin/rollup -c",
     "lint": "./node_modules/.bin/gulp lint",
-    "format": "find ./src/**/*.js | xargs -I{} ./node_modules/.bin/prettier --write {}",
-    "format-test": "find ./src/**/*.js | xargs -I{} ./node_modules/.bin/prettier --list-different {}",
+    "format": "./node_modules/.bin/prettier --write ./src/**/*.js",
+    "format-test": "./node_modules/.bin/prettier --list-different ./src/**/*.js",
     "size": "./node_modules/.bin/gulp size"
   },
   "husky": {

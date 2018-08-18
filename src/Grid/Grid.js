@@ -894,13 +894,12 @@ Grid.prototype.sort = (function() {
     var result = sortComparer(a, b);
     // If descending let's invert the result value.
     if (isDescending && result) result = -result;
-    // If values are equal let's compare the item indices to make sure we
-    // have a stable sort.
-    if (!result) {
-      if (!indexMap) indexMap = getIndexMap(origItems);
-      result = compareIndices(a, b);
-    }
-    return result;
+    // If we have a valid result (not zero) let's return it right away.
+    if (result) return result;
+    // If result is zero let's compare the item indices to make sure we have a
+    // stable sort.
+    if (!indexMap) indexMap = getIndexMap(origItems);
+    return compareIndices(a, b);
   }
 
   return function(comparer, options) {

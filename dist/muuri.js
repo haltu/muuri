@@ -3710,19 +3710,22 @@
    * @class
    */
   function Packer() {
-    this._layout = {
-      slots: [],
-      slotSizes: [],
-      setWidth: false,
-      setHeight: false,
-      width: false,
-      height: false
-    };
+    this._slots = [];
+    this._slotSizes = [];
     this._freeSlots = [];
     this._newSlots = [];
     this._rectItem = {};
     this._rectStore = [];
     this._rectId = 0;
+
+    // The layout return data, which will be populated in getLayout.
+    this._layout = {
+      slots: null,
+      setWidth: false,
+      setHeight: false,
+      width: false,
+      height: false
+    };
 
     // Bind sort handlers.
     this._sortRectsLeftTop = this._sortRectsLeftTop.bind(this);
@@ -3735,6 +3738,7 @@
    * @param {Item[]} items
    * @param {Number} width
    * @param {Number} height
+   * @param {Number[]} [slots]
    * @param {Object} [options]
    * @param {Boolean} [options.fillGaps=false]
    * @param {Boolean} [options.horizontal=false]
@@ -3742,45 +3746,51 @@
    * @param {Boolean} [options.alignBottom=false]
    * @returns {LayoutData}
    */
-  Packer.prototype.getLayout = function(items, width, height, options) {
+  Packer.prototype.getLayout = function(items, width, height, slots, options) {
     var layout = this._layout;
     var fillGaps = !!(options && options.fillGaps);
     var isHorizontal = !!(options && options.horizontal);
     var alignRight = !!(options && options.alignRight);
     var alignBottom = !!(options && options.alignBottom);
     var rounding = !!(options && options.rounding);
+    var slotSizes = this._slotSizes;
     var i;
 
     // Reset layout data.
-    layout.slots.length = layout.slotSizes.length = 0;
+    layout.slots = slots ? slots : this._slots;
     layout.width = isHorizontal ? 0 : rounding ? Math.round(width) : width;
     layout.height = !isHorizontal ? 0 : rounding ? Math.round(height) : height;
     layout.setWidth = isHorizontal;
     layout.setHeight = !isHorizontal;
+
+    // Make sure slots and slot size arrays are reset.
+    layout.slots.length = 0;
+    slotSizes.length = 0;
 
     // No need to go further if items do not exist.
     if (!items.length) return layout;
 
     // Find slots for items.
     for (i = 0; i < items.length; i++) {
-      this._addSlot(items[i], isHorizontal, fillGaps, rounding);
+      this._addSlot(items[i], isHorizontal, fillGaps, rounding, alignRight || alignBottom);
     }
 
     // If the alignment is set to right we need to adjust the results.
     if (alignRight) {
       for (i = 0; i < layout.slots.length; i = i + 2) {
-        layout.slots[i] = layout.width - (layout.slots[i] + layout.slotSizes[i]);
+        layout.slots[i] = layout.width - (layout.slots[i] + slotSizes[i]);
       }
     }
 
     // If the alignment is set to bottom we need to adjust the results.
     if (alignBottom) {
       for (i = 1; i < layout.slots.length; i = i + 2) {
-        layout.slots[i] = layout.height - (layout.slots[i] + layout.slotSizes[i]);
+        layout.slots[i] = layout.height - (layout.slots[i] + slotSizes[i]);
       }
     }
 
     // Reset slots arrays and rect id.
+    slotSizes.length = 0;
     this._freeSlots.length = 0;
     this._newSlots.length = 0;
     this._rectId = 0;
@@ -3803,7 +3813,7 @@
   Packer.prototype._addSlot = (function() {
     var leeway = 0.001;
     var itemSlot = {};
-    return function(item, isHorizontal, fillGaps, rounding) {
+    return function(item, isHorizontal, fillGaps, rounding, trackSize) {
       var layout = this._layout;
       var freeSlots = this._freeSlots;
       var newSlots = this._newSlots;
@@ -3941,9 +3951,9 @@
       }
 
       // Add item slot data to layout slots (and store the slot size for later
-      // usage too).
+      // usage too if necessary).
       layout.slots.push(itemSlot.left, itemSlot.top);
-      layout.slotSizes.push(itemSlot.width, itemSlot.height);
+      if (trackSize) this._slotSizes.push(itemSlot.width, itemSlot.height);
 
       // Free/new slots switcheroo!
       this._freeSlots = newSlots;
@@ -5047,13 +5057,12 @@
       var result = sortComparer(a, b);
       // If descending let's invert the result value.
       if (isDescending && result) result = -result;
-      // If values are equal let's compare the item indices to make sure we
-      // have a stable sort.
-      if (!result) {
-        if (!indexMap) indexMap = getIndexMap(origItems);
-        result = compareIndices(a, b);
-      }
-      return result;
+      // If we have a valid result (not zero) let's return it right away.
+      if (result) return result;
+      // If result is zero let's compare the item indices to make sure we have a
+      // stable sort.
+      if (!indexMap) indexMap = getIndexMap(origItems);
+      return compareIndices(a, b);
     }
 
     return function(comparer, options) {
@@ -5326,6 +5335,9 @@
   Grid.prototype._updateLayout = function() {
     var layout = this._layout;
     var settings = this._settings.layout;
+    var width;
+    var height;
+    var newLayout;
     var i;
 
     // Let's increment layout id.
@@ -5341,21 +5353,18 @@
     this._refreshDimensions();
 
     // Calculate container width and height (without borders).
-    var width = this._width - this._borderLeft - this._borderRight;
-    var height = this._height - this._borderTop - this._borderBottom;
+    width = this._width - this._borderLeft - this._borderRight;
+    height = this._height - this._borderTop - this._borderBottom;
 
     // Calculate new layout.
-    var newLayout =
-      typeof settings === 'function'
-        ? settings(layout.items.slice(0), width, height)
-        : packer.getLayout(layout.items, width, height, settings);
+    if (typeof settings === 'function') {
+      newLayout = settings(layout.items, width, height);
+    } else {
+      newLayout = packer.getLayout(layout.items, width, height, layout.slots, settings);
+    }
 
     // Let's update the grid's layout.
-    /**
-     * @todo Instead of slicing create a slots array for each grid and provide
-     * that to the `packer.getLayout` method, which in turn can populate it.
-     */
-    layout.slots = newLayout.slots.slice(0);
+    layout.slots = newLayout.slots;
     layout.setWidth = Boolean(newLayout.setWidth);
     layout.setHeight = Boolean(newLayout.setHeight);
     layout.width = newLayout.width;

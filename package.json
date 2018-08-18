@@ -32,11 +32,12 @@
     "lint": "./node_modules/.bin/gulp lint",
     "format": "./node_modules/.bin/prettier --write ./src/**/*.js",
     "format-test": "./node_modules/.bin/prettier --list-different ./src/**/*.js",
-    "size": "./node_modules/.bin/gulp size"
+    "size": "./node_modules/.bin/gulp size",
+    "pre-commit-hook": "./node_modules/.bin/gulp pre-commit"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "./node_modules/.bin/gulp pre-commit"
+      "pre-commit": "npm run pre-commit-hook"
     }
   },
   "dependencies": {

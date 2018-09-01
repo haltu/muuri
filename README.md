@@ -407,12 +407,12 @@ var grid = new Muuri(elem, {
 
 ### layout &nbsp;
 
-Define how the items will be laid out. Although it's not documented well (at all) in this section, you *can* provide a function here also if you want to provide your own layout algorithm (may the source be with you).
+Define how the items will be laid out. Muuri ships with a configurable layout algorithm which is used by default. It's pretty flexible and suitable for most common situations (lists, grids and even bin packed grids). If that does not fit the bill you can always provide your own layout algorithm (it's not as scary as it sounds).
 
 * Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
 * Accepted types: function, object.
 
-Provide an object to configure the default layout algorithm with the following properties:
+**Provide an _object_ to configure the default layout algorithm with the following properties**
 
 * **fillGaps** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
@@ -443,6 +443,33 @@ var grid = new Muuri(elem, {
 });
 ```
 
+**Provide a _function_ to use a custom layout algorithm**
+
+When you provide a custom layout function Muuri calls it whenever calculation of layout is necessary. Before calling the layout function Muuri always calculates the current width and height of the grid's container element and also creates an array of all the items that are part of the layout currently (all _active_ items).
+
+* `customLayout( items, gridWidth, gridHeight )`
+  * **items** &nbsp;&mdash;&nbsp; *array*
+    * Array of `Muuri.Item` instances.
+  * **gridWidth** &nbsp;&mdash;&nbsp; *number*
+    * Current width of the grid's container element.
+  * **gridHeight** &nbsp;&mdash;&nbsp; *number*
+    * Current height of the grid's container element.
+
+The layout function's job is using this data, which is provided to the layout function as arguments (as detailed above), and calculating position for each item in the array.
+
+The layout function should _always_ return an object with following properties:
+
+* **slots** &nbsp;&mdash;&nbsp; *array*
+  * Array of the item positions (numbers). E.g. if the items were `[a, b]` this should be `[aLeft, aTop, bLeft, bTop]`. You have to calculate the `left` and `top` position for each item in the provided _items_ array in the same order the items are provided.
+* **width** &nbsp;&mdash;&nbsp; *number*
+  * The width of the grid.
+* **height** &nbsp;&mdash;&nbsp; *number*
+  * The height of the grid.
+* **setWidth** &nbsp;&mdash;&nbsp; *boolean*
+  * Should Muuri set the provided _width_ as the grid element's width?
+* **setHeight** &nbsp;&mdash;&nbsp; *boolean*
+  * Should Muuri set the provided _height_ as the grid element's height?
+
 ```javascript
 // Build your own layout algorithm.
 var grid = new Muuri(elem, {
@@ -450,7 +477,7 @@ var grid = new Muuri(elem, {
     // The layout data object. Muuri will read this data and position the items
     // based on it.
     var layout = {
-      // The layout item slots (left/top coordinates).
+      // The layout's item slots (left/top coordinates).
       slots: [],
       // The layout's total width.
       width: 0,

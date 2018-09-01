@@ -40,7 +40,7 @@
       "pre-commit": "npm run pre-commit-hook"
     }
   },
-  "dependencies": {
+  "peerDependencies": {
     "hammerjs": "^2.0.0"
   },
   "devDependencies": {
@@ -48,6 +48,7 @@
     "gulp": "^4.0.0",
     "gulp-eslint": "^4.0.2",
     "gulp-size": "^3.0.0",
+    "hammerjs": "^2.0.0",
     "husky": "^1.0.0-rc.12",
     "karma": "^2.0.4",
     "karma-chrome-launcher": "^2.2.0",

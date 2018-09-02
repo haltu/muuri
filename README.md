@@ -1377,9 +1377,11 @@ Move an item into another grid.
 
 ```javascript
 // Move the first item of gridA as the last item of gridB.
+// The sent item will be appended to document.body.
 gridA.send(0, gridB, -1);
 
 // Move the first item of gridA as the last item of gridB.
+// The sent item will be appended to someElem.
 gridA.send(0, gridB, -1, {
   appendTo: someElem
 });
@@ -1533,12 +1535,12 @@ grid.on('layoutStart', function (items) {
 
 ### layoutEnd
 
-Triggered after `grid.layout()` is called, after the items have positioned. Note that if `grid.layout()` is called during an ongoing layout animation the ongoing layout process will be aborted and it's layoutEnd event will never be triggered.
+Triggered after `grid.layout()` is called, after the items have positioned. Note that if `grid.layout()` is called during an ongoing layout animation the ongoing layout process will be aborted and it's _layoutEnd_ event will never be triggered.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were intended to be positioned. Note that these items are always identical to what the layoutStart event's callback receives as it's argument. So if, for example, you destroy an item during the layout animation and don't do call another layout the destroyed item will still be included in this array of items. The original intention was to filter these items so that all items that were "interrupted" somehow during the layout process would be omitted from the results, but that solution was much more prone to errors and much more harder to explain/understand.
+  * The items that were intended to be positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument. So if, for example, you destroy an item during the layout animation and don't do call another layout the destroyed item will still be included in this array of items. The original intention was to filter these items so that all items that were "interrupted" somehow during the layout process would be omitted from the results, but that solution was much more prone to errors and much more harder to explain/understand.
 
 ```javascript
 grid.on('layoutEnd', function (items) {

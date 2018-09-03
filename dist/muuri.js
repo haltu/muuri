@@ -2472,7 +2472,6 @@
 
     var item = this._item;
     var element = item._element;
-    var migrate = item._migrate;
     var release = item._release;
     var gridSettings = item.getGrid()._settings;
     var isPositioning = this._isActive;
@@ -2482,8 +2481,6 @@
       : gridSettings.layoutDuration;
     var animEasing = isJustReleased ? gridSettings.dragReleaseEasing : gridSettings.layoutEasing;
     var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
-    var offsetLeft;
-    var offsetTop;
     var isAnimating;
 
     // If the item is currently positioning process current layout callback
@@ -2496,25 +2493,10 @@
     // Push the callback to the callback queue.
     if (typeof onFinish === 'function') this._queue.add(onFinish);
 
-    // Get item container's left offset.
-    offsetLeft = release._isActive
-      ? release._containerDiffX
-      : migrate._isActive
-        ? migrate._containerDiffX
-        : 0;
-
-    // Get item container's top offset.
-    offsetTop = release._isActive
-      ? release._containerDiffY
-      : migrate._isActive
-        ? migrate._containerDiffY
-        : 0;
-
-    // Get target styles.
-    this._targetStyles.transform = getTranslateString(item._left + offsetLeft, item._top + offsetTop);
-
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
+      this._updateOffsets();
+      this._updateTargetStyles();
       isPositioning && ticker.cancel(item._id);
       isAnimating = item._animate.isAnimating();
       this.stop(false, this._targetStyles);
@@ -2529,8 +2511,6 @@
     this._animateOptions.easing = animEasing;
     this._animateOptions.duration = animDuration;
     this._isInterrupted = isPositioning;
-    this._offsetLeft = offsetLeft;
-    this._offsetTop = offsetTop;
 
     // Start the item's layout animation in the next tick.
     ticker.add(item._id, this._setupAnimation, this._startAnimation);
@@ -2592,6 +2572,49 @@
    */
 
   /**
+   * Calculate and update item's current layout offset data.
+   *
+   * @private
+   * @memberof ItemLayout.prototype
+   */
+  ItemLayout.prototype._updateOffsets = function() {
+    if (this._isDestroyed) return;
+
+    var item = this._item;
+    var migrate = item._migrate;
+    var release = item._release;
+
+    this._offsetLeft = release._isActive
+      ? release._containerDiffX
+      : migrate._isActive
+        ? migrate._containerDiffX
+        : 0;
+
+    this._offsetTop = release._isActive
+      ? release._containerDiffY
+      : migrate._isActive
+        ? migrate._containerDiffY
+        : 0;
+  };
+
+  /**
+   * Calculate and update item's layout target styles.
+   *
+   * @private
+   * @memberof ItemLayout.prototype
+   */
+  ItemLayout.prototype._updateTargetStyles = function() {
+    if (this._isDestroyed) return;
+
+    var item = this._item;
+
+    this._targetStyles.transform = getTranslateString(
+      item._left + this._offsetLeft,
+      item._top + this._offsetTop
+    );
+  };
+
+  /**
    * Finish item layout procedure.
    *
    * @private
@@ -2627,8 +2650,8 @@
   ItemLayout.prototype._setupAnimation = function() {
     var element = this._item._element;
     var translate = getTranslate(element);
-    this._currentLeft = translate.x - this._offsetLeft;
-    this._currentTop = translate.y - this._offsetTop;
+    this._currentLeft = translate.x;
+    this._currentTop = translate.y;
   };
 
   /**
@@ -2643,9 +2666,16 @@
     var grid = item.getGrid();
     var settings = grid._settings;
 
+    // Let's update the offset data and target styles.
+    this._updateOffsets();
+    this._updateTargetStyles();
+
     // If the item is already in correct position let's quit early.
-    if (item._left === this._currentLeft && item._top === this._currentTop) {
-      this._isInterrupted && this.stop(false, this._targetStyles);
+    if (
+      item._left === this._currentLeft - this._offsetLeft &&
+      item._top === this._currentTop - this._offsetTop
+    ) {
+      if (this._isInterrupted) this.stop(false, this._targetStyles);
       this._isActive = false;
       this._finish();
       return;
@@ -2655,10 +2685,7 @@
     !this._isInterrupted && addClass(element, settings.itemPositioningClass);
 
     // Get current styles for animation.
-    this._currentStyles.transform = getTranslateString(
-      this._currentLeft + this._offsetLeft,
-      this._currentTop + this._offsetTop
-    );
+    this._currentStyles.transform = getTranslateString(this._currentLeft, this._currentTop);
 
     // Animate.
     item._animate.start(this._currentStyles, this._targetStyles, this._animateOptions);

@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import ticker from '../ticker.js';
+import { addVisibilityTick, cancelVisibilityTick } from '../ticker.js';
 
 import Queue from '../Queue/Queue.js';
 
@@ -229,8 +229,8 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
     return;
   }
 
-  // Let's reset item's visibility ticker.
-  ticker.cancel(item._id + 'visibility');
+  // Cancel queued visibility tick.
+  cancelVisibilityTick(item._id);
 
   // If we need to apply the styles instantly without animation.
   if (isInstant) {
@@ -243,9 +243,9 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
     return;
   }
 
-  // Animate.
-  ticker.add(
-    item._id + 'visibility',
+  // Start the animation in the next tick (to avoid layout thrashing).
+  addVisibilityTick(
+    item._id,
     function() {
       currentStyles = getCurrentStyles(item._child, targetStyles);
     },
@@ -269,7 +269,7 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
 ItemVisibility.prototype._stopAnimation = function(targetStyles) {
   if (this._isDestroyed) return;
   var item = this._item;
-  ticker.cancel(item._id);
+  cancelVisibilityTick(item._id);
   item._animateChild.stop(targetStyles);
 };
 

@@ -20,7 +20,8 @@ import {
   gridInstances,
   namespace
 } from '../shared.js';
-import ticker from '../ticker.js';
+
+import { addMoveTick, cancelMoveTick, addScrollTick, cancelScrollTick } from '../ticker.js';
 
 import addClass from '../utils/addClass.js';
 import arrayMove from '../utils/arrayMove.js';
@@ -428,8 +429,9 @@ ItemDrag.prototype.stop = function() {
     return this;
   }
 
-  // Cancel raf loop actions.
-  this._cancelAsyncUpdates();
+  // Cancel queued move and scroll ticks.
+  cancelMoveTick(item._id);
+  cancelScrollTick(item._id);
 
   // Remove scroll listeners.
   this._unbindScrollListeners();
@@ -909,18 +911,6 @@ ItemDrag.prototype._finishMigration = function() {
 };
 
 /**
- * Cancel move/scroll event ticker action.
- *
- * @private
- * @memberof ItemDrag.prototype
- */
-ItemDrag.prototype._cancelAsyncUpdates = function() {
-  var id = this._item._id;
-  ticker.cancel(id + 'move');
-  ticker.cancel(id + 'scroll');
-};
-
-/**
  * Drag start handler.
  *
  * @private
@@ -1055,7 +1045,7 @@ ItemDrag.prototype._onMove = function(event) {
   }
 
   // Do move prepare/apply handling in the next tick.
-  ticker.add(item._id + 'move', this._prepareMove, this._applyMove, true);
+  addMoveTick(item._id, this._prepareMove, this._applyMove);
 };
 
 /**
@@ -1111,7 +1101,7 @@ ItemDrag.prototype._onScroll = function(event) {
   this._lastScrollEvent = event;
 
   // Do scroll prepare/apply handling in the next tick.
-  ticker.add(item._id + 'scroll', this._prepareScroll, this._applyScroll, true);
+  addScrollTick(item._id, this._prepareScroll, this._applyScroll);
 };
 
 /**
@@ -1200,8 +1190,9 @@ ItemDrag.prototype._onEnd = function(event) {
     return;
   }
 
-  // Cancel ticker actions.
-  this._cancelAsyncUpdates();
+  // Cancel queued move and scroll ticks.
+  cancelMoveTick(item._id);
+  cancelScrollTick(item._id);
 
   // Finish currently queued overlap check.
   settings.dragSort && this._checkOverlapDebounce('finish');

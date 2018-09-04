@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import ticker from '../ticker.js';
+import { addLayoutTick, cancelLayoutTick } from '../ticker.js';
 
 import Queue from '../Queue/Queue.js';
 
@@ -86,7 +86,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   if (!animEnabled) {
     this._updateOffsets();
     this._updateTargetStyles();
-    isPositioning && ticker.cancel(item._id);
+    isPositioning && cancelLayoutTick(item._id);
     isAnimating = item._animate.isAnimating();
     this.stop(false, this._targetStyles);
     !isAnimating && setStyles(element, this._targetStyles);
@@ -102,7 +102,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   this._isInterrupted = isPositioning;
 
   // Start the item's layout animation in the next tick.
-  ticker.add(item._id, this._setupAnimation, this._startAnimation);
+  addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
 
   return this;
 };
@@ -122,7 +122,7 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
   var item = this._item;
 
   // Cancel animation init.
-  ticker.cancel(item._id);
+  cancelLayoutTick(item._id);
 
   // Stop animation.
   item._animate.stop(targetStyles);

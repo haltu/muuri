@@ -579,6 +579,43 @@
 
   var ticker = new Ticker();
 
+  var layoutTick = 'layout';
+  var visibilityTick = 'visibility';
+  var moveTick = 'move';
+  var scrollTick = 'scroll';
+
+  function addLayoutTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + layoutTick, readCallback, writeCallback);
+  }
+
+  function cancelLayoutTick(itemId) {
+    return ticker.cancel(itemId + layoutTick);
+  }
+
+  function addVisibilityTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + visibilityTick, readCallback, writeCallback);
+  }
+
+  function cancelVisibilityTick(itemId) {
+    return ticker.cancel(itemId + visibilityTick);
+  }
+
+  function addMoveTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + moveTick, readCallback, writeCallback, true);
+  }
+
+  function cancelMoveTick(itemId) {
+    return ticker.cancel(itemId + moveTick);
+  }
+
+  function addScrollTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + scrollTick, readCallback, writeCallback, true);
+  }
+
+  function cancelScrollTick(itemId) {
+    return ticker.cancel(itemId + scrollTick);
+  }
+
   var proto = Element.prototype;
   var matches =
     proto.matches ||
@@ -1345,8 +1382,9 @@
       return this;
     }
 
-    // Cancel raf loop actions.
-    this._cancelAsyncUpdates();
+    // Cancel queued move and scroll ticks.
+    cancelMoveTick(item._id);
+    cancelScrollTick(item._id);
 
     // Remove scroll listeners.
     this._unbindScrollListeners();
@@ -1826,18 +1864,6 @@
   };
 
   /**
-   * Cancel move/scroll event ticker action.
-   *
-   * @private
-   * @memberof ItemDrag.prototype
-   */
-  ItemDrag.prototype._cancelAsyncUpdates = function() {
-    var id = this._item._id;
-    ticker.cancel(id + 'move');
-    ticker.cancel(id + 'scroll');
-  };
-
-  /**
    * Drag start handler.
    *
    * @private
@@ -1972,7 +1998,7 @@
     }
 
     // Do move prepare/apply handling in the next tick.
-    ticker.add(item._id + 'move', this._prepareMove, this._applyMove, true);
+    addMoveTick(item._id, this._prepareMove, this._applyMove);
   };
 
   /**
@@ -2028,7 +2054,7 @@
     this._lastScrollEvent = event;
 
     // Do scroll prepare/apply handling in the next tick.
-    ticker.add(item._id + 'scroll', this._prepareScroll, this._applyScroll, true);
+    addScrollTick(item._id, this._prepareScroll, this._applyScroll);
   };
 
   /**
@@ -2117,8 +2143,9 @@
       return;
     }
 
-    // Cancel ticker actions.
-    this._cancelAsyncUpdates();
+    // Cancel queued move and scroll ticks.
+    cancelMoveTick(item._id);
+    cancelScrollTick(item._id);
 
     // Finish currently queued overlap check.
     settings.dragSort && this._checkOverlapDebounce('finish');
@@ -2497,7 +2524,7 @@
     if (!animEnabled) {
       this._updateOffsets();
       this._updateTargetStyles();
-      isPositioning && ticker.cancel(item._id);
+      isPositioning && cancelLayoutTick(item._id);
       isAnimating = item._animate.isAnimating();
       this.stop(false, this._targetStyles);
       !isAnimating && setStyles(element, this._targetStyles);
@@ -2513,7 +2540,7 @@
     this._isInterrupted = isPositioning;
 
     // Start the item's layout animation in the next tick.
-    ticker.add(item._id, this._setupAnimation, this._startAnimation);
+    addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
 
     return this;
   };
@@ -2533,7 +2560,7 @@
     var item = this._item;
 
     // Cancel animation init.
-    ticker.cancel(item._id);
+    cancelLayoutTick(item._id);
 
     // Stop animation.
     item._animate.stop(targetStyles);
@@ -3312,8 +3339,8 @@
       return;
     }
 
-    // Let's reset item's visibility ticker.
-    ticker.cancel(item._id + 'visibility');
+    // Cancel queued visibility tick.
+    cancelVisibilityTick(item._id);
 
     // If we need to apply the styles instantly without animation.
     if (isInstant) {
@@ -3326,9 +3353,9 @@
       return;
     }
 
-    // Animate.
-    ticker.add(
-      item._id + 'visibility',
+    // Start the animation in the next tick (to avoid layout thrashing).
+    addVisibilityTick(
+      item._id,
       function() {
         currentStyles = getCurrentStyles(item._child, targetStyles);
       },
@@ -3352,7 +3379,7 @@
   ItemVisibility.prototype._stopAnimation = function(targetStyles) {
     if (this._isDestroyed) return;
     var item = this._item;
-    ticker.cancel(item._id);
+    cancelVisibilityTick(item._id);
     item._animateChild.stop(targetStyles);
   };
 

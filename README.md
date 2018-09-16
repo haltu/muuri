@@ -50,20 +50,24 @@ Or install with [npm](https://www.npmjs.com/):
 npm install muuri
 ```
 
-### 2. Get the dependencies
+### 2. Get the (optional) dependencies
 
-* Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations yet you need to use a [polyfill](https://github.com/web-animations/web-animations-js). If you're feeling lucky you might be interested to know that it is possible to replace Muuri's default animation engine with your own implementation by overwriting the `Muuri.ItemAnimate` constructor.
+#### Web Animations Polyfill
 
-* Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if the dragging is enabled. Currently there is no easy way to use another library for handling the drag interaction. Almost all of the drag related logic exists within `Muuri.ItemDrag` constructor, which is instantiated for each item, so if you really need to customize the drag behavior beyond what is available via the options you can replace the `Muuri.ItemDrag` constructor with your own implementation (fingers crossed).
+Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations you need to use a [polyfill](https://github.com/web-animations/web-animations-js).
+
+#### Hammer.js
+
+Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if you need Muuri's dragging capabilities.
 
 ### 3. Add the script tags
 
-Add Muuri on your site and make sure to include the dependencies before Muuri.
+Add Muuri on your site and make sure to include the optional dependencies (if needed) before Muuri.
 
 ```html
-<script src="web-animations.min.js"></script>
-<script src="hammer.min.js"></script>
-<script src="muuri.min.js"></script>
+<script src="https://unpkg.com/web-animations-js@2.3.1/web-animations.min.js"></script>
+<script src="https://unpkg.com/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://unpkg.com/muuri@0.6.3/dist/muuri.min.js"></script>
 ```
 
 ### 4. Add the markup

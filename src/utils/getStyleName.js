@@ -4,6 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+var styleNameRegEx = /([A-Z])/g;
+
 /**
  * Transforms a camel case style property to kebab case style property.
  *
@@ -11,5 +13,5 @@
  * @returns {String}
  */
 export default function getStyleName(string) {
-  return string.replace(/([A-Z])/g, '-$1').toLowerCase();
+  return string.replace(styleNameRegEx, '-$1').toLowerCase();
 }

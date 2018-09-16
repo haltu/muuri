@@ -73,8 +73,8 @@ function Item(grid, element, isActive) {
   element.style[transformProp] = getTranslateString(0, 0);
 
   // Initiate item's animation controllers.
-  this._animate = new ItemAnimate(this, element);
-  this._animateChild = new ItemAnimate(this, this._child);
+  this._animate = new ItemAnimate(element);
+  this._animateChild = new ItemAnimate(this._child);
 
   // Setup visibility handler.
   this._visibility = new ItemVisibility(this);

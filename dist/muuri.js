@@ -274,6 +274,8 @@
     return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
   }
 
+  var styleNameRegEx = /([A-Z])/g;
+
   /**
    * Transforms a camel case style property to kebab case style property.
    *
@@ -281,22 +283,7 @@
    * @returns {String}
    */
   function getStyleName(string) {
-    return string.replace(/([A-Z])/g, '-$1').toLowerCase();
-  }
-
-  /**
-   * Get current values of the provided styles definition object.
-   *
-   * @param {HTMLElement} element
-   * @param {Object} styles
-   * @return {Object}
-   */
-  function getCurrentStyles(element, styles) {
-    var current = {};
-    for (var prop in styles) {
-      current[prop] = getStyle(element, getStyleName(prop));
-    }
-    return current;
+    return string.replace(styleNameRegEx, '-$1').toLowerCase();
   }
 
   /**
@@ -315,15 +302,14 @@
    * Item animation handler powered by Web Animations API.
    *
    * @class
-   * @param {Item} item
    * @param {HTMLElement} element
    */
-  function ItemAnimate(item, element) {
-    this._item = item;
+  function ItemAnimate(element) {
     this._element = element;
     this._animation = null;
-    this._propsTo = null;
     this._callback = null;
+    this._props = [];
+    this._values = [];
     this._keyframes = [];
     this._options = {};
     this._isDestroyed = false;
@@ -351,57 +337,74 @@
   ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
     if (this._isDestroyed) return;
 
+    var animation = this._animation;
+    var currentProps = this._props;
+    var currentValues = this._values;
     var opts = options || 0;
-    var callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
-    var shouldStop = false;
-    var propName;
+    var cancelAnimation = false;
 
-    // If we have an ongoing animation.
-    if (this._animation) {
-      // Check if we should stop the current animation. Here basically just test
-      // that is the new animation animating to the same props with same values
-      // as the current animation. Note that this is not currently checking the
-      // scenario where the current animation has matching props and values to
-      // the new animation and also has some extra props.
-      for (propName in propsTo) {
-        if (propsTo[propName] !== this._propsTo[propName]) {
-          shouldStop = true;
+    // If we have an existing animation running, let's check if it needs to be
+    // cancelled or if it can continue running.
+    if (animation) {
+      var propCount = 0;
+      var propIndex;
+
+      // Check if the requested animation target props and values match with the
+      // current props and values.
+      for (var propName in propsTo) {
+        ++propCount;
+        propIndex = currentProps.indexOf(propName);
+        if (propIndex === -1 || propsTo[propName] !== currentValues[propIndex]) {
+          cancelAnimation = true;
           break;
         }
       }
 
-      // Let's cancel the ongoing animation if needed.
-      if (shouldStop) {
-        this._animation.cancel();
-      }
-      // Otherwise let's just change the callback and quit early.
-      else {
-        this._callback = callback;
-        return;
+      // Check if the target props count matches current props count. This is
+      // needed for the edge case scenario where target props contain the same
+      // styles as current props, but the current props have some additional
+      // props.
+      if (!cancelAnimation && propCount !== currentProps.length) {
+        cancelAnimation = true;
       }
     }
 
-    // Store callback.
-    this._callback = callback;
+    // Cancel animation (if required).
+    if (cancelAnimation) animation.cancel();
 
-    // Store target props (copy to guard against mutation).
-    this._propsTo = {};
+    // Store animation callback.
+    this._callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
+
+    // If we have a running animation that does not need to be cancelled, let's
+    // call it a day here and let it run.
+    if (animation && !cancelAnimation) return;
+
+    // Store target props and values to instance.
+    currentProps.length = currentValues.length = 0;
     for (propName in propsTo) {
-      this._propsTo[propName] = propsTo[propName];
+      currentProps.push(propName);
+      currentValues.push(propsTo[propName]);
     }
 
-    // Start the animation.
-    this._keyframes[0] = propsFrom;
-    this._keyframes[1] = propsTo;
-    this._options.duration = opts.duration || 300;
-    this._options.easing = opts.easing || 'ease';
-    this._animation = this._element.animate(this._keyframes, this._options);
+    // Set up keyframes.
+    var animKeyframes = this._keyframes;
+    animKeyframes[0] = propsFrom;
+    animKeyframes[1] = propsTo;
 
-    // Bind animation finish callback.
-    this._animation.onfinish = this._onFinish;
+    // Set up options.
+    var animOptions = this._options;
+    animOptions.duration = opts.duration || 300;
+    animOptions.easing = opts.easing || 'ease';
 
-    // Set the end styles.
-    setStyles(this._element, propsTo);
+    // Start the animation
+    var element = this._element;
+    animation = element.animate(animKeyframes, animOptions);
+    animation.onfinish = this._onFinish;
+    this._animation = animation;
+
+    // Set the end styles. This makes sure that the element stays at the end
+    // values after animation is finished.
+    setStyles(element, propsTo);
   };
 
   /**
@@ -409,13 +412,35 @@
    *
    * @public
    * @memberof ItemAnimate.prototype
-   * @param {Object} [currentStyles]
+   * @param {Object} [styles]
    */
-  ItemAnimate.prototype.stop = function(currentStyles) {
+  ItemAnimate.prototype.stop = function(styles) {
     if (this._isDestroyed || !this._animation) return;
-    setStyles(this._element, currentStyles || getCurrentStyles(this._element, this._propsTo));
+
+    var element = this._element;
+    var currentProps = this._props;
+    var currentValues = this._values;
+    var propName;
+    var propValue;
+    var i;
+
+    // Calculate (if not provided) and set styles.
+    if (!styles) {
+      for (i = 0; i < currentProps.length; i++) {
+        propName = currentProps[i];
+        propValue = getStyle(element, getStyleName(propName));
+        element.style[propName === 'transform' ? transformProp : propName] = propValue;
+      }
+    } else {
+      setStyles(element, styles);
+    }
+
+    //  Cancel animation.
     this._animation.cancel();
-    this._animation = this._propsTo = this._callback = null;
+    this._animation = this._callback = null;
+
+    // Reset current props and values.
+    currentProps.length = currentValues.length = 0;
   };
 
   /**
@@ -438,7 +463,7 @@
   ItemAnimate.prototype.destroy = function() {
     if (this._isDestroyed) return;
     this.stop();
-    this._item = this._element = this._options = this._keyframes = null;
+    this._element = this._options = this._keyframes = null;
     this._isDestroyed = true;
   };
 
@@ -455,7 +480,8 @@
    */
   ItemAnimate.prototype._onFinish = function() {
     var callback = this._callback;
-    this._animation = this._propsTo = this._callback = null;
+    this._animation = this._callback = null;
+    this._props.length = this._values.length = 0;
     callback && callback();
   };
 
@@ -3125,6 +3151,21 @@
   };
 
   /**
+   * Get current values of the provided styles definition object.
+   *
+   * @param {HTMLElement} element
+   * @param {Object} styles
+   * @return {Object}
+   */
+  function getCurrentStyles(element, styles) {
+    var current = {};
+    for (var prop in styles) {
+      current[prop] = getStyle(element, getStyleName(prop));
+    }
+    return current;
+  }
+
+  /**
    * Visibility manager for Item instance.
    *
    * @class
@@ -3474,8 +3515,8 @@
     element.style[transformProp] = getTranslateString(0, 0);
 
     // Initiate item's animation controllers.
-    this._animate = new ItemAnimate(this, element);
-    this._animateChild = new ItemAnimate(this, this._child);
+    this._animate = new ItemAnimate(element);
+    this._animateChild = new ItemAnimate(this._child);
 
     // Setup visibility handler.
     this._visibility = new ItemVisibility(this);

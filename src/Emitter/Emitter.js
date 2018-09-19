@@ -13,7 +13,7 @@
 function Emitter() {
   this._events = {};
   this._queue = [];
-  this._processCount = 0;
+  this._counter = 0;
   this._isDestroyed = false;
 }
 
@@ -109,14 +109,13 @@ Emitter.prototype.off = function(event, listener) {
 Emitter.prototype.emit = function(event, arg1, arg2, arg3) {
   if (this._isDestroyed) return this;
 
-  // Get event listeners and quite early if there's none.
+  // Get event listeners and quit early if there's no listeners.
   var listeners = this._events[event];
   if (!listeners || !listeners.length) return this;
 
   var queue = this._queue;
-  var queueLength = queue.length;
-  var argsLength = arguments.length - 1;
-  var queueNewLength;
+  var qLength = queue.length;
+  var aLength = arguments.length - 1;
   var i;
 
   // Add the current listeners to the callback queue before we process them.
@@ -127,35 +126,29 @@ Emitter.prototype.emit = function(event, arg1, arg2, arg3) {
     queue.push(listeners[i]);
   }
 
-  // Get queue's new length.
-  queueNewLength = queue.length;
-
   // Increment queue counter. This is needed for the scenarios where emit is
   // triggered while the queue is already processing. We need to keep track of
   // how many "queue processors" there are active so that we can safely reset
   // the queue in the end when the last queue processor is finished.
-  ++this._processCount;
+  ++this._counter;
 
   // Process the queue (the specific part of it for this emit).
-  for (i = queueLength; i < queueNewLength; i++) {
+  for (i = qLength, qLength = queue.length; i < qLength; i++) {
     // prettier-ignore
-    argsLength === 0 ? queue[i]() :
-    argsLength === 1 ? queue[i](arg1) :
-    argsLength === 2 ? queue[i](arg1, arg2) :
-                       queue[i](arg1, arg2, arg3);
+    aLength === 0 ? queue[i]() :
+    aLength === 1 ? queue[i](arg1) :
+    aLength === 2 ? queue[i](arg1, arg2) :
+                    queue[i](arg1, arg2, arg3);
 
-    // Let's always make sure after the callback that the emitter is still
-    // alive (not destroyed). We want to stop processing asap when the emitter
-    // is destroyed.
+    // Stop processing if the emitter is destroyed.
     if (this._isDestroyed) return this;
   }
 
-  // Decrement queue counter.
-  --this._processCount;
+  // Decrement queue process counter.
+  --this._counter;
 
-  // If there are no more queues processing and there were no new items were
-  // added to the queue during processing let's reset the queue.
-  if (!this._processCount && queueNewLength === queue.length) queue.length = 0;
+  // Reset the queue if there are no more queue processes running.
+  if (!this._counter) queue.length = 0;
 
   return this;
 };
@@ -177,7 +170,7 @@ Emitter.prototype.destroy = function() {
   this._isDestroyed = true;
 
   // Reset queue (if queue is currently processing this will also stop that).
-  this._queue.length = this._processCount = 0;
+  this._queue.length = this._counter = 0;
 
   // Remove all listeners.
   for (event in events) {

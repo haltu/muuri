@@ -1,6 +1,6 @@
 
 /**
- * Muuri v0.6.3
+ * Muuri v0.7.0
  * https://github.com/haltu/muuri
  * Copyright (c) 2015-present, Haltu Oy
  * Released under the MIT license
@@ -60,7 +60,7 @@
   function Emitter() {
     this._events = {};
     this._queue = [];
-    this._processCount = 0;
+    this._counter = 0;
     this._isDestroyed = false;
   }
 
@@ -156,14 +156,13 @@
   Emitter.prototype.emit = function(event, arg1, arg2, arg3) {
     if (this._isDestroyed) return this;
 
-    // Get event listeners and quite early if there's none.
+    // Get event listeners and quit early if there's no listeners.
     var listeners = this._events[event];
     if (!listeners || !listeners.length) return this;
 
     var queue = this._queue;
-    var queueLength = queue.length;
-    var argsLength = arguments.length - 1;
-    var queueNewLength;
+    var qLength = queue.length;
+    var aLength = arguments.length - 1;
     var i;
 
     // Add the current listeners to the callback queue before we process them.
@@ -174,35 +173,29 @@
       queue.push(listeners[i]);
     }
 
-    // Get queue's new length.
-    queueNewLength = queue.length;
-
     // Increment queue counter. This is needed for the scenarios where emit is
     // triggered while the queue is already processing. We need to keep track of
     // how many "queue processors" there are active so that we can safely reset
     // the queue in the end when the last queue processor is finished.
-    ++this._processCount;
+    ++this._counter;
 
     // Process the queue (the specific part of it for this emit).
-    for (i = queueLength; i < queueNewLength; i++) {
+    for (i = qLength, qLength = queue.length; i < qLength; i++) {
       // prettier-ignore
-      argsLength === 0 ? queue[i]() :
-      argsLength === 1 ? queue[i](arg1) :
-      argsLength === 2 ? queue[i](arg1, arg2) :
-                         queue[i](arg1, arg2, arg3);
+      aLength === 0 ? queue[i]() :
+      aLength === 1 ? queue[i](arg1) :
+      aLength === 2 ? queue[i](arg1, arg2) :
+                      queue[i](arg1, arg2, arg3);
 
-      // Let's always make sure after the callback that the emitter is still
-      // alive (not destroyed). We want to stop processing asap when the emitter
-      // is destroyed.
+      // Stop processing if the emitter is destroyed.
       if (this._isDestroyed) return this;
     }
 
-    // Decrement queue counter.
-    --this._processCount;
+    // Decrement queue process counter.
+    --this._counter;
 
-    // If there are no more queues processing and there were no new items were
-    // added to the queue during processing let's reset the queue.
-    if (!this._processCount && queueNewLength === queue.length) queue.length = 0;
+    // Reset the queue if there are no more queue processes running.
+    if (!this._counter) queue.length = 0;
 
     return this;
   };
@@ -224,7 +217,7 @@
     this._isDestroyed = true;
 
     // Reset queue (if queue is currently processing this will also stop that).
-    this._queue.length = this._processCount = 0;
+    this._queue.length = this._counter = 0;
 
     // Remove all listeners.
     for (event in events) {
@@ -274,6 +267,8 @@
     return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
   }
 
+  var styleNameRegEx = /([A-Z])/g;
+
   /**
    * Transforms a camel case style property to kebab case style property.
    *
@@ -281,22 +276,7 @@
    * @returns {String}
    */
   function getStyleName(string) {
-    return string.replace(/([A-Z])/g, '-$1').toLowerCase();
-  }
-
-  /**
-   * Get current values of the provided styles definition object.
-   *
-   * @param {HTMLElement} element
-   * @param {Object} styles
-   * @return {Object}
-   */
-  function getCurrentStyles(element, styles) {
-    var current = {};
-    for (var prop in styles) {
-      current[prop] = getStyle(element, getStyleName(prop));
-    }
-    return current;
+    return string.replace(styleNameRegEx, '-$1').toLowerCase();
   }
 
   /**
@@ -315,15 +295,14 @@
    * Item animation handler powered by Web Animations API.
    *
    * @class
-   * @param {Item} item
    * @param {HTMLElement} element
    */
-  function ItemAnimate(item, element) {
-    this._item = item;
+  function ItemAnimate(element) {
     this._element = element;
     this._animation = null;
-    this._propsTo = null;
     this._callback = null;
+    this._props = [];
+    this._values = [];
     this._keyframes = [];
     this._options = {};
     this._isDestroyed = false;
@@ -351,57 +330,74 @@
   ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
     if (this._isDestroyed) return;
 
+    var animation = this._animation;
+    var currentProps = this._props;
+    var currentValues = this._values;
     var opts = options || 0;
-    var callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
-    var shouldStop = false;
-    var propName;
+    var cancelAnimation = false;
 
-    // If we have an ongoing animation.
-    if (this._animation) {
-      // Check if we should stop the current animation. Here basically just test
-      // that is the new animation animating to the same props with same values
-      // as the current animation. Note that this is not currently checking the
-      // scenario where the current animation has matching props and values to
-      // the new animation and also has some extra props.
-      for (propName in propsTo) {
-        if (propsTo[propName] !== this._propsTo[propName]) {
-          shouldStop = true;
+    // If we have an existing animation running, let's check if it needs to be
+    // cancelled or if it can continue running.
+    if (animation) {
+      var propCount = 0;
+      var propIndex;
+
+      // Check if the requested animation target props and values match with the
+      // current props and values.
+      for (var propName in propsTo) {
+        ++propCount;
+        propIndex = currentProps.indexOf(propName);
+        if (propIndex === -1 || propsTo[propName] !== currentValues[propIndex]) {
+          cancelAnimation = true;
           break;
         }
       }
 
-      // Let's cancel the ongoing animation if needed.
-      if (shouldStop) {
-        this._animation.cancel();
-      }
-      // Otherwise let's just change the callback and quit early.
-      else {
-        this._callback = callback;
-        return;
+      // Check if the target props count matches current props count. This is
+      // needed for the edge case scenario where target props contain the same
+      // styles as current props, but the current props have some additional
+      // props.
+      if (!cancelAnimation && propCount !== currentProps.length) {
+        cancelAnimation = true;
       }
     }
 
-    // Store callback.
-    this._callback = callback;
+    // Cancel animation (if required).
+    if (cancelAnimation) animation.cancel();
 
-    // Store target props (copy to guard against mutation).
-    this._propsTo = {};
+    // Store animation callback.
+    this._callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
+
+    // If we have a running animation that does not need to be cancelled, let's
+    // call it a day here and let it run.
+    if (animation && !cancelAnimation) return;
+
+    // Store target props and values to instance.
+    currentProps.length = currentValues.length = 0;
     for (propName in propsTo) {
-      this._propsTo[propName] = propsTo[propName];
+      currentProps.push(propName);
+      currentValues.push(propsTo[propName]);
     }
 
-    // Start the animation.
-    this._keyframes[0] = propsFrom;
-    this._keyframes[1] = propsTo;
-    this._options.duration = opts.duration || 300;
-    this._options.easing = opts.easing || 'ease';
-    this._animation = this._element.animate(this._keyframes, this._options);
+    // Set up keyframes.
+    var animKeyframes = this._keyframes;
+    animKeyframes[0] = propsFrom;
+    animKeyframes[1] = propsTo;
 
-    // Bind animation finish callback.
-    this._animation.onfinish = this._onFinish;
+    // Set up options.
+    var animOptions = this._options;
+    animOptions.duration = opts.duration || 300;
+    animOptions.easing = opts.easing || 'ease';
 
-    // Set the end styles.
-    setStyles(this._element, propsTo);
+    // Start the animation
+    var element = this._element;
+    animation = element.animate(animKeyframes, animOptions);
+    animation.onfinish = this._onFinish;
+    this._animation = animation;
+
+    // Set the end styles. This makes sure that the element stays at the end
+    // values after animation is finished.
+    setStyles(element, propsTo);
   };
 
   /**
@@ -409,13 +405,35 @@
    *
    * @public
    * @memberof ItemAnimate.prototype
-   * @param {Object} [currentStyles]
+   * @param {Object} [styles]
    */
-  ItemAnimate.prototype.stop = function(currentStyles) {
+  ItemAnimate.prototype.stop = function(styles) {
     if (this._isDestroyed || !this._animation) return;
-    setStyles(this._element, currentStyles || getCurrentStyles(this._element, this._propsTo));
+
+    var element = this._element;
+    var currentProps = this._props;
+    var currentValues = this._values;
+    var propName;
+    var propValue;
+    var i;
+
+    // Calculate (if not provided) and set styles.
+    if (!styles) {
+      for (i = 0; i < currentProps.length; i++) {
+        propName = currentProps[i];
+        propValue = getStyle(element, getStyleName(propName));
+        element.style[propName === 'transform' ? transformProp : propName] = propValue;
+      }
+    } else {
+      setStyles(element, styles);
+    }
+
+    //  Cancel animation.
     this._animation.cancel();
-    this._animation = this._propsTo = this._callback = null;
+    this._animation = this._callback = null;
+
+    // Reset current props and values.
+    currentProps.length = currentValues.length = 0;
   };
 
   /**
@@ -438,7 +456,7 @@
   ItemAnimate.prototype.destroy = function() {
     if (this._isDestroyed) return;
     this.stop();
-    this._item = this._element = this._options = this._keyframes = null;
+    this._element = this._options = this._keyframes = null;
     this._isDestroyed = true;
   };
 
@@ -455,7 +473,8 @@
    */
   ItemAnimate.prototype._onFinish = function() {
     var callback = this._callback;
-    this._animation = this._propsTo = this._callback = null;
+    this._animation = this._callback = null;
+    this._props.length = this._values.length = 0;
     callback && callback();
   };
 
@@ -578,6 +597,43 @@
   };
 
   var ticker = new Ticker();
+
+  var layoutTick = 'layout';
+  var visibilityTick = 'visibility';
+  var moveTick = 'move';
+  var scrollTick = 'scroll';
+
+  function addLayoutTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + layoutTick, readCallback, writeCallback);
+  }
+
+  function cancelLayoutTick(itemId) {
+    return ticker.cancel(itemId + layoutTick);
+  }
+
+  function addVisibilityTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + visibilityTick, readCallback, writeCallback);
+  }
+
+  function cancelVisibilityTick(itemId) {
+    return ticker.cancel(itemId + visibilityTick);
+  }
+
+  function addMoveTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + moveTick, readCallback, writeCallback, true);
+  }
+
+  function cancelMoveTick(itemId) {
+    return ticker.cancel(itemId + moveTick);
+  }
+
+  function addScrollTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + scrollTick, readCallback, writeCallback, true);
+  }
+
+  function cancelScrollTick(itemId) {
+    return ticker.cancel(itemId + scrollTick);
+  }
 
   var proto = Element.prototype;
   var matches =
@@ -1345,8 +1401,9 @@
       return this;
     }
 
-    // Cancel raf loop actions.
-    this._cancelAsyncUpdates();
+    // Cancel queued move and scroll ticks.
+    cancelMoveTick(item._id);
+    cancelScrollTick(item._id);
 
     // Remove scroll listeners.
     this._unbindScrollListeners();
@@ -1826,18 +1883,6 @@
   };
 
   /**
-   * Cancel move/scroll event ticker action.
-   *
-   * @private
-   * @memberof ItemDrag.prototype
-   */
-  ItemDrag.prototype._cancelAsyncUpdates = function() {
-    var id = this._item._id;
-    ticker.cancel(id + 'move');
-    ticker.cancel(id + 'scroll');
-  };
-
-  /**
    * Drag start handler.
    *
    * @private
@@ -1972,7 +2017,7 @@
     }
 
     // Do move prepare/apply handling in the next tick.
-    ticker.add(item._id + 'move', this._prepareMove, this._applyMove, true);
+    addMoveTick(item._id, this._prepareMove, this._applyMove);
   };
 
   /**
@@ -2028,7 +2073,7 @@
     this._lastScrollEvent = event;
 
     // Do scroll prepare/apply handling in the next tick.
-    ticker.add(item._id + 'scroll', this._prepareScroll, this._applyScroll, true);
+    addScrollTick(item._id, this._prepareScroll, this._applyScroll);
   };
 
   /**
@@ -2117,8 +2162,9 @@
       return;
     }
 
-    // Cancel ticker actions.
-    this._cancelAsyncUpdates();
+    // Cancel queued move and scroll ticks.
+    cancelMoveTick(item._id);
+    cancelScrollTick(item._id);
 
     // Finish currently queued overlap check.
     settings.dragSort && this._checkOverlapDebounce('finish');
@@ -2472,7 +2518,6 @@
 
     var item = this._item;
     var element = item._element;
-    var migrate = item._migrate;
     var release = item._release;
     var gridSettings = item.getGrid()._settings;
     var isPositioning = this._isActive;
@@ -2482,8 +2527,6 @@
       : gridSettings.layoutDuration;
     var animEasing = isJustReleased ? gridSettings.dragReleaseEasing : gridSettings.layoutEasing;
     var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
-    var offsetLeft;
-    var offsetTop;
     var isAnimating;
 
     // If the item is currently positioning process current layout callback
@@ -2496,26 +2539,11 @@
     // Push the callback to the callback queue.
     if (typeof onFinish === 'function') this._queue.add(onFinish);
 
-    // Get item container's left offset.
-    offsetLeft = release._isActive
-      ? release._containerDiffX
-      : migrate._isActive
-        ? migrate._containerDiffX
-        : 0;
-
-    // Get item container's top offset.
-    offsetTop = release._isActive
-      ? release._containerDiffY
-      : migrate._isActive
-        ? migrate._containerDiffY
-        : 0;
-
-    // Get target styles.
-    this._targetStyles.transform = getTranslateString(item._left + offsetLeft, item._top + offsetTop);
-
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
-      isPositioning && ticker.cancel(item._id);
+      this._updateOffsets();
+      this._updateTargetStyles();
+      isPositioning && cancelLayoutTick(item._id);
       isAnimating = item._animate.isAnimating();
       this.stop(false, this._targetStyles);
       !isAnimating && setStyles(element, this._targetStyles);
@@ -2529,11 +2557,9 @@
     this._animateOptions.easing = animEasing;
     this._animateOptions.duration = animDuration;
     this._isInterrupted = isPositioning;
-    this._offsetLeft = offsetLeft;
-    this._offsetTop = offsetTop;
 
     // Start the item's layout animation in the next tick.
-    ticker.add(item._id, this._setupAnimation, this._startAnimation);
+    addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
 
     return this;
   };
@@ -2553,7 +2579,7 @@
     var item = this._item;
 
     // Cancel animation init.
-    ticker.cancel(item._id);
+    cancelLayoutTick(item._id);
 
     // Stop animation.
     item._animate.stop(targetStyles);
@@ -2592,6 +2618,49 @@
    */
 
   /**
+   * Calculate and update item's current layout offset data.
+   *
+   * @private
+   * @memberof ItemLayout.prototype
+   */
+  ItemLayout.prototype._updateOffsets = function() {
+    if (this._isDestroyed) return;
+
+    var item = this._item;
+    var migrate = item._migrate;
+    var release = item._release;
+
+    this._offsetLeft = release._isActive
+      ? release._containerDiffX
+      : migrate._isActive
+        ? migrate._containerDiffX
+        : 0;
+
+    this._offsetTop = release._isActive
+      ? release._containerDiffY
+      : migrate._isActive
+        ? migrate._containerDiffY
+        : 0;
+  };
+
+  /**
+   * Calculate and update item's layout target styles.
+   *
+   * @private
+   * @memberof ItemLayout.prototype
+   */
+  ItemLayout.prototype._updateTargetStyles = function() {
+    if (this._isDestroyed) return;
+
+    var item = this._item;
+
+    this._targetStyles.transform = getTranslateString(
+      item._left + this._offsetLeft,
+      item._top + this._offsetTop
+    );
+  };
+
+  /**
    * Finish item layout procedure.
    *
    * @private
@@ -2627,8 +2696,8 @@
   ItemLayout.prototype._setupAnimation = function() {
     var element = this._item._element;
     var translate = getTranslate(element);
-    this._currentLeft = translate.x - this._offsetLeft;
-    this._currentTop = translate.y - this._offsetTop;
+    this._currentLeft = translate.x;
+    this._currentTop = translate.y;
   };
 
   /**
@@ -2643,9 +2712,16 @@
     var grid = item.getGrid();
     var settings = grid._settings;
 
+    // Let's update the offset data and target styles.
+    this._updateOffsets();
+    this._updateTargetStyles();
+
     // If the item is already in correct position let's quit early.
-    if (item._left === this._currentLeft && item._top === this._currentTop) {
-      this._isInterrupted && this.stop(false, this._targetStyles);
+    if (
+      item._left === this._currentLeft - this._offsetLeft &&
+      item._top === this._currentTop - this._offsetTop
+    ) {
+      if (this._isInterrupted) this.stop(false, this._targetStyles);
       this._isActive = false;
       this._finish();
       return;
@@ -2655,10 +2731,7 @@
     !this._isInterrupted && addClass(element, settings.itemPositioningClass);
 
     // Get current styles for animation.
-    this._currentStyles.transform = getTranslateString(
-      this._currentLeft + this._offsetLeft,
-      this._currentTop + this._offsetTop
-    );
+    this._currentStyles.transform = getTranslateString(this._currentLeft, this._currentTop);
 
     // Animate.
     item._animate.start(this._currentStyles, this._targetStyles, this._animateOptions);
@@ -3071,6 +3144,21 @@
   };
 
   /**
+   * Get current values of the provided styles definition object.
+   *
+   * @param {HTMLElement} element
+   * @param {Object} styles
+   * @return {Object}
+   */
+  function getCurrentStyles(element, styles) {
+    var current = {};
+    for (var prop in styles) {
+      current[prop] = getStyle(element, getStyleName(prop));
+    }
+    return current;
+  }
+
+  /**
    * Visibility manager for Item instance.
    *
    * @class
@@ -3285,8 +3373,8 @@
       return;
     }
 
-    // Let's reset item's visibility ticker.
-    ticker.cancel(item._id + 'visibility');
+    // Cancel queued visibility tick.
+    cancelVisibilityTick(item._id);
 
     // If we need to apply the styles instantly without animation.
     if (isInstant) {
@@ -3299,9 +3387,9 @@
       return;
     }
 
-    // Animate.
-    ticker.add(
-      item._id + 'visibility',
+    // Start the animation in the next tick (to avoid layout thrashing).
+    addVisibilityTick(
+      item._id,
       function() {
         currentStyles = getCurrentStyles(item._child, targetStyles);
       },
@@ -3325,7 +3413,7 @@
   ItemVisibility.prototype._stopAnimation = function(targetStyles) {
     if (this._isDestroyed) return;
     var item = this._item;
-    ticker.cancel(item._id);
+    cancelVisibilityTick(item._id);
     item._animateChild.stop(targetStyles);
   };
 
@@ -3420,8 +3508,8 @@
     element.style[transformProp] = getTranslateString(0, 0);
 
     // Initiate item's animation controllers.
-    this._animate = new ItemAnimate(this, element);
-    this._animateChild = new ItemAnimate(this, this._child);
+    this._animate = new ItemAnimate(element);
+    this._animateChild = new ItemAnimate(this._child);
 
     // Setup visibility handler.
     this._visibility = new ItemVisibility(this);
@@ -3710,19 +3798,22 @@
    * @class
    */
   function Packer() {
-    this._layout = {
-      slots: [],
-      slotSizes: [],
-      setWidth: false,
-      setHeight: false,
-      width: false,
-      height: false
-    };
+    this._slots = [];
+    this._slotSizes = [];
     this._freeSlots = [];
     this._newSlots = [];
     this._rectItem = {};
     this._rectStore = [];
     this._rectId = 0;
+
+    // The layout return data, which will be populated in getLayout.
+    this._layout = {
+      slots: null,
+      setWidth: false,
+      setHeight: false,
+      width: false,
+      height: false
+    };
 
     // Bind sort handlers.
     this._sortRectsLeftTop = this._sortRectsLeftTop.bind(this);
@@ -3735,6 +3826,7 @@
    * @param {Item[]} items
    * @param {Number} width
    * @param {Number} height
+   * @param {Number[]} [slots]
    * @param {Object} [options]
    * @param {Boolean} [options.fillGaps=false]
    * @param {Boolean} [options.horizontal=false]
@@ -3742,45 +3834,51 @@
    * @param {Boolean} [options.alignBottom=false]
    * @returns {LayoutData}
    */
-  Packer.prototype.getLayout = function(items, width, height, options) {
+  Packer.prototype.getLayout = function(items, width, height, slots, options) {
     var layout = this._layout;
     var fillGaps = !!(options && options.fillGaps);
     var isHorizontal = !!(options && options.horizontal);
     var alignRight = !!(options && options.alignRight);
     var alignBottom = !!(options && options.alignBottom);
     var rounding = !!(options && options.rounding);
+    var slotSizes = this._slotSizes;
     var i;
 
     // Reset layout data.
-    layout.slots.length = layout.slotSizes.length = 0;
+    layout.slots = slots ? slots : this._slots;
     layout.width = isHorizontal ? 0 : rounding ? Math.round(width) : width;
     layout.height = !isHorizontal ? 0 : rounding ? Math.round(height) : height;
     layout.setWidth = isHorizontal;
     layout.setHeight = !isHorizontal;
+
+    // Make sure slots and slot size arrays are reset.
+    layout.slots.length = 0;
+    slotSizes.length = 0;
 
     // No need to go further if items do not exist.
     if (!items.length) return layout;
 
     // Find slots for items.
     for (i = 0; i < items.length; i++) {
-      this._addSlot(items[i], isHorizontal, fillGaps, rounding);
+      this._addSlot(items[i], isHorizontal, fillGaps, rounding, alignRight || alignBottom);
     }
 
     // If the alignment is set to right we need to adjust the results.
     if (alignRight) {
       for (i = 0; i < layout.slots.length; i = i + 2) {
-        layout.slots[i] = layout.width - (layout.slots[i] + layout.slotSizes[i]);
+        layout.slots[i] = layout.width - (layout.slots[i] + slotSizes[i]);
       }
     }
 
     // If the alignment is set to bottom we need to adjust the results.
     if (alignBottom) {
       for (i = 1; i < layout.slots.length; i = i + 2) {
-        layout.slots[i] = layout.height - (layout.slots[i] + layout.slotSizes[i]);
+        layout.slots[i] = layout.height - (layout.slots[i] + slotSizes[i]);
       }
     }
 
     // Reset slots arrays and rect id.
+    slotSizes.length = 0;
     this._freeSlots.length = 0;
     this._newSlots.length = 0;
     this._rectId = 0;
@@ -3803,7 +3901,7 @@
   Packer.prototype._addSlot = (function() {
     var leeway = 0.001;
     var itemSlot = {};
-    return function(item, isHorizontal, fillGaps, rounding) {
+    return function(item, isHorizontal, fillGaps, rounding, trackSize) {
       var layout = this._layout;
       var freeSlots = this._freeSlots;
       var newSlots = this._newSlots;
@@ -3941,9 +4039,9 @@
       }
 
       // Add item slot data to layout slots (and store the slot size for later
-      // usage too).
+      // usage too if necessary).
       layout.slots.push(itemSlot.left, itemSlot.top);
-      layout.slotSizes.push(itemSlot.width, itemSlot.height);
+      if (trackSize) this._slotSizes.push(itemSlot.width, itemSlot.height);
 
       // Free/new slots switcheroo!
       this._freeSlots = newSlots;
@@ -5047,13 +5145,12 @@
       var result = sortComparer(a, b);
       // If descending let's invert the result value.
       if (isDescending && result) result = -result;
-      // If values are equal let's compare the item indices to make sure we
-      // have a stable sort.
-      if (!result) {
-        if (!indexMap) indexMap = getIndexMap(origItems);
-        result = compareIndices(a, b);
-      }
-      return result;
+      // If we have a valid result (not zero) let's return it right away.
+      if (result) return result;
+      // If result is zero let's compare the item indices to make sure we have a
+      // stable sort.
+      if (!indexMap) indexMap = getIndexMap(origItems);
+      return compareIndices(a, b);
     }
 
     return function(comparer, options) {
@@ -5326,6 +5423,9 @@
   Grid.prototype._updateLayout = function() {
     var layout = this._layout;
     var settings = this._settings.layout;
+    var width;
+    var height;
+    var newLayout;
     var i;
 
     // Let's increment layout id.
@@ -5341,21 +5441,18 @@
     this._refreshDimensions();
 
     // Calculate container width and height (without borders).
-    var width = this._width - this._borderLeft - this._borderRight;
-    var height = this._height - this._borderTop - this._borderBottom;
+    width = this._width - this._borderLeft - this._borderRight;
+    height = this._height - this._borderTop - this._borderBottom;
 
     // Calculate new layout.
-    var newLayout =
-      typeof settings === 'function'
-        ? settings(layout.items.slice(0), width, height)
-        : packer.getLayout(layout.items, width, height, settings);
+    if (typeof settings === 'function') {
+      newLayout = settings(layout.items, width, height);
+    } else {
+      newLayout = packer.getLayout(layout.items, width, height, layout.slots, settings);
+    }
 
     // Let's update the grid's layout.
-    /**
-     * @todo Instead of slicing create a slots array for each grid and provide
-     * that to the `packer.getLayout` method, which in turn can populate it.
-     */
-    layout.slots = newLayout.slots.slice(0);
+    layout.slots = newLayout.slots;
     layout.setWidth = Boolean(newLayout.setWidth);
     layout.setHeight = Boolean(newLayout.setHeight);
     layout.width = newLayout.width;

@@ -51,9 +51,7 @@ export default [
       commonjs(),
       terser({
         output: {
-          comments(node, comment) {
-            return /@license/i.test(comment.value);
-          }
+          comments: 'some'
         }
       })
     ]

@@ -1,6 +1,6 @@
 # Muuri
 
-[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri@0.6.3/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.6.3/dist/muuri.min.js)
+[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri@0.7.0/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.7.0/dist/muuri.min.js)
 [![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
 
 Muuri is a JavaScript layout engine that allows you to build all kinds of layouts and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
@@ -35,13 +35,13 @@ Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web
 ### 1. Get Muuri
 
 Download:
-* [muuri.js](https://unpkg.com/muuri@0.6.3/dist/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://unpkg.com/muuri@0.6.3/dist/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://unpkg.com/muuri@0.7.0/dist/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://unpkg.com/muuri@0.7.0/dist/muuri.min.js) - for production (minified, no comments).
 
 Or link directly:
 
 ```html
-<script src="https://unpkg.com/muuri@0.6.3/dist/muuri.min.js"></script>
+<script src="https://unpkg.com/muuri@0.7.0/dist/muuri.min.js"></script>
 ```
 
 Or install with [npm](https://www.npmjs.com/):
@@ -52,13 +52,13 @@ npm install muuri
 
 ### 2. Get the (optional) dependencies
 
+#### Hammer.js
+
+Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if you need Muuri's dragging capabilities. In other words, if you set [`dragEnabled`](#dragenabled-) option to `true` you need Hammer.js.
+
 #### Web Animations Polyfill
 
 Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations you need to use a [polyfill](https://github.com/web-animations/web-animations-js).
-
-#### Hammer.js
-
-Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if you need Muuri's dragging capabilities.
 
 ### 3. Add the script tags
 
@@ -67,7 +67,7 @@ Add Muuri on your site and make sure to include the optional dependencies (if ne
 ```html
 <script src="https://unpkg.com/web-animations-js@2.3.1/web-animations.min.js"></script>
 <script src="https://unpkg.com/hammerjs@2.0.8/hammer.min.js"></script>
-<script src="https://unpkg.com/muuri@0.6.3/dist/muuri.min.js"></script>
+<script src="https://unpkg.com/muuri@0.7.0/dist/muuri.min.js"></script>
 ```
 
 ### 4. Add the markup

@@ -1,6 +1,6 @@
 {
   "name": "muuri",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Responsive, sortable, filterable and draggable grid layouts.",
   "keywords": [
     "grid",
@@ -28,7 +28,9 @@
     "test-sauce-min": "./node_modules/.bin/gulp test-sauce-min",
     "test-local": "./node_modules/.bin/gulp test-local",
     "test-local-min": "./node_modules/.bin/gulp test-local-min",
-    "build": "./node_modules/.bin/rollup -c",
+    "bundle": "./node_modules/.bin/rollup -c",
+    "minify": "./node_modules/.bin/terser ./dist/muuri.js -o ./dist/muuri.min.js -c -m --comments",
+    "build": "./node_modules/.bin/gulp build",
     "lint": "./node_modules/.bin/gulp lint",
     "format": "./node_modules/.bin/prettier --write ./src/**/*.js",
     "format-test": "./node_modules/.bin/prettier --list-different ./src/**/*.js",
@@ -47,6 +49,7 @@
     "dotenv": "^6.0.0",
     "gulp": "^4.0.0",
     "gulp-eslint": "^5.0.0",
+    "gulp-replace": "^1.0.0",
     "gulp-size": "^3.0.0",
     "hammerjs": "^2.0.8",
     "husky": "^1.0.0-rc.13",
@@ -67,7 +70,7 @@
     "rollup-plugin-commonjs": "^9.1.8",
     "rollup-plugin-node-resolve": "^3.4.0",
     "rollup-plugin-strip-banner": "^0.2.0",
-    "rollup-plugin-terser": "^3.0.0",
+    "terser": "^3.8.2",
     "web-animations-js": "^2.3.1",
     "yargs": "^12.0.2"
   }

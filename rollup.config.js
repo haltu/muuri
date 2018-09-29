@@ -1,11 +1,9 @@
 import resolve from 'rollup-plugin-node-resolve';
 import commonjs from 'rollup-plugin-commonjs';
-import { terser } from 'rollup-plugin-terser';
 import stripBanner from 'rollup-plugin-strip-banner';
 import pkg from './package.json';
 
-const banner = `
-/**
+const banner = `/**
  * Muuri v${pkg.version}
  * ${pkg.homepage}
  * Copyright (c) 2015-present, Haltu Oy
@@ -35,25 +33,5 @@ export default [
       banner: banner
     },
     plugins: [resolve(), commonjs(), stripBanner()]
-  },
-  {
-    external: ['hammerjs'],
-    input: 'src/index.js',
-    output: {
-      name: 'Muuri',
-      file: pkg.main.replace('.js', '.min.js'),
-      format: 'umd',
-      globals: { hammerjs: 'Hammer' },
-      banner: banner
-    },
-    plugins: [
-      resolve(),
-      commonjs(),
-      terser({
-        output: {
-          comments: 'some'
-        }
-      })
-    ]
   }
 ];

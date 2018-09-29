@@ -1,6 +1,5 @@
-
 /**
- * Muuri v0.7.0
+ * Muuri v0.7.1
  * https://github.com/haltu/muuri
  * Copyright (c) 2015-present, Haltu Oy
  * Released under the MIT license
@@ -17,12 +16,15 @@
  */
 
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('hammerjs')) :
-  typeof define === 'function' && define.amd ? define(['hammerjs'], factory) :
-  (global.Muuri = factory(global.Hammer));
-}(this, (function (Hammer) { 'use strict';
-
-  Hammer = Hammer && Hammer.hasOwnProperty('default') ? Hammer['default'] : Hammer;
+  if (typeof exports === 'object' && typeof module !== 'undefined') {
+    var Hammer;
+    try { Hammer = require('hammerjs') } catch (e) {}
+    module.exports = factory(Hammer);
+  } else {
+    global.Muuri = factory(global.Hammer);
+  }
+}(this, (function (Hammer) {
+  'use strict';
 
   var namespace = 'Muuri';
   var gridInstances = {};

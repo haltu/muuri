@@ -6,10 +6,22 @@ const size = require('gulp-size');
 const rimraf = require('rimraf');
 const argv = require('yargs').argv;
 const dotenv = require('dotenv');
+const replace = require('gulp-replace');
 const exec = require('child_process').exec;
 
 const pkg = require('./package.json');
 const karmaDefaults = require('./karma.defaults.js');
+
+const patchedUMD = `(function (global, factory) {
+  if (typeof exports === 'object' && typeof module !== 'undefined') {
+    var Hammer;
+    try { Hammer = require('hammerjs') } catch (e) {}
+    module.exports = factory(Hammer);
+  } else {
+    global.Muuri = factory(global.Hammer);
+  }
+}(this, (function (Hammer) {
+  'use strict';`;
 
 if (fs.existsSync('./.env')) dotenv.load();
 
@@ -156,6 +168,37 @@ gulp.task('format-test', cb => {
     cb(err);
   });
 });
+
+gulp.task('bundle', cb => {
+  exec('npm run bundle', (err, stdout, stderr) => {
+    console.log(stdout);
+    console.log(stderr);
+    cb(err);
+  });
+});
+
+gulp.task('fix-umd', () => {
+  const mainPath = './' + pkg.main;
+  return gulp
+    .src(mainPath, { base: './' })
+    .pipe(replace(/\(function([\s\S]*?)Hammer;/, patchedUMD))
+    .pipe(gulp.dest('./'));
+});
+
+gulp.task('minify', cb => {
+  exec('npm run minify', (err, stdout, stderr) => {
+    console.log(stdout);
+    console.log(stderr);
+    cb(err);
+  });
+});
+
+gulp.task(
+  'build',
+  gulp.series('bundle', 'fix-umd', 'minify', done => {
+    done();
+  })
+);
 
 gulp.task(
   'pre-commit',

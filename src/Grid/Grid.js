@@ -296,7 +296,8 @@ Grid.defaultOptions = {
   itemHiddenClass: 'muuri-item-hidden',
   itemPositioningClass: 'muuri-item-positioning',
   itemDraggingClass: 'muuri-item-dragging',
-  itemReleasingClass: 'muuri-item-releasing'
+  itemReleasingClass: 'muuri-item-releasing',
+  itemDragPlaceholderClass: 'muuri-item-placeholder'
 };
 
 /**

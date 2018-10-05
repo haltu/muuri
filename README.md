@@ -130,6 +130,11 @@ Add Muuri on your site and make sure to include the optional dependencies (if ne
 .item.muuri-item-hidden {
   z-index: 0;
 }
+.grid.muuri-item-placeholder {
+  background-color: rgba(0,0,0,0.23);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+  z-index: 0;
+}
 .item-content {
   position: relative;
   width: 100%;
@@ -292,6 +297,7 @@ var gridB = new Muuri('.grid-b', {
 * [itemPositioningClass](#itempositioningclass-)
 * [itemDraggingClass](#itemdraggingclass-)
 * [itemReleasingClass](#itemreleasingclass-)
+* [itemDragPlaceholderClass](#itemdragplaceholderclass-)
 
 ### items &nbsp;
 
@@ -970,6 +976,19 @@ This class name will be added to the item element for the duration of release.
 ```javascript
 var grid = new Muuri(elem, {
   itemReleasingClass: 'foo-item-releasing'
+});
+```
+
+### itemDragPlaceholderClass &nbsp;
+
+This class name will be added to the item element for the duration of release.
+
+* Default value: `'muuri-item-placeholder'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  itemReleasingClass: 'foo-item-placeholder'
 });
 ```
 

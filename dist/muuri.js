@@ -681,6 +681,237 @@
   var addClass = ('classList' in Element.prototype ? addClassModern : addClassLegacy);
 
   /**
+   * Transform translateX and translateY value into CSS transform style
+   * property's value.
+   *
+   * @param {Number} x
+   * @param {Number} y
+   * @returns {String}
+   */
+  function getTranslateString(x, y) {
+    return 'translateX(' + x + 'px) translateY(' + y + 'px) translateZ(0px)';
+  }
+
+  var translateData = {};
+
+  /**
+   * Returns the element's computed translateX and translateY values as a floats.
+   * The returned object is always the same object and updated every time this
+   * function is called.
+   *
+   * @param {HTMLElement} element
+   * @returns {Object}
+   */
+  function getTranslate(element) {
+    translateData.x = 0;
+    translateData.y = 0;
+
+    var transform = getStyle(element, 'transform');
+    if (!transform) return translateData;
+
+    var matrixData = transform.replace('matrix(', '').split(',');
+    translateData.x = parseFloat(matrixData[4]) || 0;
+    translateData.y = parseFloat(matrixData[5]) || 0;
+
+    return translateData;
+  }
+
+  /**
+   * ItemDragPlaceholder
+   * *******************
+   */
+
+  function ItemDragPlaceholder(item) {
+    var inst = this;
+    var grid = item.getGrid();
+
+    inst._grid = inst._nextGrid = grid;
+    inst._item = item;
+
+    inst._onLayout = function() {
+      inst.layout();
+    };
+
+    inst._onDrag = function(item) {
+      // Create placeholder if necessary.
+      if (!inst._element && item._id === inst._item._id) {
+        inst.create();
+      }
+    };
+
+    inst._onDragEnd = function(item) {
+      if (item._id === inst._item._id) {
+        // Remove DOM node.
+        inst._element.parentNode.removeChild(inst._element);
+        // Destroy animation.
+        inst._animate.destroy();
+
+        inst._element = inst._animate = null;
+      }
+    };
+
+    inst._onMigrate = function(data) {
+      if (data.item === item) {
+        // Unbind previous listeners.
+        grid.off(eventDragInit, inst._onDrag);
+        grid.off(eventDragReleaseEnd, inst._onDragEnd);
+        grid.off(eventLayoutStart, inst._onLayout);
+        grid.off(eventBeforeSend, inst._onMigrate);
+        // Update grid reference.
+        inst._nextGrid = grid = data.toGrid;
+        // Bind new listeners.
+        grid.on(eventDragInit, inst._onDrag);
+        grid.on(eventDragReleaseEnd, inst._onDragEnd);
+        grid.on(eventLayoutStart, inst._onLayout);
+        grid.on(eventBeforeSend, inst._onMigrate);
+      }
+    };
+
+    // Bind initial event listeners.
+    grid.on(eventDragInit, inst._onDrag);
+    grid.on(eventDragReleaseEnd, inst._onDragEnd);
+    grid.on(eventLayoutStart, inst._onLayout);
+    grid.on(eventBeforeSend, inst._onMigrate);
+  }
+
+  /**
+   * Create placeholder.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @returns {ItemDragPlaceholder}
+   */
+  ItemDragPlaceholder.prototype.create = function() {
+    var inst = this;
+    var itemElement = inst._item.getElement();
+    var nextLeft = inst._item._left + inst._item._marginLeft;
+    var nextTop = inst._item._top + inst._item._marginTop;
+    var element = document.createElement('div');
+
+    inst._element = element;
+    inst._animate = new ItemAnimate(inst._element);
+
+    // Add placeholder class to the placeholder element.
+    addClass(element, inst._nextGrid._settings.itemDragPlaceholderClass);
+
+    // Position the placeholder item correctly.
+    setStyles(element, {
+      display: 'block',
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      width: `${inst._item._width}px`,
+      height: `${inst._item._height}px`,
+      transform: getTranslateString(nextLeft, nextTop)
+    });
+
+    // Insert the placeholder element to the grid container before item.
+    inst._nextGrid.getElement().insertBefore(element, itemElement);
+
+    return inst;
+  };
+
+  /**
+   * Move placeholder to the new position.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @returns {ItemDragPlaceholder}
+   */
+  ItemDragPlaceholder.prototype.layout = function() {
+    var inst = this;
+    var grid = inst._grid;
+    var itemId = inst._item._id;
+    var element = inst._element;
+    var nextGrid = inst._nextGrid;
+    var animDuration = grid._settings.layoutDuration;
+    var animEasing = grid._settings.layoutEasing;
+    var animEnabled = animDuration > 0;
+
+    var nextPosition;
+    var i = 0;
+    for (; i < nextGrid._items.length; i += 1) {
+      if (nextGrid._items[i]._id === itemId) {
+        nextPosition = nextGrid._items[i];
+        break;
+      }
+    }
+    if (!nextPosition) {
+      throw new Error("Can't find the associated item");
+    }
+    var nextLeft = nextGrid._layout.slots[i * 2] + nextPosition._marginLeft;
+    var nextTop = nextGrid._layout.slots[i * 2 + 1] + nextPosition._marginTop;
+    var doLayout = inst._item._left !== nextLeft || inst._item._top !== nextTop;
+    var isDragging = inst._item.isDragging();
+
+    // Update data
+    inst._grid = nextGrid;
+
+    // Layout if necessary.
+    if (doLayout && isDragging && inst._element) {
+      // Update width / height
+      setStyles(element, {
+        width: `${inst._item._width}px`,
+        height: `${inst._item._height}px`
+      });
+      // Just set new position if no animation is required.
+      if (!animEnabled) {
+        setStyles(element, {
+          transform: getTranslateString(nextLeft, nextTop)
+        });
+      }
+      // Animate if necessary.
+      else {
+        var current = getTranslate(element);
+        if (current.x !== nextLeft || current.y !== nextTop) {
+          inst._animate.start(
+            {
+              transform: getTranslateString(current.x, current.y)
+            },
+            {
+              transform: getTranslateString(nextLeft, nextTop)
+            },
+            {
+              duration: animDuration,
+              easing: animEasing
+            }
+          );
+        }
+      }
+    }
+
+    return inst;
+  };
+
+  /**
+   * Destroy placeholder instance.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @returns {ItemDragPlaceholder}
+   */
+  ItemDragPlaceholder.prototype.destroy = function() {
+    var inst = this;
+
+    // Unbind events.
+    inst._grid.off(eventLayoutStart, inst._onLayout);
+    inst._grid.off(eventBeforeSend, inst._onMigrate);
+    inst._nextGrid.off(eventLayoutStart, inst._onLayout);
+    inst._nextGrid.off(eventBeforeSend, inst._onMigrate);
+
+    // Destroy animation.
+    inst._animate.destroy();
+
+    // Remove DOM node.
+    inst._element.parentNode.removeChild(inst._element);
+
+    // Reset data.
+    inst._grid = inst._item = inst._element = inst._onLayout = inst._onMigrate = inst._animate = null;
+
+    return inst;
+  };
+
+  /**
    * Normalize array index. Basically this function makes sure that the provided
    * array index is within the bounds of the provided array and also transforms
    * negative index to the matching positive index.
@@ -923,42 +1154,6 @@
     return offsetDiff;
   }
 
-  var translateData = {};
-
-  /**
-   * Returns the element's computed translateX and translateY values as a floats.
-   * The returned object is always the same object and updated every time this
-   * function is called.
-   *
-   * @param {HTMLElement} element
-   * @returns {Object}
-   */
-  function getTranslate(element) {
-    translateData.x = 0;
-    translateData.y = 0;
-
-    var transform = getStyle(element, 'transform');
-    if (!transform) return translateData;
-
-    var matrixData = transform.replace('matrix(', '').split(',');
-    translateData.x = parseFloat(matrixData[4]) || 0;
-    translateData.y = parseFloat(matrixData[5]) || 0;
-
-    return translateData;
-  }
-
-  /**
-   * Transform translateX and translateY value into CSS transform style
-   * property's value.
-   *
-   * @param {Number} x
-   * @param {Number} y
-   * @returns {String}
-   */
-  function getTranslateString(x, y) {
-    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
-  }
-
   var tempArray = [];
 
   /**
@@ -1061,6 +1256,9 @@
     this._item = item;
     this._gridId = grid._id;
     this._hammer = hammer = new Hammer.Manager(element);
+    if (settings.dragPlaceholder) {
+      this._placeholder = new ItemDragPlaceholder(item);
+    }
     this._isDestroyed = false;
     this._isMigrating = false;
 
@@ -1440,6 +1638,7 @@
     if (this._isDestroyed) return this;
     this.stop();
     this._hammer.destroy();
+    if (grid._settings.dragPlaceholder) this._placeholder.destroy();
     this._item._element.removeEventListener('dragstart', preventDefault, false);
     this._isDestroyed = true;
     return this;
@@ -4530,6 +4729,7 @@
       handle: false
     },
     dragAxis: null,
+    dragPlaceholder: false,
     dragSort: true,
     dragSortInterval: 100,
     dragSortPredicate: {
@@ -4549,7 +4749,8 @@
     itemHiddenClass: 'muuri-item-hidden',
     itemPositioningClass: 'muuri-item-positioning',
     itemDraggingClass: 'muuri-item-dragging',
-    itemReleasingClass: 'muuri-item-releasing'
+    itemReleasingClass: 'muuri-item-releasing',
+    itemDragPlaceholderClass: 'muuri-item-placeholder'
   };
 
   /**

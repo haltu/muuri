@@ -88,7 +88,9 @@ function ItemDrag(item) {
   this._item = item;
   this._gridId = grid._id;
   this._hammer = hammer = new Hammer.Manager(element);
-  this._placeholder = new ItemDragPlaceholder(item);
+  if (settings.dragPlaceholder) {
+    this._placeholder = new ItemDragPlaceholder(item);
+  }
   this._isDestroyed = false;
   this._isMigrating = false;
 
@@ -468,7 +470,7 @@ ItemDrag.prototype.destroy = function() {
   if (this._isDestroyed) return this;
   this.stop();
   this._hammer.destroy();
-  this._placeholder.destroy();
+  if (grid._settings.dragPlaceholder) this._placeholder.destroy();
   this._item._element.removeEventListener('dragstart', preventDefault, false);
   this._isDestroyed = true;
   return this;

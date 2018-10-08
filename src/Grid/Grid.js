@@ -277,6 +277,7 @@ Grid.defaultOptions = {
     handle: false
   },
   dragAxis: null,
+  dragPlaceholder: false,
   dragSort: true,
   dragSortInterval: 100,
   dragSortPredicate: {

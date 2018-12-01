@@ -6,11 +6,11 @@ Thanks for the interest in contributing to Muuri! Here you will find some instru
 
 ### Questions
 
-First of all you should check out the existing [questions](https://github.com/haltu/muuri/issues?q=label%3Aquestion%20) and see if your question has been asked/answered already. If not, you can [create a new issue](https://github.com/haltu/muuri/issues/new) and explain the problem you're facing.
+First of all you should check out the existing [questions](https://github.com/haltu/muuri/labels/question%20%3Athinking%3A) and see if your question has been asked/answered already. If not, you can [create a new issue](https://github.com/haltu/muuri/issues/new) and explain the problem you're facing.
 
 ### Improvements
 
-Improvement ideas are always welcome! Please check first the existing [ideas](https://github.com/haltu/muuri/issues?utf8=%E2%9C%93&q=label%3Aidea), [features](https://github.com/haltu/muuri/issues?q=label%3Afeature) and [enhancements](https://github.com/haltu/muuri/issues?q=label%3Aenhancement) so that you won't be creating a duplicate issue.
+Improvement ideas are always welcome! Please check first the existing [ideas](https://github.com/haltu/muuri/labels/idea%20%3Abulb%3A), [features](https://github.com/haltu/muuri/labels/feature%20%3Agift%3A) and [enhancements](https://github.com/haltu/muuri/labels/enhancement%20%3Anail_care%3A) so that you won't be creating a duplicate issue.
 
 ### Bugs
 

@@ -1281,6 +1281,11 @@ function getScrollParents(element, data) {
 
     // Find scroll parents.
     while (parent && parent !== document && parent !== document.documentElement) {
+      // If element is inside ShadowDOM
+      if (parent instanceof DocumentFragment && parent.getRootNode) {
+        parent = parent.getRootNode().host;
+        continue;
+      }
       if (isScrollable(parent)) ret.push(parent);
       parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
     }
@@ -1297,6 +1302,12 @@ function getScrollParents(element, data) {
 
   // Find scroll parents.
   while (parent && parent !== document) {
+    // If element is inside ShadowDOM
+    if (parent instanceof DocumentFragment && parent.getRootNode) {
+      parent = parent.getRootNode().host;
+      continue;
+    }
+
     // If the currently looped element is fixed ignore all parents that are
     // not transformed.
     if (getStyle(element, 'position') === 'fixed' && !isTransformed(parent)) {

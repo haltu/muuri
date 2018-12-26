@@ -6,7 +6,7 @@
 
   QUnit.test('Muuri constructor should not accept an invalid container element', function (assert) {
 
-    assert.expect(4);
+    assert.expect(5);
 
     assert.throws(function () {
       new Muuri();
@@ -19,6 +19,10 @@
     assert.throws(function () {
       new Muuri(document.documentElement);
     }, 'Should throw an error when documentElement is set as container');
+
+    assert.throws(function () {
+      new Muuri(document.createElement('div'));
+    }, 'Should throw an error when an element which is not in the DOM is set as the container');
 
     assert.throws(function () {
       new Muuri('.does-not-exist');

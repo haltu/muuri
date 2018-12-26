@@ -107,7 +107,9 @@ function Grid(element, options) {
 
   // Throw an error if the container element is not body element or does not
   // exist within the body element.
-  if (!element instanceof HTMLElement || element === document.documentElement) {
+  var isElementInDom = element.getRootNode ? element.getRootNode({ composed: true }) === document : document.body.contains(element);
+  
+  if (!isElementInDom) {
     throw new Error('Container element must be an existing DOM element');
   }
 

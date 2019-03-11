@@ -1979,7 +1979,7 @@
     this._top = this._gridY = currentTop;
 
     // Create placeholder (if necessary).
-    if (settings.dragPlaceholder) {
+    if (settings.dragPlaceholder.enabled) {
       item._dragPlaceholder.create();
     }
 
@@ -2366,9 +2366,10 @@
     // Get target styles.
     var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
 
-    // Get grid's animation settings.
-    var animDuration = grid._settings.layoutDuration;
-    var animEasing = grid._settings.layoutEasing;
+    // Get placeholder's layout animation settings.
+    var settings = grid._settings.dragPlaceholder;
+    var animDuration = settings.duration;
+    var animEasing = settings.easing;
     var animEnabled = animDuration > 0;
 
     // Just snap to new position without any animations if no animation is
@@ -2490,7 +2491,7 @@
    * @returns {ItemDragPlaceholder}
    */
   ItemDragPlaceholder.prototype.create = function() {
-    // If we already have placeholder set up -> skip.
+    // If we already have placeholder set up we can skip the initiation logic.
     if (this.isActive()) {
       this._resetAfterLayout = false;
       return;
@@ -2514,7 +2515,7 @@
     animation._element = element;
 
     // Add placeholder class to the placeholder element.
-    this._className = settings.itemDragPlaceholderClass || '';
+    this._className = settings.itemPlaceholderClass || '';
     if (this._className) {
       addClass(element, this._className);
     }
@@ -2550,7 +2551,6 @@
 
   /**
    * Reset placeholder data.
-   * @todo Do DOM writes async in the next tick's write queue.
    *
    * @public
    * @memberof ItemDragPlaceholder.prototype
@@ -2599,7 +2599,6 @@
 
   /**
    * Update placeholder's dimensions.
-   * @todo Update dimensions async in the next tick's write queue.
    *
    * @public
    * @memberof ItemDragPlaceholder.prototype
@@ -4608,6 +4607,13 @@
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {String} [options.dragReleaseEasing="ease"]
    * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
+   * @param {Object} [options.dragPlaceholder]
+   * @param {Boolean} [options.dragPlaceholder.enabled=false]
+   * @param {Number} [options.dragPlaceholder.duration=300]
+   * @param {String} [options.dragPlaceholder.easing="ease"]
+   * @param {?Function} [options.dragPlaceholder.createElement=null]
+   * @param {?Function} [options.dragPlaceholder.onCreate=null]
+   * @param {?Function} [options.dragPlaceholder.onRemove=null]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
    * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -4615,7 +4621,9 @@
    * @param {String} [options.itemPositioningClass="muuri-item-positioning"]
    * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
    * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
+   * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
    */
+
   function Grid(element, options) {
     var inst = this;
     var settings;
@@ -4797,7 +4805,6 @@
       handle: false
     },
     dragAxis: null,
-    dragPlaceholder: false,
     dragSort: true,
     dragSortInterval: 100,
     dragSortPredicate: {
@@ -4809,6 +4816,14 @@
     dragHammerSettings: {
       touchAction: 'none'
     },
+    dragPlaceholder: {
+      enabled: false,
+      duration: 300,
+      easing: 'ease',
+      createElement: null,
+      onCreate: null,
+      onRemove: null
+    },
 
     // Classnames
     containerClass: 'muuri',
@@ -4818,7 +4833,7 @@
     itemPositioningClass: 'muuri-item-positioning',
     itemDraggingClass: 'muuri-item-dragging',
     itemReleasingClass: 'muuri-item-releasing',
-    itemDragPlaceholderClass: 'muuri-item-placeholder'
+    itemPlaceholderClass: 'muuri-item-placeholder'
   };
 
   /**

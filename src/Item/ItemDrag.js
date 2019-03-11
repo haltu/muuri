@@ -77,7 +77,6 @@ function ItemDrag(item) {
   this._hammer = hammer = new Hammer.Manager(element);
   this._isDestroyed = false;
   this._isMigrating = false;
-  this._ignoreSort = [];
 
   // Setup item's initial drag data.
   this._reset();

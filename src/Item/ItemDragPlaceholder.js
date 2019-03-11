@@ -1,180 +1,336 @@
-import {
-  eventBeforeSend,
-  eventDragInit,
-  eventDragReleaseEnd,
-  eventLayoutStart
-} from '../shared.js';
-import ItemAnimate from '../Item/ItemAnimate.js';
-import addClass from '../utils/addClass.js';
-import setStyles from '../utils/setStyles';
-import getTranslateString from '../utils/getTranslateString.js';
-import getTranslate from '../utils/getTranslate.js';
-
 /**
- * ItemDragPlaceholder
- * *******************
+ * Copyright (c) 2018-present, Haltu Oy
+ * Released under the MIT license
+ * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+import { eventBeforeSend, eventDragReleaseEnd, eventLayoutStart } from '../shared.js';
+
+import ItemAnimate from '../Item/ItemAnimate.js';
+
+import addClass from '../utils/addClass.js';
+import getTranslateString from '../utils/getTranslateString.js';
+import getTranslate from '../utils/getTranslate.js';
+import setStyles from '../utils/setStyles.js';
+import removeClass from '../utils/removeClass.js';
+
+/**
+ * Drag placeholder.
+ * @todo Performance improvements:
+ *   - Batch layout animations to avoid layout thrashing.
+ *   - Pool elements instead of creating a new one always.
+ *
+ * @class
+ * @param {Item} item
+ */
 function ItemDragPlaceholder(item) {
-  var inst = this;
-  var grid = item.getGrid();
+  this._item = item;
+  this._animate = new ItemAnimate();
+  this._element = null;
+  this._className = '';
+  this._didMigrate = false;
+  this._resetAfterLayout = false;
 
-  inst._grid = inst._nextGrid = grid;
-  inst._item = item;
-
-  inst._onLayout = function() {
-    inst.layout();
-  };
-
-  inst._onDrag = function(item) {
-    // Create placeholder if necessary.
-    if (!inst._element && item._id === inst._item._id) {
-      inst.create();
-    }
-  };
-
-  inst._onDragEnd = function(item) {
-    if (item._id === inst._item._id) {
-      // Remove DOM node.
-      inst._element.parentNode.removeChild(inst._element);
-      // Destroy animation.
-      inst._animate.destroy();
-
-      inst._element = inst._animate = null;
-    }
-  };
-
-  inst._onMigrate = function(data) {
-    if (data.item === item) {
-      // Unbind previous listeners.
-      grid.off(eventDragInit, inst._onDrag);
-      grid.off(eventDragReleaseEnd, inst._onDragEnd);
-      grid.off(eventLayoutStart, inst._onLayout);
-      grid.off(eventBeforeSend, inst._onMigrate);
-      // Update grid reference.
-      inst._nextGrid = grid = data.toGrid;
-      // Bind new listeners.
-      grid.on(eventDragInit, inst._onDrag);
-      grid.on(eventDragReleaseEnd, inst._onDragEnd);
-      grid.on(eventLayoutStart, inst._onLayout);
-      grid.on(eventBeforeSend, inst._onMigrate);
-    }
-  };
-
-  // Bind initial event listeners.
-  grid.on(eventDragInit, inst._onDrag);
-  grid.on(eventDragReleaseEnd, inst._onDragEnd);
-  grid.on(eventLayoutStart, inst._onLayout);
-  grid.on(eventBeforeSend, inst._onMigrate);
+  // Bind event handlers.
+  this._onLayoutStart = this._onLayoutStart.bind(this);
+  this._onLayoutEnd = this._onLayoutEnd.bind(this);
+  this._onReleaseEnd = this._onReleaseEnd.bind(this);
+  this._onMigrate = this._onMigrate.bind(this);
 }
 
 /**
- * Create placeholder.
+ * Private prototype methods
+ * *************************
+ */
+
+/**
+ * Move placeholder to a new position.
+ *
+ * @private
+ * @memberof ItemDragPlaceholder.prototype
+ */
+ItemDragPlaceholder.prototype._onLayoutStart = function() {
+  var item = this._item;
+  var grid = item.getGrid();
+  var element = this._element;
+  var animation = this._animate;
+
+  // Find out the item's new (unapplied) left and top position.
+  var itemIndex = grid._items.indexOf(item);
+  var nextLeft = grid._layout.slots[itemIndex * 2];
+  var nextTop = grid._layout.slots[itemIndex * 2 + 1];
+
+  // If item's position did not change we can safely skip layout.
+  if (item._left === nextLeft && item._top === nextTop) {
+    return;
+  }
+
+  // Slots data is calculated with item margins added to them so we need to add
+  // item's left and top margin to the slot data to get the placeholder's
+  // next position.
+  nextLeft += item._marginLeft;
+  nextTop += item._marginTop;
+
+  // Get target styles.
+  var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
+
+  // Get placeholder's layout animation settings.
+  var settings = grid._settings.dragPlaceholder;
+  var animDuration = settings.duration;
+  var animEasing = settings.easing;
+  var animEnabled = animDuration > 0;
+
+  // Just snap to new position without any animations if no animation is
+  // required or if placeholder moves between grids.
+  if (!animEnabled || this._didMigrate) {
+    // Snap placeholder to correct position.
+    if (animation.isAnimating()) {
+      animation.stop(targetStyles);
+    } else {
+      setStyles(element, targetStyles);
+    }
+
+    // Move placeholder inside correct container after migration.
+    if (this._didMigrate) {
+      grid.getElement().appendChild(element);
+      this._didMigrate = false;
+    }
+
+    return;
+  }
+
+  // If placeholder is already in correct position just let it be as is. Just
+  // make sure that it's animation is stopped if running.
+  var current = getTranslate(element);
+  if (current.x === nextLeft && current.y === nextTop) {
+    if (animation.isAnimating()) animation.stop(targetStyles);
+    return;
+  }
+
+  // Animate placeholder to correct position.
+  var currentStyles = { transform: getTranslateString(current.x, current.y) };
+  this._animate.start(currentStyles, targetStyles, {
+    duration: animDuration,
+    easing: animEasing,
+    onFinish: this._onLayoutEnd
+  });
+};
+
+/**
+ * Layout end handler.
+ *
+ * @private
+ * @memberof ItemDragPlaceholder.prototype
+ */
+ItemDragPlaceholder.prototype._onLayoutEnd = function() {
+  if (this._resetAfterLayout) {
+    this.reset();
+  }
+};
+
+/**
+ * Drag end handler. This handler is called when dragReleaseEnd event is
+ * emitted and receives the event data as it's argument.
+ *
+ * @private
+ * @memberof ItemDragPlaceholder.prototype
+ * @param {Item} item
+ */
+ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
+  if (item._id === this._item._id) {
+    // If the placeholder is not animating anymore we can safely reset it.
+    if (!this._animate.isAnimating()) {
+      this.reset();
+      return;
+    }
+
+    // If the placeholder item is still animating here, let's wait for it to
+    // finish it's animation.
+    this._resetAfterLayout = true;
+  }
+};
+
+/**
+ * Migration start handler. This handler is called when beforeSend event is
+ * emitted and receives the event data as it's argument.
+ *
+ * @private
+ * @memberof ItemDragPlaceholder.prototype
+ * @param {Object} data
+ * @param {Item} data.item
+ * @param {Grid} data.fromGrid
+ * @param {Number} data.fromIndex
+ * @param {Grid} data.toGrid
+ * @param {Number} data.toIndex
+ */
+ItemDragPlaceholder.prototype._onMigrate = function(data) {
+  // Make sure we have a matching item.
+  if (data.item !== this._item) return;
+
+  var grid = this._item.getGrid();
+  var nextGrid = data.toGrid;
+
+  // Unbind listeners from current grid.
+  grid.off(eventDragReleaseEnd, this._onReleaseEnd);
+  grid.off(eventLayoutStart, this._onLayoutStart);
+  grid.off(eventBeforeSend, this._onMigrate);
+
+  // Bind listeners to the next grid.
+  nextGrid.on(eventDragReleaseEnd, this._onReleaseEnd);
+  nextGrid.on(eventLayoutStart, this._onLayoutStart);
+  nextGrid.on(eventBeforeSend, this._onMigrate);
+
+  // Mark the item as migrated.
+  this._didMigrate = true;
+};
+
+/**
+ * Public prototype methods
+ * ************************
+ */
+
+/**
+ * Create placeholder. Note that this method only writes to DOM and does not
+ * read anything from DOM so it should not cause any additional layout
+ * thrashing when it's called at the end of the drag start procedure.
  *
  * @public
  * @memberof ItemDragPlaceholder.prototype
  * @returns {ItemDragPlaceholder}
  */
 ItemDragPlaceholder.prototype.create = function() {
-  var inst = this;
-  var itemElement = inst._item.getElement();
-  var nextLeft = inst._item._left + inst._item._marginLeft;
-  var nextTop = inst._item._top + inst._item._marginTop;
-  var element = document.createElement('div');
+  // If we already have placeholder set up we can skip the initiation logic.
+  if (this.isActive()) {
+    this._resetAfterLayout = false;
+    return;
+  }
 
-  inst._element = element;
-  inst._animate = new ItemAnimate(inst._element);
+  var item = this._item;
+  var grid = item.getGrid();
+  var settings = grid._settings;
+  var animation = this._animate;
+
+  // Create placeholder element.
+  var element;
+  if (typeof settings.dragPlaceholder.createElement === 'function') {
+    element = settings.dragPlaceholder.createElement(item);
+  } else {
+    element = document.createElement('div');
+  }
+  this._element = element;
+
+  // Update element to animation instance.
+  animation._element = element;
 
   // Add placeholder class to the placeholder element.
-  addClass(element, inst._nextGrid._settings.itemDragPlaceholderClass);
+  this._className = settings.itemPlaceholderClass || '';
+  if (this._className) {
+    addClass(element, this._className);
+  }
 
   // Position the placeholder item correctly.
+  var left = item._left + item._marginLeft;
+  var top = item._top + item._marginTop;
   setStyles(element, {
     display: 'block',
     position: 'absolute',
     left: '0',
     top: '0',
-    width: `${inst._item._width}px`,
-    height: `${inst._item._height}px`,
-    transform: getTranslateString(nextLeft, nextTop)
+    width: item._width + 'px',
+    height: item._height + 'px',
+    transform: getTranslateString(left, top)
   });
 
-  // Insert the placeholder element to the grid container before item.
-  inst._nextGrid.getElement().insertBefore(element, itemElement);
+  // Bind event listeners.
+  grid.on(eventLayoutStart, this._onLayoutStart);
+  grid.on(eventDragReleaseEnd, this._onReleaseEnd);
+  grid.on(eventBeforeSend, this._onMigrate);
 
-  return inst;
+  // onCreate hook.
+  if (typeof settings.dragPlaceholder.onCreate === 'function') {
+    settings.dragPlaceholder.onCreate(item, element);
+  }
+
+  // Insert the placeholder element to the grid.
+  grid.getElement().appendChild(element);
+
+  return this;
 };
 
 /**
- * Move placeholder to the new position.
+ * Reset placeholder data.
  *
  * @public
  * @memberof ItemDragPlaceholder.prototype
  * @returns {ItemDragPlaceholder}
  */
-ItemDragPlaceholder.prototype.layout = function() {
-  var inst = this;
-  var grid = inst._grid;
-  var itemId = inst._item._id;
-  var element = inst._element;
-  var nextGrid = inst._nextGrid;
-  var animDuration = grid._settings.layoutDuration;
-  var animEasing = grid._settings.layoutEasing;
-  var animEnabled = animDuration > 0;
+ItemDragPlaceholder.prototype.reset = function() {
+  if (!this.isActive()) return;
 
-  var nextPosition;
-  var i = 0;
-  for (; i < nextGrid._items.length; i += 1) {
-    if (nextGrid._items[i]._id === itemId) {
-      nextPosition = nextGrid._items[i];
-      break;
-    }
+  var element = this._element;
+  var item = this._item;
+  var grid = item.getGrid();
+  var settings = grid._settings;
+  var animation = this._animate;
+
+  // Reset flag.
+  this._resetAfterLayout = false;
+
+  // Reset animation instance.
+  animation.stop();
+  animation._element = null;
+
+  // Unbind event listeners.
+  grid.off(eventDragReleaseEnd, this._onReleaseEnd);
+  grid.off(eventLayoutStart, this._onLayoutStart);
+  grid.off(eventBeforeSend, this._onMigrate);
+
+  // Remove placeholder class from the placeholder element.
+  if (this._className) {
+    removeClass(element, this._className);
+    this._className = '';
   }
-  if (!nextPosition) {
-    throw new Error("Can't find the associated item");
+
+  // Remove element.
+  element.parentNode.removeChild(element);
+  this._element = null;
+
+  // onRemove hook. Note that here we use the current grid's onRemove callback
+  // so if the item has migrated during drag the onRemove method will not be
+  // the originating grid's method.
+  if (typeof settings.dragPlaceholder.onRemove === 'function') {
+    settings.dragPlaceholder.onRemove(item, element);
   }
-  var nextLeft = nextGrid._layout.slots[i * 2] + nextPosition._marginLeft;
-  var nextTop = nextGrid._layout.slots[i * 2 + 1] + nextPosition._marginTop;
-  var doLayout = inst._item._left !== nextLeft || inst._item._top !== nextTop;
-  var isDragging = inst._item.isDragging();
 
-  // Update data
-  inst._grid = nextGrid;
+  return this;
+};
 
-  // Layout if necessary.
-  if (doLayout && isDragging && inst._element) {
-    // Update width / height
-    setStyles(element, {
-      width: `${inst._item._width}px`,
-      height: `${inst._item._height}px`
+/**
+ * Update placeholder's dimensions.
+ *
+ * @public
+ * @memberof ItemDragPlaceholder.prototype
+ * @param {Number} width
+ * @param {height} height
+ */
+ItemDragPlaceholder.prototype.updateDimensions = function(width, height) {
+  if (this.isActive()) {
+    setStyles(this._element, {
+      width: width + 'px',
+      height: height + 'px'
     });
-    // Just set new position if no animation is required.
-    if (!animEnabled) {
-      setStyles(element, {
-        transform: getTranslateString(nextLeft, nextTop)
-      });
-    }
-    // Animate if necessary.
-    else {
-      var current = getTranslate(element);
-      if (current.x !== nextLeft || current.y !== nextTop) {
-        inst._animate.start(
-          {
-            transform: getTranslateString(current.x, current.y)
-          },
-          {
-            transform: getTranslateString(nextLeft, nextTop)
-          },
-          {
-            duration: animDuration,
-            easing: animEasing
-          }
-        );
-      }
-    }
   }
+};
 
-  return inst;
+/**
+ * Check if placeholder is currently active (visible).
+ *
+ * @public
+ * @memberof ItemDragPlaceholder.prototype
+ * @returns {Boolean}
+ */
+ItemDragPlaceholder.prototype.isActive = function() {
+  return !!this._element;
 };
 
 /**
@@ -185,24 +341,11 @@ ItemDragPlaceholder.prototype.layout = function() {
  * @returns {ItemDragPlaceholder}
  */
 ItemDragPlaceholder.prototype.destroy = function() {
-  var inst = this;
+  this.reset();
+  this._animate.destroy();
+  this._item = this._animate = null;
 
-  // Unbind events.
-  inst._grid.off(eventLayoutStart, inst._onLayout);
-  inst._grid.off(eventBeforeSend, inst._onMigrate);
-  inst._nextGrid.off(eventLayoutStart, inst._onLayout);
-  inst._nextGrid.off(eventBeforeSend, inst._onMigrate);
-
-  // Destroy animation.
-  inst._animate.destroy();
-
-  // Remove DOM node.
-  inst._element.parentNode.removeChild(inst._element);
-
-  // Reset data.
-  inst._grid = inst._item = inst._element = inst._onLayout = inst._onMigrate = inst._animate = null;
-
-  return inst;
+  return this;
 };
 
 export default ItemDragPlaceholder;

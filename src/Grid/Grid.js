@@ -88,6 +88,13 @@ var noop = function() {};
  * @param {Number} [options.dragReleaseDuration=300]
  * @param {String} [options.dragReleaseEasing="ease"]
  * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
+ * @param {Object} [options.dragPlaceholder]
+ * @param {Boolean} [options.dragPlaceholder.enabled=false]
+ * @param {Number} [options.dragPlaceholder.duration=300]
+ * @param {String} [options.dragPlaceholder.easing="ease"]
+ * @param {?Function} [options.dragPlaceholder.createElement=null]
+ * @param {?Function} [options.dragPlaceholder.onCreate=null]
+ * @param {?Function} [options.dragPlaceholder.onRemove=null]
  * @param {String} [options.containerClass="muuri"]
  * @param {String} [options.itemClass="muuri-item"]
  * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -95,7 +102,9 @@ var noop = function() {};
  * @param {String} [options.itemPositioningClass="muuri-item-positioning"]
  * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
  * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
+ * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
  */
+
 function Grid(element, options) {
   var inst = this;
   var settings;
@@ -277,7 +286,6 @@ Grid.defaultOptions = {
     handle: false
   },
   dragAxis: null,
-  dragPlaceholder: false,
   dragSort: true,
   dragSortInterval: 100,
   dragSortPredicate: {
@@ -289,6 +297,14 @@ Grid.defaultOptions = {
   dragHammerSettings: {
     touchAction: 'none'
   },
+  dragPlaceholder: {
+    enabled: false,
+    duration: 300,
+    easing: 'ease',
+    createElement: null,
+    onCreate: null,
+    onRemove: null
+  },
 
   // Classnames
   containerClass: 'muuri',
@@ -298,7 +314,7 @@ Grid.defaultOptions = {
   itemPositioningClass: 'muuri-item-positioning',
   itemDraggingClass: 'muuri-item-dragging',
   itemReleasingClass: 'muuri-item-releasing',
-  itemDragPlaceholderClass: 'muuri-item-placeholder'
+  itemPlaceholderClass: 'muuri-item-placeholder'
 };
 
 /**

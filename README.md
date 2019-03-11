@@ -130,11 +130,6 @@ Add Muuri on your site and make sure to include the optional dependencies (if ne
 .item.muuri-item-hidden {
   z-index: 0;
 }
-.grid.muuri-item-placeholder {
-  background-color: rgba(0,0,0,0.23);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-  z-index: 0;
-}
 .item-content {
   position: relative;
   width: 100%;
@@ -234,6 +229,14 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   dragHammerSettings: {
     touchAction: 'none'
   },
+  dragPlaceholder: {
+    enabled: false,
+    duration: 300,
+    easing: 'ease',
+    createElement: null,
+    onCreate: null,
+    onRemove: null
+  },
 
   // Classnames
   containerClass: 'muuri',
@@ -242,7 +245,8 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   itemHiddenClass: 'muuri-item-hidden',
   itemPositioningClass: 'muuri-item-positioning',
   itemDraggingClass: 'muuri-item-dragging',
-  itemReleasingClass: 'muuri-item-releasing'
+  itemReleasingClass: 'muuri-item-releasing',
+  itemPlaceholderClass: 'muuri-item-placeholder'
 
 }
 ```
@@ -290,6 +294,7 @@ var gridB = new Muuri('.grid-b', {
 * [dragSortPredicate](#dragsortpredicate-)
 * [dragReleaseDuration](#dragreleaseduration-)
 * [dragReleaseEasing](#dragreleaseeasing-)
+* [dragPlaceholder](#dragplaceholder-)
 * [containerClass](#containerclass-)
 * [itemClass](#itemclass-)
 * [itemVisibleClass](#itemvisibleclass-)
@@ -297,7 +302,7 @@ var gridB = new Muuri('.grid-b', {
 * [itemPositioningClass](#itempositioningclass-)
 * [itemDraggingClass](#itemdraggingclass-)
 * [itemReleasingClass](#itemreleasingclass-)
-* [itemDragPlaceholderClass](#itemdragplaceholderclass-)
+* [itemPlaceholderClass](#itemplaceholderclass-)
 
 ### items &nbsp;
 
@@ -888,6 +893,58 @@ var grid = new Muuri(elem, {
 });
 ```
 
+### dragPlaceholder &nbsp;
+
+If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here.
+
+* Accepted types: object.
+
+* **enabled** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `false`.
+  * Is the placeholder enabled?
+* **duration** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `300`.
+  * The duration for placeholder's positioning animation. Set to `0` to disable.
+* **easing** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'ease'`.
+  * The easing for placeholder's positioning animation. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
+* **createElement** &nbsp;&mdash;&nbsp; *function / null*
+  * Default value: `null`.
+  * If defined, this method will be used to create the DOM element that is used for the placeholder. By default a new `div` element is created when a placeholder is summoned.
+* **onCreate** &nbsp;&mdash;&nbsp; *function / null*
+  * Default value: `null`.
+  * An optional callback that will be called after a placeholder is created for an item.
+* **onRemove** &nbsp;&mdash;&nbsp; *function / null*
+  * Default value: `null`.
+  * An optional callback that will be called after a placeholder is removed from the grid.
+
+```javascript
+// This example showcases how to pool placeholder elements
+// for better performance and memory efficiency.
+var phPool = [];
+var phElem = document.createElement('div');
+
+var grid = new Muuri(elem, {
+  dragEnabled: true,
+  dragPlaceholder: {
+    enabled: true,
+    duration: 400,
+    easing: 'ease-out',
+    createElement(item) {
+      return phPool.pop() || phElem.cloneNode();
+    },
+    onCreate(item, element) {
+      // If you want to do something after the
+      // placeholder is fully created, here's
+      // the place to do it.
+    },
+    onRemove (item, element) {
+      phPool.push(element);
+    }
+  }
+});
+```
+
 ### containerClass &nbsp;
 
 Container element's class name.
@@ -979,16 +1036,16 @@ var grid = new Muuri(elem, {
 });
 ```
 
-### itemDragPlaceholderClass &nbsp;
+### itemPlaceholderClass &nbsp;
 
-This class name will be added to the item element for the duration of release.
+This class name will be added to the drag placeholder element.
 
 * Default value: `'muuri-item-placeholder'`.
 * Accepted types: string.
 
 ```javascript
 var grid = new Muuri(elem, {
-  itemReleasingClass: 'foo-item-placeholder'
+  itemPlaceholderClass: 'foo-item-placeholder'
 });
 ```
 

@@ -233,21 +233,21 @@
   };
 
   // Set up the default export values.
-  var isTransformSupported = false;
   var transformStyle = 'transform';
   var transformProp = 'transform';
 
   // Find the supported transform prop and style names.
   var style = 'transform';
   var styleCap = 'Transform';
+  var found = false;
   ['', 'Webkit', 'Moz', 'O', 'ms'].forEach(function(prefix) {
-    if (isTransformSupported) return;
+    if (found) return;
     var propName = prefix ? prefix + styleCap : style;
     if (document.documentElement.style[propName] !== undefined) {
       prefix = prefix.toLowerCase();
       transformStyle = prefix ? '-' + prefix + '-' + style : style;
       transformProp = propName;
-      isTransformSupported = true;
+      found = true;
     }
   });
 
@@ -923,6 +923,51 @@
     return offsetDiff;
   }
 
+  /**
+   * Check if an element is scrollable.
+   *
+   * @param {HTMLElement} element
+   * @returns {Boolean}
+   */
+  function isScrollable(element) {
+    var overflow = getStyle(element, 'overflow');
+    if (overflow === 'auto' || overflow === 'scroll') return true;
+
+    overflow = getStyle(element, 'overflow-x');
+    if (overflow === 'auto' || overflow === 'scroll') return true;
+
+    overflow = getStyle(element, 'overflow-y');
+    if (overflow === 'auto' || overflow === 'scroll') return true;
+
+    return false;
+  }
+
+  /**
+   * Collect element's ancestors that are potentially scrollable elements.
+   *
+   * @param {HTMLElement} element
+   * @param {Boolean} [includeSelf=false]
+   * @param {Array} [data]
+   * @returns {Array}
+   */
+  function getScrollableAncestors(element, includeSelf, data) {
+    var ret = data || [];
+    var parent = includeSelf ? element : element.parentNode;
+
+    // Find scroll parents.
+    while (parent && parent !== document) {
+      if (isScrollable(parent)) {
+        ret.push(parent);
+      }
+      parent = parent.parentNode;
+    }
+
+    // Always add window to the results.
+    ret.push(window);
+
+    return ret;
+  }
+
   var translateData = {};
 
   /**
@@ -1015,10 +1060,6 @@
 
   var removeClass = ('classList' in Element.prototype ? removeClassModern : removeClassLegacy);
 
-  // To provide consistently correct dragging experience we need to know if
-  // transformed elements leak fixed elements or not.
-  var hasTransformLeak = checkTransformLeak();
-
   // Drag start predicate states.
   var startPredicateInactive = 0;
   var startPredicatePending = 1;
@@ -1034,13 +1075,6 @@
   function ItemDrag(item) {
     if (!Hammer) {
       throw new Error('[' + namespace + '] required dependency Hammer is not defined.');
-    }
-
-    // If we don't have a valid transform leak test result yet, let's run the
-    // test on first ItemDrag init. The test needs body element to be ready and
-    // here we can be sure that it is ready.
-    if (hasTransformLeak === null) {
-      hasTransformLeak = checkTransformLeak();
     }
 
     var drag = this;
@@ -1064,6 +1098,13 @@
     this._isDestroyed = false;
     this._isMigrating = false;
 
+    // Data for drag sort predicate heuristics.
+    this._hBlockIndex = null;
+    this._hX1 = 0;
+    this._hX2 = 0;
+    this._hY1 = 0;
+    this._hY2 = 0;
+
     // Setup item's initial drag data.
     this._reset();
 
@@ -1085,7 +1126,8 @@
     };
 
     // Create debounce overlap checker function.
-    this._checkOverlapDebounce = debounce(this._checkOverlap, settings.dragSortInterval);
+    var sortInterval = settings.dragSortHeuristics.sortInterval;
+    this._checkOverlapDebounce = debounce(this._checkOverlap, sortInterval);
 
     // Add drag recognizer to hammer.
     hammer.add(
@@ -1220,6 +1262,10 @@
 
   /**
    * Default drag sort predicate.
+   * @todo As long as the item is dragged to the same direction (about-ish) do not
+   *       allow item being moved back to it's previous index. This should cover
+   *       most of the annoying flickering scenarios. If the item's drag direction
+   *       changes enough from the last sort allow sorting again normally.
    *
    * @public
    * @memberof ItemDrag
@@ -1515,23 +1561,22 @@
     var gridContainer = this._getGrid()._element;
     var dragContainer = this._container;
     var scrollers = this._scrollers;
-    var containerScrollers;
+    var gridScrollers;
     var i;
 
     // Get dragged element's scrolling parents.
     scrollers.length = 0;
-    getScrollParents(this._item._element, scrollers);
+    getScrollableAncestors(this._item._element, false, scrollers);
 
     // If drag container is defined and it's not the same element as grid
     // container then we need to add the grid container and it's scroll parents
     // to the elements which are going to be listener for scroll events.
     if (dragContainer !== gridContainer) {
-      containerScrollers = [];
-      getScrollParents(gridContainer, containerScrollers);
-      containerScrollers.push(gridContainer);
-      for (i = 0; i < containerScrollers.length; i++) {
-        if (scrollers.indexOf(containerScrollers[i]) < 0) {
-          scrollers.push(containerScrollers[i]);
+      gridScrollers = [];
+      getScrollableAncestors(gridContainer, true, gridScrollers);
+      for (i = 0; i < gridScrollers.length; i++) {
+        if (scrollers.indexOf(gridScrollers[i]) < 0) {
+          scrollers.push(gridScrollers[i]);
         }
       }
     }
@@ -1665,6 +1710,79 @@
   };
 
   /**
+   * Reset drag sort heuristics.
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   * @param {Object} event
+   */
+  ItemDrag.prototype._resetHeuristics = function(event) {
+    var pointer = event.changedPointers[0];
+    var x = (pointer && pointer.screenX) || 0;
+    var y = (pointer && pointer.screenY) || 0;
+
+    this._hBlockIndex = null;
+    this._hX1 = this._hX2 = x;
+    this._hY1 = this._hY2 = y;
+  };
+
+  /**
+   * Run heuristics and return true if overlap check can be performed, and false
+   * if it can not.
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   * @param {Object} event
+   * @returns {Boolean}
+   */
+  ItemDrag.prototype._checkHeuristics = function(event) {
+    var settings = this._getGrid()._settings.dragSortHeuristics;
+    var minDist = settings.minDragDistance;
+
+    // Skip heuristics if not needed.
+    if (minDist <= 0) {
+      this._hBlockIndex = null;
+      return true;
+    }
+
+    var pointer = event.changedPointers[0];
+    var x = (pointer && pointer.screenX) || 0;
+    var y = (pointer && pointer.screenY) || 0;
+    var diffX = x - this._hX2;
+    var diffY = y - this._hY2;
+
+    // If we can't do proper bounce back check make sure that the blocked index
+    // is not set.
+    var canCheckBounceBack = minDist > 3 && settings.minBounceBackAngle > 0;
+    if (!canCheckBounceBack) {
+      this._hBlockIndex = null;
+    }
+
+    if (Math.abs(diffX) > minDist || Math.abs(diffY) > minDist) {
+      // Reset blocked index if angle changed enough. This check requires a
+      // minimum value of 3 for minDragDistance to function properly.
+      if (canCheckBounceBack) {
+        var angle = Math.atan2(diffX, diffY);
+        var prevAngle = Math.atan2(this._hX2 - this._hX1, this._hY2 - this._hY1);
+        var deltaAngle = Math.atan2(Math.sin(angle - prevAngle), Math.cos(angle - prevAngle));
+        if (Math.abs(deltaAngle) > settings.minBounceBackAngle) {
+          this._hBlockIndex = null;
+        }
+      }
+
+      // Update points.
+      this._hX1 = this._hX2;
+      this._hY1 = this._hY2;
+      this._hX2 = x;
+      this._hY2 = y;
+
+      return true;
+    }
+
+    return false;
+  };
+
+  /**
    * Reset for default drag start predicate function.
    *
    * @private
@@ -1689,6 +1807,8 @@
    */
   ItemDrag.prototype._checkOverlap = function() {
     if (!this._isActive) return;
+
+    console.log('CHECK OVERLAP');
 
     var item = this._item;
     var settings = this._getGrid()._settings;
@@ -1717,10 +1837,17 @@
     targetIndex = normalizeArrayIndex(targetGrid._items, result.index, isMigration);
     sortAction = result.action === 'swap' ? 'swap' : 'move';
 
+    // Prevent position bounce.
+    if (!isMigration && targetIndex === this._hBlockIndex) {
+      return;
+    }
+
     // If the item was moved within it's current grid.
     if (!isMigration) {
       // Make sure the target index is not the current index.
       if (currentIndex !== targetIndex) {
+        this._hBlockIndex = currentIndex;
+
         // Do the sort.
         (sortAction === 'swap' ? arraySwap : arrayMove)(
           currentGrid._items,
@@ -1745,6 +1872,8 @@
 
     // If the item was moved to another grid.
     else {
+      this._hBlockIndex = null;
+
       // Emit beforeSend event.
       if (currentGrid._hasListeners(eventBeforeSend)) {
         currentGrid._emit(eventBeforeSend, {
@@ -1912,6 +2041,9 @@
     var hasDragContainer = dragContainer !== gridContainer;
     var offsetDiff;
 
+    // Reset heuristics data.
+    this._resetHeuristics(event);
+
     // If grid container is not the drag container, we need to calculate the
     // offset difference between grid container and drag container's containing
     // element.
@@ -1943,6 +2075,11 @@
     this._elementClientY = elementRect.top;
     this._left = this._gridX = currentLeft;
     this._top = this._gridY = currentTop;
+
+    // Create placeholder (if necessary).
+    if (settings.dragPlaceholder.enabled) {
+      item._dragPlaceholder.create();
+    }
 
     // Emit dragInit event.
     grid._emit(eventDragInit, item, event);
@@ -2033,7 +2170,11 @@
     if (!this._item._isActive) return;
 
     // If drag sort is enabled -> check overlap.
-    if (this._getGrid()._settings.dragSort) this._checkOverlapDebounce();
+    if (this._getGrid()._settings.dragSort) {
+      if (this._checkHeuristics(this._lastEvent)) {
+        this._checkOverlapDebounce();
+      }
+    }
   };
 
   /**
@@ -2235,90 +2376,6 @@
   }
 
   /**
-   * Get element's scroll parents.
-   *
-   * @param {HTMLElement} element
-   * @param {Array} [data]
-   * @returns {HTMLElement[]}
-   */
-  function getScrollParents(element, data) {
-    var ret = data || [];
-    var parent = element.parentNode;
-
-    //
-    // If transformed elements leak fixed elements.
-    //
-
-    if (hasTransformLeak) {
-      // If the element is fixed it can not have any scroll parents.
-      if (getStyle(element, 'position') === 'fixed') return ret;
-
-      // Find scroll parents.
-      while (parent && parent !== document && parent !== document.documentElement) {
-        if (isScrollable(parent)) ret.push(parent);
-        parent = getStyle(parent, 'position') === 'fixed' ? null : parent.parentNode;
-      }
-
-      // If parent is not fixed element, add window object as the last scroll
-      // parent.
-      parent !== null && ret.push(window);
-      return ret;
-    }
-
-    //
-    // If fixed elements behave as defined in the W3C specification.
-    //
-
-    // Find scroll parents.
-    while (parent && parent !== document) {
-      // If the currently looped element is fixed ignore all parents that are
-      // not transformed.
-      if (getStyle(element, 'position') === 'fixed' && !isTransformed(parent)) {
-        parent = parent.parentNode;
-        continue;
-      }
-
-      // Add the parent element to return items if it is scrollable.
-      if (isScrollable(parent)) ret.push(parent);
-
-      // Update element and parent references.
-      element = parent;
-      parent = parent.parentNode;
-    }
-
-    // If the last item is the root element, replace it with window. The root
-    // element scroll is propagated to the window.
-    if (ret[ret.length - 1] === document.documentElement) {
-      ret[ret.length - 1] = window;
-    }
-    // Otherwise add window as the last scroll parent.
-    else {
-      ret.push(window);
-    }
-
-    return ret;
-  }
-
-  /**
-   * Check if an element is scrollable.
-   *
-   * @param {HTMLElement} element
-   * @returns {Boolean}
-   */
-  function isScrollable(element) {
-    var overflow = getStyle(element, 'overflow');
-    if (overflow === 'auto' || overflow === 'scroll') return true;
-
-    overflow = getStyle(element, 'overflow-x');
-    if (overflow === 'auto' || overflow === 'scroll') return true;
-
-    overflow = getStyle(element, 'overflow-y');
-    if (overflow === 'auto' || overflow === 'scroll') return true;
-
-    return false;
-  }
-
-  /**
    * Check if drag gesture can be interpreted as a click, based on final drag
    * event data.
    *
@@ -2352,41 +2409,338 @@
   }
 
   /**
-   * Detects if transformed elements leak fixed elements. According W3C
-   * transform rendering spec a transformed element should contain even fixed
-   * elements. Meaning that fixed elements are positioned relative to the
-   * closest transformed ancestor element instead of window. However, not every
-   * browser follows the spec (IE and older Firefox). So we need to test it.
-   * https://www.w3.org/TR/css3-2d-transforms/#transform-rendering
+   * Drag placeholder.
+   * @todo Performance improvements:
+   *   - Placeholder seems to have a negative effect on performance.
+   *   - Batch layout animations to avoid layout thrashing.
    *
-   * Borrowed from Mezr (v0.6.1):
-   * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L607
+   * @class
+   * @param {Item} item
    */
-  function checkTransformLeak() {
-    // No transforms -> definitely leaks.
-    if (!isTransformSupported) return true;
+  function ItemDragPlaceholder(item) {
+    this._item = item;
+    this._animate = new ItemAnimate();
+    this._element = null;
+    this._className = '';
+    this._didMigrate = false;
+    this._resetAfterLayout = false;
 
-    // No body available -> can't check it.
-    if (!document.body) return null;
-
-    // Do the test.
-    var elems = [0, 1].map(function(elem, isInner) {
-      elem = document.createElement('div');
-      elem.style.position = isInner ? 'fixed' : 'absolute';
-      elem.style.display = 'block';
-      elem.style.visibility = 'hidden';
-      elem.style.left = isInner ? '0px' : '1px';
-      elem.style[transformProp] = 'none';
-      return elem;
-    });
-    var outer = document.body.appendChild(elems[0]);
-    var inner = outer.appendChild(elems[1]);
-    var left = inner.getBoundingClientRect().left;
-    outer.style[transformProp] = 'scale(1)';
-    var ret = left === inner.getBoundingClientRect().left;
-    document.body.removeChild(outer);
-    return ret;
+    // Bind event handlers.
+    this._onLayoutStart = this._onLayoutStart.bind(this);
+    this._onLayoutEnd = this._onLayoutEnd.bind(this);
+    this._onReleaseEnd = this._onReleaseEnd.bind(this);
+    this._onMigrate = this._onMigrate.bind(this);
   }
+
+  /**
+   * Private prototype methods
+   * *************************
+   */
+
+  /**
+   * Move placeholder to a new position.
+   *
+   * @private
+   * @memberof ItemDragPlaceholder.prototype
+   */
+  ItemDragPlaceholder.prototype._onLayoutStart = function() {
+    var item = this._item;
+    var grid = item.getGrid();
+    var element = this._element;
+    var animation = this._animate;
+
+    // Find out the item's new (unapplied) left and top position.
+    var itemIndex = grid._items.indexOf(item);
+    var nextLeft = grid._layout.slots[itemIndex * 2];
+    var nextTop = grid._layout.slots[itemIndex * 2 + 1];
+
+    // If item's position did not change we can safely skip layout.
+    if (item._left === nextLeft && item._top === nextTop) {
+      return;
+    }
+
+    // Slots data is calculated with item margins added to them so we need to add
+    // item's left and top margin to the slot data to get the placeholder's
+    // next position.
+    nextLeft += item._marginLeft;
+    nextTop += item._marginTop;
+
+    // Get target styles.
+    var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
+
+    // Get placeholder's layout animation settings.
+    var settings = grid._settings.dragPlaceholder;
+    var animDuration = settings.duration;
+    var animEasing = settings.easing;
+    var animEnabled = animDuration > 0;
+
+    // Just snap to new position without any animations if no animation is
+    // required or if placeholder moves between grids.
+    if (!animEnabled || this._didMigrate) {
+      // Snap placeholder to correct position.
+      if (animation.isAnimating()) {
+        animation.stop(targetStyles);
+      } else {
+        setStyles(element, targetStyles);
+      }
+
+      // Move placeholder inside correct container after migration.
+      if (this._didMigrate) {
+        grid.getElement().appendChild(element);
+        this._didMigrate = false;
+      }
+
+      return;
+    }
+
+    // If placeholder is already in correct position just let it be as is. Just
+    // make sure that it's animation is stopped if running.
+    var current = getTranslate(element);
+    if (current.x === nextLeft && current.y === nextTop) {
+      if (animation.isAnimating()) animation.stop(targetStyles);
+      return;
+    }
+
+    // Animate placeholder to correct position.
+    var currentStyles = { transform: getTranslateString(current.x, current.y) };
+    this._animate.start(currentStyles, targetStyles, {
+      duration: animDuration,
+      easing: animEasing,
+      onFinish: this._onLayoutEnd
+    });
+  };
+
+  /**
+   * Layout end handler.
+   *
+   * @private
+   * @memberof ItemDragPlaceholder.prototype
+   */
+  ItemDragPlaceholder.prototype._onLayoutEnd = function() {
+    if (this._resetAfterLayout) {
+      this.reset();
+    }
+  };
+
+  /**
+   * Drag end handler. This handler is called when dragReleaseEnd event is
+   * emitted and receives the event data as it's argument.
+   *
+   * @private
+   * @memberof ItemDragPlaceholder.prototype
+   * @param {Item} item
+   */
+  ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
+    if (item._id === this._item._id) {
+      // If the placeholder is not animating anymore we can safely reset it.
+      if (!this._animate.isAnimating()) {
+        this.reset();
+        return;
+      }
+
+      // If the placeholder item is still animating here, let's wait for it to
+      // finish it's animation.
+      this._resetAfterLayout = true;
+    }
+  };
+
+  /**
+   * Migration start handler. This handler is called when beforeSend event is
+   * emitted and receives the event data as it's argument.
+   *
+   * @private
+   * @memberof ItemDragPlaceholder.prototype
+   * @param {Object} data
+   * @param {Item} data.item
+   * @param {Grid} data.fromGrid
+   * @param {Number} data.fromIndex
+   * @param {Grid} data.toGrid
+   * @param {Number} data.toIndex
+   */
+  ItemDragPlaceholder.prototype._onMigrate = function(data) {
+    // Make sure we have a matching item.
+    if (data.item !== this._item) return;
+
+    var grid = this._item.getGrid();
+    var nextGrid = data.toGrid;
+
+    // Unbind listeners from current grid.
+    grid.off(eventDragReleaseEnd, this._onReleaseEnd);
+    grid.off(eventLayoutStart, this._onLayoutStart);
+    grid.off(eventBeforeSend, this._onMigrate);
+
+    // Bind listeners to the next grid.
+    nextGrid.on(eventDragReleaseEnd, this._onReleaseEnd);
+    nextGrid.on(eventLayoutStart, this._onLayoutStart);
+    nextGrid.on(eventBeforeSend, this._onMigrate);
+
+    // Mark the item as migrated.
+    this._didMigrate = true;
+  };
+
+  /**
+   * Public prototype methods
+   * ************************
+   */
+
+  /**
+   * Create placeholder. Note that this method only writes to DOM and does not
+   * read anything from DOM so it should not cause any additional layout
+   * thrashing when it's called at the end of the drag start procedure.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @returns {ItemDragPlaceholder}
+   */
+  ItemDragPlaceholder.prototype.create = function() {
+    // If we already have placeholder set up we can skip the initiation logic.
+    if (this.isActive()) {
+      this._resetAfterLayout = false;
+      return;
+    }
+
+    var item = this._item;
+    var grid = item.getGrid();
+    var settings = grid._settings;
+    var animation = this._animate;
+
+    // Create placeholder element.
+    var element;
+    if (typeof settings.dragPlaceholder.createElement === 'function') {
+      element = settings.dragPlaceholder.createElement(item);
+    } else {
+      element = document.createElement('div');
+    }
+    this._element = element;
+
+    // Update element to animation instance.
+    animation._element = element;
+
+    // Add placeholder class to the placeholder element.
+    this._className = settings.itemPlaceholderClass || '';
+    if (this._className) {
+      addClass(element, this._className);
+    }
+
+    // Position the placeholder item correctly.
+    var left = item._left + item._marginLeft;
+    var top = item._top + item._marginTop;
+    setStyles(element, {
+      display: 'block',
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      width: item._width + 'px',
+      height: item._height + 'px',
+      transform: getTranslateString(left, top)
+    });
+
+    // Bind event listeners.
+    grid.on(eventLayoutStart, this._onLayoutStart);
+    grid.on(eventDragReleaseEnd, this._onReleaseEnd);
+    grid.on(eventBeforeSend, this._onMigrate);
+
+    // onCreate hook.
+    if (typeof settings.dragPlaceholder.onCreate === 'function') {
+      settings.dragPlaceholder.onCreate(item, element);
+    }
+
+    // Insert the placeholder element to the grid.
+    grid.getElement().appendChild(element);
+
+    return this;
+  };
+
+  /**
+   * Reset placeholder data.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @returns {ItemDragPlaceholder}
+   */
+  ItemDragPlaceholder.prototype.reset = function() {
+    if (!this.isActive()) return;
+
+    var element = this._element;
+    var item = this._item;
+    var grid = item.getGrid();
+    var settings = grid._settings;
+    var animation = this._animate;
+
+    // Reset flag.
+    this._resetAfterLayout = false;
+
+    // Reset animation instance.
+    animation.stop();
+    animation._element = null;
+
+    // Unbind event listeners.
+    grid.off(eventDragReleaseEnd, this._onReleaseEnd);
+    grid.off(eventLayoutStart, this._onLayoutStart);
+    grid.off(eventBeforeSend, this._onMigrate);
+
+    // Remove placeholder class from the placeholder element.
+    if (this._className) {
+      removeClass(element, this._className);
+      this._className = '';
+    }
+
+    // Remove element.
+    element.parentNode.removeChild(element);
+    this._element = null;
+
+    // onRemove hook. Note that here we use the current grid's onRemove callback
+    // so if the item has migrated during drag the onRemove method will not be
+    // the originating grid's method.
+    if (typeof settings.dragPlaceholder.onRemove === 'function') {
+      settings.dragPlaceholder.onRemove(item, element);
+    }
+
+    return this;
+  };
+
+  /**
+   * Update placeholder's dimensions.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @param {Number} width
+   * @param {height} height
+   */
+  ItemDragPlaceholder.prototype.updateDimensions = function(width, height) {
+    if (this.isActive()) {
+      setStyles(this._element, {
+        width: width + 'px',
+        height: height + 'px'
+      });
+    }
+  };
+
+  /**
+   * Check if placeholder is currently active (visible).
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @returns {Boolean}
+   */
+  ItemDragPlaceholder.prototype.isActive = function() {
+    return !!this._element;
+  };
+
+  /**
+   * Destroy placeholder instance.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @returns {ItemDragPlaceholder}
+   */
+  ItemDragPlaceholder.prototype.destroy = function() {
+    this.reset();
+    this._animate.destroy();
+    this._item = this._animate = null;
+
+    return this;
+  };
 
   /**
    * Queue constructor.
@@ -2635,14 +2989,14 @@
     this._offsetLeft = release._isActive
       ? release._containerDiffX
       : migrate._isActive
-        ? migrate._containerDiffX
-        : 0;
+      ? migrate._containerDiffX
+      : 0;
 
     this._offsetTop = release._isActive
       ? release._containerDiffY
       : migrate._isActive
-        ? migrate._containerDiffY
-        : 0;
+      ? migrate._containerDiffY
+      : 0;
   };
 
   /**
@@ -3522,8 +3876,15 @@
     // Set up migration handler data.
     this._migrate = new ItemMigrate(this);
 
-    // Set up release handler
+    // Set up release handler. Note that although this is fully linked to dragging
+    // this still needs to be always instantiated to handle migration scenarios
+    // correctly.
     this._release = new ItemRelease(this);
+
+    // Set up drag placeholder handler. Note that although this is fully linked to
+    // dragging this still needs to be always instantiated to handle migration
+    // scenarios correctly.
+    this._dragPlaceholder = new ItemDragPlaceholder(this);
 
     // Set up drag handler.
     this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
@@ -3719,6 +4080,7 @@
     if (this._isDestroyed || this._visibility._isHidden) return;
 
     var element = this._element;
+    var dragPlaceholder = this._dragPlaceholder;
     var rect = element.getBoundingClientRect();
 
     // Calculate width and height.
@@ -3730,6 +4092,11 @@
     this._marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
     this._marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
     this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
+
+    // Keep drag placeholder's dimensions synced with the item's.
+    if (dragPlaceholder) {
+      dragPlaceholder.updateDimensions(this._width, this._height);
+    }
   };
 
   /**
@@ -3772,6 +4139,7 @@
     this._visibility.destroy();
     this._animate.destroy();
     this._animateChild.destroy();
+    this._dragPlaceholder.destroy();
     this._drag && this._drag.destroy();
 
     // Remove all inline styles.
@@ -4341,6 +4709,13 @@
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {String} [options.dragReleaseEasing="ease"]
    * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
+   * @param {Object} [options.dragPlaceholder]
+   * @param {Boolean} [options.dragPlaceholder.enabled=false]
+   * @param {Number} [options.dragPlaceholder.duration=300]
+   * @param {String} [options.dragPlaceholder.easing="ease"]
+   * @param {?Function} [options.dragPlaceholder.createElement=null]
+   * @param {?Function} [options.dragPlaceholder.onCreate=null]
+   * @param {?Function} [options.dragPlaceholder.onRemove=null]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
    * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -4348,7 +4723,9 @@
    * @param {String} [options.itemPositioningClass="muuri-item-positioning"]
    * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
    * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
+   * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
    */
+
   function Grid(element, options) {
     var inst = this;
     var settings;
@@ -4531,7 +4908,11 @@
     },
     dragAxis: null,
     dragSort: true,
-    dragSortInterval: 100,
+    dragSortHeuristics: {
+      sortInterval: 100,
+      minDragDistance: 8,
+      minBounceBackAngle: 1
+    },
     dragSortPredicate: {
       threshold: 50,
       action: 'move'
@@ -4541,6 +4922,14 @@
     dragHammerSettings: {
       touchAction: 'none'
     },
+    dragPlaceholder: {
+      enabled: false,
+      duration: 300,
+      easing: 'ease',
+      createElement: null,
+      onCreate: null,
+      onRemove: null
+    },
 
     // Classnames
     containerClass: 'muuri',
@@ -4549,7 +4938,8 @@
     itemHiddenClass: 'muuri-item-hidden',
     itemPositioningClass: 'muuri-item-positioning',
     itemDraggingClass: 'muuri-item-dragging',
-    itemReleasingClass: 'muuri-item-releasing'
+    itemReleasingClass: 'muuri-item-releasing',
+    itemPlaceholderClass: 'muuri-item-placeholder'
   };
 
   /**

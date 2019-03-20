@@ -8,6 +8,7 @@ import { gridInstances } from '../shared.js';
 
 import ItemAnimate from './ItemAnimate.js';
 import ItemDrag from './ItemDrag.js';
+import ItemDragPlaceholder from './ItemDragPlaceholder.js';
 import ItemLayout from './ItemLayout.js';
 import ItemMigrate from './ItemMigrate.js';
 import ItemRelease from './ItemRelease.js';
@@ -85,8 +86,15 @@ function Item(grid, element, isActive) {
   // Set up migration handler data.
   this._migrate = new ItemMigrate(this);
 
-  // Set up release handler
+  // Set up release handler. Note that although this is fully linked to dragging
+  // this still needs to be always instantiated to handle migration scenarios
+  // correctly.
   this._release = new ItemRelease(this);
+
+  // Set up drag placeholder handler. Note that although this is fully linked to
+  // dragging this still needs to be always instantiated to handle migration
+  // scenarios correctly.
+  this._dragPlaceholder = new ItemDragPlaceholder(this);
 
   // Set up drag handler.
   this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
@@ -282,6 +290,7 @@ Item.prototype._refreshDimensions = function() {
   if (this._isDestroyed || this._visibility._isHidden) return;
 
   var element = this._element;
+  var dragPlaceholder = this._dragPlaceholder;
   var rect = element.getBoundingClientRect();
 
   // Calculate width and height.
@@ -293,6 +302,11 @@ Item.prototype._refreshDimensions = function() {
   this._marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
   this._marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
   this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
+
+  // Keep drag placeholder's dimensions synced with the item's.
+  if (dragPlaceholder) {
+    dragPlaceholder.updateDimensions(this._width, this._height);
+  }
 };
 
 /**
@@ -335,6 +349,7 @@ Item.prototype._destroy = function(removeElement) {
   this._visibility.destroy();
   this._animate.destroy();
   this._animateChild.destroy();
+  this._dragPlaceholder.destroy();
   this._drag && this._drag.destroy();
 
   // Remove all inline styles.

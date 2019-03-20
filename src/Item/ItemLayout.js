@@ -176,14 +176,14 @@ ItemLayout.prototype._updateOffsets = function() {
   this._offsetLeft = release._isActive
     ? release._containerDiffX
     : migrate._isActive
-      ? migrate._containerDiffX
-      : 0;
+    ? migrate._containerDiffX
+    : 0;
 
   this._offsetTop = release._isActive
     ? release._containerDiffY
     : migrate._isActive
-      ? migrate._containerDiffY
-      : 0;
+    ? migrate._containerDiffY
+    : 0;
 };
 
 /**

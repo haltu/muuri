@@ -26,6 +26,7 @@ import Emitter from '../Emitter/Emitter.js';
 import Item from '../Item/Item.js';
 import ItemAnimate from '../Item/ItemAnimate.js';
 import ItemDrag from '../Item/ItemDrag.js';
+import ItemDragPlaceholder from '../Item/ItemDragPlaceholder.js';
 import ItemLayout from '../Item/ItemLayout.js';
 import ItemMigrate from '../Item/ItemMigrate.js';
 import ItemRelease from '../Item/ItemRelease.js';
@@ -81,13 +82,23 @@ var noop = function() {};
  * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
  * @param {?String} [options.dragAxis]
  * @param {(Boolean|Function)} [options.dragSort=true]
- * @param {Number} [options.dragSortInterval=100]
+ * @param {Object} [options.dragSortHeuristics]
+ * @param {Number} [options.dragSortHeuristics.sortInterval=100]
+ * @param {Number} [options.dragSortHeuristics.minDragDistance=10]
+ * @param {Number} [options.dragSortHeuristics.minBounceBackAngle=1]
  * @param {(Function|Object)} [options.dragSortPredicate]
  * @param {Number} [options.dragSortPredicate.threshold=50]
  * @param {String} [options.dragSortPredicate.action="move"]
  * @param {Number} [options.dragReleaseDuration=300]
  * @param {String} [options.dragReleaseEasing="ease"]
  * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
+ * @param {Object} [options.dragPlaceholder]
+ * @param {Boolean} [options.dragPlaceholder.enabled=false]
+ * @param {Number} [options.dragPlaceholder.duration=300]
+ * @param {String} [options.dragPlaceholder.easing="ease"]
+ * @param {?Function} [options.dragPlaceholder.createElement=null]
+ * @param {?Function} [options.dragPlaceholder.onCreate=null]
+ * @param {?Function} [options.dragPlaceholder.onRemove=null]
  * @param {String} [options.containerClass="muuri"]
  * @param {String} [options.itemClass="muuri-item"]
  * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -95,7 +106,9 @@ var noop = function() {};
  * @param {String} [options.itemPositioningClass="muuri-item-positioning"]
  * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
  * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
+ * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
  */
+
 function Grid(element, options) {
   var inst = this;
   var settings;
@@ -200,11 +213,6 @@ Grid.ItemLayout = ItemLayout;
 Grid.ItemVisibility = ItemVisibility;
 
 /**
- * @see ItemRelease
- */
-Grid.ItemRelease = ItemRelease;
-
-/**
  * @see ItemMigrate
  */
 Grid.ItemMigrate = ItemMigrate;
@@ -218,6 +226,16 @@ Grid.ItemAnimate = ItemAnimate;
  * @see ItemDrag
  */
 Grid.ItemDrag = ItemDrag;
+
+/**
+ * @see ItemRelease
+ */
+Grid.ItemRelease = ItemRelease;
+
+/**
+ * @see ItemDragPlaceholder
+ */
+Grid.ItemDragPlaceholder = ItemDragPlaceholder;
 
 /**
  * @see Emitter
@@ -278,7 +296,11 @@ Grid.defaultOptions = {
   },
   dragAxis: null,
   dragSort: true,
-  dragSortInterval: 100,
+  dragSortHeuristics: {
+    sortInterval: 100,
+    minDragDistance: 8,
+    minBounceBackAngle: 1
+  },
   dragSortPredicate: {
     threshold: 50,
     action: 'move'
@@ -288,6 +310,14 @@ Grid.defaultOptions = {
   dragHammerSettings: {
     touchAction: 'none'
   },
+  dragPlaceholder: {
+    enabled: false,
+    duration: 300,
+    easing: 'ease',
+    createElement: null,
+    onCreate: null,
+    onRemove: null
+  },
 
   // Classnames
   containerClass: 'muuri',
@@ -296,7 +326,8 @@ Grid.defaultOptions = {
   itemHiddenClass: 'muuri-item-hidden',
   itemPositioningClass: 'muuri-item-positioning',
   itemDraggingClass: 'muuri-item-dragging',
-  itemReleasingClass: 'muuri-item-releasing'
+  itemReleasingClass: 'muuri-item-releasing',
+  itemPlaceholderClass: 'muuri-item-placeholder'
 };
 
 /**

@@ -219,7 +219,11 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   },
   dragAxis: null,
   dragSort: true,
-  dragSortInterval: 100,
+  dragSortHeuristics: {
+    sortInterval: 100,
+    minDragDistance: 8,
+    minBounceBackAngle: 1
+  },
   dragSortPredicate: {
     threshold: 50,
     action: 'move'
@@ -229,6 +233,14 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   dragHammerSettings: {
     touchAction: 'none'
   },
+  dragPlaceholder: {
+    enabled: false,
+    duration: 300,
+    easing: 'ease',
+    createElement: null,
+    onCreate: null,
+    onRemove: null
+  },
 
   // Classnames
   containerClass: 'muuri',
@@ -237,7 +249,8 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   itemHiddenClass: 'muuri-item-hidden',
   itemPositioningClass: 'muuri-item-positioning',
   itemDraggingClass: 'muuri-item-dragging',
-  itemReleasingClass: 'muuri-item-releasing'
+  itemReleasingClass: 'muuri-item-releasing',
+  itemPlaceholderClass: 'muuri-item-placeholder'
 
 }
 ```
@@ -281,10 +294,11 @@ var gridB = new Muuri('.grid-b', {
 * [dragStartPredicate](#dragstartpredicate-)
 * [dragAxis](#dragaxis-)
 * [dragSort](#dragsort-)
-* [dragSortInterval](#dragsortinterval-)
+* [dragSortHeuristics](#dragsortheuristics-)
 * [dragSortPredicate](#dragsortpredicate-)
 * [dragReleaseDuration](#dragreleaseduration-)
 * [dragReleaseEasing](#dragreleaseeasing-)
+* [dragPlaceholder](#dragplaceholder-)
 * [containerClass](#containerclass-)
 * [itemClass](#itemclass-)
 * [itemVisibleClass](#itemvisibleclass-)
@@ -292,6 +306,7 @@ var gridB = new Muuri('.grid-b', {
 * [itemPositioningClass](#itempositioningclass-)
 * [itemDraggingClass](#itemdraggingclass-)
 * [itemReleasingClass](#itemreleasingclass-)
+* [itemPlaceholderClass](#itemplaceholderclass-)
 
 ### items &nbsp;
 
@@ -761,24 +776,30 @@ function getAllGrids(item) {
 }
 ```
 
-### dragSortInterval &nbsp;
+### dragSortHeuristics &nbsp;
 
-Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty heavy function which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is not recommended).
+Defines various heuristics so that sorting during drag would be smoother and faster.
 
-* Default value: `100`.
-* Accepted types: number.
+* Default value: `{sortInterval: 100, minDragDistance: 10, minBounceBackAngle: 1}`.
+* Accepted types: object.
+
+* **sortInterval** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `100`.
+  * Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty heavy function which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is not recommended).
+* **minDragDistance** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `10`.
+  * Defines how much (in pixels) the item must be dragged before `dragSortPredicate` can be called. We store the pointer position when `dragSortPredicate` is called and compare the current pointer position to that.
+* **minBounceBackAngle** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `1`.
+  * Defines the minimum angle (in radians) of the delta vector between the last movement vector and the current movement vector that is required for the dragged item to be allowed to be sorted to it's previous index. The problem this heuristic is trying to solve is the scenario where you drag an item over a much bigger item and the bigger item moves, but it's still overlapping the dragged item after repositioning. Now when you move the dragged item again another sort is triggered and the bigger item moves back to it's previous position. This bouncing back and forth can go on for quite a while and it looks quite erratic. The fix we do here is that, by default, we disallow an item to be moved back to it's previous position, unless it's drag direction changes enough. And what is enough? That's what you can define here. Note that this option works in tandem with `minDragDistance` and needs it to be set to `3` at minimum to be enabled at all.
 
 ```javascript
-// Sort on every drag move.
 var grid = new Muuri(elem, {
-  dragSortInterval: 0
-});
-```
-
-```javascript
-// Sort with a decent buffer.
-var grid = new Muuri(elem, {
-  dragSortInterval: 150
+  dragSortHeuristics: {
+    sortInterval: 10,
+    minDragDistance: 5,
+    minBounceBackAngle: Math.PI / 2
+  }
 });
 ```
 
@@ -882,6 +903,58 @@ var grid = new Muuri(elem, {
 });
 ```
 
+### dragPlaceholder &nbsp;
+
+If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here.
+
+* Accepted types: object.
+
+* **enabled** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `false`.
+  * Is the placeholder enabled?
+* **duration** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `300`.
+  * The duration for placeholder's positioning animation. Set to `0` to disable.
+* **easing** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'ease'`.
+  * The easing for placeholder's positioning animation. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
+* **createElement** &nbsp;&mdash;&nbsp; *function / null*
+  * Default value: `null`.
+  * If defined, this method will be used to create the DOM element that is used for the placeholder. By default a new `div` element is created when a placeholder is summoned.
+* **onCreate** &nbsp;&mdash;&nbsp; *function / null*
+  * Default value: `null`.
+  * An optional callback that will be called after a placeholder is created for an item.
+* **onRemove** &nbsp;&mdash;&nbsp; *function / null*
+  * Default value: `null`.
+  * An optional callback that will be called after a placeholder is removed from the grid.
+
+```javascript
+// This example showcases how to pool placeholder elements
+// for better performance and memory efficiency.
+var phPool = [];
+var phElem = document.createElement('div');
+
+var grid = new Muuri(elem, {
+  dragEnabled: true,
+  dragPlaceholder: {
+    enabled: true,
+    duration: 400,
+    easing: 'ease-out',
+    createElement(item) {
+      return phPool.pop() || phElem.cloneNode();
+    },
+    onCreate(item, element) {
+      // If you want to do something after the
+      // placeholder is fully created, here's
+      // the place to do it.
+    },
+    onRemove (item, element) {
+      phPool.push(element);
+    }
+  }
+});
+```
+
 ### containerClass &nbsp;
 
 Container element's class name.
@@ -970,6 +1043,19 @@ This class name will be added to the item element for the duration of release.
 ```javascript
 var grid = new Muuri(elem, {
   itemReleasingClass: 'foo-item-releasing'
+});
+```
+
+### itemPlaceholderClass &nbsp;
+
+This class name will be added to the drag placeholder element.
+
+* Default value: `'muuri-item-placeholder'`.
+* Accepted types: string.
+
+```javascript
+var grid = new Muuri(elem, {
+  itemPlaceholderClass: 'foo-item-placeholder'
 });
 ```
 

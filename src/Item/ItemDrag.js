@@ -78,6 +78,13 @@ function ItemDrag(item) {
   this._isDestroyed = false;
   this._isMigrating = false;
 
+  // Data for drag sort predicate heuristics.
+  this._hBlockIndex = null;
+  this._hX1 = 0;
+  this._hX2 = 0;
+  this._hY1 = 0;
+  this._hY2 = 0;
+
   // Setup item's initial drag data.
   this._reset();
 
@@ -99,7 +106,8 @@ function ItemDrag(item) {
   };
 
   // Create debounce overlap checker function.
-  this._checkOverlapDebounce = debounce(this._checkOverlap, settings.dragSortInterval);
+  var sortInterval = settings.dragSortHeuristics.sortInterval;
+  this._checkOverlapDebounce = debounce(this._checkOverlap, sortInterval);
 
   // Add drag recognizer to hammer.
   hammer.add(
@@ -678,6 +686,79 @@ ItemDrag.prototype._finishStartPredicate = function(event) {
 };
 
 /**
+ * Reset drag sort heuristics.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} event
+ */
+ItemDrag.prototype._resetHeuristics = function(event) {
+  var pointer = event.changedPointers[0];
+  var x = (pointer && pointer.screenX) || 0;
+  var y = (pointer && pointer.screenY) || 0;
+
+  this._hBlockIndex = null;
+  this._hX1 = this._hX2 = x;
+  this._hY1 = this._hY2 = y;
+};
+
+/**
+ * Run heuristics and return true if overlap check can be performed, and false
+ * if it can not.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} event
+ * @returns {Boolean}
+ */
+ItemDrag.prototype._checkHeuristics = function(event) {
+  var settings = this._getGrid()._settings.dragSortHeuristics;
+  var minDist = settings.minDragDistance;
+
+  // Skip heuristics if not needed.
+  if (minDist <= 0) {
+    this._hBlockIndex = null;
+    return true;
+  }
+
+  var pointer = event.changedPointers[0];
+  var x = (pointer && pointer.screenX) || 0;
+  var y = (pointer && pointer.screenY) || 0;
+  var diffX = x - this._hX2;
+  var diffY = y - this._hY2;
+
+  // If we can't do proper bounce back check make sure that the blocked index
+  // is not set.
+  var canCheckBounceBack = minDist > 3 && settings.minBounceBackAngle > 0;
+  if (!canCheckBounceBack) {
+    this._hBlockIndex = null;
+  }
+
+  if (Math.abs(diffX) > minDist || Math.abs(diffY) > minDist) {
+    // Reset blocked index if angle changed enough. This check requires a
+    // minimum value of 3 for minDragDistance to function properly.
+    if (canCheckBounceBack) {
+      var angle = Math.atan2(diffX, diffY);
+      var prevAngle = Math.atan2(this._hX2 - this._hX1, this._hY2 - this._hY1);
+      var deltaAngle = Math.atan2(Math.sin(angle - prevAngle), Math.cos(angle - prevAngle));
+      if (Math.abs(deltaAngle) > settings.minBounceBackAngle) {
+        this._hBlockIndex = null;
+      }
+    }
+
+    // Update points.
+    this._hX1 = this._hX2;
+    this._hY1 = this._hY2;
+    this._hX2 = x;
+    this._hY2 = y;
+
+    return true;
+  }
+
+  return false;
+};
+
+/**
  * Reset for default drag start predicate function.
  *
  * @private
@@ -702,6 +783,8 @@ ItemDrag.prototype._resetStartPredicate = function() {
  */
 ItemDrag.prototype._checkOverlap = function() {
   if (!this._isActive) return;
+
+  console.log('CHECK OVERLAP');
 
   var item = this._item;
   var settings = this._getGrid()._settings;
@@ -730,10 +813,17 @@ ItemDrag.prototype._checkOverlap = function() {
   targetIndex = normalizeArrayIndex(targetGrid._items, result.index, isMigration);
   sortAction = result.action === 'swap' ? 'swap' : 'move';
 
+  // Prevent position bounce.
+  if (!isMigration && targetIndex === this._hBlockIndex) {
+    return;
+  }
+
   // If the item was moved within it's current grid.
   if (!isMigration) {
     // Make sure the target index is not the current index.
     if (currentIndex !== targetIndex) {
+      this._hBlockIndex = currentIndex;
+
       // Do the sort.
       (sortAction === 'swap' ? arraySwap : arrayMove)(
         currentGrid._items,
@@ -758,6 +848,8 @@ ItemDrag.prototype._checkOverlap = function() {
 
   // If the item was moved to another grid.
   else {
+    this._hBlockIndex = null;
+
     // Emit beforeSend event.
     if (currentGrid._hasListeners(eventBeforeSend)) {
       currentGrid._emit(eventBeforeSend, {
@@ -925,6 +1017,9 @@ ItemDrag.prototype._onStart = function(event) {
   var hasDragContainer = dragContainer !== gridContainer;
   var offsetDiff;
 
+  // Reset heuristics data.
+  this._resetHeuristics(event);
+
   // If grid container is not the drag container, we need to calculate the
   // offset difference between grid container and drag container's containing
   // element.
@@ -1051,7 +1146,11 @@ ItemDrag.prototype._prepareMove = function() {
   if (!this._item._isActive) return;
 
   // If drag sort is enabled -> check overlap.
-  if (this._getGrid()._settings.dragSort) this._checkOverlapDebounce();
+  if (this._getGrid()._settings.dragSort) {
+    if (this._checkHeuristics(this._lastEvent)) {
+      this._checkOverlapDebounce();
+    }
+  }
 };
 
 /**

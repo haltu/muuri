@@ -16,9 +16,6 @@ import removeClass from '../utils/removeClass.js';
 
 /**
  * Drag placeholder.
- * @todo Performance improvements:
- *   - Batch layout animations to avoid layout thrashing.
- *   - Pool elements instead of creating a new one always.
  *
  * @class
  * @param {Item} item
@@ -196,7 +193,6 @@ ItemDragPlaceholder.prototype._onMigrate = function(data) {
  *
  * @public
  * @memberof ItemDragPlaceholder.prototype
- * @returns {ItemDragPlaceholder}
  */
 ItemDragPlaceholder.prototype.create = function() {
   // If we already have placeholder set up we can skip the initiation logic.
@@ -253,8 +249,6 @@ ItemDragPlaceholder.prototype.create = function() {
 
   // Insert the placeholder element to the grid.
   grid.getElement().appendChild(element);
-
-  return this;
 };
 
 /**
@@ -262,7 +256,6 @@ ItemDragPlaceholder.prototype.create = function() {
  *
  * @public
  * @memberof ItemDragPlaceholder.prototype
- * @returns {ItemDragPlaceholder}
  */
 ItemDragPlaceholder.prototype.reset = function() {
   if (!this.isActive()) return;
@@ -301,8 +294,6 @@ ItemDragPlaceholder.prototype.reset = function() {
   if (typeof settings.dragPlaceholder.onRemove === 'function') {
     settings.dragPlaceholder.onRemove(item, element);
   }
-
-  return this;
 };
 
 /**
@@ -338,14 +329,11 @@ ItemDragPlaceholder.prototype.isActive = function() {
  *
  * @public
  * @memberof ItemDragPlaceholder.prototype
- * @returns {ItemDragPlaceholder}
  */
 ItemDragPlaceholder.prototype.destroy = function() {
   this.reset();
   this._animate.destroy();
   this._item = this._animate = null;
-
-  return this;
 };
 
 export default ItemDragPlaceholder;

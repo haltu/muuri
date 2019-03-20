@@ -26,6 +26,7 @@ import Emitter from '../Emitter/Emitter.js';
 import Item from '../Item/Item.js';
 import ItemAnimate from '../Item/ItemAnimate.js';
 import ItemDrag from '../Item/ItemDrag.js';
+import ItemDragPlaceholder from '../Item/ItemDragPlaceholder.js';
 import ItemLayout from '../Item/ItemLayout.js';
 import ItemMigrate from '../Item/ItemMigrate.js';
 import ItemRelease from '../Item/ItemRelease.js';
@@ -81,7 +82,10 @@ var noop = function() {};
  * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
  * @param {?String} [options.dragAxis]
  * @param {(Boolean|Function)} [options.dragSort=true]
- * @param {Number} [options.dragSortInterval=100]
+ * @param {Object} [options.dragSortHeuristics]
+ * @param {Number} [options.dragSortHeuristics.sortInterval=100]
+ * @param {Number} [options.dragSortHeuristics.minDragDistance=10]
+ * @param {Number} [options.dragSortHeuristics.minBounceBackAngle=1]
  * @param {(Function|Object)} [options.dragSortPredicate]
  * @param {Number} [options.dragSortPredicate.threshold=50]
  * @param {String} [options.dragSortPredicate.action="move"]
@@ -209,11 +213,6 @@ Grid.ItemLayout = ItemLayout;
 Grid.ItemVisibility = ItemVisibility;
 
 /**
- * @see ItemRelease
- */
-Grid.ItemRelease = ItemRelease;
-
-/**
  * @see ItemMigrate
  */
 Grid.ItemMigrate = ItemMigrate;
@@ -227,6 +226,16 @@ Grid.ItemAnimate = ItemAnimate;
  * @see ItemDrag
  */
 Grid.ItemDrag = ItemDrag;
+
+/**
+ * @see ItemRelease
+ */
+Grid.ItemRelease = ItemRelease;
+
+/**
+ * @see ItemDragPlaceholder
+ */
+Grid.ItemDragPlaceholder = ItemDragPlaceholder;
 
 /**
  * @see Emitter
@@ -287,7 +296,11 @@ Grid.defaultOptions = {
   },
   dragAxis: null,
   dragSort: true,
-  dragSortInterval: 100,
+  dragSortHeuristics: {
+    sortInterval: 100,
+    minDragDistance: 8,
+    minBounceBackAngle: 1
+  },
   dragSortPredicate: {
     threshold: 50,
     action: 'move'

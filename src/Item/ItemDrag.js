@@ -784,8 +784,6 @@ ItemDrag.prototype._resetStartPredicate = function() {
 ItemDrag.prototype._checkOverlap = function() {
   if (!this._isActive) return;
 
-  console.log('CHECK OVERLAP');
-
   var item = this._item;
   var settings = this._getGrid()._settings;
   var result;

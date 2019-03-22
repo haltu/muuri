@@ -86,7 +86,6 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   if (!animEnabled) {
     this._updateOffsets();
     this._updateTargetStyles();
-    isPositioning && cancelLayoutTick(item._id);
     isAnimating = item._animate.isAnimating();
     this.stop(false, this._targetStyles);
     !isAnimating && setStyles(element, this._targetStyles);

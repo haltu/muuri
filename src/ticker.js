@@ -12,6 +12,7 @@ var layoutTick = 'layout';
 var visibilityTick = 'visibility';
 var moveTick = 'move';
 var scrollTick = 'scroll';
+var placeholderTick = 'placeholder';
 
 export default ticker;
 
@@ -45,4 +46,12 @@ export function addScrollTick(itemId, readCallback, writeCallback) {
 
 export function cancelScrollTick(itemId) {
   return ticker.cancel(itemId + scrollTick);
+}
+
+export function addPlaceholderTick(itemId, readCallback, writeCallback) {
+  return ticker.add(itemId + placeholderTick, readCallback, writeCallback);
+}
+
+export function cancelPlaceholderTick(itemId) {
+  return ticker.cancel(itemId + placeholderTick);
 }

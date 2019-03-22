@@ -604,6 +604,7 @@
   var visibilityTick = 'visibility';
   var moveTick = 'move';
   var scrollTick = 'scroll';
+  var placeholderTick = 'placeholder';
 
   function addLayoutTick(itemId, readCallback, writeCallback) {
     return ticker.add(itemId + layoutTick, readCallback, writeCallback);
@@ -635,6 +636,14 @@
 
   function cancelScrollTick(itemId) {
     return ticker.cancel(itemId + scrollTick);
+  }
+
+  function addPlaceholderTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + placeholderTick, readCallback, writeCallback);
+  }
+
+  function cancelPlaceholderTick(itemId) {
+    return ticker.cancel(itemId + placeholderTick);
   }
 
   var proto = Element.prototype;
@@ -1262,10 +1271,6 @@
 
   /**
    * Default drag sort predicate.
-   * @todo As long as the item is dragged to the same direction (about-ish) do not
-   *       allow item being moved back to it's previous index. This should cover
-   *       most of the annoying flickering scenarios. If the item's drag direction
-   *       changes enough from the last sort allow sorting again normally.
    *
    * @public
    * @memberof ItemDrag
@@ -1807,8 +1812,6 @@
    */
   ItemDrag.prototype._checkOverlap = function() {
     if (!this._isActive) return;
-
-    console.log('CHECK OVERLAP');
 
     var item = this._item;
     var settings = this._getGrid()._settings;
@@ -2410,9 +2413,6 @@
 
   /**
    * Drag placeholder.
-   * @todo Performance improvements:
-   *   - Placeholder seems to have a negative effect on performance.
-   *   - Batch layout animations to avoid layout thrashing.
    *
    * @class
    * @param {Item} item
@@ -2424,6 +2424,14 @@
     this._className = '';
     this._didMigrate = false;
     this._resetAfterLayout = false;
+    this._currentLeft = 0;
+    this._currentTop = 0;
+    this._nextLeft = 0;
+    this._nextTop = 0;
+
+    // Bind animation handlers.
+    this._setupAnimation = this._setupAnimation.bind(this);
+    this._startAnimation = this._startAnimation.bind(this);
 
     // Bind event handlers.
     this._onLayoutStart = this._onLayoutStart.bind(this);
@@ -2446,8 +2454,6 @@
   ItemDragPlaceholder.prototype._onLayoutStart = function() {
     var item = this._item;
     var grid = item.getGrid();
-    var element = this._element;
-    var animation = this._animate;
 
     // Find out the item's new (unapplied) left and top position.
     var itemIndex = grid._items.indexOf(item);
@@ -2465,47 +2471,80 @@
     nextLeft += item._marginLeft;
     nextTop += item._marginTop;
 
-    // Get target styles.
-    var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
-
-    // Get placeholder's layout animation settings.
-    var settings = grid._settings.dragPlaceholder;
-    var animDuration = settings.duration;
-    var animEasing = settings.easing;
-    var animEnabled = animDuration > 0;
-
     // Just snap to new position without any animations if no animation is
     // required or if placeholder moves between grids.
+    var animEnabled = grid._settings.dragPlaceholder.duration > 0;
     if (!animEnabled || this._didMigrate) {
+      // Cancel potential (queued) layout tick.
+      cancelPlaceholderTick(item._id);
+
       // Snap placeholder to correct position.
-      if (animation.isAnimating()) {
-        animation.stop(targetStyles);
+      var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
+      if (this._animate.isAnimating()) {
+        this._animate.stop(targetStyles);
       } else {
-        setStyles(element, targetStyles);
+        setStyles(this._element, targetStyles);
       }
 
       // Move placeholder inside correct container after migration.
       if (this._didMigrate) {
-        grid.getElement().appendChild(element);
+        grid.getElement().appendChild(this._element);
         this._didMigrate = false;
       }
 
       return;
     }
 
-    // If placeholder is already in correct position just let it be as is. Just
-    // make sure that it's animation is stopped if running.
-    var current = getTranslate(element);
-    if (current.x === nextLeft && current.y === nextTop) {
+    // Start the placeholder's layout animation in the next tick. We do this to
+    // avoid layout thrashing.
+    this._nextLeft = nextLeft;
+    this._nextTop = nextTop;
+    addPlaceholderTick(item._id, this._setupAnimation, this._startAnimation);
+  };
+
+  /**
+   * Prepare placeholder for layout animation.
+   *
+   * @private
+   * @memberof ItemDragPlaceholder.prototype
+   */
+  ItemDragPlaceholder.prototype._setupAnimation = function() {
+    if (!this.isActive()) return;
+
+    var translate = getTranslate(this._element);
+    this._currentLeft = translate.x;
+    this._currentTop = translate.y;
+  };
+
+  /**
+   * Start layout animation.
+   *
+   * @private
+   * @memberof ItemDragPlaceholder.prototype
+   */
+  ItemDragPlaceholder.prototype._startAnimation = function() {
+    if (!this.isActive()) return;
+
+    var animation = this._animate;
+    var currentLeft = this._currentLeft;
+    var currentTop = this._currentTop;
+    var nextLeft = this._nextLeft;
+    var nextTop = this._nextTop;
+    var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
+
+    // If placeholder is already in correct position let's just stop animation
+    // and be done with it.
+    if (currentLeft === nextLeft && currentTop === nextTop) {
       if (animation.isAnimating()) animation.stop(targetStyles);
       return;
     }
 
-    // Animate placeholder to correct position.
-    var currentStyles = { transform: getTranslateString(current.x, current.y) };
-    this._animate.start(currentStyles, targetStyles, {
-      duration: animDuration,
-      easing: animEasing,
+    // Otherwise let's start the animation.
+    var settings = this._item.getGrid()._settings.dragPlaceholder;
+    var currentStyles = { transform: getTranslateString(currentLeft, currentTop) };
+    animation.start(currentStyles, targetStyles, {
+      duration: settings.duration,
+      easing: settings.easing,
       onFinish: this._onLayoutEnd
     });
   };
@@ -2590,7 +2629,6 @@
    *
    * @public
    * @memberof ItemDragPlaceholder.prototype
-   * @returns {ItemDragPlaceholder}
    */
   ItemDragPlaceholder.prototype.create = function() {
     // If we already have placeholder set up we can skip the initiation logic.
@@ -2647,8 +2685,6 @@
 
     // Insert the placeholder element to the grid.
     grid.getElement().appendChild(element);
-
-    return this;
   };
 
   /**
@@ -2656,7 +2692,6 @@
    *
    * @public
    * @memberof ItemDragPlaceholder.prototype
-   * @returns {ItemDragPlaceholder}
    */
   ItemDragPlaceholder.prototype.reset = function() {
     if (!this.isActive()) return;
@@ -2669,6 +2704,9 @@
 
     // Reset flag.
     this._resetAfterLayout = false;
+
+    // Cancel potential (queued) layout tick.
+    cancelPlaceholderTick(item._id);
 
     // Reset animation instance.
     animation.stop();
@@ -2695,8 +2733,6 @@
     if (typeof settings.dragPlaceholder.onRemove === 'function') {
       settings.dragPlaceholder.onRemove(item, element);
     }
-
-    return this;
   };
 
   /**
@@ -2732,14 +2768,11 @@
    *
    * @public
    * @memberof ItemDragPlaceholder.prototype
-   * @returns {ItemDragPlaceholder}
    */
   ItemDragPlaceholder.prototype.destroy = function() {
     this.reset();
     this._animate.destroy();
     this._item = this._animate = null;
-
-    return this;
   };
 
   /**
@@ -2899,7 +2932,6 @@
     if (!animEnabled) {
       this._updateOffsets();
       this._updateTargetStyles();
-      isPositioning && cancelLayoutTick(item._id);
       isAnimating = item._animate.isAnimating();
       this.stop(false, this._targetStyles);
       !isAnimating && setStyles(element, this._targetStyles);
@@ -4702,7 +4734,10 @@
    * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
    * @param {?String} [options.dragAxis]
    * @param {(Boolean|Function)} [options.dragSort=true]
-   * @param {Number} [options.dragSortInterval=100]
+   * @param {Object} [options.dragSortHeuristics]
+   * @param {Number} [options.dragSortHeuristics.sortInterval=100]
+   * @param {Number} [options.dragSortHeuristics.minDragDistance=10]
+   * @param {Number} [options.dragSortHeuristics.minBounceBackAngle=1]
    * @param {(Function|Object)} [options.dragSortPredicate]
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
@@ -4830,11 +4865,6 @@
   Grid.ItemVisibility = ItemVisibility;
 
   /**
-   * @see ItemRelease
-   */
-  Grid.ItemRelease = ItemRelease;
-
-  /**
    * @see ItemMigrate
    */
   Grid.ItemMigrate = ItemMigrate;
@@ -4848,6 +4878,16 @@
    * @see ItemDrag
    */
   Grid.ItemDrag = ItemDrag;
+
+  /**
+   * @see ItemRelease
+   */
+  Grid.ItemRelease = ItemRelease;
+
+  /**
+   * @see ItemDragPlaceholder
+   */
+  Grid.ItemDragPlaceholder = ItemDragPlaceholder;
 
   /**
    * @see Emitter

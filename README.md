@@ -910,7 +910,10 @@ var grid = new Muuri(elem, {
 
 If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here.
 
+* Default value: `{enabled: false, duration: 300, easing: 'ease', createElement: null, onCreate: null, onRemove: null}`.
 * Accepted types: object.
+
+You can define the following properties:
 
 * **enabled** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.

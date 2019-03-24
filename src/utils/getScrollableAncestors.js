@@ -20,9 +20,18 @@ export default function getScrollableAncestors(element, includeSelf, data) {
 
   // Find scroll parents.
   while (parent && parent !== document) {
+    // If element is inside ShadowDOM let's get it's host node from the real
+    // DOM and continue looping.
+    if (parent.getRootNode && parent instanceof DocumentFragment) {
+      parent = parent.getRootNode().host;
+      continue;
+    }
+
+    // If element is scrollable let's add it to the scrollable list.
     if (isScrollable(parent)) {
       ret.push(parent);
     }
+
     parent = parent.parentNode;
   }
 

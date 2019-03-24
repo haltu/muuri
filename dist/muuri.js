@@ -965,9 +965,18 @@
 
     // Find scroll parents.
     while (parent && parent !== document) {
+      // If element is inside ShadowDOM let's get it's host node from the real
+      // DOM and continue looping.
+      if (parent.getRootNode && parent instanceof DocumentFragment) {
+        parent = parent.getRootNode().host;
+        continue;
+      }
+
+      // If element is scrollable let's add it to the scrollable list.
       if (isScrollable(parent)) {
         ret.push(parent);
       }
+
       parent = parent.parentNode;
     }
 
@@ -4772,7 +4781,8 @@
 
     // Throw an error if the container element is not body element or does not
     // exist within the body element.
-    if (!document.body.contains(element)) {
+    var isElementInDom = element.getRootNode ? element.getRootNode({ composed: true }) === document : document.body.contains(element);
+    if (!isElementInDom || element === document.documentElement) {
       throw new Error('Container element must be an existing DOM element');
     }
 

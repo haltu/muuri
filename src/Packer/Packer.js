@@ -161,7 +161,7 @@ Packer.prototype._addSlot = (function() {
       itemSlot.left = !isHorizontal ? 0 : layout.width;
       itemSlot.top = !isHorizontal ? layout.height : 0;
 
-      // If gaps don't needs filling do not add any current slots to the new
+      // If gaps don't need filling do not add any current slots to the new
       // slots array.
       if (!fillGaps) {
         ignoreCurrentSlots = true;

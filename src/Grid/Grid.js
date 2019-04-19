@@ -522,9 +522,6 @@ Grid.prototype.layout = function(instant, onFinish) {
   var layoutId = layout.id;
   var itemsLength = layout.items.length;
   var counter = itemsLength;
-  var callback = typeof instant === 'function' ? instant : onFinish;
-  var isCallbackFunction = typeof callback === 'function';
-  var callbackItems = isCallbackFunction ? layout.items.slice(0) : null;
   var isBorderBox;
   var item;
   var i;
@@ -535,8 +532,14 @@ Grid.prototype.layout = function(instant, onFinish) {
   // hasn't been a new layout call during this layout.
   function tryFinish() {
     if (--counter > 0) return;
+
     var hasLayoutChanged = inst._layout.id !== layoutId;
-    isCallbackFunction && callback(hasLayoutChanged, callbackItems);
+    var callback = typeof instant === 'function' ? instant : onFinish;
+
+    if (typeof callback === 'function') {
+      callback(hasLayoutChanged, layout.items.slice(0));
+    }
+
     if (!hasLayoutChanged && inst._hasListeners(eventLayoutEnd)) {
       inst._emit(eventLayoutEnd, layout.items.slice(0));
     }
@@ -546,7 +549,9 @@ Grid.prototype.layout = function(instant, onFinish) {
   // dimensions. Also keep in mind that grid's cached width/height should
   // always equal to what elem.getBoundingClientRect() would return, so
   // therefore we need to add the grid element's borders to the dimensions if
-  // it's box-sizing is border-box.
+  // it's box-sizing is border-box. Note that we support providing the
+  // dimensions as a string here too so that one can define the unit of the
+  // dimensions, in which case we don't do the border-box check.
   if (
     (layout.setHeight && typeof layout.height === 'number') ||
     (layout.setWidth && typeof layout.width === 'number')

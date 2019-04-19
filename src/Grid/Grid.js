@@ -50,6 +50,9 @@ import toArray from '../utils/toArray.js';
 
 var packer = new Packer();
 var noop = function() {};
+var numberType = 'number';
+var stringType = 'string';
+var instantLayout = 'instant';
 
 /**
  * Creates a new Grid instance.
@@ -117,7 +120,8 @@ function Grid(element, options) {
   var layoutOnResize;
 
   // Allow passing element as selector string. Store element for instance.
-  element = this._element = typeof element === 'string' ? document.querySelector(element) : element;
+  element = this._element =
+    typeof element === stringType ? document.querySelector(element) : element;
 
   // Throw an error if the container element is not body element or does not
   // exist within the body element.
@@ -163,7 +167,7 @@ function Grid(element, options) {
   // Create initial items.
   this._items = [];
   items = settings.items;
-  if (typeof items === 'string') {
+  if (typeof items === stringType) {
     toArray(element.children).forEach(function(itemElement) {
       if (items === '*' || elementMatches(itemElement, items)) {
         inst._items.push(new Item(inst, itemElement));
@@ -178,7 +182,7 @@ function Grid(element, options) {
   // If layoutOnResize option is a valid number sanitize it and bind the resize
   // handler.
   layoutOnResize = settings.layoutOnResize;
-  if (typeof layoutOnResize !== 'number') {
+  if (typeof layoutOnResize !== numberType) {
     layoutOnResize = layoutOnResize === true ? 0 : -1;
   }
   if (layoutOnResize >= 0) {
@@ -554,13 +558,13 @@ Grid.prototype.layout = function(instant, onFinish) {
   // dimensions as a string here too so that one can define the unit of the
   // dimensions, in which case we don't do the border-box check.
   if (
-    (layout.setHeight && typeof layout.height === 'number') ||
-    (layout.setWidth && typeof layout.width === 'number')
+    (layout.setHeight && typeof layout.height === numberType) ||
+    (layout.setWidth && typeof layout.width === numberType)
   ) {
     isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
   }
   if (layout.setHeight) {
-    if (typeof layout.height === 'number') {
+    if (typeof layout.height === numberType) {
       element.style.height =
         (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
     } else {
@@ -568,7 +572,7 @@ Grid.prototype.layout = function(instant, onFinish) {
     }
   }
   if (layout.setWidth) {
-    if (typeof layout.width === 'number') {
+    if (typeof layout.width === numberType) {
       element.style.width =
         (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
     } else {
@@ -666,7 +670,7 @@ Grid.prototype.add = function(elements, options) {
 
   // If layout is needed.
   if (needsLayout && layout) {
-    this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
+    this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
   }
 
   return newItems;
@@ -710,7 +714,7 @@ Grid.prototype.remove = function(items, options) {
 
   // If layout is needed.
   if (needsLayout && layout) {
-    this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
+    this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
   }
 
   return targetItems;
@@ -776,7 +780,7 @@ Grid.prototype.filter = function(predicate, options) {
 
   var itemsToShow = [];
   var itemsToHide = [];
-  var isPredicateString = typeof predicate === 'string';
+  var isPredicateString = typeof predicate === stringType;
   var isPredicateFn = isFunction(predicate);
   var opts = options || 0;
   var isInstant = opts.instant === true;
@@ -837,7 +841,7 @@ Grid.prototype.filter = function(predicate, options) {
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
+      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
     }
   }
 
@@ -962,7 +966,7 @@ Grid.prototype.sort = (function() {
     }
     // Otherwise if we got a string, let's sort by the sort data as provided in
     // the instance's options.
-    else if (typeof sortComparer === 'string') {
+    else if (typeof sortComparer === stringType) {
       sortComparer = parseCriteria(comparer);
       items.sort(defaultComparer);
     }
@@ -993,7 +997,7 @@ Grid.prototype.sort = (function() {
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
+      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
     }
 
     return this;
@@ -1053,7 +1057,7 @@ Grid.prototype.move = function(item, position, options) {
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
+      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
     }
   }
 
@@ -1095,11 +1099,14 @@ Grid.prototype.send = function(item, grid, position, options) {
   // the grids.
   if (item._migrate._isActive && item._isActive) {
     if (layoutSender) {
-      this.layout(layoutSender === 'instant', isFunction(layoutSender) ? layoutSender : undefined);
+      this.layout(
+        layoutSender === instantLayout,
+        isFunction(layoutSender) ? layoutSender : undefined
+      );
     }
     if (layoutReceiver) {
       grid.layout(
-        layoutReceiver === 'instant',
+        layoutReceiver === instantLayout,
         isFunction(layoutReceiver) ? layoutReceiver : undefined
       );
     }
@@ -1176,7 +1183,7 @@ Grid.prototype._getItem = function(target) {
   // If target is number return the item in that index. If the number is lower
   // than zero look for the item starting from the end of the items array. For
   // example -1 for the last item, -2 for the second last item, etc.
-  if (typeof target === 'number') {
+  if (typeof target === numberType) {
     return this._items[target > -1 ? target : this._items.length + target] || null;
   }
 
@@ -1399,7 +1406,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
 
   // Layout if needed.
   if (needsLayout && layout) {
-    this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
+    this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
   }
 };
 

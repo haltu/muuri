@@ -13,6 +13,7 @@ import ItemAnimate from '../Item/ItemAnimate.js';
 import addClass from '../utils/addClass.js';
 import getTranslateString from '../utils/getTranslateString.js';
 import getTranslate from '../utils/getTranslate.js';
+import isFunction from '../utils/isFunction.js';
 import setStyles from '../utils/setStyles.js';
 import removeClass from '../utils/removeClass.js';
 
@@ -249,7 +250,7 @@ ItemDragPlaceholder.prototype.create = function() {
 
   // Create placeholder element.
   var element;
-  if (typeof settings.dragPlaceholder.createElement === 'function') {
+  if (isFunction(settings.dragPlaceholder.createElement)) {
     element = settings.dragPlaceholder.createElement(item);
   } else {
     element = document.createElement('div');
@@ -284,7 +285,7 @@ ItemDragPlaceholder.prototype.create = function() {
   grid.on(eventBeforeSend, this._onMigrate);
 
   // onCreate hook.
-  if (typeof settings.dragPlaceholder.onCreate === 'function') {
+  if (isFunction(settings.dragPlaceholder.onCreate)) {
     settings.dragPlaceholder.onCreate(item, element);
   }
 
@@ -335,7 +336,7 @@ ItemDragPlaceholder.prototype.reset = function() {
   // onRemove hook. Note that here we use the current grid's onRemove callback
   // so if the item has migrated during drag the onRemove method will not be
   // the originating grid's method.
-  if (typeof settings.dragPlaceholder.onRemove === 'function') {
+  if (isFunction(settings.dragPlaceholder.onRemove)) {
     settings.dragPlaceholder.onRemove(item, element);
   }
 };

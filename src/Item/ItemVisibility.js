@@ -11,6 +11,7 @@ import Queue from '../Queue/Queue.js';
 import addClass from '../utils/addClass.js';
 import getCurrentStyles from '../utils/getCurrentStyles.js';
 import getTranslateString from '../utils/getTranslateString.js';
+import isFunction from '../utils/isFunction.js';
 import removeClass from '../utils/removeClass.js';
 import setStyles from '../utils/setStyles.js';
 
@@ -70,7 +71,7 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
   var item = this._item;
   var element = item._element;
   var queue = this._queue;
-  var callback = typeof onFinish === 'function' ? onFinish : null;
+  var callback = isFunction(onFinish) ? onFinish : null;
   var grid = item.getGrid();
   var settings = grid._settings;
 
@@ -125,7 +126,7 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
   var item = this._item;
   var element = item._element;
   var queue = this._queue;
-  var callback = typeof onFinish === 'function' ? onFinish : null;
+  var callback = isFunction(onFinish) ? onFinish : null;
   var grid = item.getGrid();
   var settings = grid._settings;
 

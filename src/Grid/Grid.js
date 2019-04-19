@@ -42,6 +42,7 @@ import elementMatches from '../utils/elementMatches.js';
 import getStyle from '../utils/getStyle.js';
 import getStyleAsFloat from '../utils/getStyleAsFloat.js';
 import arrayInsert from '../utils/arrayInsert.js';
+import isFunction from '../utils/isFunction.js';
 import isNodeList from '../utils/isNodeList.js';
 import isPlainObject from '../utils/isPlainObject.js';
 import removeClass from '../utils/removeClass.js';
@@ -534,9 +535,9 @@ Grid.prototype.layout = function(instant, onFinish) {
     if (--counter > 0) return;
 
     var hasLayoutChanged = inst._layout.id !== layoutId;
-    var callback = typeof instant === 'function' ? instant : onFinish;
+    var callback = isFunction(instant) ? instant : onFinish;
 
-    if (typeof callback === 'function') {
+    if (isFunction(callback)) {
       callback(hasLayoutChanged, layout.items.slice(0));
     }
 
@@ -665,7 +666,7 @@ Grid.prototype.add = function(elements, options) {
 
   // If layout is needed.
   if (needsLayout && layout) {
-    this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+    this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
   }
 
   return newItems;
@@ -709,7 +710,7 @@ Grid.prototype.remove = function(items, options) {
 
   // If layout is needed.
   if (needsLayout && layout) {
-    this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+    this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
   }
 
   return targetItems;
@@ -776,11 +777,11 @@ Grid.prototype.filter = function(predicate, options) {
   var itemsToShow = [];
   var itemsToHide = [];
   var isPredicateString = typeof predicate === 'string';
-  var isPredicateFn = typeof predicate === 'function';
+  var isPredicateFn = isFunction(predicate);
   var opts = options || 0;
   var isInstant = opts.instant === true;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
-  var onFinish = typeof opts.onFinish === 'function' ? opts.onFinish : null;
+  var onFinish = isFunction(opts.onFinish) ? opts.onFinish : null;
   var tryFinishCounter = -1;
   var tryFinish = noop;
   var item;
@@ -836,7 +837,7 @@ Grid.prototype.filter = function(predicate, options) {
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
     }
   }
 
@@ -956,7 +957,7 @@ Grid.prototype.sort = (function() {
     indexMap = null;
 
     // If function is provided do a native array sort.
-    if (typeof sortComparer === 'function') {
+    if (isFunction(sortComparer)) {
       items.sort(customComparer);
     }
     // Otherwise if we got a string, let's sort by the sort data as provided in
@@ -992,7 +993,7 @@ Grid.prototype.sort = (function() {
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
     }
 
     return this;
@@ -1052,7 +1053,7 @@ Grid.prototype.move = function(item, position, options) {
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
     }
   }
 
@@ -1094,15 +1095,12 @@ Grid.prototype.send = function(item, grid, position, options) {
   // the grids.
   if (item._migrate._isActive && item._isActive) {
     if (layoutSender) {
-      this.layout(
-        layoutSender === 'instant',
-        typeof layoutSender === 'function' ? layoutSender : undefined
-      );
+      this.layout(layoutSender === 'instant', isFunction(layoutSender) ? layoutSender : undefined);
     }
     if (layoutReceiver) {
       grid.layout(
         layoutReceiver === 'instant',
-        typeof layoutReceiver === 'function' ? layoutReceiver : undefined
+        isFunction(layoutReceiver) ? layoutReceiver : undefined
       );
     }
   }
@@ -1233,7 +1231,7 @@ Grid.prototype._updateLayout = function() {
   height = this._height - this._borderTop - this._borderBottom;
 
   // Calculate new layout.
-  if (typeof settings === 'function') {
+  if (isFunction(settings)) {
     newLayout = settings(layout.items, width, height);
   } else {
     newLayout = packer.getLayout(layout.items, width, height, layout.slots, settings);
@@ -1350,7 +1348,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
 
   // If there are no items call the callback, but don't emit any events.
   if (!counter) {
-    if (typeof callback === 'function') callback(targetItems);
+    if (isFunction(callback)) callback(targetItems);
     return;
   }
 
@@ -1390,7 +1388,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
       // If all items have finished their animations call the callback
       // and emit showEnd/hideEnd event.
       if (--counter < 1) {
-        if (typeof callback === 'function') callback(completedItems.slice(0));
+        if (isFunction(callback)) callback(completedItems.slice(0));
         if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
       }
     });
@@ -1401,7 +1399,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
 
   // Layout if needed.
   if (needsLayout && layout) {
-    this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+    this.layout(layout === 'instant', isFunction(layout) ? layout : undefined);
   }
 };
 

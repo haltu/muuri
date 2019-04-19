@@ -34,6 +34,7 @@ import getScrollableAncestors from '../utils/getScrollableAncestors.js';
 import getTranslate from '../utils/getTranslate.js';
 import getTranslateString from '../utils/getTranslateString.js';
 import arrayInsert from '../utils/arrayInsert.js';
+import isFunction from '../utils/isFunction.js';
 import isPlainObject from '../utils/isPlainObject.js';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex.js';
 import removeClass from '../utils/removeClass.js';
@@ -64,10 +65,9 @@ function ItemDrag(item) {
   var hammer;
 
   // Start predicate private data.
-  var startPredicate =
-    typeof settings.dragStartPredicate === 'function'
-      ? settings.dragStartPredicate
-      : ItemDrag.defaultStartPredicate;
+  var startPredicate = isFunction(settings.dragStartPredicate)
+    ? settings.dragStartPredicate
+    : ItemDrag.defaultStartPredicate;
   var startPredicateState = startPredicateInactive;
   var startPredicateResult;
 
@@ -795,7 +795,7 @@ ItemDrag.prototype._checkOverlap = function() {
   var isMigration;
 
   // Get overlap check result.
-  if (typeof settings.dragSortPredicate === 'function') {
+  if (isFunction(settings.dragSortPredicate)) {
     result = settings.dragSortPredicate(item, this._lastEvent);
   } else {
     result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);

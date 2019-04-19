@@ -4,6 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+var strObject = 'object';
 var objectType = '[object Object]';
 var toString = Object.prototype.toString;
 
@@ -14,5 +15,5 @@ var toString = Object.prototype.toString;
  * @returns {Boolean}
  */
 export default function isPlainObject(val) {
-  return typeof val === 'object' && toString.call(val) === objectType;
+  return typeof val === strObject && toString.call(val) === objectType;
 }

@@ -11,6 +11,7 @@ import Queue from '../Queue/Queue.js';
 import addClass from '../utils/addClass.js';
 import getTranslate from '../utils/getTranslate.js';
 import getTranslateString from '../utils/getTranslateString.js';
+import isFunction from '../utils/isFunction.js';
 import removeClass from '../utils/removeClass.js';
 import setStyles from '../utils/setStyles.js';
 
@@ -80,7 +81,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   if (isJustReleased) release._isPositioningStarted = true;
 
   // Push the callback to the callback queue.
-  if (typeof onFinish === 'function') this._queue.add(onFinish);
+  if (isFunction(onFinish)) this._queue.add(onFinish);
 
   // If no animations are needed, easy peasy!
   if (!animEnabled) {

@@ -6,6 +6,7 @@
 
 import getStyle from '../utils/getStyle.js';
 import getStyleName from '../utils/getStyleName.js';
+import isFunction from '../utils/isFunction.js';
 import setStyles from '../utils/setStyles.js';
 import { transformProp } from '../utils/supportedTransform.js';
 
@@ -84,7 +85,7 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   if (cancelAnimation) animation.cancel();
 
   // Store animation callback.
-  this._callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
+  this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
 
   // If we have a running animation that does not need to be cancelled, let's
   // call it a day here and let it run.

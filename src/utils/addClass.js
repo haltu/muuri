@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import elementMatches from './elementMatches.js';
+import elementMatches from './elementMatches';
 
 /**
  * Add class to an element.

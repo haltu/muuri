@@ -1,5 +1,5 @@
 /**
- * Muuri v0.7.1
+ * Muuri v0.8.0
  * https://github.com/haltu/muuri
  * Copyright (c) 2015-present, Haltu Oy
  * Released under the MIT license
@@ -28,6 +28,9 @@
 
   var namespace = 'Muuri';
   var gridInstances = {};
+
+  var actionSwap = 'swap';
+  var actionMove = 'move';
 
   var eventSynchronize = 'synchronize';
   var eventLayoutStart = 'layoutStart';
@@ -281,6 +284,18 @@
     return string.replace(styleNameRegEx, '-$1').toLowerCase();
   }
 
+  var strFunction = 'function';
+
+  /**
+   * Check if a value is a function.
+   *
+   * @param {*} val
+   * @returns {Boolean}
+   */
+  function isFunction(val) {
+    return typeof val === strFunction;
+  }
+
   /**
    * Set inline styles to an element.
    *
@@ -368,7 +383,7 @@
     if (cancelAnimation) animation.cancel();
 
     // Store animation callback.
-    this._callback = typeof opts.onFinish === 'function' ? opts.onFinish : null;
+    this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
 
     // If we have a running animation that does not need to be cancelled, let's
     // call it a day here and let it run.
@@ -1023,6 +1038,7 @@
   }
 
   var tempArray = [];
+  var numberType = 'number';
 
   /**
    * Insert an item or an array of items to array to a specified index. Mutates
@@ -1034,14 +1050,15 @@
    * @param {Number} [index=-1]
    */
   function arrayInsert(array, items, index) {
-    var startIndex = typeof index === 'number' ? index : -1;
+    var startIndex = typeof index === numberType ? index : -1;
     if (startIndex < 0) startIndex = array.length - startIndex + 1;
 
     array.splice.apply(array, tempArray.concat(startIndex, 0, items));
     tempArray.length = 0;
   }
 
-  var objectType = '[object Object]';
+  var objectType = 'object';
+  var objectToStringType = '[object Object]';
   var toString = Object.prototype.toString;
 
   /**
@@ -1051,7 +1068,7 @@
    * @returns {Boolean}
    */
   function isPlainObject(val) {
-    return typeof val === 'object' && toString.call(val) === objectType;
+    return typeof val === objectType && toString.call(val) === objectToStringType;
   }
 
   /**
@@ -1102,10 +1119,9 @@
     var hammer;
 
     // Start predicate private data.
-    var startPredicate =
-      typeof settings.dragStartPredicate === 'function'
-        ? settings.dragStartPredicate
-        : ItemDrag.defaultStartPredicate;
+    var startPredicate = isFunction(settings.dragStartPredicate)
+      ? settings.dragStartPredicate
+      : ItemDrag.defaultStartPredicate;
     var startPredicateState = startPredicateInactive;
     var startPredicateResult;
 
@@ -1354,7 +1370,7 @@
 
       // Get drag sort predicate settings.
       var sortThreshold = options && typeof options.threshold === 'number' ? options.threshold : 50;
-      var sortAction = options && options.action === 'swap' ? 'swap' : 'move';
+      var sortAction = options && options.action === actionSwap ? actionSwap : actionMove;
 
       // Populate item rect data.
       itemRect.width = item._width;
@@ -1833,7 +1849,7 @@
     var isMigration;
 
     // Get overlap check result.
-    if (typeof settings.dragSortPredicate === 'function') {
+    if (isFunction(settings.dragSortPredicate)) {
       result = settings.dragSortPredicate(item, this._lastEvent);
     } else {
       result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);
@@ -1847,7 +1863,7 @@
     isMigration = currentGrid !== targetGrid;
     currentIndex = currentGrid._items.indexOf(item);
     targetIndex = normalizeArrayIndex(targetGrid._items, result.index, isMigration);
-    sortAction = result.action === 'swap' ? 'swap' : 'move';
+    sortAction = result.action === actionSwap ? actionSwap : actionMove;
 
     // Prevent position bounce.
     if (!isMigration && targetIndex === this._hBlockIndex) {
@@ -1861,7 +1877,7 @@
         this._hBlockIndex = currentIndex;
 
         // Do the sort.
-        (sortAction === 'swap' ? arraySwap : arrayMove)(
+        (sortAction === actionSwap ? arraySwap : arrayMove)(
           currentGrid._items,
           currentIndex,
           targetIndex
@@ -2653,7 +2669,7 @@
 
     // Create placeholder element.
     var element;
-    if (typeof settings.dragPlaceholder.createElement === 'function') {
+    if (isFunction(settings.dragPlaceholder.createElement)) {
       element = settings.dragPlaceholder.createElement(item);
     } else {
       element = document.createElement('div');
@@ -2688,7 +2704,7 @@
     grid.on(eventBeforeSend, this._onMigrate);
 
     // onCreate hook.
-    if (typeof settings.dragPlaceholder.onCreate === 'function') {
+    if (isFunction(settings.dragPlaceholder.onCreate)) {
       settings.dragPlaceholder.onCreate(item, element);
     }
 
@@ -2739,7 +2755,7 @@
     // onRemove hook. Note that here we use the current grid's onRemove callback
     // so if the item has migrated during drag the onRemove method will not be
     // the originating grid's method.
-    if (typeof settings.dragPlaceholder.onRemove === 'function') {
+    if (isFunction(settings.dragPlaceholder.onRemove)) {
       settings.dragPlaceholder.onRemove(item, element);
     }
   };
@@ -2935,7 +2951,7 @@
     if (isJustReleased) release._isPositioningStarted = true;
 
     // Push the callback to the callback queue.
-    if (typeof onFinish === 'function') this._queue.add(onFinish);
+    if (isFunction(onFinish)) this._queue.add(onFinish);
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
@@ -3611,7 +3627,7 @@
     var item = this._item;
     var element = item._element;
     var queue = this._queue;
-    var callback = typeof onFinish === 'function' ? onFinish : null;
+    var callback = isFunction(onFinish) ? onFinish : null;
     var grid = item.getGrid();
     var settings = grid._settings;
 
@@ -3666,7 +3682,7 @@
     var item = this._item;
     var element = item._element;
     var queue = this._queue;
-    var callback = typeof onFinish === 'function' ? onFinish : null;
+    var callback = isFunction(onFinish) ? onFinish : null;
     var grid = item.getGrid();
     var settings = grid._settings;
 
@@ -4357,7 +4373,7 @@
         itemSlot.left = !isHorizontal ? 0 : layout.width;
         itemSlot.top = !isHorizontal ? layout.height : 0;
 
-        // If gaps don't needs filling do not add any current slots to the new
+        // If gaps don't need filling do not add any current slots to the new
         // slots array.
         if (!fillGaps) {
           ignoreCurrentSlots = true;
@@ -4711,6 +4727,10 @@
   var packer = new Packer();
   var noop = function() {};
 
+  var numberType$1 = 'number';
+  var stringType = 'string';
+  var instantLayout = 'instant';
+
   /**
    * Creates a new Grid instance.
    *
@@ -4777,11 +4797,14 @@
     var layoutOnResize;
 
     // Allow passing element as selector string. Store element for instance.
-    element = this._element = typeof element === 'string' ? document.querySelector(element) : element;
+    element = this._element =
+      typeof element === stringType ? document.querySelector(element) : element;
 
     // Throw an error if the container element is not body element or does not
     // exist within the body element.
-    var isElementInDom = element.getRootNode ? element.getRootNode({ composed: true }) === document : document.body.contains(element);
+    var isElementInDom = element.getRootNode
+      ? element.getRootNode({ composed: true }) === document
+      : document.body.contains(element);
     if (!isElementInDom || element === document.documentElement) {
       throw new Error('Container element must be an existing DOM element');
     }
@@ -4790,7 +4813,7 @@
     settings = this._settings = mergeSettings(Grid.defaultOptions, options);
 
     // Sanitize dragSort setting.
-    if (typeof settings.dragSort !== 'function') {
+    if (!isFunction(settings.dragSort)) {
       settings.dragSort = !!settings.dragSort;
     }
 
@@ -4821,7 +4844,7 @@
     // Create initial items.
     this._items = [];
     items = settings.items;
-    if (typeof items === 'string') {
+    if (typeof items === stringType) {
       toArray(element.children).forEach(function(itemElement) {
         if (items === '*' || elementMatches(itemElement, items)) {
           inst._items.push(new Item(inst, itemElement));
@@ -4836,7 +4859,7 @@
     // If layoutOnResize option is a valid number sanitize it and bind the resize
     // handler.
     layoutOnResize = settings.layoutOnResize;
-    if (typeof layoutOnResize !== 'number') {
+    if (typeof layoutOnResize !== numberType$1) {
       layoutOnResize = layoutOnResize === true ? 0 : -1;
     }
     if (layoutOnResize >= 0) {
@@ -4965,7 +4988,7 @@
     },
     dragSortPredicate: {
       threshold: 50,
-      action: 'move'
+      action: actionMove
     },
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
@@ -5181,9 +5204,6 @@
     var layoutId = layout.id;
     var itemsLength = layout.items.length;
     var counter = itemsLength;
-    var callback = typeof instant === 'function' ? instant : onFinish;
-    var isCallbackFunction = typeof callback === 'function';
-    var callbackItems = isCallbackFunction ? layout.items.slice(0) : null;
     var isBorderBox;
     var item;
     var i;
@@ -5194,8 +5214,14 @@
     // hasn't been a new layout call during this layout.
     function tryFinish() {
       if (--counter > 0) return;
+
       var hasLayoutChanged = inst._layout.id !== layoutId;
-      isCallbackFunction && callback(hasLayoutChanged, callbackItems);
+      var callback = isFunction(instant) ? instant : onFinish;
+
+      if (isFunction(callback)) {
+        callback(hasLayoutChanged, layout.items.slice(0));
+      }
+
       if (!hasLayoutChanged && inst._hasListeners(eventLayoutEnd)) {
         inst._emit(eventLayoutEnd, layout.items.slice(0));
       }
@@ -5205,15 +5231,17 @@
     // dimensions. Also keep in mind that grid's cached width/height should
     // always equal to what elem.getBoundingClientRect() would return, so
     // therefore we need to add the grid element's borders to the dimensions if
-    // it's box-sizing is border-box.
+    // it's box-sizing is border-box. Note that we support providing the
+    // dimensions as a string here too so that one can define the unit of the
+    // dimensions, in which case we don't do the border-box check.
     if (
-      (layout.setHeight && typeof layout.height === 'number') ||
-      (layout.setWidth && typeof layout.width === 'number')
+      (layout.setHeight && typeof layout.height === numberType$1) ||
+      (layout.setWidth && typeof layout.width === numberType$1)
     ) {
       isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
     }
     if (layout.setHeight) {
-      if (typeof layout.height === 'number') {
+      if (typeof layout.height === numberType$1) {
         element.style.height =
           (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
       } else {
@@ -5221,7 +5249,7 @@
       }
     }
     if (layout.setWidth) {
-      if (typeof layout.width === 'number') {
+      if (typeof layout.width === numberType$1) {
         element.style.width =
           (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
       } else {
@@ -5319,7 +5347,7 @@
 
     // If layout is needed.
     if (needsLayout && layout) {
-      this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
     }
 
     return newItems;
@@ -5363,7 +5391,7 @@
 
     // If layout is needed.
     if (needsLayout && layout) {
-      this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
     }
 
     return targetItems;
@@ -5429,12 +5457,12 @@
 
     var itemsToShow = [];
     var itemsToHide = [];
-    var isPredicateString = typeof predicate === 'string';
-    var isPredicateFn = typeof predicate === 'function';
+    var isPredicateString = typeof predicate === stringType;
+    var isPredicateFn = isFunction(predicate);
     var opts = options || 0;
     var isInstant = opts.instant === true;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var onFinish = typeof opts.onFinish === 'function' ? opts.onFinish : null;
+    var onFinish = isFunction(opts.onFinish) ? opts.onFinish : null;
     var tryFinishCounter = -1;
     var tryFinish = noop;
     var item;
@@ -5490,7 +5518,7 @@
 
       // If layout is needed.
       if (layout) {
-        this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+        this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
       }
     }
 
@@ -5610,12 +5638,12 @@
       indexMap = null;
 
       // If function is provided do a native array sort.
-      if (typeof sortComparer === 'function') {
+      if (isFunction(sortComparer)) {
         items.sort(customComparer);
       }
       // Otherwise if we got a string, let's sort by the sort data as provided in
       // the instance's options.
-      else if (typeof sortComparer === 'string') {
+      else if (typeof sortComparer === stringType) {
         sortComparer = parseCriteria(comparer);
         items.sort(defaultComparer);
       }
@@ -5646,7 +5674,7 @@
 
       // If layout is needed.
       if (layout) {
-        this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+        this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
       }
 
       return this;
@@ -5674,8 +5702,8 @@
     var items = this._items;
     var opts = options || 0;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var isSwap = opts.action === 'swap';
-    var action = isSwap ? 'swap' : 'move';
+    var isSwap = opts.action === actionSwap;
+    var action = isSwap ? actionSwap : actionMove;
     var fromItem = this._getItem(item);
     var toItem = this._getItem(position);
     var fromIndex;
@@ -5706,7 +5734,7 @@
 
       // If layout is needed.
       if (layout) {
-        this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+        this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
       }
     }
 
@@ -5749,14 +5777,14 @@
     if (item._migrate._isActive && item._isActive) {
       if (layoutSender) {
         this.layout(
-          layoutSender === 'instant',
-          typeof layoutSender === 'function' ? layoutSender : undefined
+          layoutSender === instantLayout,
+          isFunction(layoutSender) ? layoutSender : undefined
         );
       }
       if (layoutReceiver) {
         grid.layout(
-          layoutReceiver === 'instant',
-          typeof layoutReceiver === 'function' ? layoutReceiver : undefined
+          layoutReceiver === instantLayout,
+          isFunction(layoutReceiver) ? layoutReceiver : undefined
         );
       }
     }
@@ -5832,7 +5860,7 @@
     // If target is number return the item in that index. If the number is lower
     // than zero look for the item starting from the end of the items array. For
     // example -1 for the last item, -2 for the second last item, etc.
-    if (typeof target === 'number') {
+    if (typeof target === numberType$1) {
       return this._items[target > -1 ? target : this._items.length + target] || null;
     }
 
@@ -5887,7 +5915,7 @@
     height = this._height - this._borderTop - this._borderBottom;
 
     // Calculate new layout.
-    if (typeof settings === 'function') {
+    if (isFunction(settings)) {
       newLayout = settings(layout.items, width, height);
     } else {
       newLayout = packer.getLayout(layout.items, width, height, layout.slots, settings);
@@ -6004,7 +6032,7 @@
 
     // If there are no items call the callback, but don't emit any events.
     if (!counter) {
-      if (typeof callback === 'function') callback(targetItems);
+      if (isFunction(callback)) callback(targetItems);
       return;
     }
 
@@ -6044,7 +6072,7 @@
         // If all items have finished their animations call the callback
         // and emit showEnd/hideEnd event.
         if (--counter < 1) {
-          if (typeof callback === 'function') callback(completedItems.slice(0));
+          if (isFunction(callback)) callback(completedItems.slice(0));
           if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
         }
       });
@@ -6055,7 +6083,7 @@
 
     // Layout if needed.
     if (needsLayout && layout) {
-      this.layout(layout === 'instant', typeof layout === 'function' ? layout : undefined);
+      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
     }
   };
 

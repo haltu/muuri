@@ -4,16 +4,16 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { addVisibilityTick, cancelVisibilityTick } from '../ticker.js';
+import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
 
-import Queue from '../Queue/Queue.js';
+import Queue from '../Queue/Queue';
 
-import addClass from '../utils/addClass.js';
-import getCurrentStyles from '../utils/getCurrentStyles.js';
-import getTranslateString from '../utils/getTranslateString.js';
-import isFunction from '../utils/isFunction.js';
-import removeClass from '../utils/removeClass.js';
-import setStyles from '../utils/setStyles.js';
+import addClass from '../utils/addClass';
+import getCurrentStyles from '../utils/getCurrentStyles';
+import getTranslateString from '../utils/getTranslateString';
+import isFunction from '../utils/isFunction';
+import removeClass from '../utils/removeClass';
+import setStyles from '../utils/setStyles';
 
 /**
  * Visibility manager for Item instance.

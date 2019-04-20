@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import Ticker from './Ticker/Ticker.js';
+import Ticker from './Ticker/Ticker';
 
 var ticker = new Ticker();
 

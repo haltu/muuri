@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import isNodeList from './isNodeList.js';
+import isNodeList from './isNodeList';
 
 /**
  * Converts a value to an array or clones an array.

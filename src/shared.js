@@ -7,6 +7,9 @@
 export var namespace = 'Muuri';
 export var gridInstances = {};
 
+export var actionSwap = 'swap';
+export var actionMove = 'move';
+
 export var eventSynchronize = 'synchronize';
 export var eventLayoutStart = 'layoutStart';
 export var eventLayoutEnd = 'layoutEnd';

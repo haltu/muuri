@@ -4,19 +4,19 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { eventBeforeSend, eventBeforeReceive, eventSend, eventReceive } from '../shared.js';
+import { eventBeforeSend, eventBeforeReceive, eventSend, eventReceive } from '../shared';
 
-import ItemDrag from './ItemDrag.js';
+import ItemDrag from './ItemDrag';
 
-import addClass from '../utils/addClass.js';
-import getOffsetDiff from '../utils/getOffsetDiff.js';
-import getTranslate from '../utils/getTranslate.js';
-import getTranslateString from '../utils/getTranslateString.js';
-import arrayInsert from '../utils/arrayInsert.js';
-import normalizeArrayIndex from '../utils/normalizeArrayIndex.js';
-import removeClass from '../utils/removeClass.js';
-import setStyles from '../utils/setStyles.js';
-import { transformProp } from '../utils/supportedTransform.js';
+import addClass from '../utils/addClass';
+import getOffsetDiff from '../utils/getOffsetDiff';
+import getTranslate from '../utils/getTranslate';
+import getTranslateString from '../utils/getTranslateString';
+import arrayInsert from '../utils/arrayInsert';
+import normalizeArrayIndex from '../utils/normalizeArrayIndex';
+import removeClass from '../utils/removeClass';
+import setStyles from '../utils/setStyles';
+import { transformProp } from '../utils/supportedTransform';
 
 var tempStyles = {};
 

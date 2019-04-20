@@ -4,8 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from './getStyle.js';
-import getStyleName from './getStyleName.js';
+import getStyle from './getStyle';
+import getStyleName from './getStyleName';
 
 /**
  * Get current values of the provided styles definition object.

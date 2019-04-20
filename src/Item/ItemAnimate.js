@@ -4,11 +4,11 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from '../utils/getStyle.js';
-import getStyleName from '../utils/getStyleName.js';
-import isFunction from '../utils/isFunction.js';
-import setStyles from '../utils/setStyles.js';
-import { transformProp } from '../utils/supportedTransform.js';
+import getStyle from '../utils/getStyle';
+import getStyleName from '../utils/getStyleName';
+import isFunction from '../utils/isFunction';
+import setStyles from '../utils/setStyles';
+import { transformProp } from '../utils/supportedTransform';
 
 /**
  * Item animation handler powered by Web Animations API.

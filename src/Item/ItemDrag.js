@@ -7,6 +7,8 @@
 import Hammer from 'hammerjs';
 
 import {
+  actionMove,
+  actionSwap,
   eventMove,
   eventSend,
   eventBeforeSend,
@@ -19,27 +21,27 @@ import {
   eventDragEnd,
   gridInstances,
   namespace
-} from '../shared.js';
+} from '../shared';
 
-import { addMoveTick, cancelMoveTick, addScrollTick, cancelScrollTick } from '../ticker.js';
+import { addMoveTick, cancelMoveTick, addScrollTick, cancelScrollTick } from '../ticker';
 
-import addClass from '../utils/addClass.js';
-import arrayMove from '../utils/arrayMove.js';
-import arraySwap from '../utils/arraySwap.js';
-import debounce from '../utils/debounce.js';
-import elementMatches from '../utils/elementMatches.js';
-import getContainingBlock from '../utils/getContainingBlock.js';
-import getOffsetDiff from '../utils/getOffsetDiff.js';
-import getScrollableAncestors from '../utils/getScrollableAncestors.js';
-import getTranslate from '../utils/getTranslate.js';
-import getTranslateString from '../utils/getTranslateString.js';
-import arrayInsert from '../utils/arrayInsert.js';
-import isFunction from '../utils/isFunction.js';
-import isPlainObject from '../utils/isPlainObject.js';
-import normalizeArrayIndex from '../utils/normalizeArrayIndex.js';
-import removeClass from '../utils/removeClass.js';
+import addClass from '../utils/addClass';
+import arrayMove from '../utils/arrayMove';
+import arraySwap from '../utils/arraySwap';
+import debounce from '../utils/debounce';
+import elementMatches from '../utils/elementMatches';
+import getContainingBlock from '../utils/getContainingBlock';
+import getOffsetDiff from '../utils/getOffsetDiff';
+import getScrollableAncestors from '../utils/getScrollableAncestors';
+import getTranslate from '../utils/getTranslate';
+import getTranslateString from '../utils/getTranslateString';
+import arrayInsert from '../utils/arrayInsert';
+import isFunction from '../utils/isFunction';
+import isPlainObject from '../utils/isPlainObject';
+import normalizeArrayIndex from '../utils/normalizeArrayIndex';
+import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
-import { transformProp } from '../utils/supportedTransform.js';
+import { transformProp } from '../utils/supportedTransform';
 
 // Drag start predicate states.
 var startPredicateInactive = 0;
@@ -316,7 +318,7 @@ ItemDrag.defaultSortPredicate = (function() {
 
     // Get drag sort predicate settings.
     var sortThreshold = options && typeof options.threshold === 'number' ? options.threshold : 50;
-    var sortAction = options && options.action === 'swap' ? 'swap' : 'move';
+    var sortAction = options && options.action === actionSwap ? actionSwap : actionMove;
 
     // Populate item rect data.
     itemRect.width = item._width;
@@ -809,7 +811,7 @@ ItemDrag.prototype._checkOverlap = function() {
   isMigration = currentGrid !== targetGrid;
   currentIndex = currentGrid._items.indexOf(item);
   targetIndex = normalizeArrayIndex(targetGrid._items, result.index, isMigration);
-  sortAction = result.action === 'swap' ? 'swap' : 'move';
+  sortAction = result.action === actionSwap ? actionSwap : actionMove;
 
   // Prevent position bounce.
   if (!isMigration && targetIndex === this._hBlockIndex) {
@@ -823,7 +825,7 @@ ItemDrag.prototype._checkOverlap = function() {
       this._hBlockIndex = currentIndex;
 
       // Do the sort.
-      (sortAction === 'swap' ? arraySwap : arrayMove)(
+      (sortAction === actionSwap ? arraySwap : arrayMove)(
         currentGrid._items,
         currentIndex,
         targetIndex

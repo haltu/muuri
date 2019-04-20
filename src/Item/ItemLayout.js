@@ -4,16 +4,16 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { addLayoutTick, cancelLayoutTick } from '../ticker.js';
+import { addLayoutTick, cancelLayoutTick } from '../ticker';
 
-import Queue from '../Queue/Queue.js';
+import Queue from '../Queue/Queue';
 
-import addClass from '../utils/addClass.js';
-import getTranslate from '../utils/getTranslate.js';
-import getTranslateString from '../utils/getTranslateString.js';
-import isFunction from '../utils/isFunction.js';
-import removeClass from '../utils/removeClass.js';
-import setStyles from '../utils/setStyles.js';
+import addClass from '../utils/addClass';
+import getTranslate from '../utils/getTranslate';
+import getTranslateString from '../utils/getTranslateString';
+import isFunction from '../utils/isFunction';
+import removeClass from '../utils/removeClass';
+import setStyles from '../utils/setStyles';
 
 /**
  * Layout manager for Item instance.

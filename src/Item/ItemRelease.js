@@ -4,13 +4,13 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { eventDragReleaseStart, eventDragReleaseEnd } from '../shared.js';
+import { eventDragReleaseStart, eventDragReleaseEnd } from '../shared';
 
-import addClass from '../utils/addClass.js';
-import getTranslate from '../utils/getTranslate.js';
-import getTranslateString from '../utils/getTranslateString.js';
-import removeClass from '../utils/removeClass.js';
-import setStyles from '../utils/setStyles.js';
+import addClass from '../utils/addClass';
+import getTranslate from '../utils/getTranslate';
+import getTranslateString from '../utils/getTranslateString';
+import removeClass from '../utils/removeClass';
+import setStyles from '../utils/setStyles';
 
 var tempStyles = {};
 

@@ -4,23 +4,23 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { gridInstances } from '../shared.js';
+import { gridInstances } from '../shared';
 
-import ItemAnimate from './ItemAnimate.js';
-import ItemDrag from './ItemDrag.js';
-import ItemDragPlaceholder from './ItemDragPlaceholder.js';
-import ItemLayout from './ItemLayout.js';
-import ItemMigrate from './ItemMigrate.js';
-import ItemRelease from './ItemRelease.js';
-import ItemVisibility from './ItemVisibility.js';
+import ItemAnimate from './ItemAnimate';
+import ItemDrag from './ItemDrag';
+import ItemDragPlaceholder from './ItemDragPlaceholder';
+import ItemLayout from './ItemLayout';
+import ItemMigrate from './ItemMigrate';
+import ItemRelease from './ItemRelease';
+import ItemVisibility from './ItemVisibility';
 
-import addClass from '../utils/addClass.js';
-import createUid from '../utils/createUid.js';
-import getStyle from '../utils/getStyle.js';
-import getStyleAsFloat from '../utils/getStyleAsFloat.js';
-import getTranslateString from '../utils/getTranslateString.js';
-import removeClass from '../utils/removeClass.js';
-import { transformProp } from '../utils/supportedTransform.js';
+import addClass from '../utils/addClass';
+import createUid from '../utils/createUid';
+import getStyle from '../utils/getStyle';
+import getStyleAsFloat from '../utils/getStyleAsFloat';
+import getTranslateString from '../utils/getTranslateString';
+import removeClass from '../utils/removeClass';
+import { transformProp } from '../utils/supportedTransform';
 
 /**
  * Creates a new Item instance for a Grid instance.

@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import normalizeArrayIndex from './normalizeArrayIndex.js';
+import normalizeArrayIndex from './normalizeArrayIndex';
 
 /**
  * Swap array items.

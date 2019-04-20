@@ -5,6 +5,8 @@
  */
 
 import {
+  actionMove,
+  actionSwap,
   eventSynchronize,
   eventLayoutStart,
   eventLayoutEnd,
@@ -20,36 +22,37 @@ import {
   eventDestroy,
   gridInstances,
   namespace
-} from '../shared.js';
+} from '../shared';
 
-import Emitter from '../Emitter/Emitter.js';
-import Item from '../Item/Item.js';
-import ItemAnimate from '../Item/ItemAnimate.js';
-import ItemDrag from '../Item/ItemDrag.js';
-import ItemDragPlaceholder from '../Item/ItemDragPlaceholder.js';
-import ItemLayout from '../Item/ItemLayout.js';
-import ItemMigrate from '../Item/ItemMigrate.js';
-import ItemRelease from '../Item/ItemRelease.js';
-import ItemVisibility from '../Item/ItemVisibility.js';
-import Packer from '../Packer/Packer.js';
+import Emitter from '../Emitter/Emitter';
+import Item from '../Item/Item';
+import ItemAnimate from '../Item/ItemAnimate';
+import ItemDrag from '../Item/ItemDrag';
+import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
+import ItemLayout from '../Item/ItemLayout';
+import ItemMigrate from '../Item/ItemMigrate';
+import ItemRelease from '../Item/ItemRelease';
+import ItemVisibility from '../Item/ItemVisibility';
+import Packer from '../Packer/Packer';
 
-import addClass from '../utils/addClass.js';
-import arrayMove from '../utils/arrayMove.js';
-import arraySwap from '../utils/arraySwap.js';
-import createUid from '../utils/createUid.js';
-import debounce from '../utils/debounce.js';
-import elementMatches from '../utils/elementMatches.js';
-import getStyle from '../utils/getStyle.js';
-import getStyleAsFloat from '../utils/getStyleAsFloat.js';
-import arrayInsert from '../utils/arrayInsert.js';
-import isFunction from '../utils/isFunction.js';
-import isNodeList from '../utils/isNodeList.js';
-import isPlainObject from '../utils/isPlainObject.js';
-import removeClass from '../utils/removeClass.js';
-import toArray from '../utils/toArray.js';
+import addClass from '../utils/addClass';
+import arrayMove from '../utils/arrayMove';
+import arraySwap from '../utils/arraySwap';
+import createUid from '../utils/createUid';
+import debounce from '../utils/debounce';
+import elementMatches from '../utils/elementMatches';
+import getStyle from '../utils/getStyle';
+import getStyleAsFloat from '../utils/getStyleAsFloat';
+import arrayInsert from '../utils/arrayInsert';
+import isFunction from '../utils/isFunction';
+import isNodeList from '../utils/isNodeList';
+import isPlainObject from '../utils/isPlainObject';
+import removeClass from '../utils/removeClass';
+import toArray from '../utils/toArray';
 
 var packer = new Packer();
 var noop = function() {};
+
 var numberType = 'number';
 var stringType = 'string';
 var instantLayout = 'instant';
@@ -136,7 +139,7 @@ function Grid(element, options) {
   settings = this._settings = mergeSettings(Grid.defaultOptions, options);
 
   // Sanitize dragSort setting.
-  if (typeof settings.dragSort !== 'function') {
+  if (!isFunction(settings.dragSort)) {
     settings.dragSort = !!settings.dragSort;
   }
 
@@ -311,7 +314,7 @@ Grid.defaultOptions = {
   },
   dragSortPredicate: {
     threshold: 50,
-    action: 'move'
+    action: actionMove
   },
   dragReleaseDuration: 300,
   dragReleaseEasing: 'ease',
@@ -1025,8 +1028,8 @@ Grid.prototype.move = function(item, position, options) {
   var items = this._items;
   var opts = options || 0;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
-  var isSwap = opts.action === 'swap';
-  var action = isSwap ? 'swap' : 'move';
+  var isSwap = opts.action === actionSwap;
+  var action = isSwap ? actionSwap : actionMove;
   var fromItem = this._getItem(item);
   var toItem = this._getItem(position);
   var fromIndex;

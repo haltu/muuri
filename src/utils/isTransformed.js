@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from './getStyle.js';
+import getStyle from './getStyle';
 
 /**
  * Returns true if element is transformed, false if not. In practice the

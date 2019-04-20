@@ -4,18 +4,18 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { addPlaceholderTick, cancelPlaceholderTick } from '../ticker.js';
+import { addPlaceholderTick, cancelPlaceholderTick } from '../ticker';
 
-import { eventBeforeSend, eventDragReleaseEnd, eventLayoutStart } from '../shared.js';
+import { eventBeforeSend, eventDragReleaseEnd, eventLayoutStart } from '../shared';
 
-import ItemAnimate from '../Item/ItemAnimate.js';
+import ItemAnimate from '../Item/ItemAnimate';
 
-import addClass from '../utils/addClass.js';
-import getTranslateString from '../utils/getTranslateString.js';
-import getTranslate from '../utils/getTranslate.js';
-import isFunction from '../utils/isFunction.js';
-import setStyles from '../utils/setStyles.js';
-import removeClass from '../utils/removeClass.js';
+import addClass from '../utils/addClass';
+import getTranslateString from '../utils/getTranslateString';
+import getTranslate from '../utils/getTranslate';
+import isFunction from '../utils/isFunction';
+import setStyles from '../utils/setStyles';
+import removeClass from '../utils/removeClass';
 
 /**
  * Drag placeholder.

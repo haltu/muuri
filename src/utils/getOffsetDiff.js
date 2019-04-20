@@ -4,8 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getContainingBlock from './getContainingBlock.js';
-import getStyleAsFloat from './getStyleAsFloat.js';
+import getContainingBlock from './getContainingBlock';
+import getStyleAsFloat from './getStyleAsFloat';
 
 var offsetA = {};
 var offsetB = {};

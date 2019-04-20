@@ -56,9 +56,17 @@ npm install muuri
 
 Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if you need Muuri's dragging capabilities. In other words, if you set [`dragEnabled`](#dragenabled-) option to `true` you need Hammer.js.
 
+```bash
+npm install hammerjs
+```
+
 #### Web Animations Polyfill
 
 Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations you need to use a [polyfill](https://github.com/web-animations/web-animations-js).
+
+```bash
+npm install web-animations-js
+```
 
 ### 3. Add the script tags
 

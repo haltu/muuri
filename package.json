@@ -42,9 +42,6 @@
       "pre-commit": "npm run pre-commit-hook"
     }
   },
-  "peerDependencies": {
-    "hammerjs": "^2.0.0"
-  },
   "devDependencies": {
     "dotenv": "^6.2.0",
     "gulp": "^4.0.0",

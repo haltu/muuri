@@ -64,7 +64,6 @@
     "qunit": "^2.9.2",
     "rimraf": "^2.6.3",
     "rollup": "^1.10.1",
-    "rollup-plugin-strip-banner": "^0.2.0",
     "terser": "^3.17.0",
     "web-animations-js": "^2.3.1",
     "yargs": "^13.2.2"

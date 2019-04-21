@@ -1,25 +1,16 @@
-import stripBanner from 'rollup-plugin-strip-banner';
-import pkg from './package.json';
+const pkg = require('./package.json');
+const banner = require('./rollup.banner.js');
 
-const banner = `/**
- * Muuri v${pkg.version}
- * ${pkg.homepage}
- * Copyright (c) 2015-present, Haltu Oy
- * Released under the MIT license
- * https://github.com/haltu/muuri/blob/master/LICENSE.md
- * @license MIT
- *
- * Muuri Packer
- * Copyright (c) 2016-present, Niklas Rämö <inramo@gmail.com>
- * @license MIT
- *
- * Muuri Ticker / Muuri Emitter / Muuri Queue
- * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
- * @license MIT
- */
-`;
+const stripBanner = {
+  transform(code) {
+    return {
+      code: code.replace(/\/\*\*([\s\S]*?)\*\//, ''),
+      map: { mappings: '' }
+    };
+  }
+};
 
-export default {
+module.exports = {
   external: ['hammerjs'],
   input: 'src/index.js',
   output: {
@@ -29,5 +20,5 @@ export default {
     globals: { hammerjs: 'Hammer' },
     banner: banner
   },
-  plugins: [stripBanner()]
+  plugins: [stripBanner]
 };

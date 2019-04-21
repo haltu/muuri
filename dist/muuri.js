@@ -1,19 +1,19 @@
 /**
- * Muuri v0.8.0
- * https://github.com/haltu/muuri
- * Copyright (c) 2015-present, Haltu Oy
- * Released under the MIT license
- * https://github.com/haltu/muuri/blob/master/LICENSE.md
- * @license MIT
- *
- * Muuri Packer
- * Copyright (c) 2016-present, Niklas Rämö <inramo@gmail.com>
- * @license MIT
- *
- * Muuri Ticker / Muuri Emitter / Muuri Queue
- * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
- * @license MIT
- */
+* Muuri v0.8.0
+* https://github.com/haltu/muuri
+* Copyright (c) 2015-present, Haltu Oy
+* Released under the MIT license
+* https://github.com/haltu/muuri/blob/master/LICENSE.md
+* @license MIT
+*
+* Muuri Packer
+* Copyright (c) 2016-present, Niklas Rämö <inramo@gmail.com>
+* @license MIT
+*
+* Muuri Ticker / Muuri Emitter / Muuri Queue
+* Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
+* @license MIT
+*/
 
 (function (global, factory) {
   if (typeof exports === 'object' && typeof module !== 'undefined') {
@@ -6169,6 +6169,12 @@
 
     return target;
   }
+
+  // TODO:
+  // - Use imports/exports in node
+  // - Try to get rid of Queue (replace with Emitter if possible)
+  // - Try to finish up custom dragging (and check if Hammer is causing the drag
+  //   slowdown on 200+ elements)
 
   return Grid;
 

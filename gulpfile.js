@@ -11,17 +11,7 @@ const exec = require('child_process').exec;
 
 const pkg = require('./package.json');
 const karmaDefaults = require('./karma.defaults.js');
-
-const umdHeader = `(function (global, factory) {
-  if (typeof exports === 'object' && typeof module !== 'undefined') {
-    var Hammer;
-    try { Hammer = require('hammerjs') } catch (e) {}
-    module.exports = factory(Hammer);
-  } else {
-    global.Muuri = factory(global.Hammer);
-  }
-}(this, function (Hammer) {
-  'use strict';`;
+const umdHeader = require('./rollup.umd.js');
 
 if (fs.existsSync('./.env')) dotenv.load();
 

@@ -1,5 +1,3 @@
-import resolve from 'rollup-plugin-node-resolve';
-import commonjs from 'rollup-plugin-commonjs';
 import stripBanner from 'rollup-plugin-strip-banner';
 import pkg from './package.json';
 
@@ -21,17 +19,15 @@ const banner = `/**
  */
 `;
 
-export default [
-  {
-    external: ['hammerjs'],
-    input: 'src/index.js',
-    output: {
-      name: 'Muuri',
-      file: pkg.main,
-      format: 'umd',
-      globals: { hammerjs: 'Hammer' },
-      banner: banner
-    },
-    plugins: [resolve(), commonjs(), stripBanner()]
-  }
-];
+export default {
+  external: ['hammerjs'],
+  input: 'src/index.js',
+  output: {
+    name: 'Muuri',
+    file: pkg.main,
+    format: 'umd',
+    globals: { hammerjs: 'Hammer' },
+    banner: banner
+  },
+  plugins: [stripBanner()]
+};

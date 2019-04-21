@@ -12,7 +12,7 @@ const exec = require('child_process').exec;
 const pkg = require('./package.json');
 const karmaDefaults = require('./karma.defaults.js');
 
-const patchedUMD = `(function (global, factory) {
+const umdHeader = `(function (global, factory) {
   if (typeof exports === 'object' && typeof module !== 'undefined') {
     var Hammer;
     try { Hammer = require('hammerjs') } catch (e) {}
@@ -20,7 +20,7 @@ const patchedUMD = `(function (global, factory) {
   } else {
     global.Muuri = factory(global.Hammer);
   }
-}(this, (function (Hammer) {
+}(this, function (Hammer) {
   'use strict';`;
 
 if (fs.existsSync('./.env')) dotenv.load();
@@ -177,11 +177,11 @@ gulp.task('bundle', cb => {
   });
 });
 
-gulp.task('fix-umd', () => {
+gulp.task('patch-umd', () => {
   const mainPath = './' + pkg.main;
   return gulp
     .src(mainPath, { base: './' })
-    .pipe(replace(/\(function([\s\S]*?)Hammer;/, patchedUMD))
+    .pipe(replace(/\(function([\s\S]*?)Hammer;/, umdHeader))
     .pipe(gulp.dest('./'));
 });
 
@@ -195,7 +195,7 @@ gulp.task('minify', cb => {
 
 gulp.task(
   'build',
-  gulp.series('bundle', 'fix-umd', 'minify', done => {
+  gulp.series('bundle', 'patch-umd', 'minify', done => {
     done();
   })
 );

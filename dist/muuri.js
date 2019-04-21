@@ -23,7 +23,7 @@
   } else {
     global.Muuri = factory(global.Hammer);
   }
-}(this, (function (Hammer) {
+}(this, function (Hammer) {
   'use strict';
 
   var namespace = 'Muuri';
@@ -6172,4 +6172,4 @@
 
   return Grid;
 
-})));
+}));

@@ -296,6 +296,8 @@
     return typeof val === strFunction;
   }
 
+  var transformStyle$1 = 'transform';
+
   /**
    * Set inline styles to an element.
    *
@@ -304,7 +306,7 @@
    */
   function setStyles(element, styles) {
     for (var prop in styles) {
-      element.style[prop === 'transform' ? transformProp : prop] = styles[prop];
+      element.style[prop === transformStyle$1 ? transformProp : prop] = styles[prop];
     }
   }
 
@@ -1005,8 +1007,8 @@
   }
 
   var translateValue = {};
-  var transformStyleName = 'transform';
-  var matrixStringNone = 'none';
+  var transformStyle$2 = 'transform';
+  var transformNone = 'none';
   var rxMat3d = /^matrix3d/;
   var rxMatTx = /([^,]*,){4}/;
   var rxMat3dTx = /([^,]*,){12}/;
@@ -1024,14 +1026,14 @@
     translateValue.x = 0;
     translateValue.y = 0;
 
-    var matrixString = getStyle(element, transformStyleName);
-    if (!matrixString || matrixString === matrixStringNone) {
+    var transform = getStyle(element, transformStyle$2);
+    if (!transform || transform === transformNone) {
       return translateValue;
     }
 
     // Transform style can be in either matrix3d(...) or matrix(...).
-    var isMat3d = rxMat3d.test(matrixString);
-    var tX = matrixString.replace(isMat3d ? rxMat3dTx : rxMatTx, '');
+    var isMat3d = rxMat3d.test(transform);
+    var tX = transform.replace(isMat3d ? rxMat3dTx : rxMatTx, '');
     var tY = tX.replace(rxNextItem, '');
 
     translateValue.x = parseFloat(tX) || 0;

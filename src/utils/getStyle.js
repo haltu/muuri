@@ -19,7 +19,7 @@ export default function getStyle(element, style) {
   var styles = stylesCache && stylesCache.get(element);
   if (!styles) {
     styles = window.getComputedStyle(element, null);
-    stylesCache && stylesCache.set(element, styles);
+    if (stylesCache) stylesCache.set(element, styles);
   }
   return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
 }

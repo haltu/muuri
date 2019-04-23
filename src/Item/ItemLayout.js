@@ -194,12 +194,9 @@ ItemLayout.prototype._updateOffsets = function() {
  */
 ItemLayout.prototype._updateTargetStyles = function() {
   if (this._isDestroyed) return;
-
-  var item = this._item;
-
   this._targetStyles.transform = getTranslateString(
-    item._left + this._offsetLeft,
-    item._top + this._offsetTop
+    this._item._left + this._offsetLeft,
+    this._item._top + this._offsetTop
   );
 };
 
@@ -237,8 +234,7 @@ ItemLayout.prototype._finish = function() {
  * @memberof ItemLayout.prototype
  */
 ItemLayout.prototype._setupAnimation = function() {
-  var element = this._item._element;
-  var translate = getTranslate(element);
+  var translate = getTranslate(this._item._element);
   this._currentLeft = translate.x;
   this._currentTop = translate.y;
 };
@@ -251,9 +247,7 @@ ItemLayout.prototype._setupAnimation = function() {
  */
 ItemLayout.prototype._startAnimation = function() {
   var item = this._item;
-  var element = item._element;
-  var grid = item.getGrid();
-  var settings = grid._settings;
+  var settings = item.getGrid()._settings;
 
   // Let's update the offset data and target styles.
   this._updateOffsets();
@@ -271,7 +265,9 @@ ItemLayout.prototype._startAnimation = function() {
   }
 
   // Set item's positioning class if needed.
-  !this._isInterrupted && addClass(element, settings.itemPositioningClass);
+  if (!this._isInterrupted) {
+    addClass(item._element, settings.itemPositioningClass);
+  }
 
   // Get current styles for animation.
   this._currentStyles.transform = getTranslateString(this._currentLeft, this._currentTop);

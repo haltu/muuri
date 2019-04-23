@@ -6,6 +6,8 @@
 
 import { transformProp } from './supportedTransform';
 
+var transformStyle = 'transform';
+
 /**
  * Set inline styles to an element.
  *
@@ -14,6 +16,6 @@ import { transformProp } from './supportedTransform';
  */
 export default function setStyles(element, styles) {
   for (var prop in styles) {
-    element.style[prop === 'transform' ? transformProp : prop] = styles[prop];
+    element.style[prop === transformStyle ? transformProp : prop] = styles[prop];
   }
 }

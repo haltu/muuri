@@ -6,7 +6,13 @@
 
 import getStyle from './getStyle';
 
-var translateData = {};
+var translateValue = {};
+var transformStyleName = 'transform';
+var matrixStringNone = 'none';
+var rxMat3d = /^matrix3d/;
+var rxMatTx = /([^,]*,){4}/;
+var rxMat3dTx = /([^,]*,){12}/;
+var rxNextItem = /[^,]*,/;
 
 /**
  * Returns the element's computed translateX and translateY values as a floats.
@@ -17,15 +23,21 @@ var translateData = {};
  * @returns {Object}
  */
 export default function getTranslate(element) {
-  translateData.x = 0;
-  translateData.y = 0;
+  translateValue.x = 0;
+  translateValue.y = 0;
 
-  var transform = getStyle(element, 'transform');
-  if (!transform) return translateData;
+  var matrixString = getStyle(element, transformStyleName);
+  if (!matrixString || matrixString === matrixStringNone) {
+    return translateValue;
+  }
 
-  var matrixData = transform.replace('matrix(', '').split(',');
-  translateData.x = parseFloat(matrixData[4]) || 0;
-  translateData.y = parseFloat(matrixData[5]) || 0;
+  // Transform style can be in either matrix3d(...) or matrix(...).
+  var isMat3d = rxMat3d.test(matrixString);
+  var tX = matrixString.replace(isMat3d ? rxMat3dTx : rxMatTx, '');
+  var tY = tX.replace(rxNextItem, '');
 
-  return translateData;
+  translateValue.x = parseFloat(tX) || 0;
+  translateValue.y = parseFloat(tY) || 0;
+
+  return translateValue;
 }

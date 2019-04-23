@@ -267,7 +267,7 @@
     var styles = stylesCache && stylesCache.get(element);
     if (!styles) {
       styles = window.getComputedStyle(element, null);
-      stylesCache && stylesCache.set(element, styles);
+      if (stylesCache) stylesCache.set(element, styles);
     }
     return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
   }
@@ -528,19 +528,16 @@
     this._flush = this._flush.bind(this);
   }
 
-  Ticker.prototype.add = function(id, readCallback, writeCallback, isImportant) {
+  Ticker.prototype.add = function(id, readOperation, writeOperation) {
     // First, let's check if an item has been added to the queues with the same id
     // and if so -> remove it.
     var currentIndex = this._queue.indexOf(id);
     if (currentIndex > -1) this._queue[currentIndex] = undefined;
 
-    // Add all important callbacks to the beginning of the queue and other
-    // callbacks to the end of the queue.
-    isImportant ? this._queue.unshift(id) : this._queue.push(id);
-
-    // Store callbacks.
-    this._reads[id] = readCallback;
-    this._writes[id] = writeCallback;
+    // Add entry.
+    this._queue.push(id);
+    this._reads[id] = readOperation;
+    this._writes[id] = writeOperation;
 
     // Finally, let's kick-start the next tick if it is not running yet.
     if (!this._nextTick) this._nextTick = raf(this._flush);
@@ -550,8 +547,8 @@
     var currentIndex = this._queue.indexOf(id);
     if (currentIndex > -1) {
       this._queue[currentIndex] = undefined;
-      this._reads[id] = undefined;
-      this._writes[id] = undefined;
+      delete this._reads[id];
+      delete this._writes[id];
     }
   };
 
@@ -577,10 +574,10 @@
       batch.push(id);
 
       batchReads[id] = reads[id];
-      reads[id] = undefined;
+      delete reads[id];
 
       batchWrites[id] = writes[id];
-      writes[id] = undefined;
+      delete writes[id];
     }
 
     // Reset queue.
@@ -591,7 +588,7 @@
       id = batch[i];
       if (batchReads[id]) {
         batchReads[id]();
-        batchReads[id] = undefined;
+        delete batchReads[id];
       }
     }
 
@@ -600,7 +597,7 @@
       id = batch[i];
       if (batchWrites[id]) {
         batchWrites[id]();
-        batchWrites[id] = undefined;
+        delete batchWrites[id];
       }
     }
 
@@ -638,7 +635,7 @@
   }
 
   function addMoveTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + moveTick, readCallback, writeCallback, true);
+    return ticker.add(itemId + moveTick, readCallback, writeCallback);
   }
 
   function cancelMoveTick(itemId) {
@@ -646,7 +643,7 @@
   }
 
   function addScrollTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + scrollTick, readCallback, writeCallback, true);
+    return ticker.add(itemId + scrollTick, readCallback, writeCallback);
   }
 
   function cancelScrollTick(itemId) {
@@ -3076,12 +3073,9 @@
    */
   ItemLayout.prototype._updateTargetStyles = function() {
     if (this._isDestroyed) return;
-
-    var item = this._item;
-
     this._targetStyles.transform = getTranslateString(
-      item._left + this._offsetLeft,
-      item._top + this._offsetTop
+      this._item._left + this._offsetLeft,
+      this._item._top + this._offsetTop
     );
   };
 
@@ -3119,8 +3113,7 @@
    * @memberof ItemLayout.prototype
    */
   ItemLayout.prototype._setupAnimation = function() {
-    var element = this._item._element;
-    var translate = getTranslate(element);
+    var translate = getTranslate(this._item._element);
     this._currentLeft = translate.x;
     this._currentTop = translate.y;
   };
@@ -3133,9 +3126,7 @@
    */
   ItemLayout.prototype._startAnimation = function() {
     var item = this._item;
-    var element = item._element;
-    var grid = item.getGrid();
-    var settings = grid._settings;
+    var settings = item.getGrid()._settings;
 
     // Let's update the offset data and target styles.
     this._updateOffsets();
@@ -3153,7 +3144,9 @@
     }
 
     // Set item's positioning class if needed.
-    !this._isInterrupted && addClass(element, settings.itemPositioningClass);
+    if (!this._isInterrupted) {
+      addClass(item._element, settings.itemPositioningClass);
+    }
 
     // Get current styles for animation.
     this._currentStyles.transform = getTranslateString(this._currentLeft, this._currentTop);

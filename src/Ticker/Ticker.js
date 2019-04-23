@@ -38,19 +38,16 @@ function Ticker() {
   this._flush = this._flush.bind(this);
 }
 
-Ticker.prototype.add = function(id, readCallback, writeCallback, isImportant) {
+Ticker.prototype.add = function(id, readOperation, writeOperation) {
   // First, let's check if an item has been added to the queues with the same id
   // and if so -> remove it.
   var currentIndex = this._queue.indexOf(id);
   if (currentIndex > -1) this._queue[currentIndex] = undefined;
 
-  // Add all important callbacks to the beginning of the queue and other
-  // callbacks to the end of the queue.
-  isImportant ? this._queue.unshift(id) : this._queue.push(id);
-
-  // Store callbacks.
-  this._reads[id] = readCallback;
-  this._writes[id] = writeCallback;
+  // Add entry.
+  this._queue.push(id);
+  this._reads[id] = readOperation;
+  this._writes[id] = writeOperation;
 
   // Finally, let's kick-start the next tick if it is not running yet.
   if (!this._nextTick) this._nextTick = raf(this._flush);
@@ -60,8 +57,8 @@ Ticker.prototype.cancel = function(id) {
   var currentIndex = this._queue.indexOf(id);
   if (currentIndex > -1) {
     this._queue[currentIndex] = undefined;
-    this._reads[id] = undefined;
-    this._writes[id] = undefined;
+    delete this._reads[id];
+    delete this._writes[id];
   }
 };
 
@@ -87,10 +84,10 @@ Ticker.prototype._flush = function() {
     batch.push(id);
 
     batchReads[id] = reads[id];
-    reads[id] = undefined;
+    delete reads[id];
 
     batchWrites[id] = writes[id];
-    writes[id] = undefined;
+    delete writes[id];
   }
 
   // Reset queue.
@@ -101,7 +98,7 @@ Ticker.prototype._flush = function() {
     id = batch[i];
     if (batchReads[id]) {
       batchReads[id]();
-      batchReads[id] = undefined;
+      delete batchReads[id];
     }
   }
 
@@ -110,7 +107,7 @@ Ticker.prototype._flush = function() {
     id = batch[i];
     if (batchWrites[id]) {
       batchWrites[id]();
-      batchWrites[id] = undefined;
+      delete batchWrites[id];
     }
   }
 

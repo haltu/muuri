@@ -944,6 +944,12 @@
     return offsetDiff;
   }
 
+  var styleOverflow = 'overflow';
+  var styleOverflowX = 'overflow-x';
+  var styleOverflowY = 'overflow-y';
+  var overflowAuto = 'auto';
+  var overflowScroll = 'scroll';
+
   /**
    * Check if an element is scrollable.
    *
@@ -951,14 +957,14 @@
    * @returns {Boolean}
    */
   function isScrollable(element) {
-    var overflow = getStyle(element, 'overflow');
-    if (overflow === 'auto' || overflow === 'scroll') return true;
+    var overflow = getStyle(element, styleOverflow);
+    if (overflow === overflowAuto || overflow === overflowScroll) return true;
 
-    overflow = getStyle(element, 'overflow-x');
-    if (overflow === 'auto' || overflow === 'scroll') return true;
+    overflow = getStyle(element, styleOverflowX);
+    if (overflow === overflowAuto || overflow === overflowScroll) return true;
 
-    overflow = getStyle(element, 'overflow-y');
-    if (overflow === 'auto' || overflow === 'scroll') return true;
+    overflow = getStyle(element, styleOverflowY);
+    if (overflow === overflowAuto || overflow === overflowScroll) return true;
 
     return false;
   }

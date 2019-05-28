@@ -98,7 +98,7 @@ var instantLayout = 'instant';
  * @param {String} [options.dragSortPredicate.action="move"]
  * @param {Number} [options.dragReleaseDuration=300]
  * @param {String} [options.dragReleaseEasing="ease"]
- * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
+ * @param {Object} [options.dragCssProps]
  * @param {Object} [options.dragPlaceholder]
  * @param {Boolean} [options.dragPlaceholder.enabled=false]
  * @param {Number} [options.dragPlaceholder.duration=300]
@@ -318,8 +318,12 @@ Grid.defaultOptions = {
   },
   dragReleaseDuration: 300,
   dragReleaseEasing: 'ease',
-  dragHammerSettings: {
-    touchAction: 'none'
+  dragCssProps: {
+    touchAction: 'none',
+    userSelect: 'none',
+    userDrag: 'none',
+    tapHighlightColor: 'rgba(0, 0, 0, 0)',
+    touchCallout: 'none'
   },
   dragPlaceholder: {
     enabled: false,

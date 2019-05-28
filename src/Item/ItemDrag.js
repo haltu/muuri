@@ -4,8 +4,6 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import Hammer from 'hammerjs';
-
 import {
   actionMove,
   actionSwap,
@@ -19,13 +17,15 @@ import {
   eventDragMove,
   eventDragScroll,
   eventDragEnd,
-  gridInstances,
-  namespace
+  gridInstances
 } from '../shared';
+
+import Dragger from '../Dragger/Dragger';
 
 import { addMoveTick, cancelMoveTick, addScrollTick, cancelScrollTick } from '../ticker';
 
 import addClass from '../utils/addClass';
+import arrayInsert from '../utils/arrayInsert';
 import arrayMove from '../utils/arrayMove';
 import arraySwap from '../utils/arraySwap';
 import debounce from '../utils/debounce';
@@ -35,9 +35,7 @@ import getOffsetDiff from '../utils/getOffsetDiff';
 import getScrollableAncestors from '../utils/getScrollableAncestors';
 import getTranslate from '../utils/getTranslate';
 import getTranslateString from '../utils/getTranslateString';
-import arrayInsert from '../utils/arrayInsert';
 import isFunction from '../utils/isFunction';
-import isPlainObject from '../utils/isPlainObject';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
@@ -50,21 +48,16 @@ var startPredicateResolved = 2;
 var startPredicateRejected = 3;
 
 /**
- * Bind Hammer touch interaction to an item.
+ * Bind touch interaction to an item.
  *
  * @class
  * @param {Item} item
  */
 function ItemDrag(item) {
-  if (!Hammer) {
-    throw new Error('[' + namespace + '] required dependency Hammer is not defined.');
-  }
-
   var drag = this;
   var element = item._element;
   var grid = item.getGrid();
   var settings = grid._settings;
-  var hammer;
 
   // Start predicate private data.
   var startPredicate = isFunction(settings.dragStartPredicate)
@@ -76,7 +69,6 @@ function ItemDrag(item) {
   // Protected data.
   this._item = item;
   this._gridId = grid._id;
-  this._hammer = hammer = new Hammer.Manager(element);
   this._isDestroyed = false;
   this._isMigrating = false;
 
@@ -111,34 +103,9 @@ function ItemDrag(item) {
   var sortInterval = settings.dragSortHeuristics.sortInterval;
   this._checkOverlapDebounce = debounce(this._checkOverlap, sortInterval);
 
-  // Add drag recognizer to hammer.
-  hammer.add(
-    new Hammer.Pan({
-      event: 'drag',
-      pointers: 1,
-      threshold: 0,
-      direction: Hammer.DIRECTION_ALL
-    })
-  );
-
-  // Add drag init recognizer to hammer.
-  hammer.add(
-    new Hammer.Press({
-      event: 'draginit',
-      pointers: 1,
-      threshold: 1000,
-      time: 0
-    })
-  );
-
-  // Configure the hammer instance.
-  if (isPlainObject(settings.dragHammerSettings)) {
-    hammer.set(settings.dragHammerSettings);
-  }
-
   // Bind drag events.
-  hammer
-    .on('draginit dragstart dragmove', function(e) {
+  this._dragger = new Dragger(element, settings.dragCssProps)
+    .on('start move', function(e) {
       // Let's activate drag start predicate state.
       if (startPredicateState === startPredicateInactive) {
         startPredicateState = startPredicatePending;
@@ -146,7 +113,7 @@ function ItemDrag(item) {
 
       // If predicate is pending try to resolve it.
       if (startPredicateState === startPredicatePending) {
-        startPredicateResult = startPredicate(drag._item, e);
+        startPredicateResult = startPredicate(drag._item, e, false);
         if (startPredicateResult === true) {
           startPredicateState = startPredicateResolved;
           drag._onStart(e);
@@ -160,14 +127,14 @@ function ItemDrag(item) {
         drag._onMove(e);
       }
     })
-    .on('dragend dragcancel draginitup', function(e) {
+    .on('cancel end', function(e) {
       // Check if the start predicate was resolved during drag.
       var isResolved = startPredicateState === startPredicateResolved;
 
       // Do final predicate check to allow user to unbind stuff for the current
       // drag procedure within the predicate callback. The return value of this
       // check will have no effect to the state of the predicate.
-      startPredicate(drag._item, e);
+      startPredicate(drag._item, e, true);
 
       // Reset start predicate state.
       startPredicateState = startPredicateInactive;
@@ -196,13 +163,14 @@ function ItemDrag(item) {
  * @memberof ItemDrag
  * @param {Item} item
  * @param {Object} event
+ * @param {Boolean} isFinal
  * @param {Object} [options]
  *   - An optional options object which can be used to pass the predicate
  *     it's options manually. By default the predicate retrieves the options
  *     from the grid's settings.
  * @returns {Boolean}
  */
-ItemDrag.defaultStartPredicate = function(item, event, options) {
+ItemDrag.defaultStartPredicate = function(item, event, isFinal, options) {
   var drag = item._drag;
   var predicate = drag._startPredicateData || drag._setupStartPredicate(options);
 
@@ -210,8 +178,8 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
   // the predicate is either resolved or it's not and there's nothing to do
   // about it. Here we just reset data and if the item element is a link
   // we follow it (if there has only been slight movement).
-  if (event.isFinal) {
-    drag._finishStartPredicate(event);
+  if (isFinal) {
+    drag._finishStartPredicate();
     return;
   }
 
@@ -463,7 +431,7 @@ ItemDrag.prototype.stop = function() {
 ItemDrag.prototype.destroy = function() {
   if (this._isDestroyed) return this;
   this.stop();
-  this._hammer.destroy();
+  this._dragger.destroy();
   this._item._element.removeEventListener('dragstart', preventDefault, false);
   this._isDestroyed = true;
   return this;
@@ -501,7 +469,7 @@ ItemDrag.prototype._reset = function() {
   // The dragged item's containing block.
   this._containingBlock = null;
 
-  // Hammer event data.
+  // Drag event data.
   this._lastEvent = null;
   this._lastScrollEvent = null;
 
@@ -617,7 +585,7 @@ ItemDrag.prototype._getStartPredicateHandle = function(event) {
   if (!predicate.handle) return handleElement;
 
   // If there is a specific predicate handle defined, let's try to get it.
-  handleElement = (event.changedPointers[0] || 0).target;
+  handleElement = event.target;
   while (handleElement && !elementMatches(handleElement, predicate.handle)) {
     handleElement = handleElement !== element ? handleElement.parentElement : null;
   }
@@ -635,9 +603,10 @@ ItemDrag.prototype._getStartPredicateHandle = function(event) {
  */
 ItemDrag.prototype._resolveStartPredicate = function(event) {
   var predicate = this._startPredicateData;
-  var pointer = event.changedPointers[0];
-  var pageX = (pointer && pointer.pageX) || 0;
-  var pageY = (pointer && pointer.pageY) || 0;
+  var dragger = this._dragger;
+  var pointer = dragger.getEventInterface(event) || {};
+  var pageX = pointer.pageX || 0;
+  var pageY = pointer.pageY || 0;
   var handleRect;
   var handleLeft;
   var handleTop;
@@ -646,7 +615,7 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
 
   // If the moved distance is smaller than the threshold distance or there is
   // some delay left, ignore this predicate cycle.
-  if (event.distance < predicate.distance || predicate.delay) return;
+  if (dragger.getDeltaDistance() < predicate.distance || predicate.delay) return;
 
   // Get handle rect data.
   handleRect = predicate.handleElement.getBoundingClientRect();
@@ -676,15 +645,22 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
  * @memberof ItemDrag.prototype
  * @param {Object} event
  */
-ItemDrag.prototype._finishStartPredicate = function(event) {
+ItemDrag.prototype._finishStartPredicate = function() {
   var element = this._item._element;
+  var dragger = this._dragger;
+
+  // Check if this is a click (very subjective heuristics).
+  var isClick =
+    Math.abs(dragger.getDeltaX()) < 2 &&
+    Math.abs(dragger.getDeltaY()) < 2 &&
+    dragger.getDeltaTime() < 200;
 
   // Reset predicate.
   this._resetStartPredicate();
 
   // If the gesture can be interpreted as click let's try to open the element's
   // href url (if it is an anchor element).
-  if (isClick(event)) openAnchorHref(element);
+  if (isClick) openAnchorHref(element);
 };
 
 /**
@@ -695,9 +671,9 @@ ItemDrag.prototype._finishStartPredicate = function(event) {
  * @param {Object} event
  */
 ItemDrag.prototype._resetHeuristics = function(event) {
-  var pointer = event.changedPointers[0];
-  var x = (pointer && pointer.screenX) || 0;
-  var y = (pointer && pointer.screenY) || 0;
+  var pointer = this._dragger.getEventInterface(event) || {};
+  var x = pointer.clientX || 0;
+  var y = pointer.clientY || 0;
 
   this._hBlockIndex = null;
   this._hX1 = this._hX2 = x;
@@ -723,9 +699,9 @@ ItemDrag.prototype._checkHeuristics = function(event) {
     return true;
   }
 
-  var pointer = event.changedPointers[0];
-  var x = (pointer && pointer.screenX) || 0;
-  var y = (pointer && pointer.screenY) || 0;
+  var pointer = this._dragger.getEventInterface(event) || {};
+  var x = pointer.clientX || 0;
+  var y = pointer.clientY || 0;
   var diffX = x - this._hX2;
   var diffY = y - this._hY2;
 
@@ -1111,8 +1087,10 @@ ItemDrag.prototype._onMove = function(event) {
 
   var settings = this._getGrid()._settings;
   var axis = settings.dragAxis;
-  var xDiff = event.deltaX - this._lastEvent.deltaX;
-  var yDiff = event.deltaY - this._lastEvent.deltaY;
+  var pointer = this._dragger.getEventInterface(event);
+  var prevPointer = this._dragger.getEventInterface(this._lastEvent);
+  var xDiff = pointer.clientX - prevPointer.clientX;
+  var yDiff = pointer.clientY - prevPointer.clientY;
 
   // Update last event.
   this._lastEvent = event;
@@ -1349,17 +1327,6 @@ function getRectOverlapScore(a, b) {
   var maxHeight = Math.min(a.height, b.height);
 
   return ((width * height) / (maxWidth * maxHeight)) * 100;
-}
-
-/**
- * Check if drag gesture can be interpreted as a click, based on final drag
- * event data.
- *
- * @param {Object} element
- * @returns {Boolean}
- */
-function isClick(event) {
-  return Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200;
 }
 
 /**

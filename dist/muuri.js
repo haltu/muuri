@@ -16,15 +16,10 @@
 */
 
 (function (global, factory) {
-  if (typeof exports === 'object' && typeof module !== 'undefined') {
-    var Hammer;
-    try { Hammer = require('hammerjs') } catch (e) {}
-    module.exports = factory(Hammer);
-  } else {
-    global.Muuri = factory(global.Hammer);
-  }
-}(this, function (Hammer) {
-  'use strict';
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+  typeof define === 'function' && define.amd ? define(factory) :
+  (global = global || self, global.Muuri = factory());
+}(this, function () { 'use strict';
 
   var namespace = 'Muuri';
   var gridInstances = {};
@@ -497,6 +492,433 @@
     callback && callback();
   };
 
+  var supportsPassive = false;
+  try {
+    var passiveOpts = Object.defineProperty({}, 'passive', {
+      get: function() {
+        supportsPassive = true;
+      }
+    });
+    window.addEventListener('testPassive', null, passiveOpts);
+    window.removeEventListener('testPassive', null, passiveOpts);
+  } catch (e) {}
+
+  var isPassiveEventsSupported = supportsPassive;
+
+  var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
+
+  /**
+   * Get prefixed CSS property name when given a non-prefixed CSS property name.
+   * @param {Object} elemStyle
+   * @param {String} propName
+   * @returns {!String}
+   */
+  function getPrefixedPropName(elemStyle, propName) {
+    var camelPropName = propName[0].toUpperCase() + propName.slice(1);
+    var i = 0;
+    var prefix;
+    var prefixedPropName;
+
+    while (i < vendorPrefixes.length) {
+      prefix = vendorPrefixes[i];
+      prefixedPropName = prefix ? prefix + camelPropName : propName;
+      if (prefixedPropName in elemStyle) return prefixedPropName;
+      ++i;
+    }
+
+    return null;
+  }
+
+  var hasPointerEvents = window.PointerEvent;
+  var hasMsPointerEvents = window.navigator.msPointerEnabled;
+  var hasTouchEvents = 'ontouchstart' in window;
+  var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
+
+  /**
+   * Creates a new Dragger instance for an element.
+   *
+   * @public
+   * @class
+   * @param {HTMLElement} element
+   * @param {Object} [cssProps]
+   */
+  function Dragger(element, cssProps) {
+    this._element = element;
+    this._emitter = new Emitter();
+    this._isDestroyed = false;
+    this._cssProps = {};
+
+    this._onStart = this._onStart.bind(this);
+    this._onMove = this._onMove.bind(this);
+    this._onCancel = this._onCancel.bind(this);
+    this._onEnd = this._onEnd.bind(this);
+
+    this.pointerId = 0;
+    this.startTime = 0;
+    this.startX = 0;
+    this.startY = 0;
+    this.currentX = 0;
+    this.currentY = 0;
+
+    if (cssProps) {
+      var prop, prefixedProp;
+      for (prop in cssProps) {
+        prefixedProp = getPrefixedPropName(element.style, prop);
+        if (prefixedProp) {
+          this._cssProps[prefixedProp] = element.style[prefixedProp];
+          element.style[prefixedProp] = cssProps[prop];
+        }
+      }
+    }
+
+    element.addEventListener(
+      Dragger._events.start,
+      this._onStart,
+      Dragger._usePassiveEvents ? listenerOptions : false
+    );
+  }
+
+  /**
+   * Protected properties
+   * ********************
+   */
+
+  Dragger._events = (function() {
+    // Pointer events.
+    if (hasPointerEvents) {
+      return {
+        start: 'pointerdown',
+        move: 'pointermove',
+        cancel: 'pointercancel',
+        end: 'pointerup'
+      };
+    }
+
+    // IE10 Pointer events.
+    if (hasMsPointerEvents) {
+      return {
+        start: 'MSPointerDown',
+        move: 'MSPointerMove',
+        cancel: 'MSPointerCancel',
+        end: 'MSPointerUp'
+      };
+    }
+
+    // Touch events.
+    if (hasTouchEvents) {
+      return {
+        start: 'touchstart',
+        move: 'touchmove',
+        cancel: 'touchcancel',
+        end: 'touchend'
+      };
+    }
+
+    // Mouse events.
+    return {
+      start: 'mousedown',
+      move: 'mousemove',
+      cancel: '',
+      end: 'mouseup'
+    };
+  })();
+
+  Dragger._activeInstances = [];
+
+  Dragger._usePassiveEvents = true;
+
+  /**
+   * Protected static methods
+   * ************************
+   */
+
+  Dragger._onMove = function(e) {
+    var draggers = Dragger._activeInstances.slice();
+    for (var i = 0; i < draggers.length; i++) {
+      draggers[i]._onMove(e);
+    }
+  };
+
+  Dragger._onCancel = function(e) {
+    var draggers = Dragger._activeInstances.slice();
+    for (var i = 0; i < draggers.length; i++) {
+      draggers[i]._onCancel(e);
+    }
+  };
+
+  Dragger._onEnd = function(e) {
+    var draggers = Dragger._activeInstances.slice();
+    for (var i = 0; i < draggers.length; i++) {
+      draggers[i]._onEnd(e);
+    }
+  };
+
+  Dragger._bindWindowListeners = function() {
+    var events = Dragger._events;
+    var opts = Dragger._usePassiveEvents ? listenerOptions : false;
+    window.addEventListener(events.move, Dragger._onMove, opts);
+    window.addEventListener(events.end, Dragger._onEnd, opts);
+    events.cancel && window.addEventListener(events.cancel, Dragger._onCancel, opts);
+  };
+
+  Dragger._unbindWindowListeners = function() {
+    var events = Dragger._events;
+    var opts = Dragger._usePassiveEvents ? listenerOptions : false;
+    window.removeEventListener(events.move, Dragger._onMove, opts);
+    window.removeEventListener(events.end, Dragger._onEnd, opts);
+    events.cancel && window.removeEventListener(events.cancel, Dragger._onCancel, opts);
+  };
+
+  Dragger._getEventPointerId = function(event) {
+    // If we have pointer id available let's use it.
+    if (typeof event.pointerid === 'number') {
+      return event.pointerid;
+    }
+
+    // For touch events let's get the first changed touch's identifier.
+    if (event.changedTouches) {
+      return (event.changedTouches[0] || 0).identifier || 0;
+    }
+
+    // For mouse events let's provide a static id.
+    return 1;
+  };
+
+  Dragger._getEventInterface = function(event, pointerId) {
+    // If we have pointer id available let's use it.
+    if (typeof event.pointerid === 'number') {
+      return event.pointerid === pointerId ? event : null;
+    }
+
+    // For touch events let's check if the pointer with the provided id is
+    // within changed touches.
+    if (event.changedTouches) {
+      for (var i = 0; i < event.changedTouches.length; i++) {
+        if (event.changedTouches[i].identifier === pointerId) {
+          return event.changedTouches[i];
+        }
+      }
+      return null;
+    }
+
+    // For mouse events there's always one pointer.
+    return event;
+  };
+
+  /**
+   * Private prototype methods
+   * *************************
+   */
+
+  Dragger.prototype._reset = function() {
+    this.pointerId = 0;
+    this.startTime = 0;
+    this.startX = 0;
+    this.startY = 0;
+    this.currentX = 0;
+    this.currentY = 0;
+
+    // Remove instance from active instances.
+    var instanceIndex = Dragger._activeInstances.indexOf(this);
+    if (instanceIndex > -1) {
+      Dragger._activeInstances.splice(instanceIndex, 1);
+    }
+
+    // Stop listening to document if there are no active instances.
+    if (!Dragger._activeInstances.length) {
+      Dragger._unbindWindowListeners();
+    }
+  };
+
+  Dragger.prototype._onStart = function(e) {
+    if (this._isDestroyed || this.pointerId) return;
+
+    var pointerId = Dragger._getEventPointerId(e);
+    if (!pointerId) return;
+
+    this.pointerId = pointerId;
+
+    var eventData = this.getEventInterface(e);
+    this.startX = this.currentX = eventData.clientX;
+    this.startY = this.currentY = eventData.clientY;
+    this.startTime = Date.now();
+
+    this._emitter.emit('start', e);
+
+    // If the document listeners are not bound yet, bind them.
+    if (!Dragger._activeInstances.length) {
+      Dragger._bindWindowListeners();
+    }
+
+    // Add instance to active instances.
+    Dragger._activeInstances.push(this);
+  };
+
+  Dragger.prototype._onMove = function(e) {
+    var eventData = this.getEventInterface(e);
+    if (!eventData) return;
+
+    this.currentX = eventData.clientX;
+    this.currentY = eventData.clientY;
+    this._emitter.emit('move', e);
+  };
+
+  Dragger.prototype._onCancel = function(e) {
+    if (!this.getEventInterface(e)) return;
+
+    this._emitter.emit('cancel', e);
+    this._reset();
+  };
+
+  Dragger.prototype._onEnd = function(e) {
+    if (!this.getEventInterface(e)) return;
+
+    this._emitter.emit('end', e);
+    this._reset();
+  };
+
+  /**
+   * Public prototype methods
+   * ************************
+   */
+
+  Dragger.prototype.getEventInterface = function(e) {
+    return (this.pointerId && Dragger._getEventInterface(e, this.pointerId)) || null;
+  };
+
+  /**
+   * @public
+   * @memberof Dragger.prototype
+   * @returns {Number}
+   */
+  Dragger.prototype.getDeltaX = function() {
+    return this.currentX - this.startX;
+  };
+
+  /**
+   * @public
+   * @memberof Dragger.prototype
+   * @returns {Number}
+   */
+  Dragger.prototype.getDeltaY = function() {
+    return this.currentY - this.startY;
+  };
+
+  /**
+   * @public
+   * @memberof Dragger.prototype
+   * @returns {Number}
+   */
+  Dragger.prototype.getDeltaDistance = function() {
+    var x = this.getDeltaX();
+    var y = this.getDeltaY();
+    return Math.sqrt(x * x + y * y);
+  };
+
+  /**
+   * @public
+   * @memberof Dragger.prototype
+   * @returns {Number}
+   */
+  Dragger.prototype.getDeltaTime = function() {
+    return Date.now() - this.startTime;
+  };
+
+  /**
+   * Bind drag event listeners.
+   *
+   * @public
+   * @memberof Dragger.prototype
+   * @param {String[]} events
+   *   - 'start', 'move', 'cancel' or 'end'.
+   * @param {Function} listener
+   * @returns {Dragger}
+   */
+  Dragger.prototype.on = function(events, listener) {
+    if (this._isDestroyed) return this;
+
+    var eventsArray = events.split(' ');
+    for (var i = 0; i < eventsArray.length; i++) {
+      if (Dragger._events[eventsArray[i]]) {
+        this._emitter.on(eventsArray[i], listener);
+      }
+    }
+
+    return this;
+  };
+
+  /**
+   * Unbind drag event listeners.
+   *
+   * @public
+   * @memberof Dragger.prototype
+   * @param {String[]} events
+   *   - 'start', 'move', 'cancel' or 'end'.
+   * @param {Function} listener
+   * @returns {Dragger}
+   */
+  Dragger.prototype.off = function(events, listener) {
+    if (this._isDestroyed) return this;
+
+    var eventsArray = events.split(' ');
+    for (var i = 0; i < eventsArray.length; i++) {
+      if (Dragger._events[eventsArray[i]]) {
+        this._emitter.off(eventsArray[i], listener);
+      }
+    }
+
+    return this;
+  };
+
+  /**
+   * Destroy the instance and unbind all drag event listeners.
+   *
+   * @public
+   * @memberof Dragger.prototype
+   * @returns {Dragger}
+   */
+  Dragger.prototype.destroy = function() {
+    if (this._isDestroyed) return this;
+
+    var element = this._element;
+    var events = Dragger._events;
+
+    // Mark a destroyed.
+    this._isDestroyed = true;
+
+    // Destroy emitter.
+    this._emitter.destroy();
+
+    // Unbind start event handler.
+    element.removeEventListener(
+      events.start,
+      this._onStart,
+      Dragger._usePassiveEvents ? listenerOptions : false
+    );
+
+    // Remove instance from active instances.
+    var instanceIndex = Dragger._activeInstances.indexOf(this);
+    if (instanceIndex > -1) {
+      Dragger._activeInstances.splice(instanceIndex, 1);
+    }
+
+    // Stop listening to document if there are no active instances.
+    if (!Dragger._activeInstances.length) {
+      Dragger._unbindWindowListeners();
+    }
+
+    // Reset styles.
+    for (var prop in this._cssProps) {
+      element.style[prop] = this._cssProps[prop];
+      delete this._cssProps[prop];
+    }
+
+    // Reset data.
+    this._element = null;
+
+    return this;
+  };
+
   var raf = (
     window.requestAnimationFrame ||
     window.webkitRequestAnimationFrame ||
@@ -702,6 +1124,26 @@
   }
 
   var addClass = ('classList' in Element.prototype ? addClassModern : addClassLegacy);
+
+  var tempArray = [];
+  var numberType = 'number';
+
+  /**
+   * Insert an item or an array of items to array to a specified index. Mutates
+   * the array. The index can be negative in which case the items will be added
+   * to the end of the array.
+   *
+   * @param {Array} array
+   * @param {*} items
+   * @param {Number} [index=-1]
+   */
+  function arrayInsert(array, items, index) {
+    var startIndex = typeof index === numberType ? index : -1;
+    if (startIndex < 0) startIndex = array.length - startIndex + 1;
+
+    array.splice.apply(array, tempArray.concat(startIndex, 0, items));
+    tempArray.length = 0;
+  }
 
   /**
    * Normalize array index. Basically this function makes sure that the provided
@@ -1054,40 +1496,6 @@
     return 'translateX(' + x + 'px) translateY(' + y + 'px)';
   }
 
-  var tempArray = [];
-  var numberType = 'number';
-
-  /**
-   * Insert an item or an array of items to array to a specified index. Mutates
-   * the array. The index can be negative in which case the items will be added
-   * to the end of the array.
-   *
-   * @param {Array} array
-   * @param {*} items
-   * @param {Number} [index=-1]
-   */
-  function arrayInsert(array, items, index) {
-    var startIndex = typeof index === numberType ? index : -1;
-    if (startIndex < 0) startIndex = array.length - startIndex + 1;
-
-    array.splice.apply(array, tempArray.concat(startIndex, 0, items));
-    tempArray.length = 0;
-  }
-
-  var objectType = 'object';
-  var objectToStringType = '[object Object]';
-  var toString = Object.prototype.toString;
-
-  /**
-   * Check if a value is a plain object.
-   *
-   * @param {*} val
-   * @returns {Boolean}
-   */
-  function isPlainObject(val) {
-    return typeof val === objectType && toString.call(val) === objectToStringType;
-  }
-
   /**
    * Remove class from an element.
    *
@@ -1119,21 +1527,16 @@
   var startPredicateRejected = 3;
 
   /**
-   * Bind Hammer touch interaction to an item.
+   * Bind touch interaction to an item.
    *
    * @class
    * @param {Item} item
    */
   function ItemDrag(item) {
-    if (!Hammer) {
-      throw new Error('[' + namespace + '] required dependency Hammer is not defined.');
-    }
-
     var drag = this;
     var element = item._element;
     var grid = item.getGrid();
     var settings = grid._settings;
-    var hammer;
 
     // Start predicate private data.
     var startPredicate = isFunction(settings.dragStartPredicate)
@@ -1145,7 +1548,6 @@
     // Protected data.
     this._item = item;
     this._gridId = grid._id;
-    this._hammer = hammer = new Hammer.Manager(element);
     this._isDestroyed = false;
     this._isMigrating = false;
 
@@ -1180,34 +1582,9 @@
     var sortInterval = settings.dragSortHeuristics.sortInterval;
     this._checkOverlapDebounce = debounce(this._checkOverlap, sortInterval);
 
-    // Add drag recognizer to hammer.
-    hammer.add(
-      new Hammer.Pan({
-        event: 'drag',
-        pointers: 1,
-        threshold: 0,
-        direction: Hammer.DIRECTION_ALL
-      })
-    );
-
-    // Add drag init recognizer to hammer.
-    hammer.add(
-      new Hammer.Press({
-        event: 'draginit',
-        pointers: 1,
-        threshold: 1000,
-        time: 0
-      })
-    );
-
-    // Configure the hammer instance.
-    if (isPlainObject(settings.dragHammerSettings)) {
-      hammer.set(settings.dragHammerSettings);
-    }
-
     // Bind drag events.
-    hammer
-      .on('draginit dragstart dragmove', function(e) {
+    this._dragger = new Dragger(element, settings.dragCssProps)
+      .on('start move', function(e) {
         // Let's activate drag start predicate state.
         if (startPredicateState === startPredicateInactive) {
           startPredicateState = startPredicatePending;
@@ -1215,7 +1592,7 @@
 
         // If predicate is pending try to resolve it.
         if (startPredicateState === startPredicatePending) {
-          startPredicateResult = startPredicate(drag._item, e);
+          startPredicateResult = startPredicate(drag._item, e, false);
           if (startPredicateResult === true) {
             startPredicateState = startPredicateResolved;
             drag._onStart(e);
@@ -1229,14 +1606,14 @@
           drag._onMove(e);
         }
       })
-      .on('dragend dragcancel draginitup', function(e) {
+      .on('cancel end', function(e) {
         // Check if the start predicate was resolved during drag.
         var isResolved = startPredicateState === startPredicateResolved;
 
         // Do final predicate check to allow user to unbind stuff for the current
         // drag procedure within the predicate callback. The return value of this
         // check will have no effect to the state of the predicate.
-        startPredicate(drag._item, e);
+        startPredicate(drag._item, e, true);
 
         // Reset start predicate state.
         startPredicateState = startPredicateInactive;
@@ -1265,13 +1642,14 @@
    * @memberof ItemDrag
    * @param {Item} item
    * @param {Object} event
+   * @param {Boolean} isFinal
    * @param {Object} [options]
    *   - An optional options object which can be used to pass the predicate
    *     it's options manually. By default the predicate retrieves the options
    *     from the grid's settings.
    * @returns {Boolean}
    */
-  ItemDrag.defaultStartPredicate = function(item, event, options) {
+  ItemDrag.defaultStartPredicate = function(item, event, isFinal, options) {
     var drag = item._drag;
     var predicate = drag._startPredicateData || drag._setupStartPredicate(options);
 
@@ -1279,8 +1657,8 @@
     // the predicate is either resolved or it's not and there's nothing to do
     // about it. Here we just reset data and if the item element is a link
     // we follow it (if there has only been slight movement).
-    if (event.isFinal) {
-      drag._finishStartPredicate(event);
+    if (isFinal) {
+      drag._finishStartPredicate();
       return;
     }
 
@@ -1532,7 +1910,7 @@
   ItemDrag.prototype.destroy = function() {
     if (this._isDestroyed) return this;
     this.stop();
-    this._hammer.destroy();
+    this._dragger.destroy();
     this._item._element.removeEventListener('dragstart', preventDefault, false);
     this._isDestroyed = true;
     return this;
@@ -1570,7 +1948,7 @@
     // The dragged item's containing block.
     this._containingBlock = null;
 
-    // Hammer event data.
+    // Drag event data.
     this._lastEvent = null;
     this._lastScrollEvent = null;
 
@@ -1686,7 +2064,7 @@
     if (!predicate.handle) return handleElement;
 
     // If there is a specific predicate handle defined, let's try to get it.
-    handleElement = (event.changedPointers[0] || 0).target;
+    handleElement = event.target;
     while (handleElement && !elementMatches(handleElement, predicate.handle)) {
       handleElement = handleElement !== element ? handleElement.parentElement : null;
     }
@@ -1704,9 +2082,10 @@
    */
   ItemDrag.prototype._resolveStartPredicate = function(event) {
     var predicate = this._startPredicateData;
-    var pointer = event.changedPointers[0];
-    var pageX = (pointer && pointer.pageX) || 0;
-    var pageY = (pointer && pointer.pageY) || 0;
+    var dragger = this._dragger;
+    var pointer = dragger.getEventInterface(event) || {};
+    var pageX = pointer.pageX || 0;
+    var pageY = pointer.pageY || 0;
     var handleRect;
     var handleLeft;
     var handleTop;
@@ -1715,7 +2094,7 @@
 
     // If the moved distance is smaller than the threshold distance or there is
     // some delay left, ignore this predicate cycle.
-    if (event.distance < predicate.distance || predicate.delay) return;
+    if (dragger.getDeltaDistance() < predicate.distance || predicate.delay) return;
 
     // Get handle rect data.
     handleRect = predicate.handleElement.getBoundingClientRect();
@@ -1745,15 +2124,22 @@
    * @memberof ItemDrag.prototype
    * @param {Object} event
    */
-  ItemDrag.prototype._finishStartPredicate = function(event) {
+  ItemDrag.prototype._finishStartPredicate = function() {
     var element = this._item._element;
+    var dragger = this._dragger;
+
+    // Check if this is a click (very subjective heuristics).
+    var isClick =
+      Math.abs(dragger.getDeltaX()) < 2 &&
+      Math.abs(dragger.getDeltaY()) < 2 &&
+      dragger.getDeltaTime() < 200;
 
     // Reset predicate.
     this._resetStartPredicate();
 
     // If the gesture can be interpreted as click let's try to open the element's
     // href url (if it is an anchor element).
-    if (isClick(event)) openAnchorHref(element);
+    if (isClick) openAnchorHref(element);
   };
 
   /**
@@ -1764,9 +2150,9 @@
    * @param {Object} event
    */
   ItemDrag.prototype._resetHeuristics = function(event) {
-    var pointer = event.changedPointers[0];
-    var x = (pointer && pointer.screenX) || 0;
-    var y = (pointer && pointer.screenY) || 0;
+    var pointer = this._dragger.getEventInterface(event) || {};
+    var x = pointer.clientX || 0;
+    var y = pointer.clientY || 0;
 
     this._hBlockIndex = null;
     this._hX1 = this._hX2 = x;
@@ -1792,9 +2178,9 @@
       return true;
     }
 
-    var pointer = event.changedPointers[0];
-    var x = (pointer && pointer.screenX) || 0;
-    var y = (pointer && pointer.screenY) || 0;
+    var pointer = this._dragger.getEventInterface(event) || {};
+    var x = pointer.clientX || 0;
+    var y = pointer.clientY || 0;
     var diffX = x - this._hX2;
     var diffY = y - this._hY2;
 
@@ -2180,8 +2566,10 @@
 
     var settings = this._getGrid()._settings;
     var axis = settings.dragAxis;
-    var xDiff = event.deltaX - this._lastEvent.deltaX;
-    var yDiff = event.deltaY - this._lastEvent.deltaY;
+    var pointer = this._dragger.getEventInterface(event);
+    var prevPointer = this._dragger.getEventInterface(this._lastEvent);
+    var xDiff = pointer.clientX - prevPointer.clientX;
+    var yDiff = pointer.clientY - prevPointer.clientY;
 
     // Update last event.
     this._lastEvent = event;
@@ -2418,17 +2806,6 @@
     var maxHeight = Math.min(a.height, b.height);
 
     return ((width * height) / (maxWidth * maxHeight)) * 100;
-  }
-
-  /**
-   * Check if drag gesture can be interpreted as a click, based on final drag
-   * event data.
-   *
-   * @param {Object} element
-   * @returns {Boolean}
-   */
-  function isClick(event) {
-    return Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200;
   }
 
   /**
@@ -4727,6 +5104,20 @@
     return type === htmlCollectionType || type === nodeListType;
   }
 
+  var objectType = 'object';
+  var objectToStringType = '[object Object]';
+  var toString = Object.prototype.toString;
+
+  /**
+   * Check if a value is a plain object.
+   *
+   * @param {*} val
+   * @returns {Boolean}
+   */
+  function isPlainObject(val) {
+    return typeof val === objectType && toString.call(val) === objectToStringType;
+  }
+
   /**
    * Converts a value to an array or clones an array.
    *
@@ -4785,7 +5176,7 @@
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {String} [options.dragReleaseEasing="ease"]
-   * @param {Object} [options.dragHammerSettings={touchAction: "none"}]
+   * @param {Object} [options.dragCssProps]
    * @param {Object} [options.dragPlaceholder]
    * @param {Boolean} [options.dragPlaceholder.enabled=false]
    * @param {Number} [options.dragPlaceholder.duration=300]
@@ -5005,8 +5396,12 @@
     },
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',
-    dragHammerSettings: {
-      touchAction: 'none'
+    dragCssProps: {
+      touchAction: 'none',
+      userSelect: 'none',
+      userDrag: 'none',
+      tapHighlightColor: 'rgba(0, 0, 0, 0)',
+      touchCallout: 'none'
     },
     dragPlaceholder: {
       enabled: false,
@@ -6182,12 +6577,6 @@
 
     return target;
   }
-
-  // TODO:
-  // - Use imports/exports in node
-  // - Try to get rid of Queue (replace with Emitter if possible)
-  // - Try to finish up custom dragging (and check if Hammer is causing the drag
-  //   slowdown on 200+ elements)
 
   return Grid;
 

@@ -671,13 +671,13 @@
 
   Dragger._getEventPointerId = function(event) {
     // If we have pointer id available let's use it.
-    if (typeof event.pointerid === 'number') {
-      return event.pointerid;
+    if (typeof event.pointerId === 'number') {
+      return event.pointerId;
     }
 
     // For touch events let's get the first changed touch's identifier.
     if (event.changedTouches) {
-      return (event.changedTouches[0] || 0).identifier || 0;
+      return event.changedTouches[0] ? event.changedTouches[0].identifier : 0;
     }
 
     // For mouse events let's provide a static id.
@@ -686,8 +686,8 @@
 
   Dragger._getEventInterface = function(event, pointerId) {
     // If we have pointer id available let's use it.
-    if (typeof event.pointerid === 'number') {
-      return event.pointerid === pointerId ? event : null;
+    if (typeof event.pointerId === 'number') {
+      return event.pointerId === pointerId ? event : null;
     }
 
     // For touch events let's check if the pointer with the provided id is
@@ -733,12 +733,16 @@
   Dragger.prototype._onStart = function(e) {
     if (this._isDestroyed || this.pointerId) return;
 
+    // Make sure left button is pressed on mouse.
+    if (e.button) return;
+
+    // Get pointer id.
     var pointerId = Dragger._getEventPointerId(e);
     if (!pointerId) return;
 
-    this.pointerId = pointerId;
-
     var eventData = this.getEventInterface(e);
+
+    this.pointerId = pointerId;
     this.startX = this.currentX = eventData.clientX;
     this.startY = this.currentY = eventData.clientY;
     this.startTime = Date.now();

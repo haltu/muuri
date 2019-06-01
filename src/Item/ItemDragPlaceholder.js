@@ -66,8 +66,9 @@ ItemDragPlaceholder.prototype._onLayoutStart = function() {
   var nextLeft = grid._layout.slots[itemIndex * 2];
   var nextTop = grid._layout.slots[itemIndex * 2 + 1];
 
-  // If item's position did not change we can safely skip layout.
-  if (item._left === nextLeft && item._top === nextTop) {
+  // If item's position did not change and the item did not migrate we can
+  // safely skip layout.
+  if (!this._didMigrate && item._left === nextLeft && item._top === nextTop) {
     return;
   }
 

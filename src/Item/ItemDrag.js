@@ -54,26 +54,24 @@ var startPredicateRejected = 3;
  * @param {Item} item
  */
 function ItemDrag(item) {
-  var drag = this;
   var element = item._element;
   var grid = item.getGrid();
   var settings = grid._settings;
 
-  // Start predicate private data.
-  var startPredicate = isFunction(settings.dragStartPredicate)
-    ? settings.dragStartPredicate
-    : ItemDrag.defaultStartPredicate;
-  var startPredicateState = startPredicateInactive;
-  var startPredicateResult;
-
-  // Protected data.
   this._item = item;
   this._gridId = grid._id;
   this._isDestroyed = false;
   this._isMigrating = false;
 
+  // Start predicate data.
+  this._startPredicate = isFunction(settings.dragStartPredicate)
+    ? settings.dragStartPredicate
+    : ItemDrag.defaultStartPredicate;
+  this._startPredicateState = startPredicateInactive;
+  this._startPredicateResult = undefined;
+
   // Data for drag sort predicate heuristics.
-  this._hBlockIndex = null;
+  this._hBlockedIndex = null;
   this._hX1 = 0;
   this._hX2 = 0;
   this._hY1 = 0;
@@ -82,7 +80,9 @@ function ItemDrag(item) {
   // Setup item's initial drag data.
   this._reset();
 
-  // Bind some methods that needs binding.
+  // Bind the methods that needs binding.
+  this._preStartCheck = this._preStartCheck.bind(this);
+  this._preEndCheck = this._preEndCheck.bind(this);
   this._onScroll = this._onScroll.bind(this);
   this._prepareMove = this._prepareMove.bind(this);
   this._applyMove = this._applyMove.bind(this);
@@ -90,61 +90,16 @@ function ItemDrag(item) {
   this._applyScroll = this._applyScroll.bind(this);
   this._checkOverlap = this._checkOverlap.bind(this);
 
-  // Create a private drag start resolver that can be used to resolve the drag
-  // start predicate asynchronously.
-  this._forceResolveStartPredicate = function(event) {
-    if (!this._isDestroyed && startPredicateState === startPredicatePending) {
-      startPredicateState = startPredicateResolved;
-      this._onStart(event);
-    }
-  };
-
   // Create debounce overlap checker function.
   var sortInterval = settings.dragSortHeuristics.sortInterval;
   this._checkOverlapDebounce = debounce(this._checkOverlap, sortInterval);
 
-  // Bind drag events.
-  this._dragger = new Dragger(element, settings.dragCssProps)
-    .on('start move', function(e) {
-      // Let's activate drag start predicate state.
-      if (startPredicateState === startPredicateInactive) {
-        startPredicateState = startPredicatePending;
-      }
-
-      // If predicate is pending try to resolve it.
-      if (startPredicateState === startPredicatePending) {
-        startPredicateResult = startPredicate(drag._item, e, false);
-        if (startPredicateResult === true) {
-          startPredicateState = startPredicateResolved;
-          drag._onStart(e);
-        } else if (startPredicateResult === false) {
-          startPredicateState = startPredicateRejected;
-        }
-      }
-
-      // Otherwise if predicate is resolved and drag is active, move the item.
-      else if (startPredicateState === startPredicateResolved && drag._isActive) {
-        drag._onMove(e);
-      }
-    })
-    .on('cancel end', function(e) {
-      // Check if the start predicate was resolved during drag.
-      var isResolved = startPredicateState === startPredicateResolved;
-
-      // Do final predicate check to allow user to unbind stuff for the current
-      // drag procedure within the predicate callback. The return value of this
-      // check will have no effect to the state of the predicate.
-      startPredicate(drag._item, e, true);
-
-      // Reset start predicate state.
-      startPredicateState = startPredicateInactive;
-
-      // If predicate is resolved and dragging is active, call the end handler.
-      if (isResolved && drag._isActive) drag._onEnd(e);
-    });
-
-  // Prevent native link/image dragging for the item and it's ancestors.
-  element.addEventListener('dragstart', preventDefault, false);
+  // Init dragger.
+  this._dragger = new Dragger(element, settings.dragCssProps);
+  this._dragger.on('start', this._preStartCheck);
+  this._dragger.on('move', this._preStartCheck);
+  this._dragger.on('cancel', this._preEndCheck);
+  this._dragger.on('end', this._preEndCheck);
 }
 
 /**
@@ -432,7 +387,6 @@ ItemDrag.prototype.destroy = function() {
   if (this._isDestroyed) return this;
   this.stop();
   this._dragger.destroy();
-  this._item._element.removeEventListener('dragstart', preventDefault, false);
   this._isDestroyed = true;
   return this;
 };
@@ -469,9 +423,11 @@ ItemDrag.prototype._reset = function() {
   // The dragged item's containing block.
   this._containingBlock = null;
 
-  // Drag event data.
-  this._lastEvent = null;
-  this._lastScrollEvent = null;
+  // Drag/scroll event data.
+  this._dragEvent = null;
+  this._scrollEvent = null;
+  this._dragClientX = 0;
+  this._dragClientY = 0;
 
   // All the elements which need to be listened for scroll events during
   // dragging.
@@ -604,25 +560,22 @@ ItemDrag.prototype._getStartPredicateHandle = function(event) {
 ItemDrag.prototype._resolveStartPredicate = function(event) {
   var predicate = this._startPredicateData;
   var dragger = this._dragger;
-  var pointer = dragger.getEventInterface(event) || {};
-  var pageX = pointer.pageX || 0;
-  var pageY = pointer.pageY || 0;
-  var handleRect;
-  var handleLeft;
-  var handleTop;
-  var handleWidth;
-  var handleHeight;
 
   // If the moved distance is smaller than the threshold distance or there is
   // some delay left, ignore this predicate cycle.
   if (dragger.getDeltaDistance() < predicate.distance || predicate.delay) return;
 
+  // Get pageX/pageY.
+  var touch = dragger.getTrackedTouch(event) || {};
+  var pageX = touch.pageX || 0;
+  var pageY = touch.pageY || 0;
+
   // Get handle rect data.
-  handleRect = predicate.handleElement.getBoundingClientRect();
-  handleLeft = handleRect.left + (window.pageXOffset || 0);
-  handleTop = handleRect.top + (window.pageYOffset || 0);
-  handleWidth = handleRect.width;
-  handleHeight = handleRect.height;
+  var handleRect = predicate.handleElement.getBoundingClientRect();
+  var handleLeft = handleRect.left + (window.pageXOffset || 0);
+  var handleTop = handleRect.top + (window.pageYOffset || 0);
+  var handleWidth = handleRect.width;
+  var handleHeight = handleRect.height;
 
   // Reset predicate data.
   this._resetStartPredicate();
@@ -636,6 +589,20 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
     pageY >= handleTop &&
     pageY < handleTop + handleHeight
   );
+};
+
+/**
+ * Forcefully resolve drag start predicate.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} event
+ */
+ItemDrag.prototype._forceResolveStartPredicate = function(event) {
+  if (!this._isDestroyed && this._startPredicateState === startPredicatePending) {
+    this._startPredicateState = startPredicateResolved;
+    this._onStart(event);
+  }
 };
 
 /**
@@ -671,11 +638,11 @@ ItemDrag.prototype._finishStartPredicate = function() {
  * @param {Object} event
  */
 ItemDrag.prototype._resetHeuristics = function(event) {
-  var pointer = this._dragger.getEventInterface(event) || {};
-  var x = pointer.clientX || 0;
-  var y = pointer.clientY || 0;
+  var touch = this._dragger.getTrackedTouch(event) || {};
+  var x = touch.clientX || 0;
+  var y = touch.clientY || 0;
 
-  this._hBlockIndex = null;
+  this._hBlockedIndex = null;
   this._hX1 = this._hX2 = x;
   this._hY1 = this._hY2 = y;
 };
@@ -695,13 +662,13 @@ ItemDrag.prototype._checkHeuristics = function(event) {
 
   // Skip heuristics if not needed.
   if (minDist <= 0) {
-    this._hBlockIndex = null;
+    this._hBlockedIndex = null;
     return true;
   }
 
-  var pointer = this._dragger.getEventInterface(event) || {};
-  var x = pointer.clientX || 0;
-  var y = pointer.clientY || 0;
+  var touch = this._dragger.getTrackedTouch(event) || {};
+  var x = touch.clientX || 0;
+  var y = touch.clientY || 0;
   var diffX = x - this._hX2;
   var diffY = y - this._hY2;
 
@@ -709,7 +676,7 @@ ItemDrag.prototype._checkHeuristics = function(event) {
   // is not set.
   var canCheckBounceBack = minDist > 3 && settings.minBounceBackAngle > 0;
   if (!canCheckBounceBack) {
-    this._hBlockIndex = null;
+    this._hBlockedIndex = null;
   }
 
   if (Math.abs(diffX) > minDist || Math.abs(diffY) > minDist) {
@@ -720,7 +687,7 @@ ItemDrag.prototype._checkHeuristics = function(event) {
       var prevAngle = Math.atan2(this._hX2 - this._hX1, this._hY2 - this._hY1);
       var deltaAngle = Math.atan2(Math.sin(angle - prevAngle), Math.cos(angle - prevAngle));
       if (Math.abs(deltaAngle) > settings.minBounceBackAngle) {
-        this._hBlockIndex = null;
+        this._hBlockedIndex = null;
       }
     }
 
@@ -774,7 +741,7 @@ ItemDrag.prototype._checkOverlap = function() {
 
   // Get overlap check result.
   if (isFunction(settings.dragSortPredicate)) {
-    result = settings.dragSortPredicate(item, this._lastEvent);
+    result = settings.dragSortPredicate(item, this._dragEvent);
   } else {
     result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);
   }
@@ -790,7 +757,7 @@ ItemDrag.prototype._checkOverlap = function() {
   sortAction = result.action === actionSwap ? actionSwap : actionMove;
 
   // Prevent position bounce.
-  if (!isMigration && targetIndex === this._hBlockIndex) {
+  if (!isMigration && targetIndex === this._hBlockedIndex) {
     return;
   }
 
@@ -798,7 +765,7 @@ ItemDrag.prototype._checkOverlap = function() {
   if (!isMigration) {
     // Make sure the target index is not the current index.
     if (currentIndex !== targetIndex) {
-      this._hBlockIndex = currentIndex;
+      this._hBlockedIndex = currentIndex;
 
       // Do the sort.
       (sortAction === actionSwap ? arraySwap : arrayMove)(
@@ -824,7 +791,7 @@ ItemDrag.prototype._checkOverlap = function() {
 
   // If the item was moved to another grid.
   else {
-    this._hBlockIndex = null;
+    this._hBlockedIndex = null;
 
     // Emit beforeSend event.
     if (currentGrid._hasListeners(eventBeforeSend)) {
@@ -966,6 +933,59 @@ ItemDrag.prototype._finishMigration = function() {
 };
 
 /**
+ * Drag pre-start handler.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} event
+ */
+ItemDrag.prototype._preStartCheck = function(event) {
+  // Let's activate drag start predicate state.
+  if (this._startPredicateState === startPredicateInactive) {
+    this._startPredicateState = startPredicatePending;
+  }
+
+  // If predicate is pending try to resolve it.
+  if (this._startPredicateState === startPredicatePending) {
+    this._startPredicateResult = this._startPredicate(this._item, event, false);
+    if (this._startPredicateResult === true) {
+      this._startPredicateState = startPredicateResolved;
+      this._onStart(event);
+    } else if (this._startPredicateResult === false) {
+      this._startPredicateState = startPredicateRejected;
+    }
+  }
+
+  // Otherwise if predicate is resolved and drag is active, move the item.
+  else if (this._startPredicateState === startPredicateResolved && this._isActive) {
+    this._onMove(event);
+  }
+};
+
+/**
+ * Drag pre-end handler.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Object} event
+ */
+ItemDrag.prototype._preEndCheck = function(event) {
+  // Check if the start predicate was resolved during drag.
+  var isResolved = this._startPredicateState === startPredicateResolved;
+
+  // Do final predicate check to allow user to unbind stuff for the current
+  // drag procedure within the predicate callback. The return value of this
+  // check will have no effect to the state of the predicate.
+  this._startPredicate(this._item, event, true);
+
+  // Reset start predicate state.
+  this._startPredicateState = startPredicateInactive;
+
+  // If predicate is resolved and dragging is active, call the end handler.
+  if (isResolved && this._isActive) this._onEnd(event);
+};
+
+/**
  * Drag start handler.
  *
  * @private
@@ -983,6 +1003,7 @@ ItemDrag.prototype._onStart = function(event) {
   var settings = grid._settings;
   var release = item._release;
   var migrate = item._migrate;
+  var touch = this._dragger.getTrackedTouch(event);
   var gridContainer = grid._element;
   var dragContainer = settings.dragContainer || gridContainer;
   var containingBlock = getContainingBlock(dragContainer, true);
@@ -1020,9 +1041,11 @@ ItemDrag.prototype._onStart = function(event) {
 
   // Setup drag data.
   this._isActive = true;
-  this._lastEvent = event;
+  this._dragEvent = event;
   this._container = dragContainer;
   this._containingBlock = containingBlock;
+  this._dragClientX = touch.clientX;
+  this._dragClientY = touch.clientY;
   this._elementClientX = elementRect.left;
   this._elementClientY = elementRect.top;
   this._left = this._gridX = currentLeft;
@@ -1085,15 +1108,18 @@ ItemDrag.prototype._onMove = function(event) {
     return;
   }
 
+  // Calculate movement diff.
+  var touch = this._dragger.getTrackedTouch(event);
+  var xDiff = touch.clientX - this._dragClientX;
+  var yDiff = touch.clientY - this._dragClientY;
+
+  // Update event data.
+  this._dragEvent = event;
+  this._dragClientX = touch.clientX;
+  this._dragClientY = touch.clientY;
+
   var settings = this._getGrid()._settings;
   var axis = settings.dragAxis;
-  var pointer = this._dragger.getEventInterface(event);
-  var prevPointer = this._dragger.getEventInterface(this._lastEvent);
-  var xDiff = pointer.clientX - prevPointer.clientX;
-  var yDiff = pointer.clientY - prevPointer.clientY;
-
-  // Update last event.
-  this._lastEvent = event;
 
   // Update horizontal position data.
   if (axis !== 'y') {
@@ -1125,7 +1151,7 @@ ItemDrag.prototype._prepareMove = function() {
 
   // If drag sort is enabled -> check overlap.
   if (this._getGrid()._settings.dragSort) {
-    if (this._checkHeuristics(this._lastEvent)) {
+    if (this._checkHeuristics(this._dragEvent)) {
       this._checkOverlapDebounce();
     }
   }
@@ -1147,7 +1173,7 @@ ItemDrag.prototype._applyMove = function() {
   item._element.style[transformProp] = getTranslateString(this._left, this._top);
 
   // Emit dragMove event.
-  this._getGrid()._emit(eventDragMove, item, this._lastEvent);
+  this._getGrid()._emit(eventDragMove, item, this._dragEvent);
 };
 
 /**
@@ -1167,7 +1193,7 @@ ItemDrag.prototype._onScroll = function(event) {
   }
 
   // Update last scroll event.
-  this._lastScrollEvent = event;
+  this._scrollEvent = event;
 
   // Do scroll prepare/apply handling in the next tick.
   addScrollTick(item._id, this._prepareScroll, this._applyScroll);
@@ -1236,7 +1262,7 @@ ItemDrag.prototype._applyScroll = function() {
   item._element.style[transformProp] = getTranslateString(this._left, this._top);
 
   // Emit dragScroll event.
-  this._getGrid()._emit(eventDragScroll, item, this._lastScrollEvent);
+  this._getGrid()._emit(eventDragScroll, item, this._scrollEvent);
 };
 
 /**
@@ -1290,15 +1316,6 @@ ItemDrag.prototype._onEnd = function(event) {
  * Private helpers
  * ***************
  */
-
-/**
- * Prevent default.
- *
- * @param {Object} e
- */
-function preventDefault(e) {
-  if (e.preventDefault) e.preventDefault();
-}
 
 /**
  * Calculate how many percent the intersection area of two rectangles is from

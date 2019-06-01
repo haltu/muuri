@@ -34,6 +34,7 @@ import ItemMigrate from '../Item/ItemMigrate';
 import ItemRelease from '../Item/ItemRelease';
 import ItemVisibility from '../Item/ItemVisibility';
 import Packer from '../Packer/Packer';
+import Dragger from '../Dragger/Dragger';
 
 import addClass from '../utils/addClass';
 import arrayMove from '../utils/arrayMove';
@@ -252,6 +253,16 @@ Grid.ItemDragPlaceholder = ItemDragPlaceholder;
  * @see Emitter
  */
 Grid.Emitter = Emitter;
+
+/**
+ * @see Dragger
+ */
+Grid.Dragger = Dragger;
+
+/**
+ * @see Packer
+ */
+Grid.Packer = Packer;
 
 /**
  * Default options for Grid instance.

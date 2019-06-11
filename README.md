@@ -795,10 +795,10 @@ You can define the following properties:
 
 * **sortInterval** &nbsp;&mdash;&nbsp; *number*
   * Default value: `100`.
-  * Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called. The default `dragSortPredicate` is pretty heavy function which means that you might see some janky animations and/or an unresponsive UI if you set this value too low (`0` is not recommended).
+  * Defines the amount of time the dragged item must be still before `dragSortPredicate` function is called.
 * **minDragDistance** &nbsp;&mdash;&nbsp; *number*
   * Default value: `10`.
-  * Defines how much (in pixels) the item must be dragged before `dragSortPredicate` can be called. We store the pointer position when `dragSortPredicate` is called and compare it to the current pointer position.
+  * Defines how much (in pixels) the item must be dragged before `dragSortPredicate` can be called.
 * **minBounceBackAngle** &nbsp;&mdash;&nbsp; *number*
   * Default value: `1`.
   * Defines the minimum angle (in radians) of the delta vector between the last movement vector and the current movement vector that is required for the dragged item to be allowed to be sorted to it's previous index. The problem this heuristic is trying to solve is the scenario where you drag an item over a much bigger item and the bigger item moves, but it's still overlapping the dragged item after repositioning. Now when you move the dragged item again another sort is triggered and the bigger item moves back to it's previous position. This bouncing back and forth can go on for quite a while and it looks quite erratic. The fix we do here is that, by default, we disallow an item to be moved back to it's previous position, unless it's drag direction changes enough. And what is enough? That's what you can define here. Note that this option works in tandem with `minDragDistance` and needs it to be set to `3` at minimum to be enabled at all.

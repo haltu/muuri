@@ -33,7 +33,7 @@ export function cancelVisibilityTick(itemId) {
 }
 
 export function addMoveTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + moveTick, readCallback, writeCallback);
+  return ticker.add(itemId + moveTick, readCallback, writeCallback, true);
 }
 
 export function cancelMoveTick(itemId) {
@@ -41,7 +41,7 @@ export function cancelMoveTick(itemId) {
 }
 
 export function addScrollTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + scrollTick, readCallback, writeCallback);
+  return ticker.add(itemId + scrollTick, readCallback, writeCallback, true);
 }
 
 export function cancelScrollTick(itemId) {

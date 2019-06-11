@@ -5,17 +5,7 @@
  * https://github.com/haltu/muuri/blob/master/src/Ticker/LICENSE.md
  */
 
-var raf = (
-  window.requestAnimationFrame ||
-  window.webkitRequestAnimationFrame ||
-  window.mozRequestAnimationFrame ||
-  window.msRequestAnimationFrame ||
-  rafFallback
-).bind(window);
-
-function rafFallback(cb) {
-  return window.setTimeout(cb, 16);
-}
+import raf from '../utils/raf';
 
 /**
  * A ticker system for handling DOM reads and writes in an efficient way.
@@ -25,7 +15,7 @@ function rafFallback(cb) {
  * @class
  */
 function Ticker() {
-  this._nextTick = null;
+  this._nextStep = null;
 
   this._queue = [];
   this._reads = {};
@@ -35,22 +25,22 @@ function Ticker() {
   this._batchReads = {};
   this._batchWrites = {};
 
-  this._flush = this._flush.bind(this);
+  this._step = this._step.bind(this);
 }
 
-Ticker.prototype.add = function(id, readOperation, writeOperation) {
+Ticker.prototype.add = function(id, readOperation, writeOperation, isPrioritized) {
   // First, let's check if an item has been added to the queues with the same id
   // and if so -> remove it.
   var currentIndex = this._queue.indexOf(id);
   if (currentIndex > -1) this._queue[currentIndex] = undefined;
 
   // Add entry.
-  this._queue.push(id);
+  isPrioritized ? this._queue.unshift(id) : this._queue.push(id);
   this._reads[id] = readOperation;
   this._writes[id] = writeOperation;
 
   // Finally, let's kick-start the next tick if it is not running yet.
-  if (!this._nextTick) this._nextTick = raf(this._flush);
+  if (!this._nextStep) this._nextStep = raf(this._step);
 };
 
 Ticker.prototype.cancel = function(id) {
@@ -62,7 +52,7 @@ Ticker.prototype.cancel = function(id) {
   }
 };
 
-Ticker.prototype._flush = function() {
+Ticker.prototype._step = function() {
   var queue = this._queue;
   var reads = this._reads;
   var writes = this._writes;
@@ -74,7 +64,7 @@ Ticker.prototype._flush = function() {
   var i;
 
   // Reset ticker.
-  this._nextTick = null;
+  this._nextStep = null;
 
   // Setup queues and callback placeholders.
   for (i = 0; i < length; i++) {
@@ -115,8 +105,8 @@ Ticker.prototype._flush = function() {
   batch.length = 0;
 
   // Restart the ticker if needed.
-  if (!this._nextTick && queue.length) {
-    this._nextTick = raf(this._flush);
+  if (!this._nextStep && queue.length) {
+    this._nextStep = raf(this._step);
   }
 };
 

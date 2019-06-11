@@ -91,7 +91,7 @@ var instantLayout = 'instant';
  * @param {?String} [options.dragAxis]
  * @param {(Boolean|Function)} [options.dragSort=true]
  * @param {Object} [options.dragSortHeuristics]
- * @param {Number} [options.dragSortHeuristics.sortInterval=100]
+ * @param {Number} [options.dragSortHeuristics.sortInterval=0]
  * @param {Number} [options.dragSortHeuristics.minDragDistance=10]
  * @param {Number} [options.dragSortHeuristics.minBounceBackAngle=1]
  * @param {(Function|Object)} [options.dragSortPredicate]
@@ -319,8 +319,8 @@ Grid.defaultOptions = {
   dragAxis: null,
   dragSort: true,
   dragSortHeuristics: {
-    sortInterval: 100,
-    minDragDistance: 8,
+    sortInterval: 0,
+    minDragDistance: 10,
     minBounceBackAngle: 1
   },
   dragSortPredicate: {

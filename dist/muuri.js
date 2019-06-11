@@ -529,16 +529,32 @@
     return null;
   }
 
+  var raf = (
+    window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame ||
+    window.msRequestAnimationFrame ||
+    function(callback) {
+      return this.setTimeout(callback, 16);
+    }
+  ).bind(window);
+
+  var events = {
+    start: 'start',
+    move: 'move',
+    end: 'end',
+    cancel: 'cancel'
+  };
+
   var hasTouchEvents = 'ontouchstart' in window;
   var hasPointerEvents = window.PointerEvent;
   var hasMsPointerEvents = window.navigator.msPointerEnabled;
-  var iOS = !!(navigator.platform && /iPad|iPhone|iPod/.test(navigator.platform));
+  var isAndroid = /(android)/i.test(navigator.userAgent);
   var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
   var taProp = 'touchAction';
   var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
-  var taValueAuto = 'auto';
-  var taValueManipulation = 'manipulation';
+  var taDefaultValue = 'auto';
 
   /**
    * Creates a new Dragger instance for an element.
@@ -554,8 +570,11 @@
     this._isDestroyed = false;
     this._cssProps = {};
     this._touchAction = '';
+    this._startEvent = null;
 
     this._onStart = this._onStart.bind(this);
+    this._abortNonCancelable = this._abortNonCancelable.bind(this);
+    this._triggerStart = this._triggerStart.bind(this);
     this._onMove = this._onMove.bind(this);
     this._onCancel = this._onCancel.bind(this);
     this._onEnd = this._onEnd.bind(this);
@@ -573,7 +592,7 @@
     // If touch action was not provided with initial css props let's assume it's
     // auto.
     if (!this._touchAction) {
-      this.setTouchAction(taValueAuto);
+      this.setTouchAction(taDefaultValue);
     }
 
     // Prevent native link/image dragging for the item and it's ancestors.
@@ -617,14 +636,13 @@
   };
 
   Dragger._events = (function() {
-    // It is important that the touch events are always preferred over pointer
-    // events, because otherwise browser's normal scrolling behaviour would kick
-    // in on touch devices when dragging happens even if touch-action is none.
-    if (hasTouchEvents) return Dragger._touchEvents;
     if (hasPointerEvents) return Dragger._pointerEvents;
     if (hasMsPointerEvents) return Dragger._msPointerEvents;
+    if (hasTouchEvents) return Dragger._touchEvents;
     return Dragger._mouseEvents;
   })();
+
+  Dragger._emitter = new Emitter();
 
   Dragger._activeInstances = [];
 
@@ -637,24 +655,31 @@
     if (e.preventDefault && e.cancelable !== false) e.preventDefault();
   };
 
-  Dragger._onMove = function(e) {
-    var draggers = Dragger._activeInstances.slice();
-    for (var i = 0; i < draggers.length; i++) {
-      draggers[i]._onMove(e);
+  Dragger._activateInstance = function(instance) {
+    var index = Dragger._activeInstances.indexOf(instance);
+    if (index > -1) return;
+
+    Dragger._activeInstances.push(instance);
+    Dragger._emitter.on(events.move, instance._onMove);
+    Dragger._emitter.on(events.cancel, instance._onCancel);
+    Dragger._emitter.on(events.end, instance._onEnd);
+
+    if (Dragger._activeInstances.length === 1) {
+      Dragger._bindWindowListeners();
     }
   };
 
-  Dragger._onCancel = function(e) {
-    var draggers = Dragger._activeInstances.slice();
-    for (var i = 0; i < draggers.length; i++) {
-      draggers[i]._onCancel(e);
-    }
-  };
+  Dragger._deactivateInstance = function(instance) {
+    var index = Dragger._activeInstances.indexOf(instance);
+    if (index === -1) return;
 
-  Dragger._onEnd = function(e) {
-    var draggers = Dragger._activeInstances.slice();
-    for (var i = 0; i < draggers.length; i++) {
-      draggers[i]._onEnd(e);
+    Dragger._activeInstances.splice(index, 1);
+    Dragger._emitter.off(events.move, instance._onMove);
+    Dragger._emitter.off(events.cancel, instance._onCancel);
+    Dragger._emitter.off(events.end, instance._onEnd);
+
+    if (!Dragger._activeInstances.length) {
+      Dragger._unbindWindowListeners();
     }
   };
 
@@ -710,29 +735,41 @@
     return event;
   };
 
+  Dragger._onMove = function(e) {
+    Dragger._emitter.emit(events.move, e);
+  };
+
+  Dragger._onCancel = function(e) {
+    Dragger._emitter.emit(events.cancel, e);
+  };
+
+  Dragger._onEnd = function(e) {
+    Dragger._emitter.emit(events.end, e);
+  };
+
   /**
    * Private prototype methods
    * *************************
    */
 
   Dragger.prototype._reset = function() {
+    if (this._isDestroyed) return;
+
     this.pointerId = null;
     this.startTime = 0;
     this.startX = 0;
     this.startY = 0;
     this.currentX = 0;
     this.currentY = 0;
+    this._startEvent = null;
 
-    // Remove instance from active instances.
-    var instanceIndex = Dragger._activeInstances.indexOf(this);
-    if (instanceIndex > -1) {
-      Dragger._activeInstances.splice(instanceIndex, 1);
-    }
+    this._element.removeEventListener(
+      Dragger._touchEvents.start,
+      this._abortNonCancelable,
+      listenerOptions
+    );
 
-    // Stop listening to document if there are no active instances.
-    if (!Dragger._activeInstances.length) {
-      Dragger._unbindWindowListeners();
-    }
+    Dragger._deactivateInstance(this);
   };
 
   Dragger.prototype._onStart = function(e) {
@@ -741,34 +778,63 @@
     // Make sure the element is not being dragged currently.
     if (this.isDragging()) return;
 
-    // When you try to start dragging while the element's ancestor is being
-    // scrolled on a touch device the browser will force stop the drag procedure
-    // pretty soon after it has started. To avoid starting the drag in the first
-    // place we can check if the event is not cancelable which is an indicator of
-    // such a scenario (except on iOS).
-    if (!iOS && e.cancelable === false) return;
+    // Special cancelable check for Android to prevent drag procedure from
+    // starting if native scrolling is in progress. Part 1.
+    if (isAndroid && e.cancelable === false) return;
 
     // Make sure left button is pressed on mouse.
     if (e.button) return;
 
-    // Get pointer id.
+    // Get (and set) pointer id.
     this.pointerId = Dragger._getEventPointerId(e);
     if (this.pointerId === null) return;
 
+    // Store the start event and trigger start (async or sync).
+    this._startEvent = e;
+    if (hasTouchEvents && (hasPointerEvents || hasMsPointerEvents)) {
+      // Special cancelable check for Android to prevent drag procedure from
+      // starting if native scrolling is in progress. Part 2.
+      if (isAndroid) {
+        this._element.addEventListener(
+          Dragger._touchEvents.start,
+          this._abortNonCancelable,
+          listenerOptions
+        );
+      }
+      raf(this._triggerStart);
+    } else {
+      this._triggerStart();
+    }
+  };
+
+  Dragger.prototype._abortNonCancelable = function(e) {
+    this._element.removeEventListener(
+      Dragger._touchEvents.start,
+      this._abortNonCancelable,
+      listenerOptions
+    );
+
+    if (this._startEvent && e.cancelable === false) {
+      this.pointerId = null;
+      this._startEvent = null;
+    }
+  };
+
+  Dragger.prototype._triggerStart = function() {
+    var e = this._startEvent;
+    if (!e) return;
+
+    this._startEvent = null;
+
     var touch = this.getTrackedTouch(e);
+    if (!touch) return;
+
+    // Set up init data and emit start event.
     this.startX = this.currentX = touch.clientX;
     this.startY = this.currentY = touch.clientY;
     this.startTime = Date.now();
-
-    this._emitter.emit('start', e);
-
-    // If the document listeners are not bound yet, bind them.
-    if (!Dragger._activeInstances.length) {
-      Dragger._bindWindowListeners();
-    }
-
-    // Add instance to active instances.
-    Dragger._activeInstances.push(this);
+    this._emitter.emit(events.start, e);
+    Dragger._activateInstance(this);
   };
 
   Dragger.prototype._onMove = function(e) {
@@ -777,20 +843,20 @@
 
     this.currentX = touch.clientX;
     this.currentY = touch.clientY;
-    this._emitter.emit('move', e);
+    this._emitter.emit(events.move, e);
   };
 
   Dragger.prototype._onCancel = function(e) {
     if (!this.getTrackedTouch(e)) return;
 
-    this._emitter.emit('cancel', e);
+    this._emitter.emit(events.cancel, e);
     this._reset();
   };
 
   Dragger.prototype._onEnd = function(e) {
     if (!this.getTrackedTouch(e)) return;
 
-    this._emitter.emit('end', e);
+    this._emitter.emit(events.end, e);
     this._reset();
   };
 
@@ -818,6 +884,7 @@
    * @param {String} value
    */
   Dragger.prototype.setTouchAction = function(value) {
+    // Store unmodified touch action value (we trust user input here).
     this._touchAction = value;
 
     // Set touch-action style.
@@ -826,13 +893,12 @@
       this._element.style[taPropPrefixed] = value;
     }
 
-    // Since iOS Safari only supports touch-action "auto" and "manipulation" we
-    // need to manually prevent default action for it if touch-action is set to
-    // a value that may block native scrolling. Not elegant, but best we can do
-    // here really.
-    if (hasTouchEvents && iOS) {
+    // If we have an unsupported touch-action value let's add a special listener
+    // that prevents default action on touch start event. A dirty hack, but best
+    // we can do for now.
+    if (hasTouchEvents) {
       this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
-      if (value !== taValueAuto && value !== taValueManipulation) {
+      if (this._element.style[taPropPrefixed] !== value) {
         this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
       }
     }
@@ -941,19 +1007,12 @@
    *
    * @public
    * @memberof Dragger.prototype
-   * @param {String[]} events
+   * @param {String} eventName
    *   - 'start', 'move', 'cancel' or 'end'.
    * @param {Function} listener
    */
-  Dragger.prototype.on = function(events, listener) {
-    if (this._isDestroyed) return;
-
-    var eventsArray = events.split(' ');
-    for (var i = 0; i < eventsArray.length; i++) {
-      if (Dragger._events[eventsArray[i]]) {
-        this._emitter.on(eventsArray[i], listener);
-      }
-    }
+  Dragger.prototype.on = function(eventName, listener) {
+    this._emitter.on(eventName, listener);
   };
 
   /**
@@ -961,19 +1020,12 @@
    *
    * @public
    * @memberof Dragger.prototype
-   * @param {String[]} events
+   * @param {String} eventName
    *   - 'start', 'move', 'cancel' or 'end'.
    * @param {Function} listener
    */
   Dragger.prototype.off = function(events, listener) {
-    if (this._isDestroyed) return;
-
-    var eventsArray = events.split(' ');
-    for (var i = 0; i < eventsArray.length; i++) {
-      if (Dragger._events[eventsArray[i]]) {
-        this._emitter.off(eventsArray[i], listener);
-      }
-    }
+    this._emitter.off(eventName, listener);
   };
 
   /**
@@ -988,8 +1040,8 @@
     var element = this._element;
     var events = Dragger._events;
 
-    // Mark destroyed.
-    this._isDestroyed = true;
+    // Reset data and deactivate the instance.
+    this._reset();
 
     // Destroy emitter.
     this._emitter.destroy();
@@ -999,17 +1051,6 @@
     element.removeEventListener('dragstart', Dragger._preventDefault, false);
     element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
 
-    // Remove instance from active instances.
-    var instanceIndex = Dragger._activeInstances.indexOf(this);
-    if (instanceIndex > -1) {
-      Dragger._activeInstances.splice(instanceIndex, 1);
-    }
-
-    // Stop listening to document if there are no active instances.
-    if (!Dragger._activeInstances.length) {
-      Dragger._unbindWindowListeners();
-    }
-
     // Reset styles.
     for (var prop in this._cssProps) {
       element.style[prop] = this._cssProps[prop];
@@ -1018,19 +1059,10 @@
 
     // Reset data.
     this._element = null;
+
+    // Mark as destroyed.
+    this._isDestroyed = true;
   };
-
-  var raf = (
-    window.requestAnimationFrame ||
-    window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame ||
-    window.msRequestAnimationFrame ||
-    rafFallback
-  ).bind(window);
-
-  function rafFallback(cb) {
-    return window.setTimeout(cb, 16);
-  }
 
   /**
    * A ticker system for handling DOM reads and writes in an efficient way.
@@ -1040,7 +1072,7 @@
    * @class
    */
   function Ticker() {
-    this._nextTick = null;
+    this._nextStep = null;
 
     this._queue = [];
     this._reads = {};
@@ -1050,22 +1082,22 @@
     this._batchReads = {};
     this._batchWrites = {};
 
-    this._flush = this._flush.bind(this);
+    this._step = this._step.bind(this);
   }
 
-  Ticker.prototype.add = function(id, readOperation, writeOperation) {
+  Ticker.prototype.add = function(id, readOperation, writeOperation, isPrioritized) {
     // First, let's check if an item has been added to the queues with the same id
     // and if so -> remove it.
     var currentIndex = this._queue.indexOf(id);
     if (currentIndex > -1) this._queue[currentIndex] = undefined;
 
     // Add entry.
-    this._queue.push(id);
+    isPrioritized ? this._queue.unshift(id) : this._queue.push(id);
     this._reads[id] = readOperation;
     this._writes[id] = writeOperation;
 
     // Finally, let's kick-start the next tick if it is not running yet.
-    if (!this._nextTick) this._nextTick = raf(this._flush);
+    if (!this._nextStep) this._nextStep = raf(this._step);
   };
 
   Ticker.prototype.cancel = function(id) {
@@ -1077,7 +1109,7 @@
     }
   };
 
-  Ticker.prototype._flush = function() {
+  Ticker.prototype._step = function() {
     var queue = this._queue;
     var reads = this._reads;
     var writes = this._writes;
@@ -1089,7 +1121,7 @@
     var i;
 
     // Reset ticker.
-    this._nextTick = null;
+    this._nextStep = null;
 
     // Setup queues and callback placeholders.
     for (i = 0; i < length; i++) {
@@ -1130,8 +1162,8 @@
     batch.length = 0;
 
     // Restart the ticker if needed.
-    if (!this._nextTick && queue.length) {
-      this._nextTick = raf(this._flush);
+    if (!this._nextStep && queue.length) {
+      this._nextStep = raf(this._step);
     }
   };
 
@@ -1160,7 +1192,7 @@
   }
 
   function addMoveTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + moveTick, readCallback, writeCallback);
+    return ticker.add(itemId + moveTick, readCallback, writeCallback, true);
   }
 
   function cancelMoveTick(itemId) {
@@ -1168,7 +1200,7 @@
   }
 
   function addScrollTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + scrollTick, readCallback, writeCallback);
+    return ticker.add(itemId + scrollTick, readCallback, writeCallback, true);
   }
 
   function cancelScrollTick(itemId) {
@@ -5287,7 +5319,7 @@
    * @param {?String} [options.dragAxis]
    * @param {(Boolean|Function)} [options.dragSort=true]
    * @param {Object} [options.dragSortHeuristics]
-   * @param {Number} [options.dragSortHeuristics.sortInterval=100]
+   * @param {Number} [options.dragSortHeuristics.sortInterval=0]
    * @param {Number} [options.dragSortHeuristics.minDragDistance=10]
    * @param {Number} [options.dragSortHeuristics.minBounceBackAngle=1]
    * @param {(Function|Object)} [options.dragSortPredicate]
@@ -5515,8 +5547,8 @@
     dragAxis: null,
     dragSort: true,
     dragSortHeuristics: {
-      sortInterval: 100,
-      minDragDistance: 8,
+      sortInterval: 0,
+      minDragDistance: 10,
       minBounceBackAngle: 1
     },
     dragSortPredicate: {

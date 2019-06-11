@@ -5,21 +5,35 @@
  * https://github.com/haltu/muuri/blob/master/src/Dragger/LICENSE.md
  */
 
+// TODO:
+// - Extra mouse handling for touch events scenario, because it is possible to
+//   have both touch and mouse events validly being emitted.
+//   https://developers.google.com/web/fundamentals/design-and-ux/input/touch/
+// - Should we integrate this here: https://stackoverflow.com/a/28748222 ?
+//   Probably not... but it should be definitely be mentioned in the docs!
+
 import Emitter from '../Emitter/Emitter';
 
 import isPassiveEventsSupported from '../utils/isPassiveEventsSupported';
 import getPrefixedPropName from '../utils/getPrefixedPropName';
+import raf from '../utils/raf';
+
+var events = {
+  start: 'start',
+  move: 'move',
+  end: 'end',
+  cancel: 'cancel'
+};
 
 var hasTouchEvents = 'ontouchstart' in window;
 var hasPointerEvents = window.PointerEvent;
 var hasMsPointerEvents = window.navigator.msPointerEnabled;
-var iOS = !!(navigator.platform && /iPad|iPhone|iPod/.test(navigator.platform));
+var isAndroid = /(android)/i.test(navigator.userAgent);
 var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
 var taProp = 'touchAction';
 var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
-var taValueAuto = 'auto';
-var taValueManipulation = 'manipulation';
+var taDefaultValue = 'auto';
 
 /**
  * Creates a new Dragger instance for an element.
@@ -35,8 +49,11 @@ function Dragger(element, cssProps) {
   this._isDestroyed = false;
   this._cssProps = {};
   this._touchAction = '';
+  this._startEvent = null;
 
   this._onStart = this._onStart.bind(this);
+  this._abortNonCancelable = this._abortNonCancelable.bind(this);
+  this._triggerStart = this._triggerStart.bind(this);
   this._onMove = this._onMove.bind(this);
   this._onCancel = this._onCancel.bind(this);
   this._onEnd = this._onEnd.bind(this);
@@ -54,7 +71,7 @@ function Dragger(element, cssProps) {
   // If touch action was not provided with initial css props let's assume it's
   // auto.
   if (!this._touchAction) {
-    this.setTouchAction(taValueAuto);
+    this.setTouchAction(taDefaultValue);
   }
 
   // Prevent native link/image dragging for the item and it's ancestors.
@@ -98,14 +115,13 @@ Dragger._mouseEvents = {
 };
 
 Dragger._events = (function() {
-  // It is important that the touch events are always preferred over pointer
-  // events, because otherwise browser's normal scrolling behaviour would kick
-  // in on touch devices when dragging happens even if touch-action is none.
-  if (hasTouchEvents) return Dragger._touchEvents;
   if (hasPointerEvents) return Dragger._pointerEvents;
   if (hasMsPointerEvents) return Dragger._msPointerEvents;
+  if (hasTouchEvents) return Dragger._touchEvents;
   return Dragger._mouseEvents;
 })();
+
+Dragger._emitter = new Emitter();
 
 Dragger._activeInstances = [];
 
@@ -118,24 +134,31 @@ Dragger._preventDefault = function(e) {
   if (e.preventDefault && e.cancelable !== false) e.preventDefault();
 };
 
-Dragger._onMove = function(e) {
-  var draggers = Dragger._activeInstances.slice();
-  for (var i = 0; i < draggers.length; i++) {
-    draggers[i]._onMove(e);
+Dragger._activateInstance = function(instance) {
+  var index = Dragger._activeInstances.indexOf(instance);
+  if (index > -1) return;
+
+  Dragger._activeInstances.push(instance);
+  Dragger._emitter.on(events.move, instance._onMove);
+  Dragger._emitter.on(events.cancel, instance._onCancel);
+  Dragger._emitter.on(events.end, instance._onEnd);
+
+  if (Dragger._activeInstances.length === 1) {
+    Dragger._bindWindowListeners();
   }
 };
 
-Dragger._onCancel = function(e) {
-  var draggers = Dragger._activeInstances.slice();
-  for (var i = 0; i < draggers.length; i++) {
-    draggers[i]._onCancel(e);
-  }
-};
+Dragger._deactivateInstance = function(instance) {
+  var index = Dragger._activeInstances.indexOf(instance);
+  if (index === -1) return;
 
-Dragger._onEnd = function(e) {
-  var draggers = Dragger._activeInstances.slice();
-  for (var i = 0; i < draggers.length; i++) {
-    draggers[i]._onEnd(e);
+  Dragger._activeInstances.splice(index, 1);
+  Dragger._emitter.off(events.move, instance._onMove);
+  Dragger._emitter.off(events.cancel, instance._onCancel);
+  Dragger._emitter.off(events.end, instance._onEnd);
+
+  if (!Dragger._activeInstances.length) {
+    Dragger._unbindWindowListeners();
   }
 };
 
@@ -191,29 +214,41 @@ Dragger._getTouchById = function(event, id) {
   return event;
 };
 
+Dragger._onMove = function(e) {
+  Dragger._emitter.emit(events.move, e);
+};
+
+Dragger._onCancel = function(e) {
+  Dragger._emitter.emit(events.cancel, e);
+};
+
+Dragger._onEnd = function(e) {
+  Dragger._emitter.emit(events.end, e);
+};
+
 /**
  * Private prototype methods
  * *************************
  */
 
 Dragger.prototype._reset = function() {
+  if (this._isDestroyed) return;
+
   this.pointerId = null;
   this.startTime = 0;
   this.startX = 0;
   this.startY = 0;
   this.currentX = 0;
   this.currentY = 0;
+  this._startEvent = null;
 
-  // Remove instance from active instances.
-  var instanceIndex = Dragger._activeInstances.indexOf(this);
-  if (instanceIndex > -1) {
-    Dragger._activeInstances.splice(instanceIndex, 1);
-  }
+  this._element.removeEventListener(
+    Dragger._touchEvents.start,
+    this._abortNonCancelable,
+    listenerOptions
+  );
 
-  // Stop listening to document if there are no active instances.
-  if (!Dragger._activeInstances.length) {
-    Dragger._unbindWindowListeners();
-  }
+  Dragger._deactivateInstance(this);
 };
 
 Dragger.prototype._onStart = function(e) {
@@ -222,34 +257,63 @@ Dragger.prototype._onStart = function(e) {
   // Make sure the element is not being dragged currently.
   if (this.isDragging()) return;
 
-  // When you try to start dragging while the element's ancestor is being
-  // scrolled on a touch device the browser will force stop the drag procedure
-  // pretty soon after it has started. To avoid starting the drag in the first
-  // place we can check if the event is not cancelable which is an indicator of
-  // such a scenario (except on iOS).
-  if (!iOS && e.cancelable === false) return;
+  // Special cancelable check for Android to prevent drag procedure from
+  // starting if native scrolling is in progress. Part 1.
+  if (isAndroid && e.cancelable === false) return;
 
   // Make sure left button is pressed on mouse.
   if (e.button) return;
 
-  // Get pointer id.
+  // Get (and set) pointer id.
   this.pointerId = Dragger._getEventPointerId(e);
   if (this.pointerId === null) return;
 
+  // Store the start event and trigger start (async or sync).
+  this._startEvent = e;
+  if (hasTouchEvents && (hasPointerEvents || hasMsPointerEvents)) {
+    // Special cancelable check for Android to prevent drag procedure from
+    // starting if native scrolling is in progress. Part 2.
+    if (isAndroid) {
+      this._element.addEventListener(
+        Dragger._touchEvents.start,
+        this._abortNonCancelable,
+        listenerOptions
+      );
+    }
+    raf(this._triggerStart);
+  } else {
+    this._triggerStart();
+  }
+};
+
+Dragger.prototype._abortNonCancelable = function(e) {
+  this._element.removeEventListener(
+    Dragger._touchEvents.start,
+    this._abortNonCancelable,
+    listenerOptions
+  );
+
+  if (this._startEvent && e.cancelable === false) {
+    this.pointerId = null;
+    this._startEvent = null;
+  }
+};
+
+Dragger.prototype._triggerStart = function() {
+  var e = this._startEvent;
+  if (!e) return;
+
+  this._startEvent = null;
+
   var touch = this.getTrackedTouch(e);
+  if (!touch) return;
+
+  // Set up init data and emit start event.
   this.startX = this.currentX = touch.clientX;
   this.startY = this.currentY = touch.clientY;
   this.startTime = Date.now();
-
-  this._emitter.emit('start', e);
-
-  // If the document listeners are not bound yet, bind them.
-  if (!Dragger._activeInstances.length) {
-    Dragger._bindWindowListeners();
-  }
-
-  // Add instance to active instances.
-  Dragger._activeInstances.push(this);
+  this._emitter.emit(events.start, e);
+  Dragger._activateInstance(this);
 };
 
 Dragger.prototype._onMove = function(e) {
@@ -258,20 +322,20 @@ Dragger.prototype._onMove = function(e) {
 
   this.currentX = touch.clientX;
   this.currentY = touch.clientY;
-  this._emitter.emit('move', e);
+  this._emitter.emit(events.move, e);
 };
 
 Dragger.prototype._onCancel = function(e) {
   if (!this.getTrackedTouch(e)) return;
 
-  this._emitter.emit('cancel', e);
+  this._emitter.emit(events.cancel, e);
   this._reset();
 };
 
 Dragger.prototype._onEnd = function(e) {
   if (!this.getTrackedTouch(e)) return;
 
-  this._emitter.emit('end', e);
+  this._emitter.emit(events.end, e);
   this._reset();
 };
 
@@ -299,6 +363,7 @@ Dragger.prototype.isDragging = function() {
  * @param {String} value
  */
 Dragger.prototype.setTouchAction = function(value) {
+  // Store unmodified touch action value (we trust user input here).
   this._touchAction = value;
 
   // Set touch-action style.
@@ -307,13 +372,12 @@ Dragger.prototype.setTouchAction = function(value) {
     this._element.style[taPropPrefixed] = value;
   }
 
-  // Since iOS Safari only supports touch-action "auto" and "manipulation" we
-  // need to manually prevent default action for it if touch-action is set to
-  // a value that may block native scrolling. Not elegant, but best we can do
-  // here really.
-  if (hasTouchEvents && iOS) {
+  // If we have an unsupported touch-action value let's add a special listener
+  // that prevents default action on touch start event. A dirty hack, but best
+  // we can do for now.
+  if (hasTouchEvents) {
     this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
-    if (value !== taValueAuto && value !== taValueManipulation) {
+    if (this._element.style[taPropPrefixed] !== value) {
       this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
     }
   }
@@ -422,19 +486,12 @@ Dragger.prototype.getDeltaTime = function() {
  *
  * @public
  * @memberof Dragger.prototype
- * @param {String[]} events
+ * @param {String} eventName
  *   - 'start', 'move', 'cancel' or 'end'.
  * @param {Function} listener
  */
-Dragger.prototype.on = function(events, listener) {
-  if (this._isDestroyed) return;
-
-  var eventsArray = events.split(' ');
-  for (var i = 0; i < eventsArray.length; i++) {
-    if (Dragger._events[eventsArray[i]]) {
-      this._emitter.on(eventsArray[i], listener);
-    }
-  }
+Dragger.prototype.on = function(eventName, listener) {
+  this._emitter.on(eventName, listener);
 };
 
 /**
@@ -442,19 +499,12 @@ Dragger.prototype.on = function(events, listener) {
  *
  * @public
  * @memberof Dragger.prototype
- * @param {String[]} events
+ * @param {String} eventName
  *   - 'start', 'move', 'cancel' or 'end'.
  * @param {Function} listener
  */
 Dragger.prototype.off = function(events, listener) {
-  if (this._isDestroyed) return;
-
-  var eventsArray = events.split(' ');
-  for (var i = 0; i < eventsArray.length; i++) {
-    if (Dragger._events[eventsArray[i]]) {
-      this._emitter.off(eventsArray[i], listener);
-    }
-  }
+  this._emitter.off(eventName, listener);
 };
 
 /**
@@ -469,8 +519,8 @@ Dragger.prototype.destroy = function() {
   var element = this._element;
   var events = Dragger._events;
 
-  // Mark destroyed.
-  this._isDestroyed = true;
+  // Reset data and deactivate the instance.
+  this._reset();
 
   // Destroy emitter.
   this._emitter.destroy();
@@ -480,17 +530,6 @@ Dragger.prototype.destroy = function() {
   element.removeEventListener('dragstart', Dragger._preventDefault, false);
   element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
 
-  // Remove instance from active instances.
-  var instanceIndex = Dragger._activeInstances.indexOf(this);
-  if (instanceIndex > -1) {
-    Dragger._activeInstances.splice(instanceIndex, 1);
-  }
-
-  // Stop listening to document if there are no active instances.
-  if (!Dragger._activeInstances.length) {
-    Dragger._unbindWindowListeners();
-  }
-
   // Reset styles.
   for (var prop in this._cssProps) {
     element.style[prop] = this._cssProps[prop];
@@ -499,6 +538,9 @@ Dragger.prototype.destroy = function() {
 
   // Reset data.
   this._element = null;
+
+  // Mark as destroyed.
+  this._isDestroyed = true;
 };
 
 export default Dragger;

@@ -5,13 +5,6 @@
  * https://github.com/haltu/muuri/blob/master/src/Dragger/LICENSE.md
  */
 
-// TODO:
-// - Extra mouse handling for touch events scenario, because it is possible to
-//   have both touch and mouse events validly being emitted.
-//   https://developers.google.com/web/fundamentals/design-and-ux/input/touch/
-// - Should we integrate this here: https://stackoverflow.com/a/28748222 ?
-//   Probably not... but it should be definitely be mentioned in the docs!
-
 import Emitter from '../Emitter/Emitter';
 
 import isPassiveEventsSupported from '../utils/isPassiveEventsSupported';
@@ -79,6 +72,13 @@ function Dragger(element, cssProps) {
 
   // Listen to start event.
   element.addEventListener(Dragger._events.start, this._onStart, listenerOptions);
+
+  // If we have touch events, but no pointer events we need to also listen for
+  // mouse events in addition to touch events for devices which support both
+  // mouse and touch interaction.
+  if (hasTouchEvents && !hasPointerEvents && !hasMsPointerEvents) {
+    element.addEventListener(Dragger._mouseEvents.start, this._onStart, listenerOptions);
+  }
 }
 
 /**
@@ -527,6 +527,7 @@ Dragger.prototype.destroy = function() {
 
   // Unbind event handlers.
   element.removeEventListener(events.start, this._onStart, listenerOptions);
+  element.removeEventListener(Dragger._mouseEvents.start, this._onStart, listenerOptions);
   element.removeEventListener('dragstart', Dragger._preventDefault, false);
   element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
 

@@ -25,9 +25,12 @@
       done();
     };
 
-    grid.once('move', function (data) {
+    function onMove(data) {
+      grid.off('move', onMove)
       assert.strictEqual(data.action, 'move', 'the movement action should be "move"');
-    });
+    }
+
+    grid.on('move', onMove);
 
     utils.dragElement(item.getElement(), 0, 70, teardown);
 
@@ -57,9 +60,12 @@
       done();
     };
 
-    grid.once('move', function (data) {
+    function onMove(data) {
+      grid.off('move', onMove);
       assert.strictEqual(data.action, 'swap', 'the movement action should be "swap"');
-    });
+    }
+
+    grid.on('move', onMove);
 
     utils.dragElement(item.getElement(), 0, 70, teardown);
 
@@ -123,9 +129,12 @@
       done();
     };
 
-    grid.once('move', function () {
+    function onMove() {
+      grid.off('move', onMove);
       assert.strictEqual(true, false, 'move should not be triggered');
-    });
+    }
+
+    grid.on('move', onMove);
 
     utils.dragElement(item.getElement(), 0, 70, teardown);
 
@@ -158,10 +167,13 @@
       done();
     };
 
-    grid.once('move', function (data) {
+    function onMove(data) {
+      grid.off('move', onMove);
       assert.strictEqual(data.action, 'swap', 'sort action should be "swap"');
       assert.strictEqual(data.toIndex, grid.getItems().length - 1, 'target index should be the last index');
-    });
+    }
+
+    grid.on('move', onMove);
 
     utils.dragElement(item.getElement(), 0, 70, teardown);
 
@@ -191,9 +203,12 @@
       done();
     };
 
-    grid.once('move', function (data) {
+    function onMove(data) {
+      grid.off('move', onMove);
       assert.strictEqual(data.action, 'move', 'sort action should be "move"');
-    });
+    }
+
+    grid.on('move', onMove);
 
     utils.dragElement(item.getElement(), 0, 70, teardown);
 
@@ -226,9 +241,12 @@
       done();
     };
 
-    grid.once('move', function (data) {
+    function onMove(data) {
+      grid.off('move', onMove);
       assert.strictEqual(data.action, 'swap', 'sort action should be "swap"');
-    });
+    }
+
+    grid.on('move', onMove);
 
     utils.dragElement(item.getElement(), 0, 70, teardown);
 

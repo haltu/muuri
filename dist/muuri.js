@@ -92,26 +92,6 @@
   };
 
   /**
-   * Bind an event listener that is triggered only once.
-   *
-   * @public
-   * @memberof Emitter.prototype
-   * @param {String} event
-   * @param {Function} listener
-   * @returns {Emitter}
-   */
-  Emitter.prototype.once = function(event, listener) {
-    if (this._isDestroyed) return this;
-
-    var callback = function() {
-      this.off(event, callback);
-      listener.apply(null, arguments);
-    }.bind(this);
-
-    return this.on(event, callback);
-  };
-
-  /**
    * Unbind all event listeners that match the provided listener function.
    *
    * @public
@@ -600,6 +580,13 @@
 
     // Listen to start event.
     element.addEventListener(Dragger._events.start, this._onStart, listenerOptions);
+
+    // If we have touch events, but no pointer events we need to also listen for
+    // mouse events in addition to touch events for devices which support both
+    // mouse and touch interaction.
+    if (hasTouchEvents && !hasPointerEvents && !hasMsPointerEvents) {
+      element.addEventListener(Dragger._mouseEvents.start, this._onStart, listenerOptions);
+    }
   }
 
   /**
@@ -1048,6 +1035,7 @@
 
     // Unbind event handlers.
     element.removeEventListener(events.start, this._onStart, listenerOptions);
+    element.removeEventListener(Dragger._mouseEvents.start, this._onStart, listenerOptions);
     element.removeEventListener('dragstart', Dragger._preventDefault, false);
     element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
 
@@ -5600,20 +5588,6 @@
    */
   Grid.prototype.on = function(event, listener) {
     this._emitter.on(event, listener);
-    return this;
-  };
-
-  /**
-   * Bind an event listener that is triggered only once.
-   *
-   * @public
-   * @memberof Grid.prototype
-   * @param {String} event
-   * @param {Function} listener
-   * @returns {Grid}
-   */
-  Grid.prototype.once = function(event, listener) {
-    this._emitter.once(event, listener);
     return this;
   };
 

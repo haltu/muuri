@@ -19,16 +19,25 @@
       done();
     };
 
-    grid
-    .once('dragStart', function () {
+    function onDragStart() {
+      grid.off('dragStart', onDragStart);
       assert.strictEqual(item.isDragging(), true, 'An item should be in dragging state when dragging starts');
-    })
-    .once('dragMove', function () {
+    }
+
+    function onDragMove() {
+      grid.off('dragMove', onDragMove);
       assert.strictEqual(item.isDragging(), true, 'An item should be in dragging state when dragging');
-    })
-    .once('dragEnd', function () {
+    }
+
+    function onDragEnd() {
+      grid.off('dragEnd', onDragEnd);
       assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state after dragging has ended');
-    });
+    }
+
+    grid
+    .on('dragStart', onDragStart)
+    .on('dragMove', onDragMove)
+    .on('dragEnd', onDragStart);
 
     assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state when it`s not being dragged');
 

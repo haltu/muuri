@@ -376,20 +376,6 @@ Grid.prototype.on = function(event, listener) {
 };
 
 /**
- * Bind an event listener that is triggered only once.
- *
- * @public
- * @memberof Grid.prototype
- * @param {String} event
- * @param {Function} listener
- * @returns {Grid}
- */
-Grid.prototype.once = function(event, listener) {
-  this._emitter.once(event, listener);
-  return this;
-};
-
-/**
  * Unbind an event listener.
  *
  * @public

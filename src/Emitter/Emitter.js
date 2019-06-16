@@ -45,26 +45,6 @@ Emitter.prototype.on = function(event, listener) {
 };
 
 /**
- * Bind an event listener that is triggered only once.
- *
- * @public
- * @memberof Emitter.prototype
- * @param {String} event
- * @param {Function} listener
- * @returns {Emitter}
- */
-Emitter.prototype.once = function(event, listener) {
-  if (this._isDestroyed) return this;
-
-  var callback = function() {
-    this.off(event, callback);
-    listener.apply(null, arguments);
-  }.bind(this);
-
-  return this.on(event, callback);
-};
-
-/**
  * Unbind all event listeners that match the provided listener function.
  *
  * @public

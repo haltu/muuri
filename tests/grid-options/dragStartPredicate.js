@@ -55,19 +55,31 @@
       done();
     };
 
-    grid
-    .once('dragStart', function () {
+    function onDragStart() {
+      grid.off('dragStart', onDragStart);
       assert.strictEqual(true, true, 'a resolved predicate should start the dragging procedure and trigger dragStart event');
-    })
-    .once('dragMove', function () {
+    }
+
+    function onDragMove() {
+      grid.off('dragMove', onDragMove);
       assert.strictEqual(true, true, 'a resolved predicate should start the dragging procedure and trigger dragMove event');
-    })
-    .once('dragEnd', function () {
+    }
+
+    function onDragEnd() {
+      grid.off('dragEnd', onDragEnd);
       assert.strictEqual(true, true, 'a resolved predicate should start the dragging procedure and trigger dragEnd event');
-    })
-    .once('dragReleaseStart', function () {
+    }
+
+    function onDragReleaseStart() {
+      grid.off('dragReleaseStart', onDragReleaseStart);
       assert.strictEqual(counter, 2, 'predicate should be called twice');
-    });
+    }
+
+    grid
+    .on('dragStart', onDragStart)
+    .on('dragMove', onDragMove)
+    .on('dragEnd', onDragEnd)
+    .on('dragReleaseStart', onDragReleaseStart);
 
     utils.dragElement(item.getElement(), 0, 70, teardown);
 

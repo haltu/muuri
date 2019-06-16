@@ -1090,7 +1090,6 @@ var grid = new Muuri(elem, {
 * [grid.move( item, position, [options] )](#gridmove-item-position-options-)
 * [grid.send( item, grid, position, [options] )](#gridsend-item-grid-position-options-)
 * [grid.on( event, listener )](#gridon-event-listener-)
-* [grid.once( event, listener )](#gridonce-event-listener-)
 * [grid.off( event, listener )](#gridoff-event-listener-)
 * [grid.destroy( [removeElements] )](#griddestroy-removeelements-)
 
@@ -1517,25 +1516,6 @@ Returns the instance.
 
 ```javascript
 grid.on('layoutEnd', function (items) {
-  console.log(items);
-});
-```
-
-### grid.once( event, listener )
-
-Bind an event listener that is triggered only once.
-
-**Parameters**
-
-* **event** &nbsp;&mdash;&nbsp; *string*
-* **listener** &nbsp;&mdash;&nbsp; *function*
-
-**Returns** &nbsp;&mdash;&nbsp; *object*
-
-Returns the instance.
-
-```javascript
-grid.once('layoutEnd', function (items) {
   console.log(items);
 });
 ```

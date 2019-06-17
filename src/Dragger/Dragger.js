@@ -144,7 +144,7 @@ Dragger._activateInstance = function(instance) {
   Dragger._emitter.on(events.end, instance._onEnd);
 
   if (Dragger._activeInstances.length === 1) {
-    Dragger._bindWindowListeners();
+    Dragger._bindListeners();
   }
 };
 
@@ -158,18 +158,18 @@ Dragger._deactivateInstance = function(instance) {
   Dragger._emitter.off(events.end, instance._onEnd);
 
   if (!Dragger._activeInstances.length) {
-    Dragger._unbindWindowListeners();
+    Dragger._unbindListeners();
   }
 };
 
-Dragger._bindWindowListeners = function() {
+Dragger._bindListeners = function() {
   var events = Dragger._events;
   window.addEventListener(events.move, Dragger._onMove, listenerOptions);
   window.addEventListener(events.end, Dragger._onEnd, listenerOptions);
   events.cancel && window.addEventListener(events.cancel, Dragger._onCancel, listenerOptions);
 };
 
-Dragger._unbindWindowListeners = function() {
+Dragger._unbindListeners = function() {
   var events = Dragger._events;
   window.removeEventListener(events.move, Dragger._onMove, listenerOptions);
   window.removeEventListener(events.end, Dragger._onEnd, listenerOptions);

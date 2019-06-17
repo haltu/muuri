@@ -509,13 +509,17 @@
     return null;
   }
 
+  var dt = 1000 / 60;
+
   var raf = (
     window.requestAnimationFrame ||
     window.webkitRequestAnimationFrame ||
     window.mozRequestAnimationFrame ||
     window.msRequestAnimationFrame ||
     function(callback) {
-      return this.setTimeout(callback, 16);
+      return this.setTimeout(function() {
+        callback(dt);
+      }, dt);
     }
   ).bind(window);
 
@@ -652,7 +656,7 @@
     Dragger._emitter.on(events.end, instance._onEnd);
 
     if (Dragger._activeInstances.length === 1) {
-      Dragger._bindWindowListeners();
+      Dragger._bindListeners();
     }
   };
 
@@ -666,18 +670,18 @@
     Dragger._emitter.off(events.end, instance._onEnd);
 
     if (!Dragger._activeInstances.length) {
-      Dragger._unbindWindowListeners();
+      Dragger._unbindListeners();
     }
   };
 
-  Dragger._bindWindowListeners = function() {
+  Dragger._bindListeners = function() {
     var events = Dragger._events;
     window.addEventListener(events.move, Dragger._onMove, listenerOptions);
     window.addEventListener(events.end, Dragger._onEnd, listenerOptions);
     events.cancel && window.addEventListener(events.cancel, Dragger._onCancel, listenerOptions);
   };
 
-  Dragger._unbindWindowListeners = function() {
+  Dragger._unbindListeners = function() {
     var events = Dragger._events;
     window.removeEventListener(events.move, Dragger._onMove, listenerOptions);
     window.removeEventListener(events.end, Dragger._onEnd, listenerOptions);
@@ -1332,6 +1336,8 @@
 
   var actionCancel = 'cancel';
   var actionFinish = 'finish';
+  var debounceTick = 'debounce';
+  var debounceId = 0;
 
   /**
    * Returns a function, that, as long as it continues to be invoked, will not
@@ -1347,18 +1353,20 @@
    */
   function debounce(fn, wait) {
     var timeout;
+    var tickerId = ++debounceId + debounceTick;
 
     if (wait > 0) {
       return function(action) {
         if (timeout !== undefined) {
           timeout = window.clearTimeout(timeout);
+          ticker.remove(tickerId);
           if (action === actionFinish) fn();
         }
 
         if (action !== actionCancel && action !== actionFinish) {
           timeout = window.setTimeout(function() {
             timeout = undefined;
-            fn();
+            ticker.add(tickerId, fn, null, true);
           }, wait);
         }
       };

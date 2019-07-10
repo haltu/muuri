@@ -556,19 +556,19 @@
     this._touchAction = '';
     this._startEvent = null;
 
-    this._onStart = this._onStart.bind(this);
+    this._preStartCheck = this._preStartCheck.bind(this);
     this._abortNonCancelable = this._abortNonCancelable.bind(this);
-    this._triggerStart = this._triggerStart.bind(this);
+    this._onStart = this._onStart.bind(this);
     this._onMove = this._onMove.bind(this);
     this._onCancel = this._onCancel.bind(this);
     this._onEnd = this._onEnd.bind(this);
 
-    this.pointerId = null;
-    this.startTime = 0;
-    this.startX = 0;
-    this.startY = 0;
-    this.currentX = 0;
-    this.currentY = 0;
+    this._pointerId = null;
+    this._startTime = 0;
+    this._startX = 0;
+    this._startY = 0;
+    this._currentX = 0;
+    this._currentY = 0;
 
     // Apply initial css props.
     this.setCssProps(cssProps);
@@ -583,13 +583,13 @@
     element.addEventListener('dragstart', Dragger._preventDefault, false);
 
     // Listen to start event.
-    element.addEventListener(Dragger._events.start, this._onStart, listenerOptions);
+    element.addEventListener(Dragger._events.start, this._preStartCheck, listenerOptions);
 
     // If we have touch events, but no pointer events we need to also listen for
     // mouse events in addition to touch events for devices which support both
     // mouse and touch interaction.
     if (hasTouchEvents && !hasPointerEvents && !hasMsPointerEvents) {
-      element.addEventListener(Dragger._mouseEvents.start, this._onStart, listenerOptions);
+      element.addEventListener(Dragger._mouseEvents.start, this._preStartCheck, listenerOptions);
     }
   }
 
@@ -746,12 +746,12 @@
   Dragger.prototype._reset = function() {
     if (this._isDestroyed) return;
 
-    this.pointerId = null;
-    this.startTime = 0;
-    this.startX = 0;
-    this.startY = 0;
-    this.currentX = 0;
-    this.currentY = 0;
+    this._pointerId = null;
+    this._startTime = 0;
+    this._startX = 0;
+    this._startY = 0;
+    this._currentX = 0;
+    this._currentY = 0;
     this._startEvent = null;
 
     this._element.removeEventListener(
@@ -763,7 +763,7 @@
     Dragger._deactivateInstance(this);
   };
 
-  Dragger.prototype._onStart = function(e) {
+  Dragger.prototype._preStartCheck = function(e) {
     if (this._isDestroyed) return;
 
     // Make sure the element is not being dragged currently.
@@ -777,8 +777,8 @@
     if (e.button) return;
 
     // Get (and set) pointer id.
-    this.pointerId = Dragger._getEventPointerId(e);
-    if (this.pointerId === null) return;
+    this._pointerId = Dragger._getEventPointerId(e);
+    if (this._pointerId === null) return;
 
     // Store the start event and trigger start (async or sync).
     this._startEvent = e;
@@ -792,9 +792,9 @@
           listenerOptions
         );
       }
-      raf(this._triggerStart);
+      raf(this._onStart);
     } else {
-      this._triggerStart();
+      this._onStart();
     }
   };
 
@@ -806,12 +806,12 @@
     );
 
     if (this._startEvent && e.cancelable === false) {
-      this.pointerId = null;
+      this._pointerId = null;
       this._startEvent = null;
     }
   };
 
-  Dragger.prototype._triggerStart = function() {
+  Dragger.prototype._onStart = function() {
     var e = this._startEvent;
     if (!e) return;
 
@@ -821,10 +821,10 @@
     if (!touch) return;
 
     // Set up init data and emit start event.
-    this.startX = this.currentX = touch.clientX;
-    this.startY = this.currentY = touch.clientY;
-    this.startTime = Date.now();
-    this._emitter.emit(events.start, e);
+    this._startX = this._currentX = touch.clientX;
+    this._startY = this._currentY = touch.clientY;
+    this._startTime = Date.now();
+    this._emit(events.start, e);
     Dragger._activateInstance(this);
   };
 
@@ -832,23 +832,60 @@
     var touch = this.getTrackedTouch(e);
     if (!touch) return;
 
-    this.currentX = touch.clientX;
-    this.currentY = touch.clientY;
-    this._emitter.emit(events.move, e);
+    this._currentX = touch.clientX;
+    this._currentY = touch.clientY;
+    this._emit(events.move, e);
   };
 
   Dragger.prototype._onCancel = function(e) {
     if (!this.getTrackedTouch(e)) return;
 
-    this._emitter.emit(events.cancel, e);
+    this._emit(events.cancel, e);
     this._reset();
   };
 
   Dragger.prototype._onEnd = function(e) {
     if (!this.getTrackedTouch(e)) return;
 
-    this._emitter.emit(events.end, e);
+    this._emit(events.end, e);
     this._reset();
+  };
+
+  Dragger.prototype._emit = function(type, e) {
+    var touch = this.getTrackedTouch(e);
+
+    // Let's construct a custom event interface. This is not good memory-wise as
+    // it causes a lot of GC, but it is much nicer to deal with. If we were to
+    // send out a raw event the consumer would have to do potentially a lot of
+    // work to retrieve all of this data from the event (mainly because of how
+    // touch event interface differs from mouse and pointer events). Also this is
+    // what Hammer.js does and it's just a tad easier to keep everything a bit
+    // more backwards compatible.
+    // TODO: Think carefully what's needed here since once this goes out it's
+    // hard to change... better not to add too much extra here at least. Also this
+    // might be better off being a constructor e.g. `new DraggerEvent()`.
+    var draggerEvent = {
+      // Hammer.js compatibility interface.
+      type: type,
+      srcEvent: e,
+      distance: this.getDeltaDistance(),
+      deltaX: this.getDeltaX(),
+      deltaY: this.getDeltaY(),
+      deltaTime: this.getDeltaTime(),
+      isFirst: type === events.start,
+      isFinal: type === events.end || type === events.cancel,
+      // Touch API interface.
+      identifier: this._pointerId,
+      screenX: touch.screenX,
+      screenY: touch.screenY,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      pageX: touch.pageX,
+      pageY: touch.pageY,
+      target: touch.target
+    };
+
+    this._emitter.emit(type, draggerEvent);
   };
 
   /**
@@ -864,7 +901,7 @@
    * @returns {Boolean}
    */
   Dragger.prototype.isDragging = function() {
-    return this.pointerId !== null;
+    return this._pointerId !== null;
   };
 
   /**
@@ -938,10 +975,10 @@
    * @returns {!(Touch|PointerEvent|MouseEvent)}
    */
   Dragger.prototype.getTrackedTouch = function(e) {
-    if (this.pointerId === null) {
+    if (this._pointerId === null) {
       return null;
     } else {
-      return Dragger._getTouchById(e, this.pointerId);
+      return Dragger._getTouchById(e, this._pointerId);
     }
   };
 
@@ -954,7 +991,7 @@
    * @returns {Number}
    */
   Dragger.prototype.getDeltaX = function() {
-    return this.currentX - this.startX;
+    return this._currentX - this._startX;
   };
 
   /**
@@ -966,7 +1003,7 @@
    * @returns {Number}
    */
   Dragger.prototype.getDeltaY = function() {
-    return this.currentY - this.startY;
+    return this._currentY - this._startY;
   };
 
   /**
@@ -990,7 +1027,7 @@
    * @returns {Number}
    */
   Dragger.prototype.getDeltaTime = function() {
-    return this.startTime ? Date.now() - this.startTime : 0;
+    return this._startTime ? Date.now() - this._startTime : 0;
   };
 
   /**
@@ -1038,8 +1075,8 @@
     this._emitter.destroy();
 
     // Unbind event handlers.
-    element.removeEventListener(events.start, this._onStart, listenerOptions);
-    element.removeEventListener(Dragger._mouseEvents.start, this._onStart, listenerOptions);
+    element.removeEventListener(events.start, this._preStartCheck, listenerOptions);
+    element.removeEventListener(Dragger._mouseEvents.start, this._preStartCheck, listenerOptions);
     element.removeEventListener('dragstart', Dragger._preventDefault, false);
     element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
 
@@ -1726,14 +1763,13 @@
    * @memberof ItemDrag
    * @param {Item} item
    * @param {Object} event
-   * @param {Boolean} isFinal
    * @param {Object} [options]
    *   - An optional options object which can be used to pass the predicate
    *     it's options manually. By default the predicate retrieves the options
    *     from the grid's settings.
    * @returns {Boolean}
    */
-  ItemDrag.defaultStartPredicate = function(item, event, isFinal, options) {
+  ItemDrag.defaultStartPredicate = function(item, event, options) {
     var drag = item._drag;
     var predicate = drag._startPredicateData || drag._setupStartPredicate(options);
 
@@ -1741,8 +1777,8 @@
     // the predicate is either resolved or it's not and there's nothing to do
     // about it. Here we just reset data and if the item element is a link
     // we follow it (if there has only been slight movement).
-    if (isFinal) {
-      drag._finishStartPredicate();
+    if (event.isFinal) {
+      drag._finishStartPredicate(event);
       return;
     }
 
@@ -2167,16 +2203,10 @@
    */
   ItemDrag.prototype._resolveStartPredicate = function(event) {
     var predicate = this._startPredicateData;
-    var dragger = this._dragger;
 
     // If the moved distance is smaller than the threshold distance or there is
     // some delay left, ignore this predicate cycle.
-    if (dragger.getDeltaDistance() < predicate.distance || predicate.delay) return;
-
-    // Get pageX/pageY.
-    var touch = dragger.getTrackedTouch(event) || {};
-    var pageX = touch.pageX || 0;
-    var pageY = touch.pageY || 0;
+    if (event.distance < predicate.distance || predicate.delay) return;
 
     // Get handle rect data.
     var handleRect = predicate.handleElement.getBoundingClientRect();
@@ -2192,10 +2222,10 @@
     return (
       handleWidth &&
       handleHeight &&
-      pageX >= handleLeft &&
-      pageX < handleLeft + handleWidth &&
-      pageY >= handleTop &&
-      pageY < handleTop + handleHeight
+      event.pageX >= handleLeft &&
+      event.pageX < handleLeft + handleWidth &&
+      event.pageY >= handleTop &&
+      event.pageY < handleTop + handleHeight
     );
   };
 
@@ -2220,15 +2250,11 @@
    * @memberof ItemDrag.prototype
    * @param {Object} event
    */
-  ItemDrag.prototype._finishStartPredicate = function() {
+  ItemDrag.prototype._finishStartPredicate = function(event) {
     var element = this._item._element;
-    var dragger = this._dragger;
 
     // Check if this is a click (very subjective heuristics).
-    var isClick =
-      Math.abs(dragger.getDeltaX()) < 2 &&
-      Math.abs(dragger.getDeltaY()) < 2 &&
-      dragger.getDeltaTime() < 200;
+    var isClick = Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200;
 
     // Reset predicate.
     this._resetStartPredicate();
@@ -2246,13 +2272,9 @@
    * @param {Object} event
    */
   ItemDrag.prototype._resetHeuristics = function(event) {
-    var touch = this._dragger.getTrackedTouch(event) || {};
-    var x = touch.clientX || 0;
-    var y = touch.clientY || 0;
-
     this._hBlockedIndex = null;
-    this._hX1 = this._hX2 = x;
-    this._hY1 = this._hY2 = y;
+    this._hX1 = this._hX2 = event.clientX;
+    this._hY1 = this._hY2 = event.clientY;
   };
 
   /**
@@ -2274,9 +2296,8 @@
       return true;
     }
 
-    var touch = this._dragger.getTrackedTouch(event) || {};
-    var x = touch.clientX || 0;
-    var y = touch.clientY || 0;
+    var x = event.clientX;
+    var y = event.clientY;
     var diffX = x - this._hX2;
     var diffY = y - this._hY2;
 
@@ -2555,7 +2576,7 @@
 
     // If predicate is pending try to resolve it.
     if (this._startPredicateState === startPredicatePending) {
-      this._startPredicateResult = this._startPredicate(this._item, event, false);
+      this._startPredicateResult = this._startPredicate(this._item, event);
       if (this._startPredicateResult === true) {
         this._startPredicateState = startPredicateResolved;
         this._onStart(event);
@@ -2584,7 +2605,7 @@
     // Do final predicate check to allow user to unbind stuff for the current
     // drag procedure within the predicate callback. The return value of this
     // check will have no effect to the state of the predicate.
-    this._startPredicate(this._item, event, true);
+    this._startPredicate(this._item, event);
 
     // Reset start predicate state.
     this._startPredicateState = startPredicateInactive;
@@ -2611,7 +2632,6 @@
     var settings = grid._settings;
     var release = item._release;
     var migrate = item._migrate;
-    var touch = this._dragger.getTrackedTouch(event);
     var gridContainer = grid._element;
     var dragContainer = settings.dragContainer || gridContainer;
     var containingBlock = getContainingBlock(dragContainer, true);
@@ -2652,8 +2672,8 @@
     this._dragEvent = event;
     this._container = dragContainer;
     this._containingBlock = containingBlock;
-    this._dragClientX = touch.clientX;
-    this._dragClientY = touch.clientY;
+    this._dragClientX = event.clientX;
+    this._dragClientY = event.clientY;
     this._elementClientX = elementRect.left;
     this._elementClientY = elementRect.top;
     this._left = this._gridX = currentLeft;
@@ -2717,14 +2737,13 @@
     }
 
     // Calculate movement diff.
-    var touch = this._dragger.getTrackedTouch(event);
-    var xDiff = touch.clientX - this._dragClientX;
-    var yDiff = touch.clientY - this._dragClientY;
+    var xDiff = event.clientX - this._dragClientX;
+    var yDiff = event.clientY - this._dragClientY;
 
     // Update event data.
     this._dragEvent = event;
-    this._dragClientX = touch.clientX;
-    this._dragClientY = touch.clientY;
+    this._dragClientX = event.clientX;
+    this._dragClientY = event.clientY;
 
     var settings = this._getGrid()._settings;
     var axis = settings.dragAxis;

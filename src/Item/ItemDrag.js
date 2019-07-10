@@ -139,14 +139,13 @@ function ItemDrag(item) {
  * @memberof ItemDrag
  * @param {Item} item
  * @param {Object} event
- * @param {Boolean} isFinal
  * @param {Object} [options]
  *   - An optional options object which can be used to pass the predicate
  *     it's options manually. By default the predicate retrieves the options
  *     from the grid's settings.
  * @returns {Boolean}
  */
-ItemDrag.defaultStartPredicate = function(item, event, isFinal, options) {
+ItemDrag.defaultStartPredicate = function(item, event, options) {
   var drag = item._drag;
   var predicate = drag._startPredicateData || drag._setupStartPredicate(options);
 
@@ -154,8 +153,8 @@ ItemDrag.defaultStartPredicate = function(item, event, isFinal, options) {
   // the predicate is either resolved or it's not and there's nothing to do
   // about it. Here we just reset data and if the item element is a link
   // we follow it (if there has only been slight movement).
-  if (isFinal) {
-    drag._finishStartPredicate();
+  if (event.isFinal) {
+    drag._finishStartPredicate(event);
     return;
   }
 
@@ -580,16 +579,10 @@ ItemDrag.prototype._getStartPredicateHandle = function(event) {
  */
 ItemDrag.prototype._resolveStartPredicate = function(event) {
   var predicate = this._startPredicateData;
-  var dragger = this._dragger;
 
   // If the moved distance is smaller than the threshold distance or there is
   // some delay left, ignore this predicate cycle.
-  if (dragger.getDeltaDistance() < predicate.distance || predicate.delay) return;
-
-  // Get pageX/pageY.
-  var touch = dragger.getTrackedTouch(event) || {};
-  var pageX = touch.pageX || 0;
-  var pageY = touch.pageY || 0;
+  if (event.distance < predicate.distance || predicate.delay) return;
 
   // Get handle rect data.
   var handleRect = predicate.handleElement.getBoundingClientRect();
@@ -605,10 +598,10 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
   return (
     handleWidth &&
     handleHeight &&
-    pageX >= handleLeft &&
-    pageX < handleLeft + handleWidth &&
-    pageY >= handleTop &&
-    pageY < handleTop + handleHeight
+    event.pageX >= handleLeft &&
+    event.pageX < handleLeft + handleWidth &&
+    event.pageY >= handleTop &&
+    event.pageY < handleTop + handleHeight
   );
 };
 
@@ -633,15 +626,11 @@ ItemDrag.prototype._forceResolveStartPredicate = function(event) {
  * @memberof ItemDrag.prototype
  * @param {Object} event
  */
-ItemDrag.prototype._finishStartPredicate = function() {
+ItemDrag.prototype._finishStartPredicate = function(event) {
   var element = this._item._element;
-  var dragger = this._dragger;
 
   // Check if this is a click (very subjective heuristics).
-  var isClick =
-    Math.abs(dragger.getDeltaX()) < 2 &&
-    Math.abs(dragger.getDeltaY()) < 2 &&
-    dragger.getDeltaTime() < 200;
+  var isClick = Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200;
 
   // Reset predicate.
   this._resetStartPredicate();
@@ -659,13 +648,9 @@ ItemDrag.prototype._finishStartPredicate = function() {
  * @param {Object} event
  */
 ItemDrag.prototype._resetHeuristics = function(event) {
-  var touch = this._dragger.getTrackedTouch(event) || {};
-  var x = touch.clientX || 0;
-  var y = touch.clientY || 0;
-
   this._hBlockedIndex = null;
-  this._hX1 = this._hX2 = x;
-  this._hY1 = this._hY2 = y;
+  this._hX1 = this._hX2 = event.clientX;
+  this._hY1 = this._hY2 = event.clientY;
 };
 
 /**
@@ -687,9 +672,8 @@ ItemDrag.prototype._checkHeuristics = function(event) {
     return true;
   }
 
-  var touch = this._dragger.getTrackedTouch(event) || {};
-  var x = touch.clientX || 0;
-  var y = touch.clientY || 0;
+  var x = event.clientX;
+  var y = event.clientY;
   var diffX = x - this._hX2;
   var diffY = y - this._hY2;
 
@@ -968,7 +952,7 @@ ItemDrag.prototype._preStartCheck = function(event) {
 
   // If predicate is pending try to resolve it.
   if (this._startPredicateState === startPredicatePending) {
-    this._startPredicateResult = this._startPredicate(this._item, event, false);
+    this._startPredicateResult = this._startPredicate(this._item, event);
     if (this._startPredicateResult === true) {
       this._startPredicateState = startPredicateResolved;
       this._onStart(event);
@@ -997,7 +981,7 @@ ItemDrag.prototype._preEndCheck = function(event) {
   // Do final predicate check to allow user to unbind stuff for the current
   // drag procedure within the predicate callback. The return value of this
   // check will have no effect to the state of the predicate.
-  this._startPredicate(this._item, event, true);
+  this._startPredicate(this._item, event);
 
   // Reset start predicate state.
   this._startPredicateState = startPredicateInactive;
@@ -1024,7 +1008,6 @@ ItemDrag.prototype._onStart = function(event) {
   var settings = grid._settings;
   var release = item._release;
   var migrate = item._migrate;
-  var touch = this._dragger.getTrackedTouch(event);
   var gridContainer = grid._element;
   var dragContainer = settings.dragContainer || gridContainer;
   var containingBlock = getContainingBlock(dragContainer, true);
@@ -1065,8 +1048,8 @@ ItemDrag.prototype._onStart = function(event) {
   this._dragEvent = event;
   this._container = dragContainer;
   this._containingBlock = containingBlock;
-  this._dragClientX = touch.clientX;
-  this._dragClientY = touch.clientY;
+  this._dragClientX = event.clientX;
+  this._dragClientY = event.clientY;
   this._elementClientX = elementRect.left;
   this._elementClientY = elementRect.top;
   this._left = this._gridX = currentLeft;
@@ -1130,14 +1113,13 @@ ItemDrag.prototype._onMove = function(event) {
   }
 
   // Calculate movement diff.
-  var touch = this._dragger.getTrackedTouch(event);
-  var xDiff = touch.clientX - this._dragClientX;
-  var yDiff = touch.clientY - this._dragClientY;
+  var xDiff = event.clientX - this._dragClientX;
+  var yDiff = event.clientY - this._dragClientY;
 
   // Update event data.
   this._dragEvent = event;
-  this._dragClientX = touch.clientX;
-  this._dragClientY = touch.clientY;
+  this._dragClientX = event.clientX;
+  this._dragClientY = event.clientY;
 
   var settings = this._getGrid()._settings;
   var axis = settings.dragAxis;

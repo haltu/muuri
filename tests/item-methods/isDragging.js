@@ -37,7 +37,7 @@
     grid
     .on('dragStart', onDragStart)
     .on('dragMove', onDragMove)
-    .on('dragEnd', onDragStart);
+    .on('dragEnd', onDragEnd);
 
     assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state when it`s not being dragged');
 

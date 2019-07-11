@@ -1344,7 +1344,7 @@
     }
   }
 
-  var addClass = ('classList' in Element.prototype ? addClassModern : addClassLegacy);
+  var addClass = 'classList' in Element.prototype ? addClassModern : addClassLegacy;
 
   var tempArray = [];
   var numberType = 'number';
@@ -1743,7 +1743,7 @@
     }
   }
 
-  var removeClass = ('classList' in Element.prototype ? removeClassModern : removeClassLegacy);
+  var removeClass = 'classList' in Element.prototype ? removeClassModern : removeClassLegacy;
 
   // Drag start predicate states.
   var startPredicateInactive = 0;

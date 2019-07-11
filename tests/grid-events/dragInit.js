@@ -25,7 +25,7 @@
     grid.on('dragInit', function (draggedItem, ev) {
       assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
       assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
-      assert.strictEqual(utils.isHammerEvent(ev), true, 'callback: second argument should be a hammer event object');
+      assert.strictEqual(utils.isDraggerEvent(ev), true, 'callback: second argument should be a Dragger event object');
       assert.strictEqual(utils.matches(draggedItem.getElement(), '.muuri-item-dragging'), false, 'should be called before dragging classname is set');
       assert.strictEqual(draggedItem.getElement().parentNode, container, 'should be called before dragged element is appended to it`s drag container');
       ++calls;

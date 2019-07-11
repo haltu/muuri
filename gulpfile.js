@@ -6,12 +6,10 @@ const size = require('gulp-size');
 const rimraf = require('rimraf');
 const argv = require('yargs').argv;
 const dotenv = require('dotenv');
-const replace = require('gulp-replace');
 const exec = require('child_process').exec;
 
 const pkg = require('./package.json');
 const karmaDefaults = require('./karma.defaults.js');
-const umdHeader = require('./rollup.umd.js');
 
 if (fs.existsSync('./.env')) dotenv.load();
 
@@ -167,14 +165,6 @@ gulp.task('bundle', cb => {
   });
 });
 
-gulp.task('patch-umd', () => {
-  const mainPath = './' + pkg.main;
-  return gulp
-    .src(mainPath, { base: './' })
-    .pipe(replace(/\(function([\s\S]*?)Hammer;/, umdHeader))
-    .pipe(gulp.dest('./'));
-});
-
 gulp.task('minify', cb => {
   exec('npm run minify', (err, stdout, stderr) => {
     console.log(stdout);
@@ -185,7 +175,7 @@ gulp.task('minify', cb => {
 
 gulp.task(
   'build',
-  gulp.series('bundle', 'patch-umd', 'minify', done => {
+  gulp.series('bundle', 'minify', done => {
     done();
   })
 );

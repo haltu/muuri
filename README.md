@@ -7,7 +7,7 @@ Muuri is a JavaScript layout engine that allows you to build all kinds of layout
 
 Muuri's default "First Fit" bin packing layout algorithm generates layouts similar to [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). If that's not your cup of tea you can always provide your own layout algorithm to position the items as you wish.
 
-Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) for animations and [Hammer.js](http://hammerjs.github.io/) to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) for animations and has an internal mechanism to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
 **Features**
 
@@ -50,17 +50,7 @@ Or install with [npm](https://www.npmjs.com/):
 npm install muuri
 ```
 
-### 2. Get the (optional) dependencies
-
-#### Hammer.js
-
-Muuri uses [Hammer.js](https://github.com/hammerjs/hammer.js) (v2.0.0+) to handle all the drag events. It is an optional dependency and only required if you need Muuri's dragging capabilities. In other words, if you set [`dragEnabled`](#dragenabled-) option to `true` you need Hammer.js.
-
-```bash
-npm install hammerjs
-```
-
-#### Web Animations Polyfill
+### 2. Get Web Animations Polyfill (if needed)
 
 Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations you need to use a [polyfill](https://github.com/web-animations/web-animations-js).
 
@@ -70,11 +60,10 @@ npm install web-animations-js
 
 ### 3. Add the script tags
 
-Add Muuri on your site and make sure to include the optional dependencies (if needed) before Muuri.
+Add Muuri on your site and make sure to include the Web Animations Polyfill before Muuri (if needed).
 
 ```html
 <script src="https://unpkg.com/web-animations-js@2.3.1/web-animations.min.js"></script>
-<script src="https://unpkg.com/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://unpkg.com/muuri@0.7.1/dist/muuri.min.js"></script>
 ```
 
@@ -179,7 +168,6 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
 
 ```javascript
 {
-
   // Item elements
   items: '*',
 
@@ -228,18 +216,22 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   dragAxis: null,
   dragSort: true,
   dragSortHeuristics: {
-    sortInterval: 0,
+    sortInterval: 100,
     minDragDistance: 10,
     minBounceBackAngle: 1
   },
   dragSortPredicate: {
     threshold: 50,
-    action: 'move'
+    action: actionMove
   },
   dragReleaseDuration: 300,
   dragReleaseEasing: 'ease',
-  dragHammerSettings: {
-    touchAction: 'none'
+  dragCssProps: {
+    touchAction: 'none',
+    userSelect: 'none',
+    userDrag: 'none',
+    tapHighlightColor: 'rgba(0, 0, 0, 0)',
+    touchCallout: 'none'
   },
   dragPlaceholder: {
     enabled: false,
@@ -259,7 +251,6 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   itemDraggingClass: 'muuri-item-dragging',
   itemReleasingClass: 'muuri-item-releasing',
   itemPlaceholderClass: 'muuri-item-placeholder'
-
 }
 ```
 
@@ -685,7 +676,7 @@ The predicate function receives two arguments:
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The item that's being dragged.
 * **event** &nbsp;&mdash;&nbsp; *object*
-  * The drag event (Hammer.js event).
+  * The drag event (Muuri.Dragger event).
 
 ```javascript
 // Configure the default predicate
@@ -836,7 +827,7 @@ Alternatively you can provide your own callback function where you can define yo
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The item that's being dragged.
 * **event** &nbsp;&mdash;&nbsp; *object*
-  * The drag event (Hammer.js event).
+  * The drag event (Muuri.Dragger event).
 
 The callback should return a *falsy* value if sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties:
 
@@ -1887,7 +1878,7 @@ Triggered in the beginning of the *drag start* process when dragging of an item 
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The dragged item.
 * **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
+  * Muuri.Dragger event data.
 
 ```javascript
 grid.on('dragInit', function (item, event) {
@@ -1905,7 +1896,7 @@ Triggered in the end of the *drag start* process when dragging of an item begins
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The dragged item.
 * **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
+  * Muuri.Dragger event data.
 
 ```javascript
 grid.on('dragStart', function (item, event) {
@@ -1923,7 +1914,7 @@ Triggered when an item is dragged after the *drag start* process.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The dragged item.
 * **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
+  * Muuri.Dragger event data.
 
 ```javascript
 grid.on('dragMove', function (item, event) {
@@ -1959,7 +1950,7 @@ Triggered when dragging of an item ends.
 * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
   * The dragged item.
 * **event** &nbsp;&mdash;&nbsp; *object*
-  * Hammer.js event data.
+  * Muuri.Dragger event data.
 
 ```javascript
 grid.on('dragEnd', function (item, event) {
@@ -2179,7 +2170,7 @@ var isDestroyed = item.isDestroyed();
 
 * This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/), [Packery](http://packery.metafizzy.co/) and [Isotope](https://isotope.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
 * Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!
-* Big thanks to the people behind [Web Animations polyfill](https://github.com/web-animations/web-animations-js) and [Hammer.js](http://hammerjs.github.io/) for providing such awesome libraries. Muuri would be much less cool without animations and dragging.
+* Big thanks to the people behind [Web Animations polyfill](https://github.com/web-animations/web-animations-js), Muuri would be much less cool without smooth animations.
 * [Haltu Oy](http://www.haltu.fi/) was responsible for initiating this project in the first place and funded the initial development. Thanks Haltu!
 
 ## License

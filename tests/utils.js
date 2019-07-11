@@ -172,34 +172,27 @@
     return e.type === 'scroll';
   };
 
-  utils.isHammerEvent = function (e) {
+  utils.isDraggerEvent = function (e) {
 
     var ret = true;
     var eventKeys = Object.keys(e);
     var requiredKeys = [
       'type',
+      'srcEvent',
       'deltaX',
       'deltaY',
       'deltaTime',
       'distance',
-      'angle',
-      'velocityX',
-      'velocityY',
-      'velocity',
-      'direction',
-      'offsetDirection',
-      'scale',
-      'rotation',
-      'center',
-      'srcEvent',
-      'target',
-      'pointerType',
-      'eventType',
       'isFirst',
       'isFinal',
-      'pointers',
-      'changedPointers',
-      'preventDefault'
+      'identifier',
+      'screenX',
+      'screenY',
+      'clientX',
+      'clientY',
+      'pageX',
+      'pageY',
+      'target'
     ];
 
     requiredKeys.forEach(function (key) {

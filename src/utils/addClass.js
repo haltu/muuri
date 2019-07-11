@@ -28,4 +28,4 @@ function addClassLegacy(element, className) {
   }
 }
 
-export default ('classList' in Element.prototype ? addClassModern : addClassLegacy);
+export default 'classList' in Element.prototype ? addClassModern : addClassLegacy;

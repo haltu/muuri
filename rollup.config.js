@@ -11,13 +11,11 @@ const stripBanner = {
 };
 
 module.exports = {
-  external: ['hammerjs'],
   input: 'src/index.js',
   output: {
     name: 'Muuri',
     file: pkg.main,
     format: 'umd',
-    globals: { hammerjs: 'Hammer' },
     banner: banner
   },
   plugins: [stripBanner]

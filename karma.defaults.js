@@ -13,7 +13,6 @@ module.exports = {
     'karma-story-reporter'
   ],
   files: [
-    './node_modules/hammerjs/hammer.js',
     './node_modules/web-animations-js/web-animations.min.js',
     './node_modules/prosthetic-hand/dist/prosthetic-hand.js',
     './node_modules/mezr/mezr.js',

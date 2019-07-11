@@ -4,7 +4,7 @@
 
   QUnit.module('Grid options');
 
-  QUnit.test('dragStartPredicate: should receive the dragged item and current hammer event as it`s arguments', function (assert) {
+  QUnit.test('dragStartPredicate: should receive the dragged item and current Dragger event as it`s arguments', function (assert) {
 
     assert.expect(3);
 
@@ -17,7 +17,7 @@
         if (!isChecked) {
           assert.strictEqual(arguments.length, 2, 'predicate should receive two aguments');
           assert.strictEqual(draggedItem, item, 'predicate first argument should be the dragged item');
-          assert.strictEqual(utils.isHammerEvent(ev), true, 'predicate second argument should be a hammer event');
+          assert.strictEqual(utils.isDraggerEvent(ev), true, 'predicate second argument should be a Dragger event');
           isChecked = true;
         }
         return true;

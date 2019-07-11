@@ -32,7 +32,7 @@
     grid.on('dragEnd', function (draggedItem, ev) {
       assert.strictEqual(arguments.length, 2, 'callback: should receive two arguments');
       assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
-      assert.strictEqual(utils.isHammerEvent(ev), true, 'callback: second argument should be a hammer event object');
+      assert.strictEqual(utils.isDraggerEvent(ev), true, 'callback: second argument should be a Dragger event object');
       assert.strictEqual(isStartCalled, true, 'callback: should be called after dragStart');
       assert.strictEqual(isMoveCalled, true, 'callback: should be called after dragMove');
       ++calls;

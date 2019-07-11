@@ -28,4 +28,4 @@ function removeClassLegacy(element, className) {
   }
 }
 
-export default ('classList' in Element.prototype ? removeClassModern : removeClassLegacy);
+export default 'classList' in Element.prototype ? removeClassModern : removeClassLegacy;

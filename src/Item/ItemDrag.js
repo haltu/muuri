@@ -4,27 +4,6 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-/*
-TODO:
-  - Using setTimeout based debouncing is not a good idea since it might be
-    called during non-optimal time. Better to use the ticker for that purpose
-    (and it's timestamp).
-  - When dragging allow only one layout per frame? Layout procedure causes
-    potentially layout thrashing (once) when it sets the container width/height.
-    One way to battle that issue would be queueing layout calls and making sure
-    that it gets called only once, at specific point (e.g. between read/write
-    queues).
-  - Add disable/enable methods? So that all the listeners/hacks would also be
-    disabled wen drag is disabled.
-  - There's a little UI issue when you drag and item to another grid. In most
-    cases the item is first added to the grid as the last item and then
-    repositioned and moved in place of the item it is hovering over. It causes
-    an unwanted fast jump effect. Would be nice if there was better control over
-    that specific scenario. It becomes very visible with the placeholder. One
-    possible solution would be allowing users to define separate thresholds for
-    grid-to-grid sorting.
-*/
-
 import {
   actionMove,
   actionSwap,

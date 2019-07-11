@@ -138,7 +138,7 @@ function ItemDrag(item) {
  * @public
  * @memberof ItemDrag
  * @param {Item} item
- * @param {Object} event
+ * @param {DraggerEvent} event
  * @param {Object} [options]
  *   - An optional options object which can be used to pass the predicate
  *     it's options manually. By default the predicate retrieves the options
@@ -446,8 +446,6 @@ ItemDrag.prototype._reset = function() {
   // Drag/scroll event data.
   this._dragEvent = null;
   this._scrollEvent = null;
-  this._dragClientX = 0;
-  this._dragClientY = 0;
 
   // All the elements which need to be listened for scroll events during
   // dragging.
@@ -549,7 +547,7 @@ ItemDrag.prototype._setupStartPredicate = function(options) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  * @returns {?HTMLElement}
  */
 ItemDrag.prototype._getStartPredicateHandle = function(event) {
@@ -574,7 +572,7 @@ ItemDrag.prototype._getStartPredicateHandle = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  * @returns {Boolean}
  */
 ItemDrag.prototype._resolveStartPredicate = function(event) {
@@ -610,7 +608,7 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  */
 ItemDrag.prototype._forceResolveStartPredicate = function(event) {
   if (!this._isDestroyed && this._startPredicateState === startPredicatePending) {
@@ -624,7 +622,7 @@ ItemDrag.prototype._forceResolveStartPredicate = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  */
 ItemDrag.prototype._finishStartPredicate = function(event) {
   var element = this._item._element;
@@ -645,7 +643,7 @@ ItemDrag.prototype._finishStartPredicate = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  */
 ItemDrag.prototype._resetHeuristics = function(event) {
   this._hBlockedIndex = null;
@@ -659,7 +657,7 @@ ItemDrag.prototype._resetHeuristics = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  * @returns {Boolean}
  */
 ItemDrag.prototype._checkHeuristics = function(event) {
@@ -942,7 +940,7 @@ ItemDrag.prototype._finishMigration = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  */
 ItemDrag.prototype._preStartCheck = function(event) {
   // Let's activate drag start predicate state.
@@ -972,7 +970,7 @@ ItemDrag.prototype._preStartCheck = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  */
 ItemDrag.prototype._preEndCheck = function(event) {
   // Check if the start predicate was resolved during drag.
@@ -995,7 +993,7 @@ ItemDrag.prototype._preEndCheck = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  */
 ItemDrag.prototype._onStart = function(event) {
   var item = this._item;
@@ -1048,8 +1046,6 @@ ItemDrag.prototype._onStart = function(event) {
   this._dragEvent = event;
   this._container = dragContainer;
   this._containingBlock = containingBlock;
-  this._dragClientX = event.clientX;
-  this._dragClientY = event.clientY;
   this._elementClientX = elementRect.left;
   this._elementClientY = elementRect.top;
   this._left = this._gridX = currentLeft;
@@ -1101,7 +1097,7 @@ ItemDrag.prototype._onStart = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  */
 ItemDrag.prototype._onMove = function(event) {
   var item = this._item;
@@ -1112,20 +1108,12 @@ ItemDrag.prototype._onMove = function(event) {
     return;
   }
 
-  // Calculate movement diff.
-  var xDiff = event.clientX - this._dragClientX;
-  var yDiff = event.clientY - this._dragClientY;
-
-  // Update event data.
-  this._dragEvent = event;
-  this._dragClientX = event.clientX;
-  this._dragClientY = event.clientY;
-
   var settings = this._getGrid()._settings;
   var axis = settings.dragAxis;
 
   // Update horizontal position data.
   if (axis !== 'y') {
+    var xDiff = event.clientX - this._dragEvent.clientX;
     this._left += xDiff;
     this._gridX += xDiff;
     this._elementClientX += xDiff;
@@ -1133,10 +1121,14 @@ ItemDrag.prototype._onMove = function(event) {
 
   // Update vertical position data.
   if (axis !== 'x') {
+    var yDiff = event.clientY - this._dragEvent.clientY;
     this._top += yDiff;
     this._gridY += yDiff;
     this._elementClientY += yDiff;
   }
+
+  // Update event data.
+  this._dragEvent = event;
 
   // Do move prepare/apply handling in the next tick.
   addMoveTick(item._id, this._prepareMove, this._applyMove);
@@ -1184,7 +1176,7 @@ ItemDrag.prototype._applyMove = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {Event} event
  */
 ItemDrag.prototype._onScroll = function(event) {
   var item = this._item;
@@ -1273,7 +1265,7 @@ ItemDrag.prototype._applyScroll = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Object} event
+ * @param {DraggerEvent} event
  */
 ItemDrag.prototype._onEnd = function(event) {
   var item = this._item;

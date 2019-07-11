@@ -31,7 +31,7 @@ export default function debounce(fn, wait) {
     return function(action) {
       if (timeout !== undefined) {
         timeout = window.clearTimeout(timeout);
-        ticker.remove(tickerId);
+        ticker.cancel(tickerId);
         if (action === actionFinish) fn();
       }
 

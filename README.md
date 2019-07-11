@@ -228,8 +228,8 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   dragAxis: null,
   dragSort: true,
   dragSortHeuristics: {
-    sortInterval: 100,
-    minDragDistance: 8,
+    sortInterval: 0,
+    minDragDistance: 10,
     minBounceBackAngle: 1
   },
   dragSortPredicate: {

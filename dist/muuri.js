@@ -556,19 +556,19 @@
     this._touchAction = '';
     this._startEvent = null;
 
-    this._preStartCheck = this._preStartCheck.bind(this);
-    this._abortNonCancelable = this._abortNonCancelable.bind(this);
-    this._onStart = this._onStart.bind(this);
-    this._onMove = this._onMove.bind(this);
-    this._onCancel = this._onCancel.bind(this);
-    this._onEnd = this._onEnd.bind(this);
-
     this._pointerId = null;
     this._startTime = 0;
     this._startX = 0;
     this._startY = 0;
     this._currentX = 0;
     this._currentY = 0;
+
+    this._preStartCheck = this._preStartCheck.bind(this);
+    this._abortNonCancelable = this._abortNonCancelable.bind(this);
+    this._onStart = this._onStart.bind(this);
+    this._onMove = this._onMove.bind(this);
+    this._onCancel = this._onCancel.bind(this);
+    this._onEnd = this._onEnd.bind(this);
 
     // Apply initial css props.
     this.setCssProps(cssProps);
@@ -743,6 +743,12 @@
    * *************************
    */
 
+  /**
+   * Reset current drag operation (if any).
+   *
+   * @private
+   * @memberof Dragger.prototype
+   */
   Dragger.prototype._reset = function() {
     if (this._isDestroyed) return;
 
@@ -763,6 +769,79 @@
     Dragger._deactivateInstance(this);
   };
 
+  /**
+   * Create a custom dragger event from a raw event.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   * @param {String} type
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+   * @returns {DraggerEvent}
+   */
+  Dragger.prototype._createEvent = function(type, e) {
+    var touch = this._getTrackedTouch(e);
+    return {
+      // Hammer.js compatibility interface.
+      type: type,
+      srcEvent: e,
+      distance: this.getDistance(),
+      deltaX: this.getDeltaX(),
+      deltaY: this.getDeltaY(),
+      deltaTime: this.getDeltaTime(),
+      isFirst: type === events.start,
+      isFinal: type === events.end || type === events.cancel,
+      // Partial Touch API interface.
+      identifier: this._pointerId,
+      screenX: touch.screenX,
+      screenY: touch.screenY,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      pageX: touch.pageX,
+      pageY: touch.pageY,
+      target: touch.target
+    };
+  };
+
+  /**
+   * Emit a raw event as dragger event internally.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   * @param {String} type
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+   */
+  Dragger.prototype._emit = function(type, e) {
+    this._emitter.emit(type, this._createEvent(type, e));
+  };
+
+  /**
+   * If the provided event is a PointerEvent this method will return it if it has
+   * the same pointerId as the instance. If the provided event is a TouchEvent
+   * this method will try to look for a Touch instance in the changedTouches that
+   * has an identifier matching this instance's pointerId. If the provided event
+   * is a MouseEvent (or just any other event than PointerEvent or TouchEvent)
+   * it will be returned immediately.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   * @param {(PointerEvent|TouchEvent|MouseEvent)}
+   * @returns {?(Touch|PointerEvent|MouseEvent)}
+   */
+  Dragger.prototype._getTrackedTouch = function(e) {
+    if (this._pointerId === null) {
+      return null;
+    } else {
+      return Dragger._getTouchById(e, this._pointerId);
+    }
+  };
+
+  /**
+   * A pre-handler for start event that checks if we can start dragging.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+   */
   Dragger.prototype._preStartCheck = function(e) {
     if (this._isDestroyed) return;
 
@@ -798,6 +877,13 @@
     }
   };
 
+  /**
+   * Abort start event if it turns out to be non-cancelable.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+   */
   Dragger.prototype._abortNonCancelable = function(e) {
     this._element.removeEventListener(
       Dragger._touchEvents.start,
@@ -811,13 +897,19 @@
     }
   };
 
+  /**
+   * Start the drag procedure if possible.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   */
   Dragger.prototype._onStart = function() {
     var e = this._startEvent;
     if (!e) return;
 
     this._startEvent = null;
 
-    var touch = this.getTrackedTouch(e);
+    var touch = this._getTrackedTouch(e);
     if (!touch) return;
 
     // Set up init data and emit start event.
@@ -828,8 +920,15 @@
     Dragger._activateInstance(this);
   };
 
+  /**
+   * Handler for move event.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+   */
   Dragger.prototype._onMove = function(e) {
-    var touch = this.getTrackedTouch(e);
+    var touch = this._getTrackedTouch(e);
     if (!touch) return;
 
     this._currentX = touch.clientX;
@@ -837,55 +936,32 @@
     this._emit(events.move, e);
   };
 
+  /**
+   * Handler for move cancel event.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+   */
   Dragger.prototype._onCancel = function(e) {
-    if (!this.getTrackedTouch(e)) return;
+    if (!this._getTrackedTouch(e)) return;
 
     this._emit(events.cancel, e);
     this._reset();
   };
 
+  /**
+   * Handler for end event.
+   *
+   * @private
+   * @memberof Dragger.prototype
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+   */
   Dragger.prototype._onEnd = function(e) {
-    if (!this.getTrackedTouch(e)) return;
+    if (!this._getTrackedTouch(e)) return;
 
     this._emit(events.end, e);
     this._reset();
-  };
-
-  Dragger.prototype._emit = function(type, e) {
-    var touch = this.getTrackedTouch(e);
-
-    // Let's construct a custom event interface. This is not good memory-wise as
-    // it causes a lot of GC, but it is much nicer to deal with. If we were to
-    // send out a raw event the consumer would have to do potentially a lot of
-    // work to retrieve all of this data from the event (mainly because of how
-    // touch event interface differs from mouse and pointer events). Also this is
-    // what Hammer.js does and it's just a tad easier to keep everything a bit
-    // more backwards compatible.
-    // TODO: Think carefully what's needed here since once this goes out it's
-    // hard to change... better not to add too much extra here at least. Also this
-    // might be better off being a constructor e.g. `new DraggerEvent()`.
-    var draggerEvent = {
-      // Hammer.js compatibility interface.
-      type: type,
-      srcEvent: e,
-      distance: this.getDeltaDistance(),
-      deltaX: this.getDeltaX(),
-      deltaY: this.getDeltaY(),
-      deltaTime: this.getDeltaTime(),
-      isFirst: type === events.start,
-      isFinal: type === events.end || type === events.cancel,
-      // Touch API interface.
-      identifier: this._pointerId,
-      screenX: touch.screenX,
-      screenY: touch.screenY,
-      clientX: touch.clientX,
-      clientY: touch.clientY,
-      pageX: touch.pageX,
-      pageY: touch.pageY,
-      target: touch.target
-    };
-
-    this._emitter.emit(type, draggerEvent);
   };
 
   /**
@@ -923,7 +999,9 @@
 
     // If we have an unsupported touch-action value let's add a special listener
     // that prevents default action on touch start event. A dirty hack, but best
-    // we can do for now.
+    // we can do for now. The other options would be to somehow polyfill the
+    // unsupported touch action behavior with custom heuristics which sounds like
+    // a can of worms.
     if (hasTouchEvents) {
       this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
       if (this._element.style[taPropPrefixed] !== value) {
@@ -933,11 +1011,12 @@
   };
 
   /**
-   * Update element's CSS properties.
+   * Update element's CSS properties. Accepts an object with camel cased style
+   * props with value pairs as it's first argument.
    *
    * @public
    * @memberof Dragger.prototype
-   * @param {Object} props
+   * @param {Object} [props]
    */
   Dragger.prototype.setCssProps = function(props) {
     if (!props) return;
@@ -959,26 +1038,6 @@
       // Store the prop and add the style.
       this._cssProps[prefixedProp] = '';
       this._element.style[prefixedProp] = props[prop];
-    }
-  };
-
-  /**
-   * If the provided event is a PointerEvent this method will return it if it has
-   * the same pointerId as the instance. If the provided event is a TouchEvent
-   * this method will try to look for a Touch instance in the changedTouches that
-   * has an identifier matching this instance's pointerId. If the provided event
-   * is a MouseEvent (or just any other event than PointerEvent or TouchEvent)
-   * it will be returned immediately.
-   *
-   * @public
-   * @memberof Dragger.prototype
-   * @returns {!(Touch|PointerEvent|MouseEvent)}
-   */
-  Dragger.prototype.getTrackedTouch = function(e) {
-    if (this._pointerId === null) {
-      return null;
-    } else {
-      return Dragger._getTouchById(e, this._pointerId);
     }
   };
 
@@ -1013,7 +1072,7 @@
    * @memberof Dragger.prototype
    * @returns {Number}
    */
-  Dragger.prototype.getDeltaDistance = function() {
+  Dragger.prototype.getDistance = function() {
     var x = this.getDeltaX();
     var y = this.getDeltaY();
     return Math.sqrt(x * x + y * y);
@@ -1396,7 +1455,7 @@
       return function(action) {
         if (timeout !== undefined) {
           timeout = window.clearTimeout(timeout);
-          ticker.remove(tickerId);
+          ticker.cancel(tickerId);
           if (action === actionFinish) fn();
         }
 
@@ -1762,7 +1821,7 @@
    * @public
    * @memberof ItemDrag
    * @param {Item} item
-   * @param {Object} event
+   * @param {DraggerEvent} event
    * @param {Object} [options]
    *   - An optional options object which can be used to pass the predicate
    *     it's options manually. By default the predicate retrieves the options
@@ -2070,8 +2129,6 @@
     // Drag/scroll event data.
     this._dragEvent = null;
     this._scrollEvent = null;
-    this._dragClientX = 0;
-    this._dragClientY = 0;
 
     // All the elements which need to be listened for scroll events during
     // dragging.
@@ -2173,7 +2230,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    * @returns {?HTMLElement}
    */
   ItemDrag.prototype._getStartPredicateHandle = function(event) {
@@ -2198,7 +2255,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    * @returns {Boolean}
    */
   ItemDrag.prototype._resolveStartPredicate = function(event) {
@@ -2234,7 +2291,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    */
   ItemDrag.prototype._forceResolveStartPredicate = function(event) {
     if (!this._isDestroyed && this._startPredicateState === startPredicatePending) {
@@ -2248,7 +2305,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    */
   ItemDrag.prototype._finishStartPredicate = function(event) {
     var element = this._item._element;
@@ -2269,7 +2326,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    */
   ItemDrag.prototype._resetHeuristics = function(event) {
     this._hBlockedIndex = null;
@@ -2283,7 +2340,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    * @returns {Boolean}
    */
   ItemDrag.prototype._checkHeuristics = function(event) {
@@ -2566,7 +2623,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    */
   ItemDrag.prototype._preStartCheck = function(event) {
     // Let's activate drag start predicate state.
@@ -2596,7 +2653,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    */
   ItemDrag.prototype._preEndCheck = function(event) {
     // Check if the start predicate was resolved during drag.
@@ -2619,7 +2676,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    */
   ItemDrag.prototype._onStart = function(event) {
     var item = this._item;
@@ -2672,8 +2729,6 @@
     this._dragEvent = event;
     this._container = dragContainer;
     this._containingBlock = containingBlock;
-    this._dragClientX = event.clientX;
-    this._dragClientY = event.clientY;
     this._elementClientX = elementRect.left;
     this._elementClientY = elementRect.top;
     this._left = this._gridX = currentLeft;
@@ -2725,7 +2780,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    */
   ItemDrag.prototype._onMove = function(event) {
     var item = this._item;
@@ -2736,20 +2791,12 @@
       return;
     }
 
-    // Calculate movement diff.
-    var xDiff = event.clientX - this._dragClientX;
-    var yDiff = event.clientY - this._dragClientY;
-
-    // Update event data.
-    this._dragEvent = event;
-    this._dragClientX = event.clientX;
-    this._dragClientY = event.clientY;
-
     var settings = this._getGrid()._settings;
     var axis = settings.dragAxis;
 
     // Update horizontal position data.
     if (axis !== 'y') {
+      var xDiff = event.clientX - this._dragEvent.clientX;
       this._left += xDiff;
       this._gridX += xDiff;
       this._elementClientX += xDiff;
@@ -2757,10 +2804,14 @@
 
     // Update vertical position data.
     if (axis !== 'x') {
+      var yDiff = event.clientY - this._dragEvent.clientY;
       this._top += yDiff;
       this._gridY += yDiff;
       this._elementClientY += yDiff;
     }
+
+    // Update event data.
+    this._dragEvent = event;
 
     // Do move prepare/apply handling in the next tick.
     addMoveTick(item._id, this._prepareMove, this._applyMove);
@@ -2808,7 +2859,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {Event} event
    */
   ItemDrag.prototype._onScroll = function(event) {
     var item = this._item;
@@ -2897,7 +2948,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Object} event
+   * @param {DraggerEvent} event
    */
   ItemDrag.prototype._onEnd = function(event) {
     var item = this._item;
@@ -5334,7 +5385,7 @@
    * @param {?String} [options.dragAxis]
    * @param {(Boolean|Function)} [options.dragSort=true]
    * @param {Object} [options.dragSortHeuristics]
-   * @param {Number} [options.dragSortHeuristics.sortInterval=0]
+   * @param {Number} [options.dragSortHeuristics.sortInterval=100]
    * @param {Number} [options.dragSortHeuristics.minDragDistance=10]
    * @param {Number} [options.dragSortHeuristics.minBounceBackAngle=1]
    * @param {(Function|Object)} [options.dragSortPredicate]
@@ -5562,7 +5613,7 @@
     dragAxis: null,
     dragSort: true,
     dragSortHeuristics: {
-      sortInterval: 0,
+      sortInterval: 100,
       minDragDistance: 10,
       minBounceBackAngle: 1
     },

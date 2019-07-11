@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Muuri Demo</title>
+    <style>
+      html {
+        overflow-y: scroll;
+      }
+      body {
+        display: flex;
+        justify-content: space-evenly;
+        margin: 50px 0;
+      }
+      .grid {
+        position: relative;
+        width: 45%;
+        background: #ccc;
+        border: 5px solid transparent;
+        min-height: 100px;
+      }
+      nav {
+        position: absolute;
+        top: -55px;
+        left: -5px;
+        height: 50px;
+        display: flex;
+        justify-content: space-evenly;
+      }
+      nav button {
+        display: block;
+        position: relative;
+        height: 30px;
+        margin: 10px 10px 10px 0px;
+      }
+      .item {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        line-height: 100px;
+        margin: 5px;
+        z-index: 1;
+      }
+      .item.h1 {
+        height: 50px;
+        line-height: 50px;
+      }
+      .item.h2 {
+        height: 110px;
+        line-height: 110px;
+      }
+      .item.w1 {
+        width: 50px;
+      }
+      .item.w2 {
+        width: 110px;
+      }
+      .item.muuri-item-hidden {
+        z-index: 0;
+      }
+      .item.muuri-item-releasing {
+        z-index: 2;
+      }
+      .item.muuri-item-dragging {
+        z-index: 3;
+      }
+      .item-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        background: red;
+        font-size: 24px;
+        color: white;
+        cursor: pointer;
+      }
+      .grid-2 .item-content {
+        background: green;
+      }
+      .item.muuri-item-dragging .item-content,
+      .item.muuri-item-releasing .item-content {
+        background: blue;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid grid-1">
+      <nav>
+        <button class="add">Add items</button>
+        <button class="remove">Remove items</button>
+      </nav>
+    </div>
+
+    <div class="grid grid-2">
+      <nav>
+        <button class="add">Add items</button>
+        <button class="remove">Remove items</button>
+      </nav>
+    </div>
+
+    <script src="../node_modules/web-animations-js/web-animations.min.js"></script>
+    <script src="../dist/muuri.js"></script>
+    <script>
+      (function() {
+        var counter = 0;
+
+        // Init grids
+
+        var grid1 = new Muuri('.grid-1', {
+          items: '.item',
+          dragEnabled: true,
+          dragContainer: document.body,
+          dragSort: function() {
+            return [grid1, grid2];
+          }
+        });
+
+        var grid2 = new Muuri('.grid-2', {
+          items: '.item',
+          dragEnabled: true,
+          dragContainer: document.body,
+          dragSort: function() {
+            return [grid1, grid2];
+          }
+        });
+
+        // Init actions
+
+        var grid1AddButton = document.querySelector('.grid-1 .add');
+        var grid1RemoveButton = document.querySelector('.grid-1 .remove');
+        var grid2AddButton = document.querySelector('.grid-2 .add');
+        var grid2RemoveButton = document.querySelector('.grid-2 .remove');
+
+        grid1AddButton.addEventListener('click', function() {
+          addItemsToGrid(grid1, 5);
+        });
+
+        grid1RemoveButton.addEventListener('click', function() {
+          removeItemsFromGrid(grid1, 5);
+        });
+
+        grid2AddButton.addEventListener('click', function() {
+          addItemsToGrid(grid2, 5);
+        });
+
+        grid2RemoveButton.addEventListener('click', function() {
+          removeItemsFromGrid(grid2, 5);
+        });
+
+        // Utils
+
+        function createItemElement(id, title, width, height) {
+          var el = document.createElement('div');
+          var classNames = 'item h' + height + ' w' + width;
+          // prettier-ignore
+          el.innerHTML = '<div class="' + classNames + '" data-id="' + id + '">' +
+                           '<div class="item-content">' + title + '</div>' +
+                         '</div>';
+          return el.firstChild;
+        }
+
+        function createItemElements(amount) {
+          var ret = [];
+
+          for (var i = 0; i < amount; i++) {
+            var id = ++counter;
+            var title = id;
+            var width = getRandomInt(1, 2);
+            var height = getRandomInt(1, 2);
+            ret.push(createItemElement(id, title, height, width));
+          }
+
+          return ret;
+        }
+
+        // https://stackoverflow.com/a/7228322
+        function getRandomInt(min, max) {
+          return Math.floor(Math.random() * (max - min + 1) + min);
+        }
+
+        function addItemsToGrid(grid, amount) {
+          var elements = createItemElements(amount);
+          elements.forEach(function(el) {
+            el.style.display = 'none';
+          });
+          grid.add(elements);
+          grid.show(elements);
+        }
+
+        function removeItemsFromGrid(grid, amount) {
+          var items = grid.getItems();
+          items.length = amount;
+          grid.hide(items, {
+            onFinish: function(hiddenItems) {
+              grid.remove(hiddenItems, { removeElements: true });
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

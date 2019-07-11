@@ -114,7 +114,7 @@ Packer.prototype.getLayout = function(items, width, height, slots, options) {
  * @returns {Array}
  */
 Packer.prototype._addSlot = (function() {
-  var leeway = 0.001;
+  var eps = 0.001;
   var itemSlot = {};
   return function(item, isHorizontal, fillGaps, rounding, trackSize) {
     var layout = this._layout;
@@ -147,7 +147,7 @@ Packer.prototype._addSlot = (function() {
       rectId = freeSlots[i];
       if (!rectId) continue;
       rect = this._getRect(rectId);
-      if (itemSlot.width <= rect.width + leeway && itemSlot.height <= rect.height + leeway) {
+      if (itemSlot.width <= rect.width + eps && itemSlot.height <= rect.height + eps) {
         itemSlot.left = rect.left;
         itemSlot.top = rect.top;
         break;

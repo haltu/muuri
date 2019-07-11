@@ -275,7 +275,7 @@ Dragger.prototype._createEvent = function(type, e) {
     distance: this.getDistance(),
     deltaX: this.getDeltaX(),
     deltaY: this.getDeltaY(),
-    deltaTime: this.getDeltaTime(),
+    deltaTime: type === events.start ? 0 : this.getDeltaTime(),
     isFirst: type === events.start,
     isFinal: type === events.end || type === events.cancel,
     // Partial Touch API interface.
@@ -509,9 +509,18 @@ Dragger.prototype.setTouchAction = function(value) {
 Dragger.prototype.setCssProps = function(props) {
   if (!props) return;
 
+  var cssProps = this._cssProps;
+  var element = this._element;
   var prop;
   var prefixedProp;
 
+  // Reset existing props.
+  for (prop in cssProps) {
+    element.style[prop] = cssProps[prop];
+    delete cssProps[prop];
+  }
+
+  // Set new props.
   for (prop in props) {
     // Special handling for touch-action.
     if (prop === taProp) {
@@ -520,12 +529,12 @@ Dragger.prototype.setCssProps = function(props) {
     }
 
     // Get prefixed prop and skip if it does not exist.
-    prefixedProp = getPrefixedPropName(this._element.style, prop);
+    prefixedProp = getPrefixedPropName(element.style, prop);
     if (!prefixedProp) continue;
 
     // Store the prop and add the style.
-    this._cssProps[prefixedProp] = '';
-    this._element.style[prefixedProp] = props[prop];
+    cssProps[prefixedProp] = '';
+    element.style[prefixedProp] = props[prop];
   }
 };
 

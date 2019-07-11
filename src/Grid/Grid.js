@@ -64,7 +64,7 @@ var instantLayout = 'instant';
  * @class
  * @param {(HTMLElement|String)} element
  * @param {Object} [options]
- * @param {(?HTMLElement[]|NodeList|String)} [options.items]
+ * @param {?(HTMLElement[]|NodeList|String)} [options.items]
  * @param {Number} [options.showDuration=300]
  * @param {String} [options.showEasing="ease"]
  * @param {Object} [options.visibleStyles]

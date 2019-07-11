@@ -787,7 +787,7 @@
       distance: this.getDistance(),
       deltaX: this.getDeltaX(),
       deltaY: this.getDeltaY(),
-      deltaTime: this.getDeltaTime(),
+      deltaTime: type === events.start ? 0 : this.getDeltaTime(),
       isFirst: type === events.start,
       isFinal: type === events.end || type === events.cancel,
       // Partial Touch API interface.
@@ -1021,9 +1021,18 @@
   Dragger.prototype.setCssProps = function(props) {
     if (!props) return;
 
+    var cssProps = this._cssProps;
+    var element = this._element;
     var prop;
     var prefixedProp;
 
+    // Reset existing props.
+    for (prop in cssProps) {
+      element.style[prop] = cssProps[prop];
+      delete cssProps[prop];
+    }
+
+    // Set new props.
     for (prop in props) {
       // Special handling for touch-action.
       if (prop === taProp) {
@@ -1032,12 +1041,12 @@
       }
 
       // Get prefixed prop and skip if it does not exist.
-      prefixedProp = getPrefixedPropName(this._element.style, prop);
+      prefixedProp = getPrefixedPropName(element.style, prop);
       if (!prefixedProp) continue;
 
       // Store the prop and add the style.
-      this._cssProps[prefixedProp] = '';
-      this._element.style[prefixedProp] = props[prop];
+      cssProps[prefixedProp] = '';
+      element.style[prefixedProp] = props[prop];
     }
   };
 
@@ -4933,7 +4942,7 @@
    * @returns {Array}
    */
   Packer.prototype._addSlot = (function() {
-    var leeway = 0.001;
+    var eps = 0.001;
     var itemSlot = {};
     return function(item, isHorizontal, fillGaps, rounding, trackSize) {
       var layout = this._layout;
@@ -4966,7 +4975,7 @@
         rectId = freeSlots[i];
         if (!rectId) continue;
         rect = this._getRect(rectId);
-        if (itemSlot.width <= rect.width + leeway && itemSlot.height <= rect.height + leeway) {
+        if (itemSlot.width <= rect.width + eps && itemSlot.height <= rect.height + eps) {
           itemSlot.left = rect.left;
           itemSlot.top = rect.top;
           break;
@@ -5358,7 +5367,7 @@
    * @class
    * @param {(HTMLElement|String)} element
    * @param {Object} [options]
-   * @param {(?HTMLElement[]|NodeList|String)} [options.items]
+   * @param {?(HTMLElement[]|NodeList|String)} [options.items]
    * @param {Number} [options.showDuration=300]
    * @param {String} [options.showEasing="ease"]
    * @param {Object} [options.visibleStyles]

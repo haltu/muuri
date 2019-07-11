@@ -6,7 +6,7 @@
 
   QUnit.test('dragStart: should be triggered when dragging starts (in the end of the drag start process)', function (assert) {
 
-    assert.expect(6);
+    assert.expect(9);
 
     var done = assert.async();
     var container = utils.createGridElements();
@@ -25,9 +25,14 @@
     grid.on('dragStart', function (draggedItem, ev) {
       assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
       assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
-      assert.strictEqual(utils.isDraggerEvent(ev), true, 'callback: second argument should be a Dragger event object');
       assert.strictEqual(utils.matches(draggedItem.getElement(), '.muuri-item-dragging'), true, 'should be called after dragging classname is set');
       assert.strictEqual(draggedItem.getElement().parentNode, document.body, 'should be called after dragged element is appended to it`s drag container');
+
+      assert.strictEqual(utils.isDraggerEvent(ev), true, 'callback: second argument should be a Dragger event object');
+      assert.strictEqual(ev.isFirst, true, 'event.isFirst should be true');
+      assert.strictEqual(ev.isFinal, false, 'event.isFinal should be false');
+      assert.strictEqual(ev.type, 'start', 'event.type should be "start"');
+
       ++calls;
     });
 

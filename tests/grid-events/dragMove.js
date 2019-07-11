@@ -6,7 +6,7 @@
 
   QUnit.test('dragMove: should be triggered when item is dragged', function (assert) {
 
-    assert.expect(5);
+    assert.expect(8);
 
     var done = assert.async();
     var container = utils.createGridElements();
@@ -28,8 +28,12 @@
       if (!calls) {
         assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
         assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
-        assert.strictEqual(utils.isDraggerEvent(ev), true, 'callback: second argument should be a Dragger event object');
         assert.strictEqual(isStartCalled, true, 'callback: should be called after dragStart');
+
+        assert.strictEqual(utils.isDraggerEvent(ev), true, 'callback: second argument should be a Dragger event object');
+        assert.strictEqual(ev.isFirst, false, 'event.isFirst should be false');
+        assert.strictEqual(ev.isFinal, false, 'event.isFinal should be false');
+        assert.strictEqual(ev.type, 'move', 'event.type should be "move"');
       }
       ++calls;
     });

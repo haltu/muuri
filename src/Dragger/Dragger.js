@@ -19,8 +19,8 @@ var events = {
 };
 
 var hasTouchEvents = 'ontouchstart' in window;
-var hasPointerEvents = window.PointerEvent;
-var hasMsPointerEvents = window.navigator.msPointerEnabled;
+var hasPointerEvents = !!window.PointerEvent;
+var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
 var isAndroid = /(android)/i.test(navigator.userAgent);
 var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 

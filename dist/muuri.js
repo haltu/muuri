@@ -532,8 +532,8 @@
   };
 
   var hasTouchEvents = 'ontouchstart' in window;
-  var hasPointerEvents = window.PointerEvent;
-  var hasMsPointerEvents = window.navigator.msPointerEnabled;
+  var hasPointerEvents = !!window.PointerEvent;
+  var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
   var isAndroid = /(android)/i.test(navigator.userAgent);
   var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
@@ -1313,6 +1313,18 @@
     return ticker.cancel(itemId + placeholderTick);
   }
 
+  var ElProto = window.Element.prototype;
+  var matchesFn =
+    ElProto.matches ||
+    ElProto.matchesSelector ||
+    ElProto.webkitMatchesSelector ||
+    ElProto.mozMatchesSelector ||
+    ElProto.msMatchesSelector ||
+    ElProto.oMatchesSelector ||
+    function() {
+      return false;
+    };
+
   /**
    * Check if element matches a CSS selector.
    *
@@ -1321,20 +1333,7 @@
    * @returns {Boolean}
    */
   function elementMatches(el, selector) {
-    var elementMatches =
-      el.matches ||
-      el.matchesSelector ||
-      el.webkitMatchesSelector ||
-      el.mozMatchesSelector ||
-      el.msMatchesSelector ||
-      el.oMatchesSelector ||
-      null;
-
-    if (!elementMatches) {
-      return false;
-    }
-
-    return elementMatches.call(el, selector);
+    return matchesFn.call(el, selector);
   }
 
   /**

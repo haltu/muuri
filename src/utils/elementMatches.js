@@ -4,6 +4,18 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+var ElProto = window.Element.prototype;
+var matchesFn =
+  ElProto.matches ||
+  ElProto.matchesSelector ||
+  ElProto.webkitMatchesSelector ||
+  ElProto.mozMatchesSelector ||
+  ElProto.msMatchesSelector ||
+  ElProto.oMatchesSelector ||
+  function() {
+    return false;
+  };
+
 /**
  * Check if element matches a CSS selector.
  *
@@ -12,18 +24,5 @@
  * @returns {Boolean}
  */
 export default function elementMatches(el, selector) {
-  var elementMatches =
-    el.matches ||
-    el.matchesSelector ||
-    el.webkitMatchesSelector ||
-    el.mozMatchesSelector ||
-    el.msMatchesSelector ||
-    el.oMatchesSelector ||
-    null;
-
-  if (!elementMatches) {
-    return false;
-  }
-
-  return elementMatches.call(el, selector);
+  return matchesFn.call(el, selector);
 }

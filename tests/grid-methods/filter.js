@@ -131,8 +131,6 @@
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var showEndItems = null;
-    var hideEndItems = null;
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);

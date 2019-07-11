@@ -1,7 +1,6 @@
 (function (window) {
 
   var Muuri = window.Muuri;
-  var Simulator = window.Simulator;
 
   QUnit.module('Item methods');
 

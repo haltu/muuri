@@ -87,7 +87,6 @@
     var containerB = utils.createGridElements();
     var gridA = new Muuri(containerA);
     var gridB = new Muuri(containerB);
-    var item = gridA.getItems()[0];
     var gridALayoutId;
     var gridBLayoutId;
     var teardown = function () {

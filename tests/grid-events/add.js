@@ -1,7 +1,6 @@
 (function (window) {
 
   var Muuri = window.Muuri;
-  var idList = utils.idList;
 
   QUnit.module('Grid events');
 

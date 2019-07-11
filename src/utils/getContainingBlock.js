@@ -24,6 +24,7 @@ export default function getContainingBlock(element, includeSelf) {
   // As long as the containing block is an element, static and not
   // transformed, try to get the element's parent element and fallback to
   // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
+  var document = window.document;
   var ret = (includeSelf ? element : element.parentElement) || document;
   while (ret && ret !== document && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
     ret = ret.parentElement || document;

@@ -25,7 +25,7 @@ var isAndroid = /(android)/i.test(navigator.userAgent);
 var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
 var taProp = 'touchAction';
-var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
+var taPropPrefixed = getPrefixedPropName(window.document.documentElement.style, taProp);
 var taDefaultValue = 'auto';
 
 /**

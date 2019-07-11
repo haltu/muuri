@@ -63,7 +63,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   var targetElement = targetGrid._element;
   var targetItems = targetGrid._items;
   var currentIndex = grid._items.indexOf(item);
-  var targetContainer = container || document.body;
+  var targetContainer = container || window.document.body;
   var targetIndex;
   var targetItem;
   var currentContainer;

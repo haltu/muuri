@@ -254,7 +254,7 @@ ItemDragPlaceholder.prototype.create = function() {
   if (isFunction(settings.dragPlaceholder.createElement)) {
     element = settings.dragPlaceholder.createElement(item);
   } else {
-    element = document.createElement('div');
+    element = window.document.createElement('div');
   }
   this._element = element;
 

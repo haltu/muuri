@@ -12,20 +12,12 @@ import elementMatches from './elementMatches';
  * @param {HTMLElement} element
  * @param {String} className
  */
-function addClassModern(element, className) {
-  element.classList.add(className);
-}
-
-/**
- * Add class to an element (legacy version, for IE9 support).
- *
- * @param {HTMLElement} element
- * @param {String} className
- */
-function addClassLegacy(element, className) {
-  if (!elementMatches(element, '.' + className)) {
-    element.className += ' ' + className;
+export default function addClass(element, className) {
+  if (element.classList) {
+    element.classList.add(className);
+  } else {
+    if (!elementMatches(element, '.' + className)) {
+      element.className += ' ' + className;
+    }
   }
 }
-
-export default 'classList' in Element.prototype ? addClassModern : addClassLegacy;

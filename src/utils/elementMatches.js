@@ -4,21 +4,26 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-var proto = Element.prototype;
-var matches =
-  proto.matches ||
-  proto.matchesSelector ||
-  proto.webkitMatchesSelector ||
-  proto.mozMatchesSelector ||
-  proto.msMatchesSelector ||
-  proto.oMatchesSelector;
-
 /**
  * Check if element matches a CSS selector.
  *
- * @param {*} val
+ * @param {Element} el
+ * @param {String} selector
  * @returns {Boolean}
  */
 export default function elementMatches(el, selector) {
-  return matches.call(el, selector);
+  var elementMatches =
+    el.matches ||
+    el.matchesSelector ||
+    el.webkitMatchesSelector ||
+    el.mozMatchesSelector ||
+    el.msMatchesSelector ||
+    el.oMatchesSelector ||
+    null;
+
+  if (!elementMatches) {
+    return false;
+  }
+
+  return elementMatches.call(el, selector);
 }

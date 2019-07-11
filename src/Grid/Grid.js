@@ -125,14 +125,14 @@ function Grid(element, options) {
 
   // Allow passing element as selector string. Store element for instance.
   element = this._element =
-    typeof element === stringType ? document.querySelector(element) : element;
+    typeof element === stringType ? window.document.querySelector(element) : element;
 
   // Throw an error if the container element is not body element or does not
   // exist within the body element.
   var isElementInDom = element.getRootNode
     ? element.getRootNode({ composed: true }) === document
-    : document.body.contains(element);
-  if (!isElementInDom || element === document.documentElement) {
+    : window.document.body.contains(element);
+  if (!isElementInDom || element === window.document.documentElement) {
     throw new Error('Container element must be an existing DOM element');
   }
 
@@ -499,7 +499,7 @@ Grid.prototype.synchronize = function() {
     for (i = 0; i < items.length; i++) {
       element = items[i]._element;
       if (element.parentNode === container) {
-        fragment = fragment || document.createDocumentFragment();
+        fragment = fragment || window.document.createDocumentFragment();
         fragment.appendChild(element);
       }
     }
@@ -1090,7 +1090,7 @@ Grid.prototype.send = function(item, grid, position, options) {
   if (!item) return this;
 
   var opts = options || 0;
-  var container = opts.appendTo || document.body;
+  var container = opts.appendTo || window.document.body;
   var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
   var layoutReceiver = opts.layoutReceiver
     ? opts.layoutReceiver

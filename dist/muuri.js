@@ -215,13 +215,14 @@
   var transformProp = 'transform';
 
   // Find the supported transform prop and style names.
+  var docElemStyle = window.document.documentElement.style;
   var style = 'transform';
   var styleCap = 'Transform';
   var found = false;
   ['', 'Webkit', 'Moz', 'O', 'ms'].forEach(function(prefix) {
     if (found) return;
     var propName = prefix ? prefix + styleCap : style;
-    if (document.documentElement.style[propName] !== undefined) {
+    if (docElemStyle[propName] !== undefined) {
       prefix = prefix.toLowerCase();
       transformStyle = prefix ? '-' + prefix + '-' + style : style;
       transformProp = propName;
@@ -537,7 +538,7 @@
   var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
   var taProp = 'touchAction';
-  var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
+  var taPropPrefixed = getPrefixedPropName(window.document.documentElement.style, taProp);
   var taDefaultValue = 'auto';
 
   /**
@@ -1312,23 +1313,28 @@
     return ticker.cancel(itemId + placeholderTick);
   }
 
-  var proto = Element.prototype;
-  var matches =
-    proto.matches ||
-    proto.matchesSelector ||
-    proto.webkitMatchesSelector ||
-    proto.mozMatchesSelector ||
-    proto.msMatchesSelector ||
-    proto.oMatchesSelector;
-
   /**
    * Check if element matches a CSS selector.
    *
-   * @param {*} val
+   * @param {Element} el
+   * @param {String} selector
    * @returns {Boolean}
    */
   function elementMatches(el, selector) {
-    return matches.call(el, selector);
+    var elementMatches =
+      el.matches ||
+      el.matchesSelector ||
+      el.webkitMatchesSelector ||
+      el.mozMatchesSelector ||
+      el.msMatchesSelector ||
+      el.oMatchesSelector ||
+      null;
+
+    if (!elementMatches) {
+      return false;
+    }
+
+    return elementMatches.call(el, selector);
   }
 
   /**
@@ -1337,23 +1343,15 @@
    * @param {HTMLElement} element
    * @param {String} className
    */
-  function addClassModern(element, className) {
-    element.classList.add(className);
-  }
-
-  /**
-   * Add class to an element (legacy version, for IE9 support).
-   *
-   * @param {HTMLElement} element
-   * @param {String} className
-   */
-  function addClassLegacy(element, className) {
-    if (!elementMatches(element, '.' + className)) {
-      element.className += ' ' + className;
+  function addClass(element, className) {
+    if (element.classList) {
+      element.classList.add(className);
+    } else {
+      if (!elementMatches(element, '.' + className)) {
+        element.className += ' ' + className;
+      }
     }
   }
-
-  var addClass = 'classList' in Element.prototype ? addClassModern : addClassLegacy;
 
   var tempArray = [];
   var numberType = 'number';
@@ -1521,6 +1519,7 @@
     // As long as the containing block is an element, static and not
     // transformed, try to get the element's parent element and fallback to
     // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
+    var document = window.document;
     var ret = (includeSelf ? element : element.parentElement) || document;
     while (ret && ret !== document && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
       ret = ret.parentElement || document;
@@ -1736,23 +1735,17 @@
    * @param {HTMLElement} element
    * @param {String} className
    */
-  function removeClassModern(element, className) {
-    element.classList.remove(className);
-  }
-
-  /**
-   * Remove class from an element (legacy version, for IE9 support).
-   *
-   * @param {HTMLElement} element
-   * @param {String} className
-   */
-  function removeClassLegacy(element, className) {
-    if (elementMatches(element, '.' + className)) {
-      element.className = (' ' + element.className + ' ').replace(' ' + className + ' ', ' ').trim();
+  function removeClass(element, className) {
+    if (element.classList) {
+      element.classList.remove(className);
+    } else {
+      if (elementMatches(element, '.' + className)) {
+        element.className = (' ' + element.className + ' ')
+          .replace(' ' + className + ' ', ' ')
+          .trim();
+      }
     }
   }
-
-  var removeClass = 'classList' in Element.prototype ? removeClassModern : removeClassLegacy;
 
   // Drag start predicate states.
   var startPredicateInactive = 0;
@@ -3292,7 +3285,7 @@
     if (isFunction(settings.dragPlaceholder.createElement)) {
       element = settings.dragPlaceholder.createElement(item);
     } else {
-      element = document.createElement('div');
+      element = window.document.createElement('div');
     }
     this._element = element;
 
@@ -3811,7 +3804,7 @@
     var targetElement = targetGrid._element;
     var targetItems = targetGrid._items;
     var currentIndex = grid._items.indexOf(item);
-    var targetContainer = container || document.body;
+    var targetContainer = container || window.document.body;
     var targetIndex;
     var targetItem;
     var currentContainer;
@@ -5428,14 +5421,14 @@
 
     // Allow passing element as selector string. Store element for instance.
     element = this._element =
-      typeof element === stringType ? document.querySelector(element) : element;
+      typeof element === stringType ? window.document.querySelector(element) : element;
 
     // Throw an error if the container element is not body element or does not
     // exist within the body element.
     var isElementInDom = element.getRootNode
       ? element.getRootNode({ composed: true }) === document
-      : document.body.contains(element);
-    if (!isElementInDom || element === document.documentElement) {
+      : window.document.body.contains(element);
+    if (!isElementInDom || element === window.document.documentElement) {
       throw new Error('Container element must be an existing DOM element');
     }
 
@@ -5802,7 +5795,7 @@
       for (i = 0; i < items.length; i++) {
         element = items[i]._element;
         if (element.parentNode === container) {
-          fragment = fragment || document.createDocumentFragment();
+          fragment = fragment || window.document.createDocumentFragment();
           fragment.appendChild(element);
         }
       }
@@ -6393,7 +6386,7 @@
     if (!item) return this;
 
     var opts = options || 0;
-    var container = opts.appendTo || document.body;
+    var container = opts.appendTo || window.document.body;
     var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
     var layoutReceiver = opts.layoutReceiver
       ? opts.layoutReceiver

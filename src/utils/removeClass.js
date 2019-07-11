@@ -12,20 +12,14 @@ import elementMatches from './elementMatches';
  * @param {HTMLElement} element
  * @param {String} className
  */
-function removeClassModern(element, className) {
-  element.classList.remove(className);
-}
-
-/**
- * Remove class from an element (legacy version, for IE9 support).
- *
- * @param {HTMLElement} element
- * @param {String} className
- */
-function removeClassLegacy(element, className) {
-  if (elementMatches(element, '.' + className)) {
-    element.className = (' ' + element.className + ' ').replace(' ' + className + ' ', ' ').trim();
+export default function removeClass(element, className) {
+  if (element.classList) {
+    element.classList.remove(className);
+  } else {
+    if (elementMatches(element, '.' + className)) {
+      element.className = (' ' + element.className + ' ')
+        .replace(' ' + className + ' ', ' ')
+        .trim();
+    }
   }
 }
-
-export default 'classList' in Element.prototype ? removeClassModern : removeClassLegacy;

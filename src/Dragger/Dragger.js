@@ -21,7 +21,7 @@ var events = {
 var hasTouchEvents = !!(
   'ontouchstart' in window ||
   window.TouchEvent ||
-  (window.DocumentTouch && document instanceof DocumentTouch)
+  (window.DocumentTouch && window.document instanceof DocumentTouch)
 );
 var hasPointerEvents = !!window.PointerEvent;
 var hasMsPointerEvents = !!window.navigator.msPointerEnabled;

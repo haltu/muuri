@@ -18,14 +18,10 @@ var events = {
   cancel: 'cancel'
 };
 
-var hasTouchEvents = !!(
-  'ontouchstart' in window ||
-  window.TouchEvent ||
-  (window.DocumentTouch && window.document instanceof DocumentTouch)
-);
+var hasTouchEvents = !!('ontouchstart' in window || window.TouchEvent);
 var hasPointerEvents = !!window.PointerEvent;
 var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
-var isAndroid = /(android)/i.test(navigator.userAgent);
+var isAndroid = /(android)/i.test(window.navigator.userAgent);
 var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
 var taProp = 'touchAction';
@@ -351,7 +347,12 @@ Dragger.prototype._preStartCheck = function(e) {
   this._pointerId = Dragger._getEventPointerId(e);
   if (this._pointerId === null) return;
 
-  // Store the start event and trigger start (async or sync).
+  // Store the start event and trigger start (async or sync). Pointer events
+  // are emitted before touch events if the browser supports both of them. And
+  // if you try to move an element before `touchstart` is emitted the pointer
+  // events for that element will be canceled. The fix is to delay the emitted
+  // pointer events in such a scenario by one frame so that `touchstart` has
+  // time to be emitted before the element is (potentially) moved.
   this._startEvent = e;
   if (hasTouchEvents && (hasPointerEvents || hasMsPointerEvents)) {
     // Special cancelable check for Android to prevent drag procedure from

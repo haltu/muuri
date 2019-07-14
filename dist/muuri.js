@@ -531,7 +531,11 @@
     cancel: 'cancel'
   };
 
-  var hasTouchEvents = 'ontouchstart' in window;
+  var hasTouchEvents = !!(
+    'ontouchstart' in window ||
+    window.TouchEvent ||
+    (window.DocumentTouch && document instanceof DocumentTouch)
+  );
   var hasPointerEvents = !!window.PointerEvent;
   var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
   var isAndroid = /(android)/i.test(navigator.userAgent);

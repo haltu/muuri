@@ -18,7 +18,11 @@ document.addEventListener('DOMContentLoaded', function () {
       dragSort: function () {
         return columnGrids;
       },
-      dragSortInterval: 0,
+      dragSortHeuristics: {
+        sortInterval: 0,
+        minDragDistance: 0,
+        minBounceBackAngle: 0
+      },
       dragContainer: document.body,
       dragReleaseDuration: 400,
       dragReleaseEasing: 'ease'
@@ -53,7 +57,11 @@ document.addEventListener('DOMContentLoaded', function () {
     layoutDuration: 400,
     layoutEasing: 'ease',
     dragEnabled: true,
-    dragSortInterval: 0,
+    dragSortHeuristics: {
+      sortInterval: 0,
+      minDragDistance: 0,
+      minBounceBackAngle: 0
+    },
     dragStartPredicate: {
       handle: '.board-column-header'
     },

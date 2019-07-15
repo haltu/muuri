@@ -75,7 +75,11 @@ document.addEventListener('DOMContentLoaded', function () {
       layoutDuration: 400,
       layoutEasing: 'ease',
       dragEnabled: true,
-      dragSortInterval: 50,
+      dragSortHeuristics: {
+        sortInterval: 50,
+        minDragDistance: 10,
+        minBounceBackAngle: 1
+      },
       dragContainer: document.body,
       dragStartPredicate: function (item, event) {
         var isDraggable = sortFieldValue === 'order';

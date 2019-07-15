@@ -86,6 +86,13 @@ document.addEventListener('DOMContentLoaded', function () {
         var isRemoveAction = elementMatches(event.target, '.card-remove, .card-remove i');
         return isDraggable && !isRemoveAction ? Muuri.ItemDrag.defaultStartPredicate(item, event) : false;
       },
+      dragPlaceholder: {
+        enabled: true,
+        duration: 400,
+        createElement: function (item) {
+          return item.getElement().cloneNode(true);
+        }
+      },
       dragReleaseDuration: 400,
       dragReleseEasing: 'ease'
     })
@@ -284,8 +291,12 @@ document.addEventListener('DOMContentLoaded', function () {
   function updateIndices() {
 
     grid.getItems().forEach(function (item, i) {
-      item.getElement().setAttribute('data-id', i + 1);
-      item.getElement().querySelector('.card-id').innerHTML = i + 1;
+      var newId = i + 1;
+      item.getElement().setAttribute('data-id', newId);
+      item.getElement().querySelector('.card-id').innerHTML = newId;
+      if (item._dragPlaceholder.isActive()) {
+        item._dragPlaceholder._element.querySelector('.card-id').innerHTML = newId;
+      }
     });
 
   }

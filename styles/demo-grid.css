@@ -58,6 +58,11 @@
 .item.muuri-item-positioning {
   z-index: 2;
 }
+.item.muuri-item-placeholder {
+  z-index: 2;
+  margin: 0;
+  opacity: 0.5;
+}
 .item.muuri-item-dragging,
 .item.muuri-item-releasing {
   z-index: 9999;

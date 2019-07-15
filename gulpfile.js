@@ -11,7 +11,7 @@ const exec = require('child_process').exec;
 const pkg = require('./package.json');
 const karmaDefaults = require('./karma.defaults.js');
 
-if (fs.existsSync('./.env')) dotenv.load();
+if (fs.existsSync('./.env')) dotenv.config();
 
 gulp.task('lint', () => {
   return gulp

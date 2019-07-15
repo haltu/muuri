@@ -1,6 +1,6 @@
 # Muuri
 
-[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri@0.7.1/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.7.1/dist/muuri.min.js)
+[![gzip size](http://img.badgesize.io/https://unpkg.com/muuri@0.8.0/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.8.0/dist/muuri.min.js)
 [![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
 
 Muuri is a JavaScript layout engine that allows you to build all kinds of layouts and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
@@ -34,20 +34,18 @@ Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web
 
 ### 1. Get Muuri
 
-Download:
-* [muuri.js](https://unpkg.com/muuri@0.7.1/dist/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://unpkg.com/muuri@0.7.1/dist/muuri.min.js) - for production (minified, no comments).
-
-Or link directly:
-
-```html
-<script src="https://unpkg.com/muuri@0.7.1/dist/muuri.min.js"></script>
-```
-
-Or install with [npm](https://www.npmjs.com/):
-
+Install via [npm](https://www.npmjs.com/):
 ```bash
 npm install muuri
+```
+
+Or download:
+* [muuri.js](https://unpkg.com/muuri@0.8.0/dist/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://unpkg.com/muuri@0.8.0/dist/muuri.min.js) - for production (minified, no comments).
+
+Or link directly:
+```html
+<script src="https://unpkg.com/muuri@0.8.0/dist/muuri.min.js"></script>
 ```
 
 ### 2. Get Web Animations Polyfill (if needed)
@@ -63,8 +61,8 @@ npm install web-animations-js
 Add Muuri on your site and make sure to include the Web Animations Polyfill before Muuri (if needed).
 
 ```html
-<script src="https://unpkg.com/web-animations-js@2.3.1/web-animations.min.js"></script>
-<script src="https://unpkg.com/muuri@0.7.1/dist/muuri.min.js"></script>
+<script src="https://unpkg.com/web-animations-js@2.3.2/web-animations.min.js"></script>
+<script src="https://unpkg.com/muuri@0.8.0/dist/muuri.min.js"></script>
 ```
 
 ### 4. Add the markup
@@ -231,7 +229,8 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     userSelect: 'none',
     userDrag: 'none',
     tapHighlightColor: 'rgba(0, 0, 0, 0)',
-    touchCallout: 'none'
+    touchCallout: 'none',
+    contentZooming: 'none'
   },
   dragPlaceholder: {
     enabled: false,
@@ -297,6 +296,7 @@ var gridB = new Muuri('.grid-b', {
 * [dragSortPredicate](#dragsortpredicate-)
 * [dragReleaseDuration](#dragreleaseduration-)
 * [dragReleaseEasing](#dragreleaseeasing-)
+* [dragCssProps](#dragcssprops-)
 * [dragPlaceholder](#dragplaceholder-)
 * [containerClass](#containerclass-)
 * [itemClass](#itemclass-)
@@ -902,6 +902,55 @@ The easing for item's drag release animation. Accepts any valid [Animation easin
 ```javascript
 var grid = new Muuri(elem, {
   dragReleaseEasing: 'ease-out'
+});
+```
+
+### dragCssProps &nbsp;
+
+Drag specific CSS properties that Muuri sets to the draggable item elements. Muuri automatically prefixes the properties before applying them to the element. `touchAction` property is required to be always defined, but the other properties are optional and can be omitted by setting their value to an empty string if you want to e.g. define them via CSS only.
+
+* Default value: `{touchAction: 'none', userSelect: 'none', userDrag: 'none', tapHighlightColor: 'rgba(0, 0, 0, 0)', touchCallout: 'none', contentZooming: 'none'}`.
+* Accepted types: object.
+
+You can define the following properties:
+
+* **touchAction** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'none'`.
+  * https://developer.mozilla.org/en-US/docs/Web/CSS/touch-action
+* **userSelect** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'none'`.
+  * https://developer.mozilla.org/en-US/docs/Web/CSS/user-select
+  * Optional.
+* **userDrag** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'none'`.
+  * http://help.dottoro.com/lcbixvwm.php
+  * Optional.
+* **tapHighlightColor** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'rgba(0, 0, 0, 0)'`.
+  * https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-tap-highlight-color
+  * Optional.
+* **touchCallout** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'none'`.
+  * https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-touch-callout
+  * Optional.
+* **contentZooming** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'none'`.
+  * https://developer.mozilla.org/en-US/docs/Web/CSS/-ms-content-zooming
+  * Optional.
+
+```javascript
+// Only set the required touch-action CSS property via the options if you for
+// example want to set the other props via CSS instead.
+var grid = new Muuri(elem, {
+  dragEnabled: true,
+  dragCssProps: {
+    touchAction: 'pan-y',
+    userSelect: '',
+    userDrag: '',
+    tapHighlightColor: '',
+    touchCallout: '',
+    contentZooming: ''
+  }
 });
 ```
 

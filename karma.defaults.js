@@ -31,11 +31,7 @@ module.exports = {
   ],
   colors: true,
   autoWatch: false,
-  captureTimeout: 240000,
-  browserDisconnectTimeout: 60000,
-  browserNoActivityTimeout: 60000,
-  browserDisconnectTolerance: 10,
-  concurrency: 1,
+  browserDisconnectTolerance: 2,
   singleRun: true,
   hostname: '127.0.0.1',
   sauceLabs: {

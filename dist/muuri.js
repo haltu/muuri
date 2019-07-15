@@ -473,19 +473,6 @@
     callback && callback();
   };
 
-  var supportsPassive = false;
-  try {
-    var passiveOpts = Object.defineProperty({}, 'passive', {
-      get: function() {
-        supportsPassive = true;
-      }
-    });
-    window.addEventListener('testPassive', null, passiveOpts);
-    window.removeEventListener('testPassive', null, passiveOpts);
-  } catch (e) {}
-
-  var isPassiveEventsSupported = supportsPassive;
-
   var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
 
   /**
@@ -524,6 +511,20 @@
     }
   ).bind(window);
 
+  // Detect support for passive events:
+  // https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
+  var isPassiveEventsSupported = false;
+  try {
+    var passiveOpts = Object.defineProperty({}, 'passive', {
+      get: function() {
+        isPassiveEventsSupported = true;
+      }
+    });
+    window.addEventListener('testPassive', null, passiveOpts);
+    window.removeEventListener('testPassive', null, passiveOpts);
+  } catch (e) {}
+
+  // Dragger events.
   var events = {
     start: 'start',
     move: 'move',
@@ -1022,27 +1023,30 @@
    *
    * @public
    * @memberof Dragger.prototype
-   * @param {Object} [props]
+   * @param {Object} [newProps]
    */
-  Dragger.prototype.setCssProps = function(props) {
-    if (!props) return;
+  Dragger.prototype.setCssProps = function(newProps) {
+    if (!newProps) return;
 
-    var cssProps = this._cssProps;
+    var currentProps = this._cssProps;
     var element = this._element;
     var prop;
     var prefixedProp;
 
-    // Reset existing props.
-    for (prop in cssProps) {
-      element.style[prop] = cssProps[prop];
-      delete cssProps[prop];
+    // Reset current props.
+    for (prop in currentProps) {
+      element.style[prop] = currentProps[prop];
+      delete currentProps[prop];
     }
 
     // Set new props.
-    for (prop in props) {
+    for (prop in newProps) {
+      // Make sure we have a value for the prop.
+      if (!newProps[prop]) continue;
+
       // Special handling for touch-action.
       if (prop === taProp) {
-        this.setTouchAction(props[prop]);
+        this.setTouchAction(newProps[prop]);
         continue;
       }
 
@@ -1051,8 +1055,8 @@
       if (!prefixedProp) continue;
 
       // Store the prop and add the style.
-      cssProps[prefixedProp] = '';
-      element.style[prefixedProp] = props[prop];
+      currentProps[prefixedProp] = '';
+      element.style[prefixedProp] = newProps[prop];
     }
   };
 
@@ -5634,7 +5638,8 @@
       userSelect: 'none',
       userDrag: 'none',
       tapHighlightColor: 'rgba(0, 0, 0, 0)',
-      touchCallout: 'none'
+      touchCallout: 'none',
+      contentZooming: 'none'
     },
     dragPlaceholder: {
       enabled: false,

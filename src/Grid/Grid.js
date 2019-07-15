@@ -334,7 +334,8 @@ Grid.defaultOptions = {
     userSelect: 'none',
     userDrag: 'none',
     tapHighlightColor: 'rgba(0, 0, 0, 0)',
-    touchCallout: 'none'
+    touchCallout: 'none',
+    contentZooming: 'none'
   },
   dragPlaceholder: {
     enabled: false,

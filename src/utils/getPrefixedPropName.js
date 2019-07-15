@@ -1,9 +1,6 @@
 /**
- * Copyright (c) 2015-present, Haltu Oy
- * Released under the MIT license
- * https://github.com/haltu/muuri/blob/master/LICENSE.md
- *
- * Forked from: https://github.com/hammerjs/hammer.js/blob/563b5b1e4bfbb5796798dd286cd57b7c56f1eb9e/src/utils/prefixed.js
+ * Forked from hammer.js:
+ * https://github.com/hammerjs/hammer.js/blob/563b5b1e4bfbb5796798dd286cd57b7c56f1eb9e/src/utils/prefixed.js
  */
 
 var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];

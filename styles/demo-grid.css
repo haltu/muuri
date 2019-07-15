@@ -104,6 +104,9 @@
   -o-transition: all 0.2s ease-out;
   transition: all 0.2s ease-out;
 }
+.item.muuri-item-placeholder .card {
+  border-style: dashed;
+}
 .item.red .card {
   color: #f94a7a;
 }
@@ -124,6 +127,7 @@
   font-weight: 400;
 }
 .card-remove {
+  display: none;
   position: absolute;
   right: 0;
   top: 0;
@@ -134,23 +138,15 @@
   font-size: 20px;
   font-weight: 400;
   cursor: pointer;
-  -moz-transform: scale(0);
-  -webkit-transform: scale(0);
-  -o-transform: scale(0);
-  -ms-transform: scale(0);
-  transform: scale(0);
-  -webkit-transition: all 0.15s ease-out;
-  -moz-transition: all 0.15s ease-out;
-  -ms-transition: all 0.15s ease-out;
-  -o-transition: all 0.15s ease-out;
-  transition: all 0.15s ease-out;
 }
 .card:hover > .card-remove {
-  -moz-transform: scale(1);
-  -webkit-transform: scale(1);
-  -o-transform: scale(1);
-  -ms-transform: scale(1);
-  transform: scale(1);
+  display: block;
+}
+.item.muuri-item-dragging .card-remove,
+.item.muuri-item-positioning .card-remove,
+.item.muuri-item-releasing .card-remove,
+.item.muuri-item-placeholder .card-remove {
+  display: none;
 }
 
 /* Grid Footer */

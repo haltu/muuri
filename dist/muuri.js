@@ -1,5 +1,5 @@
 /**
-* Muuri v0.8.0
+* Muuri v0.9.0
 * https://github.com/haltu/muuri
 * Copyright (c) 2015-present, Haltu Oy
 * Released under the MIT license
@@ -581,7 +581,7 @@
       this.setTouchAction(taDefaultValue);
     }
 
-    // Prevent native link/image dragging for the item and it's ancestors.
+    // Prevent native link/image dragging for the item and it's children.
     element.addEventListener('dragstart', Dragger._preventDefault, false);
 
     // Listen to start event.
@@ -1955,6 +1955,8 @@
       // Get drag sort predicate settings.
       var sortThreshold = options && typeof options.threshold === 'number' ? options.threshold : 50;
       var sortAction = options && options.action === actionSwap ? actionSwap : actionMove;
+      var sortMigrateAction =
+        options && options.migrateAction === actionSwap ? actionSwap : actionMove;
 
       // Populate item rect data.
       itemRect.width = item._width;
@@ -1969,6 +1971,7 @@
       // dragged item enough.
       if (!grid) return false;
 
+      var isMigration = item.getGrid() !== grid;
       var gridOffsetLeft = 0;
       var gridOffsetTop = 0;
       var matchScore = -1;
@@ -2018,18 +2021,25 @@
         }
       }
 
-      // If there is no valid match and the item is being moved into another
-      // grid.
-      if (matchScore < sortThreshold && item.getGrid() !== grid) {
-        matchIndex = hasValidTargets ? -1 : 0;
-        matchScore = Infinity;
+      // If there is no valid match and the dragged item is being moved into
+      // another grid we need to do some guess work here. If there simply are no
+      // valid targets (which means that the dragged item will be the only active
+      // item in the new grid) we can just add it as the first item. If we have
+      // valid items in the new grid and the dragged item is overlapping one or
+      // more of the items in the new grid let's make an exception with the
+      // threshold and just pick the item which the dragged item is overlapping
+      // most. However, if the dragged item is not overlapping any of the valid
+      // items in the new grid let's position it as the last item in the grid.
+      if (matchScore < sortThreshold && isMigration) {
+        matchIndex = hasValidTargets ? (matchScore > 0 ? matchIndex : -1) : 0;
+        matchScore = sortThreshold;
       }
 
       // Check if the best match overlaps enough to justify a placement switch.
       if (matchScore >= sortThreshold) {
         returnData.grid = grid;
         returnData.index = matchIndex;
-        returnData.action = sortAction;
+        returnData.action = isMigration ? sortMigrateAction : sortAction;
         return returnData;
       }
 
@@ -2486,6 +2496,7 @@
     }
 
     // If the item was moved to another grid.
+    // TODO: Support "swap" action!
     else {
       this._hBlockedIndex = null;
 
@@ -5629,7 +5640,8 @@
     },
     dragSortPredicate: {
       threshold: 50,
-      action: actionMove
+      action: actionMove,
+      migrateAction: actionMove
     },
     dragReleaseDuration: 300,
     dragReleaseEasing: 'ease',

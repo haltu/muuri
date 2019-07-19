@@ -325,7 +325,8 @@ Grid.defaultOptions = {
   },
   dragSortPredicate: {
     threshold: 50,
-    action: actionMove
+    action: actionMove,
+    migrateAction: actionMove
   },
   dragReleaseDuration: 300,
   dragReleaseEasing: 'ease',

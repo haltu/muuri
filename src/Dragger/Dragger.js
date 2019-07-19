@@ -80,7 +80,7 @@ function Dragger(element, cssProps) {
     this.setTouchAction(taDefaultValue);
   }
 
-  // Prevent native link/image dragging for the item and it's ancestors.
+  // Prevent native link/image dragging for the item and it's children.
   element.addEventListener('dragstart', Dragger._preventDefault, false);
 
   // Listen to start event.

@@ -10,7 +10,7 @@
 * Copyright (c) 2016-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
 *
-* Muuri Ticker / Muuri Emitter / Muuri Queue
+* Muuri Ticker / Muuri Emitter / Muuri Queue / Muuri Dragger
 * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
 */

@@ -220,7 +220,8 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   },
   dragSortPredicate: {
     threshold: 50,
-    action: actionMove
+    action: 'move',
+    migrateAction: 'move'
   },
   dragReleaseDuration: 300,
   dragReleaseEasing: 'ease',
@@ -820,14 +821,18 @@ var grid = new Muuri(elem, {
 
 Defines the logic for the sort procedure during dragging an item.
 
-* Default value: `{action: 'move', threshold: 50}`.
+* Default value: `{action: 'move', migrateAction: 'move', threshold: 50}`.
 * Accepted types: function, object.
 
 If an object is provided the default sort predicate handler will be used. You can define the following properties:
 * **action** &nbsp;&mdash;&nbsp; *string*
   * Default value: `'move'`.
   * Allowed values: `'move'`, `'swap'`.
-  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps?
+  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps when the drag occurs within the same grid?
+* **migrateAction** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'move'`.
+  * Allowed values: `'move'`, `'swap'`.
+  * Should the dragged item be *moved* to the new position or should it *swap* places with the item it overlaps when the dragged item is moved to another grid?
 * **threshold** &nbsp;&mdash;&nbsp; *number*
   * Default value: `50`.
   * Allowed values: `1` - `100`.

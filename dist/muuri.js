@@ -2442,6 +2442,7 @@
     var currentIndex;
     var targetGrid;
     var targetIndex;
+    var targetItem;
     var sortAction;
     var isMigration;
 
@@ -2496,9 +2497,11 @@
     }
 
     // If the item was moved to another grid.
-    // TODO: Support "swap" action!
     else {
       this._hBlockedIndex = null;
+
+      // Let's fetch the target item when it's still in it's original index.
+      targetItem = targetGrid._items[targetIndex];
 
       // Emit beforeSend event.
       if (currentGrid._hasListeners(eventBeforeSend)) {
@@ -2557,6 +2560,23 @@
           toGrid: targetGrid,
           toIndex: targetIndex
         });
+      }
+
+      // If the sort action is "swap" let's respect it and send the target item
+      // (if it exists) from the target grid to the originating grid. This process
+      // is done on purpose after the dragged item placed within the target grid
+      // so that we can keep this implementation as simple as possible utilizing
+      // the existing API.
+      if (sortAction === actionSwap && targetItem && targetItem.isActive()) {
+        // Sanity check to make sure that the target item is still part of the
+        // target grid. It could have been manipulated in the event handlers.
+        if (targetGrid._items.indexOf(targetItem) > -1) {
+          targetGrid.send(targetItem, currentGrid, currentIndex, {
+            appendTo: this._container || window.document.body,
+            layoutSender: false,
+            layoutReceiver: false
+          });
+        }
       }
 
       // Layout both grids.
@@ -5412,6 +5432,7 @@
    * @param {(Function|Object)} [options.dragSortPredicate]
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
+   * @param {String} [options.dragSortPredicate.migrateAction="move"]
    * @param {Number} [options.dragReleaseDuration=300]
    * @param {String} [options.dragReleaseEasing="ease"]
    * @param {Object} [options.dragCssProps]

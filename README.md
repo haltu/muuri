@@ -805,6 +805,17 @@ var grid = new Muuri(elem, {
 });
 ```
 
+```javascript
+// Pro tip: If you want drag sorting happening only on release set a really
+// long sortInterval. A bit of a hack, but works.
+var grid = new Muuri(elem, {
+  dragEnabled: true,
+  dragSortHeuristics: {
+    sortInterval: 3600000 // 1 hour
+  }
+});
+```
+
 ### dragSortPredicate &nbsp;
 
 Defines the logic for the sort procedure during dragging an item.

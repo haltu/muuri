@@ -41,6 +41,10 @@
         margin: 5px;
         z-index: 1;
       }
+      .item.muuri-item-placeholder {
+        opacity: 0.5;
+        margin: 0;
+      }
       .item.h1 {
         height: 50px;
         line-height: 50px;
@@ -112,6 +116,15 @@
           dragContainer: document.body,
           dragSort: function() {
             return [grid1, grid2];
+          },
+          dragSortPredicate: {
+            migrateAction: 'move',
+          },
+          dragPlaceholder: {
+            enabled: true,
+            createElement: function (item) {
+              return item.getElement().cloneNode(true);
+            }
           }
         });
 
@@ -121,6 +134,15 @@
           dragContainer: document.body,
           dragSort: function() {
             return [grid1, grid2];
+          },
+          dragSortPredicate: {
+            migrateAction: 'swap',
+          },
+          dragPlaceholder: {
+            enabled: true,
+            createElement: function (item) {
+              return item.getElement().cloneNode(true);
+            }
           }
         });
 

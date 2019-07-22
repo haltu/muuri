@@ -1881,6 +1881,8 @@
   /**
    * Default drag sort predicate.
    *
+   * @todo Check if we layout thrashing is a problem here and if we can alleviate
+   *       it's potential effects.
    * @public
    * @memberof ItemDrag
    * @param {Item} item
@@ -1895,7 +1897,7 @@
     var itemRect = {};
     var targetRect = {};
     var returnData = {};
-    var rootGridArray = [];
+    var gridsArray = [];
 
     function getTargetGrid(item, rootGrid, threshold) {
       var target = null;
@@ -1908,14 +1910,16 @@
 
       // Get potential target grids.
       if (dragSort === true) {
-        rootGridArray[0] = rootGrid;
-        grids = rootGridArray;
-      } else {
+        gridsArray[0] = rootGrid;
+        grids = gridsArray;
+      } else if (isFunction(dragSort)) {
         grids = dragSort.call(rootGrid, item);
       }
 
       // Return immediately if there are no grids.
-      if (!Array.isArray(grids)) return target;
+      if (!grids || !Array.isArray(grids) || !grids.length) {
+        return target;
+      }
 
       // Loop through the grids and get the best match.
       for (i = 0; i < grids.length; i++) {
@@ -1942,8 +1946,8 @@
         }
       }
 
-      // Always reset root grid array.
-      rootGridArray.length = 0;
+      // Always reset grids array.
+      gridsArray.length = 0;
 
       return target;
     }
@@ -1955,8 +1959,7 @@
       // Get drag sort predicate settings.
       var sortThreshold = options && typeof options.threshold === 'number' ? options.threshold : 50;
       var sortAction = options && options.action === actionSwap ? actionSwap : actionMove;
-      var sortMigrateAction =
-        options && options.migrateAction === actionSwap ? actionSwap : actionMove;
+      var migrateAction = options && options.migrateAction === actionSwap ? actionSwap : actionMove;
 
       // Populate item rect data.
       itemRect.width = item._width;
@@ -2039,7 +2042,7 @@
       if (matchScore >= sortThreshold) {
         returnData.grid = grid;
         returnData.index = matchIndex;
-        returnData.action = isMigration ? sortMigrateAction : sortAction;
+        returnData.action = isMigration ? migrateAction : sortAction;
         return returnData;
       }
 

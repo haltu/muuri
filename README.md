@@ -1,6 +1,6 @@
 # Muuri
 
-[![gzip size](https://img.badgesize.io/https://unpkg.com/muuri@0.8.0/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.8.0/dist/muuri.min.js)
+[![gzip size](https://img.badgesize.io/https://unpkg.com/muuri@0.9.0/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.9.0/dist/muuri.min.js)
 [![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
 
 Muuri is a JavaScript layout engine that allows you to build all kinds of layouts and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
@@ -40,12 +40,12 @@ npm install muuri
 ```
 
 Or download:
-* [muuri.js](https://unpkg.com/muuri@0.8.0/dist/muuri.js) - for development (not minified, with comments).
-* [muuri.min.js](https://unpkg.com/muuri@0.8.0/dist/muuri.min.js) - for production (minified, no comments).
+* [muuri.js](https://unpkg.com/muuri@0.9.0/dist/muuri.js) - for development (not minified, with comments).
+* [muuri.min.js](https://unpkg.com/muuri@0.9.0/dist/muuri.min.js) - for production (minified, no comments).
 
 Or link directly:
 ```html
-<script src="https://unpkg.com/muuri@0.8.0/dist/muuri.min.js"></script>
+<script src="https://unpkg.com/muuri@0.9.0/dist/muuri.min.js"></script>
 ```
 
 ### 2. Get Web Animations Polyfill (if needed)
@@ -62,7 +62,7 @@ Add Muuri on your site and make sure to include the Web Animations Polyfill befo
 
 ```html
 <script src="https://unpkg.com/web-animations-js@2.3.2/web-animations.min.js"></script>
-<script src="https://unpkg.com/muuri@0.8.0/dist/muuri.min.js"></script>
+<script src="https://unpkg.com/muuri@0.9.0/dist/muuri.min.js"></script>
 ```
 
 ### 4. Add the markup

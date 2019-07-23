@@ -993,7 +993,6 @@ Grid.prototype.sort = (function() {
     }
     // Otherwise let's just skip it, nothing we can do here.
     else {
-      /** @todo Maybe throw an error here? */
       return this;
     }
 
@@ -1203,7 +1202,6 @@ Grid.prototype._getItem = function(target) {
   // In other cases let's assume that the target is an element, so let's try
   // to find an item that matches the element and return it. If item is not
   // found return null.
-  /** @todo This could be made a lot faster by using Map/WeakMap of elements. */
   for (var i = 0; i < this._items.length; i++) {
     if (this._items[i]._element === target) {
       return this._items[i];

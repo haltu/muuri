@@ -167,8 +167,6 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
 /**
  * Default drag sort predicate.
  *
- * @todo Check if we layout thrashing is a problem here and if we can alleviate
- *       it's potential effects.
  * @public
  * @memberof ItemDrag
  * @param {Item} item
@@ -184,6 +182,8 @@ ItemDrag.defaultSortPredicate = (function() {
   var targetRect = {};
   var returnData = {};
   var gridsArray = [];
+  var minThreshold = 1;
+  var maxThreshold = 100;
 
   function getTargetGrid(item, rootGrid, threshold) {
     var target = null;
@@ -247,6 +247,11 @@ ItemDrag.defaultSortPredicate = (function() {
     var sortAction = options && options.action === actionSwap ? actionSwap : actionMove;
     var migrateAction = options && options.migrateAction === actionSwap ? actionSwap : actionMove;
 
+    // Sort threshold must be a positive number capped to a max value of 100. If
+    // that's not the case this function will not work correctly. So let's clamp
+    // the threshold just in case.
+    sortThreshold = Math.min(Math.max(sortThreshold, minThreshold), maxThreshold);
+
     // Populate item rect data.
     itemRect.width = item._width;
     itemRect.height = item._height;
@@ -263,9 +268,9 @@ ItemDrag.defaultSortPredicate = (function() {
     var isMigration = item.getGrid() !== grid;
     var gridOffsetLeft = 0;
     var gridOffsetTop = 0;
-    var matchScore = -1;
-    var matchIndex;
-    var hasValidTargets;
+    var matchScore = 0;
+    var matchIndex = -1;
+    var hasValidTargets = false;
     var target;
     var score;
     var i;
@@ -319,8 +324,8 @@ ItemDrag.defaultSortPredicate = (function() {
     // threshold and just pick the item which the dragged item is overlapping
     // most. However, if the dragged item is not overlapping any of the valid
     // items in the new grid let's position it as the last item in the grid.
-    if (matchScore < sortThreshold && isMigration) {
-      matchIndex = hasValidTargets ? (matchScore > 0 ? matchIndex : -1) : 0;
+    if (isMigration && matchScore < sortThreshold) {
+      matchIndex = hasValidTargets ? matchIndex : 0;
       matchScore = sortThreshold;
     }
 

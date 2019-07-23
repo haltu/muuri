@@ -1881,8 +1881,6 @@
   /**
    * Default drag sort predicate.
    *
-   * @todo Check if we layout thrashing is a problem here and if we can alleviate
-   *       it's potential effects.
    * @public
    * @memberof ItemDrag
    * @param {Item} item
@@ -1898,6 +1896,8 @@
     var targetRect = {};
     var returnData = {};
     var gridsArray = [];
+    var minThreshold = 1;
+    var maxThreshold = 100;
 
     function getTargetGrid(item, rootGrid, threshold) {
       var target = null;
@@ -1961,6 +1961,11 @@
       var sortAction = options && options.action === actionSwap ? actionSwap : actionMove;
       var migrateAction = options && options.migrateAction === actionSwap ? actionSwap : actionMove;
 
+      // Sort threshold must be a positive number capped to a max value of 100. If
+      // that's not the case this function will not work correctly. So let's clamp
+      // the threshold just in case.
+      sortThreshold = Math.min(Math.max(sortThreshold, minThreshold), maxThreshold);
+
       // Populate item rect data.
       itemRect.width = item._width;
       itemRect.height = item._height;
@@ -1977,9 +1982,9 @@
       var isMigration = item.getGrid() !== grid;
       var gridOffsetLeft = 0;
       var gridOffsetTop = 0;
-      var matchScore = -1;
-      var matchIndex;
-      var hasValidTargets;
+      var matchScore = 0;
+      var matchIndex = -1;
+      var hasValidTargets = false;
       var target;
       var score;
       var i;
@@ -2033,8 +2038,8 @@
       // threshold and just pick the item which the dragged item is overlapping
       // most. However, if the dragged item is not overlapping any of the valid
       // items in the new grid let's position it as the last item in the grid.
-      if (matchScore < sortThreshold && isMigration) {
-        matchIndex = hasValidTargets ? (matchScore > 0 ? matchIndex : -1) : 0;
+      if (isMigration && matchScore < sortThreshold) {
+        matchIndex = hasValidTargets ? matchIndex : 0;
         matchScore = sortThreshold;
       }
 
@@ -3861,7 +3866,6 @@
       targetIndex = normalizeArrayIndex(targetItems, position, true);
     } else {
       targetItem = targetGrid._getItem(position);
-      /** @todo Consider throwing an error here instead of silently failing. */
       if (!targetItem) return this;
       targetIndex = targetItems.indexOf(targetItem);
     }
@@ -6331,7 +6335,6 @@
       }
       // Otherwise let's just skip it, nothing we can do here.
       else {
-        /** @todo Maybe throw an error here? */
         return this;
       }
 
@@ -6541,7 +6544,6 @@
     // In other cases let's assume that the target is an element, so let's try
     // to find an item that matches the element and return it. If item is not
     // found return null.
-    /** @todo This could be made a lot faster by using Map/WeakMap of elements. */
     for (var i = 0; i < this._items.length; i++) {
       if (this._items[i]._element === target) {
         return this._items[i];

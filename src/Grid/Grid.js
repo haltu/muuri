@@ -52,7 +52,7 @@ import removeClass from '../utils/removeClass';
 import toArray from '../utils/toArray';
 
 var packer = new Packer();
-var noop = function () { };
+var noop = function() {};
 
 var numberType = 'number';
 var stringType = 'string';
@@ -173,13 +173,13 @@ function Grid(element, options) {
   this._items = [];
   items = settings.items;
   if (typeof items === stringType) {
-    toArray(element.children).forEach(function (itemElement) {
+    toArray(element.children).forEach(function(itemElement) {
       if (items === '*' || elementMatches(itemElement, items)) {
         inst._items.push(new Item(inst, itemElement));
       }
     });
   } else if (Array.isArray(items) || isNodeList(items)) {
-    this._items = toArray(items).map(function (itemElement) {
+    this._items = toArray(items).map(function(itemElement) {
       return new Item(inst, itemElement);
     });
   }
@@ -193,7 +193,7 @@ function Grid(element, options) {
   if (layoutOnResize >= 0) {
     window.addEventListener(
       'resize',
-      (inst._resizeHandler = debounce(function () {
+      (inst._resizeHandler = debounce(function() {
         inst.refreshItems().layout();
       }, layoutOnResize))
     );
@@ -373,7 +373,7 @@ Grid.defaultOptions = {
  * @param {Function} listener
  * @returns {Grid}
  */
-Grid.prototype.on = function (event, listener) {
+Grid.prototype.on = function(event, listener) {
   this._emitter.on(event, listener);
   return this;
 };
@@ -387,7 +387,7 @@ Grid.prototype.on = function (event, listener) {
  * @param {Function} listener
  * @returns {Grid}
  */
-Grid.prototype.off = function (event, listener) {
+Grid.prototype.off = function(event, listener) {
   this._emitter.off(event, listener);
   return this;
 };
@@ -399,7 +399,7 @@ Grid.prototype.off = function (event, listener) {
  * @memberof Grid.prototype
  * @returns {HTMLElement}
  */
-Grid.prototype.getElement = function () {
+Grid.prototype.getElement = function() {
   return this._element;
 };
 
@@ -414,7 +414,7 @@ Grid.prototype.getElement = function () {
  * @param {GridMultiItemQuery} [targets]
  * @returns {Item[]}
  */
-Grid.prototype.getItems = function (targets) {
+Grid.prototype.getItems = function(targets) {
   // Return all items immediately if no targets were provided or if the
   // instance is destroyed.
   if (this._isDestroyed || (!targets && targets !== 0)) {
@@ -443,7 +443,7 @@ Grid.prototype.getItems = function (targets) {
  * @param {Object} options
  * @returns {Object}
  */
-Grid.prototype.updateOptions = function (options) {
+Grid.prototype.updateOptions = function(options) {
   var changedProps = Object.keys(options);
   var current = this._settings;
   var merged = mergeSettings(current, options);
@@ -498,7 +498,7 @@ Grid.prototype.updateOptions = function (options) {
  * @param {GridMultiItemQuery} [items]
  * @returns {Grid}
  */
-Grid.prototype.refreshItems = function (items) {
+Grid.prototype.refreshItems = function(items) {
   if (this._isDestroyed) return this;
 
   var targets = this.getItems(items);
@@ -519,7 +519,7 @@ Grid.prototype.refreshItems = function (items) {
  * @param {GridMultiItemQuery} [items]
  * @returns {Grid}
  */
-Grid.prototype.refreshSortData = function (items) {
+Grid.prototype.refreshSortData = function(items) {
   if (this._isDestroyed) return this;
 
   var targetItems = this.getItems(items);
@@ -543,7 +543,7 @@ Grid.prototype.refreshSortData = function (items) {
  * @memberof Grid.prototype
  * @returns {Grid}
  */
-Grid.prototype.synchronize = function () {
+Grid.prototype.synchronize = function() {
   if (this._isDestroyed) return this;
 
   var container = this._element;
@@ -580,7 +580,7 @@ Grid.prototype.synchronize = function () {
  * @param {LayoutCallback} [onFinish]
  * @returns {Grid}
  */
-Grid.prototype.layout = function (instant, onFinish) {
+Grid.prototype.layout = function(instant, onFinish) {
   if (this._isDestroyed) return this;
 
   var inst = this;
@@ -693,7 +693,7 @@ Grid.prototype.layout = function (instant, onFinish) {
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
  * @returns {Item[]}
  */
-Grid.prototype.add = function (elements, options) {
+Grid.prototype.add = function(elements, options) {
   if (this._isDestroyed || !elements) return [];
 
   var newItems = toArray(elements);
@@ -749,7 +749,7 @@ Grid.prototype.add = function (elements, options) {
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
  * @returns {Item[]}
  */
-Grid.prototype.remove = function (items, options) {
+Grid.prototype.remove = function(items, options) {
   if (this._isDestroyed) return this;
 
   var opts = options || 0;
@@ -794,7 +794,7 @@ Grid.prototype.remove = function (items, options) {
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
  * @returns {Grid}
  */
-Grid.prototype.show = function (items, options) {
+Grid.prototype.show = function(items, options) {
   if (this._isDestroyed) return this;
   this._setItemsVisibility(items, true, options);
   return this;
@@ -812,7 +812,7 @@ Grid.prototype.show = function (items, options) {
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
  * @returns {Grid}
  */
-Grid.prototype.hide = function (items, options) {
+Grid.prototype.hide = function(items, options) {
   if (this._isDestroyed) return this;
   this._setItemsVisibility(items, false, options);
   return this;
@@ -837,7 +837,7 @@ Grid.prototype.hide = function (items, options) {
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
  * @returns {Grid}
  */
-Grid.prototype.filter = function (predicate, options) {
+Grid.prototype.filter = function(predicate, options) {
   if (this._isDestroyed || !this._items.length) return this;
 
   var itemsToShow = [];
@@ -855,7 +855,7 @@ Grid.prototype.filter = function (predicate, options) {
 
   // If we have onFinish callback, let's create proper tryFinish callback.
   if (onFinish) {
-    tryFinish = function () {
+    tryFinish = function() {
       ++tryFinishCounter && onFinish(itemsToShow.slice(0), itemsToHide.slice(0));
     };
   }
@@ -928,7 +928,7 @@ Grid.prototype.filter = function (predicate, options) {
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
  * @returns {Grid}
  */
-Grid.prototype.sort = (function () {
+Grid.prototype.sort = (function() {
   var sortComparer;
   var isDescending;
   var origItems;
@@ -938,7 +938,7 @@ Grid.prototype.sort = (function () {
     return data
       .trim()
       .split(' ')
-      .map(function (val) {
+      .map(function(val) {
         return val.split(':');
       });
   }
@@ -1008,7 +1008,7 @@ Grid.prototype.sort = (function () {
     return compareIndices(a, b);
   }
 
-  return function (comparer, options) {
+  return function(comparer, options) {
     if (this._isDestroyed || this._items.length < 2) return this;
 
     var items = this._items;
@@ -1080,7 +1080,7 @@ Grid.prototype.sort = (function () {
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
  * @returns {Grid}
  */
-Grid.prototype.move = function (item, position, options) {
+Grid.prototype.move = function(item, position, options) {
   if (this._isDestroyed || this._items.length < 2) return this;
 
   var items = this._items;
@@ -1139,7 +1139,7 @@ Grid.prototype.move = function (item, position, options) {
  * @param {(Boolean|LayoutCallback|String)} [options.layoutReceiver=true]
  * @returns {Grid}
  */
-Grid.prototype.send = function (item, grid, position, options) {
+Grid.prototype.send = function(item, grid, position, options) {
   if (this._isDestroyed || grid._isDestroyed || this === grid) return this;
 
   // Make sure we have a valid target item.
@@ -1184,7 +1184,7 @@ Grid.prototype.send = function (item, grid, position, options) {
  * @param {Boolean} [removeElements=false]
  * @returns {Grid}
  */
-Grid.prototype.destroy = function (removeElements) {
+Grid.prototype.destroy = function(removeElements) {
   if (this._isDestroyed) return this;
 
   var container = this._element;
@@ -1235,7 +1235,7 @@ Grid.prototype.destroy = function (removeElements) {
  * @param {GridSingleItemQuery} [target]
  * @returns {?Item}
  */
-Grid.prototype._getItem = function (target) {
+Grid.prototype._getItem = function(target) {
   // If no target is specified or the instance is destroyed, return null.
   if (this._isDestroyed || (!target && target !== 0)) {
     return null;
@@ -1273,7 +1273,7 @@ Grid.prototype._getItem = function (target) {
  * @memberof Grid.prototype
  * @returns {LayoutData}
  */
-Grid.prototype._updateLayout = function () {
+Grid.prototype._updateLayout = function() {
   var layout = this._layout;
   var settings = this._settings.layout;
   var width;
@@ -1322,7 +1322,7 @@ Grid.prototype._updateLayout = function () {
  * @param {String} event
  * @param {...*} [arg]
  */
-Grid.prototype._emit = function () {
+Grid.prototype._emit = function() {
   if (this._isDestroyed) return;
   this._emitter.emit.apply(this._emitter, arguments);
 };
@@ -1335,7 +1335,7 @@ Grid.prototype._emit = function () {
  * @param {String} event
  * @returns {Boolean}
  */
-Grid.prototype._hasListeners = function (event) {
+Grid.prototype._hasListeners = function(event) {
   var listeners = this._emitter._events[event];
   return !!(listeners && listeners.length);
 };
@@ -1346,7 +1346,7 @@ Grid.prototype._hasListeners = function (event) {
  * @private
  * @memberof Grid.prototype
  */
-Grid.prototype._updateBoundingRect = function () {
+Grid.prototype._updateBoundingRect = function() {
   var element = this._element;
   var rect = element.getBoundingClientRect();
   this._width = rect.width;
@@ -1365,7 +1365,7 @@ Grid.prototype._updateBoundingRect = function () {
  * @param {Boolean} top
  * @param {Boolean} bottom
  */
-Grid.prototype._updateBorders = function (left, right, top, bottom) {
+Grid.prototype._updateBorders = function(left, right, top, bottom) {
   var element = this._element;
   if (left) this._borderLeft = getStyleAsFloat(element, 'border-left-width');
   if (right) this._borderRight = getStyleAsFloat(element, 'border-right-width');
@@ -1379,7 +1379,7 @@ Grid.prototype._updateBorders = function (left, right, top, bottom) {
  * @private
  * @memberof Grid.prototype
  */
-Grid.prototype._refreshDimensions = function () {
+Grid.prototype._refreshDimensions = function() {
   this._updateBoundingRect();
   this._updateBorders(1, 1, 1, 1);
 };
@@ -1396,7 +1396,7 @@ Grid.prototype._refreshDimensions = function () {
  * @param {(ShowCallback|HideCallback)} [options.onFinish]
  * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
  */
-Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
+Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   var grid = this;
   var targetItems = this.getItems(items);
   var opts = options || 0;
@@ -1447,7 +1447,7 @@ Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
     }
 
     // Show/hide the item.
-    item._visibility[method](isInstant, function (interrupted, item) {
+    item._visibility[method](isInstant, function(interrupted, item) {
       // If the current item's animation was not interrupted add it to the
       // completedItems array.
       if (!interrupted) completedItems.push(item);

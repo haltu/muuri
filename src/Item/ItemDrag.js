@@ -126,7 +126,18 @@ function ItemDrag(item) {
  */
 ItemDrag.defaultStartPredicate = function(item, event, options) {
   var drag = item._drag;
-  var predicate = drag._startPredicateData || drag._setupStartPredicate(options);
+
+  // Setup predicate data from options if not already set.
+  if (!drag._startPredicateData) {
+    var config = options || drag._getGrid()._settings.dragStartPredicate || {};
+    drag._startPredicateData = {
+      distance: Math.max(config.distance, 0) || 0,
+      delay: Math.max(config.delay, 0) || 0,
+      handle: typeof config.handle === 'string' ? config.handle : false
+    };
+  }
+
+  var predicate = drag._startPredicateData;
 
   // Final event logic. At this stage return value does not matter anymore,
   // the predicate is either resolved or it's not and there's nothing to do
@@ -520,23 +531,6 @@ ItemDrag.prototype._unbindScrollListeners = function() {
   }
 
   scrollers.length = 0;
-};
-
-/**
- * Setup default start predicate.
- *
- * @private
- * @memberof ItemDrag.prototype
- * @param {Object} [options]
- * @returns {Object}
- */
-ItemDrag.prototype._setupStartPredicate = function(options) {
-  var config = options || this._getGrid()._settings.dragStartPredicate || 0;
-  return (this._startPredicateData = {
-    distance: Math.abs(config.distance) || 0,
-    delay: Math.max(config.delay, 0) || 0,
-    handle: typeof config.handle === 'string' ? config.handle : false
-  });
 };
 
 /**

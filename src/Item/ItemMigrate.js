@@ -18,8 +18,6 @@ import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 import { transformProp } from '../utils/supportedTransform';
 
-var tempStyles = {};
-
 /**
  * The migrate process handler constructor.
  *
@@ -234,40 +232,42 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
  *  - Optional current translateX and translateY styles.
  * @returns {ItemMigrate}
  */
-ItemMigrate.prototype.stop = function(abort, currentStyles) {
-  if (this._isDestroyed || !this._isActive) return this;
+ItemMigrate.prototype.stop = (function() {
+  var tempStyles = {};
+  return function(abort, currentStyles) {
+    if (this._isDestroyed || !this._isActive) return this;
 
-  var item = this._item;
-  var element = item._element;
-  var grid = item.getGrid();
-  var gridElement = grid._element;
-  var translate;
+    var item = this._item;
+    var element = item._element;
+    var grid = item.getGrid();
+    var gridElement = grid._element;
+    var translate;
 
-  if (this._container !== gridElement) {
-    if (!currentStyles) {
-      if (abort) {
-        translate = getTranslate(element);
-        tempStyles.transform = getTranslateString(
-          translate.x - this._containerDiffX,
-          translate.y - this._containerDiffY
-        );
-      } else {
-        tempStyles.transform = getTranslateString(item._left, item._top);
+    if (this._container !== gridElement) {
+      if (!currentStyles) {
+        if (abort) {
+          translate = getTranslate(element);
+          tempStyles.transform = getTranslateString(
+            translate.x - this._containerDiffX,
+            translate.y - this._containerDiffY
+          );
+        } else {
+          tempStyles.transform = getTranslateString(item._left, item._top);
+        }
+        currentStyles = tempStyles;
       }
-      currentStyles = tempStyles;
+      gridElement.appendChild(element);
+      setStyles(element, currentStyles);
     }
-    gridElement.appendChild(element);
-    setStyles(element, currentStyles);
-  }
 
-  this._isActive = false;
-  this._container = null;
-  this._containerDiffX = 0;
-  this._containerDiffY = 0;
+    this._isActive = false;
+    this._container = null;
+    this._containerDiffX = 0;
+    this._containerDiffY = 0;
 
-  return this;
-};
-
+    return this;
+  };
+})();
 /**
  * Destroy instance.
  *

@@ -12,8 +12,6 @@ import getTranslateString from '../utils/getTranslateString';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 
-var tempStyles = {};
-
 /**
  * The release process handler constructor. Although this might seem as proper
  * fit for the drag process this needs to be separated into it's own logic
@@ -79,42 +77,45 @@ ItemRelease.prototype.start = function() {
  *  - Optional current translateX and translateY styles.
  * @returns {ItemRelease}
  */
-ItemRelease.prototype.stop = function(abort, currentStyles) {
-  if (this._isDestroyed || !this._isActive) return this;
+ItemRelease.prototype.stop = (function() {
+  var tempStyles = { transform: '' };
+  return function(abort, currentStyles) {
+    if (this._isDestroyed || !this._isActive) return this;
 
-  var item = this._item;
-  var element = item._element;
-  var grid = item.getGrid();
-  var container = grid._element;
-  var translate;
+    var item = this._item;
+    var element = item._element;
+    var grid = item.getGrid();
+    var container = grid._element;
+    var translate;
 
-  // Reset data and remove releasing class name from the element.
-  this._reset();
+    // Reset data and remove releasing class name from the element.
+    this._reset();
 
-  // If the released element is outside the grid's container element put it
-  // back there and adjust position accordingly.
-  if (element.parentNode !== container) {
-    if (!currentStyles) {
-      if (abort) {
-        translate = getTranslate(element);
-        tempStyles.transform = getTranslateString(
-          translate.x - this._containerDiffX,
-          translate.y - this._containerDiffY
-        );
-      } else {
-        tempStyles.transform = getTranslateString(item._left, item._top);
+    // If the released element is outside the grid's container element put it
+    // back there and adjust position accordingly.
+    if (element.parentNode !== container) {
+      if (!currentStyles) {
+        if (abort) {
+          translate = getTranslate(element);
+          tempStyles.transform = getTranslateString(
+            translate.x - this._containerDiffX,
+            translate.y - this._containerDiffY
+          );
+        } else {
+          tempStyles.transform = getTranslateString(item._left, item._top);
+        }
+        currentStyles = tempStyles;
       }
-      currentStyles = tempStyles;
+      container.appendChild(element);
+      setStyles(element, currentStyles);
     }
-    container.appendChild(element);
-    setStyles(element, currentStyles);
-  }
 
-  // Emit dragReleaseEnd event.
-  if (!abort) grid._emit(eventDragReleaseEnd, item);
+    // Emit dragReleaseEnd event.
+    if (!abort) grid._emit(eventDragReleaseEnd, item);
 
-  return this;
-};
+    return this;
+  };
+})();
 
 /**
  * Destroy instance.

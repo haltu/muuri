@@ -1517,22 +1517,18 @@
    * absolute positioned elements.
    *
    * @param {HTMLElement} element
-   * @param {Boolean} [includeSelf=false]
-   *   - When this is set to true the containing block checking is started from
-   *     the provided element. Otherwise the checking is started from the
-   *     provided element's parent element.
    * @returns {(Document|Element)}
    */
-  function getContainingBlock(element, includeSelf) {
+  function getContainingBlock(element) {
     // As long as the containing block is an element, static and not
     // transformed, try to get the element's parent element and fallback to
     // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
-    var document = window.document;
-    var ret = (includeSelf ? element : element.parentElement) || document;
-    while (ret && ret !== document && getStyle(ret, 'position') === 'static' && !isTransformed(ret)) {
-      ret = ret.parentElement || document;
+    var doc = window.document;
+    var res = element || doc;
+    while (res && res !== doc && getStyle(res, 'position') === 'static' && !isTransformed(res)) {
+      res = res.parentElement || doc;
     }
-    return ret;
+    return res;
   }
 
   /**
@@ -1613,8 +1609,8 @@
 
     // Compare containing blocks if necessary.
     if (compareContainingBlocks) {
-      elemA = getContainingBlock(elemA, true);
-      elemB = getContainingBlock(elemB, true);
+      elemA = getContainingBlock(elemA);
+      elemB = getContainingBlock(elemB);
 
       // If containing blocks are identical, let's return early.
       if (elemA === elemB) return offsetDiff;
@@ -1840,7 +1836,18 @@
    */
   ItemDrag.defaultStartPredicate = function(item, event, options) {
     var drag = item._drag;
-    var predicate = drag._startPredicateData || drag._setupStartPredicate(options);
+
+    // Setup predicate data from options if not already set.
+    if (!drag._startPredicateData) {
+      var config = options || drag._getGrid()._settings.dragStartPredicate || {};
+      drag._startPredicateData = {
+        distance: Math.max(config.distance, 0) || 0,
+        delay: Math.max(config.delay, 0) || 0,
+        handle: typeof config.handle === 'string' ? config.handle : false
+      };
+    }
+
+    var predicate = drag._startPredicateData;
 
     // Final event logic. At this stage return value does not matter anymore,
     // the predicate is either resolved or it's not and there's nothing to do
@@ -2234,23 +2241,6 @@
     }
 
     scrollers.length = 0;
-  };
-
-  /**
-   * Setup default start predicate.
-   *
-   * @private
-   * @memberof ItemDrag.prototype
-   * @param {Object} [options]
-   * @returns {Object}
-   */
-  ItemDrag.prototype._setupStartPredicate = function(options) {
-    var config = options || this._getGrid()._settings.dragStartPredicate || 0;
-    return (this._startPredicateData = {
-      distance: Math.abs(config.distance) || 0,
-      delay: Math.max(config.delay, 0) || 0,
-      handle: typeof config.handle === 'string' ? config.handle : false
-    });
   };
 
   /**
@@ -2740,7 +2730,7 @@
     var migrate = item._migrate;
     var gridContainer = grid._element;
     var dragContainer = settings.dragContainer || gridContainer;
-    var containingBlock = getContainingBlock(dragContainer, true);
+    var containingBlock = getContainingBlock(dragContainer);
     var translate = getTranslate(element);
     var currentLeft = translate.x;
     var currentTop = translate.y;
@@ -5464,11 +5454,14 @@
     var inst = this;
     var settings;
     var items;
-    var layoutOnResize;
 
-    // Allow passing element as selector string. Store element for instance.
-    element = this._element =
-      typeof element === stringType ? window.document.querySelector(element) : element;
+    // Allow passing element as selector string
+    if (typeof element === stringType) {
+      element = window.document.querySelector(element);
+    }
+
+    // Store element for instance.
+    this._element = element;
 
     // Throw an error if the container element is not body element or does not
     // exist within the body element.
@@ -5528,18 +5521,7 @@
 
     // If layoutOnResize option is a valid number sanitize it and bind the resize
     // handler.
-    layoutOnResize = settings.layoutOnResize;
-    if (typeof layoutOnResize !== numberType$1) {
-      layoutOnResize = layoutOnResize === true ? 0 : -1;
-    }
-    if (layoutOnResize >= 0) {
-      window.addEventListener(
-        'resize',
-        (inst._resizeHandler = debounce(function() {
-          inst.refreshItems().layout();
-        }, layoutOnResize))
-      );
-    }
+    bindLayoutOnResize(this, settings.layoutOnResize);
 
     // Layout on init if necessary.
     if (settings.layoutOnInit) {
@@ -5775,6 +5757,100 @@
     }
 
     return ret;
+  };
+
+  /**
+   * Update grid options.
+   *
+   * @public
+   * @memberof Grid.prototype
+   * @param {Object} options
+   * @returns {Object}
+   */
+  Grid.prototype.updateOptions = function(options) {
+    var element = this._element;
+    var changedProps = Object.keys(options);
+    var oldSettings = this._settings;
+    var newSettings = mergeSettings(oldSettings, options);
+    var items = this._items;
+    var i, item;
+
+    // Sanitize `dragSort` setting.
+    if (!isFunction(newSettings.dragSort)) {
+      newSettings.dragSort = !!newSettings.dragSort;
+    }
+
+    // Update settings to the instance.
+    this._settings = newSettings;
+
+    // Disable/enable dragging for items.
+    if (changedProps.indexOf('dragEnabled') > -1) {
+      // Disable dragging.
+      if (oldSettings.dragEnabled && !newSettings.dragEnabled) {
+        this._settings = oldSettings;
+        for (i = 0; i < items.length; i++) {
+          item = items[i];
+          if (item._drag) {
+            item._drag.destroy();
+            item._drag = null;
+          }
+        }
+        this._settings = newSettings;
+      }
+
+      // Enable dragging.
+      if (!oldSettings.dragEnabled && newSettings.dragEnabled) {
+        for (i = 0; i < items.length; i++) {
+          item = items[i];
+          if (!item._drag) {
+            item._drag = new ItemDrag(item);
+          }
+        }
+      }
+    }
+
+    // Update drag CSS properties.
+    if (changedProps.indexOf('dragCssProps') > -1) {
+      if (oldSettings.dragEnabled && newSettings.dragEnabled) {
+        for (i = 0; i < items.length; i++) {
+          item = items[i];
+          if (item._drag) {
+            item._drag._dragger.setCssProps(newSettings.dragCssProps);
+          }
+        }
+      }
+    }
+
+    // Update container element's class name.
+    if (changedProps.indexOf('containerClass') > -1) {
+      if (oldSettings.containerClass !== newSettings.containerClass) {
+        removeClass(element, oldSettings.containerClass);
+        addClass(element, newSettings.containerClass);
+      }
+    }
+
+    // Reset sort data if it potentially changed.
+    if (changedProps.indexOf('sortData') > -1) {
+      for (i = 0; i < items.length; i++) {
+        items[i]._sortData = null;
+      }
+    }
+
+    // Rebind `layoutOnResize`.
+    if (changedProps.indexOf('layoutOnResize') > -1) {
+      unbindLayoutOnResize(this);
+      bindLayoutOnResize(this, newSettings.layoutOnResize);
+    }
+
+    // TODO: How to handle `dragStartPredicate` change?
+    // TODO: How to handle `dragSortPredicate` change?
+    // TODO: How to handle `dragSortHeuristics` change?
+    // TODO: How to handle `dragPlaceholder` change?
+    // TODO: How to handle item class changes (performantly)?
+    // TODO: How to handle visible/hidden style changes?
+    // TODO: Should we call layout if it potentially changed?
+
+    return newSettings;
   };
 
   /**
@@ -6479,9 +6555,7 @@
     var i;
 
     // Unbind window resize event listener.
-    if (this._resizeHandler) {
-      window.removeEventListener('resize', this._resizeHandler);
-    }
+    unbindLayoutOnResize(this);
 
     // Destroy items.
     for (i = 0; i < items.length; i++) {
@@ -6838,6 +6912,39 @@
     }
 
     return target;
+  }
+
+  /**
+   * Bind grid's resize handler to window.
+   *
+   * @param {Grid} grid
+   * @param {(Number|Boolean)} delay
+   */
+  function bindLayoutOnResize(grid, delay) {
+    if (typeof delay !== numberType$1) {
+      delay = delay === true ? 0 : -1;
+    }
+
+    if (delay >= 0) {
+      grid._resizeHandler = debounce(function() {
+        grid.refreshItems().layout();
+      }, delay);
+
+      window.addEventListener('resize', grid._resizeHandler);
+    }
+  }
+
+  /**
+   * Unbind grid's resize handler from window.
+   *
+   * @param {Grid} grid
+   */
+  function unbindLayoutOnResize(grid) {
+    if (grid._resizeHandler) {
+      grid._resizeHandler('cancel');
+      window.removeEventListener('resize', grid._resizeHandler);
+      grid._resizeHandler = null;
+    }
   }
 
   return Grid;

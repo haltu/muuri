@@ -73,8 +73,8 @@ export default function getOffsetDiff(elemA, elemB, compareContainingBlocks) {
 
   // Compare containing blocks if necessary.
   if (compareContainingBlocks) {
-    elemA = getContainingBlock(elemA, true);
-    elemB = getContainingBlock(elemB, true);
+    elemA = getContainingBlock(elemA);
+    elemB = getContainingBlock(elemB);
 
     // If containing blocks are identical, let's return early.
     if (elemA === elemB) return offsetDiff;

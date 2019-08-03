@@ -4493,16 +4493,17 @@
    * @private
    * @memberof ItemVisibility.prototype
    */
-  var finishStyles = {};
-  ItemVisibility.prototype._finishHide = function() {
-    if (!this._isHidden) return;
-    var item = this._item;
-    this._isHiding = false;
-    finishStyles.transform = getTranslateString(0, 0);
-    item._layout.stop(true, finishStyles);
-    item._element.style.display = 'none';
-    this._queue.flush(false, item);
-  };
+  ItemVisibility.prototype._finishHide = (function() {
+    var finishStyles = { transform: getTranslateString(0, 0) };
+    return function() {
+      if (!this._isHidden) return;
+      var item = this._item;
+      this._isHiding = false;
+      item._layout.stop(true, finishStyles);
+      item._element.style.display = 'none';
+      this._queue.flush(false, item);
+    };
+  })();
 
   var id = 0;
 

@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-var strFunction = 'function';
+var functionType = 'function';
 
 /**
  * Check if a value is a function.
@@ -13,5 +13,5 @@ var strFunction = 'function';
  * @returns {Boolean}
  */
 export default function isFunction(val) {
-  return typeof val === strFunction;
+  return typeof val === functionType;
 }

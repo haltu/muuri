@@ -134,7 +134,7 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
   this._isActive = false;
 
   // Process callback queue if needed.
-  if (processCallbackQueue) this._queue.flush(true, item);
+  if (processCallbackQueue) this._queue.process(true, item);
 
   return this;
 };
@@ -224,7 +224,7 @@ ItemLayout.prototype._finish = function() {
   if (migrate._isActive) migrate.stop();
 
   // Process the callback queue.
-  this._queue.flush(false, item);
+  this._queue.process(false, item);
 };
 
 /**

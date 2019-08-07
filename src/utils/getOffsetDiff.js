@@ -24,33 +24,33 @@ var offsetDiff = {};
  * @returns {Object}
  */
 function getOffset(element, offsetData) {
-  var ret = offsetData || {};
+  var offset = offsetData || {};
   var rect;
 
   // Set up return data.
-  ret.left = 0;
-  ret.top = 0;
+  offset.left = 0;
+  offset.top = 0;
 
   // Document's offsets are always 0.
-  if (element === document) return ret;
+  if (element === document) return offset;
 
   // Add viewport scroll left/top to the respective offsets.
-  ret.left = window.pageXOffset || 0;
-  ret.top = window.pageYOffset || 0;
+  offset.left = window.pageXOffset || 0;
+  offset.top = window.pageYOffset || 0;
 
   // Window's offsets are the viewport scroll left/top values.
-  if (element.self === window.self) return ret;
+  if (element.self === window.self) return offset;
 
   // Add element's client rects to the offsets.
   rect = element.getBoundingClientRect();
-  ret.left += rect.left;
-  ret.top += rect.top;
+  offset.left += rect.left;
+  offset.top += rect.top;
 
   // Exclude element's borders from the offset.
-  ret.left += getStyleAsFloat(element, 'border-left-width');
-  ret.top += getStyleAsFloat(element, 'border-top-width');
+  offset.left += getStyleAsFloat(element, 'border-left-width');
+  offset.top += getStyleAsFloat(element, 'border-top-width');
 
-  return ret;
+  return offset;
 }
 
 /**

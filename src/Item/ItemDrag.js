@@ -494,14 +494,14 @@ ItemDrag.prototype._bindScrollListeners = function() {
 
   // Get dragged element's scrolling parents.
   scrollers.length = 0;
-  getScrollableAncestors(this._item._element, false, scrollers);
+  getScrollableAncestors(this._item._element.parentNode, scrollers);
 
   // If drag container is defined and it's not the same element as grid
   // container then we need to add the grid container and it's scroll parents
   // to the elements which are going to be listener for scroll events.
   if (dragContainer !== gridContainer) {
     gridScrollers = [];
-    getScrollableAncestors(gridContainer, true, gridScrollers);
+    getScrollableAncestors(gridContainer, gridScrollers);
     for (i = 0; i < gridScrollers.length; i++) {
       if (scrollers.indexOf(gridScrollers[i]) < 0) {
         scrollers.push(gridScrollers[i]);

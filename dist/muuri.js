@@ -260,7 +260,7 @@
     return string.replace(styleNameRegEx, '-$1').toLowerCase();
   }
 
-  var strFunction = 'function';
+  var functionType = 'function';
 
   /**
    * Check if a value is a function.
@@ -269,7 +269,7 @@
    * @returns {Boolean}
    */
   function isFunction(val) {
-    return typeof val === strFunction;
+    return typeof val === functionType;
   }
 
   var transformStyle$1 = 'transform';
@@ -384,7 +384,7 @@
     animOptions.duration = opts.duration || 300;
     animOptions.easing = opts.easing || 'ease';
 
-    // Start the animation
+    // Start the animation.
     var element = this._element;
     animation = element.animate(animKeyframes, animOptions);
     animation.onfinish = this._onFinish;
@@ -1560,33 +1560,33 @@
    * @returns {Object}
    */
   function getOffset(element, offsetData) {
-    var ret = offsetData || {};
+    var offset = offsetData || {};
     var rect;
 
     // Set up return data.
-    ret.left = 0;
-    ret.top = 0;
+    offset.left = 0;
+    offset.top = 0;
 
     // Document's offsets are always 0.
-    if (element === document) return ret;
+    if (element === document) return offset;
 
     // Add viewport scroll left/top to the respective offsets.
-    ret.left = window.pageXOffset || 0;
-    ret.top = window.pageYOffset || 0;
+    offset.left = window.pageXOffset || 0;
+    offset.top = window.pageYOffset || 0;
 
     // Window's offsets are the viewport scroll left/top values.
-    if (element.self === window.self) return ret;
+    if (element.self === window.self) return offset;
 
     // Add element's client rects to the offsets.
     rect = element.getBoundingClientRect();
-    ret.left += rect.left;
-    ret.top += rect.top;
+    offset.left += rect.left;
+    offset.top += rect.top;
 
     // Exclude element's borders from the offset.
-    ret.left += getStyleAsFloat(element, 'border-left-width');
-    ret.top += getStyleAsFloat(element, 'border-top-width');
+    offset.left += getStyleAsFloat(element, 'border-left-width');
+    offset.top += getStyleAsFloat(element, 'border-top-width');
 
-    return ret;
+    return offset;
   }
 
   /**
@@ -1651,38 +1651,38 @@
   }
 
   /**
-   * Collect element's ancestors that are potentially scrollable elements.
+   * Collect element's ancestors that are potentially scrollable elements. The
+   * provided element is also also included in the check, meaning that if it is
+   * scrollable it is added to the result array.
    *
    * @param {HTMLElement} element
-   * @param {Boolean} [includeSelf=false]
-   * @param {Array} [data]
+   * @param {Array} [result]
    * @returns {Array}
    */
-  function getScrollableAncestors(element, includeSelf, data) {
-    var ret = data || [];
-    var parent = includeSelf ? element : element.parentNode;
+  function getScrollableAncestors(element, result) {
+    result = result || [];
 
     // Find scroll parents.
-    while (parent && parent !== document) {
+    while (element && element !== window.document) {
       // If element is inside ShadowDOM let's get it's host node from the real
       // DOM and continue looping.
-      if (parent.getRootNode && parent instanceof DocumentFragment) {
-        parent = parent.getRootNode().host;
+      if (element.getRootNode && element instanceof DocumentFragment) {
+        element = element.getRootNode().host;
         continue;
       }
 
       // If element is scrollable let's add it to the scrollable list.
-      if (isScrollable(parent)) {
-        ret.push(parent);
+      if (isScrollable(element)) {
+        result.push(element);
       }
 
-      parent = parent.parentNode;
+      element = element.parentNode;
     }
 
     // Always add window to the results.
-    ret.push(window);
+    result.push(window);
 
-    return ret;
+    return result;
   }
 
   var translateValue = {};
@@ -2204,14 +2204,14 @@
 
     // Get dragged element's scrolling parents.
     scrollers.length = 0;
-    getScrollableAncestors(this._item._element, false, scrollers);
+    getScrollableAncestors(this._item._element.parentNode, scrollers);
 
     // If drag container is defined and it's not the same element as grid
     // container then we need to add the grid container and it's scroll parents
     // to the elements which are going to be listener for scroll events.
     if (dragContainer !== gridContainer) {
       gridScrollers = [];
-      getScrollableAncestors(gridContainer, true, gridScrollers);
+      getScrollableAncestors(gridContainer, gridScrollers);
       for (i = 0; i < gridScrollers.length; i++) {
         if (scrollers.indexOf(gridScrollers[i]) < 0) {
           scrollers.push(gridScrollers[i]);
@@ -3457,6 +3457,8 @@
    */
   function Queue() {
     this._queue = [];
+    this._processQueue = [];
+    this._processCounter = 0;
     this._isDestroyed = false;
   }
 
@@ -3480,40 +3482,52 @@
   };
 
   /**
-   * Process queue callbacks and reset the queue.
+   * Process queue callbacks in the order they were insterted and reset the queue.
+   * The provided arguments are passed on to the callbacks.
    *
    * @public
    * @memberof Queue.prototype
-   * @param {*} arg1
-   * @param {*} arg2
+   * @param {...*} args
    * @returns {Queue}
    */
-  Queue.prototype.flush = function(arg1, arg2) {
+  Queue.prototype.process = function() {
     if (this._isDestroyed) return this;
 
     var queue = this._queue;
-    var length = queue.length;
-    var i;
+    var queueLength = queue.length;
 
     // Quit early if the queue is empty.
-    if (!length) return this;
+    if (!queueLength) return this;
 
-    var singleCallback = length === 1;
-    var snapshot = singleCallback ? queue[0] : queue.slice(0);
+    var pQueue = this._processQueue;
+    var pQueueLength = pQueue.length;
+    var i;
+
+    // Append the current queue callbacks to the process queue.
+    for (i = 0; i < queueLength; i++) {
+      pQueue.push(queue[i]);
+    }
 
     // Reset queue.
     queue.length = 0;
 
-    // If we only have a single callback let's just call it.
-    if (singleCallback) {
-      snapshot(arg1, arg2);
-      return this;
+    // Increment process counter.
+    ++this._processCounter;
+
+    // Call the new process queue callbacks.
+    var indexFrom = pQueueLength;
+    var indexTo = pQueue.length;
+    for (i = indexFrom; i < indexTo; i++) {
+      if (this._isDestroyed) return this;
+      pQueue[i].apply(null, arguments);
     }
 
-    // If we have multiple callbacks, let's process them.
-    for (i = 0; i < length; i++) {
-      snapshot[i](arg1, arg2);
-      if (this._isDestroyed) break;
+    // Decrement process counter.
+    --this._processCounter;
+
+    // Reset process queue once it has stop processing.
+    if (!this._processCounter) {
+      pQueue.length = 0;
     }
 
     return this;
@@ -3531,6 +3545,8 @@
 
     this._isDestroyed = true;
     this._queue.length = 0;
+    this._processQueue.length = 0;
+    this._processCounter = 0;
 
     return this;
   };
@@ -3654,7 +3670,7 @@
     this._isActive = false;
 
     // Process callback queue if needed.
-    if (processCallbackQueue) this._queue.flush(true, item);
+    if (processCallbackQueue) this._queue.process(true, item);
 
     return this;
   };
@@ -3744,7 +3760,7 @@
     if (migrate._isActive) migrate.stop();
 
     // Process the callback queue.
-    this._queue.flush(false, item);
+    this._queue.process(false, item);
   };
 
   /**
@@ -3891,7 +3907,7 @@
     if (item._drag) item._drag.destroy();
 
     // Process current visibility animation queue.
-    item._visibility._queue.flush(true, item);
+    item._visibility._queue.process(true, item);
 
     // Emit beforeSend event.
     if (grid._hasListeners(eventBeforeSend)) {
@@ -4294,7 +4310,7 @@
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isShowing) {
-      queue.flush(true, item);
+      queue.process(true, item);
       removeClass(element, settings.itemHiddenClass);
       addClass(element, settings.itemVisibleClass);
       if (!this._isHiding) element.style.display = 'block';
@@ -4349,7 +4365,7 @@
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isHiding) {
-      queue.flush(true, item);
+      queue.process(true, item);
       addClass(element, settings.itemHiddenClass);
       removeClass(element, settings.itemVisibleClass);
     }
@@ -4387,7 +4403,7 @@
     this._stopAnimation({});
 
     // Fire all uncompleted callbacks with interrupted flag and destroy the queue.
-    queue.flush(true, item).destroy();
+    queue.process(true, item).destroy();
 
     // Remove visible/hidden classes.
     removeClass(element, settings.itemVisibleClass);
@@ -4421,8 +4437,8 @@
     var item = this._item;
     var settings = item.getGrid()._settings;
     var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
-    var duration = parseInt(toVisible ? settings.showDuration : settings.hideDuration) || 0;
-    var easing = (toVisible ? settings.showEasing : settings.hideEasing) || 'ease';
+    var duration = toVisible ? settings.showDuration : settings.hideDuration;
+    var easing = toVisible ? settings.showEasing : settings.hideEasing;
     var isInstant = instant || duration <= 0;
     var currentStyles;
 
@@ -4485,7 +4501,7 @@
   ItemVisibility.prototype._finishShow = function() {
     if (this._isHidden) return;
     this._isShowing = false;
-    this._queue.flush(false, this._item);
+    this._queue.process(false, this._item);
   };
 
   /**
@@ -4502,7 +4518,7 @@
       this._isHiding = false;
       item._layout.stop(true, finishStyles);
       item._element.style.display = 'none';
-      this._queue.flush(false, item);
+      this._queue.process(false, item);
     };
   })();
 
@@ -5351,7 +5367,7 @@
   var nodeListType = '[object NodeList]';
 
   /**
-   * Check if a value is a node list
+   * Check if a value is a node list or a html collection.
    *
    * @param {*} val
    * @returns {Boolean}
@@ -5378,11 +5394,11 @@
   /**
    * Converts a value to an array or clones an array.
    *
-   * @param {*} target
+   * @param {*} val
    * @returns {Array}
    */
-  function toArray(target) {
-    return isNodeList(target) ? Array.prototype.slice.call(target) : Array.prototype.concat(target);
+  function toArray(val) {
+    return isNodeList(val) ? Array.prototype.slice.call(val) : Array.prototype.concat(val);
   }
 
   var packer = new Packer();
@@ -5455,7 +5471,6 @@
   function Grid(element, options) {
     var inst = this;
     var settings;
-    var items;
 
     // Allow passing element as selector string
     if (typeof element === stringType) {
@@ -5507,19 +5522,7 @@
     addClass(element, settings.containerClass);
 
     // Create initial items.
-    this._items = [];
-    items = settings.items;
-    if (typeof items === stringType) {
-      toArray(element.children).forEach(function(itemElement) {
-        if (items === '*' || elementMatches(itemElement, items)) {
-          inst._items.push(new Item(inst, itemElement));
-        }
-      });
-    } else if (Array.isArray(items) || isNodeList(items)) {
-      this._items = toArray(items).map(function(itemElement) {
-        return new Item(inst, itemElement);
-      });
-    }
+    this._items = getInitialGridItems(this, settings.items);
 
     // If layoutOnResize option is a valid number sanitize it and bind the resize
     // handler.
@@ -5743,22 +5746,24 @@
   Grid.prototype.getItems = function(targets) {
     // Return all items immediately if no targets were provided or if the
     // instance is destroyed.
-    if (this._isDestroyed || (!targets && targets !== 0)) {
+    if (this._isDestroyed || targets === undefined) {
       return this._items.slice(0);
     }
 
-    var ret = [];
-    var targetItems = toArray(targets);
-    var item;
-    var i;
+    var items = [];
+    var i, item;
 
-    // If target items are defined return filtered results.
-    for (i = 0; i < targetItems.length; i++) {
-      item = this._getItem(targetItems[i]);
-      item && ret.push(item);
+    if (Array.isArray(targets) || isNodeList(targets)) {
+      for (i = 0; i < targets.length; i++) {
+        item = this._getItem(targets[i]);
+        if (item) items.push(item);
+      }
+    } else {
+      item = this._getItem(targets);
+      if (item) items.push(item);
     }
 
-    return ret;
+    return items;
   };
 
   /**
@@ -6309,11 +6314,11 @@
     }
 
     function getIndexMap(items) {
-      var ret = {};
+      var result = {};
       for (var i = 0; i < items.length; i++) {
-        ret[items[i]._id] = i;
+        result[items[i]._id] = i;
       }
-      return ret;
+      return result;
     }
 
     function compareIndices(itemA, itemB) {
@@ -6851,19 +6856,20 @@
    */
   function mergeSettings(defaultSettings, userSettings) {
     // Create a fresh copy of default settings.
-    var ret = mergeObjects({}, defaultSettings);
+    var settings = mergeObjects({}, defaultSettings);
 
     // Merge user settings to default settings.
     if (userSettings) {
-      ret = mergeObjects(ret, userSettings);
+      settings = mergeObjects(settings, userSettings);
     }
 
     // Handle visible/hidden styles manually so that the whole object is
     // overridden instead of the props.
-    ret.visibleStyles = (userSettings || 0).visibleStyles || (defaultSettings || 0).visibleStyles;
-    ret.hiddenStyles = (userSettings || 0).hiddenStyles || (defaultSettings || 0).hiddenStyles;
+    settings.visibleStyles =
+      (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
+    settings.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
 
-    return ret;
+    return settings;
   }
 
   /**
@@ -6914,6 +6920,37 @@
     }
 
     return target;
+  }
+
+  /**
+   * Collect and return initial items for grid.
+   *
+   * @param {Grid} grid
+   * @param {?(HTMLElement[]|NodeList|String)} items
+   * @returns {HTMLElement[]}
+   */
+  function getInitialGridItems(grid, items) {
+    var result = [];
+    var wildCardSelector = '*';
+    var i, elem;
+
+    // If we have a selector.
+    if (typeof items === stringType) {
+      for (i = 0; i < grid._element.children.length; i++) {
+        elem = grid._element.children[i];
+        if (items === wildCardSelector || elementMatches(elem, items)) {
+          result.push(new Item(grid, elem));
+        }
+      }
+    }
+    // If we have an array of elements or a node list.
+    else if (Array.isArray(items) || isNodeList(items)) {
+      for (i = 0; i < items.length; i++) {
+        result.push(new Item(grid, items[i]));
+      }
+    }
+
+    return result;
   }
 
   /**

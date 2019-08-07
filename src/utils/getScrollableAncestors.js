@@ -7,36 +7,36 @@
 import isScrollable from './isScrollable';
 
 /**
- * Collect element's ancestors that are potentially scrollable elements.
+ * Collect element's ancestors that are potentially scrollable elements. The
+ * provided element is also also included in the check, meaning that if it is
+ * scrollable it is added to the result array.
  *
  * @param {HTMLElement} element
- * @param {Boolean} [includeSelf=false]
- * @param {Array} [data]
+ * @param {Array} [result]
  * @returns {Array}
  */
-export default function getScrollableAncestors(element, includeSelf, data) {
-  var ret = data || [];
-  var parent = includeSelf ? element : element.parentNode;
+export default function getScrollableAncestors(element, result) {
+  result = result || [];
 
   // Find scroll parents.
-  while (parent && parent !== document) {
+  while (element && element !== window.document) {
     // If element is inside ShadowDOM let's get it's host node from the real
     // DOM and continue looping.
-    if (parent.getRootNode && parent instanceof DocumentFragment) {
-      parent = parent.getRootNode().host;
+    if (element.getRootNode && element instanceof DocumentFragment) {
+      element = element.getRootNode().host;
       continue;
     }
 
     // If element is scrollable let's add it to the scrollable list.
-    if (isScrollable(parent)) {
-      ret.push(parent);
+    if (isScrollable(element)) {
+      result.push(element);
     }
 
-    parent = parent.parentNode;
+    element = element.parentNode;
   }
 
   // Always add window to the results.
-  ret.push(window);
+  result.push(window);
 
-  return ret;
+  return result;
 }

@@ -12,6 +12,8 @@
  */
 function Queue() {
   this._queue = [];
+  this._processQueue = [];
+  this._processCounter = 0;
   this._isDestroyed = false;
 }
 
@@ -35,40 +37,52 @@ Queue.prototype.add = function(callback) {
 };
 
 /**
- * Process queue callbacks and reset the queue.
+ * Process queue callbacks in the order they were insterted and reset the queue.
+ * The provided arguments are passed on to the callbacks.
  *
  * @public
  * @memberof Queue.prototype
- * @param {*} arg1
- * @param {*} arg2
+ * @param {...*} args
  * @returns {Queue}
  */
-Queue.prototype.flush = function(arg1, arg2) {
+Queue.prototype.process = function() {
   if (this._isDestroyed) return this;
 
   var queue = this._queue;
-  var length = queue.length;
-  var i;
+  var queueLength = queue.length;
 
   // Quit early if the queue is empty.
-  if (!length) return this;
+  if (!queueLength) return this;
 
-  var singleCallback = length === 1;
-  var snapshot = singleCallback ? queue[0] : queue.slice(0);
+  var pQueue = this._processQueue;
+  var pQueueLength = pQueue.length;
+  var i;
+
+  // Append the current queue callbacks to the process queue.
+  for (i = 0; i < queueLength; i++) {
+    pQueue.push(queue[i]);
+  }
 
   // Reset queue.
   queue.length = 0;
 
-  // If we only have a single callback let's just call it.
-  if (singleCallback) {
-    snapshot(arg1, arg2);
-    return this;
+  // Increment process counter.
+  ++this._processCounter;
+
+  // Call the new process queue callbacks.
+  var indexFrom = pQueueLength;
+  var indexTo = pQueue.length;
+  for (i = indexFrom; i < indexTo; i++) {
+    if (this._isDestroyed) return this;
+    pQueue[i].apply(null, arguments);
   }
 
-  // If we have multiple callbacks, let's process them.
-  for (i = 0; i < length; i++) {
-    snapshot[i](arg1, arg2);
-    if (this._isDestroyed) break;
+  // Decrement process counter.
+  --this._processCounter;
+
+  // Reset process queue once it has stop processing.
+  if (!this._processCounter) {
+    pQueue.length = 0;
   }
 
   return this;
@@ -86,6 +100,8 @@ Queue.prototype.destroy = function() {
 
   this._isDestroyed = true;
   this._queue.length = 0;
+  this._processQueue.length = 0;
+  this._processCounter = 0;
 
   return this;
 };

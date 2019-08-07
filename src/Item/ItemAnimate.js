@@ -108,7 +108,7 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   animOptions.duration = opts.duration || 300;
   animOptions.easing = opts.easing || 'ease';
 
-  // Start the animation
+  // Start the animation.
   var element = this._element;
   animation = element.animate(animKeyframes, animOptions);
   animation.onfinish = this._onFinish;

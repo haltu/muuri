@@ -121,7 +121,6 @@ var instantLayout = 'instant';
 function Grid(element, options) {
   var inst = this;
   var settings;
-  var items;
 
   // Allow passing element as selector string
   if (typeof element === stringType) {
@@ -173,19 +172,7 @@ function Grid(element, options) {
   addClass(element, settings.containerClass);
 
   // Create initial items.
-  this._items = [];
-  items = settings.items;
-  if (typeof items === stringType) {
-    toArray(element.children).forEach(function(itemElement) {
-      if (items === '*' || elementMatches(itemElement, items)) {
-        inst._items.push(new Item(inst, itemElement));
-      }
-    });
-  } else if (Array.isArray(items) || isNodeList(items)) {
-    this._items = toArray(items).map(function(itemElement) {
-      return new Item(inst, itemElement);
-    });
-  }
+  this._items = getInitialGridItems(this, settings.items);
 
   // If layoutOnResize option is a valid number sanitize it and bind the resize
   // handler.
@@ -409,22 +396,24 @@ Grid.prototype.getElement = function() {
 Grid.prototype.getItems = function(targets) {
   // Return all items immediately if no targets were provided or if the
   // instance is destroyed.
-  if (this._isDestroyed || (!targets && targets !== 0)) {
+  if (this._isDestroyed || targets === undefined) {
     return this._items.slice(0);
   }
 
-  var ret = [];
-  var targetItems = toArray(targets);
-  var item;
-  var i;
+  var items = [];
+  var i, item;
 
-  // If target items are defined return filtered results.
-  for (i = 0; i < targetItems.length; i++) {
-    item = this._getItem(targetItems[i]);
-    item && ret.push(item);
+  if (Array.isArray(targets) || isNodeList(targets)) {
+    for (i = 0; i < targets.length; i++) {
+      item = this._getItem(targets[i]);
+      if (item) items.push(item);
+    }
+  } else {
+    item = this._getItem(targets);
+    if (item) items.push(item);
   }
 
-  return ret;
+  return items;
 };
 
 /**
@@ -975,11 +964,11 @@ Grid.prototype.sort = (function() {
   }
 
   function getIndexMap(items) {
-    var ret = {};
+    var result = {};
     for (var i = 0; i < items.length; i++) {
-      ret[items[i]._id] = i;
+      result[items[i]._id] = i;
     }
-    return ret;
+    return result;
   }
 
   function compareIndices(itemA, itemB) {
@@ -1517,19 +1506,20 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
  */
 function mergeSettings(defaultSettings, userSettings) {
   // Create a fresh copy of default settings.
-  var ret = mergeObjects({}, defaultSettings);
+  var settings = mergeObjects({}, defaultSettings);
 
   // Merge user settings to default settings.
   if (userSettings) {
-    ret = mergeObjects(ret, userSettings);
+    settings = mergeObjects(settings, userSettings);
   }
 
   // Handle visible/hidden styles manually so that the whole object is
   // overridden instead of the props.
-  ret.visibleStyles = (userSettings || 0).visibleStyles || (defaultSettings || 0).visibleStyles;
-  ret.hiddenStyles = (userSettings || 0).hiddenStyles || (defaultSettings || 0).hiddenStyles;
+  settings.visibleStyles =
+    (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
+  settings.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
 
-  return ret;
+  return settings;
 }
 
 /**
@@ -1580,6 +1570,37 @@ function mergeObjects(target, source) {
   }
 
   return target;
+}
+
+/**
+ * Collect and return initial items for grid.
+ *
+ * @param {Grid} grid
+ * @param {?(HTMLElement[]|NodeList|String)} items
+ * @returns {HTMLElement[]}
+ */
+function getInitialGridItems(grid, items) {
+  var result = [];
+  var wildCardSelector = '*';
+  var i, elem;
+
+  // If we have a selector.
+  if (typeof items === stringType) {
+    for (i = 0; i < grid._element.children.length; i++) {
+      elem = grid._element.children[i];
+      if (items === wildCardSelector || elementMatches(elem, items)) {
+        result.push(new Item(grid, elem));
+      }
+    }
+  }
+  // If we have an array of elements or a node list.
+  else if (Array.isArray(items) || isNodeList(items)) {
+    for (i = 0; i < items.length; i++) {
+      result.push(new Item(grid, items[i]));
+    }
+  }
+
+  return result;
 }
 
 /**

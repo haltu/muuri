@@ -92,7 +92,7 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
   // queue with the interrupted flag active, update classes and set display
   // to block if necessary.
   if (!this._isShowing) {
-    queue.flush(true, item);
+    queue.process(true, item);
     removeClass(element, settings.itemHiddenClass);
     addClass(element, settings.itemVisibleClass);
     if (!this._isHiding) element.style.display = 'block';
@@ -147,7 +147,7 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
   // queue with the interrupted flag active, update classes and set display
   // to block if necessary.
   if (!this._isHiding) {
-    queue.flush(true, item);
+    queue.process(true, item);
     addClass(element, settings.itemHiddenClass);
     removeClass(element, settings.itemVisibleClass);
   }
@@ -185,7 +185,7 @@ ItemVisibility.prototype.destroy = function() {
   this._stopAnimation({});
 
   // Fire all uncompleted callbacks with interrupted flag and destroy the queue.
-  queue.flush(true, item).destroy();
+  queue.process(true, item).destroy();
 
   // Remove visible/hidden classes.
   removeClass(element, settings.itemVisibleClass);
@@ -219,8 +219,8 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
   var item = this._item;
   var settings = item.getGrid()._settings;
   var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
-  var duration = parseInt(toVisible ? settings.showDuration : settings.hideDuration) || 0;
-  var easing = (toVisible ? settings.showEasing : settings.hideEasing) || 'ease';
+  var duration = toVisible ? settings.showDuration : settings.hideDuration;
+  var easing = toVisible ? settings.showEasing : settings.hideEasing;
   var isInstant = instant || duration <= 0;
   var currentStyles;
 
@@ -283,7 +283,7 @@ ItemVisibility.prototype._stopAnimation = function(targetStyles) {
 ItemVisibility.prototype._finishShow = function() {
   if (this._isHidden) return;
   this._isShowing = false;
-  this._queue.flush(false, this._item);
+  this._queue.process(false, this._item);
 };
 
 /**
@@ -300,7 +300,7 @@ ItemVisibility.prototype._finishHide = (function() {
     this._isHiding = false;
     item._layout.stop(true, finishStyles);
     item._element.style.display = 'none';
-    this._queue.flush(false, item);
+    this._queue.process(false, item);
   };
 })();
 

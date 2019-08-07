@@ -113,7 +113,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   if (item._drag) item._drag.destroy();
 
   // Process current visibility animation queue.
-  item._visibility._queue.flush(true, item);
+  item._visibility._queue.process(true, item);
 
   // Emit beforeSend event.
   if (grid._hasListeners(eventBeforeSend)) {

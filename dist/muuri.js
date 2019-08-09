@@ -210,25 +210,61 @@
     return this;
   };
 
-  // Set up the default export values.
-  var transformStyle = 'transform';
-  var transformProp = 'transform';
+  // Playing it safe here, test all potential prefixes capitalized and lowercase.
+  var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
 
-  // Find the supported transform prop and style names.
-  var docElemStyle = window.document.documentElement.style;
-  var style = 'transform';
-  var styleCap = 'Transform';
-  var found = false;
-  ['', 'Webkit', 'Moz', 'O', 'ms'].forEach(function(prefix) {
-    if (found) return;
-    var propName = prefix ? prefix + styleCap : style;
-    if (docElemStyle[propName] !== undefined) {
-      prefix = prefix.toLowerCase();
-      transformStyle = prefix ? '-' + prefix + '-' + style : style;
-      transformProp = propName;
-      found = true;
+  /**
+   * Get prefixed CSS property name when given a non-prefixed CSS property name.
+   * Returns null if the property is not supported at all.
+   * @param {Object} styleObject
+   * @param {String} prop
+   * @returns {?String}
+   */
+  function getPrefixedPropName(styleObject, prop) {
+    var camelProp = prop[0].toUpperCase() + prop.slice(1);
+    var i = 0;
+    var prefixedProp;
+
+    while (i < vendorPrefixes.length) {
+      prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : prop;
+      if (prefixedProp in styleObject) return prefixedProp;
+      ++i;
     }
-  });
+
+    return null;
+  }
+
+  var docElemStyle = window.document.documentElement.style;
+  var transformProp = getPrefixedPropName(docElemStyle, 'transform') || 'transform';
+
+  var styleNameRegEx = /([A-Z])/g;
+  var vendorPrefixedRegex = /^(webkit-|moz-|ms-|o-)/;
+  var msPrefixRegex = /^(-m-s-)/;
+
+  /**
+   * Transforms a camel case style property to kebab case style property. Handles
+   * prefixed properties elegantly as well, e.g. "WebkitTransform" and
+   * "webkitTransform" are both transformed into "-webkit-transform".
+   *
+   * @param {String} property
+   * @returns {String}
+   */
+  function getStyleName(property) {
+    // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
+    var styleName = property.replace(styleNameRegEx, '-$1').toLowerCase();
+
+    // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
+    // need to add an extra '-' to the beginnig).
+    styleName = styleName.replace(vendorPrefixedRegex, '-$1');
+
+    // Handle properties that start with "MS" prefix (we need to transform the
+    // "-m-s-" into "-ms-").
+    styleName = styleName.replace(msPrefixRegex, '-ms-');
+
+    return styleName;
+  }
+
+  var transformStyle = getStyleName(transformProp);
 
   var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
 
@@ -248,18 +284,6 @@
     return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
   }
 
-  var styleNameRegEx = /([A-Z])/g;
-
-  /**
-   * Transforms a camel case style property to kebab case style property.
-   *
-   * @param {String} string
-   * @returns {String}
-   */
-  function getStyleName(string) {
-    return string.replace(styleNameRegEx, '-$1').toLowerCase();
-  }
-
   var functionType = 'function';
 
   /**
@@ -272,7 +296,7 @@
     return typeof val === functionType;
   }
 
-  var transformStyle$1 = 'transform';
+  var unprefixedTransformProp = 'transform';
 
   /**
    * Set inline styles to an element.
@@ -282,7 +306,7 @@
    */
   function setStyles(element, styles) {
     for (var prop in styles) {
-      element.style[prop === transformStyle$1 ? transformProp : prop] = styles[prop];
+      element.style[prop === unprefixedTransformProp ? transformProp : prop] = styles[prop];
     }
   }
 
@@ -473,30 +497,6 @@
     callback && callback();
   };
 
-  var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
-
-  /**
-   * Get prefixed CSS property name when given a non-prefixed CSS property name.
-   * @param {Object} elemStyle
-   * @param {String} propName
-   * @returns {!String}
-   */
-  function getPrefixedPropName(elemStyle, propName) {
-    var camelPropName = propName[0].toUpperCase() + propName.slice(1);
-    var i = 0;
-    var prefix;
-    var prefixedPropName;
-
-    while (i < vendorPrefixes.length) {
-      prefix = vendorPrefixes[i];
-      prefixedPropName = prefix ? prefix + camelPropName : propName;
-      if (prefixedPropName in elemStyle) return prefixedPropName;
-      ++i;
-    }
-
-    return null;
-  }
-
   // Detect support for passive events:
   // https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
   var isPassiveEventsSupported = false;
@@ -521,7 +521,6 @@
   var hasTouchEvents = !!('ontouchstart' in window || window.TouchEvent);
   var hasPointerEvents = !!window.PointerEvent;
   var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
-  var isIos = !!window.navigator.platform && /^(iPad|iPhone|iPod)/.test(window.navigator.platform);
   var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
   var taProp = 'touchAction';
@@ -842,7 +841,7 @@
     // indication that the event will be cancelled anyways soon after drag starts
     // (e.g. page is scrolling when drag starts). However, we do an exception for
     // iOS here since it is always non-cancelable due to the event being passive.
-    if (!isIos && e.cancelable === false) return;
+    if (e.cancelable === false) return;
 
     // Make sure left button is pressed on mouse.
     if (e.button) return;
@@ -883,12 +882,10 @@
 
     // If the touch event is non-cancelable let's just reset the instance and
     // abort the start procedure.
-    /*
     if (e.cancelable === false) {
       this._reset();
       return;
     }
-    */
 
     // In other cases, let's start the drag (and unbind the temporary listener).
     this._element.removeEventListener(
@@ -1700,7 +1697,7 @@
   }
 
   var translateValue = {};
-  var transformStyle$2 = 'transform';
+  var transformStyle$1 = 'transform';
   var transformNone = 'none';
   var rxMat3d = /^matrix3d/;
   var rxMatTx = /([^,]*,){4}/;
@@ -1719,7 +1716,7 @@
     translateValue.x = 0;
     translateValue.y = 0;
 
-    var transform = getStyle(element, transformStyle$2);
+    var transform = getStyle(element, transformStyle$1);
     if (!transform || transform === transformNone) {
       return translateValue;
     }

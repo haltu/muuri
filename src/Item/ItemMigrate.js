@@ -16,7 +16,7 @@ import arrayInsert from '../utils/arrayInsert';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
-import { transformProp } from '../utils/supportedTransform';
+import transformProp from '../utils/transformProp';
 
 /**
  * The migrate process handler constructor.

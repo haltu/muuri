@@ -36,7 +36,6 @@ export var events = {
 var hasTouchEvents = !!('ontouchstart' in window || window.TouchEvent);
 var hasPointerEvents = !!window.PointerEvent;
 var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
-var isIos = !!window.navigator.platform && /^(iPad|iPhone|iPod)/.test(window.navigator.platform);
 var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
 var taProp = 'touchAction';
@@ -357,7 +356,7 @@ Dragger.prototype._preStartCheck = function(e) {
   // indication that the event will be cancelled anyways soon after drag starts
   // (e.g. page is scrolling when drag starts). However, we do an exception for
   // iOS here since it is always non-cancelable due to the event being passive.
-  if (!isIos && e.cancelable === false) return;
+  if (e.cancelable === false) return;
 
   // Make sure left button is pressed on mouse.
   if (e.button) return;

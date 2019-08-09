@@ -20,7 +20,7 @@ import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
 import getTranslateString from '../utils/getTranslateString';
 import removeClass from '../utils/removeClass';
-import { transformProp } from '../utils/supportedTransform';
+import transformProp from '../utils/transformProp';
 
 /**
  * Creates a new Item instance for a Grid instance.

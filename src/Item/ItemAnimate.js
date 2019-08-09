@@ -8,7 +8,7 @@ import getStyle from '../utils/getStyle';
 import getStyleName from '../utils/getStyleName';
 import isFunction from '../utils/isFunction';
 import setStyles from '../utils/setStyles';
-import { transformProp } from '../utils/supportedTransform';
+import transformProp from '../utils/transformProp';
 
 /**
  * Item animation handler powered by Web Animations API.

@@ -39,7 +39,7 @@ import isFunction from '../utils/isFunction';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
-import { transformProp } from '../utils/supportedTransform';
+import transformProp from '../utils/transformProp';
 
 // Drag start predicate states.
 var startPredicateInactive = 0;

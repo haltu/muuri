@@ -4,9 +4,9 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { transformProp } from './supportedTransform';
+import transformProp from './transformProp';
 
-var transformStyle = 'transform';
+var unprefixedTransformProp = 'transform';
 
 /**
  * Set inline styles to an element.
@@ -16,6 +16,6 @@ var transformStyle = 'transform';
  */
 export default function setStyles(element, styles) {
   for (var prop in styles) {
-    element.style[prop === transformStyle ? transformProp : prop] = styles[prop];
+    element.style[prop === unprefixedTransformProp ? transformProp : prop] = styles[prop];
   }
 }

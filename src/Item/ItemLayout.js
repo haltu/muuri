@@ -75,7 +75,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
 
   // If the item is currently positioning process current layout callback
   // queue with interrupted flag on.
-  if (isPositioning) this._queue.flush(true, item);
+  if (isPositioning) this._queue.process(true, item);
 
   // Mark release positioning as started.
   if (isJustReleased) release._isPositioningStarted = true;

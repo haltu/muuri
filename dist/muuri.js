@@ -497,20 +497,6 @@
     return null;
   }
 
-  var dt = 1000 / 60;
-
-  var raf = (
-    window.requestAnimationFrame ||
-    window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame ||
-    window.msRequestAnimationFrame ||
-    function(callback) {
-      return this.setTimeout(function() {
-        callback(dt);
-      }, dt);
-    }
-  ).bind(window);
-
   // Detect support for passive events:
   // https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
   var isPassiveEventsSupported = false;
@@ -535,7 +521,7 @@
   var hasTouchEvents = !!('ontouchstart' in window || window.TouchEvent);
   var hasPointerEvents = !!window.PointerEvent;
   var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
-  var isAndroid = /(android)/i.test(window.navigator.userAgent);
+  var isIos = !!window.navigator.platform && /^(iPad|iPhone|iPod)/.test(window.navigator.platform);
   var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
 
   var taProp = 'touchAction';
@@ -557,6 +543,7 @@
     this._cssProps = {};
     this._touchAction = '';
     this._startEvent = null;
+    this._isStarted = false;
 
     this._pointerId = null;
     this._startTime = 0;
@@ -566,7 +553,7 @@
     this._currentY = 0;
 
     this._preStartCheck = this._preStartCheck.bind(this);
-    this._abortNonCancelable = this._abortNonCancelable.bind(this);
+    this._onTouchStart = this._onTouchStart.bind(this);
     this._onStart = this._onStart.bind(this);
     this._onMove = this._onMove.bind(this);
     this._onCancel = this._onCancel.bind(this);
@@ -752,8 +739,7 @@
    * @memberof Dragger.prototype
    */
   Dragger.prototype._reset = function() {
-    if (this._isDestroyed) return;
-
+    this._isStarted = false;
     this._pointerId = null;
     this._startTime = 0;
     this._startX = 0;
@@ -762,11 +748,13 @@
     this._currentY = 0;
     this._startEvent = null;
 
-    this._element.removeEventListener(
-      Dragger._touchEvents.start,
-      this._abortNonCancelable,
-      listenerOptions
-    );
+    if (this._element) {
+      this._element.removeEventListener(
+        Dragger._touchEvents.start,
+        this._onTouchStart,
+        listenerOptions
+      );
+    }
 
     Dragger._deactivateInstance(this);
   };
@@ -847,12 +835,14 @@
   Dragger.prototype._preStartCheck = function(e) {
     if (this._isDestroyed) return;
 
-    // Make sure the element is not being dragged currently.
-    if (this.isDragging()) return;
+    // If pointer id is already assigned let's return early.
+    if (this._pointerId !== null) return;
 
-    // Special cancelable check for Android to prevent drag procedure from
-    // starting if native scrolling is in progress. Part 1.
-    if (isAndroid && e.cancelable === false) return;
+    // Don't start drag if the event is not cancelable, this is 99% of the time an
+    // indication that the event will be cancelled anyways soon after drag starts
+    // (e.g. page is scrolling when drag starts). However, we do an exception for
+    // iOS here since it is always non-cancelable due to the event being passive.
+    if (!isIos && e.cancelable === false) return;
 
     // Make sure left button is pressed on mouse.
     if (e.button) return;
@@ -864,44 +854,49 @@
     // Store the start event and trigger start (async or sync). Pointer events
     // are emitted before touch events if the browser supports both of them. And
     // if you try to move an element before `touchstart` is emitted the pointer
-    // events for that element will be canceled. The fix is to delay the emitted
-    // pointer events in such a scenario by one frame so that `touchstart` has
-    // time to be emitted before the element is (potentially) moved.
-    this._startEvent = e;
+    // events for that element will be canceled on some browsers/devices. The fix
+    // is to delay the emitted pointer events in such a scenario by one frame so
+    // that `touchstart` has time to be emitted before the element is
+    // (potentially) moved.
     if (hasTouchEvents && (hasPointerEvents || hasMsPointerEvents)) {
-      // Special cancelable check for Android to prevent drag procedure from
-      // starting if native scrolling is in progress. Part 2.
-      if (isAndroid) {
-        this._element.addEventListener(
-          Dragger._touchEvents.start,
-          this._abortNonCancelable,
-          listenerOptions
-        );
-      }
-      raf(this._onStart);
+      this._startEvent = e;
+      this._element.addEventListener(Dragger._touchEvents.start, this._onTouchStart, listenerOptions);
     } else {
-      this._onStart();
+      this._onStart(e);
     }
+
+    // Start listening to move/end/cancel events.
+    Dragger._activateInstance(this);
   };
 
   /**
-   * Abort start event if it turns out to be non-cancelable.
+   * Touch start handler for a special (but very common) scenario where we have
+   * both pointer events and touch events available.
    *
    * @private
    * @memberof Dragger.prototype
-   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+   * @param {TouchEvent} e
    */
-  Dragger.prototype._abortNonCancelable = function(e) {
+  Dragger.prototype._onTouchStart = function(e) {
+    // If the instance has been reset already (for some reason) let's bail out.
+    if (this._pointerId === null) return;
+
+    // If the touch event is non-cancelable let's just reset the instance and
+    // abort the start procedure.
+    /*
+    if (e.cancelable === false) {
+      this._reset();
+      return;
+    }
+    */
+
+    // In other cases, let's start the drag (and unbind the temporary listener).
     this._element.removeEventListener(
       Dragger._touchEvents.start,
-      this._abortNonCancelable,
+      this._onTouchStart,
       listenerOptions
     );
-
-    if (this._startEvent && e.cancelable === false) {
-      this._pointerId = null;
-      this._startEvent = null;
-    }
+    this._onStart(this._startEvent);
   };
 
   /**
@@ -909,13 +904,9 @@
    *
    * @private
    * @memberof Dragger.prototype
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
-  Dragger.prototype._onStart = function() {
-    var e = this._startEvent;
-    if (!e) return;
-
-    this._startEvent = null;
-
+  Dragger.prototype._onStart = function(e) {
     var touch = this._getTrackedTouch(e);
     if (!touch) return;
 
@@ -923,8 +914,8 @@
     this._startX = this._currentX = touch.clientX;
     this._startY = this._currentY = touch.clientY;
     this._startTime = Date.now();
+    this._isStarted = true;
     this._emit(events.start, e);
-    Dragger._activateInstance(this);
   };
 
   /**
@@ -935,6 +926,9 @@
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   Dragger.prototype._onMove = function(e) {
+    // Ignore if first drag event is not emitted yet.
+    if (!this._isStarted) return;
+
     var touch = this._getTrackedTouch(e);
     if (!touch) return;
 
@@ -944,7 +938,7 @@
   };
 
   /**
-   * Handler for move cancel event.
+   * Handler for cancel event.
    *
    * @private
    * @memberof Dragger.prototype
@@ -953,7 +947,10 @@
   Dragger.prototype._onCancel = function(e) {
     if (!this._getTrackedTouch(e)) return;
 
-    this._emit(events.cancel, e);
+    if (this._isStarted) {
+      this._emit(events.cancel, e);
+    }
+
     this._reset();
   };
 
@@ -967,7 +964,10 @@
   Dragger.prototype._onEnd = function(e) {
     if (!this._getTrackedTouch(e)) return;
 
-    this._emit(events.end, e);
+    if (this._isStarted) {
+      this._emit(events.end, e);
+    }
+
     this._reset();
   };
 
@@ -984,7 +984,7 @@
    * @returns {Boolean}
    */
   Dragger.prototype.isDragging = function() {
-    return this._pointerId !== null;
+    return this._isStarted;
   };
 
   /**
@@ -1170,6 +1170,20 @@
     // Mark as destroyed.
     this._isDestroyed = true;
   };
+
+  var dt = 1000 / 60;
+
+  var raf = (
+    window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame ||
+    window.msRequestAnimationFrame ||
+    function(callback) {
+      return this.setTimeout(function() {
+        callback(dt);
+      }, dt);
+    }
+  ).bind(window);
 
   /**
    * A ticker system for handling DOM reads and writes in an efficient way.
@@ -3611,7 +3625,7 @@
 
     // If the item is currently positioning process current layout callback
     // queue with interrupted flag on.
-    if (isPositioning) this._queue.flush(true, item);
+    if (isPositioning) this._queue.process(true, item);
 
     // Mark release positioning as started.
     if (isJustReleased) release._isPositioningStarted = true;

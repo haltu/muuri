@@ -210,62 +210,6 @@
     return this;
   };
 
-  // Playing it safe here, test all potential prefixes capitalized and lowercase.
-  var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
-
-  /**
-   * Get prefixed CSS property name when given a non-prefixed CSS property name.
-   * Returns null if the property is not supported at all.
-   * @param {Object} styleObject
-   * @param {String} prop
-   * @returns {?String}
-   */
-  function getPrefixedPropName(styleObject, prop) {
-    var camelProp = prop[0].toUpperCase() + prop.slice(1);
-    var i = 0;
-    var prefixedProp;
-
-    while (i < vendorPrefixes.length) {
-      prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : prop;
-      if (prefixedProp in styleObject) return prefixedProp;
-      ++i;
-    }
-
-    return null;
-  }
-
-  var docElemStyle = window.document.documentElement.style;
-  var transformProp = getPrefixedPropName(docElemStyle, 'transform') || 'transform';
-
-  var styleNameRegEx = /([A-Z])/g;
-  var vendorPrefixedRegex = /^(webkit-|moz-|ms-|o-)/;
-  var msPrefixRegex = /^(-m-s-)/;
-
-  /**
-   * Transforms a camel case style property to kebab case style property. Handles
-   * prefixed properties elegantly as well, e.g. "WebkitTransform" and
-   * "webkitTransform" are both transformed into "-webkit-transform".
-   *
-   * @param {String} property
-   * @returns {String}
-   */
-  function getStyleName(property) {
-    // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
-    var styleName = property.replace(styleNameRegEx, '-$1').toLowerCase();
-
-    // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
-    // need to add an extra '-' to the beginnig).
-    styleName = styleName.replace(vendorPrefixedRegex, '-$1');
-
-    // Handle properties that start with "MS" prefix (we need to transform the
-    // "-m-s-" into "-ms-").
-    styleName = styleName.replace(msPrefixRegex, '-ms-');
-
-    return styleName;
-  }
-
-  var transformStyle = getStyleName(transformProp);
-
   var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
 
   /**
@@ -281,7 +225,77 @@
       styles = window.getComputedStyle(element, null);
       if (stylesCache) stylesCache.set(element, styles);
     }
-    return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
+    return styles.getPropertyValue(style);
+  }
+
+  var styleNameRegEx = /([A-Z])/g;
+  var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
+  var msPrefixRegex = /^(-m-s-)/;
+
+  /**
+   * Transforms a camel case style property to kebab case style property. Handles
+   * vendor prefixed properties elegantly as well, e.g. "WebkitTransform" and
+   * "webkitTransform" are both transformed into "-webkit-transform".
+   *
+   * @param {String} property
+   * @returns {String}
+   */
+  function getStyleName(property) {
+    // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
+    var styleName = property.replace(styleNameRegEx, '-$1').toLowerCase();
+
+    // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
+    // need to add an extra '-' to the beginnig).
+    styleName = styleName.replace(prefixRegex, '-$1');
+
+    // Handle properties that start with "MS" prefix (we need to transform the
+    // "-m-s-" into "-ms-").
+    styleName = styleName.replace(msPrefixRegex, '-ms-');
+
+    return styleName;
+  }
+
+  /**
+   * Get current values of the provided styles definition object or array.
+   *
+   * @param {HTMLElement} element
+   * @param {(Object|Array} styles
+   * @return {Object}
+   */
+  function getCurrentStyles(element, styles) {
+    var result = {};
+    var prop, i;
+
+    if (Array.isArray(styles)) {
+      for (i = 0; i < styles.length; i++) {
+        prop = styles[i];
+        result[prop] = getStyle(element, getStyleName(prop));
+      }
+    } else {
+      for (prop in styles) {
+        result[prop] = getStyle(element, getStyleName(prop));
+      }
+    }
+
+    return result;
+  }
+
+  var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
+
+  /**
+   * Remove any potential vendor prefixes from a property name.
+   *
+   * @param {String} prop
+   * @returns {String}
+   */
+  function getUnprefixedPropName(prop) {
+    var result = prop.replace(unprefixRegEx, '');
+
+    if (result === prop) {
+      return prop;
+    }
+
+    return result[0].toLowerCase() + result.slice(1);
   }
 
   var functionType = 'function';
@@ -296,7 +310,26 @@
     return typeof val === functionType;
   }
 
-  var unprefixedTransformProp = 'transform';
+  var nativeCode = '[native code]';
+
+  /**
+   * Check if a value (e.g. a method or constructor) is native code. Good for
+   * detecting when a polyfill is used and when not.
+   *
+   * @param {*} feat
+   * @returns {Boolean}
+   */
+  function isNative(feat) {
+    var S = window.Symbol;
+    return !!(
+      feat &&
+      isFunction(S) &&
+      isFunction(S.toString) &&
+      S(feat)
+        .toString()
+        .indexOf(nativeCode) > -1
+    );
+  }
 
   /**
    * Set inline styles to an element.
@@ -306,9 +339,13 @@
    */
   function setStyles(element, styles) {
     for (var prop in styles) {
-      element.style[prop === unprefixedTransformProp ? transformProp : prop] = styles[prop];
+      element.style[prop] = styles[prop];
     }
   }
+
+  var Element = window.Element;
+  var hasWebAnimations = !!(Element && isFunction(Element.prototype.animate));
+  var hasNativeWebAnimations = !!(Element && isNative(Element.prototype.animate));
 
   /**
    * Item animation handler powered by Web Animations API.
@@ -322,8 +359,6 @@
     this._callback = null;
     this._props = [];
     this._values = [];
-    this._keyframes = [];
-    this._options = {};
     this._isDestroyed = false;
     this._onFinish = this._onFinish.bind(this);
   }
@@ -349,21 +384,33 @@
   ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
     if (this._isDestroyed) return;
 
+    var element = this._element;
+    var opts = options || {};
+
+    // If we don't have web animations available let's not animate.
+    if (!hasWebAnimations) {
+      setStyles(element, propsTo);
+      this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
+      this._onFinish();
+      return;
+    }
+
     var animation = this._animation;
     var currentProps = this._props;
     var currentValues = this._values;
-    var opts = options || 0;
     var cancelAnimation = false;
+    var propName, propCount, propIndex;
 
     // If we have an existing animation running, let's check if it needs to be
     // cancelled or if it can continue running.
     if (animation) {
-      var propCount = 0;
-      var propIndex;
+      propCount = 0;
 
       // Check if the requested animation target props and values match with the
       // current props and values.
-      for (var propName in propsTo) {
+      // TODO: Maybe it's cleaner to use an object instead of two arrays here for
+      // storing the target props?
+      for (propName in propsTo) {
         ++propCount;
         propIndex = currentProps.indexOf(propName);
         if (propIndex === -1 || propsTo[propName] !== currentValues[propIndex]) {
@@ -398,21 +445,20 @@
       currentValues.push(propsTo[propName]);
     }
 
-    // Set up keyframes.
-    var animKeyframes = this._keyframes;
-    animKeyframes[0] = propsFrom;
-    animKeyframes[1] = propsTo;
-
-    // Set up options.
-    var animOptions = this._options;
-    animOptions.duration = opts.duration || 300;
-    animOptions.easing = opts.easing || 'ease';
-
-    // Start the animation.
-    var element = this._element;
-    animation = element.animate(animKeyframes, animOptions);
+    // Start the animation. We need to provide unprefixed property names to the
+    // Web Animations polyfill if it is being used. If we have native Web
+    // Animations available we need to provide prefixed properties instead.
+    this._animation = animation = element.animate(
+      [
+        createFrame(propsFrom, !hasNativeWebAnimations),
+        createFrame(propsTo, !hasNativeWebAnimations)
+      ],
+      {
+        duration: opts.duration || 300,
+        easing: opts.easing || 'ease'
+      }
+    );
     animation.onfinish = this._onFinish;
-    this._animation = animation;
 
     // Set the end styles. This makes sure that the element stays at the end
     // values after animation is finished.
@@ -432,22 +478,15 @@
     var element = this._element;
     var currentProps = this._props;
     var currentValues = this._values;
-    var propName;
-    var propValue;
-    var i;
 
-    // Calculate (if not provided) and set styles.
+    // Calculate current styles if no specific styles are provided.
     if (!styles) {
-      for (i = 0; i < currentProps.length; i++) {
-        propName = currentProps[i];
-        propValue = getStyle(element, getStyleName(propName));
-        element.style[propName === 'transform' ? transformProp : propName] = propValue;
-      }
-    } else {
-      setStyles(element, styles);
+      styles = getCurrentStyles(element, currentProps);
     }
 
-    //  Cancel animation.
+    setStyles(element, styles);
+
+    // Cancel animation.
     this._animation.cancel();
     this._animation = this._callback = null;
 
@@ -475,7 +514,7 @@
   ItemAnimate.prototype.destroy = function() {
     if (this._isDestroyed) return;
     this.stop();
-    this._element = this._options = this._keyframes = null;
+    this._element = null;
     this._isDestroyed = true;
   };
 
@@ -496,6 +535,44 @@
     this._props.length = this._values.length = 0;
     callback && callback();
   };
+
+  /**
+   * Private helpers
+   * ***************
+   */
+
+  function createFrame(props, unprefix) {
+    var frame = {};
+    for (var prop in props) {
+      frame[unprefix ? getUnprefixedPropName(prop) : prop] = props[prop];
+    }
+    return frame;
+  }
+
+  // Playing it safe here, test all potential prefixes capitalized and lowercase.
+  var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
+
+  /**
+   * Get prefixed CSS property name when given a non-prefixed CSS property name.
+   * Returns null if the property is not supported at all.
+   *
+   * @param {Object} styleObject
+   * @param {String} prop
+   * @returns {?String}
+   */
+  function getPrefixedPropName(styleObject, prop) {
+    var camelProp = prop[0].toUpperCase() + prop.slice(1);
+    var i = 0;
+    var prefixedProp;
+
+    while (i < vendorPrefixes.length) {
+      prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : prop;
+      if (prefixedProp in styleObject) return prefixedProp;
+      ++i;
+    }
+
+    return null;
+  }
 
   // Detect support for passive events:
   // https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
@@ -817,11 +894,8 @@
    * @returns {?(Touch|PointerEvent|MouseEvent)}
    */
   Dragger.prototype._getTrackedTouch = function(e) {
-    if (this._pointerId === null) {
-      return null;
-    } else {
-      return Dragger._getTouchById(e, this._pointerId);
-    }
+    if (this._pointerId === null) return null;
+    return Dragger._getTouchById(e, this._pointerId);
   };
 
   /**
@@ -839,8 +913,7 @@
 
     // Don't start drag if the event is not cancelable, this is 99% of the time an
     // indication that the event will be cancelled anyways soon after drag starts
-    // (e.g. page is scrolling when drag starts). However, we do an exception for
-    // iOS here since it is always non-cancelable due to the event being passive.
+    // (e.g. page is scrolling when drag starts).
     if (e.cancelable === false) return;
 
     // Make sure left button is pressed on mouse.
@@ -1499,6 +1572,16 @@
     };
   }
 
+  var transformProp =
+    getPrefixedPropName(window.document.documentElement.style, 'transform') || 'transform';
+
+  var transformStyle = getStyleName(transformProp);
+
+  var transformNone = 'none';
+  var displayInline = 'inline';
+  var displayNone = 'none';
+  var displayStyle = 'display';
+
   /**
    * Returns true if element is transformed, false if not. In practice the
    * element's display value must be anything else than "none" or "inline" as
@@ -1512,11 +1595,11 @@
    * @returns {Boolean}
    */
   function isTransformed(element) {
-    var transform = getStyle(element, 'transform');
-    if (!transform || transform === 'none') return false;
+    var transform = getStyle(element, transformStyle);
+    if (!transform || transform === transformNone) return false;
 
-    var display = getStyle(element, 'display');
-    if (display === 'inline' || display === 'none') return false;
+    var display = getStyle(element, displayStyle);
+    if (display === displayInline || display === displayNone) return false;
 
     return true;
   }
@@ -1697,8 +1780,7 @@
   }
 
   var translateValue = {};
-  var transformStyle$1 = 'transform';
-  var transformNone = 'none';
+  var transformNone$1 = 'none';
   var rxMat3d = /^matrix3d/;
   var rxMatTx = /([^,]*,){4}/;
   var rxMat3dTx = /([^,]*,){12}/;
@@ -1716,8 +1798,8 @@
     translateValue.x = 0;
     translateValue.y = 0;
 
-    var transform = getStyle(element, transformStyle$1);
-    if (!transform || transform === transformNone) {
+    var transform = getStyle(element, transformStyle);
+    if (!transform || transform === transformNone$1) {
       return translateValue;
     }
 
@@ -4230,21 +4312,6 @@
   };
 
   /**
-   * Get current values of the provided styles definition object.
-   *
-   * @param {HTMLElement} element
-   * @param {Object} styles
-   * @return {Object}
-   */
-  function getCurrentStyles(element, styles) {
-    var current = {};
-    for (var prop in styles) {
-      current[prop] = getStyle(element, getStyleName(prop));
-    }
-    return current;
-  }
-
-  /**
    * Visibility manager for Item instance.
    *
    * @class
@@ -4477,6 +4544,8 @@
     addVisibilityTick(
       item._id,
       function() {
+        // TODO: Let's save the current styles to a reusable object to avoid
+        // unnecessary memory allocations.
         currentStyles = getCurrentStyles(item._child, targetStyles);
       },
       function() {
@@ -5508,6 +5577,10 @@
       settings.dragSort = !!settings.dragSort;
     }
 
+    // Normalize visible and hidden styles.
+    settings.visibleStyles = normalizeStyles(settings.visibleStyles);
+    settings.hiddenStyles = normalizeStyles(settings.hiddenStyles);
+
     // Create instance id and store it to the grid instances collection.
     this._id = createUid();
     gridInstances[this._id] = inst;
@@ -5858,6 +5931,18 @@
     if (changedProps.indexOf('layoutOnResize') > -1) {
       unbindLayoutOnResize(this);
       bindLayoutOnResize(this, newSettings.layoutOnResize);
+    }
+
+    // Update visible styles.
+    if (changedProps.indexOf('visibleStyles') > -1) {
+      newSettings.visibleStyles = normalizeStyles(newSettings.visibleStyles);
+      // TODO: More work is needed here...
+    }
+
+    // Update hidden styles.
+    if (changedProps.indexOf('hiddenStyles') > -1) {
+      newSettings.hiddenStyles = normalizeStyles(newSettings.hiddenStyles);
+      // TODO: More work is needed here...
     }
 
     // TODO: How to handle `dragStartPredicate` change?
@@ -6876,9 +6961,18 @@
 
     // Handle visible/hidden styles manually so that the whole object is
     // overridden instead of the props.
-    settings.visibleStyles =
-      (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
-    settings.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
+
+    if (userSettings && userSettings.visibleStyles) {
+      settings.visibleStyles = userSettings.visibleStyles;
+    } else if (defaultSettings && defaultSettings.visibleStyles) {
+      settings.visibleStyles = defaultSettings.visibleStyles;
+    }
+
+    if (userSettings && userSettings.hiddenStyles) {
+      settings.hiddenStyles = userSettings.hiddenStyles;
+    } else if (defaultSettings && defaultSettings.hiddenStyles) {
+      settings.hiddenStyles = defaultSettings.hiddenStyles;
+    }
 
     return settings;
   }
@@ -6995,6 +7089,29 @@
       window.removeEventListener('resize', grid._resizeHandler);
       grid._resizeHandler = null;
     }
+  }
+
+  /**
+   * Normalize style declaration object, returns a normalized (new) styles object
+   * (prefixed properties and invalid properties removed).
+   *
+   * @param {Object} styles
+   * @returns {Object}
+   */
+  function normalizeStyles(styles) {
+    var normalized = {};
+    var docElemStyle = window.document.documentElement.style;
+    var prop, prefixedProp;
+
+    // Normalize visible styles (prefix and remove invalid).
+    for (prop in styles) {
+      prefixedProp = getPrefixedPropName(docElemStyle, prop);
+      if (prefixedProp) {
+        normalized[prefixedProp] = styles[prop];
+      }
+    }
+
+    return normalized;
   }
 
   return Grid;

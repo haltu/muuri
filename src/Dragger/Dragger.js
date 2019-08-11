@@ -5,8 +5,8 @@
  * https://github.com/haltu/muuri/blob/master/src/Dragger/LICENSE.md
  */
 
-// TODO: Cancel and end events are still a bit messed up in Edge, sometimes
-// dragged item will never get released... Firefox seems fixed though.
+// TODO: Edge and IE11 have a bug where pointercancel event is not always
+// correctly emitted. Check if there's a way to circumvent that.
 
 import Emitter from '../Emitter/Emitter';
 
@@ -332,11 +332,8 @@ Dragger.prototype._emit = function(type, e) {
  * @returns {?(Touch|PointerEvent|MouseEvent)}
  */
 Dragger.prototype._getTrackedTouch = function(e) {
-  if (this._pointerId === null) {
-    return null;
-  } else {
-    return Dragger._getTouchById(e, this._pointerId);
-  }
+  if (this._pointerId === null) return null;
+  return Dragger._getTouchById(e, this._pointerId);
 };
 
 /**
@@ -354,8 +351,7 @@ Dragger.prototype._preStartCheck = function(e) {
 
   // Don't start drag if the event is not cancelable, this is 99% of the time an
   // indication that the event will be cancelled anyways soon after drag starts
-  // (e.g. page is scrolling when drag starts). However, we do an exception for
-  // iOS here since it is always non-cancelable due to the event being passive.
+  // (e.g. page is scrolling when drag starts).
   if (e.cancelable === false) return;
 
   // Make sure left button is pressed on mouse.

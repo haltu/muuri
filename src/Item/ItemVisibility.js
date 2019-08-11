@@ -248,6 +248,8 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
   addVisibilityTick(
     item._id,
     function() {
+      // TODO: Let's save the current styles to a reusable object to avoid
+      // unnecessary memory allocations.
       currentStyles = getCurrentStyles(item._child, targetStyles);
     },
     function() {

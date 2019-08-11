@@ -4,11 +4,15 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from '../utils/getStyle';
-import getStyleName from '../utils/getStyleName';
+import getCurrentStyles from '../utils/getCurrentStyles';
+import getUnprefixedPropName from '../utils/getUnprefixedPropName';
 import isFunction from '../utils/isFunction';
+import isNative from '../utils/isNative';
 import setStyles from '../utils/setStyles';
-import transformProp from '../utils/transformProp';
+
+var Element = window.Element;
+var hasWebAnimations = !!(Element && isFunction(Element.prototype.animate));
+var hasNativeWebAnimations = !!(Element && isNative(Element.prototype.animate));
 
 /**
  * Item animation handler powered by Web Animations API.
@@ -22,8 +26,6 @@ function ItemAnimate(element) {
   this._callback = null;
   this._props = [];
   this._values = [];
-  this._keyframes = [];
-  this._options = {};
   this._isDestroyed = false;
   this._onFinish = this._onFinish.bind(this);
 }
@@ -49,21 +51,33 @@ function ItemAnimate(element) {
 ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   if (this._isDestroyed) return;
 
+  var element = this._element;
+  var opts = options || {};
+
+  // If we don't have web animations available let's not animate.
+  if (!hasWebAnimations) {
+    setStyles(element, propsTo);
+    this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
+    this._onFinish();
+    return;
+  }
+
   var animation = this._animation;
   var currentProps = this._props;
   var currentValues = this._values;
-  var opts = options || 0;
   var cancelAnimation = false;
+  var propName, propCount, propIndex;
 
   // If we have an existing animation running, let's check if it needs to be
   // cancelled or if it can continue running.
   if (animation) {
-    var propCount = 0;
-    var propIndex;
+    propCount = 0;
 
     // Check if the requested animation target props and values match with the
     // current props and values.
-    for (var propName in propsTo) {
+    // TODO: Maybe it's cleaner to use an object instead of two arrays here for
+    // storing the target props?
+    for (propName in propsTo) {
       ++propCount;
       propIndex = currentProps.indexOf(propName);
       if (propIndex === -1 || propsTo[propName] !== currentValues[propIndex]) {
@@ -98,21 +112,20 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
     currentValues.push(propsTo[propName]);
   }
 
-  // Set up keyframes.
-  var animKeyframes = this._keyframes;
-  animKeyframes[0] = propsFrom;
-  animKeyframes[1] = propsTo;
-
-  // Set up options.
-  var animOptions = this._options;
-  animOptions.duration = opts.duration || 300;
-  animOptions.easing = opts.easing || 'ease';
-
-  // Start the animation.
-  var element = this._element;
-  animation = element.animate(animKeyframes, animOptions);
+  // Start the animation. We need to provide unprefixed property names to the
+  // Web Animations polyfill if it is being used. If we have native Web
+  // Animations available we need to provide prefixed properties instead.
+  this._animation = animation = element.animate(
+    [
+      createFrame(propsFrom, !hasNativeWebAnimations),
+      createFrame(propsTo, !hasNativeWebAnimations)
+    ],
+    {
+      duration: opts.duration || 300,
+      easing: opts.easing || 'ease'
+    }
+  );
   animation.onfinish = this._onFinish;
-  this._animation = animation;
 
   // Set the end styles. This makes sure that the element stays at the end
   // values after animation is finished.
@@ -132,22 +145,15 @@ ItemAnimate.prototype.stop = function(styles) {
   var element = this._element;
   var currentProps = this._props;
   var currentValues = this._values;
-  var propName;
-  var propValue;
-  var i;
 
-  // Calculate (if not provided) and set styles.
+  // Calculate current styles if no specific styles are provided.
   if (!styles) {
-    for (i = 0; i < currentProps.length; i++) {
-      propName = currentProps[i];
-      propValue = getStyle(element, getStyleName(propName));
-      element.style[propName === 'transform' ? transformProp : propName] = propValue;
-    }
-  } else {
-    setStyles(element, styles);
+    styles = getCurrentStyles(element, currentProps);
   }
 
-  //  Cancel animation.
+  setStyles(element, styles);
+
+  // Cancel animation.
   this._animation.cancel();
   this._animation = this._callback = null;
 
@@ -175,7 +181,7 @@ ItemAnimate.prototype.isAnimating = function() {
 ItemAnimate.prototype.destroy = function() {
   if (this._isDestroyed) return;
   this.stop();
-  this._element = this._options = this._keyframes = null;
+  this._element = null;
   this._isDestroyed = true;
 };
 
@@ -196,5 +202,18 @@ ItemAnimate.prototype._onFinish = function() {
   this._props.length = this._values.length = 0;
   callback && callback();
 };
+
+/**
+ * Private helpers
+ * ***************
+ */
+
+function createFrame(props, unprefix) {
+  var frame = {};
+  for (var prop in props) {
+    frame[unprefix ? getUnprefixedPropName(prop) : prop] = props[prop];
+  }
+  return frame;
+}
 
 export default ItemAnimate;

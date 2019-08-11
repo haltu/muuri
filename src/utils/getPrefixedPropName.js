@@ -9,6 +9,7 @@ var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'
 /**
  * Get prefixed CSS property name when given a non-prefixed CSS property name.
  * Returns null if the property is not supported at all.
+ *
  * @param {Object} styleObject
  * @param {String} prop
  * @returns {?String}

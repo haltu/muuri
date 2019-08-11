@@ -4,6 +4,17 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+// TODO: visibleStyles/hiddenStyles are not prefixed by Muuri because the Web
+// Animations polyfill prefixes them automatically. However, we do set those
+// styles also outside the Web Animations Polyfill so we need to use the
+// prefixed props/styles then. The best approach would probably be creating
+// an additional prefixed version of the styles and using that where needed.
+
+// TODO: Try to come up with a way to provide more customization power to
+// animations with minimal API surface changes. E.g. some might want to use a
+// different library for animations and/or do some crazy effects with multiple
+// elements when an item animates -> Re-imagine the animation pipeline.
+
 import {
   actionMove,
   actionSwap,
@@ -42,6 +53,7 @@ import arraySwap from '../utils/arraySwap';
 import createUid from '../utils/createUid';
 import debounce from '../utils/debounce';
 import elementMatches from '../utils/elementMatches';
+import getPrefixedPropName from '../utils/getPrefixedPropName';
 import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
 import arrayInsert from '../utils/arrayInsert';
@@ -146,6 +158,10 @@ function Grid(element, options) {
   if (!isFunction(settings.dragSort)) {
     settings.dragSort = !!settings.dragSort;
   }
+
+  // Normalize visible and hidden styles.
+  settings.visibleStyles = normalizeStyles(settings.visibleStyles);
+  settings.hiddenStyles = normalizeStyles(settings.hiddenStyles);
 
   // Create instance id and store it to the grid instances collection.
   this._id = createUid();
@@ -497,6 +513,18 @@ Grid.prototype.updateOptions = function(options) {
   if (changedProps.indexOf('layoutOnResize') > -1) {
     unbindLayoutOnResize(this);
     bindLayoutOnResize(this, newSettings.layoutOnResize);
+  }
+
+  // Update visible styles.
+  if (changedProps.indexOf('visibleStyles') > -1) {
+    newSettings.visibleStyles = normalizeStyles(newSettings.visibleStyles);
+    // TODO: More work is needed here...
+  }
+
+  // Update hidden styles.
+  if (changedProps.indexOf('hiddenStyles') > -1) {
+    newSettings.hiddenStyles = normalizeStyles(newSettings.hiddenStyles);
+    // TODO: More work is needed here...
   }
 
   // TODO: How to handle `dragStartPredicate` change?
@@ -1515,9 +1543,18 @@ function mergeSettings(defaultSettings, userSettings) {
 
   // Handle visible/hidden styles manually so that the whole object is
   // overridden instead of the props.
-  settings.visibleStyles =
-    (userSettings || {}).visibleStyles || (defaultSettings || {}).visibleStyles;
-  settings.hiddenStyles = (userSettings || {}).hiddenStyles || (defaultSettings || {}).hiddenStyles;
+
+  if (userSettings && userSettings.visibleStyles) {
+    settings.visibleStyles = userSettings.visibleStyles;
+  } else if (defaultSettings && defaultSettings.visibleStyles) {
+    settings.visibleStyles = defaultSettings.visibleStyles;
+  }
+
+  if (userSettings && userSettings.hiddenStyles) {
+    settings.hiddenStyles = userSettings.hiddenStyles;
+  } else if (defaultSettings && defaultSettings.hiddenStyles) {
+    settings.hiddenStyles = defaultSettings.hiddenStyles;
+  }
 
   return settings;
 }
@@ -1634,6 +1671,29 @@ function unbindLayoutOnResize(grid) {
     window.removeEventListener('resize', grid._resizeHandler);
     grid._resizeHandler = null;
   }
+}
+
+/**
+ * Normalize style declaration object, returns a normalized (new) styles object
+ * (prefixed properties and invalid properties removed).
+ *
+ * @param {Object} styles
+ * @returns {Object}
+ */
+function normalizeStyles(styles) {
+  var normalized = {};
+  var docElemStyle = window.document.documentElement.style;
+  var prop, prefixedProp;
+
+  // Normalize visible styles (prefix and remove invalid).
+  for (prop in styles) {
+    prefixedProp = getPrefixedPropName(docElemStyle, prop);
+    if (prefixedProp) {
+      normalized[prefixedProp] = styles[prop];
+    }
+  }
+
+  return normalized;
 }
 
 export default Grid;

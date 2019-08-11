@@ -5,12 +5,12 @@
  */
 
 var styleNameRegEx = /([A-Z])/g;
-var vendorPrefixedRegex = /^(webkit-|moz-|ms-|o-)/;
+var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
 var msPrefixRegex = /^(-m-s-)/;
 
 /**
  * Transforms a camel case style property to kebab case style property. Handles
- * prefixed properties elegantly as well, e.g. "WebkitTransform" and
+ * vendor prefixed properties elegantly as well, e.g. "WebkitTransform" and
  * "webkitTransform" are both transformed into "-webkit-transform".
  *
  * @param {String} property
@@ -22,7 +22,7 @@ export default function getStyleName(property) {
 
   // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
   // need to add an extra '-' to the beginnig).
-  styleName = styleName.replace(vendorPrefixedRegex, '-$1');
+  styleName = styleName.replace(prefixRegex, '-$1');
 
   // Handle properties that start with "MS" prefix (we need to transform the
   // "-m-s-" into "-ms-").

@@ -3,9 +3,6 @@
  * Released under the MIT license
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
-
-import transformStyle from './transformStyle';
-
 var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
 
 /**
@@ -21,5 +18,5 @@ export default function getStyle(element, style) {
     styles = window.getComputedStyle(element, null);
     if (stylesCache) stylesCache.set(element, styles);
   }
-  return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
+  return styles.getPropertyValue(style);
 }

@@ -386,7 +386,7 @@ var grid = new Muuri(elem, {
 
 ### visibleStyles &nbsp;
 
-The styles that will be applied to all visible items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options. Be sure to define all style properties camel cased.
+The styles that will be applied to all visible items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options. Be sure to define all style properties camel cased and without vendor prefixes (Muuri prefixes the properties automatically where needed).
 
 * Default value: `{opacity: 1, transform: 'scale(1)'}`.
 * Accepted types: object.
@@ -406,7 +406,7 @@ var grid = new Muuri(elem, {
 
 ### hiddenStyles &nbsp;
 
-The styles that will be applied to all hidden items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options. Be sure to define all style properties camel cased.
+The styles that will be applied to all hidden items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options. Be sure to define all style properties camel cased and without vendor prefixes (Muuri prefixes the properties automatically where needed).
 
 * Default value: `{opacity: 0, transform: 'scale(0.5)'}`.
 * Accepted types: object.
@@ -972,7 +972,7 @@ var grid = new Muuri(elem, {
 
 ### dragPlaceholder &nbsp;
 
-If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here.
+If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here. Note that a special placeholder class is given to all drag placeholders and is customizable via [itemPlaceholderClass](#itemplaceholderclass-) option.
 
 * Default value: `{enabled: false, duration: 300, easing: 'ease', createElement: null, onCreate: null, onRemove: null}`.
 * Accepted types: object.

@@ -4,7 +4,6 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-export var namespace = 'Muuri';
 export var gridInstances = {};
 
 export var actionSwap = 'swap';

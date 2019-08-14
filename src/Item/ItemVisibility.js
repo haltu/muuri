@@ -6,14 +6,16 @@
 
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
 
+import ItemAnimate from './ItemAnimate';
 import Queue from '../Queue/Queue';
 
 import addClass from '../utils/addClass';
 import getCurrentStyles from '../utils/getCurrentStyles';
-import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
+import transformProp from '../utils/transformProp';
+import getTranslateString from '../utils/getTranslateString';
 
 /**
  * Visibility manager for Item instance.
@@ -24,31 +26,29 @@ import setStyles from '../utils/setStyles';
 function ItemVisibility(item) {
   var isActive = item._isActive;
   var element = item._element;
+  var childElement = element.children[0];
   var settings = item.getGrid()._settings;
+
+  if (!childElement) {
+    throw new Error('No valid child element found within item element.');
+  }
 
   this._item = item;
   this._isDestroyed = false;
-
-  // Set up visibility states.
   this._isHidden = !isActive;
   this._isHiding = false;
   this._isShowing = false;
-
-  // Callback queue.
+  this._childElement = childElement;
+  this._animation = new ItemAnimate(childElement);
   this._queue = new Queue();
-
-  // Bind show/hide finishers.
   this._finishShow = this._finishShow.bind(this);
   this._finishHide = this._finishHide.bind(this);
 
   // Force item to be either visible or hidden on init.
   element.style.display = isActive ? 'block' : 'none';
 
-  // Set visible/hidden class.
   addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
-
-  // Set initial styles for the child element.
-  setStyles(item._child, isActive ? settings.visibleStyles : settings.hiddenStyles);
+  setStyles(childElement, isActive ? settings.visibleStyles : settings.hiddenStyles);
 }
 
 /**
@@ -166,6 +166,21 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
 };
 
 /**
+ * Reset all existing visibility styles and optionally apply new visibility
+ * styles to the visibility element.
+ *
+ * @public
+ * @memberof ItemVisibility.prototype
+ * @param {Object} [styles]
+ * @returns {ItemVisibility}
+ */
+ItemVisibility.prototype.setStyles = function(styles) {
+  var childElement = this._childElement;
+  childElement.removeAttribute('style');
+  if (styles) setStyles(childElement, styles);
+};
+
+/**
  * Destroy the instance and stop current animation if it is running.
  *
  * @public
@@ -181,18 +196,19 @@ ItemVisibility.prototype.destroy = function() {
   var queue = this._queue;
   var settings = grid._settings;
 
-  // Stop visibility animation.
   this._stopAnimation({});
 
   // Fire all uncompleted callbacks with interrupted flag and destroy the queue.
-  queue.process(true, item).destroy();
+  queue.process(true, item);
+  queue.destroy();
 
-  // Remove visible/hidden classes.
+  this._animation.destroy();
+  this._childElement.removeAttribute('style');
   removeClass(element, settings.itemVisibleClass);
   removeClass(element, settings.itemHiddenClass);
 
   // Reset state.
-  this._item = null;
+  this._item = this._childElement = null;
   this._isHiding = this._isShowing = false;
   this._isDestroyed = this._isHidden = true;
 
@@ -217,6 +233,8 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
   if (this._isDestroyed) return;
 
   var item = this._item;
+  var animation = this._animation;
+  var childElement = this._childElement;
   var settings = item.getGrid()._settings;
   var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
   var duration = toVisible ? settings.showDuration : settings.hideDuration;
@@ -235,10 +253,10 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
 
   // If we need to apply the styles instantly without animation.
   if (isInstant) {
-    if (item._animateChild.isAnimating()) {
-      item._animateChild.stop(targetStyles);
+    if (animation.isAnimating()) {
+      animation.stop(targetStyles);
     } else {
-      setStyles(item._child, targetStyles);
+      setStyles(childElement, targetStyles);
     }
     onFinish && onFinish();
     return;
@@ -248,12 +266,10 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
   addVisibilityTick(
     item._id,
     function() {
-      // TODO: Let's save the current styles to a reusable object to avoid
-      // unnecessary memory allocations.
-      currentStyles = getCurrentStyles(item._child, targetStyles);
+      currentStyles = getCurrentStyles(childElement, targetStyles);
     },
     function() {
-      item._animateChild.start(currentStyles, targetStyles, {
+      animation.start(currentStyles, targetStyles, {
         duration: duration,
         easing: easing,
         onFinish: onFinish
@@ -273,7 +289,7 @@ ItemVisibility.prototype._stopAnimation = function(targetStyles) {
   if (this._isDestroyed) return;
   var item = this._item;
   cancelVisibilityTick(item._id);
-  item._animateChild.stop(targetStyles);
+  this._animation.stop(targetStyles);
 };
 
 /**
@@ -295,12 +311,13 @@ ItemVisibility.prototype._finishShow = function() {
  * @memberof ItemVisibility.prototype
  */
 ItemVisibility.prototype._finishHide = (function() {
-  var finishStyles = { transform: getTranslateString(0, 0) };
+  var layoutStyles = {};
+  layoutStyles[transformProp] = getTranslateString(0, 0);
   return function() {
     if (!this._isHidden) return;
     var item = this._item;
     this._isHiding = false;
-    item._layout.stop(true, finishStyles);
+    item._layout.stop(true, layoutStyles);
     item._element.style.display = 'none';
     this._queue.process(false, item);
   };

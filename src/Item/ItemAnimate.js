@@ -75,8 +75,6 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
 
     // Check if the requested animation target props and values match with the
     // current props and values.
-    // TODO: Maybe it's cleaner to use an object instead of two arrays here for
-    // storing the target props?
     for (propName in propsTo) {
       ++propCount;
       propIndex = currentProps.indexOf(propName);

@@ -21,7 +21,6 @@
   (global = global || self, global.Muuri = factory());
 }(this, function () { 'use strict';
 
-  var namespace = 'Muuri';
   var gridInstances = {};
 
   var actionSwap = 'swap';
@@ -209,345 +208,6 @@
 
     return this;
   };
-
-  var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
-
-  /**
-   * Returns the computed value of an element's style property as a string.
-   *
-   * @param {HTMLElement} element
-   * @param {String} style
-   * @returns {String}
-   */
-  function getStyle(element, style) {
-    var styles = stylesCache && stylesCache.get(element);
-    if (!styles) {
-      styles = window.getComputedStyle(element, null);
-      if (stylesCache) stylesCache.set(element, styles);
-    }
-    return styles.getPropertyValue(style);
-  }
-
-  var styleNameRegEx = /([A-Z])/g;
-  var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
-  var msPrefixRegex = /^(-m-s-)/;
-
-  /**
-   * Transforms a camel case style property to kebab case style property. Handles
-   * vendor prefixed properties elegantly as well, e.g. "WebkitTransform" and
-   * "webkitTransform" are both transformed into "-webkit-transform".
-   *
-   * @param {String} property
-   * @returns {String}
-   */
-  function getStyleName(property) {
-    // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
-    var styleName = property.replace(styleNameRegEx, '-$1').toLowerCase();
-
-    // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
-    // need to add an extra '-' to the beginnig).
-    styleName = styleName.replace(prefixRegex, '-$1');
-
-    // Handle properties that start with "MS" prefix (we need to transform the
-    // "-m-s-" into "-ms-").
-    styleName = styleName.replace(msPrefixRegex, '-ms-');
-
-    return styleName;
-  }
-
-  /**
-   * Get current values of the provided styles definition object or array.
-   *
-   * @param {HTMLElement} element
-   * @param {(Object|Array} styles
-   * @return {Object}
-   */
-  function getCurrentStyles(element, styles) {
-    var result = {};
-    var prop, i;
-
-    if (Array.isArray(styles)) {
-      for (i = 0; i < styles.length; i++) {
-        prop = styles[i];
-        result[prop] = getStyle(element, getStyleName(prop));
-      }
-    } else {
-      for (prop in styles) {
-        result[prop] = getStyle(element, getStyleName(prop));
-      }
-    }
-
-    return result;
-  }
-
-  var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
-
-  /**
-   * Remove any potential vendor prefixes from a property name.
-   *
-   * @param {String} prop
-   * @returns {String}
-   */
-  function getUnprefixedPropName(prop) {
-    var result = prop.replace(unprefixRegEx, '');
-
-    if (result === prop) {
-      return prop;
-    }
-
-    return result[0].toLowerCase() + result.slice(1);
-  }
-
-  var functionType = 'function';
-
-  /**
-   * Check if a value is a function.
-   *
-   * @param {*} val
-   * @returns {Boolean}
-   */
-  function isFunction(val) {
-    return typeof val === functionType;
-  }
-
-  var nativeCode = '[native code]';
-
-  /**
-   * Check if a value (e.g. a method or constructor) is native code. Good for
-   * detecting when a polyfill is used and when not.
-   *
-   * @param {*} feat
-   * @returns {Boolean}
-   */
-  function isNative(feat) {
-    var S = window.Symbol;
-    return !!(
-      feat &&
-      isFunction(S) &&
-      isFunction(S.toString) &&
-      S(feat)
-        .toString()
-        .indexOf(nativeCode) > -1
-    );
-  }
-
-  /**
-   * Set inline styles to an element.
-   *
-   * @param {HTMLElement} element
-   * @param {Object} styles
-   */
-  function setStyles(element, styles) {
-    for (var prop in styles) {
-      element.style[prop] = styles[prop];
-    }
-  }
-
-  var Element = window.Element;
-  var hasWebAnimations = !!(Element && isFunction(Element.prototype.animate));
-  var hasNativeWebAnimations = !!(Element && isNative(Element.prototype.animate));
-
-  /**
-   * Item animation handler powered by Web Animations API.
-   *
-   * @class
-   * @param {HTMLElement} element
-   */
-  function ItemAnimate(element) {
-    this._element = element;
-    this._animation = null;
-    this._callback = null;
-    this._props = [];
-    this._values = [];
-    this._isDestroyed = false;
-    this._onFinish = this._onFinish.bind(this);
-  }
-
-  /**
-   * Public prototype methods
-   * ************************
-   */
-
-  /**
-   * Start instance's animation. Automatically stops current animation if it is
-   * running.
-   *
-   * @public
-   * @memberof ItemAnimate.prototype
-   * @param {Object} propsFrom
-   * @param {Object} propsTo
-   * @param {Object} [options]
-   * @param {Number} [options.duration=300]
-   * @param {String} [options.easing='ease']
-   * @param {Function} [options.onFinish]
-   */
-  ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
-    if (this._isDestroyed) return;
-
-    var element = this._element;
-    var opts = options || {};
-
-    // If we don't have web animations available let's not animate.
-    if (!hasWebAnimations) {
-      setStyles(element, propsTo);
-      this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
-      this._onFinish();
-      return;
-    }
-
-    var animation = this._animation;
-    var currentProps = this._props;
-    var currentValues = this._values;
-    var cancelAnimation = false;
-    var propName, propCount, propIndex;
-
-    // If we have an existing animation running, let's check if it needs to be
-    // cancelled or if it can continue running.
-    if (animation) {
-      propCount = 0;
-
-      // Check if the requested animation target props and values match with the
-      // current props and values.
-      // TODO: Maybe it's cleaner to use an object instead of two arrays here for
-      // storing the target props?
-      for (propName in propsTo) {
-        ++propCount;
-        propIndex = currentProps.indexOf(propName);
-        if (propIndex === -1 || propsTo[propName] !== currentValues[propIndex]) {
-          cancelAnimation = true;
-          break;
-        }
-      }
-
-      // Check if the target props count matches current props count. This is
-      // needed for the edge case scenario where target props contain the same
-      // styles as current props, but the current props have some additional
-      // props.
-      if (!cancelAnimation && propCount !== currentProps.length) {
-        cancelAnimation = true;
-      }
-    }
-
-    // Cancel animation (if required).
-    if (cancelAnimation) animation.cancel();
-
-    // Store animation callback.
-    this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
-
-    // If we have a running animation that does not need to be cancelled, let's
-    // call it a day here and let it run.
-    if (animation && !cancelAnimation) return;
-
-    // Store target props and values to instance.
-    currentProps.length = currentValues.length = 0;
-    for (propName in propsTo) {
-      currentProps.push(propName);
-      currentValues.push(propsTo[propName]);
-    }
-
-    // Start the animation. We need to provide unprefixed property names to the
-    // Web Animations polyfill if it is being used. If we have native Web
-    // Animations available we need to provide prefixed properties instead.
-    this._animation = animation = element.animate(
-      [
-        createFrame(propsFrom, !hasNativeWebAnimations),
-        createFrame(propsTo, !hasNativeWebAnimations)
-      ],
-      {
-        duration: opts.duration || 300,
-        easing: opts.easing || 'ease'
-      }
-    );
-    animation.onfinish = this._onFinish;
-
-    // Set the end styles. This makes sure that the element stays at the end
-    // values after animation is finished.
-    setStyles(element, propsTo);
-  };
-
-  /**
-   * Stop instance's current animation if running.
-   *
-   * @public
-   * @memberof ItemAnimate.prototype
-   * @param {Object} [styles]
-   */
-  ItemAnimate.prototype.stop = function(styles) {
-    if (this._isDestroyed || !this._animation) return;
-
-    var element = this._element;
-    var currentProps = this._props;
-    var currentValues = this._values;
-
-    // Calculate current styles if no specific styles are provided.
-    if (!styles) {
-      styles = getCurrentStyles(element, currentProps);
-    }
-
-    setStyles(element, styles);
-
-    // Cancel animation.
-    this._animation.cancel();
-    this._animation = this._callback = null;
-
-    // Reset current props and values.
-    currentProps.length = currentValues.length = 0;
-  };
-
-  /**
-   * Check if the item is being animated currently.
-   *
-   * @public
-   * @memberof ItemAnimate.prototype
-   * @return {Boolean}
-   */
-  ItemAnimate.prototype.isAnimating = function() {
-    return !!this._animation;
-  };
-
-  /**
-   * Destroy the instance and stop current animation if it is running.
-   *
-   * @public
-   * @memberof ItemAnimate.prototype
-   */
-  ItemAnimate.prototype.destroy = function() {
-    if (this._isDestroyed) return;
-    this.stop();
-    this._element = null;
-    this._isDestroyed = true;
-  };
-
-  /**
-   * Private prototype methods
-   * *************************
-   */
-
-  /**
-   * Animation end handler.
-   *
-   * @private
-   * @memberof ItemAnimate.prototype
-   */
-  ItemAnimate.prototype._onFinish = function() {
-    var callback = this._callback;
-    this._animation = this._callback = null;
-    this._props.length = this._values.length = 0;
-    callback && callback();
-  };
-
-  /**
-   * Private helpers
-   * ***************
-   */
-
-  function createFrame(props, unprefix) {
-    var frame = {};
-    for (var prop in props) {
-      frame[unprefix ? getUnprefixedPropName(prop) : prop] = props[prop];
-    }
-    return frame;
-  }
 
   // Playing it safe here, test all potential prefixes capitalized and lowercase.
   var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
@@ -1572,8 +1232,53 @@
     };
   }
 
+  var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+  /**
+   * Returns the computed value of an element's style property as a string.
+   *
+   * @param {HTMLElement} element
+   * @param {String} style
+   * @returns {String}
+   */
+  function getStyle(element, style) {
+    var styles = stylesCache && stylesCache.get(element);
+    if (!styles) {
+      styles = window.getComputedStyle(element, null);
+      if (stylesCache) stylesCache.set(element, styles);
+    }
+    return styles.getPropertyValue(style);
+  }
+
   var transformProp =
     getPrefixedPropName(window.document.documentElement.style, 'transform') || 'transform';
+
+  var styleNameRegEx = /([A-Z])/g;
+  var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
+  var msPrefixRegex = /^(-m-s-)/;
+
+  /**
+   * Transforms a camel case style property to kebab case style property. Handles
+   * vendor prefixed properties elegantly as well, e.g. "WebkitTransform" and
+   * "webkitTransform" are both transformed into "-webkit-transform".
+   *
+   * @param {String} property
+   * @returns {String}
+   */
+  function getStyleName(property) {
+    // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
+    var styleName = property.replace(styleNameRegEx, '-$1').toLowerCase();
+
+    // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
+    // need to add an extra '-' to the beginnig).
+    styleName = styleName.replace(prefixRegex, '-$1');
+
+    // Handle properties that start with "MS" prefix (we need to transform the
+    // "-m-s-" into "-ms-").
+    styleName = styleName.replace(msPrefixRegex, '-ms-');
+
+    return styleName;
+  }
 
   var transformStyle = getStyleName(transformProp);
 
@@ -1824,6 +1529,18 @@
    */
   function getTranslateString(x, y) {
     return 'translateX(' + x + 'px) translateY(' + y + 'px)';
+  }
+
+  var functionType = 'function';
+
+  /**
+   * Check if a value is a function.
+   *
+   * @param {*} val
+   * @returns {Boolean}
+   */
+  function isFunction(val) {
+    return typeof val === functionType;
   }
 
   /**
@@ -2685,7 +2402,7 @@
    */
   ItemDrag.prototype._finishMigration = function() {
     var item = this._item;
-    var release = item._release;
+    var release = item._dragRelease;
     var element = item._element;
     var isActive = item._isActive;
     var targetGrid = item.getGrid();
@@ -2743,8 +2460,7 @@
     }
 
     // Update child element's styles to reflect the current visibility state.
-    item._child.removeAttribute('style');
-    setStyles(item._child, isActive ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
+    item._visibility.setStyles(isActive ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
 
     // Start the release.
     release.start();
@@ -2819,7 +2535,7 @@
     var element = item._element;
     var grid = this._getGrid();
     var settings = grid._settings;
-    var release = item._release;
+    var release = item._dragRelease;
     var migrate = item._migrate;
     var gridContainer = grid._element;
     var dragContainer = settings.dragContainer || gridContainer;
@@ -2829,7 +2545,7 @@
     var currentTop = translate.y;
     var elementRect = element.getBoundingClientRect();
     var hasDragContainer = dragContainer !== gridContainer;
-    var offsetDiff;
+    var offsetDiff, layoutStyles;
 
     // Reset heuristics data.
     this._resetHeuristics(event);
@@ -2843,14 +2559,16 @@
 
     // Stop current positioning animation.
     if (item.isPositioning()) {
-      item._layout.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
+      layoutStyles = {};
+      layoutStyles[transformProp] = getTranslateString(currentLeft, currentTop);
+      item._layout.stop(true, layoutStyles);
     }
 
     // Stop current migration animation.
     if (migrate._isActive) {
       currentLeft -= migrate._containerDiffX;
       currentTop -= migrate._containerDiffY;
-      migrate.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
+      migrate.stop(true, currentLeft, currentTop);
     }
 
     // If item is being released reset release data.
@@ -3087,7 +2805,7 @@
     var element = item._element;
     var grid = this._getGrid();
     var settings = grid._settings;
-    var release = item._release;
+    var release = item._dragRelease;
 
     // If item is not active, reset drag.
     if (!item._isActive) {
@@ -3179,6 +2897,286 @@
   }
 
   /**
+   * Get current values of the provided styles definition object or array.
+   *
+   * @param {HTMLElement} element
+   * @param {(Object|Array} styles
+   * @return {Object}
+   */
+  function getCurrentStyles(element, styles) {
+    var result = {};
+    var prop, i;
+
+    if (Array.isArray(styles)) {
+      for (i = 0; i < styles.length; i++) {
+        prop = styles[i];
+        result[prop] = getStyle(element, getStyleName(prop));
+      }
+    } else {
+      for (prop in styles) {
+        result[prop] = getStyle(element, getStyleName(prop));
+      }
+    }
+
+    return result;
+  }
+
+  var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
+
+  /**
+   * Remove any potential vendor prefixes from a property name.
+   *
+   * @param {String} prop
+   * @returns {String}
+   */
+  function getUnprefixedPropName(prop) {
+    var result = prop.replace(unprefixRegEx, '');
+
+    if (result === prop) {
+      return prop;
+    }
+
+    return result[0].toLowerCase() + result.slice(1);
+  }
+
+  var nativeCode = '[native code]';
+
+  /**
+   * Check if a value (e.g. a method or constructor) is native code. Good for
+   * detecting when a polyfill is used and when not.
+   *
+   * @param {*} feat
+   * @returns {Boolean}
+   */
+  function isNative(feat) {
+    var S = window.Symbol;
+    return !!(
+      feat &&
+      isFunction(S) &&
+      isFunction(S.toString) &&
+      S(feat)
+        .toString()
+        .indexOf(nativeCode) > -1
+    );
+  }
+
+  /**
+   * Set inline styles to an element.
+   *
+   * @param {HTMLElement} element
+   * @param {Object} styles
+   */
+  function setStyles(element, styles) {
+    for (var prop in styles) {
+      element.style[prop] = styles[prop];
+    }
+  }
+
+  var Element = window.Element;
+  var hasWebAnimations = !!(Element && isFunction(Element.prototype.animate));
+  var hasNativeWebAnimations = !!(Element && isNative(Element.prototype.animate));
+
+  /**
+   * Item animation handler powered by Web Animations API.
+   *
+   * @class
+   * @param {HTMLElement} element
+   */
+  function ItemAnimate(element) {
+    this._element = element;
+    this._animation = null;
+    this._callback = null;
+    this._props = [];
+    this._values = [];
+    this._isDestroyed = false;
+    this._onFinish = this._onFinish.bind(this);
+  }
+
+  /**
+   * Public prototype methods
+   * ************************
+   */
+
+  /**
+   * Start instance's animation. Automatically stops current animation if it is
+   * running.
+   *
+   * @public
+   * @memberof ItemAnimate.prototype
+   * @param {Object} propsFrom
+   * @param {Object} propsTo
+   * @param {Object} [options]
+   * @param {Number} [options.duration=300]
+   * @param {String} [options.easing='ease']
+   * @param {Function} [options.onFinish]
+   */
+  ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
+    if (this._isDestroyed) return;
+
+    var element = this._element;
+    var opts = options || {};
+
+    // If we don't have web animations available let's not animate.
+    if (!hasWebAnimations) {
+      setStyles(element, propsTo);
+      this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
+      this._onFinish();
+      return;
+    }
+
+    var animation = this._animation;
+    var currentProps = this._props;
+    var currentValues = this._values;
+    var cancelAnimation = false;
+    var propName, propCount, propIndex;
+
+    // If we have an existing animation running, let's check if it needs to be
+    // cancelled or if it can continue running.
+    if (animation) {
+      propCount = 0;
+
+      // Check if the requested animation target props and values match with the
+      // current props and values.
+      for (propName in propsTo) {
+        ++propCount;
+        propIndex = currentProps.indexOf(propName);
+        if (propIndex === -1 || propsTo[propName] !== currentValues[propIndex]) {
+          cancelAnimation = true;
+          break;
+        }
+      }
+
+      // Check if the target props count matches current props count. This is
+      // needed for the edge case scenario where target props contain the same
+      // styles as current props, but the current props have some additional
+      // props.
+      if (!cancelAnimation && propCount !== currentProps.length) {
+        cancelAnimation = true;
+      }
+    }
+
+    // Cancel animation (if required).
+    if (cancelAnimation) animation.cancel();
+
+    // Store animation callback.
+    this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
+
+    // If we have a running animation that does not need to be cancelled, let's
+    // call it a day here and let it run.
+    if (animation && !cancelAnimation) return;
+
+    // Store target props and values to instance.
+    currentProps.length = currentValues.length = 0;
+    for (propName in propsTo) {
+      currentProps.push(propName);
+      currentValues.push(propsTo[propName]);
+    }
+
+    // Start the animation. We need to provide unprefixed property names to the
+    // Web Animations polyfill if it is being used. If we have native Web
+    // Animations available we need to provide prefixed properties instead.
+    this._animation = animation = element.animate(
+      [
+        createFrame(propsFrom, !hasNativeWebAnimations),
+        createFrame(propsTo, !hasNativeWebAnimations)
+      ],
+      {
+        duration: opts.duration || 300,
+        easing: opts.easing || 'ease'
+      }
+    );
+    animation.onfinish = this._onFinish;
+
+    // Set the end styles. This makes sure that the element stays at the end
+    // values after animation is finished.
+    setStyles(element, propsTo);
+  };
+
+  /**
+   * Stop instance's current animation if running.
+   *
+   * @public
+   * @memberof ItemAnimate.prototype
+   * @param {Object} [styles]
+   */
+  ItemAnimate.prototype.stop = function(styles) {
+    if (this._isDestroyed || !this._animation) return;
+
+    var element = this._element;
+    var currentProps = this._props;
+    var currentValues = this._values;
+
+    // Calculate current styles if no specific styles are provided.
+    if (!styles) {
+      styles = getCurrentStyles(element, currentProps);
+    }
+
+    setStyles(element, styles);
+
+    // Cancel animation.
+    this._animation.cancel();
+    this._animation = this._callback = null;
+
+    // Reset current props and values.
+    currentProps.length = currentValues.length = 0;
+  };
+
+  /**
+   * Check if the item is being animated currently.
+   *
+   * @public
+   * @memberof ItemAnimate.prototype
+   * @return {Boolean}
+   */
+  ItemAnimate.prototype.isAnimating = function() {
+    return !!this._animation;
+  };
+
+  /**
+   * Destroy the instance and stop current animation if it is running.
+   *
+   * @public
+   * @memberof ItemAnimate.prototype
+   */
+  ItemAnimate.prototype.destroy = function() {
+    if (this._isDestroyed) return;
+    this.stop();
+    this._element = null;
+    this._isDestroyed = true;
+  };
+
+  /**
+   * Private prototype methods
+   * *************************
+   */
+
+  /**
+   * Animation end handler.
+   *
+   * @private
+   * @memberof ItemAnimate.prototype
+   */
+  ItemAnimate.prototype._onFinish = function() {
+    var callback = this._callback;
+    this._animation = this._callback = null;
+    this._props.length = this._values.length = 0;
+    callback && callback();
+  };
+
+  /**
+   * Private helpers
+   * ***************
+   */
+
+  function createFrame(props, unprefix) {
+    var frame = {};
+    for (var prop in props) {
+      frame[unprefix ? getUnprefixedPropName(prop) : prop] = props[prop];
+    }
+    return frame;
+  }
+
+  /**
    * Drag placeholder.
    *
    * @class
@@ -3186,7 +3184,7 @@
    */
   function ItemDragPlaceholder(item) {
     this._item = item;
-    this._animate = new ItemAnimate();
+    this._animation = new ItemAnimate();
     this._element = null;
     this._className = '';
     this._didMigrate = false;
@@ -3247,9 +3245,10 @@
       cancelPlaceholderTick(item._id);
 
       // Snap placeholder to correct position.
-      var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
-      if (this._animate.isAnimating()) {
-        this._animate.stop(targetStyles);
+      var targetStyles = {};
+      targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
+      if (this._animation.isAnimating()) {
+        this._animation.stop(targetStyles);
       } else {
         setStyles(this._element, targetStyles);
       }
@@ -3293,12 +3292,14 @@
   ItemDragPlaceholder.prototype._startAnimation = function() {
     if (!this.isActive()) return;
 
-    var animation = this._animate;
+    var animation = this._animation;
     var currentLeft = this._currentLeft;
     var currentTop = this._currentTop;
     var nextLeft = this._nextLeft;
     var nextTop = this._nextTop;
-    var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
+    var targetStyles = {};
+
+    targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
 
     // If placeholder is already in correct position let's just stop animation
     // and be done with it.
@@ -3309,7 +3310,8 @@
 
     // Otherwise let's start the animation.
     var settings = this._item.getGrid()._settings.dragPlaceholder;
-    var currentStyles = { transform: getTranslateString(currentLeft, currentTop) };
+    var currentStyles = {};
+    currentStyles[transformProp] = getTranslateString(currentLeft, currentTop);
     animation.start(currentStyles, targetStyles, {
       duration: settings.duration,
       easing: settings.easing,
@@ -3340,7 +3342,7 @@
   ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
     if (item._id === this._item._id) {
       // If the placeholder is not animating anymore we can safely reset it.
-      if (!this._animate.isAnimating()) {
+      if (!this._animation.isAnimating()) {
         this.reset();
         return;
       }
@@ -3408,7 +3410,7 @@
     var item = this._item;
     var grid = item.getGrid();
     var settings = grid._settings;
-    var animation = this._animate;
+    var animation = this._animation;
 
     // Create placeholder element.
     var element;
@@ -3428,18 +3430,20 @@
       addClass(element, this._className);
     }
 
-    // Position the placeholder item correctly.
-    var left = item._left + item._marginLeft;
-    var top = item._top + item._marginTop;
+    // Set initial styles.
     setStyles(element, {
       display: 'block',
       position: 'absolute',
       left: '0',
       top: '0',
       width: item._width + 'px',
-      height: item._height + 'px',
-      transform: getTranslateString(left, top)
+      height: item._height + 'px'
     });
+
+    // Set initial position.
+    var left = item._left + item._marginLeft;
+    var top = item._top + item._marginTop;
+    element[transformProp] = getTranslateString(left, top);
 
     // Bind event listeners.
     grid.on(eventLayoutStart, this._onLayoutStart);
@@ -3468,7 +3472,7 @@
     var item = this._item;
     var grid = item.getGrid();
     var settings = grid._settings;
-    var animation = this._animate;
+    var animation = this._animation;
 
     // Reset flag.
     this._resetAfterLayout = false;
@@ -3539,8 +3543,147 @@
    */
   ItemDragPlaceholder.prototype.destroy = function() {
     this.reset();
-    this._animate.destroy();
-    this._item = this._animate = null;
+    this._animation.destroy();
+    this._item = this._animation = null;
+  };
+
+  /**
+   * The release process handler constructor. Although this might seem as proper
+   * fit for the drag process this needs to be separated into it's own logic
+   * because there might be a scenario where drag is disabled, but the release
+   * process still needs to be implemented (dragging from a grid to another).
+   *
+   * @class
+   * @param {Item} item
+   */
+  function ItemDragRelease(item) {
+    this._item = item;
+    this._isActive = false;
+    this._isDestroyed = false;
+    this._isPositioningStarted = false;
+    this._containerDiffX = 0;
+    this._containerDiffY = 0;
+  }
+
+  /**
+   * Public prototype methods
+   * ************************
+   */
+
+  /**
+   * Start the release process of an item.
+   *
+   * @public
+   * @memberof ItemDragRelease.prototype
+   * @returns {ItemDragRelease}
+   */
+  ItemDragRelease.prototype.start = function() {
+    if (this._isDestroyed || this._isActive) return this;
+
+    var item = this._item;
+    var grid = item.getGrid();
+
+    // Flag release as active.
+    this._isActive = true;
+
+    // Add release class name to the released element.
+    addClass(item._element, grid._settings.itemReleasingClass);
+
+    // Emit dragReleaseStart event.
+    grid._emit(eventDragReleaseStart, item);
+
+    // Position the released item.
+    item._layout.start(false);
+
+    return this;
+  };
+
+  /**
+   * End the release process of an item. This method can be used to abort an
+   * ongoing release process (animation) or finish the release process.
+   *
+   * @public
+   * @memberof ItemDragRelease.prototype
+   * @param {Boolean} [abort=false]
+   *  - Should the release be aborted? When true, the release end event won't be
+   *    emitted. Set to true only when you need to abort the release process
+   *    while the item is animating to it's position.
+   * @param {Number} [left]
+   *  - The element's current translateX value (optional).
+   * @param {Number} [top]
+   *  - The element's current translateY value (optional).
+   * @returns {ItemDragRelease}
+   */
+  ItemDragRelease.prototype.stop = function(abort, left, top) {
+    if (this._isDestroyed || !this._isActive) return this;
+
+    var item = this._item;
+    var element = item._element;
+    var grid = item.getGrid();
+    var container = grid._element;
+    var translate;
+
+    // Reset data and remove releasing class name from the element.
+    this._reset();
+
+    // If the released element is outside the grid's container element put it
+    // back there and adjust position accordingly.
+    if (element.parentNode !== container) {
+      if (left === undefined || top === undefined) {
+        if (abort) {
+          translate = getTranslate(element);
+          left = translate.x - this._containerDiffX;
+          top = translate.y - this._containerDiffY;
+        } else {
+          left = item._left;
+          top = item._top;
+        }
+      }
+
+      container.appendChild(element);
+      element.style[transformProp] = getTranslateString(left, top);
+    }
+
+    // Emit dragReleaseEnd event.
+    if (!abort) grid._emit(eventDragReleaseEnd, item);
+
+    return this;
+  };
+
+  /**
+   * Destroy instance.
+   *
+   * @public
+   * @memberof ItemDragRelease.prototype
+   * @returns {ItemDragRelease}
+   */
+  ItemDragRelease.prototype.destroy = function() {
+    if (this._isDestroyed) return this;
+    this.stop(true);
+    this._item = null;
+    this._isDestroyed = true;
+    return this;
+  };
+
+  /**
+   * Private prototype methods
+   * *************************
+   */
+
+  /**
+   * Reset public data and remove releasing class.
+   *
+   * @private
+   * @memberof ItemDragRelease.prototype
+   */
+  ItemDragRelease.prototype._reset = function() {
+    if (this._isDestroyed) return;
+    var item = this._item;
+    this._isActive = false;
+    this._isPositioningStarted = false;
+    this._containerDiffX = 0;
+    this._containerDiffY = 0;
+    removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
   };
 
   /**
@@ -3662,9 +3805,11 @@
     this._offsetLeft = 0;
     this._offsetTop = 0;
     this._skipNextAnimation = false;
-    this._animateOptions = {
+    this._animOptions = {
       onFinish: this._finish.bind(this)
     };
+
+    this._animation = new ItemAnimate(item._element);
     this._queue = new Queue();
 
     // Bind animation handlers and finish method.
@@ -3691,7 +3836,7 @@
 
     var item = this._item;
     var element = item._element;
-    var release = item._release;
+    var release = item._dragRelease;
     var gridSettings = item.getGrid()._settings;
     var isPositioning = this._isActive;
     var isJustReleased = release._isActive && release._isPositioningStarted === false;
@@ -3716,7 +3861,7 @@
     if (!animEnabled) {
       this._updateOffsets();
       this._updateTargetStyles();
-      isAnimating = item._animate.isAnimating();
+      isAnimating = this._animation.isAnimating();
       this.stop(false, this._targetStyles);
       !isAnimating && setStyles(element, this._targetStyles);
       this._skipNextAnimation = false;
@@ -3726,8 +3871,8 @@
     // Set item active and store some data for the animation that is about to be
     // triggered.
     this._isActive = true;
-    this._animateOptions.easing = animEasing;
-    this._animateOptions.duration = animDuration;
+    this._animOptions.easing = animEasing;
+    this._animOptions.duration = animDuration;
     this._isInterrupted = isPositioning;
 
     // Start the item's layout animation in the next tick.
@@ -3754,7 +3899,7 @@
     cancelLayoutTick(item._id);
 
     // Stop animation.
-    item._animate.stop(targetStyles);
+    this._animation.stop(targetStyles);
 
     // Remove positioning class.
     removeClass(item._element, item.getGrid()._settings.itemPositioningClass);
@@ -3779,7 +3924,11 @@
     if (this._isDestroyed) return this;
     this.stop(true, {});
     this._queue.destroy();
-    this._item = this._currentStyles = this._targetStyles = this._animateOptions = null;
+    this._animation.destroy();
+    this._item = null;
+    this._currentStyles = null;
+    this._targetStyles = null;
+    this._animOptions = null;
     this._isDestroyed = true;
     return this;
   };
@@ -3800,7 +3949,7 @@
 
     var item = this._item;
     var migrate = item._migrate;
-    var release = item._release;
+    var release = item._dragRelease;
 
     this._offsetLeft = release._isActive
       ? release._containerDiffX
@@ -3823,7 +3972,7 @@
    */
   ItemLayout.prototype._updateTargetStyles = function() {
     if (this._isDestroyed) return;
-    this._targetStyles.transform = getTranslateString(
+    this._targetStyles[transformProp] = getTranslateString(
       this._item._left + this._offsetLeft,
       this._item._top + this._offsetTop
     );
@@ -3840,7 +3989,7 @@
 
     var item = this._item;
     var migrate = item._migrate;
-    var release = item._release;
+    var release = item._dragRelease;
 
     // Mark the item as inactive and remove positioning classes.
     if (this._isActive) {
@@ -3899,10 +4048,10 @@
     }
 
     // Get current styles for animation.
-    this._currentStyles.transform = getTranslateString(this._currentLeft, this._currentTop);
+    this._currentStyles[transformProp] = getTranslateString(this._currentLeft, this._currentTop);
 
     // Animate.
-    item._animate.start(this._currentStyles, this._targetStyles, this._animateOptions);
+    this._animation.start(this._currentStyles, this._targetStyles, this._animOptions);
   };
 
   /**
@@ -3957,6 +4106,7 @@
     var translate;
     var translateX;
     var translateY;
+    var layoutStyles;
 
     // Get target index.
     if (typeof position === 'number') {
@@ -3976,21 +4126,23 @@
 
     // Abort current positioning.
     if (item.isPositioning()) {
-      item._layout.stop(true, { transform: getTranslateString(translateX, translateY) });
+      layoutStyles = {};
+      layoutStyles[transformProp] = getTranslateString(translateX, translateY);
+      item._layout.stop(true, layoutStyles);
     }
 
     // Abort current migration.
     if (this._isActive) {
       translateX -= this._containerDiffX;
       translateY -= this._containerDiffY;
-      this.stop(true, { transform: getTranslateString(translateX, translateY) });
+      this.stop(true, translateX, translateY);
     }
 
     // Abort current release.
     if (item.isReleasing()) {
-      translateX -= item._release._containerDiffX;
-      translateY -= item._release._containerDiffY;
-      item._release.stop(true, { transform: getTranslateString(translateX, translateY) });
+      translateX -= item._dragRelease._containerDiffX;
+      translateY -= item._dragRelease._containerDiffY;
+      item._dragRelease.stop(true, translateX, translateY);
     }
 
     // Stop current visibility animations.
@@ -4060,8 +4212,9 @@
     }
 
     // Update child element's styles to reflect the current visibility state.
-    item._child.removeAttribute('style');
-    setStyles(item._child, isVisible ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
+    item._visibility.setStyles(
+      isVisible ? targetSettings.visibleStyles : targetSettings.hiddenStyles
+    );
 
     // Update display style.
     element.style.display = isVisible ? 'block' : 'hidden';
@@ -4115,46 +4268,45 @@
    * @memberof ItemMigrate.prototype
    * @param {Boolean} [abort=false]
    *  - Should the migration be aborted?
-   * @param {Object} [currentStyles]
-   *  - Optional current translateX and translateY styles.
+   * @param {Number} [left]
+   *  - The element's current translateX value (optional).
+   * @param {Number} [top]
+   *  - The element's current translateY value (optional).
    * @returns {ItemMigrate}
    */
-  ItemMigrate.prototype.stop = (function() {
-    var tempStyles = {};
-    return function(abort, currentStyles) {
-      if (this._isDestroyed || !this._isActive) return this;
+  ItemMigrate.prototype.stop = function(abort, left, top) {
+    if (this._isDestroyed || !this._isActive) return this;
 
-      var item = this._item;
-      var element = item._element;
-      var grid = item.getGrid();
-      var gridElement = grid._element;
-      var translate;
+    var item = this._item;
+    var element = item._element;
+    var grid = item.getGrid();
+    var gridElement = grid._element;
+    var translate;
 
-      if (this._container !== gridElement) {
-        if (!currentStyles) {
-          if (abort) {
-            translate = getTranslate(element);
-            tempStyles.transform = getTranslateString(
-              translate.x - this._containerDiffX,
-              translate.y - this._containerDiffY
-            );
-          } else {
-            tempStyles.transform = getTranslateString(item._left, item._top);
-          }
-          currentStyles = tempStyles;
+    if (this._container !== gridElement) {
+      if (left === undefined || top === undefined) {
+        if (abort) {
+          translate = getTranslate(element);
+          left = translate.x - this._containerDiffX;
+          top = translate.y - this._containerDiffY;
+        } else {
+          left = item._left;
+          top = item._top;
         }
-        gridElement.appendChild(element);
-        setStyles(element, currentStyles);
       }
 
-      this._isActive = false;
-      this._container = null;
-      this._containerDiffX = 0;
-      this._containerDiffY = 0;
+      gridElement.appendChild(element);
+      element.style[transformProp] = getTranslateString(left, top);
+    }
 
-      return this;
-    };
-  })();
+    this._isActive = false;
+    this._container = null;
+    this._containerDiffX = 0;
+    this._containerDiffY = 0;
+
+    return this;
+  };
+
   /**
    * Destroy instance.
    *
@@ -4171,147 +4323,6 @@
   };
 
   /**
-   * The release process handler constructor. Although this might seem as proper
-   * fit for the drag process this needs to be separated into it's own logic
-   * because there might be a scenario where drag is disabled, but the release
-   * process still needs to be implemented (dragging from a grid to another).
-   *
-   * @class
-   * @param {Item} item
-   */
-  function ItemRelease(item) {
-    this._item = item;
-    this._isActive = false;
-    this._isDestroyed = false;
-    this._isPositioningStarted = false;
-    this._containerDiffX = 0;
-    this._containerDiffY = 0;
-  }
-
-  /**
-   * Public prototype methods
-   * ************************
-   */
-
-  /**
-   * Start the release process of an item.
-   *
-   * @public
-   * @memberof ItemRelease.prototype
-   * @returns {ItemRelease}
-   */
-  ItemRelease.prototype.start = function() {
-    if (this._isDestroyed || this._isActive) return this;
-
-    var item = this._item;
-    var grid = item.getGrid();
-
-    // Flag release as active.
-    this._isActive = true;
-
-    // Add release class name to the released element.
-    addClass(item._element, grid._settings.itemReleasingClass);
-
-    // Emit dragReleaseStart event.
-    grid._emit(eventDragReleaseStart, item);
-
-    // Position the released item.
-    item._layout.start(false);
-
-    return this;
-  };
-
-  /**
-   * End the release process of an item. This method can be used to abort an
-   * ongoing release process (animation) or finish the release process.
-   *
-   * @public
-   * @memberof ItemRelease.prototype
-   * @param {Boolean} [abort=false]
-   *  - Should the release be aborted? When true, the release end event won't be
-   *    emitted. Set to true only when you need to abort the release process
-   *    while the item is animating to it's position.
-   * @param {Object} [currentStyles]
-   *  - Optional current translateX and translateY styles.
-   * @returns {ItemRelease}
-   */
-  ItemRelease.prototype.stop = (function() {
-    var tempStyles = { transform: '' };
-    return function(abort, currentStyles) {
-      if (this._isDestroyed || !this._isActive) return this;
-
-      var item = this._item;
-      var element = item._element;
-      var grid = item.getGrid();
-      var container = grid._element;
-      var translate;
-
-      // Reset data and remove releasing class name from the element.
-      this._reset();
-
-      // If the released element is outside the grid's container element put it
-      // back there and adjust position accordingly.
-      if (element.parentNode !== container) {
-        if (!currentStyles) {
-          if (abort) {
-            translate = getTranslate(element);
-            tempStyles.transform = getTranslateString(
-              translate.x - this._containerDiffX,
-              translate.y - this._containerDiffY
-            );
-          } else {
-            tempStyles.transform = getTranslateString(item._left, item._top);
-          }
-          currentStyles = tempStyles;
-        }
-        container.appendChild(element);
-        setStyles(element, currentStyles);
-      }
-
-      // Emit dragReleaseEnd event.
-      if (!abort) grid._emit(eventDragReleaseEnd, item);
-
-      return this;
-    };
-  })();
-
-  /**
-   * Destroy instance.
-   *
-   * @public
-   * @memberof ItemRelease.prototype
-   * @returns {ItemRelease}
-   */
-  ItemRelease.prototype.destroy = function() {
-    if (this._isDestroyed) return this;
-    this.stop(true);
-    this._item = null;
-    this._isDestroyed = true;
-    return this;
-  };
-
-  /**
-   * Private prototype methods
-   * *************************
-   */
-
-  /**
-   * Reset public data and remove releasing class.
-   *
-   * @private
-   * @memberof ItemRelease.prototype
-   */
-  ItemRelease.prototype._reset = function() {
-    if (this._isDestroyed) return;
-    var item = this._item;
-    this._isActive = false;
-    this._isPositioningStarted = false;
-    this._containerDiffX = 0;
-    this._containerDiffY = 0;
-    removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
-  };
-
-  /**
    * Visibility manager for Item instance.
    *
    * @class
@@ -4320,31 +4331,29 @@
   function ItemVisibility(item) {
     var isActive = item._isActive;
     var element = item._element;
+    var childElement = element.children[0];
     var settings = item.getGrid()._settings;
+
+    if (!childElement) {
+      throw new Error('No valid child element found within item element.');
+    }
 
     this._item = item;
     this._isDestroyed = false;
-
-    // Set up visibility states.
     this._isHidden = !isActive;
     this._isHiding = false;
     this._isShowing = false;
-
-    // Callback queue.
+    this._childElement = childElement;
+    this._animation = new ItemAnimate(childElement);
     this._queue = new Queue();
-
-    // Bind show/hide finishers.
     this._finishShow = this._finishShow.bind(this);
     this._finishHide = this._finishHide.bind(this);
 
     // Force item to be either visible or hidden on init.
     element.style.display = isActive ? 'block' : 'none';
 
-    // Set visible/hidden class.
     addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
-
-    // Set initial styles for the child element.
-    setStyles(item._child, isActive ? settings.visibleStyles : settings.hiddenStyles);
+    setStyles(childElement, isActive ? settings.visibleStyles : settings.hiddenStyles);
   }
 
   /**
@@ -4462,6 +4471,21 @@
   };
 
   /**
+   * Reset all existing visibility styles and optionally apply new visibility
+   * styles to the visibility element.
+   *
+   * @public
+   * @memberof ItemVisibility.prototype
+   * @param {Object} [styles]
+   * @returns {ItemVisibility}
+   */
+  ItemVisibility.prototype.setStyles = function(styles) {
+    var childElement = this._childElement;
+    childElement.removeAttribute('style');
+    if (styles) setStyles(childElement, styles);
+  };
+
+  /**
    * Destroy the instance and stop current animation if it is running.
    *
    * @public
@@ -4477,18 +4501,19 @@
     var queue = this._queue;
     var settings = grid._settings;
 
-    // Stop visibility animation.
     this._stopAnimation({});
 
     // Fire all uncompleted callbacks with interrupted flag and destroy the queue.
-    queue.process(true, item).destroy();
+    queue.process(true, item);
+    queue.destroy();
 
-    // Remove visible/hidden classes.
+    this._animation.destroy();
+    this._childElement.removeAttribute('style');
     removeClass(element, settings.itemVisibleClass);
     removeClass(element, settings.itemHiddenClass);
 
     // Reset state.
-    this._item = null;
+    this._item = this._childElement = null;
     this._isHiding = this._isShowing = false;
     this._isDestroyed = this._isHidden = true;
 
@@ -4513,6 +4538,8 @@
     if (this._isDestroyed) return;
 
     var item = this._item;
+    var animation = this._animation;
+    var childElement = this._childElement;
     var settings = item.getGrid()._settings;
     var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
     var duration = toVisible ? settings.showDuration : settings.hideDuration;
@@ -4531,10 +4558,10 @@
 
     // If we need to apply the styles instantly without animation.
     if (isInstant) {
-      if (item._animateChild.isAnimating()) {
-        item._animateChild.stop(targetStyles);
+      if (animation.isAnimating()) {
+        animation.stop(targetStyles);
       } else {
-        setStyles(item._child, targetStyles);
+        setStyles(childElement, targetStyles);
       }
       onFinish && onFinish();
       return;
@@ -4544,12 +4571,10 @@
     addVisibilityTick(
       item._id,
       function() {
-        // TODO: Let's save the current styles to a reusable object to avoid
-        // unnecessary memory allocations.
-        currentStyles = getCurrentStyles(item._child, targetStyles);
+        currentStyles = getCurrentStyles(childElement, targetStyles);
       },
       function() {
-        item._animateChild.start(currentStyles, targetStyles, {
+        animation.start(currentStyles, targetStyles, {
           duration: duration,
           easing: easing,
           onFinish: onFinish
@@ -4569,7 +4594,7 @@
     if (this._isDestroyed) return;
     var item = this._item;
     cancelVisibilityTick(item._id);
-    item._animateChild.stop(targetStyles);
+    this._animation.stop(targetStyles);
   };
 
   /**
@@ -4591,12 +4616,13 @@
    * @memberof ItemVisibility.prototype
    */
   ItemVisibility.prototype._finishHide = (function() {
-    var finishStyles = { transform: getTranslateString(0, 0) };
+    var layoutStyles = {};
+    layoutStyles[transformProp] = getTranslateString(0, 0);
     return function() {
       if (!this._isHidden) return;
       var item = this._item;
       this._isHiding = false;
-      item._layout.stop(true, finishStyles);
+      item._layout.stop(true, layoutStyles);
       item._element.style.display = 'none';
       this._queue.process(false, item);
     };
@@ -4623,22 +4649,12 @@
   function Item(grid, element, isActive) {
     var settings = grid._settings;
 
-    // Create instance id.
     this._id = createUid();
-
-    // Reference to connected Grid instance's id.
     this._gridId = grid._id;
-
-    // Destroyed flag.
+    this._element = element;
     this._isDestroyed = false;
-
-    // Set up initial positions.
     this._left = 0;
     this._top = 0;
-
-    // The elements.
-    this._element = element;
-    this._child = element.children[0];
 
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container.
@@ -4659,13 +4675,10 @@
     this._isActive = isActive;
 
     // Set element's initial position styles.
+    // TODO: Should these be set within ItemLayout?
     element.style.left = '0';
     element.style.top = '0';
     element.style[transformProp] = getTranslateString(0, 0);
-
-    // Initiate item's animation controllers.
-    this._animate = new ItemAnimate(element);
-    this._animateChild = new ItemAnimate(this._child);
 
     // Setup visibility handler.
     this._visibility = new ItemVisibility(this);
@@ -4676,18 +4689,20 @@
     // Set up migration handler data.
     this._migrate = new ItemMigrate(this);
 
+    // Set up drag handler.
+    this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
+
     // Set up release handler. Note that although this is fully linked to dragging
     // this still needs to be always instantiated to handle migration scenarios
     // correctly.
-    this._release = new ItemRelease(this);
+    // TODO: Try to move this inside ItemDrag.
+    this._dragRelease = new ItemDragRelease(this);
 
     // Set up drag placeholder handler. Note that although this is fully linked to
     // dragging this still needs to be always instantiated to handle migration
     // scenarios correctly.
+    // TODO: Try to move this inside ItemDrag.
     this._dragPlaceholder = new ItemDragPlaceholder(this);
-
-    // Set up drag handler.
-    this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
 
     // Set up the initial dimensions and sort data.
     this._refreshDimensions();
@@ -4851,7 +4866,7 @@
    * @returns {Boolean}
    */
   Item.prototype.isReleasing = function() {
-    return !!(this._release && this._release._isActive);
+    return !!(this._dragRelease && this._dragRelease._isActive);
   };
 
   /**
@@ -4933,27 +4948,26 @@
     var index = grid._items.indexOf(this);
 
     // Destroy handlers.
-    this._release.destroy();
+    this._dragRelease.destroy();
     this._migrate.destroy();
     this._layout.destroy();
     this._visibility.destroy();
-    this._animate.destroy();
-    this._animateChild.destroy();
     this._dragPlaceholder.destroy();
-    this._drag && this._drag.destroy();
+    if (this._drag) this._drag.destroy();
 
     // Remove all inline styles.
+    // TODO: Should these actions be carried out in ItemLayout and ItemVisibility
+    // respectively?
     element.removeAttribute('style');
-    this._child.removeAttribute('style');
 
     // Remove item class.
     removeClass(element, settings.itemClass);
 
     // Remove item from Grid instance if it still exists there.
-    index > -1 && grid._items.splice(index, 1);
+    if (index > -1) grid._items.splice(index, 1);
 
     // Remove element from DOM.
-    removeElement && element.parentNode.removeChild(element);
+    if (removeElement) element.parentNode.removeChild(element);
 
     // Reset state.
     this._isActive = false;
@@ -5656,7 +5670,7 @@
   /**
    * @see ItemRelease
    */
-  Grid.ItemRelease = ItemRelease;
+  Grid.ItemRelease = ItemDragRelease;
 
   /**
    * @see ItemDragPlaceholder
@@ -6165,7 +6179,7 @@
     var newItems = toArray(elements);
     if (!newItems.length) return newItems;
 
-    var opts = options || 0;
+    var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var items = this._items;
     var needsLayout = false;
@@ -6218,7 +6232,7 @@
   Grid.prototype.remove = function(items, options) {
     if (this._isDestroyed) return this;
 
-    var opts = options || 0;
+    var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var needsLayout = false;
     var allItems = this.getItems();
@@ -6310,7 +6324,7 @@
     var itemsToHide = [];
     var isPredicateString = typeof predicate === stringType;
     var isPredicateFn = isFunction(predicate);
-    var opts = options || 0;
+    var opts = options || {};
     var isInstant = opts.instant === true;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var onFinish = isFunction(opts.onFinish) ? opts.onFinish : null;
@@ -6478,7 +6492,7 @@
       if (this._isDestroyed || this._items.length < 2) return this;
 
       var items = this._items;
-      var opts = options || 0;
+      var opts = options || {};
       var layout = opts.layout ? opts.layout : opts.layout === undefined;
       var i;
 
@@ -6502,11 +6516,11 @@
       // items and order the items based on it.
       else if (Array.isArray(sortComparer)) {
         if (sortComparer.length !== items.length) {
-          throw new Error('[' + namespace + '] sort reference items do not match with grid items.');
+          throw new Error('Sort reference items do not match with grid items.');
         }
         for (i = 0; i < items.length; i++) {
           if (sortComparer.indexOf(items[i]) < 0) {
-            throw new Error('[' + namespace + '] sort reference items do not match with grid items.');
+            throw new Error('Sort reference items do not match with grid items.');
           }
           items[i] = sortComparer[i];
         }
@@ -6550,7 +6564,7 @@
     if (this._isDestroyed || this._items.length < 2) return this;
 
     var items = this._items;
-    var opts = options || 0;
+    var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var isSwap = opts.action === actionSwap;
     var action = isSwap ? actionSwap : actionMove;
@@ -6612,7 +6626,7 @@
     item = this._getItem(item);
     if (!item) return this;
 
-    var opts = options || 0;
+    var opts = options || {};
     var container = opts.appendTo || window.document.body;
     var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
     var layoutReceiver = opts.layoutReceiver
@@ -6863,7 +6877,7 @@
   Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
     var grid = this;
     var targetItems = this.getItems(items);
-    var opts = options || 0;
+    var opts = options || {};
     var isInstant = opts.instant === true;
     var callback = opts.onFinish;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;

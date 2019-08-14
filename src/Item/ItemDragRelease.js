@@ -10,7 +10,7 @@ import addClass from '../utils/addClass';
 import getTranslate from '../utils/getTranslate';
 import getTranslateString from '../utils/getTranslateString';
 import removeClass from '../utils/removeClass';
-import setStyles from '../utils/setStyles';
+import transformProp from '../utils/transformProp';
 
 /**
  * The release process handler constructor. Although this might seem as proper
@@ -21,7 +21,7 @@ import setStyles from '../utils/setStyles';
  * @class
  * @param {Item} item
  */
-function ItemRelease(item) {
+function ItemDragRelease(item) {
   this._item = item;
   this._isActive = false;
   this._isDestroyed = false;
@@ -39,10 +39,10 @@ function ItemRelease(item) {
  * Start the release process of an item.
  *
  * @public
- * @memberof ItemRelease.prototype
- * @returns {ItemRelease}
+ * @memberof ItemDragRelease.prototype
+ * @returns {ItemDragRelease}
  */
-ItemRelease.prototype.start = function() {
+ItemDragRelease.prototype.start = function() {
   if (this._isDestroyed || this._isActive) return this;
 
   var item = this._item;
@@ -68,63 +68,61 @@ ItemRelease.prototype.start = function() {
  * ongoing release process (animation) or finish the release process.
  *
  * @public
- * @memberof ItemRelease.prototype
+ * @memberof ItemDragRelease.prototype
  * @param {Boolean} [abort=false]
  *  - Should the release be aborted? When true, the release end event won't be
  *    emitted. Set to true only when you need to abort the release process
  *    while the item is animating to it's position.
- * @param {Object} [currentStyles]
- *  - Optional current translateX and translateY styles.
- * @returns {ItemRelease}
+ * @param {Number} [left]
+ *  - The element's current translateX value (optional).
+ * @param {Number} [top]
+ *  - The element's current translateY value (optional).
+ * @returns {ItemDragRelease}
  */
-ItemRelease.prototype.stop = (function() {
-  var tempStyles = { transform: '' };
-  return function(abort, currentStyles) {
-    if (this._isDestroyed || !this._isActive) return this;
+ItemDragRelease.prototype.stop = function(abort, left, top) {
+  if (this._isDestroyed || !this._isActive) return this;
 
-    var item = this._item;
-    var element = item._element;
-    var grid = item.getGrid();
-    var container = grid._element;
-    var translate;
+  var item = this._item;
+  var element = item._element;
+  var grid = item.getGrid();
+  var container = grid._element;
+  var translate;
 
-    // Reset data and remove releasing class name from the element.
-    this._reset();
+  // Reset data and remove releasing class name from the element.
+  this._reset();
 
-    // If the released element is outside the grid's container element put it
-    // back there and adjust position accordingly.
-    if (element.parentNode !== container) {
-      if (!currentStyles) {
-        if (abort) {
-          translate = getTranslate(element);
-          tempStyles.transform = getTranslateString(
-            translate.x - this._containerDiffX,
-            translate.y - this._containerDiffY
-          );
-        } else {
-          tempStyles.transform = getTranslateString(item._left, item._top);
-        }
-        currentStyles = tempStyles;
+  // If the released element is outside the grid's container element put it
+  // back there and adjust position accordingly.
+  if (element.parentNode !== container) {
+    if (left === undefined || top === undefined) {
+      if (abort) {
+        translate = getTranslate(element);
+        left = translate.x - this._containerDiffX;
+        top = translate.y - this._containerDiffY;
+      } else {
+        left = item._left;
+        top = item._top;
       }
-      container.appendChild(element);
-      setStyles(element, currentStyles);
     }
 
-    // Emit dragReleaseEnd event.
-    if (!abort) grid._emit(eventDragReleaseEnd, item);
+    container.appendChild(element);
+    element.style[transformProp] = getTranslateString(left, top);
+  }
 
-    return this;
-  };
-})();
+  // Emit dragReleaseEnd event.
+  if (!abort) grid._emit(eventDragReleaseEnd, item);
+
+  return this;
+};
 
 /**
  * Destroy instance.
  *
  * @public
- * @memberof ItemRelease.prototype
- * @returns {ItemRelease}
+ * @memberof ItemDragRelease.prototype
+ * @returns {ItemDragRelease}
  */
-ItemRelease.prototype.destroy = function() {
+ItemDragRelease.prototype.destroy = function() {
   if (this._isDestroyed) return this;
   this.stop(true);
   this._item = null;
@@ -141,9 +139,9 @@ ItemRelease.prototype.destroy = function() {
  * Reset public data and remove releasing class.
  *
  * @private
- * @memberof ItemRelease.prototype
+ * @memberof ItemDragRelease.prototype
  */
-ItemRelease.prototype._reset = function() {
+ItemDragRelease.prototype._reset = function() {
   if (this._isDestroyed) return;
   var item = this._item;
   this._isActive = false;
@@ -153,4 +151,4 @@ ItemRelease.prototype._reset = function() {
   removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
 };
 
-export default ItemRelease;
+export default ItemDragRelease;

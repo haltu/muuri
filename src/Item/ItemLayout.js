@@ -18,7 +18,7 @@ import setStyles from '../utils/setStyles';
 import transformProp from '../utils/transformProp';
 
 /**
- * Layout manager for Item instance.
+ * Layout manager for Item instance, handles the positioning of an item.
  *
  * @class
  * @param {Item} item
@@ -38,6 +38,11 @@ function ItemLayout(item) {
   this._animOptions = {
     onFinish: this._finish.bind(this)
   };
+
+  // Set element's initial position styles.
+  item._element.style.left = '0px';
+  item._element.style.top = '0px';
+  item._element.style[transformProp] = getTranslateString(0, 0);
 
   this._animation = new ItemAnimate(item._element);
   this._queue = new Queue();

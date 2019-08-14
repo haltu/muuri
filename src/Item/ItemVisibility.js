@@ -18,7 +18,7 @@ import transformProp from '../utils/transformProp';
 import getTranslateString from '../utils/getTranslateString';
 
 /**
- * Visibility manager for Item instance.
+ * Visibility manager for Item instance, handles visibility of an item.
  *
  * @class
  * @param {Item} item

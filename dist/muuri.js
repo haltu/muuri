@@ -3434,8 +3434,8 @@
     setStyles(element, {
       display: 'block',
       position: 'absolute',
-      left: '0',
-      top: '0',
+      left: '0px',
+      top: '0px',
       width: item._width + 'px',
       height: item._height + 'px'
     });
@@ -3788,7 +3788,7 @@
   };
 
   /**
-   * Layout manager for Item instance.
+   * Layout manager for Item instance, handles the positioning of an item.
    *
    * @class
    * @param {Item} item
@@ -3808,6 +3808,11 @@
     this._animOptions = {
       onFinish: this._finish.bind(this)
     };
+
+    // Set element's initial position styles.
+    item._element.style.left = '0px';
+    item._element.style.top = '0px';
+    item._element.style[transformProp] = getTranslateString(0, 0);
 
     this._animation = new ItemAnimate(item._element);
     this._queue = new Queue();
@@ -4323,7 +4328,7 @@
   };
 
   /**
-   * Visibility manager for Item instance.
+   * Visibility manager for Item instance, handles visibility of an item.
    *
    * @class
    * @param {Item} item
@@ -4674,12 +4679,6 @@
     // or not).
     this._isActive = isActive;
 
-    // Set element's initial position styles.
-    // TODO: Should these be set within ItemLayout?
-    element.style.left = '0';
-    element.style.top = '0';
-    element.style[transformProp] = getTranslateString(0, 0);
-
     // Setup visibility handler.
     this._visibility = new ItemVisibility(this);
 
@@ -4956,8 +4955,6 @@
     if (this._drag) this._drag.destroy();
 
     // Remove all inline styles.
-    // TODO: Should these actions be carried out in ItemLayout and ItemVisibility
-    // respectively?
     element.removeAttribute('style');
 
     // Remove item class.

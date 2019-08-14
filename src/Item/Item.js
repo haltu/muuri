@@ -17,9 +17,7 @@ import addClass from '../utils/addClass';
 import createUid from '../utils/createUid';
 import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
-import getTranslateString from '../utils/getTranslateString';
 import removeClass from '../utils/removeClass';
-import transformProp from '../utils/transformProp';
 
 /**
  * Creates a new Item instance for a Grid instance.
@@ -56,12 +54,6 @@ function Item(grid, element, isActive) {
   // Set up active state (defines if the item is considered part of the layout
   // or not).
   this._isActive = isActive;
-
-  // Set element's initial position styles.
-  // TODO: Should these be set within ItemLayout?
-  element.style.left = '0';
-  element.style.top = '0';
-  element.style[transformProp] = getTranslateString(0, 0);
 
   // Setup visibility handler.
   this._visibility = new ItemVisibility(this);
@@ -339,8 +331,6 @@ Item.prototype._destroy = function(removeElement) {
   if (this._drag) this._drag.destroy();
 
   // Remove all inline styles.
-  // TODO: Should these actions be carried out in ItemLayout and ItemVisibility
-  // respectively?
   element.removeAttribute('style');
 
   // Remove item class.

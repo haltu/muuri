@@ -38,7 +38,6 @@ import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
-import setStyles from '../utils/setStyles';
 import transformProp from '../utils/transformProp';
 
 // Drag start predicate states.
@@ -882,7 +881,7 @@ ItemDrag.prototype._checkOverlap = function() {
  */
 ItemDrag.prototype._finishMigration = function() {
   var item = this._item;
-  var release = item._release;
+  var release = item._dragRelease;
   var element = item._element;
   var isActive = item._isActive;
   var targetGrid = item.getGrid();
@@ -940,8 +939,7 @@ ItemDrag.prototype._finishMigration = function() {
   }
 
   // Update child element's styles to reflect the current visibility state.
-  item._child.removeAttribute('style');
-  setStyles(item._child, isActive ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
+  item._visibility.setStyles(isActive ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
 
   // Start the release.
   release.start();
@@ -1016,7 +1014,7 @@ ItemDrag.prototype._onStart = function(event) {
   var element = item._element;
   var grid = this._getGrid();
   var settings = grid._settings;
-  var release = item._release;
+  var release = item._dragRelease;
   var migrate = item._migrate;
   var gridContainer = grid._element;
   var dragContainer = settings.dragContainer || gridContainer;
@@ -1026,7 +1024,7 @@ ItemDrag.prototype._onStart = function(event) {
   var currentTop = translate.y;
   var elementRect = element.getBoundingClientRect();
   var hasDragContainer = dragContainer !== gridContainer;
-  var offsetDiff;
+  var offsetDiff, layoutStyles;
 
   // Reset heuristics data.
   this._resetHeuristics(event);
@@ -1040,14 +1038,16 @@ ItemDrag.prototype._onStart = function(event) {
 
   // Stop current positioning animation.
   if (item.isPositioning()) {
-    item._layout.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
+    layoutStyles = {};
+    layoutStyles[transformProp] = getTranslateString(currentLeft, currentTop);
+    item._layout.stop(true, layoutStyles);
   }
 
   // Stop current migration animation.
   if (migrate._isActive) {
     currentLeft -= migrate._containerDiffX;
     currentTop -= migrate._containerDiffY;
-    migrate.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
+    migrate.stop(true, currentLeft, currentTop);
   }
 
   // If item is being released reset release data.
@@ -1284,7 +1284,7 @@ ItemDrag.prototype._onEnd = function(event) {
   var element = item._element;
   var grid = this._getGrid();
   var settings = grid._settings;
-  var release = item._release;
+  var release = item._dragRelease;
 
   // If item is not active, reset drag.
   if (!item._isActive) {

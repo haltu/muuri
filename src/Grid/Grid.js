@@ -4,17 +4,6 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-// TODO: visibleStyles/hiddenStyles are not prefixed by Muuri because the Web
-// Animations polyfill prefixes them automatically. However, we do set those
-// styles also outside the Web Animations Polyfill so we need to use the
-// prefixed props/styles then. The best approach would probably be creating
-// an additional prefixed version of the styles and using that where needed.
-
-// TODO: Try to come up with a way to provide more customization power to
-// animations with minimal API surface changes. E.g. some might want to use a
-// different library for animations and/or do some crazy effects with multiple
-// elements when an item animates -> Re-imagine the animation pipeline.
-
 import {
   actionMove,
   actionSwap,
@@ -31,8 +20,7 @@ import {
   eventSort,
   eventMove,
   eventDestroy,
-  gridInstances,
-  namespace
+  gridInstances
 } from '../shared';
 
 import Emitter from '../Emitter/Emitter';
@@ -42,7 +30,7 @@ import ItemDrag from '../Item/ItemDrag';
 import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
 import ItemLayout from '../Item/ItemLayout';
 import ItemMigrate from '../Item/ItemMigrate';
-import ItemRelease from '../Item/ItemRelease';
+import ItemRelease from '../Item/ItemDragRelease';
 import ItemVisibility from '../Item/ItemVisibility';
 import Packer from '../Packer/Packer';
 import Dragger from '../Dragger/Dragger';
@@ -747,7 +735,7 @@ Grid.prototype.add = function(elements, options) {
   var newItems = toArray(elements);
   if (!newItems.length) return newItems;
 
-  var opts = options || 0;
+  var opts = options || {};
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var items = this._items;
   var needsLayout = false;
@@ -800,7 +788,7 @@ Grid.prototype.add = function(elements, options) {
 Grid.prototype.remove = function(items, options) {
   if (this._isDestroyed) return this;
 
-  var opts = options || 0;
+  var opts = options || {};
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var needsLayout = false;
   var allItems = this.getItems();
@@ -892,7 +880,7 @@ Grid.prototype.filter = function(predicate, options) {
   var itemsToHide = [];
   var isPredicateString = typeof predicate === stringType;
   var isPredicateFn = isFunction(predicate);
-  var opts = options || 0;
+  var opts = options || {};
   var isInstant = opts.instant === true;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var onFinish = isFunction(opts.onFinish) ? opts.onFinish : null;
@@ -1060,7 +1048,7 @@ Grid.prototype.sort = (function() {
     if (this._isDestroyed || this._items.length < 2) return this;
 
     var items = this._items;
-    var opts = options || 0;
+    var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var i;
 
@@ -1084,11 +1072,11 @@ Grid.prototype.sort = (function() {
     // items and order the items based on it.
     else if (Array.isArray(sortComparer)) {
       if (sortComparer.length !== items.length) {
-        throw new Error('[' + namespace + '] sort reference items do not match with grid items.');
+        throw new Error('Sort reference items do not match with grid items.');
       }
       for (i = 0; i < items.length; i++) {
         if (sortComparer.indexOf(items[i]) < 0) {
-          throw new Error('[' + namespace + '] sort reference items do not match with grid items.');
+          throw new Error('Sort reference items do not match with grid items.');
         }
         items[i] = sortComparer[i];
       }
@@ -1132,7 +1120,7 @@ Grid.prototype.move = function(item, position, options) {
   if (this._isDestroyed || this._items.length < 2) return this;
 
   var items = this._items;
-  var opts = options || 0;
+  var opts = options || {};
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var isSwap = opts.action === actionSwap;
   var action = isSwap ? actionSwap : actionMove;
@@ -1194,7 +1182,7 @@ Grid.prototype.send = function(item, grid, position, options) {
   item = this._getItem(item);
   if (!item) return this;
 
-  var opts = options || 0;
+  var opts = options || {};
   var container = opts.appendTo || window.document.body;
   var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
   var layoutReceiver = opts.layoutReceiver
@@ -1445,7 +1433,7 @@ Grid.prototype._refreshDimensions = function() {
 Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   var grid = this;
   var targetItems = this.getItems(items);
-  var opts = options || 0;
+  var opts = options || {};
   var isInstant = opts.instant === true;
   var callback = opts.onFinish;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;

@@ -6,12 +6,11 @@
 
 import { gridInstances } from '../shared';
 
-import ItemAnimate from './ItemAnimate';
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';
+import ItemDragRelease from './ItemDragRelease';
 import ItemLayout from './ItemLayout';
 import ItemMigrate from './ItemMigrate';
-import ItemRelease from './ItemRelease';
 import ItemVisibility from './ItemVisibility';
 
 import addClass from '../utils/addClass';
@@ -33,22 +32,12 @@ import transformProp from '../utils/transformProp';
 function Item(grid, element, isActive) {
   var settings = grid._settings;
 
-  // Create instance id.
   this._id = createUid();
-
-  // Reference to connected Grid instance's id.
   this._gridId = grid._id;
-
-  // Destroyed flag.
+  this._element = element;
   this._isDestroyed = false;
-
-  // Set up initial positions.
   this._left = 0;
   this._top = 0;
-
-  // The elements.
-  this._element = element;
-  this._child = element.children[0];
 
   // If the provided item element is not a direct child of the grid container
   // element, append it to the grid container.
@@ -69,13 +58,10 @@ function Item(grid, element, isActive) {
   this._isActive = isActive;
 
   // Set element's initial position styles.
+  // TODO: Should these be set within ItemLayout?
   element.style.left = '0';
   element.style.top = '0';
   element.style[transformProp] = getTranslateString(0, 0);
-
-  // Initiate item's animation controllers.
-  this._animate = new ItemAnimate(element);
-  this._animateChild = new ItemAnimate(this._child);
 
   // Setup visibility handler.
   this._visibility = new ItemVisibility(this);
@@ -86,18 +72,20 @@ function Item(grid, element, isActive) {
   // Set up migration handler data.
   this._migrate = new ItemMigrate(this);
 
+  // Set up drag handler.
+  this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
+
   // Set up release handler. Note that although this is fully linked to dragging
   // this still needs to be always instantiated to handle migration scenarios
   // correctly.
-  this._release = new ItemRelease(this);
+  // TODO: Try to move this inside ItemDrag.
+  this._dragRelease = new ItemDragRelease(this);
 
   // Set up drag placeholder handler. Note that although this is fully linked to
   // dragging this still needs to be always instantiated to handle migration
   // scenarios correctly.
+  // TODO: Try to move this inside ItemDrag.
   this._dragPlaceholder = new ItemDragPlaceholder(this);
-
-  // Set up drag handler.
-  this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
 
   // Set up the initial dimensions and sort data.
   this._refreshDimensions();
@@ -261,7 +249,7 @@ Item.prototype.isDragging = function() {
  * @returns {Boolean}
  */
 Item.prototype.isReleasing = function() {
-  return !!(this._release && this._release._isActive);
+  return !!(this._dragRelease && this._dragRelease._isActive);
 };
 
 /**
@@ -343,27 +331,26 @@ Item.prototype._destroy = function(removeElement) {
   var index = grid._items.indexOf(this);
 
   // Destroy handlers.
-  this._release.destroy();
+  this._dragRelease.destroy();
   this._migrate.destroy();
   this._layout.destroy();
   this._visibility.destroy();
-  this._animate.destroy();
-  this._animateChild.destroy();
   this._dragPlaceholder.destroy();
-  this._drag && this._drag.destroy();
+  if (this._drag) this._drag.destroy();
 
   // Remove all inline styles.
+  // TODO: Should these actions be carried out in ItemLayout and ItemVisibility
+  // respectively?
   element.removeAttribute('style');
-  this._child.removeAttribute('style');
 
   // Remove item class.
   removeClass(element, settings.itemClass);
 
   // Remove item from Grid instance if it still exists there.
-  index > -1 && grid._items.splice(index, 1);
+  if (index > -1) grid._items.splice(index, 1);
 
   // Remove element from DOM.
-  removeElement && element.parentNode.removeChild(element);
+  if (removeElement) element.parentNode.removeChild(element);
 
   // Reset state.
   this._isActive = false;

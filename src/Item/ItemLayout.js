@@ -6,6 +6,7 @@
 
 import { addLayoutTick, cancelLayoutTick } from '../ticker';
 
+import ItemAnimate from './ItemAnimate';
 import Queue from '../Queue/Queue';
 
 import addClass from '../utils/addClass';
@@ -14,6 +15,7 @@ import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
+import transformProp from '../utils/transformProp';
 
 /**
  * Layout manager for Item instance.
@@ -33,9 +35,11 @@ function ItemLayout(item) {
   this._offsetLeft = 0;
   this._offsetTop = 0;
   this._skipNextAnimation = false;
-  this._animateOptions = {
+  this._animOptions = {
     onFinish: this._finish.bind(this)
   };
+
+  this._animation = new ItemAnimate(item._element);
   this._queue = new Queue();
 
   // Bind animation handlers and finish method.
@@ -62,7 +66,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
 
   var item = this._item;
   var element = item._element;
-  var release = item._release;
+  var release = item._dragRelease;
   var gridSettings = item.getGrid()._settings;
   var isPositioning = this._isActive;
   var isJustReleased = release._isActive && release._isPositioningStarted === false;
@@ -87,7 +91,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   if (!animEnabled) {
     this._updateOffsets();
     this._updateTargetStyles();
-    isAnimating = item._animate.isAnimating();
+    isAnimating = this._animation.isAnimating();
     this.stop(false, this._targetStyles);
     !isAnimating && setStyles(element, this._targetStyles);
     this._skipNextAnimation = false;
@@ -97,8 +101,8 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   // Set item active and store some data for the animation that is about to be
   // triggered.
   this._isActive = true;
-  this._animateOptions.easing = animEasing;
-  this._animateOptions.duration = animDuration;
+  this._animOptions.easing = animEasing;
+  this._animOptions.duration = animDuration;
   this._isInterrupted = isPositioning;
 
   // Start the item's layout animation in the next tick.
@@ -125,7 +129,7 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
   cancelLayoutTick(item._id);
 
   // Stop animation.
-  item._animate.stop(targetStyles);
+  this._animation.stop(targetStyles);
 
   // Remove positioning class.
   removeClass(item._element, item.getGrid()._settings.itemPositioningClass);
@@ -150,7 +154,11 @@ ItemLayout.prototype.destroy = function() {
   if (this._isDestroyed) return this;
   this.stop(true, {});
   this._queue.destroy();
-  this._item = this._currentStyles = this._targetStyles = this._animateOptions = null;
+  this._animation.destroy();
+  this._item = null;
+  this._currentStyles = null;
+  this._targetStyles = null;
+  this._animOptions = null;
   this._isDestroyed = true;
   return this;
 };
@@ -171,7 +179,7 @@ ItemLayout.prototype._updateOffsets = function() {
 
   var item = this._item;
   var migrate = item._migrate;
-  var release = item._release;
+  var release = item._dragRelease;
 
   this._offsetLeft = release._isActive
     ? release._containerDiffX
@@ -194,7 +202,7 @@ ItemLayout.prototype._updateOffsets = function() {
  */
 ItemLayout.prototype._updateTargetStyles = function() {
   if (this._isDestroyed) return;
-  this._targetStyles.transform = getTranslateString(
+  this._targetStyles[transformProp] = getTranslateString(
     this._item._left + this._offsetLeft,
     this._item._top + this._offsetTop
   );
@@ -211,7 +219,7 @@ ItemLayout.prototype._finish = function() {
 
   var item = this._item;
   var migrate = item._migrate;
-  var release = item._release;
+  var release = item._dragRelease;
 
   // Mark the item as inactive and remove positioning classes.
   if (this._isActive) {
@@ -270,10 +278,10 @@ ItemLayout.prototype._startAnimation = function() {
   }
 
   // Get current styles for animation.
-  this._currentStyles.transform = getTranslateString(this._currentLeft, this._currentTop);
+  this._currentStyles[transformProp] = getTranslateString(this._currentLeft, this._currentTop);
 
   // Animate.
-  item._animate.start(this._currentStyles, this._targetStyles, this._animateOptions);
+  this._animation.start(this._currentStyles, this._targetStyles, this._animOptions);
 };
 
 export default ItemLayout;

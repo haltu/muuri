@@ -15,7 +15,6 @@ import getTranslateString from '../utils/getTranslateString';
 import arrayInsert from '../utils/arrayInsert';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
-import setStyles from '../utils/setStyles';
 import transformProp from '../utils/transformProp';
 
 /**
@@ -70,6 +69,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   var translate;
   var translateX;
   var translateY;
+  var layoutStyles;
 
   // Get target index.
   if (typeof position === 'number') {
@@ -89,21 +89,23 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
 
   // Abort current positioning.
   if (item.isPositioning()) {
-    item._layout.stop(true, { transform: getTranslateString(translateX, translateY) });
+    layoutStyles = {};
+    layoutStyles[transformProp] = getTranslateString(translateX, translateY);
+    item._layout.stop(true, layoutStyles);
   }
 
   // Abort current migration.
   if (this._isActive) {
     translateX -= this._containerDiffX;
     translateY -= this._containerDiffY;
-    this.stop(true, { transform: getTranslateString(translateX, translateY) });
+    this.stop(true, translateX, translateY);
   }
 
   // Abort current release.
   if (item.isReleasing()) {
-    translateX -= item._release._containerDiffX;
-    translateY -= item._release._containerDiffY;
-    item._release.stop(true, { transform: getTranslateString(translateX, translateY) });
+    translateX -= item._dragRelease._containerDiffX;
+    translateY -= item._dragRelease._containerDiffY;
+    item._dragRelease.stop(true, translateX, translateY);
   }
 
   // Stop current visibility animations.
@@ -173,8 +175,9 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   }
 
   // Update child element's styles to reflect the current visibility state.
-  item._child.removeAttribute('style');
-  setStyles(item._child, isVisible ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
+  item._visibility.setStyles(
+    isVisible ? targetSettings.visibleStyles : targetSettings.hiddenStyles
+  );
 
   // Update display style.
   element.style.display = isVisible ? 'block' : 'hidden';
@@ -228,46 +231,45 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
  * @memberof ItemMigrate.prototype
  * @param {Boolean} [abort=false]
  *  - Should the migration be aborted?
- * @param {Object} [currentStyles]
- *  - Optional current translateX and translateY styles.
+ * @param {Number} [left]
+ *  - The element's current translateX value (optional).
+ * @param {Number} [top]
+ *  - The element's current translateY value (optional).
  * @returns {ItemMigrate}
  */
-ItemMigrate.prototype.stop = (function() {
-  var tempStyles = {};
-  return function(abort, currentStyles) {
-    if (this._isDestroyed || !this._isActive) return this;
+ItemMigrate.prototype.stop = function(abort, left, top) {
+  if (this._isDestroyed || !this._isActive) return this;
 
-    var item = this._item;
-    var element = item._element;
-    var grid = item.getGrid();
-    var gridElement = grid._element;
-    var translate;
+  var item = this._item;
+  var element = item._element;
+  var grid = item.getGrid();
+  var gridElement = grid._element;
+  var translate;
 
-    if (this._container !== gridElement) {
-      if (!currentStyles) {
-        if (abort) {
-          translate = getTranslate(element);
-          tempStyles.transform = getTranslateString(
-            translate.x - this._containerDiffX,
-            translate.y - this._containerDiffY
-          );
-        } else {
-          tempStyles.transform = getTranslateString(item._left, item._top);
-        }
-        currentStyles = tempStyles;
+  if (this._container !== gridElement) {
+    if (left === undefined || top === undefined) {
+      if (abort) {
+        translate = getTranslate(element);
+        left = translate.x - this._containerDiffX;
+        top = translate.y - this._containerDiffY;
+      } else {
+        left = item._left;
+        top = item._top;
       }
-      gridElement.appendChild(element);
-      setStyles(element, currentStyles);
     }
 
-    this._isActive = false;
-    this._container = null;
-    this._containerDiffX = 0;
-    this._containerDiffY = 0;
+    gridElement.appendChild(element);
+    element.style[transformProp] = getTranslateString(left, top);
+  }
 
-    return this;
-  };
-})();
+  this._isActive = false;
+  this._container = null;
+  this._containerDiffX = 0;
+  this._containerDiffY = 0;
+
+  return this;
+};
+
 /**
  * Destroy instance.
  *

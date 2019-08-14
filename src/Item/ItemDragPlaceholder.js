@@ -16,6 +16,7 @@ import getTranslate from '../utils/getTranslate';
 import isFunction from '../utils/isFunction';
 import setStyles from '../utils/setStyles';
 import removeClass from '../utils/removeClass';
+import transformProp from '../utils/transformProp';
 
 /**
  * Drag placeholder.
@@ -25,7 +26,7 @@ import removeClass from '../utils/removeClass';
  */
 function ItemDragPlaceholder(item) {
   this._item = item;
-  this._animate = new ItemAnimate();
+  this._animation = new ItemAnimate();
   this._element = null;
   this._className = '';
   this._didMigrate = false;
@@ -86,9 +87,10 @@ ItemDragPlaceholder.prototype._onLayoutStart = function() {
     cancelPlaceholderTick(item._id);
 
     // Snap placeholder to correct position.
-    var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
-    if (this._animate.isAnimating()) {
-      this._animate.stop(targetStyles);
+    var targetStyles = {};
+    targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
+    if (this._animation.isAnimating()) {
+      this._animation.stop(targetStyles);
     } else {
       setStyles(this._element, targetStyles);
     }
@@ -132,12 +134,14 @@ ItemDragPlaceholder.prototype._setupAnimation = function() {
 ItemDragPlaceholder.prototype._startAnimation = function() {
   if (!this.isActive()) return;
 
-  var animation = this._animate;
+  var animation = this._animation;
   var currentLeft = this._currentLeft;
   var currentTop = this._currentTop;
   var nextLeft = this._nextLeft;
   var nextTop = this._nextTop;
-  var targetStyles = { transform: getTranslateString(nextLeft, nextTop) };
+  var targetStyles = {};
+
+  targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
 
   // If placeholder is already in correct position let's just stop animation
   // and be done with it.
@@ -148,7 +152,8 @@ ItemDragPlaceholder.prototype._startAnimation = function() {
 
   // Otherwise let's start the animation.
   var settings = this._item.getGrid()._settings.dragPlaceholder;
-  var currentStyles = { transform: getTranslateString(currentLeft, currentTop) };
+  var currentStyles = {};
+  currentStyles[transformProp] = getTranslateString(currentLeft, currentTop);
   animation.start(currentStyles, targetStyles, {
     duration: settings.duration,
     easing: settings.easing,
@@ -179,7 +184,7 @@ ItemDragPlaceholder.prototype._onLayoutEnd = function() {
 ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
   if (item._id === this._item._id) {
     // If the placeholder is not animating anymore we can safely reset it.
-    if (!this._animate.isAnimating()) {
+    if (!this._animation.isAnimating()) {
       this.reset();
       return;
     }
@@ -247,7 +252,7 @@ ItemDragPlaceholder.prototype.create = function() {
   var item = this._item;
   var grid = item.getGrid();
   var settings = grid._settings;
-  var animation = this._animate;
+  var animation = this._animation;
 
   // Create placeholder element.
   var element;
@@ -267,18 +272,20 @@ ItemDragPlaceholder.prototype.create = function() {
     addClass(element, this._className);
   }
 
-  // Position the placeholder item correctly.
-  var left = item._left + item._marginLeft;
-  var top = item._top + item._marginTop;
+  // Set initial styles.
   setStyles(element, {
     display: 'block',
     position: 'absolute',
     left: '0',
     top: '0',
     width: item._width + 'px',
-    height: item._height + 'px',
-    transform: getTranslateString(left, top)
+    height: item._height + 'px'
   });
+
+  // Set initial position.
+  var left = item._left + item._marginLeft;
+  var top = item._top + item._marginTop;
+  element[transformProp] = getTranslateString(left, top);
 
   // Bind event listeners.
   grid.on(eventLayoutStart, this._onLayoutStart);
@@ -307,7 +314,7 @@ ItemDragPlaceholder.prototype.reset = function() {
   var item = this._item;
   var grid = item.getGrid();
   var settings = grid._settings;
-  var animation = this._animate;
+  var animation = this._animation;
 
   // Reset flag.
   this._resetAfterLayout = false;
@@ -378,8 +385,8 @@ ItemDragPlaceholder.prototype.isActive = function() {
  */
 ItemDragPlaceholder.prototype.destroy = function() {
   this.reset();
-  this._animate.destroy();
-  this._item = this._animate = null;
+  this._animation.destroy();
+  this._item = this._animation = null;
 };
 
 export default ItemDragPlaceholder;

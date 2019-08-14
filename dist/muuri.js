@@ -3443,7 +3443,7 @@
     // Set initial position.
     var left = item._left + item._marginLeft;
     var top = item._top + item._marginTop;
-    element[transformProp] = getTranslateString(left, top);
+    element.style[transformProp] = getTranslateString(left, top);
 
     // Bind event listeners.
     grid.on(eventLayoutStart, this._onLayoutStart);

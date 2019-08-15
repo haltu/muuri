@@ -18,6 +18,7 @@ import createUid from '../utils/createUid';
 import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
 import removeClass from '../utils/removeClass';
+import transformProp from '../utils/transformProp';
 
 /**
  * Creates a new Item instance for a Grid instance.
@@ -330,8 +331,9 @@ Item.prototype._destroy = function(removeElement) {
   this._dragPlaceholder.destroy();
   if (this._drag) this._drag.destroy();
 
-  // Remove all inline styles.
-  element.removeAttribute('style');
+  // Remove the inline styles Muuri has been managing.
+  element.style[transformProp] = '';
+  element.style.display = '';
 
   // Remove item class.
   removeClass(element, settings.itemClass);

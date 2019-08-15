@@ -176,6 +176,8 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
  */
 ItemVisibility.prototype.setStyles = function(styles) {
   var childElement = this._childElement;
+  // TODO: Try to avoid total nuking of the styles and just remove what Muuri
+  // has manipulated.
   childElement.removeAttribute('style');
   if (styles) setStyles(childElement, styles);
 };
@@ -203,6 +205,8 @@ ItemVisibility.prototype.destroy = function() {
   queue.destroy();
 
   this._animation.destroy();
+  // TODO: Try to avoid total nuking of the styles and just remove what Muuri
+  // has manipulated.
   this._childElement.removeAttribute('style');
   removeClass(element, settings.itemVisibleClass);
   removeClass(element, settings.itemHiddenClass);

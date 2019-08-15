@@ -4486,6 +4486,8 @@
    */
   ItemVisibility.prototype.setStyles = function(styles) {
     var childElement = this._childElement;
+    // TODO: Try to avoid total nuking of the styles and just remove what Muuri
+    // has manipulated.
     childElement.removeAttribute('style');
     if (styles) setStyles(childElement, styles);
   };
@@ -4513,6 +4515,8 @@
     queue.destroy();
 
     this._animation.destroy();
+    // TODO: Try to avoid total nuking of the styles and just remove what Muuri
+    // has manipulated.
     this._childElement.removeAttribute('style');
     removeClass(element, settings.itemVisibleClass);
     removeClass(element, settings.itemHiddenClass);
@@ -4954,8 +4958,9 @@
     this._dragPlaceholder.destroy();
     if (this._drag) this._drag.destroy();
 
-    // Remove all inline styles.
-    element.removeAttribute('style');
+    // Remove the inline styles Muuri has been managing.
+    element.style[transformProp] = '';
+    element.style.display = '';
 
     // Remove item class.
     removeClass(element, settings.itemClass);

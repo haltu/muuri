@@ -305,6 +305,7 @@ Dragger.prototype._createEvent = function(type, e) {
     deltaTime: type === events.start ? 0 : this.getDeltaTime(),
     isFirst: type === events.start,
     isFinal: type === events.end || type === events.cancel,
+    pointerType: e.pointerType || (e.touches ? 'touch' : 'mouse'),
     // Partial Touch API interface.
     identifier: this._pointerId,
     screenX: touch.screenX,
@@ -379,7 +380,9 @@ Dragger.prototype._preStartCheck = function(e) {
   // emitted the event will be canceled, at least on some browsers/devices. The
   // fix is to delay the starting of the drag procedure until we receive a
   // touchstart event, after which it's ok to move the element without it being
-  // canceled.
+  // canceled. This logic would horribly fail if touchstart was not emitted
+  // after pointerdown, but it seems that it practically always is:
+  // https://patrickhlauke.github.io/touch/tests/results/
   if (delayStart && e.pointerType !== pointerTypeMouse) {
     this._startEvent = e;
     this._element.addEventListener(Dragger._touchEvents.start, this._onTouchStart, listenerOptions);

@@ -8,6 +8,15 @@
 // TODO: Edge and IE11 have a bug where pointercancel event is not always
 // correctly emitted. Check if there's a way to circumvent that.
 
+// TODO: Tests fail because prosthetic-hand creates events with cancelable flag
+// set to false (needs forking).
+
+// TODO: Tests might fail on touch devices where there are both touch events and
+// pointer events available, if prosthetic hand does not emit touch events after
+// pointer events. We used to use rAF, but have changed the implementation to
+// wait for touchstart event to be more robust. Might need some additional
+// tinkering.
+
 import Emitter from '../Emitter/Emitter';
 
 import getPrefixedPropName from '../utils/getPrefixedPropName';
@@ -37,10 +46,12 @@ var hasTouchEvents = !!('ontouchstart' in window || window.TouchEvent);
 var hasPointerEvents = !!window.PointerEvent;
 var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
 var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
+var delayStart = hasTouchEvents && (hasPointerEvents || hasMsPointerEvents);
 
 var taProp = 'touchAction';
 var taPropPrefixed = getPrefixedPropName(window.document.documentElement.style, taProp);
 var taDefaultValue = 'auto';
+var pointerTypeMouse = 'mouse';
 
 /**
  * Creates a new Dragger instance for an element.
@@ -361,14 +372,15 @@ Dragger.prototype._preStartCheck = function(e) {
   this._pointerId = Dragger._getEventPointerId(e);
   if (this._pointerId === null) return;
 
-  // Store the start event and trigger start (async or sync). Pointer events
-  // are emitted before touch events if the browser supports both of them. And
-  // if you try to move an element before `touchstart` is emitted the pointer
-  // events for that element will be canceled on some browsers/devices. The fix
-  // is to delay the emitted pointer events in such a scenario by one frame so
-  // that `touchstart` has time to be emitted before the element is
-  // (potentially) moved.
-  if (hasTouchEvents && (hasPointerEvents || hasMsPointerEvents)) {
+  // In case we have a browser/device that supports both pointer events and
+  // touch events we need to do some special handling. In such a scenario we
+  // favour and listen pointer events, but if you try to move the element within
+  // the pointerdown event handler before the touchstart event has beeen
+  // emitted the event will be canceled, at least on some browsers/devices. The
+  // fix is to delay the starting of the drag procedure until we receive a
+  // touchstart event, after which it's ok to move the element without it being
+  // canceled.
+  if (delayStart && e.pointerType !== pointerTypeMouse) {
     this._startEvent = e;
     this._element.addEventListener(Dragger._touchEvents.start, this._onTouchStart, listenerOptions);
   } else {

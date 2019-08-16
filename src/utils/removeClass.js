@@ -13,6 +13,8 @@ import elementMatches from './elementMatches';
  * @param {String} className
  */
 export default function removeClass(element, className) {
+  if (!className) return;
+
   if (element.classList) {
     element.classList.remove(className);
   } else {

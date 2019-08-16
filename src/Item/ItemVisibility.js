@@ -39,6 +39,7 @@ function ItemVisibility(item) {
   this._isHiding = false;
   this._isShowing = false;
   this._childElement = childElement;
+  this._currentStyleProps = [];
   this._animation = new ItemAnimate(childElement);
   this._queue = new Queue();
   this._finishShow = this._finishShow.bind(this);
@@ -48,7 +49,7 @@ function ItemVisibility(item) {
   element.style.display = isActive ? 'block' : 'none';
 
   addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
-  setStyles(childElement, isActive ? settings.visibleStyles : settings.hiddenStyles);
+  this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
 }
 
 /**
@@ -166,20 +167,28 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
 };
 
 /**
- * Reset all existing visibility styles and optionally apply new visibility
- * styles to the visibility element.
+ * Reset all existing visibility styles and apply new visibility styles to the
+ * visibility element. This method should be used to set styles when there is a
+ * chance that the current style properties differ from the new ones (basically
+ * on init and on migrations).
  *
  * @public
  * @memberof ItemVisibility.prototype
- * @param {Object} [styles]
+ * @param {Object} styles
  * @returns {ItemVisibility}
  */
 ItemVisibility.prototype.setStyles = function(styles) {
   var childElement = this._childElement;
-  // TODO: Try to avoid total nuking of the styles and just remove what Muuri
-  // has manipulated.
-  childElement.removeAttribute('style');
-  if (styles) setStyles(childElement, styles);
+  var currentStyleProps = this._currentStyleProps;
+
+  this._removeCurrentStyles();
+
+  for (var prop in styles) {
+    currentStyleProps.push(prop);
+    childElement.style[prop] = styles[prop];
+  }
+
+  return this;
 };
 
 /**
@@ -205,14 +214,11 @@ ItemVisibility.prototype.destroy = function() {
   queue.destroy();
 
   this._animation.destroy();
-  // TODO: Try to avoid total nuking of the styles and just remove what Muuri
-  // has manipulated.
-  this._childElement.removeAttribute('style');
+  this._removeCurrentStyles();
   removeClass(element, settings.itemVisibleClass);
   removeClass(element, settings.itemHiddenClass);
 
   // Reset state.
-  this._item = this._childElement = null;
   this._isHiding = this._isShowing = false;
   this._isDestroyed = this._isHidden = true;
 
@@ -326,5 +332,22 @@ ItemVisibility.prototype._finishHide = (function() {
     this._queue.process(false, item);
   };
 })();
+
+/**
+ * Remove currently applied visibility related inline style properties.
+ *
+ * @private
+ * @memberof ItemVisibility.prototype
+ */
+ItemVisibility.prototype._removeCurrentStyles = function() {
+  var childElement = this._childElement;
+  var currentStyleProps = this._currentStyleProps;
+
+  for (var i = 0; i < currentStyleProps.length; i++) {
+    childElement.style[currentStyleProps[i]] = '';
+  }
+
+  currentStyleProps.length = 0;
+};
 
 export default ItemVisibility;

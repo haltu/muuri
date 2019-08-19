@@ -134,7 +134,8 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
   cancelLayoutTick(item._id);
 
   // Stop animation.
-  this._animation.stop(targetStyles);
+  if (targetStyles) setStyles(item._element, targetStyles);
+  this._animation.stop(!targetStyles);
 
   // Remove positioning class.
   removeClass(item._element, item.getGrid()._settings.itemPositioningClass);
@@ -271,7 +272,9 @@ ItemLayout.prototype._startAnimation = function() {
     item._left === this._currentLeft - this._offsetLeft &&
     item._top === this._currentTop - this._offsetTop
   ) {
-    if (this._isInterrupted) this.stop(false, this._targetStyles);
+    if (this._isInterrupted) {
+      this.stop(false, this._targetStyles);
+    }
     this._isActive = false;
     this._finish();
     return;

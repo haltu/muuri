@@ -207,7 +207,7 @@ ItemVisibility.prototype.destroy = function() {
   var queue = this._queue;
   var settings = grid._settings;
 
-  this._stopAnimation({});
+  this._stopAnimation(false);
 
   // Fire all uncompleted callbacks with interrupted flag and destroy the queue.
   queue.process(true, item);
@@ -263,10 +263,9 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
 
   // If we need to apply the styles instantly without animation.
   if (isInstant) {
+    setStyles(childElement, targetStyles);
     if (animation.isAnimating()) {
-      animation.stop(targetStyles);
-    } else {
-      setStyles(childElement, targetStyles);
+      animation.stop(false);
     }
     onFinish && onFinish();
     return;
@@ -293,13 +292,13 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
  *
  * @private
  * @memberof ItemVisibility.prototype
- * @param {Object} [targetStyles]
+ * @param {Boolean} [applyCurrentStyles=true]
  */
-ItemVisibility.prototype._stopAnimation = function(targetStyles) {
+ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
   if (this._isDestroyed) return;
   var item = this._item;
   cancelVisibilityTick(item._id);
-  this._animation.stop(targetStyles);
+  this._animation.stop(applyCurrentStyles);
 };
 
 /**

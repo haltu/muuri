@@ -112,7 +112,9 @@
 
         var grid1 = new Muuri('.grid-1', {
           items: '.item',
+          layoutDuration: 2000,
           dragEnabled: true,
+          dragReleaseDuration: 2000,
           dragContainer: document.body,
           dragSort: function() {
             return [grid1, grid2];
@@ -122,6 +124,7 @@
           },
           dragPlaceholder: {
             enabled: true,
+            duration: 2000,
             createElement: function (item) {
               return item.getElement().cloneNode(true);
             }

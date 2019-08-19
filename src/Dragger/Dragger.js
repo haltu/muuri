@@ -8,14 +8,10 @@
 // TODO: Edge and IE11 have a bug where pointercancel event is not always
 // correctly emitted. Check if there's a way to circumvent that.
 
-// TODO: Tests fail because prosthetic-hand creates events with cancelable flag
-// set to false (needs forking).
-
-// TODO: Tests might fail on touch devices where there are both touch events and
-// pointer events available, if prosthetic hand does not emit touch events after
-// pointer events. We used to use rAF, but have changed the implementation to
-// wait for touchstart event to be more robust. Might need some additional
-// tinkering.
+// TODO: Prosthetic hand needs some fixing to support the latest changes. Tests
+// currently fail because of that. We need to make sure that pointer events are
+// properly emitted followed by touch events. Also cancelable flag should be
+// true in all the tests.
 
 import Emitter from '../Emitter/Emitter';
 

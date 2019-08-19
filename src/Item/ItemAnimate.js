@@ -135,27 +135,21 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
  *
  * @public
  * @memberof ItemAnimate.prototype
- * @param {Object} [styles]
+ * @param {Boolean} [applyCurrentStyles=true]
  */
-ItemAnimate.prototype.stop = function(styles) {
+ItemAnimate.prototype.stop = function(applyCurrentStyles) {
   if (this._isDestroyed || !this._animation) return;
 
   var element = this._element;
   var currentProps = this._props;
   var currentValues = this._values;
 
-  // Calculate current styles if no specific styles are provided.
-  if (!styles) {
-    styles = getCurrentStyles(element, currentProps);
+  if (applyCurrentStyles !== false) {
+    setStyles(element, getCurrentStyles(element, currentProps));
   }
 
-  setStyles(element, styles);
-
-  // Cancel animation.
   this._animation.cancel();
   this._animation = this._callback = null;
-
-  // Reset current props and values.
   currentProps.length = currentValues.length = 0;
 };
 

@@ -324,11 +324,11 @@ Item.prototype._destroy = function(removeElement) {
   var index = grid._items.indexOf(this);
 
   // Destroy handlers.
+  this._dragPlaceholder.destroy();
   this._dragRelease.destroy();
   this._migrate.destroy();
   this._layout.destroy();
   this._visibility.destroy();
-  this._dragPlaceholder.destroy();
   if (this._drag) this._drag.destroy();
 
   // Remove the inline styles Muuri has been managing.

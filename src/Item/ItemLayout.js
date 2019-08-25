@@ -161,6 +161,7 @@ ItemLayout.prototype.destroy = function() {
   this.stop(true, {});
   this._queue.destroy();
   this._animation.destroy();
+  this._item._element.style[transformProp] = '';
   this._item = null;
   this._currentStyles = null;
   this._targetStyles = null;

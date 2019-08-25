@@ -217,6 +217,7 @@ ItemVisibility.prototype.destroy = function() {
   this._removeCurrentStyles();
   removeClass(element, settings.itemVisibleClass);
   removeClass(element, settings.itemHiddenClass);
+  element.style.display = '';
 
   // Reset state.
   this._isHiding = this._isShowing = false;

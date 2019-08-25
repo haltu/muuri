@@ -3224,7 +3224,6 @@
   ItemDragPlaceholder.prototype._onLayoutStart = function() {
     var item = this._item;
     var grid = item.getGrid();
-
     var layout = grid._layout;
     var itemIndex = layout.items.indexOf(item);
 
@@ -3957,6 +3956,7 @@
     this.stop(true, {});
     this._queue.destroy();
     this._animation.destroy();
+    this._item._element.style[transformProp] = '';
     this._item = null;
     this._currentStyles = null;
     this._targetStyles = null;
@@ -4556,6 +4556,7 @@
     this._removeCurrentStyles();
     removeClass(element, settings.itemVisibleClass);
     removeClass(element, settings.itemHiddenClass);
+    element.style.display = '';
 
     // Reset state.
     this._isHiding = this._isShowing = false;
@@ -5008,10 +5009,6 @@
     this._layout.destroy();
     this._visibility.destroy();
     if (this._drag) this._drag.destroy();
-
-    // Remove the inline styles Muuri has been managing.
-    element.style[transformProp] = '';
-    element.style.display = '';
 
     // Remove item class.
     removeClass(element, settings.itemClass);

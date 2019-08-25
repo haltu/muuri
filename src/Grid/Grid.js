@@ -83,11 +83,11 @@ var instantLayout = 'instant';
  * @param {String} [options.layoutEasing="ease"]
  * @param {?Object} [options.sortData=null]
  * @param {Boolean} [options.dragEnabled=false]
+ * @param {?String} [options.dragHandle=null]
  * @param {?HtmlElement} [options.dragContainer=null]
  * @param {?Function} [options.dragStartPredicate]
  * @param {Number} [options.dragStartPredicate.distance=0]
  * @param {Number} [options.dragStartPredicate.delay=0]
- * @param {(Boolean|String)} [options.dragStartPredicate.handle=false]
  * @param {?String} [options.dragAxis]
  * @param {(Boolean|Function)} [options.dragSort=true]
  * @param {Object} [options.dragSortHeuristics]
@@ -295,10 +295,10 @@ Grid.defaultOptions = {
   // Drag & Drop
   dragEnabled: false,
   dragContainer: null,
+  dragHandle: null,
   dragStartPredicate: {
     distance: 0,
-    delay: 0,
-    handle: false
+    delay: 0
   },
   dragAxis: null,
   dragSort: true,

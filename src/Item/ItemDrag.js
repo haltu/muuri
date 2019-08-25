@@ -29,7 +29,6 @@ import arrayInsert from '../utils/arrayInsert';
 import arrayMove from '../utils/arrayMove';
 import arraySwap from '../utils/arraySwap';
 import debounce from '../utils/debounce';
-import elementMatches from '../utils/elementMatches';
 import getContainingBlock from '../utils/getContainingBlock';
 import getOffsetDiff from '../utils/getOffsetDiff';
 import getScrollableAncestors from '../utils/getScrollableAncestors';
@@ -93,8 +92,11 @@ function ItemDrag(item) {
   var sortInterval = settings.dragSortHeuristics.sortInterval;
   this._checkOverlapDebounce = debounce(this._checkOverlap, sortInterval);
 
+  // Get drag handle element.
+  this._handle = (settings.dragHandle && element.querySelector(settings.dragHandle)) || element;
+
   // Init dragger.
-  this._dragger = new Dragger(element, settings.dragCssProps);
+  this._dragger = new Dragger(this._handle, settings.dragCssProps);
   this._dragger.on('start', this._preStartCheck);
   this._dragger.on('move', this._preStartCheck);
   this._dragger.on('cancel', this._preEndCheck);
@@ -126,18 +128,6 @@ function ItemDrag(item) {
 ItemDrag.defaultStartPredicate = function(item, event, options) {
   var drag = item._drag;
 
-  // Setup predicate data from options if not already set.
-  if (!drag._startPredicateData) {
-    var config = options || drag._getGrid()._settings.dragStartPredicate || {};
-    drag._startPredicateData = {
-      distance: Math.max(config.distance, 0) || 0,
-      delay: Math.max(config.delay, 0) || 0,
-      handle: typeof config.handle === 'string' ? config.handle : false
-    };
-  }
-
-  var predicate = drag._startPredicateData;
-
   // Final event logic. At this stage return value does not matter anymore,
   // the predicate is either resolved or it's not and there's nothing to do
   // about it. Here we just reset data and if the item element is a link
@@ -147,13 +137,14 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
     return;
   }
 
-  // Find and store the handle element so we can check later on if the
-  // cursor is within the handle. If we have a handle selector let's find
-  // the corresponding element. Otherwise let's use the item element as the
-  // handle.
-  if (!predicate.handleElement) {
-    predicate.handleElement = drag._getStartPredicateHandle(event);
-    if (!predicate.handleElement) return false;
+  // Setup predicate data from options if not already set.
+  var predicate = drag._startPredicateData;
+  if (!predicate) {
+    var config = options || drag._getGrid()._settings.dragStartPredicate || {};
+    drag._startPredicateData = predicate = {
+      distance: Math.max(config.distance, 0) || 0,
+      delay: Math.max(config.delay, 0) || 0
+    };
   }
 
   // If delay is defined let's keep track of the latest event and initiate
@@ -533,30 +524,6 @@ ItemDrag.prototype._unbindScrollListeners = function() {
 };
 
 /**
- * Setup default start predicate handle.
- *
- * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
- * @returns {?HTMLElement}
- */
-ItemDrag.prototype._getStartPredicateHandle = function(event) {
-  var predicate = this._startPredicateData;
-  var element = this._item._element;
-  var handleElement = element;
-
-  // No handle, no hassle -> let's use the item element as the handle.
-  if (!predicate.handle) return handleElement;
-
-  // If there is a specific predicate handle defined, let's try to get it.
-  handleElement = event.target;
-  while (handleElement && !elementMatches(handleElement, predicate.handle)) {
-    handleElement = handleElement !== element ? handleElement.parentElement : null;
-  }
-  return handleElement || null;
-};
-
-/**
  * Unbind currently bound drag scroll handlers from all scrollable ancestor
  * elements of the dragged element and the drag container element.
  *
@@ -567,30 +534,9 @@ ItemDrag.prototype._getStartPredicateHandle = function(event) {
  */
 ItemDrag.prototype._resolveStartPredicate = function(event) {
   var predicate = this._startPredicateData;
-
-  // If the moved distance is smaller than the threshold distance or there is
-  // some delay left, ignore this predicate cycle.
   if (event.distance < predicate.distance || predicate.delay) return;
-
-  // Get handle rect data.
-  var handleRect = predicate.handleElement.getBoundingClientRect();
-  var handleLeft = handleRect.left + (window.pageXOffset || 0);
-  var handleTop = handleRect.top + (window.pageYOffset || 0);
-  var handleWidth = handleRect.width;
-  var handleHeight = handleRect.height;
-
-  // Reset predicate data.
   this._resetStartPredicate();
-
-  // If the cursor is still within the handle let's start the drag.
-  return (
-    handleWidth &&
-    handleHeight &&
-    event.pageX >= handleLeft &&
-    event.pageX < handleLeft + handleWidth &&
-    event.pageY >= handleTop &&
-    event.pageY < handleTop + handleHeight
-  );
+  return true;
 };
 
 /**

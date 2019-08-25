@@ -206,10 +206,10 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   // Drag & Drop
   dragEnabled: false,
   dragContainer: null,
+  dragHandle: null,
   dragStartPredicate: {
     distance: 0,
-    delay: 0,
-    handle: false
+    delay: 0
   },
   dragAxis: null,
   dragSort: true,
@@ -290,6 +290,7 @@ var gridB = new Muuri('.grid-b', {
 * [sortData](#sortdata-)
 * [dragEnabled](#dragenabled-)
 * [dragContainer](#dragcontainer-)
+* [dragHandle](#draghandle-)
 * [dragStartPredicate](#dragstartpredicate-)
 * [dragAxis](#dragaxis-)
 * [dragSort](#dragsort-)
@@ -651,6 +652,19 @@ var grid = new Muuri(elem, {
 });
 ```
 
+### dragHandle &nbsp;
+
+The element within the item element that should be used as the drag handle. This should be a CSS selector which will be fed to `element.querySelector()` as is to obtain the handle element when the item is instantiated. If no valid element is found or if this is `null` Muuri will use the item element as the handle.
+
+* Default value: `null`.
+* Accepted types: string, null.
+
+```javascript
+var grid = new Muuri(elem, {
+  dragHandle: '.handle'
+});
+```
+
 ### dragStartPredicate &nbsp;
 
 A function that determines when the item should start to move when the item is being dragged. By default uses the built-in predicate which has some configurable options.
@@ -666,9 +680,6 @@ If an object is provided the default sort predicate handler will be used. You ca
 * **delay** &nbsp;&mdash;&nbsp; *number*
   * Default value: `0`.
   * How long (in milliseconds) the user must drag before the dragging starts.
-* **handle** &nbsp;&mdash;&nbsp; *string / boolean*
-  * Default value: `false`.
-  * The selector(s) which much match the event target element for the dragging to start. Note that if the event target element is a descendant of the handle element(s) it is also considered a match, which should be pretty useful in most scenarios.
 
 If you provide a function you can totally customize the drag start logic. When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
 
@@ -684,8 +695,7 @@ The predicate function receives two arguments:
 var grid = new Muuri(elem, {
   dragStartPredicate: {
     distance: 10,
-    delay: 100,
-    handle: '.foo, .bar'
+    delay: 100
   }
 });
 ```

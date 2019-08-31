@@ -113,7 +113,7 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   // Start the animation. We need to provide unprefixed property names to the
   // Web Animations polyfill if it is being used. If we have native Web
   // Animations available we need to provide prefixed properties instead.
-  this._animation = animation = element.animate(
+  this._animation = element.animate(
     [
       createFrame(propsFrom, !hasNativeWebAnimations),
       createFrame(propsTo, !hasNativeWebAnimations)
@@ -123,7 +123,7 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
       easing: opts.easing || 'ease'
     }
   );
-  animation.onfinish = this._onFinish;
+  this._animation.onfinish = this._onFinish;
 
   // Set the end styles. This makes sure that the element stays at the end
   // values after animation is finished.

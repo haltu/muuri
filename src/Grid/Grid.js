@@ -1301,44 +1301,38 @@ Grid.prototype._getItem = function(target) {
 };
 
 /**
- * Recalculates and updates instance's layout data.
+ * Recalculate and update instance's layout data.
  *
  * @private
  * @memberof Grid.prototype
  * @returns {LayoutData}
  */
 Grid.prototype._updateLayout = function() {
-  var layout = this._layout;
-  var settings = this._settings.layout;
-  var width;
-  var height;
-  var newLayout;
-  var i;
-
-  // Let's increment layout id.
-  ++layout.id;
-
-  // Let's update layout items
-  layout.items.length = 0;
-  for (i = 0; i < this._items.length; i++) {
-    if (this._items[i]._isActive) layout.items.push(this._items[i]);
-  }
-
-  // Let's make sure we have the correct container dimensions.
   this._refreshDimensions();
 
-  // Calculate container width and height (without borders).
-  width = this._width - this._borderLeft - this._borderRight;
-  height = this._height - this._borderTop - this._borderBottom;
+  var layout = this._layout;
+  var width = this._width - this._borderLeft - this._borderRight;
+  var height = this._height - this._borderTop - this._borderBottom;
 
-  // Calculate new layout.
-  if (isFunction(settings)) {
-    newLayout = settings(layout.items, width, height);
-  } else {
-    newLayout = packer.getLayout(layout.items, width, height, layout.slots, settings);
+  // Collect layout items (all active grid items).
+  var gridItems = this._items;
+  var layoutItems = layout.items;
+  layoutItems.length = 0;
+  for (var i = 0; i < gridItems.length; i++) {
+    if (gridItems[i]._isActive) layoutItems.push(gridItems[i]);
   }
 
-  // Let's update the grid's layout.
+  // Calculate new layout.
+  var layoutSettings = this._settings.layout;
+  var newLayout;
+  if (isFunction(layoutSettings)) {
+    newLayout = layoutSettings.call(this, layoutItems, width, height);
+  } else {
+    newLayout = packer.setOptions(layoutSettings).getLayout(layoutItems, width, height);
+  }
+
+  // Update the grid's layout.
+  layout.id += 1;
   layout.slots = newLayout.slots;
   layout.setWidth = Boolean(newLayout.setWidth);
   layout.setHeight = Boolean(newLayout.setHeight);

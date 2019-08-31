@@ -4977,29 +4977,44 @@
    * Bin - A Practical Approach to Two-Dimensional Rectangle Bin Packing.".
    *
    * @class
+   * @param {Object} [options]
+   * @param {Boolean} [options.fillGaps=false]
+   * @param {Boolean} [options.horizontal=false]
+   * @param {Boolean} [options.alignRight=false]
+   * @param {Boolean} [options.alignBottom=false]
+   * @param {Boolean} [options.rounding=false]
    */
-  function Packer() {
-    this._slots = [];
+  function Packer(options) {
     this._slotSizes = [];
     this._freeSlots = [];
     this._newSlots = [];
     this._rectItem = {};
     this._rectStore = [];
     this._rectId = 0;
-
-    // The layout return data, which will be populated in getLayout.
-    this._layout = {
-      slots: null,
-      setWidth: false,
-      setHeight: false,
-      width: false,
-      height: false
-    };
-
-    // Bind sort handlers.
     this._sortRectsLeftTop = this._sortRectsLeftTop.bind(this);
     this._sortRectsTopLeft = this._sortRectsTopLeft.bind(this);
+    this.setOptions(options);
   }
+
+  /**
+   * @public
+   * @memberof Packer.prototype
+   * @param {Object} [options]
+   * @param {Boolean} [options.fillGaps=false]
+   * @param {Boolean} [options.horizontal=false]
+   * @param {Boolean} [options.alignRight=false]
+   * @param {Boolean} [options.alignBottom=false]
+   * @param {Boolean} [options.rounding=false]
+   * @returns {Packer}
+   */
+  Packer.prototype.setOptions = function(options) {
+    this._fillGaps = !!(options && options.fillGaps);
+    this._isHorizontal = !!(options && options.horizontal);
+    this._alignRight = !!(options && options.alignRight);
+    this._alignBottom = !!(options && options.alignBottom);
+    this._rounding = !!(options && options.rounding);
+    return this;
+  };
 
   /**
    * @public
@@ -5007,59 +5022,42 @@
    * @param {Item[]} items
    * @param {Number} width
    * @param {Number} height
-   * @param {Number[]} [slots]
-   * @param {Object} [options]
-   * @param {Boolean} [options.fillGaps=false]
-   * @param {Boolean} [options.horizontal=false]
-   * @param {Boolean} [options.alignRight=false]
-   * @param {Boolean} [options.alignBottom=false]
-   * @returns {LayoutData}
+   * @returns {Object}
    */
-  Packer.prototype.getLayout = function(items, width, height, slots, options) {
-    var layout = this._layout;
-    var fillGaps = !!(options && options.fillGaps);
-    var isHorizontal = !!(options && options.horizontal);
-    var alignRight = !!(options && options.alignRight);
-    var alignBottom = !!(options && options.alignBottom);
-    var rounding = !!(options && options.rounding);
-    var slotSizes = this._slotSizes;
+  Packer.prototype.getLayout = function(items, width, height) {
+    var layout = {
+      slots: [],
+      width: this._isHorizontal ? 0 : this._rounding ? Math.round(width) : width,
+      height: !this._isHorizontal ? 0 : this._rounding ? Math.round(height) : height,
+      setWidth: this._isHorizontal,
+      setHeight: !this._isHorizontal
+    };
     var i;
-
-    // Reset layout data.
-    layout.slots = slots ? slots : this._slots;
-    layout.width = isHorizontal ? 0 : rounding ? Math.round(width) : width;
-    layout.height = !isHorizontal ? 0 : rounding ? Math.round(height) : height;
-    layout.setWidth = isHorizontal;
-    layout.setHeight = !isHorizontal;
-
-    // Make sure slots and slot size arrays are reset.
-    layout.slots.length = 0;
-    slotSizes.length = 0;
 
     // No need to go further if items do not exist.
     if (!items.length) return layout;
 
     // Find slots for items.
     for (i = 0; i < items.length; i++) {
-      this._addSlot(items[i], isHorizontal, fillGaps, rounding, alignRight || alignBottom);
+      this._addSlot(layout, items[i]);
     }
 
     // If the alignment is set to right we need to adjust the results.
-    if (alignRight) {
+    if (this._alignRight) {
       for (i = 0; i < layout.slots.length; i = i + 2) {
-        layout.slots[i] = layout.width - (layout.slots[i] + slotSizes[i]);
+        layout.slots[i] = layout.width - (layout.slots[i] + this._slotSizes[i]);
       }
     }
 
     // If the alignment is set to bottom we need to adjust the results.
-    if (alignBottom) {
+    if (this._alignBottom) {
       for (i = 1; i < layout.slots.length; i = i + 2) {
-        layout.slots[i] = layout.height - (layout.slots[i] + slotSizes[i]);
+        layout.slots[i] = layout.height - (layout.slots[i] + this._slotSizes[i]);
       }
     }
 
     // Reset slots arrays and rect id.
-    slotSizes.length = 0;
+    this._slotSizes.length = 0;
     this._freeSlots.length = 0;
     this._newSlots.length = 0;
     this._rectId = 0;
@@ -5073,17 +5071,16 @@
    *
    * @private
    * @memberof Packer.prototype
+   * @param {Object} layout
    * @param {Item} item
-   * @param {Boolean} isHorizontal
-   * @param {Boolean} fillGaps
-   * @param {Boolean} rounding
    * @returns {Array}
    */
   Packer.prototype._addSlot = (function() {
     var eps = 0.001;
-    var itemSlot = {};
-    return function(item, isHorizontal, fillGaps, rounding, trackSize) {
-      var layout = this._layout;
+    var slot = {};
+    return function(layout, item) {
+      var isHorizontal = this._isHorizontal;
+      var fillGaps = this._fillGaps;
       var freeSlots = this._freeSlots;
       var newSlots = this._newSlots;
       var rect;
@@ -5091,21 +5088,21 @@
       var potentialSlots;
       var ignoreCurrentSlots;
       var i;
-      var ii;
+      var j;
 
       // Reset new slots.
       newSlots.length = 0;
 
       // Set item slot initial data.
-      itemSlot.left = null;
-      itemSlot.top = null;
-      itemSlot.width = item._width + item._marginLeft + item._marginRight;
-      itemSlot.height = item._height + item._marginTop + item._marginBottom;
+      slot.left = null;
+      slot.top = null;
+      slot.width = item._width + item._marginLeft + item._marginRight;
+      slot.height = item._height + item._marginTop + item._marginBottom;
 
       // Round item slot width and height if needed.
-      if (rounding) {
-        itemSlot.width = Math.round(itemSlot.width);
-        itemSlot.height = Math.round(itemSlot.height);
+      if (this._rounding) {
+        slot.width = Math.round(slot.width);
+        slot.height = Math.round(slot.height);
       }
 
       // Try to find a slot for the item.
@@ -5113,19 +5110,19 @@
         rectId = freeSlots[i];
         if (!rectId) continue;
         rect = this._getRect(rectId);
-        if (itemSlot.width <= rect.width + eps && itemSlot.height <= rect.height + eps) {
-          itemSlot.left = rect.left;
-          itemSlot.top = rect.top;
+        if (slot.width <= rect.width + eps && slot.height <= rect.height + eps) {
+          slot.left = rect.left;
+          slot.top = rect.top;
           break;
         }
       }
 
       // If no slot was found for the item.
-      if (itemSlot.left === null) {
+      if (slot.left === null) {
         // Position the item in to the bottom left (vertical mode) or top right
         // (horizontal mode) of the grid.
-        itemSlot.left = !isHorizontal ? 0 : layout.width;
-        itemSlot.top = !isHorizontal ? layout.height : 0;
+        slot.left = !isHorizontal ? 0 : layout.width;
+        slot.top = !isHorizontal ? layout.height : 0;
 
         // If gaps don't need filling do not add any current slots to the new
         // slots array.
@@ -5135,49 +5132,49 @@
       }
 
       // In vertical mode, if the item's bottom overlaps the grid's bottom.
-      if (!isHorizontal && itemSlot.top + itemSlot.height > layout.height) {
+      if (!isHorizontal && slot.top + slot.height > layout.height) {
         // If item is not aligned to the left edge, create a new slot.
-        if (itemSlot.left > 0) {
-          newSlots.push(this._addRect(0, layout.height, itemSlot.left, Infinity));
+        if (slot.left > 0) {
+          newSlots.push(this._addRect(0, layout.height, slot.left, Infinity));
         }
 
         // If item is not aligned to the right edge, create a new slot.
-        if (itemSlot.left + itemSlot.width < layout.width) {
+        if (slot.left + slot.width < layout.width) {
           newSlots.push(
             this._addRect(
-              itemSlot.left + itemSlot.width,
+              slot.left + slot.width,
               layout.height,
-              layout.width - itemSlot.left - itemSlot.width,
+              layout.width - slot.left - slot.width,
               Infinity
             )
           );
         }
 
         // Update grid height.
-        layout.height = itemSlot.top + itemSlot.height;
+        layout.height = slot.top + slot.height;
       }
 
       // In horizontal mode, if the item's right overlaps the grid's right edge.
-      if (isHorizontal && itemSlot.left + itemSlot.width > layout.width) {
+      if (isHorizontal && slot.left + slot.width > layout.width) {
         // If item is not aligned to the top, create a new slot.
-        if (itemSlot.top > 0) {
-          newSlots.push(this._addRect(layout.width, 0, Infinity, itemSlot.top));
+        if (slot.top > 0) {
+          newSlots.push(this._addRect(layout.width, 0, Infinity, slot.top));
         }
 
         // If item is not aligned to the bottom, create a new slot.
-        if (itemSlot.top + itemSlot.height < layout.height) {
+        if (slot.top + slot.height < layout.height) {
           newSlots.push(
             this._addRect(
               layout.width,
-              itemSlot.top + itemSlot.height,
+              slot.top + slot.height,
               Infinity,
-              layout.height - itemSlot.top - itemSlot.height
+              layout.height - slot.top - slot.height
             )
           );
         }
 
         // Update grid width.
-        layout.width = itemSlot.left + itemSlot.width;
+        layout.width = slot.left + slot.width;
       }
 
       // Clean up the current slots making sure there are no old slots that
@@ -5187,9 +5184,9 @@
         rectId = freeSlots[i];
         if (!rectId) continue;
         rect = this._getRect(rectId);
-        potentialSlots = this._splitRect(rect, itemSlot);
-        for (ii = 0; ii < potentialSlots.length; ii++) {
-          rectId = potentialSlots[ii];
+        potentialSlots = this._splitRect(rect, slot);
+        for (j = 0; j < potentialSlots.length; j++) {
+          rectId = potentialSlots[j];
           rect = this._getRect(rectId);
           // Let's make sure here that we have a big enough slot
           // (width/height > 0.49px) and also let's make sure that the slot is
@@ -5214,15 +5211,17 @@
 
       // Update layout width/height.
       if (isHorizontal) {
-        layout.width = Math.max(layout.width, itemSlot.left + itemSlot.width);
+        layout.width = Math.max(layout.width, slot.left + slot.width);
       } else {
-        layout.height = Math.max(layout.height, itemSlot.top + itemSlot.height);
+        layout.height = Math.max(layout.height, slot.top + slot.height);
       }
 
       // Add item slot data to layout slots (and store the slot size for later
       // usage too if necessary).
-      layout.slots.push(itemSlot.left, itemSlot.top);
-      if (trackSize) this._slotSizes.push(itemSlot.width, itemSlot.height);
+      layout.slots.push(slot.left, slot.top);
+      if (this._alignRight || this._alignBottom) {
+        this._slotSizes.push(slot.width, slot.height);
+      }
 
       // Free/new slots switcheroo!
       this._freeSlots = newSlots;
@@ -5389,15 +5388,15 @@
     var rectB = {};
     return function(rectIds) {
       var i = rectIds.length;
-      var ii;
+      var j;
 
       while (i--) {
-        ii = rectIds.length;
+        j = rectIds.length;
         if (!rectIds[i]) continue;
         this._getRect(rectIds[i], rectA);
-        while (ii--) {
-          if (!rectIds[ii] || i === ii) continue;
-          if (this._isRectWithinRect(rectA, this._getRect(rectIds[ii], rectB))) {
+        while (j--) {
+          if (!rectIds[j] || i === j) continue;
+          if (this._isRectWithinRect(rectA, this._getRect(rectIds[j], rectB))) {
             rectIds[i] = 0;
             break;
           }
@@ -6742,44 +6741,38 @@
   };
 
   /**
-   * Recalculates and updates instance's layout data.
+   * Recalculate and update instance's layout data.
    *
    * @private
    * @memberof Grid.prototype
    * @returns {LayoutData}
    */
   Grid.prototype._updateLayout = function() {
-    var layout = this._layout;
-    var settings = this._settings.layout;
-    var width;
-    var height;
-    var newLayout;
-    var i;
-
-    // Let's increment layout id.
-    ++layout.id;
-
-    // Let's update layout items
-    layout.items.length = 0;
-    for (i = 0; i < this._items.length; i++) {
-      if (this._items[i]._isActive) layout.items.push(this._items[i]);
-    }
-
-    // Let's make sure we have the correct container dimensions.
     this._refreshDimensions();
 
-    // Calculate container width and height (without borders).
-    width = this._width - this._borderLeft - this._borderRight;
-    height = this._height - this._borderTop - this._borderBottom;
+    var layout = this._layout;
+    var width = this._width - this._borderLeft - this._borderRight;
+    var height = this._height - this._borderTop - this._borderBottom;
 
-    // Calculate new layout.
-    if (isFunction(settings)) {
-      newLayout = settings(layout.items, width, height);
-    } else {
-      newLayout = packer.getLayout(layout.items, width, height, layout.slots, settings);
+    // Collect layout items (all active grid items).
+    var gridItems = this._items;
+    var layoutItems = layout.items;
+    layoutItems.length = 0;
+    for (var i = 0; i < gridItems.length; i++) {
+      if (gridItems[i]._isActive) layoutItems.push(gridItems[i]);
     }
 
-    // Let's update the grid's layout.
+    // Calculate new layout.
+    var layoutSettings = this._settings.layout;
+    var newLayout;
+    if (isFunction(layoutSettings)) {
+      newLayout = layoutSettings.call(this, layoutItems, width, height);
+    } else {
+      newLayout = packer.setOptions(layoutSettings).getLayout(layoutItems, width, height);
+    }
+
+    // Update the grid's layout.
+    layout.id += 1;
     layout.slots = newLayout.slots;
     layout.setWidth = Boolean(newLayout.setWidth);
     layout.setHeight = Boolean(newLayout.setHeight);

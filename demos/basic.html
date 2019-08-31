@@ -85,6 +85,14 @@
       .item.muuri-item-releasing .item-content {
         background: blue;
       }
+      .item-handle {
+        position: absolute;
+        right: 0px;
+        top: 0px;
+        width: 20px;
+        height: 20px;
+        background: #000;
+      }
     </style>
   </head>
   <body>
@@ -114,8 +122,9 @@
           items: '.item',
           layoutDuration: 2000,
           dragEnabled: true,
-          dragReleaseDuration: 2000,
+          dragHandle: '.item-handle',
           dragContainer: document.body,
+          dragReleaseDuration: 2000,
           dragSort: function() {
             return [grid1, grid2];
           },
@@ -179,7 +188,10 @@
           var classNames = 'item h' + height + ' w' + width;
           // prettier-ignore
           el.innerHTML = '<div class="' + classNames + '" data-id="' + id + '">' +
-                           '<div class="item-content">' + title + '</div>' +
+                           '<div class="item-content">' +
+                            '<div class="item-handle"></div>' +
+                            '<span>' + title + '</span>' +
+                           '</div>' +
                          '</div>';
           return el.firstChild;
         }

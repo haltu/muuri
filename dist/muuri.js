@@ -6022,26 +6022,23 @@
   Grid.prototype.synchronize = function() {
     if (this._isDestroyed) return this;
 
-    var container = this._element;
     var items = this._items;
+    if (!item.length) return this;
+
     var fragment;
     var element;
-    var i;
 
-    // Append all elements in order to the container element.
-    if (items.length) {
-      for (i = 0; i < items.length; i++) {
-        element = items[i]._element;
-        if (element.parentNode === container) {
-          fragment = fragment || window.document.createDocumentFragment();
-          fragment.appendChild(element);
-        }
+    for (var i = 0; i < items.length; i++) {
+      element = items[i]._element;
+      if (element.parentNode === this._element) {
+        fragment = fragment || window.document.createDocumentFragment();
+        fragment.appendChild(element);
       }
-
-      if (fragment) container.appendChild(fragment);
     }
 
-    // Emit synchronize event.
+    if (!fragment) return this;
+
+    this._element.appendChild(fragment);
     this._emit(eventSynchronize);
 
     return this;

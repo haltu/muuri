@@ -3140,10 +3140,12 @@
     this._className = '';
     this._didMigrate = false;
     this._resetAfterLayout = false;
-    this._currentLeft = 0;
-    this._currentTop = 0;
-    this._nextLeft = 0;
-    this._nextTop = 0;
+    this._left = 0;
+    this._top = 0;
+    this._transX = 0;
+    this._transY = 0;
+    this._nextTransX = 0;
+    this._nextTransY = 0;
 
     // Bind animation handlers.
     this._setupAnimation = this._setupAnimation.bind(this);
@@ -3171,28 +3173,33 @@
   ItemDragPlaceholder.prototype._onLayoutStart = function() {
     var item = this._item;
     var grid = item.getGrid();
-    var layout = grid._layout;
-    var itemIndex = layout.items.indexOf(item);
 
-    if (itemIndex === -1) {
+    // If the item is not part of the layout anymore reset placeholder.
+    if (grid._layout.items.indexOf(item) === -1) {
       this.reset();
       return;
     }
 
-    var nextLeft = layout.slots[itemIndex * 2];
-    var nextTop = layout.slots[itemIndex * 2 + 1];
+    var nextLeft = item._left;
+    var nextTop = item._top;
+    var currentLeft = this._left;
+    var currentTop = this._top;
+
+    // Keep track of item layout position.
+    this._left = nextLeft;
+    this._top = nextTop;
 
     // If item's position did not change and the item did not migrate we can
     // safely skip layout.
-    if (!this._didMigrate && item._left === nextLeft && item._top === nextTop) {
+    if (!this._didMigrate && currentLeft === nextLeft && currentTop === nextTop) {
       return;
     }
 
     // Slots data is calculated with item margins added to them so we need to add
     // item's left and top margin to the slot data to get the placeholder's
     // next position.
-    nextLeft += item._marginLeft;
-    nextTop += item._marginTop;
+    var nextX = nextLeft + item._marginLeft;
+    var nextY = nextTop + item._marginTop;
 
     // Just snap to new position without any animations if no animation is
     // required or if placeholder moves between grids.
@@ -3203,7 +3210,7 @@
 
       // Snap placeholder to correct position.
       var targetStyles = {};
-      targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
+      targetStyles[transformProp] = getTranslateString(nextX, nextY);
       setStyles(this._element, targetStyles);
       this._animation.stop(false);
 
@@ -3218,8 +3225,8 @@
 
     // Start the placeholder's layout animation in the next tick. We do this to
     // avoid layout thrashing.
-    this._nextLeft = nextLeft;
-    this._nextTop = nextTop;
+    this._nextTransX = nextX;
+    this._nextTransY = nextY;
     addPlaceholderTick(item._id, this._setupAnimation, this._startAnimation);
   };
 
@@ -3233,8 +3240,8 @@
     if (!this.isActive()) return;
 
     var translate = getTranslate(this._element);
-    this._currentLeft = translate.x;
-    this._currentTop = translate.y;
+    this._transX = translate.x;
+    this._transY = translate.y;
   };
 
   /**
@@ -3247,17 +3254,17 @@
     if (!this.isActive()) return;
 
     var animation = this._animation;
-    var currentLeft = this._currentLeft;
-    var currentTop = this._currentTop;
-    var nextLeft = this._nextLeft;
-    var nextTop = this._nextTop;
+    var currentX = this._transX;
+    var currentY = this._transY;
+    var nextX = this._nextTransX;
+    var nextY = this._nextTransY;
     var targetStyles = {};
 
-    targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
+    targetStyles[transformProp] = getTranslateString(nextX, nextY);
 
     // If placeholder is already in correct position let's just stop animation
     // and be done with it.
-    if (currentLeft === nextLeft && currentTop === nextTop) {
+    if (currentX === nextX && currentY === nextY) {
       if (animation.isAnimating()) {
         setStyles(this._element, targetStyles);
         animation.stop(false);
@@ -3268,7 +3275,7 @@
     // Otherwise let's start the animation.
     var settings = this._item.getGrid()._settings.dragPlaceholder;
     var currentStyles = {};
-    currentStyles[transformProp] = getTranslateString(currentLeft, currentTop);
+    currentStyles[transformProp] = getTranslateString(currentX, currentY);
     animation.start(currentStyles, targetStyles, {
       duration: settings.duration,
       easing: settings.easing,
@@ -3381,6 +3388,10 @@
     var grid = item.getGrid();
     var settings = grid._settings;
     var animation = this._animation;
+
+    // Keep track of layout position.
+    this._left = item._left;
+    this._top = item._top;
 
     // Create placeholder element.
     var element;
@@ -3845,14 +3856,11 @@
       return this._finish();
     }
 
-    // Set item active and store some data for the animation that is about to be
-    // triggered.
+    // Kick off animation to be started in the next tick.
     this._isActive = true;
     this._animOptions.easing = animEasing;
     this._animOptions.duration = animDuration;
     this._isInterrupted = isPositioning;
-
-    // Start the item's layout animation in the next tick.
     addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
 
     return this;
@@ -5026,6 +5034,7 @@
    */
   Packer.prototype.getLayout = function(items, width, height) {
     var layout = {
+      items: items,
       slots: [],
       width: this._isHorizontal ? 0 : this._rounding ? Math.round(width) : width,
       height: !this._isHorizontal ? 0 : this._rounding ? Math.round(height) : height,
@@ -5559,9 +5568,6 @@
    */
 
   function Grid(element, options) {
-    var inst = this;
-    var settings;
-
     // Allow passing element as selector string
     if (typeof element === stringType) {
       element = window.document.querySelector(element);
@@ -5580,7 +5586,7 @@
     }
 
     // Create instance settings by merging the options with default options.
-    settings = this._settings = mergeSettings(Grid.defaultOptions, options);
+    var settings = (this._settings = mergeSettings(Grid.defaultOptions, options));
 
     // Sanitize dragSort setting.
     if (!isFunction(settings.dragSort)) {
@@ -5593,12 +5599,12 @@
 
     // Create instance id and store it to the grid instances collection.
     this._id = createUid();
-    gridInstances[this._id] = inst;
+    gridInstances[this._id] = this;
 
     // Destroyed flag.
     this._isDestroyed = false;
 
-    // The layout object (mutated on every layout).
+    // The layout object (immutable).
     this._layout = {
       id: 0,
       items: [],
@@ -6047,6 +6053,9 @@
   /**
    * Calculate and apply item positions.
    *
+   * @todo Consider emitting `layoutChanged/Aborted` event if another layout is
+   * called before the current layout procedure has finished.
+   *
    * @public
    * @memberof Grid.prototype
    * @param {Boolean} [instant=false]
@@ -6056,89 +6065,64 @@
   Grid.prototype.layout = function(instant, onFinish) {
     if (this._isDestroyed) return this;
 
-    var inst = this;
-    var element = this._element;
-    var layout = this._updateLayout();
-    var layoutId = layout.id;
-    var itemsLength = layout.items.length;
-    var counter = itemsLength;
-    var isBorderBox;
+    var grid = this;
+    var layout = this._getLayout();
+    var numItems = layout.items.length;
+    var counter = numItems;
     var item;
     var i;
 
-    // The finish function, which will be used for checking if all the items
-    // have laid out yet. After all items have finished their animations call
-    // callback and emit layoutEnd event. Only emit layoutEnd event if there
-    // hasn't been a new layout call during this layout.
-    function tryFinish() {
-      if (--counter > 0) return;
+    this._layout = layout;
 
-      var hasLayoutChanged = inst._layout.id !== layoutId;
-      var callback = isFunction(instant) ? instant : onFinish;
-
-      if (isFunction(callback)) {
-        callback(hasLayoutChanged, layout.items.slice(0));
-      }
-
-      if (!hasLayoutChanged && inst._hasListeners(eventLayoutEnd)) {
-        inst._emit(eventLayoutEnd, layout.items.slice(0));
-      }
+    for (i = 0; i < numItems; i++) {
+      item = layout.items[i];
+      if (!item) continue;
+      item._left = layout.slots[i * 2];
+      item._top = layout.slots[i * 2 + 1];
     }
 
-    // If grid's width or height was modified, we need to update it's cached
-    // dimensions. Also keep in mind that grid's cached width/height should
-    // always equal to what elem.getBoundingClientRect() would return, so
-    // therefore we need to add the grid element's borders to the dimensions if
-    // it's box-sizing is border-box. Note that we support providing the
-    // dimensions as a string here too so that one can define the unit of the
-    // dimensions, in which case we don't do the border-box check.
-    if (
-      (layout.setHeight && typeof layout.height === numberType$1) ||
-      (layout.setWidth && typeof layout.width === numberType$1)
-    ) {
-      isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
-    }
-    if (layout.setHeight) {
-      if (typeof layout.height === numberType$1) {
-        element.style.height =
-          (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
-      } else {
-        element.style.height = layout.height;
-      }
-    }
-    if (layout.setWidth) {
-      if (typeof layout.width === numberType$1) {
-        element.style.width =
-          (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
-      } else {
-        element.style.width = layout.width;
-      }
-    }
+    this._updateGridElementSize(layout);
 
-    // Emit layoutStart event. Note that this is intentionally emitted after the
-    // container element's dimensions are set, because otherwise there would be
-    // no hook for reacting to container dimension changes.
+    // layoutStart event is intentionally emitted after the container element's
+    // dimensions are set, because otherwise there would be no hook for reacting
+    // to container dimension changes.
     if (this._hasListeners(eventLayoutStart)) {
       this._emit(eventLayoutStart, layout.items.slice(0));
     }
 
-    // If there are no items let's finish quickly.
-    if (!itemsLength) {
+    function tryFinish() {
+      if (--counter > 0) return;
+
+      var hasLayoutChanged = grid._layout.id !== layout.id;
+      var callback = isFunction(instant) ? instant : onFinish;
+
+      // onFinish callback will be called _always_ after all items in the layout
+      // have finished/aborted positioning.
+      if (isFunction(callback)) {
+        callback(hasLayoutChanged, layout.items.slice(0));
+      }
+
+      // Emit layoutEnd only if the layout has not changed.
+      if (!hasLayoutChanged && grid._hasListeners(eventLayoutEnd)) {
+        grid._emit(eventLayoutEnd, layout.items.slice(0));
+      }
+    }
+
+    if (!numItems) {
       tryFinish();
       return this;
     }
 
-    // If there are items let's position them.
-    for (i = 0; i < itemsLength; i++) {
+    for (i = 0; i < numItems; i++) {
       item = layout.items[i];
-      if (!item) continue;
 
-      // Update item's position.
-      item._left = layout.slots[i * 2];
-      item._top = layout.slots[i * 2 + 1];
+      // Sanity check if layout is still possible for the item.
+      if (this._layout.id !== layout.id || !item || !item.isActive() || item.isDragging()) {
+        tryFinish();
+        continue;
+      }
 
-      // Layout item if it is not dragged.
-      item.isDragging() ? tryFinish() : item._layout.start(instant === true, tryFinish);
+      item._layout.start(instant === true, tryFinish);
     }
 
     return this;
@@ -6738,45 +6722,50 @@
   };
 
   /**
-   * Recalculate and update instance's layout data.
+   * Compute and return new layout data based on the grid's current state.
    *
    * @private
    * @memberof Grid.prototype
    * @returns {LayoutData}
    */
-  Grid.prototype._updateLayout = function() {
+  Grid.prototype._getLayout = function() {
+    // TODO: Try to come up with a way for getting rid of this. At the moment this
+    // in cobination with grid.layout() causes potentially layout thrashing as
+    // we read the DOM here and then we write into it in grid.layout(). Would be
+    // better if the dimensions were read in witihin the ticker's read queue and
+    // the grid dimensions were set in the ticker's write queue.
     this._refreshDimensions();
 
-    var layout = this._layout;
-    var width = this._width - this._borderLeft - this._borderRight;
-    var height = this._height - this._borderTop - this._borderBottom;
+    var layoutId = this._layout.id + 1;
 
     // Collect layout items (all active grid items).
     var gridItems = this._items;
-    var layoutItems = layout.items;
-    layoutItems.length = 0;
+    var layoutItems = [];
     for (var i = 0; i < gridItems.length; i++) {
       if (gridItems[i]._isActive) layoutItems.push(gridItems[i]);
     }
 
-    // Calculate new layout.
+    // Compute new layout.
+    var width = this._width - this._borderLeft - this._borderRight;
+    var height = this._height - this._borderTop - this._borderBottom;
     var layoutSettings = this._settings.layout;
-    var newLayout;
+    var layoutData;
     if (isFunction(layoutSettings)) {
-      newLayout = layoutSettings.call(this, layoutItems, width, height);
+      layoutData = layoutSettings.call(this, layoutItems, width, height);
     } else {
-      newLayout = packer.setOptions(layoutSettings).getLayout(layoutItems, width, height);
+      layoutData = packer.setOptions(layoutSettings).getLayout(layoutItems, width, height);
     }
 
-    // Update the grid's layout.
-    layout.id += 1;
-    layout.slots = newLayout.slots;
-    layout.setWidth = Boolean(newLayout.setWidth);
-    layout.setHeight = Boolean(newLayout.setHeight);
-    layout.width = newLayout.width;
-    layout.height = newLayout.height;
-
-    return layout;
+    // Layout data should be considered immutable.
+    return {
+      id: layoutId,
+      items: layoutData.items.slice(0),
+      slots: layoutData.slots.slice(0),
+      width: layoutData.width,
+      height: layoutData.height,
+      setWidth: !!layoutData.setWidth,
+      setHeight: !!layoutData.setHeight
+    };
   };
 
   /**
@@ -6847,6 +6836,49 @@
   Grid.prototype._refreshDimensions = function() {
     this._updateBoundingRect();
     this._updateBorders(1, 1, 1, 1);
+  };
+
+  /**
+   * If grid's width or height was modified, we need to update it's cached
+   * dimensions. Also keep in mind that grid's cached width/height should
+   * always equal to what elem.getBoundingClientRect() would return, so
+   * therefore we need to add the grid element's borders to the dimensions if
+   * it's box-sizing is border-box. Note that we support providing the
+   * dimensions as a string here too so that one can define the unit of the
+   * dimensions, in which case we don't do the border-box check.
+   *
+   * @private
+   * @memberof Grid.prototype
+   * @param {LayoutData} layout
+   */
+  Grid.prototype._updateGridElementSize = function(layout) {
+    var element = this._element;
+    var isBorderBox = false;
+
+    if (
+      (layout.setHeight && typeof layout.height === numberType$1) ||
+      (layout.setWidth && typeof layout.width === numberType$1)
+    ) {
+      isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
+    }
+
+    if (layout.setHeight) {
+      if (typeof layout.height === numberType$1) {
+        element.style.height =
+          (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
+      } else {
+        element.style.height = layout.height;
+      }
+    }
+
+    if (layout.setWidth) {
+      if (typeof layout.width === numberType$1) {
+        element.style.width =
+          (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
+      } else {
+        element.style.width = layout.width;
+      }
+    }
   };
 
   /**
@@ -6962,6 +6994,9 @@
 
     // Handle visible/hidden styles manually so that the whole object is
     // overridden instead of the props.
+    // TODO: Rethink if there's a better way to do this since it's a bit weird
+    // to have this kind of exception in the merge logic for two specific
+    // properties... might kick in the dev nuts if not careful.
 
     if (userSettings && userSettings.visibleStyles) {
       settings.visibleStyles = userSettings.visibleStyles;
@@ -7106,6 +7141,8 @@
 
     // Normalize visible styles (prefix and remove invalid).
     for (prop in styles) {
+      // TODO: Should we remove style properties that do not have a value?
+      // if (!styles[prop]) continue;
       prefixedProp = getPrefixedPropName(docElemStyle, prop);
       if (prefixedProp) {
         normalized[prefixedProp] = styles[prop];

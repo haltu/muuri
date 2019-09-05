@@ -60,6 +60,7 @@ Packer.prototype.setOptions = function(options) {
  */
 Packer.prototype.getLayout = function(items, width, height) {
   var layout = {
+    items: items,
     slots: [],
     width: this._isHorizontal ? 0 : this._rounding ? Math.round(width) : width,
     height: !this._isHorizontal ? 0 : this._rounding ? Math.round(height) : height,

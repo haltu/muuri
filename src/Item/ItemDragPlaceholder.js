@@ -31,10 +31,12 @@ function ItemDragPlaceholder(item) {
   this._className = '';
   this._didMigrate = false;
   this._resetAfterLayout = false;
-  this._currentLeft = 0;
-  this._currentTop = 0;
-  this._nextLeft = 0;
-  this._nextTop = 0;
+  this._left = 0;
+  this._top = 0;
+  this._transX = 0;
+  this._transY = 0;
+  this._nextTransX = 0;
+  this._nextTransY = 0;
 
   // Bind animation handlers.
   this._setupAnimation = this._setupAnimation.bind(this);
@@ -62,28 +64,33 @@ function ItemDragPlaceholder(item) {
 ItemDragPlaceholder.prototype._onLayoutStart = function() {
   var item = this._item;
   var grid = item.getGrid();
-  var layout = grid._layout;
-  var itemIndex = layout.items.indexOf(item);
 
-  if (itemIndex === -1) {
+  // If the item is not part of the layout anymore reset placeholder.
+  if (grid._layout.items.indexOf(item) === -1) {
     this.reset();
     return;
   }
 
-  var nextLeft = layout.slots[itemIndex * 2];
-  var nextTop = layout.slots[itemIndex * 2 + 1];
+  var nextLeft = item._left;
+  var nextTop = item._top;
+  var currentLeft = this._left;
+  var currentTop = this._top;
+
+  // Keep track of item layout position.
+  this._left = nextLeft;
+  this._top = nextTop;
 
   // If item's position did not change and the item did not migrate we can
   // safely skip layout.
-  if (!this._didMigrate && item._left === nextLeft && item._top === nextTop) {
+  if (!this._didMigrate && currentLeft === nextLeft && currentTop === nextTop) {
     return;
   }
 
   // Slots data is calculated with item margins added to them so we need to add
   // item's left and top margin to the slot data to get the placeholder's
   // next position.
-  nextLeft += item._marginLeft;
-  nextTop += item._marginTop;
+  var nextX = nextLeft + item._marginLeft;
+  var nextY = nextTop + item._marginTop;
 
   // Just snap to new position without any animations if no animation is
   // required or if placeholder moves between grids.
@@ -94,7 +101,7 @@ ItemDragPlaceholder.prototype._onLayoutStart = function() {
 
     // Snap placeholder to correct position.
     var targetStyles = {};
-    targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
+    targetStyles[transformProp] = getTranslateString(nextX, nextY);
     setStyles(this._element, targetStyles);
     this._animation.stop(false);
 
@@ -109,8 +116,8 @@ ItemDragPlaceholder.prototype._onLayoutStart = function() {
 
   // Start the placeholder's layout animation in the next tick. We do this to
   // avoid layout thrashing.
-  this._nextLeft = nextLeft;
-  this._nextTop = nextTop;
+  this._nextTransX = nextX;
+  this._nextTransY = nextY;
   addPlaceholderTick(item._id, this._setupAnimation, this._startAnimation);
 };
 
@@ -124,8 +131,8 @@ ItemDragPlaceholder.prototype._setupAnimation = function() {
   if (!this.isActive()) return;
 
   var translate = getTranslate(this._element);
-  this._currentLeft = translate.x;
-  this._currentTop = translate.y;
+  this._transX = translate.x;
+  this._transY = translate.y;
 };
 
 /**
@@ -138,17 +145,17 @@ ItemDragPlaceholder.prototype._startAnimation = function() {
   if (!this.isActive()) return;
 
   var animation = this._animation;
-  var currentLeft = this._currentLeft;
-  var currentTop = this._currentTop;
-  var nextLeft = this._nextLeft;
-  var nextTop = this._nextTop;
+  var currentX = this._transX;
+  var currentY = this._transY;
+  var nextX = this._nextTransX;
+  var nextY = this._nextTransY;
   var targetStyles = {};
 
-  targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
+  targetStyles[transformProp] = getTranslateString(nextX, nextY);
 
   // If placeholder is already in correct position let's just stop animation
   // and be done with it.
-  if (currentLeft === nextLeft && currentTop === nextTop) {
+  if (currentX === nextX && currentY === nextY) {
     if (animation.isAnimating()) {
       setStyles(this._element, targetStyles);
       animation.stop(false);
@@ -159,7 +166,7 @@ ItemDragPlaceholder.prototype._startAnimation = function() {
   // Otherwise let's start the animation.
   var settings = this._item.getGrid()._settings.dragPlaceholder;
   var currentStyles = {};
-  currentStyles[transformProp] = getTranslateString(currentLeft, currentTop);
+  currentStyles[transformProp] = getTranslateString(currentX, currentY);
   animation.start(currentStyles, targetStyles, {
     duration: settings.duration,
     easing: settings.easing,
@@ -272,6 +279,10 @@ ItemDragPlaceholder.prototype.create = function() {
   var grid = item.getGrid();
   var settings = grid._settings;
   var animation = this._animation;
+
+  // Keep track of layout position.
+  this._left = item._left;
+  this._top = item._top;
 
   // Create placeholder element.
   var element;

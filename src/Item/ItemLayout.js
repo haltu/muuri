@@ -103,14 +103,11 @@ ItemLayout.prototype.start = function(instant, onFinish) {
     return this._finish();
   }
 
-  // Set item active and store some data for the animation that is about to be
-  // triggered.
+  // Kick off animation to be started in the next tick.
   this._isActive = true;
   this._animOptions.easing = animEasing;
   this._animOptions.duration = animDuration;
   this._isInterrupted = isPositioning;
-
-  // Start the item's layout animation in the next tick.
   addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
 
   return this;

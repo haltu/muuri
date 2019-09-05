@@ -1161,7 +1161,7 @@ var grid = new Muuri(elem, {
 
 ### grid.getElement()
 
-Get the instance element.
+Get the grid element.
 
 **Returns** &nbsp;&mdash;&nbsp; *element*
 
@@ -1206,31 +1206,39 @@ var items = grid.getItems([elemA, elemB]);
 
 ### grid.refreshItems( [items] )
 
-Refresh the cached dimensions of the grid's items. When called without any arguments all active items are refreshed. Optionally you can provide specific the items which you want to refresh as the first argument.
+Refresh the cached dimensions of the grid's items.
 
 **Parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number / string*
-  * To target specific items provide an array of item instances/elements/indices. By default all active items are targeted.
+  * To target specific items provide an array of item instances/elements/indices. By default all items are targeted.
   * Optional.
 
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
+
 ```javascript
-// Refresh dimensions of all active item elements.
+// Refresh dimensions of all items.
 grid.refreshItems();
 
-// Refresh dimensions of specific item elements.
+// Refresh dimensions of specific items.
 grid.refreshItems([0, someElem, someItem]);
 ```
 
 ### grid.refreshSortData( [items] )
 
-Refresh the sort data of the instance's items.
+Refresh the sort data of the grid's items.
 
 **Parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
   * To target specific items provide an array of item instances/elements/indices. By default all items are targeted.
   * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
 
 ```javascript
 // Refresh the sort data for every item.
@@ -1242,14 +1250,19 @@ grid.refreshSortData([0, someElem, someItem]);
 
 ### grid.synchronize()
 
-Synchronize the item elements to match the order of the items in the DOM. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the container element (if it is dragged for example) it is ignored and left untouched.
+Synchronize the item elements in the DOM to match the order of the items in the grid. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the container element (if it is dragged for example) it is ignored and left untouched. The reason why item elements are not kept in sync automatically is that there's rarely a need for that as they are absolutely positioned elements.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
 
 ```javascript
 // Let's say we have to move the first item in the grid as the last.
 grid.move(0, -1);
 
-// Now the DOM order of the items is not in sync anymore with the
-// order of the items. We can sync the DOM with synchronize method.
+// Now the order of the item elements in the DOM is not in sync anymore
+// with the order of the items in the grid. We can sync the DOM with
+// synchronize method.
 grid.synchronize();
 ```
 
@@ -1264,8 +1277,15 @@ Calculate item positions and move items to their calculated positions, unless th
   * Default value: `false`.
   * Optional.
 * **callback** &nbsp;&mdash;&nbsp; *function*
-  * A callback function that is called after the items have positioned. Receives one argument: an array of all the items that were successfully positioned without interruptions.
+  * A callback function that is called after every item in the layout has finished/aborted positioning.
+  * Receives two arguments:
+    * A boolean indicating if the layout has changed or not.
+    * An array of all the items in the layout.
   * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
 
 ```javascript
 // Layout items.
@@ -1276,14 +1296,16 @@ grid.layout(true);
 
 // Layout all items and define a callback that will be called
 // after all items have been animated to their positions.
-grid.layout(function (items) {
+grid.layout(function (hasLayoutChanged, items) {
+  // If hasLayoutChanged is `true` it means that there has been another layout
+  // call before this layout had time to finish positioning all the items.
   console.log('layout done!');
 });
 ```
 
 ### grid.add( elements, [options] )
 
-Add new items by providing the elements you wish to add to the instance and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container element. If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method. This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
+Add new items by providing the elements you wish to add to the grid and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container element. If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method. This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
 
 **Parameters**
 
@@ -1315,7 +1337,7 @@ grid.add([elemA, elemB], {layout: false});
 
 ### grid.remove( items, [options] )
 
-Remove items from the instance.
+Remove items from the grid.
 
 **Parameters**
 
@@ -1345,7 +1367,6 @@ grid.remove([elemA, elemB], {removeElements: true});
 grid.remove([elemA, elemB], {layout: false});
 ```
 
-
 ### grid.show( items, [options] )
 
 Show the targeted items.
@@ -1365,6 +1386,10 @@ Show the targeted items.
   * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   * Default value: `true`.
   * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
 
 ```javascript
 // Show items with animation (if any).
@@ -1399,6 +1424,10 @@ Hide the targeted items.
   * Default value: `true`.
   * Optional.
 
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
+
 ```javascript
 // Hide items with animation.
 grid.hide([elemA, elemB]);
@@ -1415,7 +1444,7 @@ grid.hide([elemA, elemB], {onFinish: function (items) {
 
 ### grid.filter( predicate, [options] )
 
-Filter items. Expects at least one argument, a predicate, which should be either a function or a string. The predicate callback is executed for every item in the instance. If the return value of the predicate is truthy the item in question will be shown and otherwise hidden. The predicate callback receives the item instance as it's argument. If the predicate is a string it is considered to be a selector and it is checked against every item element in the instance with the native element.matches() method. All the matching items will be shown and others hidden.
+Filter items. Expects at least one argument, a predicate, which should be either a function or a string. The predicate callback is executed for every item in the grid. If the return value of the predicate is truthy the item in question will be shown and otherwise hidden. The predicate callback receives the item instance as it's argument. If the predicate is a string it is considered to be a selector and it is checked against every item element in the grid with the native element.matches() method. All the matching items will be shown and others hidden.
 
 **Parameters**
 
@@ -1433,6 +1462,10 @@ Filter items. Expects at least one argument, a predicate, which should be either
   * Default value: `true`.
   * Optional.
 
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
+
 ```javascript
 // Show all items that have the attribute "data-foo".
 grid.filter(function (item) {
@@ -1448,7 +1481,7 @@ grid.filter('.foo');
 
 ### grid.sort( comparer, [options] )
 
-Sort items. There are three ways to sort the items. The first is simply by providing a function as the comparer which works almost identically to [native array sort](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort). The only difference is that the sort is always stable. Alternatively you can sort by the sort data you have provided in the instance's options. Just provide the sort data key(s) as a string (separated by space) and the items will be sorted based on the provided sort data keys. Lastly you have the opportunity to provide a presorted array of items which will be used to sync the internal items array in the same order.
+Sort items. There are three ways to sort the items. The first is simply by providing a function as the comparer which works almost identically to [native array sort](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort). The only difference is that the sort is always stable. Alternatively you can sort by the sort data you have provided in the grid's options. Just provide the sort data key(s) as a string (separated by space) and the items will be sorted based on the provided sort data keys. Lastly you have the opportunity to provide a presorted array of items which will be used to sync the internal items array in the same order.
 
 **Parameters**
 
@@ -1462,6 +1495,10 @@ Sort items. There are three ways to sort the items. The first is simply by provi
   * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   * Default value: `true`.
   * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
 
 ```javascript
 // Sort items by data-id attribute value (ascending).
@@ -1505,6 +1542,10 @@ Move an item to another position in the grid.
   * By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   * Default value: `true`.
   * Optional.
+
+**Returns** &nbsp;&mdash;&nbsp; *object*
+
+Returns the grid instance.
 
 ```javascript
 // Move elemA to the index of elemB.
@@ -1578,7 +1619,7 @@ Bind an event listener.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 
-Returns the instance.
+Returns the grid instance.
 
 ```javascript
 grid.on('layoutEnd', function (items) {
@@ -1597,7 +1638,7 @@ Unbind an event listener.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 
-Returns the instance.
+Returns the grid instance.
 
 ```javascript
 var listener = function (items) {
@@ -1611,7 +1652,7 @@ muuri
 
 ### grid.destroy( [removeElements] )
 
-Destroy the grid instance.
+Destroy the grid.
 
 **Parameters**
 
@@ -1622,7 +1663,7 @@ Destroy the grid instance.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 
-Returns the instance.
+Returns the grid instance.
 
 ```javascript
 // Destroy the instance.
@@ -1660,7 +1701,7 @@ grid.destroy(true);
 
 ### synchronize
 
-Triggered after `grid.synchronize()` is called.
+Triggered after item elements are synchronized via `grid.synchronize()`.
 
 ```javascript
 grid.on('synchronize', function () {
@@ -1670,7 +1711,7 @@ grid.on('synchronize', function () {
 
 ### layoutStart
 
-Triggered after `grid.layout()` is called, just before the items are positioned.
+Triggered after `grid.layout()` is called, just before the items are positioned. More specifically, this event is emitted right after new _layout_ has been generated, internal item positions updated and grid element's dimensions updated. After this event is emitted the items in the layout will be positioned to their new positions. So if you e.g. want to react to grid element dimension changes this is a good place to do that.
 
 **Arguments**
 
@@ -1685,16 +1726,24 @@ grid.on('layoutStart', function (items) {
 
 ### layoutEnd
 
-Triggered after `grid.layout()` is called, after the items have positioned. Note that if `grid.layout()` is called during an ongoing layout animation the ongoing layout process will be aborted and it's _layoutEnd_ event will never be triggered.
+Triggered after `grid.layout()` is called, after all of the items have positioned without interruptions. Note that if you call `grid.layout()` before the previous layout process has finished the `layoutEnd` event of the previous process will never be emitted.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were intended to be positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument. So if, for example, you destroy an item during the layout animation and don't do call another layout the destroyed item will still be included in this array of items. The original intention was to filter these items so that all items that were "interrupted" somehow during the layout process would be omitted from the results, but that solution was much more prone to errors and much more harder to explain/understand.
+  * The items that were positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument. So if, for example, you destroy an item during the layout animation and don't do another layout the destroyed item will still be included in this array of items.
 
 ```javascript
 grid.on('layoutEnd', function (items) {
   console.log(items);
+  // For good measure you might want to
+  // filter out all the non-active items,
+  // because it's techniclly possible that
+  // some of the items are destroyed/hidden
+  // when we receive this event.
+  var activeItems = items.filter(function(item) {
+    return item.isActive();
+  });
 });
 ```
 
@@ -2093,7 +2142,7 @@ grid.on('destroy', function () {
 
 ### item.getGrid()
 
-Get the instance's grid instance.
+Get the item's grid instance.
 
 **Returns** &nbsp;&mdash;&nbsp; *Muuri*
 
@@ -2103,7 +2152,7 @@ var grid = item.getGrid();
 
 ### item.getElement()
 
-Get the instance element.
+Get the item element.
 
 **Returns** &nbsp;&mdash;&nbsp; *element*
 
@@ -2113,7 +2162,7 @@ var elem = item.getElement();
 
 ### item.getWidth()
 
-Get instance element's cached width. The returned value includes the element's paddings and borders.
+Get item element's cached width. The returned value includes the element's paddings and borders.
 
 **Returns** &nbsp;&mdash;&nbsp; *number*
 
@@ -2123,7 +2172,7 @@ var width = item.getWidth();
 
 ### item.getHeight()
 
-Get instance element's cached height. The returned value includes the element's paddings and borders.
+Get item element's cached height. The returned value includes the element's paddings and borders.
 
 **Returns** &nbsp;&mdash;&nbsp; *number*
 
@@ -2133,7 +2182,7 @@ var height = item.getHeight();
 
 ### item.getMargin()
 
-Get instance element's cached margins.
+Get item element's cached margins.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 
@@ -2148,7 +2197,7 @@ var margin = item.getMargin();
 
 ### item.getPosition()
 
-Get instance element's cached position (relative to the container element).
+Get item element's cached position (relative to the container element).
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 

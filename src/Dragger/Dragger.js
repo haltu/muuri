@@ -8,11 +8,6 @@
 // TODO: Edge and IE11 have a bug where pointercancel event is not always
 // correctly emitted. Check if there's a way to circumvent that.
 
-// TODO: Prosthetic hand needs some fixing to support the latest changes. Tests
-// currently fail because of that. We need to make sure that pointer events are
-// properly emitted followed by touch events. Also cancelable flag should be
-// true in all the tests.
-
 import Emitter from '../Emitter/Emitter';
 
 import getPrefixedPropName from '../utils/getPrefixedPropName';
@@ -38,16 +33,19 @@ export var events = {
   cancel: 'cancel'
 };
 
-var hasTouchEvents = !!('ontouchstart' in window || window.TouchEvent);
+var hasTouchEvents = 'ontouchstart' in window;
 var hasPointerEvents = !!window.PointerEvent;
 var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
+
+var ua = window.navigator.userAgent.toLowerCase();
+var isFirefox = ua.indexOf('firefox') > -1;
+var isAndroid = ua.indexOf('android') > -1;
+
 var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
-var delayStart = hasTouchEvents && (hasPointerEvents || hasMsPointerEvents);
 
 var taProp = 'touchAction';
 var taPropPrefixed = getPrefixedPropName(window.document.documentElement.style, taProp);
 var taDefaultValue = 'auto';
-var pointerTypeMouse = 'mouse';
 
 /**
  * Creates a new Dragger instance for an element.
@@ -63,8 +61,7 @@ function Dragger(element, cssProps) {
   this._isDestroyed = false;
   this._cssProps = {};
   this._touchAction = '';
-  this._startEvent = null;
-  this._isStarted = false;
+  this._isActive = false;
 
   this._pointerId = null;
   this._startTime = 0;
@@ -73,8 +70,6 @@ function Dragger(element, cssProps) {
   this._currentX = 0;
   this._currentY = 0;
 
-  this._preStartCheck = this._preStartCheck.bind(this);
-  this._onTouchStart = this._onTouchStart.bind(this);
   this._onStart = this._onStart.bind(this);
   this._onMove = this._onMove.bind(this);
   this._onCancel = this._onCancel.bind(this);
@@ -93,14 +88,7 @@ function Dragger(element, cssProps) {
   element.addEventListener('dragstart', Dragger._preventDefault, false);
 
   // Listen to start event.
-  element.addEventListener(Dragger._events.start, this._preStartCheck, listenerOptions);
-
-  // If we have touch events, but no pointer events we need to also listen for
-  // mouse events in addition to touch events for devices which support both
-  // mouse and touch interaction.
-  if (hasTouchEvents && !hasPointerEvents && !hasMsPointerEvents) {
-    element.addEventListener(Dragger._mouseEvents.start, this._preStartCheck, listenerOptions);
-  }
+  element.addEventListener(Dragger._events.start, this._onStart, listenerOptions);
 }
 
 /**
@@ -137,9 +125,9 @@ Dragger._mouseEvents = {
 };
 
 Dragger._events = (function() {
+  if (hasTouchEvents) return Dragger._touchEvents;
   if (hasPointerEvents) return Dragger._pointerEvents;
   if (hasMsPointerEvents) return Dragger._msPointerEvents;
-  if (hasTouchEvents) return Dragger._touchEvents;
   return Dragger._mouseEvents;
 })();
 
@@ -260,23 +248,13 @@ Dragger._onEnd = function(e) {
  * @memberof Dragger.prototype
  */
 Dragger.prototype._reset = function() {
-  this._isStarted = false;
   this._pointerId = null;
   this._startTime = 0;
   this._startX = 0;
   this._startY = 0;
   this._currentX = 0;
   this._currentY = 0;
-  this._startEvent = null;
-
-  if (this._element) {
-    this._element.removeEventListener(
-      Dragger._touchEvents.start,
-      this._onTouchStart,
-      listenerOptions
-    );
-  }
-
+  this._isActive = false;
   Dragger._deactivateInstance(this);
 };
 
@@ -336,86 +314,12 @@ Dragger.prototype._emit = function(type, e) {
  *
  * @private
  * @memberof Dragger.prototype
- * @param {(PointerEvent|TouchEvent|MouseEvent)}
+ * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  * @returns {?(Touch|PointerEvent|MouseEvent)}
  */
 Dragger.prototype._getTrackedTouch = function(e) {
   if (this._pointerId === null) return null;
   return Dragger._getTouchById(e, this._pointerId);
-};
-
-/**
- * A pre-handler for start event that checks if we can start dragging.
- *
- * @private
- * @memberof Dragger.prototype
- * @param {(PointerEvent|TouchEvent|MouseEvent)} e
- */
-Dragger.prototype._preStartCheck = function(e) {
-  if (this._isDestroyed) return;
-
-  // If pointer id is already assigned let's return early.
-  if (this._pointerId !== null) return;
-
-  // Don't start drag if the event is not cancelable, this is 99% of the time an
-  // indication that the event will be cancelled anyways soon after drag starts
-  // (e.g. page is scrolling when drag starts).
-  if (e.cancelable === false) return;
-
-  // Make sure left button is pressed on mouse.
-  if (e.button) return;
-
-  // Get (and set) pointer id.
-  this._pointerId = Dragger._getEventPointerId(e);
-  if (this._pointerId === null) return;
-
-  // In case we have a browser/device that supports both pointer events and
-  // touch events we need to do some special handling. In such a scenario we
-  // favour and listen pointer events, but if you try to move the element within
-  // the pointerdown event handler before the touchstart event has beeen
-  // emitted the event will be canceled, at least on some browsers/devices. The
-  // fix is to delay the starting of the drag procedure until we receive a
-  // touchstart event, after which it's ok to move the element without it being
-  // canceled. This logic would horribly fail if touchstart was not emitted
-  // after pointerdown, but it seems that it practically always is:
-  // https://patrickhlauke.github.io/touch/tests/results/
-  if (delayStart && e.pointerType !== pointerTypeMouse) {
-    this._startEvent = e;
-    this._element.addEventListener(Dragger._touchEvents.start, this._onTouchStart, listenerOptions);
-  } else {
-    this._onStart(e);
-  }
-
-  // Start listening to move/end/cancel events.
-  Dragger._activateInstance(this);
-};
-
-/**
- * Touch start handler for a special (but very common) scenario where we have
- * both pointer events and touch events available.
- *
- * @private
- * @memberof Dragger.prototype
- * @param {TouchEvent} e
- */
-Dragger.prototype._onTouchStart = function(e) {
-  // If the instance has been reset already (for some reason) let's bail out.
-  if (this._pointerId === null) return;
-
-  // If the touch event is non-cancelable let's just reset the instance and
-  // abort the start procedure.
-  if (e.cancelable === false) {
-    this._reset();
-    return;
-  }
-
-  // In other cases, let's start the drag (and unbind the temporary listener).
-  this._element.removeEventListener(
-    Dragger._touchEvents.start,
-    this._onTouchStart,
-    listenerOptions
-  );
-  this._onStart(this._startEvent);
 };
 
 /**
@@ -426,15 +330,28 @@ Dragger.prototype._onTouchStart = function(e) {
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
 Dragger.prototype._onStart = function(e) {
-  var touch = this._getTrackedTouch(e);
-  if (!touch) return;
+  if (this._isDestroyed) return;
 
-  // Set up init data and emit start event.
+  // If pointer id is already assigned let's return early.
+  if (this._pointerId !== null) return;
+
+  // Get (and set) pointer id.
+  this._pointerId = Dragger._getEventPointerId(e);
+  if (this._pointerId === null) return;
+
+  // Setup initial data and emit start event.
+  var touch = this._getTrackedTouch(e);
   this._startX = this._currentX = touch.clientX;
   this._startY = this._currentY = touch.clientY;
   this._startTime = Date.now();
-  this._isStarted = true;
+  this._isActive = true;
   this._emit(events.start, e);
+
+  // If the drag procedure was not reset within the start procedure let's
+  // activate the instance (start listening to move/cancel/end events).
+  if (this._isActive) {
+    Dragger._activateInstance(this);
+  }
 };
 
 /**
@@ -445,12 +362,8 @@ Dragger.prototype._onStart = function(e) {
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
 Dragger.prototype._onMove = function(e) {
-  // Ignore if first drag event is not emitted yet.
-  if (!this._isStarted) return;
-
   var touch = this._getTrackedTouch(e);
   if (!touch) return;
-
   this._currentX = touch.clientX;
   this._currentY = touch.clientY;
   this._emit(events.move, e);
@@ -465,11 +378,7 @@ Dragger.prototype._onMove = function(e) {
  */
 Dragger.prototype._onCancel = function(e) {
   if (!this._getTrackedTouch(e)) return;
-
-  if (this._isStarted) {
-    this._emit(events.cancel, e);
-  }
-
+  this._emit(events.cancel, e);
   this._reset();
 };
 
@@ -482,11 +391,7 @@ Dragger.prototype._onCancel = function(e) {
  */
 Dragger.prototype._onEnd = function(e) {
   if (!this._getTrackedTouch(e)) return;
-
-  if (this._isStarted) {
-    this._emit(events.end, e);
-  }
-
+  this._emit(events.end, e);
   this._reset();
 };
 
@@ -502,8 +407,8 @@ Dragger.prototype._onEnd = function(e) {
  * @memberof Dragger.prototype
  * @returns {Boolean}
  */
-Dragger.prototype.isDragging = function() {
-  return this._isStarted;
+Dragger.prototype.isActive = function() {
+  return this._isActive;
 };
 
 /**
@@ -527,11 +432,13 @@ Dragger.prototype.setTouchAction = function(value) {
   // that prevents default action on touch start event. A dirty hack, but best
   // we can do for now. The other options would be to somehow polyfill the
   // unsupported touch action behavior with custom heuristics which sounds like
-  // a can of worms.
+  // a can of worms. We do a special exception here for Firefox Android which's
+  // touch-action does not work properly if the dragged element is moved in the
+  // the DOM tree on touchstart.
   if (hasTouchEvents) {
-    this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
-    if (this._element.style[taPropPrefixed] !== value) {
-      this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
+    this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
+    if (this._element.style[taPropPrefixed] !== value || (isFirefox && isAndroid)) {
+      this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
     }
   }
 };
@@ -672,10 +579,9 @@ Dragger.prototype.destroy = function() {
   this._emitter.destroy();
 
   // Unbind event handlers.
-  element.removeEventListener(events.start, this._preStartCheck, listenerOptions);
-  element.removeEventListener(Dragger._mouseEvents.start, this._preStartCheck, listenerOptions);
+  element.removeEventListener(events.start, this._onStart, listenerOptions);
   element.removeEventListener('dragstart', Dragger._preventDefault, false);
-  element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
+  element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
 
   // Reset styles.
   for (var prop in this._cssProps) {

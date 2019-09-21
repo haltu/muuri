@@ -28,14 +28,17 @@ function Ticker() {
   this._step = this._step.bind(this);
 }
 
-Ticker.prototype.add = function(id, readOperation, writeOperation, isPrioritized) {
+Ticker.prototype.add = function(id, readOperation, writeOperation, ignoreDuplicate) {
   // First, let's check if an item has been added to the queues with the same id
   // and if so -> remove it.
   var currentIndex = this._queue.indexOf(id);
-  if (currentIndex > -1) this._queue[currentIndex] = undefined;
+  if (currentIndex > -1) {
+    if (ignoreDuplicate) return;
+    this._queue[currentIndex] = undefined;
+  }
 
   // Add entry.
-  isPrioritized ? this._queue.unshift(id) : this._queue.push(id);
+  this._queue.push(id);
   this._reads[id] = readOperation;
   this._writes[id] = writeOperation;
 

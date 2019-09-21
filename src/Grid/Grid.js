@@ -103,8 +103,6 @@ var instantLayout = 'instant';
  * @param {Object} [options.dragCssProps]
  * @param {Object} [options.dragPlaceholder]
  * @param {Boolean} [options.dragPlaceholder.enabled=false]
- * @param {Number} [options.dragPlaceholder.duration=300]
- * @param {String} [options.dragPlaceholder.easing="ease"]
  * @param {?Function} [options.dragPlaceholder.createElement=null]
  * @param {?Function} [options.dragPlaceholder.onCreate=null]
  * @param {?Function} [options.dragPlaceholder.onRemove=null]
@@ -321,8 +319,6 @@ Grid.defaultOptions = {
   },
   dragPlaceholder: {
     enabled: false,
-    duration: 300,
-    easing: 'ease',
     createElement: null,
     onCreate: null,
     onRemove: null
@@ -580,7 +576,7 @@ Grid.prototype.synchronize = function() {
   if (this._isDestroyed) return this;
 
   var items = this._items;
-  if (!item.length) return this;
+  if (!items.length) return this;
 
   var fragment;
   var element;
@@ -638,7 +634,7 @@ Grid.prototype.layout = function(instant, onFinish) {
   // dimensions are set, because otherwise there would be no hook for reacting
   // to container dimension changes.
   if (this._hasListeners(eventLayoutStart)) {
-    this._emit(eventLayoutStart, layout.items.slice(0));
+    this._emit(eventLayoutStart, layout.items.slice(0), instant === true);
   }
 
   function tryFinish() {

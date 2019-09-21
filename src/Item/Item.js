@@ -223,7 +223,7 @@ Item.prototype.isPositioning = function() {
 };
 
 /**
- * Is the item being dragged?
+ * Is the item being dragged (or queued for dragging)?
  *
  * @public
  * @memberof Item.prototype

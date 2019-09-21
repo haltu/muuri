@@ -60,13 +60,14 @@ function ItemDragPlaceholder(item) {
  *
  * @private
  * @memberof ItemDragPlaceholder.prototype
+ * @param {Item[]} items
+ * @param {Boolean} isInstant
  */
-ItemDragPlaceholder.prototype._onLayoutStart = function() {
+ItemDragPlaceholder.prototype._onLayoutStart = function(items, isInstant) {
   var item = this._item;
-  var grid = item.getGrid();
 
   // If the item is not part of the layout anymore reset placeholder.
-  if (grid._layout.items.indexOf(item) === -1) {
+  if (items.indexOf(item) === -1) {
     this.reset();
     return;
   }
@@ -80,9 +81,9 @@ ItemDragPlaceholder.prototype._onLayoutStart = function() {
   this._left = nextLeft;
   this._top = nextTop;
 
-  // If item's position did not change and the item did not migrate we can
-  // safely skip layout.
-  if (!this._didMigrate && currentLeft === nextLeft && currentTop === nextTop) {
+  // If item's position did not change, and the item did not migrate and the
+  // layout is not instant and we can safely skip layout.
+  if (!isInstant && !this._didMigrate && currentLeft === nextLeft && currentTop === nextTop) {
     return;
   }
 
@@ -94,7 +95,8 @@ ItemDragPlaceholder.prototype._onLayoutStart = function() {
 
   // Just snap to new position without any animations if no animation is
   // required or if placeholder moves between grids.
-  var animEnabled = grid._settings.dragPlaceholder.duration > 0;
+  var grid = item.getGrid();
+  var animEnabled = !isInstant && grid._settings.layoutDuration > 0;
   if (!animEnabled || this._didMigrate) {
     // Cancel potential (queued) layout tick.
     cancelPlaceholderTick(item._id);
@@ -164,12 +166,12 @@ ItemDragPlaceholder.prototype._startAnimation = function() {
   }
 
   // Otherwise let's start the animation.
-  var settings = this._item.getGrid()._settings.dragPlaceholder;
+  var settings = this._item.getGrid()._settings;
   var currentStyles = {};
   currentStyles[transformProp] = getTranslateString(currentX, currentY);
   animation.start(currentStyles, targetStyles, {
-    duration: settings.duration,
-    easing: settings.easing,
+    duration: settings.layoutDuration,
+    easing: settings.layoutEasing,
     onFinish: this._onLayoutEnd
   });
 };
@@ -407,6 +409,17 @@ ItemDragPlaceholder.prototype.updateDimensions = function(width, height) {
  */
 ItemDragPlaceholder.prototype.isActive = function() {
   return !!this._element;
+};
+
+/**
+ * Get placeholder element.
+ *
+ * @public
+ * @memberof ItemDragPlaceholder.prototype
+ * @returns {?HTMLElement}
+ */
+ItemDragPlaceholder.prototype.getElement = function() {
+  return this._element;
 };
 
 /**

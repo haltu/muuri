@@ -17,6 +17,8 @@ import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 import transformProp from '../utils/transformProp';
 
+var minDistanceToAnimate = 2;
+
 /**
  * Layout manager for Item instance, handles the positioning of an item.
  *
@@ -265,13 +267,14 @@ ItemLayout.prototype._startAnimation = function() {
   this._updateOffsets();
   this._updateTargetStyles();
 
-  // If the item is already in correct position let's quit early.
-  if (
-    item._left === this._currentLeft - this._offsetLeft &&
-    item._top === this._currentTop - this._offsetTop
-  ) {
+  // If the item is already in correct position (or near it) let's quit early.
+  var xDiff = Math.abs(item._left - (this._currentLeft - this._offsetLeft));
+  var yDiff = Math.abs(item._top - (this._currentTop - this._offsetTop));
+  if (xDiff < minDistanceToAnimate && yDiff < minDistanceToAnimate) {
     if (this._isInterrupted) {
       this.stop(false, this._targetStyles);
+    } else if (xDiff || yDiff) {
+      setStyles(item._element, this._targetStyles);
     }
     this._isActive = false;
     this._finish();

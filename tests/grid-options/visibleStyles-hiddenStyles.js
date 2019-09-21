@@ -26,9 +26,10 @@
     };
 
     grid.hide(item, {onFinish: function () {
-      assert.strictEqual(item._child.style.fontSize, '10px', 'item has correct hidden styles');
+      var child = item.getElement().children[0];
+      assert.strictEqual(child.style.fontSize, '10px', 'item has correct hidden styles');
       grid.show(item, {onFinish: function () {
-        assert.strictEqual(item._child.style.fontSize, '30px', 'item has correct visible styles');
+        assert.strictEqual(child.style.fontSize, '30px', 'item has correct visible styles');
         teardown();
       }});
     }})

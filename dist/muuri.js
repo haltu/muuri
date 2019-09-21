@@ -255,16 +255,19 @@
     cancel: 'cancel'
   };
 
-  var hasTouchEvents = !!('ontouchstart' in window || window.TouchEvent);
+  var hasTouchEvents = 'ontouchstart' in window;
   var hasPointerEvents = !!window.PointerEvent;
   var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
+
+  var ua = window.navigator.userAgent.toLowerCase();
+  var isFirefox = ua.indexOf('firefox') > -1;
+  var isAndroid = ua.indexOf('android') > -1;
+
   var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
-  var delayStart = hasTouchEvents && (hasPointerEvents || hasMsPointerEvents);
 
   var taProp = 'touchAction';
   var taPropPrefixed = getPrefixedPropName(window.document.documentElement.style, taProp);
   var taDefaultValue = 'auto';
-  var pointerTypeMouse = 'mouse';
 
   /**
    * Creates a new Dragger instance for an element.
@@ -280,8 +283,7 @@
     this._isDestroyed = false;
     this._cssProps = {};
     this._touchAction = '';
-    this._startEvent = null;
-    this._isStarted = false;
+    this._isActive = false;
 
     this._pointerId = null;
     this._startTime = 0;
@@ -290,8 +292,6 @@
     this._currentX = 0;
     this._currentY = 0;
 
-    this._preStartCheck = this._preStartCheck.bind(this);
-    this._onTouchStart = this._onTouchStart.bind(this);
     this._onStart = this._onStart.bind(this);
     this._onMove = this._onMove.bind(this);
     this._onCancel = this._onCancel.bind(this);
@@ -310,14 +310,7 @@
     element.addEventListener('dragstart', Dragger._preventDefault, false);
 
     // Listen to start event.
-    element.addEventListener(Dragger._events.start, this._preStartCheck, listenerOptions);
-
-    // If we have touch events, but no pointer events we need to also listen for
-    // mouse events in addition to touch events for devices which support both
-    // mouse and touch interaction.
-    if (hasTouchEvents && !hasPointerEvents && !hasMsPointerEvents) {
-      element.addEventListener(Dragger._mouseEvents.start, this._preStartCheck, listenerOptions);
-    }
+    element.addEventListener(Dragger._events.start, this._onStart, listenerOptions);
   }
 
   /**
@@ -354,9 +347,9 @@
   };
 
   Dragger._events = (function() {
+    if (hasTouchEvents) return Dragger._touchEvents;
     if (hasPointerEvents) return Dragger._pointerEvents;
     if (hasMsPointerEvents) return Dragger._msPointerEvents;
-    if (hasTouchEvents) return Dragger._touchEvents;
     return Dragger._mouseEvents;
   })();
 
@@ -477,23 +470,13 @@
    * @memberof Dragger.prototype
    */
   Dragger.prototype._reset = function() {
-    this._isStarted = false;
     this._pointerId = null;
     this._startTime = 0;
     this._startX = 0;
     this._startY = 0;
     this._currentX = 0;
     this._currentY = 0;
-    this._startEvent = null;
-
-    if (this._element) {
-      this._element.removeEventListener(
-        Dragger._touchEvents.start,
-        this._onTouchStart,
-        listenerOptions
-      );
-    }
-
+    this._isActive = false;
     Dragger._deactivateInstance(this);
   };
 
@@ -553,86 +536,12 @@
    *
    * @private
    * @memberof Dragger.prototype
-   * @param {(PointerEvent|TouchEvent|MouseEvent)}
+   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    * @returns {?(Touch|PointerEvent|MouseEvent)}
    */
   Dragger.prototype._getTrackedTouch = function(e) {
     if (this._pointerId === null) return null;
     return Dragger._getTouchById(e, this._pointerId);
-  };
-
-  /**
-   * A pre-handler for start event that checks if we can start dragging.
-   *
-   * @private
-   * @memberof Dragger.prototype
-   * @param {(PointerEvent|TouchEvent|MouseEvent)} e
-   */
-  Dragger.prototype._preStartCheck = function(e) {
-    if (this._isDestroyed) return;
-
-    // If pointer id is already assigned let's return early.
-    if (this._pointerId !== null) return;
-
-    // Don't start drag if the event is not cancelable, this is 99% of the time an
-    // indication that the event will be cancelled anyways soon after drag starts
-    // (e.g. page is scrolling when drag starts).
-    if (e.cancelable === false) return;
-
-    // Make sure left button is pressed on mouse.
-    if (e.button) return;
-
-    // Get (and set) pointer id.
-    this._pointerId = Dragger._getEventPointerId(e);
-    if (this._pointerId === null) return;
-
-    // In case we have a browser/device that supports both pointer events and
-    // touch events we need to do some special handling. In such a scenario we
-    // favour and listen pointer events, but if you try to move the element within
-    // the pointerdown event handler before the touchstart event has beeen
-    // emitted the event will be canceled, at least on some browsers/devices. The
-    // fix is to delay the starting of the drag procedure until we receive a
-    // touchstart event, after which it's ok to move the element without it being
-    // canceled. This logic would horribly fail if touchstart was not emitted
-    // after pointerdown, but it seems that it practically always is:
-    // https://patrickhlauke.github.io/touch/tests/results/
-    if (delayStart && e.pointerType !== pointerTypeMouse) {
-      this._startEvent = e;
-      this._element.addEventListener(Dragger._touchEvents.start, this._onTouchStart, listenerOptions);
-    } else {
-      this._onStart(e);
-    }
-
-    // Start listening to move/end/cancel events.
-    Dragger._activateInstance(this);
-  };
-
-  /**
-   * Touch start handler for a special (but very common) scenario where we have
-   * both pointer events and touch events available.
-   *
-   * @private
-   * @memberof Dragger.prototype
-   * @param {TouchEvent} e
-   */
-  Dragger.prototype._onTouchStart = function(e) {
-    // If the instance has been reset already (for some reason) let's bail out.
-    if (this._pointerId === null) return;
-
-    // If the touch event is non-cancelable let's just reset the instance and
-    // abort the start procedure.
-    if (e.cancelable === false) {
-      this._reset();
-      return;
-    }
-
-    // In other cases, let's start the drag (and unbind the temporary listener).
-    this._element.removeEventListener(
-      Dragger._touchEvents.start,
-      this._onTouchStart,
-      listenerOptions
-    );
-    this._onStart(this._startEvent);
   };
 
   /**
@@ -643,15 +552,28 @@
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   Dragger.prototype._onStart = function(e) {
-    var touch = this._getTrackedTouch(e);
-    if (!touch) return;
+    if (this._isDestroyed) return;
 
-    // Set up init data and emit start event.
+    // If pointer id is already assigned let's return early.
+    if (this._pointerId !== null) return;
+
+    // Get (and set) pointer id.
+    this._pointerId = Dragger._getEventPointerId(e);
+    if (this._pointerId === null) return;
+
+    // Setup initial data and emit start event.
+    var touch = this._getTrackedTouch(e);
     this._startX = this._currentX = touch.clientX;
     this._startY = this._currentY = touch.clientY;
     this._startTime = Date.now();
-    this._isStarted = true;
+    this._isActive = true;
     this._emit(events.start, e);
+
+    // If the drag procedure was not reset within the start procedure let's
+    // activate the instance (start listening to move/cancel/end events).
+    if (this._isActive) {
+      Dragger._activateInstance(this);
+    }
   };
 
   /**
@@ -662,12 +584,8 @@
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   Dragger.prototype._onMove = function(e) {
-    // Ignore if first drag event is not emitted yet.
-    if (!this._isStarted) return;
-
     var touch = this._getTrackedTouch(e);
     if (!touch) return;
-
     this._currentX = touch.clientX;
     this._currentY = touch.clientY;
     this._emit(events.move, e);
@@ -682,11 +600,7 @@
    */
   Dragger.prototype._onCancel = function(e) {
     if (!this._getTrackedTouch(e)) return;
-
-    if (this._isStarted) {
-      this._emit(events.cancel, e);
-    }
-
+    this._emit(events.cancel, e);
     this._reset();
   };
 
@@ -699,11 +613,7 @@
    */
   Dragger.prototype._onEnd = function(e) {
     if (!this._getTrackedTouch(e)) return;
-
-    if (this._isStarted) {
-      this._emit(events.end, e);
-    }
-
+    this._emit(events.end, e);
     this._reset();
   };
 
@@ -719,8 +629,8 @@
    * @memberof Dragger.prototype
    * @returns {Boolean}
    */
-  Dragger.prototype.isDragging = function() {
-    return this._isStarted;
+  Dragger.prototype.isActive = function() {
+    return this._isActive;
   };
 
   /**
@@ -744,11 +654,13 @@
     // that prevents default action on touch start event. A dirty hack, but best
     // we can do for now. The other options would be to somehow polyfill the
     // unsupported touch action behavior with custom heuristics which sounds like
-    // a can of worms.
+    // a can of worms. We do a special exception here for Firefox Android which's
+    // touch-action does not work properly if the dragged element is moved in the
+    // the DOM tree on touchstart.
     if (hasTouchEvents) {
-      this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
-      if (this._element.style[taPropPrefixed] !== value) {
-        this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
+      this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
+      if (this._element.style[taPropPrefixed] !== value || (isFirefox && isAndroid)) {
+        this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
       }
     }
   };
@@ -889,10 +801,9 @@
     this._emitter.destroy();
 
     // Unbind event handlers.
-    element.removeEventListener(events.start, this._preStartCheck, listenerOptions);
-    element.removeEventListener(Dragger._mouseEvents.start, this._preStartCheck, listenerOptions);
+    element.removeEventListener(events.start, this._onStart, listenerOptions);
     element.removeEventListener('dragstart', Dragger._preventDefault, false);
-    element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, false);
+    element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
 
     // Reset styles.
     for (var prop in this._cssProps) {
@@ -942,14 +853,17 @@
     this._step = this._step.bind(this);
   }
 
-  Ticker.prototype.add = function(id, readOperation, writeOperation, isPrioritized) {
+  Ticker.prototype.add = function(id, readOperation, writeOperation, ignoreDuplicate) {
     // First, let's check if an item has been added to the queues with the same id
     // and if so -> remove it.
     var currentIndex = this._queue.indexOf(id);
-    if (currentIndex > -1) this._queue[currentIndex] = undefined;
+    if (currentIndex > -1) {
+      if (ignoreDuplicate) return;
+      this._queue[currentIndex] = undefined;
+    }
 
     // Add entry.
-    isPrioritized ? this._queue.unshift(id) : this._queue.push(id);
+    this._queue.push(id);
     this._reads[id] = readOperation;
     this._writes[id] = writeOperation;
 
@@ -1028,8 +942,9 @@
 
   var layoutTick = 'layout';
   var visibilityTick = 'visibility';
-  var moveTick = 'move';
-  var scrollTick = 'scroll';
+  var dragStartTick = 'dragstart';
+  var dragMoveTick = 'dragmove';
+  var dragScrollTick = 'dragscroll';
   var placeholderTick = 'placeholder';
 
   function addLayoutTick(itemId, readCallback, writeCallback) {
@@ -1048,20 +963,28 @@
     return ticker.cancel(itemId + visibilityTick);
   }
 
-  function addMoveTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + moveTick, readCallback, writeCallback, true);
+  function addDragStartTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + dragStartTick, readCallback, writeCallback, true);
   }
 
-  function cancelMoveTick(itemId) {
-    return ticker.cancel(itemId + moveTick);
+  function cancelDragStartTick(itemId) {
+    return ticker.cancel(itemId + dragStartTick);
   }
 
-  function addScrollTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + scrollTick, readCallback, writeCallback, true);
+  function addDragMoveTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + dragMoveTick, readCallback, writeCallback, true);
   }
 
-  function cancelScrollTick(itemId) {
-    return ticker.cancel(itemId + scrollTick);
+  function cancelDragMoveTick(itemId) {
+    return ticker.cancel(itemId + dragMoveTick);
+  }
+
+  function addDragScrollTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + dragScrollTick, readCallback, writeCallback, true);
+  }
+
+  function cancelDragScrollTick(itemId) {
+    return ticker.cancel(itemId + dragScrollTick);
   }
 
   function addPlaceholderTick(itemId, readCallback, writeCallback) {
@@ -1574,7 +1497,6 @@
   var startPredicateInactive = 0;
   var startPredicatePending = 1;
   var startPredicateResolved = 2;
-  var startPredicateRejected = 3;
 
   /**
    * Bind touch interaction to an item.
@@ -1613,6 +1535,8 @@
     this._preStartCheck = this._preStartCheck.bind(this);
     this._preEndCheck = this._preEndCheck.bind(this);
     this._onScroll = this._onScroll.bind(this);
+    this._prepareStart = this._prepareStart.bind(this);
+    this._applyStart = this._applyStart.bind(this);
     this._prepareMove = this._prepareMove.bind(this);
     this._applyMove = this._applyMove.bind(this);
     this._prepareScroll = this._prepareScroll.bind(this);
@@ -1658,6 +1582,24 @@
    */
   ItemDrag.defaultStartPredicate = function(item, event, options) {
     var drag = item._drag;
+
+    // Make sure left button is pressed on mouse.
+    if (event.isFirst && event.srcEvent.button) {
+      return false;
+    }
+
+    // If the start event is trusted, non-cancelable and it's default action has
+    // not been prevented it is in most cases a sign that the gesture would be
+    // cancelled anyways right after it has started (e.g. starting drag while
+    // the page is scrolling).
+    if (
+      event.isFirst &&
+      event.srcEvent.isTrusted === true &&
+      event.srcEvent.defaultPrevented === false &&
+      event.srcEvent.cancelable === false
+    ) {
+      return false;
+    }
 
     // Final event logic. At this stage return value does not matter anymore,
     // the predicate is either resolved or it's not and there's nothing to do
@@ -1886,10 +1828,6 @@
    * @returns {ItemDrag}
    */
   ItemDrag.prototype.stop = function() {
-    var item = this._item;
-    var element = item._element;
-    var grid = this._getGrid();
-
     if (!this._isActive) return this;
 
     // If the item is being dropped into another grid, finish it up and return
@@ -1899,25 +1837,31 @@
       return this;
     }
 
-    // Cancel queued move and scroll ticks.
-    cancelMoveTick(item._id);
-    cancelScrollTick(item._id);
+    // Cancel queued ticks.
+    var itemId = this._item._id;
+    cancelDragStartTick(itemId);
+    cancelDragMoveTick(itemId);
+    cancelDragScrollTick(itemId);
 
-    // Remove scroll listeners.
-    this._unbindScrollListeners();
+    if (this._isStarted) {
+      // Remove scroll listeners.
+      this._unbindScrollListeners();
 
-    // Cancel overlap check.
-    this._checkOverlapDebounce('cancel');
+      // Cancel overlap check.
+      this._checkOverlapDebounce('cancel');
 
-    // Append item element to the container if it's not it's child. Also make
-    // sure the translate values are adjusted to account for the DOM shift.
-    if (element.parentNode !== grid._element) {
-      grid._element.appendChild(element);
-      element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+      // Append item element to the container if it's not it's child. Also make
+      // sure the translate values are adjusted to account for the DOM shift.
+      var element = item._element;
+      var grid = this._getGrid();
+      if (element.parentNode !== grid._element) {
+        grid._element.appendChild(element);
+        element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+      }
+
+      // Remove dragging class.
+      removeClass(element, grid._settings.itemDraggingClass);
     }
-
-    // Remove dragging class.
-    removeClass(element, grid._settings.itemDraggingClass);
 
     // Reset drag data.
     this._reset();
@@ -1963,8 +1907,8 @@
    * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._reset = function() {
-    // Is item being dragged?
     this._isActive = false;
+    this._isStarted = false;
 
     // The dragged item's container element.
     this._container = null;
@@ -1973,7 +1917,9 @@
     this._containingBlock = null;
 
     // Drag/scroll event data.
-    this._dragEvent = null;
+    this._dragStartEvent = null;
+    this._dragMoveEvent = null;
+    this._dragPrevMoveEvent = null;
     this._scrollEvent = null;
 
     // All the elements which need to be listened for scroll events during
@@ -2212,7 +2158,7 @@
 
     // Get overlap check result.
     if (isFunction(settings.dragSortPredicate)) {
-      result = settings.dragSortPredicate(item, this._dragEvent);
+      result = settings.dragSortPredicate(item, this._dragMoveEvent);
     } else {
       result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);
     }
@@ -2442,7 +2388,9 @@
         this._startPredicateState = startPredicateResolved;
         this._onStart(event);
       } else if (this._startPredicateResult === false) {
-        this._startPredicateState = startPredicateRejected;
+        this._resetStartPredicate(event);
+        this._dragger._reset();
+        this._startPredicateState = startPredicateInactive;
       }
     }
 
@@ -2460,7 +2408,6 @@
    * @param {DraggerEvent} event
    */
   ItemDrag.prototype._preEndCheck = function(event) {
-    // Check if the start predicate was resolved during drag.
     var isResolved = this._startPredicateState === startPredicateResolved;
 
     // Do final predicate check to allow user to unbind stuff for the current
@@ -2468,11 +2415,15 @@
     // check will have no effect to the state of the predicate.
     this._startPredicate(this._item, event);
 
-    // Reset start predicate state.
     this._startPredicateState = startPredicateInactive;
 
-    // If predicate is resolved and dragging is active, call the end handler.
-    if (isResolved && this._isActive) this._onEnd(event);
+    if (!isResolved || !this._isActive) return;
+
+    if (this._isStarted) {
+      this._onEnd(event);
+    } else {
+      this.stop();
+    }
   };
 
   /**
@@ -2484,101 +2435,114 @@
    */
   ItemDrag.prototype._onStart = function(event) {
     var item = this._item;
+    if (!item._isActive) return;
 
-    // If item is not active, don't start the drag.
+    this._isActive = true;
+    this._dragStartEvent = event;
+
+    this._resetHeuristics(event);
+    addDragStartTick(item._id, this._prepareStart, this._applyStart);
+  };
+
+  /**
+   * Prepare item to be dragged.
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._prepareStart = function() {
+    var item = this._item;
     if (!item._isActive) return;
 
     var element = item._element;
     var grid = this._getGrid();
     var settings = grid._settings;
-    var release = item._dragRelease;
-    var migrate = item._migrate;
     var gridContainer = grid._element;
     var dragContainer = settings.dragContainer || gridContainer;
     var containingBlock = getContainingBlock(dragContainer);
     var translate = getTranslate(element);
-    var currentLeft = translate.x;
-    var currentTop = translate.y;
     var elementRect = element.getBoundingClientRect();
     var hasDragContainer = dragContainer !== gridContainer;
-    var offsetDiff, layoutStyles;
 
-    // Reset heuristics data.
-    this._resetHeuristics(event);
-
-    // If grid container is not the drag container, we need to calculate the
-    // offset difference between grid container and drag container's containing
-    // element.
-    if (hasDragContainer) {
-      offsetDiff = getOffsetDiff(containingBlock, gridContainer);
-    }
-
-    // Stop current positioning animation.
-    if (item.isPositioning()) {
-      layoutStyles = {};
-      layoutStyles[transformProp] = getTranslateString(currentLeft, currentTop);
-      item._layout.stop(true, layoutStyles);
-    }
-
-    // Stop current migration animation.
-    if (migrate._isActive) {
-      currentLeft -= migrate._containerDiffX;
-      currentTop -= migrate._containerDiffY;
-      migrate.stop(true, currentLeft, currentTop);
-    }
-
-    // If item is being released reset release data.
-    if (item.isReleasing()) release._reset();
-
-    // Setup drag data.
-    this._isActive = true;
-    this._dragEvent = event;
     this._container = dragContainer;
     this._containingBlock = containingBlock;
     this._elementClientX = elementRect.left;
     this._elementClientY = elementRect.top;
-    this._left = this._gridX = currentLeft;
-    this._top = this._gridY = currentTop;
+    this._left = this._gridX = translate.x;
+    this._top = this._gridY = translate.y;
 
-    // Create placeholder (if necessary).
-    if (settings.dragPlaceholder.enabled) {
+    // If a specific drag container is set and it is different from the
+    // grid's container element we store the offset between containers.
+    if (hasDragContainer) {
+      var offsetDiff = getOffsetDiff(containingBlock, gridContainer);
+      this._containerDiffX = offsetDiff.left;
+      this._containerDiffY = offsetDiff.top;
+    }
+  };
+
+  /**
+   * Start drag for the item.
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._applyStart = function() {
+    var item = this._item;
+    if (!item._isActive) return;
+
+    var grid = this._getGrid();
+    var element = item._element;
+    var release = item._dragRelease;
+    var migrate = item._migrate;
+    var hasDragContainer = this._container !== grid._element;
+
+    if (item.isPositioning()) {
+      var layoutStyles = {};
+      layoutStyles[transformProp] = getTranslateString(this._left, this._top);
+      item._layout.stop(true, layoutStyles);
+    }
+
+    if (migrate._isActive) {
+      this._left -= migrate._containerDiffX;
+      this._top -= migrate._containerDiffY;
+      this._gridX -= migrate._containerDiffX;
+      this._gridY -= migrate._containerDiffY;
+      migrate.stop(true, this._left, this._top);
+    }
+
+    if (item.isReleasing()) {
+      release._reset();
+    }
+
+    if (grid._settings.dragPlaceholder.enabled) {
       item._dragPlaceholder.create();
     }
 
-    // Emit dragInit event.
-    grid._emit(eventDragInit, item, event);
+    this._isStarted = true;
 
-    // If a specific drag container is set and it is different from the
-    // grid's container element we need to cast some extra spells.
+    grid._emit(eventDragInit, item, this._dragStartEvent);
+
     if (hasDragContainer) {
-      // Store the container offset diffs to drag data.
-      this._containerDiffX = offsetDiff.left;
-      this._containerDiffY = offsetDiff.top;
-
       // If the dragged element is a child of the drag container all we need to
       // do is setup the relative drag position data.
-      if (element.parentNode === dragContainer) {
-        this._gridX = currentLeft - this._containerDiffX;
-        this._gridY = currentTop - this._containerDiffY;
+      if (element.parentNode === this._container) {
+        this._gridX -= this._containerDiffX;
+        this._gridY -= this._containerDiffY;
       }
-
       // Otherwise we need to append the element inside the correct container,
       // setup the actual drag position data and adjust the element's translate
       // values to account for the DOM position shift.
       else {
-        this._left = currentLeft + this._containerDiffX;
-        this._top = currentTop + this._containerDiffY;
-        dragContainer.appendChild(element);
+        this._left += this._containerDiffX;
+        this._top += this._containerDiffY;
+        this._container.appendChild(element);
         element.style[transformProp] = getTranslateString(this._left, this._top);
       }
     }
 
-    // Set drag class and bind scrollers.
-    addClass(element, settings.itemDraggingClass);
+    addClass(element, grid._settings.itemDraggingClass);
     this._bindScrollListeners();
-
-    // Emit dragStart event.
-    grid._emit(eventDragStart, item, event);
+    grid._emit(eventDragStart, item, this._dragStartEvent);
   };
 
   /**
@@ -2591,36 +2555,13 @@
   ItemDrag.prototype._onMove = function(event) {
     var item = this._item;
 
-    // If item is not active, reset drag.
     if (!item._isActive) {
       this.stop();
       return;
     }
 
-    var settings = this._getGrid()._settings;
-    var axis = settings.dragAxis;
-
-    // Update horizontal position data.
-    if (axis !== 'y') {
-      var xDiff = event.clientX - this._dragEvent.clientX;
-      this._left += xDiff;
-      this._gridX += xDiff;
-      this._elementClientX += xDiff;
-    }
-
-    // Update vertical position data.
-    if (axis !== 'x') {
-      var yDiff = event.clientY - this._dragEvent.clientY;
-      this._top += yDiff;
-      this._gridY += yDiff;
-      this._elementClientY += yDiff;
-    }
-
-    // Update event data.
-    this._dragEvent = event;
-
-    // Do move prepare/apply handling in the next tick.
-    addMoveTick(item._id, this._prepareMove, this._applyMove);
+    this._dragMoveEvent = event;
+    addDragMoveTick(item._id, this._prepareMove, this._applyMove);
   };
 
   /**
@@ -2630,12 +2571,33 @@
    * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._prepareMove = function() {
-    // Do nothing if item is not active.
     if (!this._item._isActive) return;
 
-    // If drag sort is enabled -> check overlap.
+    var settings = this._getGrid()._settings;
+    var axis = settings.dragAxis;
+    var nextEvent = this._dragMoveEvent;
+    var prevEvent = this._dragPrevMoveEvent || this._dragStartEvent || nextEvent;
+
+    // Update horizontal position data.
+    if (axis !== 'y') {
+      var xDiff = nextEvent.clientX - prevEvent.clientX;
+      this._left += xDiff;
+      this._gridX += xDiff;
+      this._elementClientX += xDiff;
+    }
+
+    // Update vertical position data.
+    if (axis !== 'x') {
+      var yDiff = nextEvent.clientY - prevEvent.clientY;
+      this._top += yDiff;
+      this._gridY += yDiff;
+      this._elementClientY += yDiff;
+    }
+
+    this._dragPrevMoveEvent = nextEvent;
+
     if (this._getGrid()._settings.dragSort) {
-      if (this._checkHeuristics(this._dragEvent)) {
+      if (this._checkHeuristics(nextEvent)) {
         this._checkOverlapDebounce();
       }
     }
@@ -2649,15 +2611,10 @@
    */
   ItemDrag.prototype._applyMove = function() {
     var item = this._item;
-
-    // Do nothing if item is not active.
     if (!item._isActive) return;
 
-    // Update element's translateX/Y values.
     item._element.style[transformProp] = getTranslateString(this._left, this._top);
-
-    // Emit dragMove event.
-    this._getGrid()._emit(eventDragMove, item, this._dragEvent);
+    this._getGrid()._emit(eventDragMove, item, this._dragMoveEvent);
   };
 
   /**
@@ -2670,17 +2627,13 @@
   ItemDrag.prototype._onScroll = function(event) {
     var item = this._item;
 
-    // If item is not active, reset drag.
     if (!item._isActive) {
       this.stop();
       return;
     }
 
-    // Update last scroll event.
     this._scrollEvent = event;
-
-    // Do scroll prepare/apply handling in the next tick.
-    addScrollTick(item._id, this._prepareScroll, this._applyScroll);
+    addDragScrollTick(item._id, this._prepareScroll, this._applyScroll);
   };
 
   /**
@@ -2738,14 +2691,9 @@
    */
   ItemDrag.prototype._applyScroll = function() {
     var item = this._item;
-
-    // If item is not active do nothing.
     if (!item._isActive) return;
 
-    // Update element's translateX/Y values.
     item._element.style[transformProp] = getTranslateString(this._left, this._top);
-
-    // Emit dragScroll event.
     this._getGrid()._emit(eventDragScroll, item, this._scrollEvent);
   };
 
@@ -2769,9 +2717,10 @@
       return;
     }
 
-    // Cancel queued move and scroll ticks.
-    cancelMoveTick(item._id);
-    cancelScrollTick(item._id);
+    // Cancel queued ticks.
+    cancelDragStartTick(item._id);
+    cancelDragMoveTick(item._id);
+    cancelDragScrollTick(item._id);
 
     // Finish currently queued overlap check.
     settings.dragSort && this._checkOverlapDebounce('finish');
@@ -3012,6 +2961,7 @@
     }
 
     // Cancel animation (if required).
+    // TODO: Cancel animation also if duration or easing has changed.
     if (cancelAnimation) animation.cancel();
 
     // Store animation callback.
@@ -3168,13 +3118,14 @@
    *
    * @private
    * @memberof ItemDragPlaceholder.prototype
+   * @param {Item[]} items
+   * @param {Boolean} isInstant
    */
-  ItemDragPlaceholder.prototype._onLayoutStart = function() {
+  ItemDragPlaceholder.prototype._onLayoutStart = function(items, isInstant) {
     var item = this._item;
-    var grid = item.getGrid();
 
     // If the item is not part of the layout anymore reset placeholder.
-    if (grid._layout.items.indexOf(item) === -1) {
+    if (items.indexOf(item) === -1) {
       this.reset();
       return;
     }
@@ -3188,9 +3139,9 @@
     this._left = nextLeft;
     this._top = nextTop;
 
-    // If item's position did not change and the item did not migrate we can
-    // safely skip layout.
-    if (!this._didMigrate && currentLeft === nextLeft && currentTop === nextTop) {
+    // If item's position did not change, and the item did not migrate and the
+    // layout is not instant and we can safely skip layout.
+    if (!isInstant && !this._didMigrate && currentLeft === nextLeft && currentTop === nextTop) {
       return;
     }
 
@@ -3202,7 +3153,8 @@
 
     // Just snap to new position without any animations if no animation is
     // required or if placeholder moves between grids.
-    var animEnabled = grid._settings.dragPlaceholder.duration > 0;
+    var grid = item.getGrid();
+    var animEnabled = !isInstant && grid._settings.layoutDuration > 0;
     if (!animEnabled || this._didMigrate) {
       // Cancel potential (queued) layout tick.
       cancelPlaceholderTick(item._id);
@@ -3272,12 +3224,12 @@
     }
 
     // Otherwise let's start the animation.
-    var settings = this._item.getGrid()._settings.dragPlaceholder;
+    var settings = this._item.getGrid()._settings;
     var currentStyles = {};
     currentStyles[transformProp] = getTranslateString(currentX, currentY);
     animation.start(currentStyles, targetStyles, {
-      duration: settings.duration,
-      easing: settings.easing,
+      duration: settings.layoutDuration,
+      easing: settings.layoutEasing,
       onFinish: this._onLayoutEnd
     });
   };
@@ -3515,6 +3467,17 @@
    */
   ItemDragPlaceholder.prototype.isActive = function() {
     return !!this._element;
+  };
+
+  /**
+   * Get placeholder element.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   * @returns {?HTMLElement}
+   */
+  ItemDragPlaceholder.prototype.getElement = function() {
+    return this._element;
   };
 
   /**
@@ -3769,6 +3732,8 @@
     return this;
   };
 
+  var minDistanceToAnimate = 2;
+
   /**
    * Layout manager for Item instance, handles the positioning of an item.
    *
@@ -4017,13 +3982,14 @@
     this._updateOffsets();
     this._updateTargetStyles();
 
-    // If the item is already in correct position let's quit early.
-    if (
-      item._left === this._currentLeft - this._offsetLeft &&
-      item._top === this._currentTop - this._offsetTop
-    ) {
+    // If the item is already in correct position (or near it) let's quit early.
+    var xDiff = Math.abs(item._left - (this._currentLeft - this._offsetLeft));
+    var yDiff = Math.abs(item._top - (this._currentTop - this._offsetTop));
+    if (xDiff < minDistanceToAnimate && yDiff < minDistanceToAnimate) {
       if (this._isInterrupted) {
         this.stop(false, this._targetStyles);
+      } else if (xDiff || yDiff) {
+        setStyles(item._element, this._targetStyles);
       }
       this._isActive = false;
       this._finish();
@@ -4857,7 +4823,7 @@
   };
 
   /**
-   * Is the item being dragged?
+   * Is the item being dragged (or queued for dragging)?
    *
    * @public
    * @memberof Item.prototype
@@ -5551,8 +5517,6 @@
    * @param {Object} [options.dragCssProps]
    * @param {Object} [options.dragPlaceholder]
    * @param {Boolean} [options.dragPlaceholder.enabled=false]
-   * @param {Number} [options.dragPlaceholder.duration=300]
-   * @param {String} [options.dragPlaceholder.easing="ease"]
    * @param {?Function} [options.dragPlaceholder.createElement=null]
    * @param {?Function} [options.dragPlaceholder.onCreate=null]
    * @param {?Function} [options.dragPlaceholder.onRemove=null]
@@ -5769,8 +5733,6 @@
     },
     dragPlaceholder: {
       enabled: false,
-      duration: 300,
-      easing: 'ease',
       createElement: null,
       onCreate: null,
       onRemove: null
@@ -6028,7 +5990,7 @@
     if (this._isDestroyed) return this;
 
     var items = this._items;
-    if (!item.length) return this;
+    if (!items.length) return this;
 
     var fragment;
     var element;
@@ -6086,7 +6048,7 @@
     // dimensions are set, because otherwise there would be no hook for reacting
     // to container dimension changes.
     if (this._hasListeners(eventLayoutStart)) {
-      this._emit(eventLayoutStart, layout.items.slice(0));
+      this._emit(eventLayoutStart, layout.items.slice(0), instant === true);
     }
 
     function tryFinish() {

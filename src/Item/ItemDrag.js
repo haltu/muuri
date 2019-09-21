@@ -4,6 +4,12 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+// TODO: Firefox Focus has a smooth hiding/showing mechanism for the address
+// bar, but it also messes up the clientX/clientY calculations for Muuri. What
+// happens is that the dragged element moves more than it should while the
+// address bar is showing/hiding. It's not so bad an issue, but would be really
+// nice if we could offset the clientY with the address bar size somehow.
+
 import {
   actionMove,
   actionSwap,
@@ -22,7 +28,14 @@ import {
 
 import Dragger from '../Dragger/Dragger';
 
-import { addMoveTick, cancelMoveTick, addScrollTick, cancelScrollTick } from '../ticker';
+import {
+  addDragStartTick,
+  cancelDragStartTick,
+  addDragMoveTick,
+  cancelDragMoveTick,
+  addDragScrollTick,
+  cancelDragScrollTick
+} from '../ticker';
 
 import addClass from '../utils/addClass';
 import arrayInsert from '../utils/arrayInsert';
@@ -43,7 +56,6 @@ import transformProp from '../utils/transformProp';
 var startPredicateInactive = 0;
 var startPredicatePending = 1;
 var startPredicateResolved = 2;
-var startPredicateRejected = 3;
 
 /**
  * Bind touch interaction to an item.
@@ -82,6 +94,8 @@ function ItemDrag(item) {
   this._preStartCheck = this._preStartCheck.bind(this);
   this._preEndCheck = this._preEndCheck.bind(this);
   this._onScroll = this._onScroll.bind(this);
+  this._prepareStart = this._prepareStart.bind(this);
+  this._applyStart = this._applyStart.bind(this);
   this._prepareMove = this._prepareMove.bind(this);
   this._applyMove = this._applyMove.bind(this);
   this._prepareScroll = this._prepareScroll.bind(this);
@@ -127,6 +141,24 @@ function ItemDrag(item) {
  */
 ItemDrag.defaultStartPredicate = function(item, event, options) {
   var drag = item._drag;
+
+  // Make sure left button is pressed on mouse.
+  if (event.isFirst && event.srcEvent.button) {
+    return false;
+  }
+
+  // If the start event is trusted, non-cancelable and it's default action has
+  // not been prevented it is in most cases a sign that the gesture would be
+  // cancelled anyways right after it has started (e.g. starting drag while
+  // the page is scrolling).
+  if (
+    event.isFirst &&
+    event.srcEvent.isTrusted === true &&
+    event.srcEvent.defaultPrevented === false &&
+    event.srcEvent.cancelable === false
+  ) {
+    return false;
+  }
 
   // Final event logic. At this stage return value does not matter anymore,
   // the predicate is either resolved or it's not and there's nothing to do
@@ -355,10 +387,6 @@ ItemDrag.defaultSortPredicate = (function() {
  * @returns {ItemDrag}
  */
 ItemDrag.prototype.stop = function() {
-  var item = this._item;
-  var element = item._element;
-  var grid = this._getGrid();
-
   if (!this._isActive) return this;
 
   // If the item is being dropped into another grid, finish it up and return
@@ -368,25 +396,31 @@ ItemDrag.prototype.stop = function() {
     return this;
   }
 
-  // Cancel queued move and scroll ticks.
-  cancelMoveTick(item._id);
-  cancelScrollTick(item._id);
+  // Cancel queued ticks.
+  var itemId = this._item._id;
+  cancelDragStartTick(itemId);
+  cancelDragMoveTick(itemId);
+  cancelDragScrollTick(itemId);
 
-  // Remove scroll listeners.
-  this._unbindScrollListeners();
+  if (this._isStarted) {
+    // Remove scroll listeners.
+    this._unbindScrollListeners();
 
-  // Cancel overlap check.
-  this._checkOverlapDebounce('cancel');
+    // Cancel overlap check.
+    this._checkOverlapDebounce('cancel');
 
-  // Append item element to the container if it's not it's child. Also make
-  // sure the translate values are adjusted to account for the DOM shift.
-  if (element.parentNode !== grid._element) {
-    grid._element.appendChild(element);
-    element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+    // Append item element to the container if it's not it's child. Also make
+    // sure the translate values are adjusted to account for the DOM shift.
+    var element = item._element;
+    var grid = this._getGrid();
+    if (element.parentNode !== grid._element) {
+      grid._element.appendChild(element);
+      element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+    }
+
+    // Remove dragging class.
+    removeClass(element, grid._settings.itemDraggingClass);
   }
-
-  // Remove dragging class.
-  removeClass(element, grid._settings.itemDraggingClass);
 
   // Reset drag data.
   this._reset();
@@ -432,8 +466,8 @@ ItemDrag.prototype._getGrid = function() {
  * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._reset = function() {
-  // Is item being dragged?
   this._isActive = false;
+  this._isStarted = false;
 
   // The dragged item's container element.
   this._container = null;
@@ -442,7 +476,9 @@ ItemDrag.prototype._reset = function() {
   this._containingBlock = null;
 
   // Drag/scroll event data.
-  this._dragEvent = null;
+  this._dragStartEvent = null;
+  this._dragMoveEvent = null;
+  this._dragPrevMoveEvent = null;
   this._scrollEvent = null;
 
   // All the elements which need to be listened for scroll events during
@@ -681,7 +717,7 @@ ItemDrag.prototype._checkOverlap = function() {
 
   // Get overlap check result.
   if (isFunction(settings.dragSortPredicate)) {
-    result = settings.dragSortPredicate(item, this._dragEvent);
+    result = settings.dragSortPredicate(item, this._dragMoveEvent);
   } else {
     result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);
   }
@@ -911,7 +947,9 @@ ItemDrag.prototype._preStartCheck = function(event) {
       this._startPredicateState = startPredicateResolved;
       this._onStart(event);
     } else if (this._startPredicateResult === false) {
-      this._startPredicateState = startPredicateRejected;
+      this._resetStartPredicate(event);
+      this._dragger._reset();
+      this._startPredicateState = startPredicateInactive;
     }
   }
 
@@ -929,7 +967,6 @@ ItemDrag.prototype._preStartCheck = function(event) {
  * @param {DraggerEvent} event
  */
 ItemDrag.prototype._preEndCheck = function(event) {
-  // Check if the start predicate was resolved during drag.
   var isResolved = this._startPredicateState === startPredicateResolved;
 
   // Do final predicate check to allow user to unbind stuff for the current
@@ -937,11 +974,15 @@ ItemDrag.prototype._preEndCheck = function(event) {
   // check will have no effect to the state of the predicate.
   this._startPredicate(this._item, event);
 
-  // Reset start predicate state.
   this._startPredicateState = startPredicateInactive;
 
-  // If predicate is resolved and dragging is active, call the end handler.
-  if (isResolved && this._isActive) this._onEnd(event);
+  if (!isResolved || !this._isActive) return;
+
+  if (this._isStarted) {
+    this._onEnd(event);
+  } else {
+    this.stop();
+  }
 };
 
 /**
@@ -953,101 +994,114 @@ ItemDrag.prototype._preEndCheck = function(event) {
  */
 ItemDrag.prototype._onStart = function(event) {
   var item = this._item;
+  if (!item._isActive) return;
 
-  // If item is not active, don't start the drag.
+  this._isActive = true;
+  this._dragStartEvent = event;
+
+  this._resetHeuristics(event);
+  addDragStartTick(item._id, this._prepareStart, this._applyStart);
+};
+
+/**
+ * Prepare item to be dragged.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ */
+ItemDrag.prototype._prepareStart = function() {
+  var item = this._item;
   if (!item._isActive) return;
 
   var element = item._element;
   var grid = this._getGrid();
   var settings = grid._settings;
-  var release = item._dragRelease;
-  var migrate = item._migrate;
   var gridContainer = grid._element;
   var dragContainer = settings.dragContainer || gridContainer;
   var containingBlock = getContainingBlock(dragContainer);
   var translate = getTranslate(element);
-  var currentLeft = translate.x;
-  var currentTop = translate.y;
   var elementRect = element.getBoundingClientRect();
   var hasDragContainer = dragContainer !== gridContainer;
-  var offsetDiff, layoutStyles;
 
-  // Reset heuristics data.
-  this._resetHeuristics(event);
-
-  // If grid container is not the drag container, we need to calculate the
-  // offset difference between grid container and drag container's containing
-  // element.
-  if (hasDragContainer) {
-    offsetDiff = getOffsetDiff(containingBlock, gridContainer);
-  }
-
-  // Stop current positioning animation.
-  if (item.isPositioning()) {
-    layoutStyles = {};
-    layoutStyles[transformProp] = getTranslateString(currentLeft, currentTop);
-    item._layout.stop(true, layoutStyles);
-  }
-
-  // Stop current migration animation.
-  if (migrate._isActive) {
-    currentLeft -= migrate._containerDiffX;
-    currentTop -= migrate._containerDiffY;
-    migrate.stop(true, currentLeft, currentTop);
-  }
-
-  // If item is being released reset release data.
-  if (item.isReleasing()) release._reset();
-
-  // Setup drag data.
-  this._isActive = true;
-  this._dragEvent = event;
   this._container = dragContainer;
   this._containingBlock = containingBlock;
   this._elementClientX = elementRect.left;
   this._elementClientY = elementRect.top;
-  this._left = this._gridX = currentLeft;
-  this._top = this._gridY = currentTop;
+  this._left = this._gridX = translate.x;
+  this._top = this._gridY = translate.y;
 
-  // Create placeholder (if necessary).
-  if (settings.dragPlaceholder.enabled) {
+  // If a specific drag container is set and it is different from the
+  // grid's container element we store the offset between containers.
+  if (hasDragContainer) {
+    var offsetDiff = getOffsetDiff(containingBlock, gridContainer);
+    this._containerDiffX = offsetDiff.left;
+    this._containerDiffY = offsetDiff.top;
+  }
+};
+
+/**
+ * Start drag for the item.
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ */
+ItemDrag.prototype._applyStart = function() {
+  var item = this._item;
+  if (!item._isActive) return;
+
+  var grid = this._getGrid();
+  var element = item._element;
+  var release = item._dragRelease;
+  var migrate = item._migrate;
+  var hasDragContainer = this._container !== grid._element;
+
+  if (item.isPositioning()) {
+    var layoutStyles = {};
+    layoutStyles[transformProp] = getTranslateString(this._left, this._top);
+    item._layout.stop(true, layoutStyles);
+  }
+
+  if (migrate._isActive) {
+    this._left -= migrate._containerDiffX;
+    this._top -= migrate._containerDiffY;
+    this._gridX -= migrate._containerDiffX;
+    this._gridY -= migrate._containerDiffY;
+    migrate.stop(true, this._left, this._top);
+  }
+
+  if (item.isReleasing()) {
+    release._reset();
+  }
+
+  if (grid._settings.dragPlaceholder.enabled) {
     item._dragPlaceholder.create();
   }
 
-  // Emit dragInit event.
-  grid._emit(eventDragInit, item, event);
+  this._isStarted = true;
 
-  // If a specific drag container is set and it is different from the
-  // grid's container element we need to cast some extra spells.
+  grid._emit(eventDragInit, item, this._dragStartEvent);
+
   if (hasDragContainer) {
-    // Store the container offset diffs to drag data.
-    this._containerDiffX = offsetDiff.left;
-    this._containerDiffY = offsetDiff.top;
-
     // If the dragged element is a child of the drag container all we need to
     // do is setup the relative drag position data.
-    if (element.parentNode === dragContainer) {
-      this._gridX = currentLeft - this._containerDiffX;
-      this._gridY = currentTop - this._containerDiffY;
+    if (element.parentNode === this._container) {
+      this._gridX -= this._containerDiffX;
+      this._gridY -= this._containerDiffY;
     }
-
     // Otherwise we need to append the element inside the correct container,
     // setup the actual drag position data and adjust the element's translate
     // values to account for the DOM position shift.
     else {
-      this._left = currentLeft + this._containerDiffX;
-      this._top = currentTop + this._containerDiffY;
-      dragContainer.appendChild(element);
+      this._left += this._containerDiffX;
+      this._top += this._containerDiffY;
+      this._container.appendChild(element);
       element.style[transformProp] = getTranslateString(this._left, this._top);
     }
   }
 
-  // Set drag class and bind scrollers.
-  addClass(element, settings.itemDraggingClass);
+  addClass(element, grid._settings.itemDraggingClass);
   this._bindScrollListeners();
-
-  // Emit dragStart event.
-  grid._emit(eventDragStart, item, event);
+  grid._emit(eventDragStart, item, this._dragStartEvent);
 };
 
 /**
@@ -1060,36 +1114,13 @@ ItemDrag.prototype._onStart = function(event) {
 ItemDrag.prototype._onMove = function(event) {
   var item = this._item;
 
-  // If item is not active, reset drag.
   if (!item._isActive) {
     this.stop();
     return;
   }
 
-  var settings = this._getGrid()._settings;
-  var axis = settings.dragAxis;
-
-  // Update horizontal position data.
-  if (axis !== 'y') {
-    var xDiff = event.clientX - this._dragEvent.clientX;
-    this._left += xDiff;
-    this._gridX += xDiff;
-    this._elementClientX += xDiff;
-  }
-
-  // Update vertical position data.
-  if (axis !== 'x') {
-    var yDiff = event.clientY - this._dragEvent.clientY;
-    this._top += yDiff;
-    this._gridY += yDiff;
-    this._elementClientY += yDiff;
-  }
-
-  // Update event data.
-  this._dragEvent = event;
-
-  // Do move prepare/apply handling in the next tick.
-  addMoveTick(item._id, this._prepareMove, this._applyMove);
+  this._dragMoveEvent = event;
+  addDragMoveTick(item._id, this._prepareMove, this._applyMove);
 };
 
 /**
@@ -1099,12 +1130,33 @@ ItemDrag.prototype._onMove = function(event) {
  * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._prepareMove = function() {
-  // Do nothing if item is not active.
   if (!this._item._isActive) return;
 
-  // If drag sort is enabled -> check overlap.
+  var settings = this._getGrid()._settings;
+  var axis = settings.dragAxis;
+  var nextEvent = this._dragMoveEvent;
+  var prevEvent = this._dragPrevMoveEvent || this._dragStartEvent || nextEvent;
+
+  // Update horizontal position data.
+  if (axis !== 'y') {
+    var xDiff = nextEvent.clientX - prevEvent.clientX;
+    this._left += xDiff;
+    this._gridX += xDiff;
+    this._elementClientX += xDiff;
+  }
+
+  // Update vertical position data.
+  if (axis !== 'x') {
+    var yDiff = nextEvent.clientY - prevEvent.clientY;
+    this._top += yDiff;
+    this._gridY += yDiff;
+    this._elementClientY += yDiff;
+  }
+
+  this._dragPrevMoveEvent = nextEvent;
+
   if (this._getGrid()._settings.dragSort) {
-    if (this._checkHeuristics(this._dragEvent)) {
+    if (this._checkHeuristics(nextEvent)) {
       this._checkOverlapDebounce();
     }
   }
@@ -1118,15 +1170,10 @@ ItemDrag.prototype._prepareMove = function() {
  */
 ItemDrag.prototype._applyMove = function() {
   var item = this._item;
-
-  // Do nothing if item is not active.
   if (!item._isActive) return;
 
-  // Update element's translateX/Y values.
   item._element.style[transformProp] = getTranslateString(this._left, this._top);
-
-  // Emit dragMove event.
-  this._getGrid()._emit(eventDragMove, item, this._dragEvent);
+  this._getGrid()._emit(eventDragMove, item, this._dragMoveEvent);
 };
 
 /**
@@ -1139,17 +1186,13 @@ ItemDrag.prototype._applyMove = function() {
 ItemDrag.prototype._onScroll = function(event) {
   var item = this._item;
 
-  // If item is not active, reset drag.
   if (!item._isActive) {
     this.stop();
     return;
   }
 
-  // Update last scroll event.
   this._scrollEvent = event;
-
-  // Do scroll prepare/apply handling in the next tick.
-  addScrollTick(item._id, this._prepareScroll, this._applyScroll);
+  addDragScrollTick(item._id, this._prepareScroll, this._applyScroll);
 };
 
 /**
@@ -1207,14 +1250,9 @@ ItemDrag.prototype._prepareScroll = function() {
  */
 ItemDrag.prototype._applyScroll = function() {
   var item = this._item;
-
-  // If item is not active do nothing.
   if (!item._isActive) return;
 
-  // Update element's translateX/Y values.
   item._element.style[transformProp] = getTranslateString(this._left, this._top);
-
-  // Emit dragScroll event.
   this._getGrid()._emit(eventDragScroll, item, this._scrollEvent);
 };
 
@@ -1238,9 +1276,10 @@ ItemDrag.prototype._onEnd = function(event) {
     return;
   }
 
-  // Cancel queued move and scroll ticks.
-  cancelMoveTick(item._id);
-  cancelScrollTick(item._id);
+  // Cancel queued ticks.
+  cancelDragStartTick(item._id);
+  cancelDragMoveTick(item._id);
+  cancelDragScrollTick(item._id);
 
   // Finish currently queued overlap check.
   settings.dragSort && this._checkOverlapDebounce('finish');

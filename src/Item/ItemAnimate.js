@@ -94,6 +94,7 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   }
 
   // Cancel animation (if required).
+  // TODO: Cancel animation also if duration or easing has changed.
   if (cancelAnimation) animation.cancel();
 
   // Store animation callback.

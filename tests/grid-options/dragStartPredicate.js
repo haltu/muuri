@@ -115,7 +115,7 @@
     });
 
     utils.dragElement(item.getElement(), 0, 70, function () {
-      assert.strictEqual(counter, 2, 'predicate should be called twice');
+      assert.strictEqual(counter, 1, 'predicate should be called once');
       teardown();
     });
 

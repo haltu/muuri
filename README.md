@@ -235,8 +235,6 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   },
   dragPlaceholder: {
     enabled: false,
-    duration: 300,
-    easing: 'ease',
     createElement: null,
     onCreate: null,
     onRemove: null
@@ -982,7 +980,7 @@ var grid = new Muuri(elem, {
 
 ### dragPlaceholder &nbsp;
 
-If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here. Note that a special placeholder class is given to all drag placeholders and is customizable via [itemPlaceholderClass](#itemplaceholderclass-) option.
+If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here. The placeholder animation duration is fetched from the grid's `layoutDuration` option and easing from the grid's `layoutEasing` option. Note that a special placeholder class is given to all drag placeholders and is customizable via [itemPlaceholderClass](#itemplaceholderclass-) option.
 
 * Default value: `{enabled: false, duration: 300, easing: 'ease', createElement: null, onCreate: null, onRemove: null}`.
 * Accepted types: object.
@@ -992,12 +990,6 @@ You can define the following properties:
 * **enabled** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   * Is the placeholder enabled?
-* **duration** &nbsp;&mdash;&nbsp; *number*
-  * Default value: `300`.
-  * The duration for placeholder's positioning animation. Set to `0` to disable.
-* **easing** &nbsp;&mdash;&nbsp; *string*
-  * Default value: `'ease'`.
-  * The easing for placeholder's positioning animation. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
 * **createElement** &nbsp;&mdash;&nbsp; *function / null*
   * Default value: `null`.
   * If defined, this method will be used to create the DOM element that is used for the placeholder. By default a new `div` element is created when a placeholder is summoned.
@@ -1018,8 +1010,6 @@ var grid = new Muuri(elem, {
   dragEnabled: true,
   dragPlaceholder: {
     enabled: true,
-    duration: 400,
-    easing: 'ease-out',
     createElement(item) {
       return phPool.pop() || phElem.cloneNode();
     },
@@ -1717,10 +1707,12 @@ Triggered after `grid.layout()` is called, just before the items are positioned.
 
 * **items** &nbsp;&mdash;&nbsp; *array*
   * The items that are about to be positioned.
+* **isInstant** &nbsp;&mdash;&nbsp; *boolean*
+  * Was the layout called with `instant` flag or not.
 
 ```javascript
-grid.on('layoutStart', function (items) {
-  console.log(items);
+grid.on('layoutStart', function (items, isInstant) {
+  console.log(items, isInstant);
 });
 ```
 

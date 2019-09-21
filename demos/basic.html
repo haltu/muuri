@@ -81,9 +81,11 @@
       .grid-2 .item-content {
         background: green;
       }
-      .item.muuri-item-dragging .item-content,
-      .item.muuri-item-releasing .item-content {
+      .item.muuri-item-dragging .item-content {
         background: blue;
+      }
+      .item.muuri-item-releasing .item-content {
+        background: violet;
       }
       .item-handle {
         position: absolute;
@@ -133,7 +135,6 @@
           },
           dragPlaceholder: {
             enabled: true,
-            duration: 2000,
             createElement: function (item) {
               return item.getElement().cloneNode(true);
             }

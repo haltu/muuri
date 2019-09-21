@@ -10,8 +10,9 @@ var ticker = new Ticker();
 
 var layoutTick = 'layout';
 var visibilityTick = 'visibility';
-var moveTick = 'move';
-var scrollTick = 'scroll';
+var dragStartTick = 'dragstart';
+var dragMoveTick = 'dragmove';
+var dragScrollTick = 'dragscroll';
 var placeholderTick = 'placeholder';
 
 export default ticker;
@@ -32,20 +33,28 @@ export function cancelVisibilityTick(itemId) {
   return ticker.cancel(itemId + visibilityTick);
 }
 
-export function addMoveTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + moveTick, readCallback, writeCallback, true);
+export function addDragStartTick(itemId, readCallback, writeCallback) {
+  return ticker.add(itemId + dragStartTick, readCallback, writeCallback, true);
 }
 
-export function cancelMoveTick(itemId) {
-  return ticker.cancel(itemId + moveTick);
+export function cancelDragStartTick(itemId) {
+  return ticker.cancel(itemId + dragStartTick);
 }
 
-export function addScrollTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + scrollTick, readCallback, writeCallback, true);
+export function addDragMoveTick(itemId, readCallback, writeCallback) {
+  return ticker.add(itemId + dragMoveTick, readCallback, writeCallback, true);
 }
 
-export function cancelScrollTick(itemId) {
-  return ticker.cancel(itemId + scrollTick);
+export function cancelDragMoveTick(itemId) {
+  return ticker.cancel(itemId + dragMoveTick);
+}
+
+export function addDragScrollTick(itemId, readCallback, writeCallback) {
+  return ticker.add(itemId + dragScrollTick, readCallback, writeCallback, true);
+}
+
+export function cancelDragScrollTick(itemId) {
+  return ticker.cancel(itemId + dragScrollTick);
 }
 
 export function addPlaceholderTick(itemId, readCallback, writeCallback) {

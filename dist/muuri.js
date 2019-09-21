@@ -942,10 +942,11 @@
 
   var layoutTick = 'layout';
   var visibilityTick = 'visibility';
-  var dragStartTick = 'dragstart';
-  var dragMoveTick = 'dragmove';
-  var dragScrollTick = 'dragscroll';
-  var placeholderTick = 'placeholder';
+  var dragStartTick = 'drag-start';
+  var dragMoveTick = 'drag-move';
+  var dragScrollTick = 'drag-scroll';
+  var placeholderLayoutTick = 'ph-layout';
+  var placeholderResizeTick = 'ph-resize';
 
   function addLayoutTick(itemId, readCallback, writeCallback) {
     return ticker.add(itemId + layoutTick, readCallback, writeCallback);
@@ -987,12 +988,20 @@
     return ticker.cancel(itemId + dragScrollTick);
   }
 
-  function addPlaceholderTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + placeholderTick, readCallback, writeCallback);
+  function addPlaceholderLayoutTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + placeholderLayoutTick, readCallback, writeCallback);
   }
 
-  function cancelPlaceholderTick(itemId) {
-    return ticker.cancel(itemId + placeholderTick);
+  function cancelPlaceholderLayoutTick(itemId) {
+    return ticker.cancel(itemId + placeholderLayoutTick);
+  }
+
+  function addPlaceholderResizeTick(itemId, readCallback, writeCallback) {
+    return ticker.add(itemId + placeholderResizeTick, readCallback, writeCallback);
+  }
+
+  function cancelPlaceholderResizeTick(itemId) {
+    return ticker.cancel(itemId + placeholderResizeTick);
   }
 
   var ElProto = window.Element.prototype;
@@ -3076,6 +3085,8 @@
     return frame;
   }
 
+  function noop() {}
+
   /**
    * Drag placeholder.
    *
@@ -3099,6 +3110,7 @@
     // Bind animation handlers.
     this._setupAnimation = this._setupAnimation.bind(this);
     this._startAnimation = this._startAnimation.bind(this);
+    this.syncDimensions = this.syncDimensions(this);
 
     // Bind event handlers.
     this._onLayoutStart = this._onLayoutStart.bind(this);
@@ -3178,7 +3190,7 @@
     // avoid layout thrashing.
     this._nextTransX = nextX;
     this._nextTransY = nextY;
-    addPlaceholderTick(item._id, this._setupAnimation, this._startAnimation);
+    addPlaceholderLayoutTick(item._id, this._setupAnimation, this._startAnimation);
   };
 
   /**
@@ -3411,7 +3423,8 @@
     this._resetAfterLayout = false;
 
     // Cancel potential (queued) layout tick.
-    cancelPlaceholderTick(item._id);
+    cancelPlaceholderLayoutTick(item._id);
+    cancelPlaceholderResizeTick(item._id);
 
     // Reset animation instance.
     animation.stop();
@@ -3442,23 +3455,6 @@
   };
 
   /**
-   * Update placeholder's dimensions.
-   *
-   * @public
-   * @memberof ItemDragPlaceholder.prototype
-   * @param {Number} width
-   * @param {height} height
-   */
-  ItemDragPlaceholder.prototype.updateDimensions = function(width, height) {
-    if (this.isActive()) {
-      setStyles(this._element, {
-        width: width + 'px',
-        height: height + 'px'
-      });
-    }
-  };
-
-  /**
    * Check if placeholder is currently active (visible).
    *
    * @public
@@ -3478,6 +3474,31 @@
    */
   ItemDragPlaceholder.prototype.getElement = function() {
     return this._element;
+  };
+
+  /**
+   * Update placeholder's dimensions to match the item's dimensions.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   */
+  ItemDragPlaceholder.prototype.syncDimensions = function() {
+    if (!this.isActive()) return;
+    setStyles(this._element, {
+      width: this._item._width + 'px',
+      height: this._item._height + 'px'
+    });
+  };
+
+  /**
+   * Update placeholder's dimensions to match the item's dimensions,
+   * asynchronously.
+   *
+   * @public
+   * @memberof ItemDragPlaceholder.prototype
+   */
+  ItemDragPlaceholder.prototype.syncDimensionsAsync = function() {
+    addPlaceholderResizeTick(this._item._id, noop, this.syncDimensions);
   };
 
   /**
@@ -4884,9 +4905,7 @@
     this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
 
     // Keep drag placeholder's dimensions synced with the item's.
-    if (dragPlaceholder) {
-      dragPlaceholder.updateDimensions(this._width, this._height);
-    }
+    if (dragPlaceholder) dragPlaceholder.syncDimensionsAsync();
   };
 
   /**
@@ -5466,7 +5485,6 @@
   }
 
   var packer = new Packer();
-  var noop = function() {};
 
   var numberType$1 = 'number';
   var stringType = 'string';

@@ -4,7 +4,12 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { addPlaceholderTick, cancelPlaceholderTick } from '../ticker';
+import {
+  addPlaceholderLayoutTick,
+  cancelPlaceholderLayoutTick,
+  addPlaceholderResizeTick,
+  cancelPlaceholderResizeTick
+} from '../ticker';
 
 import { eventBeforeSend, eventDragReleaseEnd, eventLayoutStart, eventHideStart } from '../shared';
 
@@ -14,6 +19,7 @@ import addClass from '../utils/addClass';
 import getTranslateString from '../utils/getTranslateString';
 import getTranslate from '../utils/getTranslate';
 import isFunction from '../utils/isFunction';
+import noop from '../utils/noop';
 import setStyles from '../utils/setStyles';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
@@ -41,6 +47,7 @@ function ItemDragPlaceholder(item) {
   // Bind animation handlers.
   this._setupAnimation = this._setupAnimation.bind(this);
   this._startAnimation = this._startAnimation.bind(this);
+  this.syncDimensions = this.syncDimensions(this);
 
   // Bind event handlers.
   this._onLayoutStart = this._onLayoutStart.bind(this);
@@ -120,7 +127,7 @@ ItemDragPlaceholder.prototype._onLayoutStart = function(items, isInstant) {
   // avoid layout thrashing.
   this._nextTransX = nextX;
   this._nextTransY = nextY;
-  addPlaceholderTick(item._id, this._setupAnimation, this._startAnimation);
+  addPlaceholderLayoutTick(item._id, this._setupAnimation, this._startAnimation);
 };
 
 /**
@@ -353,7 +360,8 @@ ItemDragPlaceholder.prototype.reset = function() {
   this._resetAfterLayout = false;
 
   // Cancel potential (queued) layout tick.
-  cancelPlaceholderTick(item._id);
+  cancelPlaceholderLayoutTick(item._id);
+  cancelPlaceholderResizeTick(item._id);
 
   // Reset animation instance.
   animation.stop();
@@ -384,23 +392,6 @@ ItemDragPlaceholder.prototype.reset = function() {
 };
 
 /**
- * Update placeholder's dimensions.
- *
- * @public
- * @memberof ItemDragPlaceholder.prototype
- * @param {Number} width
- * @param {height} height
- */
-ItemDragPlaceholder.prototype.updateDimensions = function(width, height) {
-  if (this.isActive()) {
-    setStyles(this._element, {
-      width: width + 'px',
-      height: height + 'px'
-    });
-  }
-};
-
-/**
  * Check if placeholder is currently active (visible).
  *
  * @public
@@ -420,6 +411,31 @@ ItemDragPlaceholder.prototype.isActive = function() {
  */
 ItemDragPlaceholder.prototype.getElement = function() {
   return this._element;
+};
+
+/**
+ * Update placeholder's dimensions to match the item's dimensions.
+ *
+ * @public
+ * @memberof ItemDragPlaceholder.prototype
+ */
+ItemDragPlaceholder.prototype.syncDimensions = function() {
+  if (!this.isActive()) return;
+  setStyles(this._element, {
+    width: this._item._width + 'px',
+    height: this._item._height + 'px'
+  });
+};
+
+/**
+ * Update placeholder's dimensions to match the item's dimensions,
+ * asynchronously.
+ *
+ * @public
+ * @memberof ItemDragPlaceholder.prototype
+ */
+ItemDragPlaceholder.prototype.syncDimensionsAsync = function() {
+  addPlaceholderResizeTick(this._item._id, noop, this.syncDimensions);
 };
 
 /**

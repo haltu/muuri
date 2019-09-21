@@ -36,6 +36,7 @@ import Packer from '../Packer/Packer';
 import Dragger from '../Dragger/Dragger';
 
 import addClass from '../utils/addClass';
+import arrayInsert from '../utils/arrayInsert';
 import arrayMove from '../utils/arrayMove';
 import arraySwap from '../utils/arraySwap';
 import createUid from '../utils/createUid';
@@ -44,15 +45,14 @@ import elementMatches from '../utils/elementMatches';
 import getPrefixedPropName from '../utils/getPrefixedPropName';
 import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
-import arrayInsert from '../utils/arrayInsert';
 import isFunction from '../utils/isFunction';
 import isNodeList from '../utils/isNodeList';
 import isPlainObject from '../utils/isPlainObject';
+import noop from '../utils/noop';
 import removeClass from '../utils/removeClass';
 import toArray from '../utils/toArray';
 
 var packer = new Packer();
-var noop = function() {};
 
 var numberType = 'number';
 var stringType = 'string';

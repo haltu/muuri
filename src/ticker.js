@@ -10,10 +10,11 @@ var ticker = new Ticker();
 
 var layoutTick = 'layout';
 var visibilityTick = 'visibility';
-var dragStartTick = 'dragstart';
-var dragMoveTick = 'dragmove';
-var dragScrollTick = 'dragscroll';
-var placeholderTick = 'placeholder';
+var dragStartTick = 'drag-start';
+var dragMoveTick = 'drag-move';
+var dragScrollTick = 'drag-scroll';
+var placeholderLayoutTick = 'ph-layout';
+var placeholderResizeTick = 'ph-resize';
 
 export default ticker;
 
@@ -57,10 +58,18 @@ export function cancelDragScrollTick(itemId) {
   return ticker.cancel(itemId + dragScrollTick);
 }
 
-export function addPlaceholderTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + placeholderTick, readCallback, writeCallback);
+export function addPlaceholderLayoutTick(itemId, readCallback, writeCallback) {
+  return ticker.add(itemId + placeholderLayoutTick, readCallback, writeCallback);
 }
 
-export function cancelPlaceholderTick(itemId) {
-  return ticker.cancel(itemId + placeholderTick);
+export function cancelPlaceholderLayoutTick(itemId) {
+  return ticker.cancel(itemId + placeholderLayoutTick);
+}
+
+export function addPlaceholderResizeTick(itemId, readCallback, writeCallback) {
+  return ticker.add(itemId + placeholderResizeTick, readCallback, writeCallback);
+}
+
+export function cancelPlaceholderResizeTick(itemId) {
+  return ticker.cancel(itemId + placeholderResizeTick);
 }

@@ -284,7 +284,7 @@ Item.prototype._refreshDimensions = function() {
   this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
 
   // Keep drag placeholder's dimensions synced with the item's.
-  if (dragPlaceholder) dragPlaceholder.syncDimensionsAsync();
+  if (dragPlaceholder) dragPlaceholder.updateDimensions();
 };
 
 /**

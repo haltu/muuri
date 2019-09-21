@@ -3110,7 +3110,7 @@
     // Bind animation handlers.
     this._setupAnimation = this._setupAnimation.bind(this);
     this._startAnimation = this._startAnimation.bind(this);
-    this.syncDimensions = this.syncDimensions(this);
+    this._updateDimensions = this._updateDimensions.bind(this);
 
     // Bind event handlers.
     this._onLayoutStart = this._onLayoutStart.bind(this);
@@ -3124,6 +3124,20 @@
    * Private prototype methods
    * *************************
    */
+
+  /**
+   * Update placeholder's dimensions to match the item's dimensions.
+   *
+   * @private
+   * @memberof ItemDragPlaceholder.prototype
+   */
+  ItemDragPlaceholder.prototype._updateDimensions = function() {
+    if (!this.isActive()) return;
+    setStyles(this._element, {
+      width: this._item._width + 'px',
+      height: this._item._height + 'px'
+    });
+  };
 
   /**
    * Move placeholder to a new position.
@@ -3477,28 +3491,16 @@
   };
 
   /**
-   * Update placeholder's dimensions to match the item's dimensions.
+   * Update placeholder's dimensions to match the item's dimensions. Note that
+   * the updating is done asynchronously in the next tick to avoid layout
+   * thrashing.
    *
    * @public
    * @memberof ItemDragPlaceholder.prototype
    */
-  ItemDragPlaceholder.prototype.syncDimensions = function() {
+  ItemDragPlaceholder.prototype.updateDimensions = function() {
     if (!this.isActive()) return;
-    setStyles(this._element, {
-      width: this._item._width + 'px',
-      height: this._item._height + 'px'
-    });
-  };
-
-  /**
-   * Update placeholder's dimensions to match the item's dimensions,
-   * asynchronously.
-   *
-   * @public
-   * @memberof ItemDragPlaceholder.prototype
-   */
-  ItemDragPlaceholder.prototype.syncDimensionsAsync = function() {
-    addPlaceholderResizeTick(this._item._id, noop, this.syncDimensions);
+    addPlaceholderResizeTick(this._item._id, noop, this._updateDimensions);
   };
 
   /**
@@ -4905,7 +4907,7 @@
     this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
 
     // Keep drag placeholder's dimensions synced with the item's.
-    if (dragPlaceholder) dragPlaceholder.syncDimensionsAsync();
+    if (dragPlaceholder) dragPlaceholder.updateDimensions();
   };
 
   /**

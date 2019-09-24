@@ -10,66 +10,106 @@ var ticker = new Ticker();
 
 var layoutTick = 'layout';
 var visibilityTick = 'visibility';
-var dragStartTick = 'drag-start';
-var dragMoveTick = 'drag-move';
-var dragScrollTick = 'drag-scroll';
-var placeholderLayoutTick = 'ph-layout';
-var placeholderResizeTick = 'ph-resize';
+var dragStartTick = 'dragStart';
+var dragMoveTick = 'dragMove';
+var dragScrollTick = 'dragScroll';
+var phLayoutTick = 'phLayout';
+var phResizeTick = 'phResize';
+var debounceTick = 'debounce';
 
 export default ticker;
 
-export function addLayoutTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + layoutTick, readCallback, writeCallback);
+export function addLayoutTick(itemId, read, write) {
+  var id = layoutTick + itemId;
+  ticker.read(id, read);
+  ticker.write(id, write);
 }
 
 export function cancelLayoutTick(itemId) {
-  return ticker.cancel(itemId + layoutTick);
+  var id = layoutTick + itemId;
+  ticker.cancelRead(id);
+  ticker.cancelWrite(id);
 }
 
-export function addVisibilityTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + visibilityTick, readCallback, writeCallback);
+export function addVisibilityTick(itemId, read, write) {
+  var id = visibilityTick + itemId;
+  ticker.read(id, read);
+  ticker.write(id, write);
 }
 
 export function cancelVisibilityTick(itemId) {
-  return ticker.cancel(itemId + visibilityTick);
+  var id = visibilityTick + itemId;
+  ticker.cancelRead(id);
+  ticker.cancelWrite(id);
 }
 
-export function addDragStartTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + dragStartTick, readCallback, writeCallback, true);
+// TODO: Possbily needs to be prioritized.
+export function addDragStartTick(itemId, read, write) {
+  var id = dragStartTick + itemId;
+  ticker.read(id, read);
+  ticker.write(id, write);
 }
 
 export function cancelDragStartTick(itemId) {
-  return ticker.cancel(itemId + dragStartTick);
+  var id = dragStartTick + itemId;
+  ticker.cancelRead(id);
+  ticker.cancelWrite(id);
 }
 
-export function addDragMoveTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + dragMoveTick, readCallback, writeCallback, true);
+// TODO: Possbily needs to be prioritized.
+export function addDragMoveTick(itemId, read, write) {
+  var id = dragMoveTick + itemId;
+  ticker.read(id, read);
+  ticker.write(id, write);
 }
 
 export function cancelDragMoveTick(itemId) {
-  return ticker.cancel(itemId + dragMoveTick);
+  var id = dragMoveTick + itemId;
+  ticker.cancelRead(id);
+  ticker.cancelWrite(id);
 }
 
-export function addDragScrollTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + dragScrollTick, readCallback, writeCallback, true);
+// TODO: Possbily needs to be prioritized.
+export function addDragScrollTick(itemId, read, write) {
+  var id = dragScrollTick + itemId;
+  ticker.read(id, read);
+  ticker.write(id, write);
 }
 
 export function cancelDragScrollTick(itemId) {
-  return ticker.cancel(itemId + dragScrollTick);
+  var id = dragScrollTick + itemId;
+  ticker.cancelRead(id);
+  ticker.cancelWrite(id);
 }
 
-export function addPlaceholderLayoutTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + placeholderLayoutTick, readCallback, writeCallback);
+export function addPlaceholderLayoutTick(itemId, read, write) {
+  var id = phLayoutTick + itemId;
+  ticker.read(id, read);
+  ticker.write(id, write);
 }
 
 export function cancelPlaceholderLayoutTick(itemId) {
-  return ticker.cancel(itemId + placeholderLayoutTick);
+  var id = phLayoutTick + itemId;
+  ticker.cancelRead(id);
+  ticker.cancelWrite(id);
 }
 
-export function addPlaceholderResizeTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + placeholderResizeTick, readCallback, writeCallback);
+export function addPlaceholderResizeTick(itemId, write) {
+  var id = phResizeTick + itemId;
+  ticker.write(id, write);
 }
 
 export function cancelPlaceholderResizeTick(itemId) {
-  return ticker.cancel(itemId + placeholderResizeTick);
+  var id = phResizeTick + itemId;
+  ticker.cancelWrite(id);
+}
+
+export function addDebounceTick(debounceId, read) {
+  var id = debounceTick + debounceId;
+  ticker.read(id, read);
+}
+
+export function cancelDebounceTick(debounceId) {
+  var id = debounceTick + debounceId;
+  ticker.cancelRead(id);
 }

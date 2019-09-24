@@ -19,7 +19,6 @@ import addClass from '../utils/addClass';
 import getTranslateString from '../utils/getTranslateString';
 import getTranslate from '../utils/getTranslate';
 import isFunction from '../utils/isFunction';
-import noop from '../utils/noop';
 import setStyles from '../utils/setStyles';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
@@ -120,7 +119,7 @@ ItemDragPlaceholder.prototype._onLayoutStart = function(items, isInstant) {
   var animEnabled = !isInstant && grid._settings.layoutDuration > 0;
   if (!animEnabled || this._didMigrate) {
     // Cancel potential (queued) layout tick.
-    cancelPlaceholderTick(item._id);
+    cancelPlaceholderLayoutTick(item._id);
 
     // Snap placeholder to correct position.
     var targetStyles = {};
@@ -437,7 +436,7 @@ ItemDragPlaceholder.prototype.getElement = function() {
  */
 ItemDragPlaceholder.prototype.updateDimensions = function() {
   if (!this.isActive()) return;
-  addPlaceholderResizeTick(this._item._id, noop, this._updateDimensions);
+  addPlaceholderResizeTick(this._item._id, this._updateDimensions);
 };
 
 /**

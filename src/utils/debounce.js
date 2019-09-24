@@ -4,11 +4,10 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import ticker from '../ticker';
+import { addDebounceTick, cancelDebounceTick } from '../ticker';
 
 var actionCancel = 'cancel';
 var actionFinish = 'finish';
-var debounceTick = 'debounce';
 var debounceId = 0;
 
 /**
@@ -25,20 +24,20 @@ var debounceId = 0;
  */
 export default function debounce(fn, wait) {
   var timeout;
-  var tickerId = ++debounceId + debounceTick;
+  var id = ++debounceId;
 
   if (wait > 0) {
     return function(action) {
       if (timeout !== undefined) {
         timeout = window.clearTimeout(timeout);
-        ticker.cancel(tickerId);
+        cancelDebounceTick(id);
         if (action === actionFinish) fn();
       }
 
       if (action !== actionCancel && action !== actionFinish) {
         timeout = window.setTimeout(function() {
           timeout = undefined;
-          ticker.add(tickerId, fn, null, true);
+          addDebounceTick(id, fn);
         }, wait);
       }
     };

@@ -17,100 +17,111 @@ import raf from '../utils/raf';
 function Ticker() {
   this._nextStep = null;
 
-  this._queue = [];
+  this._readQueue = [];
+  this._writeQueue = [];
   this._reads = {};
   this._writes = {};
 
-  this._batch = [];
+  this._batchReadQueue = [];
+  this._batchWriteQueue = [];
   this._batchReads = {};
   this._batchWrites = {};
 
   this._step = this._step.bind(this);
 }
 
-Ticker.prototype.add = function(id, readOperation, writeOperation, ignoreDuplicate) {
-  // First, let's check if an item has been added to the queues with the same id
-  // and if so -> remove it.
-  var currentIndex = this._queue.indexOf(id);
-  if (currentIndex > -1) {
-    if (ignoreDuplicate) return;
-    this._queue[currentIndex] = undefined;
+Ticker.prototype._add = function(id, callback, queue, callbacks) {
+  var index = queue.indexOf(id);
+  if (index > -1) {
+    queue[index] = undefined;
   }
 
-  // Add entry.
-  this._queue.push(id);
-  this._reads[id] = readOperation;
-  this._writes[id] = writeOperation;
+  queue.push(id);
+  callbacks[id] = callback;
 
-  // Finally, let's kick-start the next tick if it is not running yet.
-  if (!this._nextStep) this._nextStep = raf(this._step);
+  if (!this._nextStep) {
+    this._nextStep = raf(this._step);
+  }
 };
 
-Ticker.prototype.cancel = function(id) {
-  var currentIndex = this._queue.indexOf(id);
-  if (currentIndex > -1) {
-    this._queue[currentIndex] = undefined;
-    delete this._reads[id];
-    delete this._writes[id];
-  }
+Ticker.prototype._remove = function(id, queue, callbacks) {
+  var index = queue.indexOf(id);
+  if (index === -1) return;
+  queue[index] = undefined;
+  delete callbacks[id];
 };
 
 Ticker.prototype._step = function() {
-  var queue = this._queue;
+  var readQueue = this._readQueue;
+  var writeQueue = this._writeQueue;
   var reads = this._reads;
   var writes = this._writes;
-  var batch = this._batch;
+  var batchReadQueue = this._batchReadQueue;
+  var batchWriteQueue = this._batchWriteQueue;
   var batchReads = this._batchReads;
   var batchWrites = this._batchWrites;
-  var length = queue.length;
-  var id;
-  var i;
+  var nReads = readQueue.length;
+  var nWrites = writeQueue.length;
+  var i, id;
 
-  // Reset ticker.
   this._nextStep = null;
 
-  // Setup queues and callback placeholders.
-  for (i = 0; i < length; i++) {
-    id = queue[i];
+  // Copy reads to batch.
+  for (i = 0; i < nReads; i++) {
+    id = readQueue[i];
     if (!id) continue;
-
-    batch.push(id);
-
+    batchReadQueue.push(id);
     batchReads[id] = reads[id];
     delete reads[id];
+  }
 
+  // Copy writes to batch.
+  for (i = 0; i < nWrites; i++) {
+    id = writeQueue[i];
+    if (!id) continue;
+    batchWriteQueue.push(id);
     batchWrites[id] = writes[id];
     delete writes[id];
   }
 
-  // Reset queue.
-  queue.length = 0;
+  readQueue.length = 0;
+  writeQueue.length = 0;
 
-  // Process read callbacks.
-  for (i = 0; i < length; i++) {
-    id = batch[i];
-    if (batchReads[id]) {
-      batchReads[id]();
-      delete batchReads[id];
-    }
+  nReads = batchReadQueue.length;
+  nWrites = batchWriteQueue.length;
+
+  // Process batch reads.
+  for (i = 0; i < nReads; i++) {
+    id = batchReadQueue[i];
+    if (batchReads[id]) batchReads[id]();
+    delete batchReads[id];
   }
 
-  // Process write callbacks.
-  for (i = 0; i < length; i++) {
-    id = batch[i];
-    if (batchWrites[id]) {
-      batchWrites[id]();
-      delete batchWrites[id];
-    }
+  // Process batch writes.
+  for (i = 0; i < nWrites; i++) {
+    id = batchWriteQueue[i];
+    if (batchWrites[id]) batchWrites[id]();
+    delete batchWrites[id];
   }
 
-  // Reset batch.
-  batch.length = 0;
+  batchReadQueue.length = 0;
+  batchWriteQueue.length = 0;
+};
 
-  // Restart the ticker if needed.
-  if (!this._nextStep && queue.length) {
-    this._nextStep = raf(this._step);
-  }
+Ticker.prototype.read = function(id, callback) {
+  this._add(id, callback, this._readQueue, this._reads);
+};
+
+Ticker.prototype.cancelRead = function(id) {
+  this._remove(id, this._readQueue, this._reads);
+};
+
+Ticker.prototype.write = function(id, callback) {
+  this._add(id, callback, this._writeQueue, this._writes);
+};
+
+Ticker.prototype.cancelWrite = function(id) {
+  this._remove(id, this._writeQueue, this._writes);
 };
 
 export default Ticker;

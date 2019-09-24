@@ -842,166 +842,217 @@
   function Ticker() {
     this._nextStep = null;
 
-    this._queue = [];
+    this._readQueue = [];
+    this._writeQueue = [];
     this._reads = {};
     this._writes = {};
 
-    this._batch = [];
+    this._batchReadQueue = [];
+    this._batchWriteQueue = [];
     this._batchReads = {};
     this._batchWrites = {};
 
     this._step = this._step.bind(this);
   }
 
-  Ticker.prototype.add = function(id, readOperation, writeOperation, ignoreDuplicate) {
-    // First, let's check if an item has been added to the queues with the same id
-    // and if so -> remove it.
-    var currentIndex = this._queue.indexOf(id);
-    if (currentIndex > -1) {
-      if (ignoreDuplicate) return;
-      this._queue[currentIndex] = undefined;
+  Ticker.prototype._add = function(id, callback, queue, callbacks) {
+    var index = queue.indexOf(id);
+    if (index > -1) {
+      queue[index] = undefined;
     }
 
-    // Add entry.
-    this._queue.push(id);
-    this._reads[id] = readOperation;
-    this._writes[id] = writeOperation;
+    queue.push(id);
+    callbacks[id] = callback;
 
-    // Finally, let's kick-start the next tick if it is not running yet.
-    if (!this._nextStep) this._nextStep = raf(this._step);
+    if (!this._nextStep) {
+      this._nextStep = raf(this._step);
+    }
   };
 
-  Ticker.prototype.cancel = function(id) {
-    var currentIndex = this._queue.indexOf(id);
-    if (currentIndex > -1) {
-      this._queue[currentIndex] = undefined;
-      delete this._reads[id];
-      delete this._writes[id];
-    }
+  Ticker.prototype._remove = function(id, queue, callbacks) {
+    var index = queue.indexOf(id);
+    if (index === -1) return;
+    queue[index] = undefined;
+    delete callbacks[id];
   };
 
   Ticker.prototype._step = function() {
-    var queue = this._queue;
+    var readQueue = this._readQueue;
+    var writeQueue = this._writeQueue;
     var reads = this._reads;
     var writes = this._writes;
-    var batch = this._batch;
+    var batchReadQueue = this._batchReadQueue;
+    var batchWriteQueue = this._batchWriteQueue;
     var batchReads = this._batchReads;
     var batchWrites = this._batchWrites;
-    var length = queue.length;
-    var id;
-    var i;
+    var nReads = readQueue.length;
+    var nWrites = writeQueue.length;
+    var i, id;
 
-    // Reset ticker.
     this._nextStep = null;
 
-    // Setup queues and callback placeholders.
-    for (i = 0; i < length; i++) {
-      id = queue[i];
+    // Copy reads to batch.
+    for (i = 0; i < nReads; i++) {
+      id = readQueue[i];
       if (!id) continue;
-
-      batch.push(id);
-
+      batchReadQueue.push(id);
       batchReads[id] = reads[id];
       delete reads[id];
+    }
 
+    // Copy writes to batch.
+    for (i = 0; i < nWrites; i++) {
+      id = writeQueue[i];
+      if (!id) continue;
+      batchWriteQueue.push(id);
       batchWrites[id] = writes[id];
       delete writes[id];
     }
 
-    // Reset queue.
-    queue.length = 0;
+    readQueue.length = 0;
+    writeQueue.length = 0;
 
-    // Process read callbacks.
-    for (i = 0; i < length; i++) {
-      id = batch[i];
-      if (batchReads[id]) {
-        batchReads[id]();
-        delete batchReads[id];
-      }
+    nReads = batchReadQueue.length;
+    nWrites = batchWriteQueue.length;
+
+    // Process batch reads.
+    for (i = 0; i < nReads; i++) {
+      id = batchReadQueue[i];
+      if (batchReads[id]) batchReads[id]();
+      delete batchReads[id];
     }
 
-    // Process write callbacks.
-    for (i = 0; i < length; i++) {
-      id = batch[i];
-      if (batchWrites[id]) {
-        batchWrites[id]();
-        delete batchWrites[id];
-      }
+    // Process batch writes.
+    for (i = 0; i < nWrites; i++) {
+      id = batchWriteQueue[i];
+      if (batchWrites[id]) batchWrites[id]();
+      delete batchWrites[id];
     }
 
-    // Reset batch.
-    batch.length = 0;
+    batchReadQueue.length = 0;
+    batchWriteQueue.length = 0;
+  };
 
-    // Restart the ticker if needed.
-    if (!this._nextStep && queue.length) {
-      this._nextStep = raf(this._step);
-    }
+  Ticker.prototype.read = function(id, callback) {
+    this._add(id, callback, this._readQueue, this._reads);
+  };
+
+  Ticker.prototype.cancelRead = function(id) {
+    this._remove(id, this._readQueue, this._reads);
+  };
+
+  Ticker.prototype.write = function(id, callback) {
+    this._add(id, callback, this._writeQueue, this._writes);
+  };
+
+  Ticker.prototype.cancelWrite = function(id) {
+    this._remove(id, this._writeQueue, this._writes);
   };
 
   var ticker = new Ticker();
 
   var layoutTick = 'layout';
   var visibilityTick = 'visibility';
-  var dragStartTick = 'drag-start';
-  var dragMoveTick = 'drag-move';
-  var dragScrollTick = 'drag-scroll';
-  var placeholderLayoutTick = 'ph-layout';
-  var placeholderResizeTick = 'ph-resize';
+  var dragStartTick = 'dragStart';
+  var dragMoveTick = 'dragMove';
+  var dragScrollTick = 'dragScroll';
+  var phLayoutTick = 'phLayout';
+  var phResizeTick = 'phResize';
+  var debounceTick = 'debounce';
 
-  function addLayoutTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + layoutTick, readCallback, writeCallback);
+  function addLayoutTick(itemId, read, write) {
+    var id = layoutTick + itemId;
+    ticker.read(id, read);
+    ticker.write(id, write);
   }
 
   function cancelLayoutTick(itemId) {
-    return ticker.cancel(itemId + layoutTick);
+    var id = layoutTick + itemId;
+    ticker.cancelRead(id);
+    ticker.cancelWrite(id);
   }
 
-  function addVisibilityTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + visibilityTick, readCallback, writeCallback);
+  function addVisibilityTick(itemId, read, write) {
+    var id = visibilityTick + itemId;
+    ticker.read(id, read);
+    ticker.write(id, write);
   }
 
   function cancelVisibilityTick(itemId) {
-    return ticker.cancel(itemId + visibilityTick);
+    var id = visibilityTick + itemId;
+    ticker.cancelRead(id);
+    ticker.cancelWrite(id);
   }
 
-  function addDragStartTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + dragStartTick, readCallback, writeCallback, true);
+  // TODO: Possbily needs to be prioritized.
+  function addDragStartTick(itemId, read, write) {
+    var id = dragStartTick + itemId;
+    ticker.read(id, read);
+    ticker.write(id, write);
   }
 
   function cancelDragStartTick(itemId) {
-    return ticker.cancel(itemId + dragStartTick);
+    var id = dragStartTick + itemId;
+    ticker.cancelRead(id);
+    ticker.cancelWrite(id);
   }
 
-  function addDragMoveTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + dragMoveTick, readCallback, writeCallback, true);
+  // TODO: Possbily needs to be prioritized.
+  function addDragMoveTick(itemId, read, write) {
+    var id = dragMoveTick + itemId;
+    ticker.read(id, read);
+    ticker.write(id, write);
   }
 
   function cancelDragMoveTick(itemId) {
-    return ticker.cancel(itemId + dragMoveTick);
+    var id = dragMoveTick + itemId;
+    ticker.cancelRead(id);
+    ticker.cancelWrite(id);
   }
 
-  function addDragScrollTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + dragScrollTick, readCallback, writeCallback, true);
+  // TODO: Possbily needs to be prioritized.
+  function addDragScrollTick(itemId, read, write) {
+    var id = dragScrollTick + itemId;
+    ticker.read(id, read);
+    ticker.write(id, write);
   }
 
   function cancelDragScrollTick(itemId) {
-    return ticker.cancel(itemId + dragScrollTick);
+    var id = dragScrollTick + itemId;
+    ticker.cancelRead(id);
+    ticker.cancelWrite(id);
   }
 
-  function addPlaceholderLayoutTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + placeholderLayoutTick, readCallback, writeCallback);
+  function addPlaceholderLayoutTick(itemId, read, write) {
+    var id = phLayoutTick + itemId;
+    ticker.read(id, read);
+    ticker.write(id, write);
   }
 
   function cancelPlaceholderLayoutTick(itemId) {
-    return ticker.cancel(itemId + placeholderLayoutTick);
+    var id = phLayoutTick + itemId;
+    ticker.cancelRead(id);
+    ticker.cancelWrite(id);
   }
 
-  function addPlaceholderResizeTick(itemId, readCallback, writeCallback) {
-    return ticker.add(itemId + placeholderResizeTick, readCallback, writeCallback);
+  function addPlaceholderResizeTick(itemId, write) {
+    var id = phResizeTick + itemId;
+    ticker.write(id, write);
   }
 
   function cancelPlaceholderResizeTick(itemId) {
-    return ticker.cancel(itemId + placeholderResizeTick);
+    var id = phResizeTick + itemId;
+    ticker.cancelWrite(id);
+  }
+
+  function addDebounceTick(debounceId, read) {
+    var id = debounceTick + debounceId;
+    ticker.read(id, read);
+  }
+
+  function cancelDebounceTick(debounceId) {
+    var id = debounceTick + debounceId;
+    ticker.cancelRead(id);
   }
 
   var ElProto = window.Element.prototype;
@@ -1131,7 +1182,6 @@
 
   var actionCancel = 'cancel';
   var actionFinish = 'finish';
-  var debounceTick = 'debounce';
   var debounceId = 0;
 
   /**
@@ -1148,20 +1198,20 @@
    */
   function debounce(fn, wait) {
     var timeout;
-    var tickerId = ++debounceId + debounceTick;
+    var id = ++debounceId;
 
     if (wait > 0) {
       return function(action) {
         if (timeout !== undefined) {
           timeout = window.clearTimeout(timeout);
-          ticker.cancel(tickerId);
+          cancelDebounceTick(id);
           if (action === actionFinish) fn();
         }
 
         if (action !== actionCancel && action !== actionFinish) {
           timeout = window.setTimeout(function() {
             timeout = undefined;
-            ticker.add(tickerId, fn, null, true);
+            addDebounceTick(id, fn);
           }, wait);
         }
       };
@@ -3085,8 +3135,6 @@
     return frame;
   }
 
-  function noop() {}
-
   /**
    * Drag placeholder.
    *
@@ -3183,7 +3231,7 @@
     var animEnabled = !isInstant && grid._settings.layoutDuration > 0;
     if (!animEnabled || this._didMigrate) {
       // Cancel potential (queued) layout tick.
-      cancelPlaceholderTick(item._id);
+      cancelPlaceholderLayoutTick(item._id);
 
       // Snap placeholder to correct position.
       var targetStyles = {};
@@ -3500,7 +3548,7 @@
    */
   ItemDragPlaceholder.prototype.updateDimensions = function() {
     if (!this.isActive()) return;
-    addPlaceholderResizeTick(this._item._id, noop, this._updateDimensions);
+    addPlaceholderResizeTick(this._item._id, this._updateDimensions);
   };
 
   /**
@@ -5475,6 +5523,8 @@
   function isPlainObject(val) {
     return typeof val === objectType && toString.call(val) === objectToStringType;
   }
+
+  function noop() {}
 
   /**
    * Converts a value to an array or clones an array.

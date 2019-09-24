@@ -209,6 +209,79 @@
     return this;
   };
 
+  var hasPointerEvents = !!window.PointerEvent;
+  var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
+  var pointerout = hasPointerEvents ? 'pointerout' : hasMsPointerEvents ? 'MSPointerOut' : '';
+  var waitDuration = 100;
+
+
+  function EdgeHack(dragger) {
+    this._dragger = dragger;
+    this._timeout = null;
+    this._outEvent = null;
+    this._isActive = false;
+
+    this._addBehaviour = this._addBehaviour.bind(this);
+    this._removeBehaviour = this._removeBehaviour.bind(this);
+    this._onTimeout = this._onTimeout.bind(this);
+    this._resetData = this._resetData.bind(this);
+    this._onStart = this._onStart.bind(this);
+    this._onOut = this._onOut.bind(this);
+
+    if (pointerout) {
+      this._dragger.on('start', this._onStart);
+    }
+  }
+
+  EdgeHack.prototype._addBehaviour = function() {
+    if (this._isActive) return;
+    this._isActive = true;
+    this._dragger.on('move', this._resetData);
+    this._dragger.on('cancel', this._removeBehaviour);
+    this._dragger.on('end', this._removeBehaviour);
+    window.addEventListener(pointerout, this._onOut);
+  };
+
+  EdgeHack.prototype._removeBehaviour = function() {
+    if (!this._isActive) return;
+    this._dragger.off('move', this._resetData);
+    this._dragger.off('cancel', this._removeBehaviour);
+    this._dragger.off('end', this._removeBehaviour);
+    window.removeEventListener(pointerout, this._onOut);
+    this._resetData();
+    this._isActive = false;
+  };
+
+  EdgeHack.prototype._resetData = function() {
+    window.clearTimeout(this._timeout);
+    this._timeout = null;
+    this._outEvent = null;
+  };
+
+  EdgeHack.prototype._onStart = function(e) {
+    if (e.pointerType === 'mouse') return;
+    this._addBehaviour();
+  };
+
+  EdgeHack.prototype._onOut = function(e) {
+    if (!this._dragger._getTrackedTouch(e)) return;
+    this._resetData();
+    this._outEvent = e;
+    this._timeout = window.setTimeout(this._onTimeout, waitDuration);
+  };
+
+  EdgeHack.prototype._onTimeout = function() {
+    var e = this._outEvent;
+    this._resetData();
+    if (this._dragger.isActive()) this._dragger._onCancel(e);
+  };
+
+  EdgeHack.prototype.destroy = function() {
+    if (!pointerout) return;
+    this._dragger.off('start', this._onStart);
+    this._removeBehaviour();
+  };
+
   // Playing it safe here, test all potential prefixes capitalized and lowercase.
   var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
 
@@ -256,10 +329,12 @@
   };
 
   var hasTouchEvents = 'ontouchstart' in window;
-  var hasPointerEvents = !!window.PointerEvent;
-  var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
+  var hasPointerEvents$1 = !!window.PointerEvent;
+  var hasMsPointerEvents$1 = !!window.navigator.msPointerEnabled;
 
   var ua = window.navigator.userAgent.toLowerCase();
+  var isEdge = ua.indexOf('edge') > -1;
+  var isIE = ua.indexOf('trident') > -1;
   var isFirefox = ua.indexOf('firefox') > -1;
   var isAndroid = ua.indexOf('android') > -1;
 
@@ -296,6 +371,12 @@
     this._onMove = this._onMove.bind(this);
     this._onCancel = this._onCancel.bind(this);
     this._onEnd = this._onEnd.bind(this);
+
+    // Can't believe had to build a freaking class for a hack!
+    this._edgeHack = null;
+    if ((isEdge || isIE) && (hasPointerEvents$1 || hasMsPointerEvents$1)) {
+      this._edgeHack = new EdgeHack(this);
+    }
 
     // Apply initial css props.
     this.setCssProps(cssProps);
@@ -348,8 +429,8 @@
 
   Dragger._events = (function() {
     if (hasTouchEvents) return Dragger._touchEvents;
-    if (hasPointerEvents) return Dragger._pointerEvents;
-    if (hasMsPointerEvents) return Dragger._msPointerEvents;
+    if (hasPointerEvents$1) return Dragger._pointerEvents;
+    if (hasMsPointerEvents$1) return Dragger._msPointerEvents;
     return Dragger._mouseEvents;
   })();
 
@@ -778,7 +859,7 @@
    *   - 'start', 'move', 'cancel' or 'end'.
    * @param {Function} listener
    */
-  Dragger.prototype.off = function(events, listener) {
+  Dragger.prototype.off = function(eventName, listener) {
     this._emitter.off(eventName, listener);
   };
 
@@ -793,6 +874,8 @@
 
     var element = this._element;
     var events = Dragger._events;
+
+    if (this._edgeHack) this._edgeHack.destroy();
 
     // Reset data and deactivate the instance.
     this._reset();

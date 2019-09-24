@@ -5,10 +5,8 @@
  * https://github.com/haltu/muuri/blob/master/src/Dragger/LICENSE.md
  */
 
-// TODO: Edge and IE11 have a bug where pointercancel event is not always
-// correctly emitted. Check if there's a way to circumvent that.
-
 import Emitter from '../Emitter/Emitter';
+import EdgeHack from './EdgeHack';
 
 import getPrefixedPropName from '../utils/getPrefixedPropName';
 
@@ -38,6 +36,8 @@ var hasPointerEvents = !!window.PointerEvent;
 var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
 
 var ua = window.navigator.userAgent.toLowerCase();
+var isEdge = ua.indexOf('edge') > -1;
+var isIE = ua.indexOf('trident') > -1;
 var isFirefox = ua.indexOf('firefox') > -1;
 var isAndroid = ua.indexOf('android') > -1;
 
@@ -74,6 +74,12 @@ function Dragger(element, cssProps) {
   this._onMove = this._onMove.bind(this);
   this._onCancel = this._onCancel.bind(this);
   this._onEnd = this._onEnd.bind(this);
+
+  // Can't believe had to build a freaking class for a hack!
+  this._edgeHack = null;
+  if ((isEdge || isIE) && (hasPointerEvents || hasMsPointerEvents)) {
+    this._edgeHack = new EdgeHack(this);
+  }
 
   // Apply initial css props.
   this.setCssProps(cssProps);
@@ -556,7 +562,7 @@ Dragger.prototype.on = function(eventName, listener) {
  *   - 'start', 'move', 'cancel' or 'end'.
  * @param {Function} listener
  */
-Dragger.prototype.off = function(events, listener) {
+Dragger.prototype.off = function(eventName, listener) {
   this._emitter.off(eventName, listener);
 };
 
@@ -571,6 +577,8 @@ Dragger.prototype.destroy = function() {
 
   var element = this._element;
   var events = Dragger._events;
+
+  if (this._edgeHack) this._edgeHack.destroy();
 
   // Reset data and deactivate the instance.
   this._reset();

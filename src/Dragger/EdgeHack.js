@@ -16,6 +16,7 @@ var waitDuration = 100;
  * works surprisingly well 99% of the time. There is that 1% chance there still
  * that dragged items get stuck but it is what it is.
  *
+ * @class
  * @param {Dragger} dragger
  */
 function EdgeHack(dragger) {
@@ -36,6 +37,10 @@ function EdgeHack(dragger) {
   }
 }
 
+/**
+ * @private
+ * @memberof EdgeHack.prototype
+ */
 EdgeHack.prototype._addBehaviour = function() {
   if (this._isActive) return;
   this._isActive = true;
@@ -45,6 +50,10 @@ EdgeHack.prototype._addBehaviour = function() {
   window.addEventListener(pointerout, this._onOut);
 };
 
+/**
+ * @private
+ * @memberof EdgeHack.prototype
+ */
 EdgeHack.prototype._removeBehaviour = function() {
   if (!this._isActive) return;
   this._dragger.off('move', this._resetData);
@@ -55,17 +64,31 @@ EdgeHack.prototype._removeBehaviour = function() {
   this._isActive = false;
 };
 
+/**
+ * @private
+ * @memberof EdgeHack.prototype
+ */
 EdgeHack.prototype._resetData = function() {
   window.clearTimeout(this._timeout);
   this._timeout = null;
   this._outEvent = null;
 };
 
+/**
+ * @private
+ * @memberof EdgeHack.prototype
+ * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+ */
 EdgeHack.prototype._onStart = function(e) {
   if (e.pointerType === 'mouse') return;
   this._addBehaviour();
 };
 
+/**
+ * @private
+ * @memberof EdgeHack.prototype
+ * @param {(PointerEvent|TouchEvent|MouseEvent)} e
+ */
 EdgeHack.prototype._onOut = function(e) {
   if (!this._dragger._getTrackedTouch(e)) return;
   this._resetData();
@@ -73,12 +96,20 @@ EdgeHack.prototype._onOut = function(e) {
   this._timeout = window.setTimeout(this._onTimeout, waitDuration);
 };
 
+/**
+ * @private
+ * @memberof EdgeHack.prototype
+ */
 EdgeHack.prototype._onTimeout = function() {
   var e = this._outEvent;
   this._resetData();
   if (this._dragger.isActive()) this._dragger._onCancel(e);
 };
 
+/**
+ * @public
+ * @memberof EdgeHack.prototype
+ */
 EdgeHack.prototype.destroy = function() {
   if (!pointerout) return;
   this._dragger.off('start', this._onStart);

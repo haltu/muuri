@@ -51,6 +51,10 @@
   var eventDragReleaseEnd = 'dragReleaseEnd';
   var eventDestroy = 'destroy';
 
+  var hasTouchEvents = 'ontouchstart' in window;
+  var hasPointerEvents = !!window.PointerEvent;
+  var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
+
   /**
    * Event emitter constructor.
    *
@@ -209,13 +213,13 @@
     return this;
   };
 
-  var hasPointerEvents = !!window.PointerEvent;
-  var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
   var pointerout = hasPointerEvents ? 'pointerout' : hasMsPointerEvents ? 'MSPointerOut' : '';
   var waitDuration = 100;
 
 
   function EdgeHack(dragger) {
+    if (!pointerout) return;
+
     this._dragger = dragger;
     this._timeout = null;
     this._outEvent = null;
@@ -228,9 +232,7 @@
     this._onStart = this._onStart.bind(this);
     this._onOut = this._onOut.bind(this);
 
-    if (pointerout) {
-      this._dragger.on('start', this._onStart);
-    }
+    this._dragger.on('start', this._onStart);
   }
 
   /**
@@ -350,18 +352,6 @@
     window.removeEventListener('testPassive', null, passiveOpts);
   } catch (e) {}
 
-  // Dragger events.
-  var events = {
-    start: 'start',
-    move: 'move',
-    end: 'end',
-    cancel: 'cancel'
-  };
-
-  var hasTouchEvents = 'ontouchstart' in window;
-  var hasPointerEvents$1 = !!window.PointerEvent;
-  var hasMsPointerEvents$1 = !!window.navigator.msPointerEnabled;
-
   var ua = window.navigator.userAgent.toLowerCase();
   var isEdge = ua.indexOf('edge') > -1;
   var isIE = ua.indexOf('trident') > -1;
@@ -404,7 +394,7 @@
 
     // Can't believe had to build a freaking class for a hack!
     this._edgeHack = null;
-    if ((isEdge || isIE) && (hasPointerEvents$1 || hasMsPointerEvents$1)) {
+    if ((isEdge || isIE) && (hasPointerEvents || hasMsPointerEvents)) {
       this._edgeHack = new EdgeHack(this);
     }
 
@@ -421,7 +411,7 @@
     element.addEventListener('dragstart', Dragger._preventDefault, false);
 
     // Listen to start event.
-    element.addEventListener(Dragger._events.start, this._onStart, listenerOptions);
+    element.addEventListener(Dragger._inputEvents.start, this._onStart, listenerOptions);
   }
 
   /**
@@ -457,14 +447,21 @@
     end: 'mouseup'
   };
 
-  Dragger._events = (function() {
+  Dragger._inputEvents = (function() {
     if (hasTouchEvents) return Dragger._touchEvents;
-    if (hasPointerEvents$1) return Dragger._pointerEvents;
-    if (hasMsPointerEvents$1) return Dragger._msPointerEvents;
+    if (hasPointerEvents) return Dragger._pointerEvents;
+    if (hasMsPointerEvents) return Dragger._msPointerEvents;
     return Dragger._mouseEvents;
   })();
 
   Dragger._emitter = new Emitter();
+
+  Dragger._emitterEvents = {
+    start: 'start',
+    move: 'move',
+    end: 'end',
+    cancel: 'cancel'
+  };
 
   Dragger._activeInstances = [];
 
@@ -482,9 +479,9 @@
     if (index > -1) return;
 
     Dragger._activeInstances.push(instance);
-    Dragger._emitter.on(events.move, instance._onMove);
-    Dragger._emitter.on(events.cancel, instance._onCancel);
-    Dragger._emitter.on(events.end, instance._onEnd);
+    Dragger._emitter.on(Dragger._emitterEvents.move, instance._onMove);
+    Dragger._emitter.on(Dragger._emitterEvents.cancel, instance._onCancel);
+    Dragger._emitter.on(Dragger._emitterEvents.end, instance._onEnd);
 
     if (Dragger._activeInstances.length === 1) {
       Dragger._bindListeners();
@@ -496,9 +493,9 @@
     if (index === -1) return;
 
     Dragger._activeInstances.splice(index, 1);
-    Dragger._emitter.off(events.move, instance._onMove);
-    Dragger._emitter.off(events.cancel, instance._onCancel);
-    Dragger._emitter.off(events.end, instance._onEnd);
+    Dragger._emitter.off(Dragger._emitterEvents.move, instance._onMove);
+    Dragger._emitter.off(Dragger._emitterEvents.cancel, instance._onCancel);
+    Dragger._emitter.off(Dragger._emitterEvents.end, instance._onEnd);
 
     if (!Dragger._activeInstances.length) {
       Dragger._unbindListeners();
@@ -506,17 +503,19 @@
   };
 
   Dragger._bindListeners = function() {
-    var events = Dragger._events;
-    window.addEventListener(events.move, Dragger._onMove, listenerOptions);
-    window.addEventListener(events.end, Dragger._onEnd, listenerOptions);
-    events.cancel && window.addEventListener(events.cancel, Dragger._onCancel, listenerOptions);
+    window.addEventListener(Dragger._inputEvents.move, Dragger._onMove, listenerOptions);
+    window.addEventListener(Dragger._inputEvents.end, Dragger._onEnd, listenerOptions);
+    if (Dragger._inputEvents.cancel) {
+      window.addEventListener(Dragger._inputEvents.cancel, Dragger._onCancel, listenerOptions);
+    }
   };
 
   Dragger._unbindListeners = function() {
-    var events = Dragger._events;
-    window.removeEventListener(events.move, Dragger._onMove, listenerOptions);
-    window.removeEventListener(events.end, Dragger._onEnd, listenerOptions);
-    events.cancel && window.removeEventListener(events.cancel, Dragger._onCancel, listenerOptions);
+    window.removeEventListener(Dragger._inputEvents.move, Dragger._onMove, listenerOptions);
+    window.removeEventListener(Dragger._inputEvents.end, Dragger._onEnd, listenerOptions);
+    if (Dragger._inputEvents.cancel) {
+      window.removeEventListener(Dragger._inputEvents.cancel, Dragger._onCancel, listenerOptions);
+    }
   };
 
   Dragger._getEventPointerId = function(event) {
@@ -558,15 +557,15 @@
   };
 
   Dragger._onMove = function(e) {
-    Dragger._emitter.emit(events.move, e);
+    Dragger._emitter.emit(Dragger._emitterEvents.move, e);
   };
 
   Dragger._onCancel = function(e) {
-    Dragger._emitter.emit(events.cancel, e);
+    Dragger._emitter.emit(Dragger._emitterEvents.cancel, e);
   };
 
   Dragger._onEnd = function(e) {
-    Dragger._emitter.emit(events.end, e);
+    Dragger._emitter.emit(Dragger._emitterEvents.end, e);
   };
 
   /**
@@ -609,9 +608,9 @@
       distance: this.getDistance(),
       deltaX: this.getDeltaX(),
       deltaY: this.getDeltaY(),
-      deltaTime: type === events.start ? 0 : this.getDeltaTime(),
-      isFirst: type === events.start,
-      isFinal: type === events.end || type === events.cancel,
+      deltaTime: type === Dragger._emitterEvents.start ? 0 : this.getDeltaTime(),
+      isFirst: type === Dragger._emitterEvents.start,
+      isFinal: type === Dragger._emitterEvents.end || type === Dragger._emitterEvents.cancel,
       pointerType: e.pointerType || (e.touches ? 'touch' : 'mouse'),
       // Partial Touch API interface.
       identifier: this._pointerId,
@@ -656,7 +655,7 @@
   };
 
   /**
-   * Start the drag procedure if possible.
+   * Handler for start event.
    *
    * @private
    * @memberof Dragger.prototype
@@ -678,7 +677,7 @@
     this._startY = this._currentY = touch.clientY;
     this._startTime = Date.now();
     this._isActive = true;
-    this._emit(events.start, e);
+    this._emit(Dragger._emitterEvents.start, e);
 
     // If the drag procedure was not reset within the start procedure let's
     // activate the instance (start listening to move/cancel/end events).
@@ -699,7 +698,7 @@
     if (!touch) return;
     this._currentX = touch.clientX;
     this._currentY = touch.clientY;
-    this._emit(events.move, e);
+    this._emit(Dragger._emitterEvents.move, e);
   };
 
   /**
@@ -711,7 +710,7 @@
    */
   Dragger.prototype._onCancel = function(e) {
     if (!this._getTrackedTouch(e)) return;
-    this._emit(events.cancel, e);
+    this._emit(Dragger._emitterEvents.cancel, e);
     this._reset();
   };
 
@@ -724,7 +723,7 @@
    */
   Dragger.prototype._onEnd = function(e) {
     if (!this._getTrackedTouch(e)) return;
-    this._emit(events.end, e);
+    this._emit(Dragger._emitterEvents.end, e);
     this._reset();
   };
 
@@ -903,7 +902,6 @@
     if (this._isDestroyed) return;
 
     var element = this._element;
-    var events = Dragger._events;
 
     if (this._edgeHack) this._edgeHack.destroy();
 
@@ -914,7 +912,7 @@
     this._emitter.destroy();
 
     // Unbind event handlers.
-    element.removeEventListener(events.start, this._onStart, listenerOptions);
+    element.removeEventListener(Dragger._inputEvents.start, this._onStart, listenerOptions);
     element.removeEventListener('dragstart', Dragger._preventDefault, false);
     element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
 
@@ -940,7 +938,7 @@
     window.msRequestAnimationFrame ||
     function(callback) {
       return this.setTimeout(function() {
-        callback(dt);
+        callback(Date.now());
       }, dt);
     }
   ).bind(window);
@@ -7285,12 +7283,10 @@
 
     // Normalize visible styles (prefix and remove invalid).
     for (prop in styles) {
-      // TODO: Should we remove style properties that do not have a value?
-      // if (!styles[prop]) continue;
+      if (!styles[prop]) continue;
       prefixedProp = getPrefixedPropName(docElemStyle, prop);
-      if (prefixedProp) {
-        normalized[prefixedProp] = styles[prop];
-      }
+      if (!prefixedProp) continue;
+      normalized[prefixedProp] = styles[prop];
     }
 
     return normalized;

@@ -21,7 +21,7 @@ import {
   eventMove,
   eventDestroy,
   gridInstances
-} from '../shared';
+} from '../constants';
 
 import Emitter from '../Emitter/Emitter';
 import Item from '../Item/Item';

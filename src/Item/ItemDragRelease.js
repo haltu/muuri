@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { eventDragReleaseStart, eventDragReleaseEnd } from '../shared';
+import { eventDragReleaseStart, eventDragReleaseEnd } from '../constants';
 
 import addClass from '../utils/addClass';
 import getTranslate from '../utils/getTranslate';

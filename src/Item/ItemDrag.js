@@ -24,7 +24,7 @@ import {
   eventDragScroll,
   eventDragEnd,
   gridInstances
-} from '../shared';
+} from '../constants';
 
 import Dragger from '../Dragger/Dragger';
 

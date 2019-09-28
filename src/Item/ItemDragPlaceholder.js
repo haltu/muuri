@@ -11,7 +11,12 @@ import {
   cancelPlaceholderResizeTick
 } from '../ticker';
 
-import { eventBeforeSend, eventDragReleaseEnd, eventLayoutStart, eventHideStart } from '../shared';
+import {
+  eventBeforeSend,
+  eventDragReleaseEnd,
+  eventLayoutStart,
+  eventHideStart
+} from '../constants';
 
 import ItemAnimate from '../Item/ItemAnimate';
 

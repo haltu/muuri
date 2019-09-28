@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { eventBeforeSend, eventBeforeReceive, eventSend, eventReceive } from '../shared';
+import { eventBeforeSend, eventBeforeReceive, eventSend, eventReceive } from '../constants';
 
 import ItemDrag from './ItemDrag';
 

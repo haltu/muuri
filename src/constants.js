@@ -33,3 +33,7 @@ export var eventDragEnd = 'dragEnd';
 export var eventDragReleaseStart = 'dragReleaseStart';
 export var eventDragReleaseEnd = 'dragReleaseEnd';
 export var eventDestroy = 'destroy';
+
+export var hasTouchEvents = 'ontouchstart' in window;
+export var hasPointerEvents = !!window.PointerEvent;
+export var hasMsPointerEvents = !!window.navigator.msPointerEnabled;

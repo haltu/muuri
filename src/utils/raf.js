@@ -13,7 +13,7 @@ var raf = (
   window.msRequestAnimationFrame ||
   function(callback) {
     return this.setTimeout(function() {
-      callback(dt);
+      callback(Date.now());
     }, dt);
   }
 ).bind(window);

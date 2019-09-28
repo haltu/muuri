@@ -1,5 +1,5 @@
-var hasPointerEvents = !!window.PointerEvent;
-var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
+import { hasPointerEvents, hasMsPointerEvents } from '../constants';
+
 var pointerout = hasPointerEvents ? 'pointerout' : hasMsPointerEvents ? 'MSPointerOut' : '';
 var waitDuration = 100;
 
@@ -20,6 +20,8 @@ var waitDuration = 100;
  * @param {Dragger} dragger
  */
 function EdgeHack(dragger) {
+  if (!pointerout) return;
+
   this._dragger = dragger;
   this._timeout = null;
   this._outEvent = null;
@@ -32,9 +34,7 @@ function EdgeHack(dragger) {
   this._onStart = this._onStart.bind(this);
   this._onOut = this._onOut.bind(this);
 
-  if (pointerout) {
-    this._dragger.on('start', this._onStart);
-  }
+  this._dragger.on('start', this._onStart);
 }
 
 /**

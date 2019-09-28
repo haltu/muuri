@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { gridInstances } from '../shared';
+import { gridInstances } from '../constants';
 
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';

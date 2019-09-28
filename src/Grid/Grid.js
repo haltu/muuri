@@ -1688,12 +1688,10 @@ function normalizeStyles(styles) {
 
   // Normalize visible styles (prefix and remove invalid).
   for (prop in styles) {
-    // TODO: Should we remove style properties that do not have a value?
-    // if (!styles[prop]) continue;
+    if (!styles[prop]) continue;
     prefixedProp = getPrefixedPropName(docElemStyle, prop);
-    if (prefixedProp) {
-      normalized[prefixedProp] = styles[prop];
-    }
+    if (!prefixedProp) continue;
+    normalized[prefixedProp] = styles[prop];
   }
 
   return normalized;

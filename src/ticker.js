@@ -43,7 +43,6 @@ export function cancelVisibilityTick(itemId) {
   ticker.cancelWrite(id);
 }
 
-// TODO: Possbily needs to be prioritized.
 export function addDragStartTick(itemId, read, write) {
   var id = dragStartTick + itemId;
   ticker.read(id, read);
@@ -56,7 +55,6 @@ export function cancelDragStartTick(itemId) {
   ticker.cancelWrite(id);
 }
 
-// TODO: Possbily needs to be prioritized.
 export function addDragMoveTick(itemId, read, write) {
   var id = dragMoveTick + itemId;
   ticker.read(id, read);
@@ -69,7 +67,6 @@ export function cancelDragMoveTick(itemId) {
   ticker.cancelWrite(id);
 }
 
-// TODO: Possbily needs to be prioritized.
 export function addDragScrollTick(itemId, read, write) {
   var id = dragScrollTick + itemId;
   ticker.read(id, read);

@@ -1095,7 +1095,6 @@
     ticker.cancelWrite(id);
   }
 
-  // TODO: Possbily needs to be prioritized.
   function addDragStartTick(itemId, read, write) {
     var id = dragStartTick + itemId;
     ticker.read(id, read);
@@ -1108,7 +1107,6 @@
     ticker.cancelWrite(id);
   }
 
-  // TODO: Possbily needs to be prioritized.
   function addDragMoveTick(itemId, read, write) {
     var id = dragMoveTick + itemId;
     ticker.read(id, read);
@@ -1121,7 +1119,6 @@
     ticker.cancelWrite(id);
   }
 
-  // TODO: Possbily needs to be prioritized.
   function addDragScrollTick(itemId, read, write) {
     var id = dragScrollTick + itemId;
     ticker.read(id, read);
@@ -3971,7 +3968,6 @@
     if (this._isDestroyed) return;
 
     var item = this._item;
-    var element = item._element;
     var release = item._dragRelease;
     var gridSettings = item.getGrid()._settings;
     var isPositioning = this._isActive;
@@ -3982,9 +3978,12 @@
     var animEasing = isJustReleased ? gridSettings.dragReleaseEasing : gridSettings.layoutEasing;
     var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
 
-    // If the item is currently positioning process current layout callback
-    // queue with interrupted flag on.
-    if (isPositioning) this._queue.process(true, item);
+    // If the item is currently positioning cancel potential queued layout tick
+    // and process current layout callback queue with interrupted flag on.
+    if (isPositioning) {
+      cancelLayoutTick(item._id);
+      this._queue.process(true, item);
+    }
 
     // Mark release positioning as started.
     if (isJustReleased) release._isPositioningStarted = true;
@@ -3992,17 +3991,17 @@
     // Push the callback to the callback queue.
     if (isFunction(onFinish)) this._queue.add(onFinish);
 
+    // Reset animation skipping flag.
+    this._skipNextAnimation = false;
+
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
       this._updateOffsets();
       this._updateTargetStyles();
-      if (this._isActive) {
-        this.stop(false, this._targetStyles);
-      } else {
-        setStyles(element, this._targetStyles);
-      }
-      this._skipNextAnimation = false;
-      return this._finish();
+      setStyles(item._element, this._targetStyles);
+      this._animation.stop(false);
+      this._finish();
+      return this;
     }
 
     // Kick off animation to be started in the next tick.
@@ -4162,21 +4161,22 @@
   ItemLayout.prototype._startAnimation = function() {
     var item = this._item;
     var settings = item.getGrid()._settings;
+    var isInstant = this._animOptions.duration <= 0;
 
     // Let's update the offset data and target styles.
     this._updateOffsets();
     this._updateTargetStyles();
 
-    // If the item is already in correct position (or near it) let's quit early.
     var xDiff = Math.abs(item._left - (this._currentLeft - this._offsetLeft));
     var yDiff = Math.abs(item._top - (this._currentTop - this._offsetTop));
-    if (xDiff < minDistanceToAnimate && yDiff < minDistanceToAnimate) {
+
+    // If there is no need for animation or if the item is already in correct
+    // position (or near it) let's finish the process early.
+    if (isInstant || (xDiff < minDistanceToAnimate && yDiff < minDistanceToAnimate)) {
       if (xDiff || yDiff || this._isInterrupted) {
         setStyles(item._element, this._targetStyles);
       }
-      if (this._isInterrupted) {
-        this._animation.stop(false);
-      }
+      this._animation.stop(false);
       this._finish();
       return;
     }

@@ -3935,7 +3935,9 @@
     this._offsetTop = 0;
     this._skipNextAnimation = false;
     this._animOptions = {
-      onFinish: this._finish.bind(this)
+      onFinish: this._finish.bind(this),
+      duration: 0,
+      easing: 0
     };
 
     // Set element's initial position styles.
@@ -3979,7 +3981,6 @@
       : gridSettings.layoutDuration;
     var animEasing = isJustReleased ? gridSettings.dragReleaseEasing : gridSettings.layoutEasing;
     var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
-    var isAnimating;
 
     // If the item is currently positioning process current layout callback
     // queue with interrupted flag on.
@@ -3995,9 +3996,11 @@
     if (!animEnabled) {
       this._updateOffsets();
       this._updateTargetStyles();
-      isAnimating = this._animation.isAnimating();
-      this.stop(false, this._targetStyles);
-      !isAnimating && setStyles(element, this._targetStyles);
+      if (this._isActive) {
+        this.stop(false, this._targetStyles);
+      } else {
+        setStyles(element, this._targetStyles);
+      }
       this._skipNextAnimation = false;
       return this._finish();
     }
@@ -4168,12 +4171,12 @@
     var xDiff = Math.abs(item._left - (this._currentLeft - this._offsetLeft));
     var yDiff = Math.abs(item._top - (this._currentTop - this._offsetTop));
     if (xDiff < minDistanceToAnimate && yDiff < minDistanceToAnimate) {
-      if (this._isInterrupted) {
-        this.stop(false, this._targetStyles);
-      } else if (xDiff || yDiff) {
+      if (xDiff || yDiff || this._isInterrupted) {
         setStyles(item._element, this._targetStyles);
       }
-      this._isActive = false;
+      if (this._isInterrupted) {
+        this._animation.stop(false);
+      }
       this._finish();
       return;
     }
@@ -6009,112 +6012,6 @@
   };
 
   /**
-   * Update grid options.
-   *
-   * @public
-   * @memberof Grid.prototype
-   * @param {Object} options
-   * @returns {Object}
-   */
-  Grid.prototype.updateOptions = function(options) {
-    var element = this._element;
-    var changedProps = Object.keys(options);
-    var oldSettings = this._settings;
-    var newSettings = mergeSettings(oldSettings, options);
-    var items = this._items;
-    var i, item;
-
-    // Sanitize `dragSort` setting.
-    if (!isFunction(newSettings.dragSort)) {
-      newSettings.dragSort = !!newSettings.dragSort;
-    }
-
-    // Update settings to the instance.
-    this._settings = newSettings;
-
-    // Disable/enable dragging for items.
-    if (changedProps.indexOf('dragEnabled') > -1) {
-      // Disable dragging.
-      if (oldSettings.dragEnabled && !newSettings.dragEnabled) {
-        this._settings = oldSettings;
-        for (i = 0; i < items.length; i++) {
-          item = items[i];
-          if (item._drag) {
-            item._drag.destroy();
-            item._drag = null;
-          }
-        }
-        this._settings = newSettings;
-      }
-
-      // Enable dragging.
-      if (!oldSettings.dragEnabled && newSettings.dragEnabled) {
-        for (i = 0; i < items.length; i++) {
-          item = items[i];
-          if (!item._drag) {
-            item._drag = new ItemDrag(item);
-          }
-        }
-      }
-    }
-
-    // Update drag CSS properties.
-    if (changedProps.indexOf('dragCssProps') > -1) {
-      if (oldSettings.dragEnabled && newSettings.dragEnabled) {
-        for (i = 0; i < items.length; i++) {
-          item = items[i];
-          if (item._drag) {
-            item._drag._dragger.setCssProps(newSettings.dragCssProps);
-          }
-        }
-      }
-    }
-
-    // Update container element's class name.
-    if (changedProps.indexOf('containerClass') > -1) {
-      if (oldSettings.containerClass !== newSettings.containerClass) {
-        removeClass(element, oldSettings.containerClass);
-        addClass(element, newSettings.containerClass);
-      }
-    }
-
-    // Reset sort data if it potentially changed.
-    if (changedProps.indexOf('sortData') > -1) {
-      for (i = 0; i < items.length; i++) {
-        items[i]._sortData = null;
-      }
-    }
-
-    // Rebind `layoutOnResize`.
-    if (changedProps.indexOf('layoutOnResize') > -1) {
-      unbindLayoutOnResize(this);
-      bindLayoutOnResize(this, newSettings.layoutOnResize);
-    }
-
-    // Update visible styles.
-    if (changedProps.indexOf('visibleStyles') > -1) {
-      newSettings.visibleStyles = normalizeStyles(newSettings.visibleStyles);
-      // TODO: More work is needed here...
-    }
-
-    // Update hidden styles.
-    if (changedProps.indexOf('hiddenStyles') > -1) {
-      newSettings.hiddenStyles = normalizeStyles(newSettings.hiddenStyles);
-      // TODO: More work is needed here...
-    }
-
-    // TODO: How to handle `dragStartPredicate` change?
-    // TODO: How to handle `dragSortPredicate` change?
-    // TODO: How to handle `dragSortHeuristics` change?
-    // TODO: How to handle `dragPlaceholder` change?
-    // TODO: How to handle item class changes (performantly)?
-    // TODO: How to handle visible/hidden style changes?
-    // TODO: Should we call layout if it potentially changed?
-
-    return newSettings;
-  };
-
-  /**
    * Update the cached dimensions of the instance's items.
    *
    * @public
@@ -7136,9 +7033,6 @@
 
     // Handle visible/hidden styles manually so that the whole object is
     // overridden instead of the props.
-    // TODO: Rethink if there's a better way to do this since it's a bit weird
-    // to have this kind of exception in the merge logic for two specific
-    // properties... might kick in the dev nuts if not careful.
 
     if (userSettings && userSettings.visibleStyles) {
       settings.visibleStyles = userSettings.visibleStyles;

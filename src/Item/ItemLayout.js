@@ -38,7 +38,9 @@ function ItemLayout(item) {
   this._offsetTop = 0;
   this._skipNextAnimation = false;
   this._animOptions = {
-    onFinish: this._finish.bind(this)
+    onFinish: this._finish.bind(this),
+    duration: 0,
+    easing: 0
   };
 
   // Set element's initial position styles.
@@ -82,7 +84,6 @@ ItemLayout.prototype.start = function(instant, onFinish) {
     : gridSettings.layoutDuration;
   var animEasing = isJustReleased ? gridSettings.dragReleaseEasing : gridSettings.layoutEasing;
   var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
-  var isAnimating;
 
   // If the item is currently positioning process current layout callback
   // queue with interrupted flag on.
@@ -98,9 +99,11 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   if (!animEnabled) {
     this._updateOffsets();
     this._updateTargetStyles();
-    isAnimating = this._animation.isAnimating();
-    this.stop(false, this._targetStyles);
-    !isAnimating && setStyles(element, this._targetStyles);
+    if (this._isActive) {
+      this.stop(false, this._targetStyles);
+    } else {
+      setStyles(element, this._targetStyles);
+    }
     this._skipNextAnimation = false;
     return this._finish();
   }
@@ -271,12 +274,12 @@ ItemLayout.prototype._startAnimation = function() {
   var xDiff = Math.abs(item._left - (this._currentLeft - this._offsetLeft));
   var yDiff = Math.abs(item._top - (this._currentTop - this._offsetTop));
   if (xDiff < minDistanceToAnimate && yDiff < minDistanceToAnimate) {
-    if (this._isInterrupted) {
-      this.stop(false, this._targetStyles);
-    } else if (xDiff || yDiff) {
+    if (xDiff || yDiff || this._isInterrupted) {
       setStyles(item._element, this._targetStyles);
     }
-    this._isActive = false;
+    if (this._isInterrupted) {
+      this._animation.stop(false);
+    }
     this._finish();
     return;
   }

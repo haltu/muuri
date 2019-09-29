@@ -1435,9 +1435,6 @@ function mergeSettings(defaultSettings, userSettings) {
 
   // Handle visible/hidden styles manually so that the whole object is
   // overridden instead of the props.
-  // TODO: Rethink if there's a better way to do this since it's a bit weird
-  // to have this kind of exception in the merge logic for two specific
-  // properties... might kick in the dev nuts if not careful.
 
   if (userSettings && userSettings.visibleStyles) {
     settings.visibleStyles = userSettings.visibleStyles;

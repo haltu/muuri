@@ -12,6 +12,7 @@ export var actionMove = 'move';
 export var eventSynchronize = 'synchronize';
 export var eventLayoutStart = 'layoutStart';
 export var eventLayoutEnd = 'layoutEnd';
+export var eventLayoutAbort = 'layoutAbort';
 export var eventAdd = 'add';
 export var eventRemove = 'remove';
 export var eventShowStart = 'showStart';

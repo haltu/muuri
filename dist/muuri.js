@@ -29,6 +29,7 @@
   var eventSynchronize = 'synchronize';
   var eventLayoutStart = 'layoutStart';
   var eventLayoutEnd = 'layoutEnd';
+  var eventLayoutAbort = 'layoutAbort';
   var eventAdd = 'add';
   var eventRemove = 'remove';
   var eventShowStart = 'showStart';
@@ -6104,9 +6105,6 @@
   /**
    * Calculate and apply item positions.
    *
-   * @todo Consider emitting `layoutChanged/Aborted` event if another layout is
-   * called before the current layout procedure has finished.
-   *
    * @public
    * @memberof Grid.prototype
    * @param {Boolean} [instant=false]
@@ -6153,9 +6151,16 @@
         callback(hasLayoutChanged, layout.items.slice(0));
       }
 
-      // Emit layoutEnd only if the layout has not changed.
-      if (!hasLayoutChanged && grid._hasListeners(eventLayoutEnd)) {
-        grid._emit(eventLayoutEnd, layout.items.slice(0));
+      // Emit layoutEnd/Abort depending on whether the layout finished without
+      // interruptions or not.
+      if (hasLayoutChanged) {
+        if (grid._hasListeners(eventLayoutAbort)) {
+          grid._emit(eventLayoutAbort, layout.items.slice(0));
+        }
+      } else {
+        if (grid._hasListeners(eventLayoutEnd)) {
+          grid._emit(eventLayoutEnd, layout.items.slice(0));
+        }
       }
     }
 

@@ -1667,6 +1667,7 @@ grid.destroy(true);
 * [synchronize](#synchronize)
 * [layoutStart](#layoutstart)
 * [layoutEnd](#layoutend)
+* [layoutAbort](#layoutabort)
 * [add](#add)
 * [remove](#remove)
 * [showStart](#showstart)
@@ -1701,7 +1702,7 @@ grid.on('synchronize', function () {
 
 ### layoutStart
 
-Triggered after `grid.layout()` is called, just before the items are positioned. More specifically, this event is emitted right after new _layout_ has been generated, internal item positions updated and grid element's dimensions updated. After this event is emitted the items in the layout will be positioned to their new positions. So if you e.g. want to react to grid element dimension changes this is a good place to do that.
+Triggered when the the layout procedure begins. More specifically, this event is emitted right after new _layout_ has been generated, internal item positions updated and grid element's dimensions updated. After this event is emitted the items in the layout will be positioned to their new positions. So if you e.g. want to react to grid element dimension changes this is a good place to do that.
 
 **Arguments**
 
@@ -1718,15 +1719,38 @@ grid.on('layoutStart', function (items, isInstant) {
 
 ### layoutEnd
 
-Triggered after `grid.layout()` is called, after all of the items have positioned without interruptions. Note that if you call `grid.layout()` before the previous layout process has finished the `layoutEnd` event of the previous process will never be emitted.
+Triggered after the layout procedure has finished without interruptions.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument. So if, for example, you destroy an item during the layout animation and don't do another layout the destroyed item will still be included in this array of items.
+  * The items that were positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument.
 
 ```javascript
 grid.on('layoutEnd', function (items) {
+  console.log(items);
+  // For good measure you might want to
+  // filter out all the non-active items,
+  // because it's techniclly possible that
+  // some of the items are destroyed/hidden
+  // when we receive this event.
+  var activeItems = items.filter(function(item) {
+    return item.isActive();
+  });
+});
+```
+
+### layoutAbort
+
+Triggered if the layout procedure is interrupted for some reason and does not finish properly. E.g. if you call `grid.layout()` while the previous layout process has not finished (items still positioning) then this event will be emitted instead of `layoutEnd`.
+
+**Arguments**
+
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * The items that were positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument.
+
+```javascript
+grid.on('layoutAbort', function (items) {
   console.log(items);
   // For good measure you might want to
   // filter out all the non-active items,

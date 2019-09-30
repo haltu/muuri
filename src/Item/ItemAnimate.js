@@ -23,6 +23,8 @@ var hasNativeWebAnimations = !!(Element && isNative(Element.prototype.animate));
 function ItemAnimate(element) {
   this._element = element;
   this._animation = null;
+  this._duration = 0;
+  this._easing = '';
   this._callback = null;
   this._props = [];
   this._values = [];
@@ -65,6 +67,8 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   var animation = this._animation;
   var currentProps = this._props;
   var currentValues = this._values;
+  var duration = opts.duration || 300;
+  var easing = opts.easing || 'ease';
   var cancelAnimation = false;
   var propName, propCount, propIndex;
 
@@ -73,28 +77,34 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   if (animation) {
     propCount = 0;
 
-    // Check if the requested animation target props and values match with the
-    // current props and values.
-    for (propName in propsTo) {
-      ++propCount;
-      propIndex = currentProps.indexOf(propName);
-      if (propIndex === -1 || propsTo[propName] !== currentValues[propIndex]) {
-        cancelAnimation = true;
-        break;
-      }
+    // Cancel animation if duration or easing has changed.
+    if (duration !== this._duration || easing !== this._easing) {
+      cancelAnimation = true;
     }
 
-    // Check if the target props count matches current props count. This is
-    // needed for the edge case scenario where target props contain the same
-    // styles as current props, but the current props have some additional
-    // props.
-    if (!cancelAnimation && propCount !== currentProps.length) {
-      cancelAnimation = true;
+    // Check if the requested animation target props and values match with the
+    // current props and values.
+    if (!cancelAnimation) {
+      for (propName in propsTo) {
+        ++propCount;
+        propIndex = currentProps.indexOf(propName);
+        if (propIndex === -1 || propsTo[propName] !== currentValues[propIndex]) {
+          cancelAnimation = true;
+          break;
+        }
+      }
+
+      // Check if the target props count matches current props count. This is
+      // needed for the edge case scenario where target props contain the same
+      // styles as current props, but the current props have some additional
+      // props.
+      if (propCount !== currentProps.length) {
+        cancelAnimation = true;
+      }
     }
   }
 
   // Cancel animation (if required).
-  // TODO: Cancel animation also if duration or easing has changed.
   if (cancelAnimation) animation.cancel();
 
   // Store animation callback.
@@ -114,14 +124,16 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   // Start the animation. We need to provide unprefixed property names to the
   // Web Animations polyfill if it is being used. If we have native Web
   // Animations available we need to provide prefixed properties instead.
+  this._duration = duration;
+  this._easing = easing;
   this._animation = element.animate(
     [
       createFrame(propsFrom, !hasNativeWebAnimations),
       createFrame(propsTo, !hasNativeWebAnimations)
     ],
     {
-      duration: opts.duration || 300,
-      easing: opts.easing || 'ease'
+      duration: duration,
+      easing: easing
     }
   );
   this._animation.onfinish = this._onFinish;

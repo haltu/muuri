@@ -5765,6 +5765,7 @@
     this._isDestroyed = false;
 
     // The layout object (immutable).
+    this._isLayoutFinished = true;
     this._layout = {
       id: 0,
       items: [],
@@ -6114,6 +6115,10 @@
   Grid.prototype.layout = function(instant, onFinish) {
     if (this._isDestroyed) return this;
 
+    if (!this._isLayoutFinished && this._hasListeners(eventLayoutAbort)) {
+      this._emit(eventLayoutAbort, this._layout.items.slice(0));
+    }
+
     var grid = this;
     var layout = this._getLayout();
     var numItems = layout.items.length;
@@ -6145,22 +6150,16 @@
       var hasLayoutChanged = grid._layout.id !== layout.id;
       var callback = isFunction(instant) ? instant : onFinish;
 
-      // onFinish callback will be called _always_ after all items in the layout
-      // have finished/aborted positioning.
-      if (isFunction(callback)) {
-        callback(hasLayoutChanged, layout.items.slice(0));
+      if (!hasLayoutChanged) {
+        grid._isLayoutFinished = true;
       }
 
-      // Emit layoutEnd/Abort depending on whether the layout finished without
-      // interruptions or not.
-      if (hasLayoutChanged) {
-        if (grid._hasListeners(eventLayoutAbort)) {
-          grid._emit(eventLayoutAbort, layout.items.slice(0));
-        }
-      } else {
-        if (grid._hasListeners(eventLayoutEnd)) {
-          grid._emit(eventLayoutEnd, layout.items.slice(0));
-        }
+      if (isFunction(callback)) {
+        callback(layout.items.slice(0), hasLayoutChanged);
+      }
+
+      if (!hasLayoutChanged && grid._hasListeners(eventLayoutEnd)) {
+        grid._emit(eventLayoutEnd, layout.items.slice(0));
       }
     }
 
@@ -6169,6 +6168,7 @@
       return this;
     }
 
+    this._isLayoutFinished = false;
     for (i = 0; i < numItems; i++) {
       item = layout.items[i];
 

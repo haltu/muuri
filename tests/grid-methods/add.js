@@ -159,7 +159,7 @@
       teardown();
     });
 
-    grid.add(elem, {layout: function (isInterrupted, items) {
+    grid.add(elem, {layout: function (items) {
       args = items;
     }});
 

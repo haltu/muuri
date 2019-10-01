@@ -160,7 +160,7 @@
       teardown();
     });
 
-    grid.remove(0, {layout: function (isInterrupted, items) {
+    grid.remove(0, {layout: function (items) {
       args = items;
     }});
 

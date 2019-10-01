@@ -75,10 +75,10 @@
 
     grid
     .move(0, -1, {layout: false})
-    .layout(function (isInterrupted, items) {
+    .layout(function (items, isInterrupted) {
       assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
-      assert.strictEqual(isInterrupted, false, 'callback: first argument should be a boolean that is true if the layout process was interrupted');
-      assert.deepEqual(idList(items), idList(utils.getActiveItems(grid)), 'callback: second argument should be an array of the positioned items (all active items)');
+      assert.deepEqual(idList(items), idList(utils.getActiveItems(grid)), 'callback: first argument should be an array of the positioned items (all active items)');
+      assert.strictEqual(isInterrupted, false, 'callback: second argument should be a boolean that is true if the layout process was interrupted');
       assert.strictEqual(items[0].isPositioning(), false, 'callback: items should not be in positioning state');
       teardown();
     });

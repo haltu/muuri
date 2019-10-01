@@ -1269,8 +1269,8 @@ Calculate item positions and move items to their calculated positions, unless th
 * **callback** &nbsp;&mdash;&nbsp; *function*
   * A callback function that is called after every item in the layout has finished/aborted positioning.
   * Receives two arguments:
-    * A boolean indicating if the layout has changed or not.
     * An array of all the items in the layout.
+    * A boolean indicating if the layout has changed or not.
   * Optional.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
@@ -1286,7 +1286,7 @@ grid.layout(true);
 
 // Layout all items and define a callback that will be called
 // after all items have been animated to their positions.
-grid.layout(function (hasLayoutChanged, items) {
+grid.layout(function (items, hasLayoutChanged) {
   // If hasLayoutChanged is `true` it means that there has been another layout
   // call before this layout had time to finish positioning all the items.
   console.log('layout done!');
@@ -1719,7 +1719,7 @@ grid.on('layoutStart', function (items, isInstant) {
 
 ### layoutEnd
 
-Triggered after the layout procedure has finished without interruptions.
+Triggered after the layout procedure has finished, successfully. Note that if you abort a layout procedure by calling `grid.layout()` _before_ items have finished positioning, this event will not be emitted for the aborted layout procedure. In such a case `layoutAbort` will be emitted instead.
 
 **Arguments**
 
@@ -1729,11 +1729,9 @@ Triggered after the layout procedure has finished without interruptions.
 ```javascript
 grid.on('layoutEnd', function (items) {
   console.log(items);
-  // For good measure you might want to
-  // filter out all the non-active items,
-  // because it's techniclly possible that
-  // some of the items are destroyed/hidden
-  // when we receive this event.
+  // For good measure you might want to filter out all the non-active items,
+  // because it's techniclly possible that some of the items are
+  // destroyed/hidden when we receive this event.
   var activeItems = items.filter(function(item) {
     return item.isActive();
   });
@@ -1742,21 +1740,19 @@ grid.on('layoutEnd', function (items) {
 
 ### layoutAbort
 
-Triggered if the layout procedure is interrupted for some reason and does not finish properly. E.g. if you call `grid.layout()` while the previous layout process has not finished (items still positioning) then this event will be emitted instead of `layoutEnd`.
+Triggered if you start a new layout process (`grid.layout()`) while the current layout process is still busy positioning items.
 
 **Arguments**
 
 * **items** &nbsp;&mdash;&nbsp; *array*
-  * The items that were positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument.
+  * The items that were attempted to be positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument.
 
 ```javascript
 grid.on('layoutAbort', function (items) {
-  console.log(items);
-  // For good measure you might want to
-  // filter out all the non-active items,
-  // because it's techniclly possible that
-  // some of the items are destroyed/hidden
-  // when we receive this event.
+  console.log(activeItems);
+  // For good measure you might want to filter out all the non-active items,
+  // because it's techniclly possible that some of the items are
+  // destroyed/hidden when we receive this event.
   var activeItems = items.filter(function(item) {
     return item.isActive();
   });

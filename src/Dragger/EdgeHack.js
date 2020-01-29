@@ -1,6 +1,13 @@
-import { hasPointerEvents, hasMsPointerEvents } from '../constants';
+/**
+ * Muuri Dragger
+ * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
+ * Released under the MIT license
+ * https://github.com/haltu/muuri/blob/master/src/Dragger/LICENSE.md
+ */
 
-var pointerout = hasPointerEvents ? 'pointerout' : hasMsPointerEvents ? 'MSPointerOut' : '';
+import { HAS_POINTER_EVENTS, HAS_MS_POINTER_EVENTS } from '../constants';
+
+var pointerout = HAS_POINTER_EVENTS ? 'pointerout' : HAS_MS_POINTER_EVENTS ? 'MSPointerOut' : '';
 var waitDuration = 100;
 
 /**

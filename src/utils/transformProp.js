@@ -6,7 +6,6 @@
 
 import getPrefixedPropName from './getPrefixedPropName';
 
-var transformProp =
-  getPrefixedPropName(window.document.documentElement.style, 'transform') || 'transform';
+var transformProp = getPrefixedPropName(document.documentElement.style, 'transform') || 'transform';
 
 export default transformProp;

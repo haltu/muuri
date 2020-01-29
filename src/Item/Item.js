@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { gridInstances } from '../constants';
+import { GRID_INSTANCES } from '../constants';
 
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';
@@ -70,13 +70,11 @@ function Item(grid, element, isActive) {
   // Set up release handler. Note that although this is fully linked to dragging
   // this still needs to be always instantiated to handle migration scenarios
   // correctly.
-  // TODO: Try to move this inside ItemDrag.
   this._dragRelease = new ItemDragRelease(this);
 
   // Set up drag placeholder handler. Note that although this is fully linked to
   // dragging this still needs to be always instantiated to handle migration
   // scenarios correctly.
-  // TODO: Try to move this inside ItemDrag.
   this._dragPlaceholder = new ItemDragPlaceholder(this);
 
   // Set up the initial dimensions and sort data.
@@ -97,7 +95,7 @@ function Item(grid, element, isActive) {
  * @returns {Grid}
  */
 Item.prototype.getGrid = function() {
-  return gridInstances[this._gridId];
+  return GRID_INSTANCES[this._gridId];
 };
 
 /**

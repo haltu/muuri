@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { eventDragReleaseStart, eventDragReleaseEnd } from '../constants';
+import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END } from '../constants';
 
 import addClass from '../utils/addClass';
 import getTranslate from '../utils/getTranslate';
@@ -47,17 +47,14 @@ ItemDragRelease.prototype.start = function() {
 
   var item = this._item;
   var grid = item.getGrid();
+  var settings = grid._settings;
 
-  // Flag release as active.
   this._isActive = true;
-
-  // Add release class name to the released element.
-  addClass(item._element, grid._settings.itemReleasingClass);
-
-  // Emit dragReleaseStart event.
-  grid._emit(eventDragReleaseStart, item);
-
-  // Position the released item.
+  addClass(item._element, settings.itemReleasingClass);
+  if (!settings.dragRelease.useDragContainer) {
+    this._placeToGrid();
+  }
+  grid._emit(EVENT_DRAG_RELEASE_START, item);
   item._layout.start(false);
 
   return this;
@@ -83,34 +80,17 @@ ItemDragRelease.prototype.stop = function(abort, left, top) {
   if (this._isDestroyed || !this._isActive) return this;
 
   var item = this._item;
-  var element = item._element;
   var grid = item.getGrid();
-  var container = grid._element;
-  var translate;
 
-  // Reset data and remove releasing class name from the element.
-  this._reset();
-
-  // If the released element is outside the grid's container element put it
-  // back there and adjust position accordingly.
-  if (element.parentNode !== container) {
-    if (left === undefined || top === undefined) {
-      if (abort) {
-        translate = getTranslate(element);
-        left = translate.x - this._containerDiffX;
-        top = translate.y - this._containerDiffY;
-      } else {
-        left = item._left;
-        top = item._top;
-      }
-    }
-
-    container.appendChild(element);
-    element.style[transformProp] = getTranslateString(left, top);
+  if (!abort && (left === undefined || top === undefined)) {
+    left = item._left;
+    top = item._top;
   }
 
-  // Emit dragReleaseEnd event.
-  if (!abort) grid._emit(eventDragReleaseEnd, item);
+  this._placeToGrid(left, top);
+  this._reset();
+
+  if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
 
   return this;
 };
@@ -134,6 +114,40 @@ ItemDragRelease.prototype.destroy = function() {
  * Private prototype methods
  * *************************
  */
+
+/**
+ * Move the element back to the grid container element if it does not exist
+ * there already.
+ *
+ * @private
+ * @param {Number} [left]
+ *  - The element's current translateX value (optional).
+ * @param {Number} [top]
+ *  - The element's current translateY value (optional).
+ * @memberof ItemDragRelease.prototype
+ */
+ItemDragRelease.prototype._placeToGrid = function(left, top) {
+  if (this._isDestroyed) return;
+
+  var item = this._item;
+  var element = item._element;
+  var grid = item.getGrid();
+  var container = grid._element;
+
+  if (element.parentNode !== container) {
+    if (left === undefined || top === undefined) {
+      var translate = getTranslate(element);
+      left = translate.x - this._containerDiffX;
+      top = translate.y - this._containerDiffY;
+    }
+
+    container.appendChild(element);
+    element.style[transformProp] = getTranslateString(left, top);
+  }
+
+  this._containerDiffX = 0;
+  this._containerDiffY = 0;
+};
 
 /**
  * Reset public data and remove releasing class.

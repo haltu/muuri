@@ -195,7 +195,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     alignBottom: false,
     rounding: true
   },
-  layoutOnResize: 100,
+  layoutOnResize: 150,
   layoutOnInit: true,
   layoutDuration: 300,
   layoutEasing: 'ease',
@@ -537,7 +537,7 @@ var grid = new Muuri(elem, {
 
 Should Muuri automatically trigger `layout` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically lay out the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are laid out after each window resize event.
 
-* Default value: `100`.
+* Default value: `150`.
 * Accepted types: boolean, number.
 
 ```javascript

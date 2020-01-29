@@ -21,40 +21,40 @@
   (global = global || self, global.Muuri = factory());
 }(this, function () { 'use strict';
 
-  var gridInstances = {};
+  var GRID_INSTANCES = {};
 
-  var actionSwap = 'swap';
-  var actionMove = 'move';
+  var ACTION_SWAP = 'swap';
+  var ACTION_MOVE = 'move';
 
-  var eventSynchronize = 'synchronize';
-  var eventLayoutStart = 'layoutStart';
-  var eventLayoutEnd = 'layoutEnd';
-  var eventLayoutAbort = 'layoutAbort';
-  var eventAdd = 'add';
-  var eventRemove = 'remove';
-  var eventShowStart = 'showStart';
-  var eventShowEnd = 'showEnd';
-  var eventHideStart = 'hideStart';
-  var eventHideEnd = 'hideEnd';
-  var eventFilter = 'filter';
-  var eventSort = 'sort';
-  var eventMove = 'move';
-  var eventSend = 'send';
-  var eventBeforeSend = 'beforeSend';
-  var eventReceive = 'receive';
-  var eventBeforeReceive = 'beforeReceive';
-  var eventDragInit = 'dragInit';
-  var eventDragStart = 'dragStart';
-  var eventDragMove = 'dragMove';
-  var eventDragScroll = 'dragScroll';
-  var eventDragEnd = 'dragEnd';
-  var eventDragReleaseStart = 'dragReleaseStart';
-  var eventDragReleaseEnd = 'dragReleaseEnd';
-  var eventDestroy = 'destroy';
+  var EVENT_SYNCHRONIZE = 'synchronize';
+  var EVENT_LAYOUT_START = 'layoutStart';
+  var EVENT_LAYOUT_END = 'layoutEnd';
+  var EVENT_LAYOUT_ABORT = 'layoutAbort';
+  var EVENT_ADD = 'add';
+  var EVENT_REMOVE = 'remove';
+  var EVENT_SHOW_START = 'showStart';
+  var EVENT_SHOW_END = 'showEnd';
+  var EVENT_HIDE_START = 'hideStart';
+  var EVENT_HIDE_END = 'hideEnd';
+  var EVENT_FILTER = 'filter';
+  var EVENT_SORT = 'sort';
+  var EVENT_MOVE = 'move';
+  var EVENT_SEND = 'send';
+  var EVENT_BEFORE_SEND = 'beforeSend';
+  var EVENT_RECEIVE = 'receive';
+  var EVENT_BEFORE_RECEIVE = 'beforeReceive';
+  var EVENT_DRAG_INIT = 'dragInit';
+  var EVENT_DRAG_START = 'dragStart';
+  var EVENT_DRAG_MOVE = 'dragMove';
+  var EVENT_DRAG_SCROLL = 'dragScroll';
+  var EVENT_DRAG_END = 'dragEnd';
+  var EVENT_DRAG_RELEASE_START = 'dragReleaseStart';
+  var EVENT_DRAG_RELEASE_END = 'dragReleaseEnd';
+  var EVENT_DESTROY = 'destroy';
 
-  var hasTouchEvents = 'ontouchstart' in window;
-  var hasPointerEvents = !!window.PointerEvent;
-  var hasMsPointerEvents = !!window.navigator.msPointerEnabled;
+  var HAS_TOUCH_EVENTS = 'ontouchstart' in window;
+  var HAS_POINTER_EVENTS = !!window.PointerEvent;
+  var HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
 
   /**
    * Event emitter constructor.
@@ -214,10 +214,25 @@
     return this;
   };
 
-  var pointerout = hasPointerEvents ? 'pointerout' : hasMsPointerEvents ? 'MSPointerOut' : '';
+  var pointerout = HAS_POINTER_EVENTS ? 'pointerout' : HAS_MS_POINTER_EVENTS ? 'MSPointerOut' : '';
   var waitDuration = 100;
 
-
+  /**
+   * If you happen to use Edge or IE on a touch capable device there is a
+   * a specific case where pointercancel and pointerend events are never emitted,
+   * even though one them should always be emitted when you release your finger
+   * from the screen. The bug appears specifically when Muuri shifts the dragged
+   * element's position in the DOM after pointerdown event, IE and Edge don't like
+   * that behaviour and quite often forget to emit the pointerend/pointercancel
+   * event. But, they do emit pointerout event so we utilize that here.
+   * Specifically, if there has been no pointermove event within 100 milliseconds
+   * since the last pointerout event we force cancel the drag operation. This hack
+   * works surprisingly well 99% of the time. There is that 1% chance there still
+   * that dragged items get stuck but it is what it is.
+   *
+   * @class
+   * @param {Dragger} dragger
+   */
   function EdgeHack(dragger) {
     if (!pointerout) return;
 
@@ -340,18 +355,27 @@
     return null;
   }
 
-  // Detect support for passive events:
-  // https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
-  var isPassiveEventsSupported = false;
-  try {
-    var passiveOpts = Object.defineProperty({}, 'passive', {
-      get: function() {
-        isPassiveEventsSupported = true;
-      }
-    });
-    window.addEventListener('testPassive', null, passiveOpts);
-    window.removeEventListener('testPassive', null, passiveOpts);
-  } catch (e) {}
+  /**
+   * Check if passive events are supported.
+   * https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
+   *
+   * @returns {Boolean}
+   */
+  function hasPassiveEvents() {
+    var isPassiveEventsSupported = false;
+
+    try {
+      var passiveOpts = Object.defineProperty({}, 'passive', {
+        get: function() {
+          isPassiveEventsSupported = true;
+        }
+      });
+      window.addEventListener('testPassive', null, passiveOpts);
+      window.removeEventListener('testPassive', null, passiveOpts);
+    } catch (e) {}
+
+    return isPassiveEventsSupported;
+  }
 
   var ua = window.navigator.userAgent.toLowerCase();
   var isEdge = ua.indexOf('edge') > -1;
@@ -359,10 +383,10 @@
   var isFirefox = ua.indexOf('firefox') > -1;
   var isAndroid = ua.indexOf('android') > -1;
 
-  var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
+  var listenerOptions = hasPassiveEvents() ? { passive: true } : false;
 
   var taProp = 'touchAction';
-  var taPropPrefixed = getPrefixedPropName(window.document.documentElement.style, taProp);
+  var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
   var taDefaultValue = 'auto';
 
   /**
@@ -395,7 +419,7 @@
 
     // Can't believe had to build a freaking class for a hack!
     this._edgeHack = null;
-    if ((isEdge || isIE) && (hasPointerEvents || hasMsPointerEvents)) {
+    if ((isEdge || isIE) && (HAS_POINTER_EVENTS || HAS_MS_POINTER_EVENTS)) {
       this._edgeHack = new EdgeHack(this);
     }
 
@@ -449,9 +473,9 @@
   };
 
   Dragger._inputEvents = (function() {
-    if (hasTouchEvents) return Dragger._touchEvents;
-    if (hasPointerEvents) return Dragger._pointerEvents;
-    if (hasMsPointerEvents) return Dragger._msPointerEvents;
+    if (HAS_TOUCH_EVENTS) return Dragger._touchEvents;
+    if (HAS_POINTER_EVENTS) return Dragger._pointerEvents;
+    if (HAS_MS_POINTER_EVENTS) return Dragger._msPointerEvents;
     return Dragger._mouseEvents;
   })();
 
@@ -768,7 +792,7 @@
     // a can of worms. We do a special exception here for Firefox Android which's
     // touch-action does not work properly if the dragged element is moved in the
     // the DOM tree on touchstart.
-    if (hasTouchEvents) {
+    if (HAS_TOUCH_EVENTS) {
       this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
       if (this._element.style[taPropPrefixed] !== value || (isFirefox && isAndroid)) {
         this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
@@ -951,218 +975,1020 @@
    *
    * @class
    */
-  function Ticker() {
+  function Ticker(numLanes) {
     this._nextStep = null;
-
-    this._readQueue = [];
-    this._writeQueue = [];
-    this._reads = {};
-    this._writes = {};
-
-    this._batchReadQueue = [];
-    this._batchWriteQueue = [];
-    this._batchReads = {};
-    this._batchWrites = {};
-
+    this._lanes = [];
+    this._stepQueue = [];
+    this._stepCallbacks = {};
     this._step = this._step.bind(this);
+    for (var i = 0; i < numLanes; i++) {
+      this._lanes.push(new TickerLane());
+    }
   }
 
-  Ticker.prototype._add = function(id, callback, queue, callbacks) {
-    var index = queue.indexOf(id);
-    if (index > -1) {
-      queue[index] = undefined;
-    }
-
-    queue.push(id);
-    callbacks[id] = callback;
-
-    if (!this._nextStep) {
-      this._nextStep = raf(this._step);
-    }
-  };
-
-  Ticker.prototype._remove = function(id, queue, callbacks) {
-    var index = queue.indexOf(id);
-    if (index === -1) return;
-    queue[index] = undefined;
-    delete callbacks[id];
-  };
-
-  Ticker.prototype._step = function() {
-    var readQueue = this._readQueue;
-    var writeQueue = this._writeQueue;
-    var reads = this._reads;
-    var writes = this._writes;
-    var batchReadQueue = this._batchReadQueue;
-    var batchWriteQueue = this._batchWriteQueue;
-    var batchReads = this._batchReads;
-    var batchWrites = this._batchWrites;
-    var nReads = readQueue.length;
-    var nWrites = writeQueue.length;
-    var i, id;
+  Ticker.prototype._step = function(time) {
+    var lanes = this._lanes;
+    var stepQueue = this._stepQueue;
+    var stepCallbacks = this._stepCallbacks;
+    var i, j, id, laneQueue, laneCallbacks;
 
     this._nextStep = null;
 
-    // Copy reads to batch.
-    for (i = 0; i < nReads; i++) {
-      id = readQueue[i];
-      if (!id) continue;
-      batchReadQueue.push(id);
-      batchReads[id] = reads[id];
-      delete reads[id];
+    for (i = 0; i < lanes.length; i++) {
+      laneQueue = lanes[i].queue;
+      laneCallbacks = lanes[i].callbacks;
+      for (j = 0; j < laneQueue.length; j++) {
+        id = laneQueue[j];
+        if (!id) continue;
+        stepQueue.push(id);
+        stepCallbacks[id] = laneCallbacks[id];
+        delete laneCallbacks[id];
+      }
+      laneQueue.length = 0;
     }
 
-    // Copy writes to batch.
-    for (i = 0; i < nWrites; i++) {
-      id = writeQueue[i];
-      if (!id) continue;
-      batchWriteQueue.push(id);
-      batchWrites[id] = writes[id];
-      delete writes[id];
+    for (i = 0; i < stepQueue.length; i++) {
+      id = stepQueue[i];
+      if (stepCallbacks[id]) stepCallbacks[id](time);
+      delete stepCallbacks[id];
     }
 
-    readQueue.length = 0;
-    writeQueue.length = 0;
+    stepQueue.length = 0;
+  };
 
-    nReads = batchReadQueue.length;
-    nWrites = batchWriteQueue.length;
+  Ticker.prototype.add = function(laneIndex, id, callback) {
+    this._lanes[laneIndex].add(id, callback);
+    if (!this._nextStep) this._nextStep = raf(this._step);
+  };
 
-    // Process batch reads.
-    for (i = 0; i < nReads; i++) {
-      id = batchReadQueue[i];
-      if (batchReads[id]) batchReads[id]();
-      delete batchReads[id];
+  Ticker.prototype.remove = function(laneIndex, id) {
+    this._lanes[laneIndex].remove(id);
+  };
+
+  /**
+   * A lane for ticker.
+   *
+   * @class
+   */
+  function TickerLane() {
+    this.queue = [];
+    this.callbacks = {};
+  }
+
+  TickerLane.prototype.add = function(id, callback) {
+    var index = this.queue.indexOf(id);
+    if (index > -1) {
+      this.queue[index] = undefined;
     }
 
-    // Process batch writes.
-    for (i = 0; i < nWrites; i++) {
-      id = batchWriteQueue[i];
-      if (batchWrites[id]) batchWrites[id]();
-      delete batchWrites[id];
-    }
-
-    batchReadQueue.length = 0;
-    batchWriteQueue.length = 0;
+    this.queue.push(id);
+    this.callbacks[id] = callback;
   };
 
-  Ticker.prototype.read = function(id, callback) {
-    this._add(id, callback, this._readQueue, this._reads);
+  TickerLane.prototype.remove = function(id) {
+    var index = this.queue.indexOf(id);
+    if (index === -1) return;
+    this.queue[index] = undefined;
+    delete this.callbacks[id];
   };
 
-  Ticker.prototype.cancelRead = function(id) {
-    this._remove(id, this._readQueue, this._reads);
-  };
+  var LAYOUT_READ = 'layoutRead';
+  var LAYOUT_WRITE = 'layoutWrite';
+  var VISIBILITY_READ = 'visibilityRead';
+  var VISIBILITY_WRITE = 'visibilityWrite';
+  var DRAG_START_READ = 'dragStartRead';
+  var DRAG_START_WRITE = 'dragStartWrite';
+  var DRAG_MOVE_READ = 'dragMoveRead';
+  var DRAG_MOVE_WRITE = 'dragMoveWrite';
+  var DRAG_SCROLL_READ = 'dragScrollRead';
+  var DRAG_SCROLL_WRITE = 'dragScrollWrite';
+  var DRAG_SORT_READ = 'dragSortRead';
+  var PLACEHOLDER_LAYOUT_READ = 'placeholderLayoutRead';
+  var PLACEHOLDER_LAYOUT_WRITE = 'placeholderLayoutWrite';
+  var PLACEHOLDER_RESIZE_WRITE = 'placeholderResizeWrite';
+  var AUTO_SCROLL_READ = 'autoScrollRead';
+  var AUTO_SCROLL_WRITE = 'autoScrollWrite';
+  var DEBOUNCE_READ = 'debounceRead';
 
-  Ticker.prototype.write = function(id, callback) {
-    this._add(id, callback, this._writeQueue, this._writes);
-  };
+  var LANE_READ = 0;
+  var LANE_READ_TAIL = 1;
+  var LANE_WRITE = 2;
 
-  Ticker.prototype.cancelWrite = function(id) {
-    this._remove(id, this._writeQueue, this._writes);
-  };
-
-  var ticker = new Ticker();
-
-  var layoutTick = 'layout';
-  var visibilityTick = 'visibility';
-  var dragStartTick = 'dragStart';
-  var dragMoveTick = 'dragMove';
-  var dragScrollTick = 'dragScroll';
-  var phLayoutTick = 'phLayout';
-  var phResizeTick = 'phResize';
-  var debounceTick = 'debounce';
+  var ticker = new Ticker(3);
 
   function addLayoutTick(itemId, read, write) {
-    var id = layoutTick + itemId;
-    ticker.read(id, read);
-    ticker.write(id, write);
+    ticker.add(LANE_READ, LAYOUT_READ + itemId, read);
+    ticker.add(LANE_WRITE, LAYOUT_WRITE + itemId, write);
   }
 
   function cancelLayoutTick(itemId) {
-    var id = layoutTick + itemId;
-    ticker.cancelRead(id);
-    ticker.cancelWrite(id);
+    ticker.remove(LANE_READ, LAYOUT_READ + itemId);
+    ticker.remove(LANE_WRITE, LAYOUT_WRITE + itemId);
   }
 
   function addVisibilityTick(itemId, read, write) {
-    var id = visibilityTick + itemId;
-    ticker.read(id, read);
-    ticker.write(id, write);
+    ticker.add(LANE_READ, VISIBILITY_READ + itemId, read);
+    ticker.add(LANE_WRITE, VISIBILITY_WRITE + itemId, write);
   }
 
   function cancelVisibilityTick(itemId) {
-    var id = visibilityTick + itemId;
-    ticker.cancelRead(id);
-    ticker.cancelWrite(id);
+    ticker.remove(LANE_READ, VISIBILITY_READ + itemId);
+    ticker.remove(LANE_WRITE, VISIBILITY_WRITE + itemId);
   }
 
   function addDragStartTick(itemId, read, write) {
-    var id = dragStartTick + itemId;
-    ticker.read(id, read);
-    ticker.write(id, write);
+    ticker.add(LANE_READ, DRAG_START_READ + itemId, read);
+    ticker.add(LANE_WRITE, DRAG_START_WRITE + itemId, write);
   }
 
   function cancelDragStartTick(itemId) {
-    var id = dragStartTick + itemId;
-    ticker.cancelRead(id);
-    ticker.cancelWrite(id);
+    ticker.remove(LANE_READ, DRAG_START_READ + itemId);
+    ticker.remove(LANE_WRITE, DRAG_START_WRITE + itemId);
   }
 
   function addDragMoveTick(itemId, read, write) {
-    var id = dragMoveTick + itemId;
-    ticker.read(id, read);
-    ticker.write(id, write);
+    ticker.add(LANE_READ, DRAG_MOVE_READ + itemId, read);
+    ticker.add(LANE_WRITE, DRAG_MOVE_WRITE + itemId, write);
   }
 
   function cancelDragMoveTick(itemId) {
-    var id = dragMoveTick + itemId;
-    ticker.cancelRead(id);
-    ticker.cancelWrite(id);
+    ticker.remove(LANE_READ, DRAG_MOVE_READ + itemId);
+    ticker.remove(LANE_WRITE, DRAG_MOVE_WRITE + itemId);
   }
 
   function addDragScrollTick(itemId, read, write) {
-    var id = dragScrollTick + itemId;
-    ticker.read(id, read);
-    ticker.write(id, write);
+    ticker.add(LANE_READ, DRAG_SCROLL_READ + itemId, read);
+    ticker.add(LANE_WRITE, DRAG_SCROLL_WRITE + itemId, write);
   }
 
   function cancelDragScrollTick(itemId) {
-    var id = dragScrollTick + itemId;
-    ticker.cancelRead(id);
-    ticker.cancelWrite(id);
+    ticker.remove(LANE_READ, DRAG_SCROLL_READ + itemId);
+    ticker.remove(LANE_WRITE, DRAG_SCROLL_WRITE + itemId);
+  }
+
+  function addDragSortTick(itemId, read) {
+    ticker.add(LANE_READ_TAIL, DRAG_SORT_READ + itemId, read);
+  }
+
+  function cancelDragSortTick(itemId) {
+    ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
   }
 
   function addPlaceholderLayoutTick(itemId, read, write) {
-    var id = phLayoutTick + itemId;
-    ticker.read(id, read);
-    ticker.write(id, write);
+    ticker.add(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId, read);
+    ticker.add(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId, write);
   }
 
   function cancelPlaceholderLayoutTick(itemId) {
-    var id = phLayoutTick + itemId;
-    ticker.cancelRead(id);
-    ticker.cancelWrite(id);
+    ticker.remove(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId);
+    ticker.remove(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId);
   }
 
   function addPlaceholderResizeTick(itemId, write) {
-    var id = phResizeTick + itemId;
-    ticker.write(id, write);
+    ticker.add(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId, write);
   }
 
   function cancelPlaceholderResizeTick(itemId) {
-    var id = phResizeTick + itemId;
-    ticker.cancelWrite(id);
+    ticker.remove(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId);
+  }
+
+  function addAutoScrollTick(read, write) {
+    ticker.add(LANE_READ, AUTO_SCROLL_READ, read);
+    ticker.add(LANE_WRITE, AUTO_SCROLL_WRITE, write);
+  }
+
+  function cancelAutoScrollTick() {
+    ticker.remove(LANE_READ, AUTO_SCROLL_READ);
+    ticker.remove(LANE_WRITE, AUTO_SCROLL_WRITE);
   }
 
   function addDebounceTick(debounceId, read) {
-    var id = debounceTick + debounceId;
-    ticker.read(id, read);
+    ticker.add(LANE_READ, DEBOUNCE_READ + debounceId, read);
   }
 
   function cancelDebounceTick(debounceId) {
-    var id = debounceTick + debounceId;
-    ticker.cancelRead(id);
+    ticker.remove(LANE_READ, DEBOUNCE_READ + debounceId);
   }
+
+  var SCROLL_NONE = 'none';
+  var SCROLL_LEFT = 'left';
+  var SCROLL_RIGHT = 'right';
+  var SCROLL_UP = 'up';
+  var SCROLL_DOWN = 'down';
+  var AXIS_X = 'x';
+  var AXIS_Y = 'y';
+
+  var functionType = 'function';
+
+  /**
+   * Check if a value is a function.
+   *
+   * @param {*} val
+   * @returns {Boolean}
+   */
+  function isFunction(val) {
+    return typeof val === functionType;
+  }
+
+  var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+  /**
+   * Returns the computed value of an element's style property as a string.
+   *
+   * @param {HTMLElement} element
+   * @param {String} style
+   * @returns {String}
+   */
+  function getStyle(element, style) {
+    var styles = stylesCache && stylesCache.get(element);
+    if (!styles) {
+      styles = window.getComputedStyle(element, null);
+      if (stylesCache) stylesCache.set(element, styles);
+    }
+    return styles.getPropertyValue(style);
+  }
+
+  /**
+   * Returns the computed value of an element's style property transformed into
+   * a float value.
+   *
+   * @param {HTMLElement} el
+   * @param {String} style
+   * @returns {Number}
+   */
+  function getStyleAsFloat(el, style) {
+    return parseFloat(getStyle(el, style)) || 0;
+  }
+
+  var DOC_ELEM = document.documentElement;
+  var BODY = document.body;
+
+  /**
+   * @param {HTMLElement|Window} element
+   * @returns {HTMLElement|Window}
+   */
+  function getScrollElement(element) {
+    if (element === window || element === DOC_ELEM || element === BODY) {
+      return window;
+    } else {
+      return element;
+    }
+  }
+
+  /**
+   * @param {HTMLElement|Window} element
+   * @returns {Number}
+   */
+  function getScrollLeft(element) {
+    return element === window ? element.pageXOffset : element.scrollLeft;
+  }
+
+  /**
+   * @param {HTMLElement|Window} element
+   * @returns {Number}
+   */
+  function getScrollTop(element) {
+    return element === window ? element.pageYOffset : element.scrollTop;
+  }
+
+  /**
+   * @param {HTMLElement|Window} element
+   * @returns {Number}
+   */
+  function getScrollLeftMax(element) {
+    if (element === window) {
+      return DOC_ELEM.scrollWidth - DOC_ELEM.clientWidth;
+    } else {
+      return element.scrollWidth - element.clientWidth;
+    }
+  }
+
+  /**
+   * @param {HTMLElement|Window} element
+   * @returns {Number}
+   */
+  function getScrollTopMax(element) {
+    if (element === window) {
+      return DOC_ELEM.scrollHeight - DOC_ELEM.clientHeight;
+    } else {
+      return element.scrollHeight - element.clientHeight;
+    }
+  }
+
+  /**
+   * Get window's or element's client rectangle data relative to the element's
+   * content dimensions (includes inner size + padding, excludes scrollbars,
+   * borders and margins).
+   *
+   * @param {HTMLElement|Window} element
+   * @returns {Rectangle}
+   */
+  function getContentRect(element, result) {
+    result = result || {};
+
+    if (element === window) {
+      result.width = DOC_ELEM.clientWidth;
+      result.height = DOC_ELEM.clientHeight;
+      result.left = 0;
+      result.right = result.width;
+      result.top = 0;
+      result.bottom = result.height;
+    } else {
+      var bcr = element.getBoundingClientRect();
+      var borderLeft = element.clientLeft || getStyleAsFloat(element, 'border-left-width');
+      var borderTop = element.clientTop || getStyleAsFloat(element, 'border-top-width');
+      result.width = element.clientWidth;
+      result.height = element.clientHeight;
+      result.left = bcr.left + borderLeft;
+      result.right = result.left + result.width;
+      result.top = bcr.top + borderTop;
+      result.bottom = result.top + result.height;
+    }
+
+    return result;
+  }
+
+  /**
+   * @param {Item} item
+   * @returns {Object}
+   */
+  function getItemAutoScrollSettings(item) {
+    return item._drag._getGrid()._settings.dragAutoScroll;
+  }
+
+  /**
+   * @param {Item} item
+   */
+  function prepareItemDragScroll(item) {
+    if (item._drag) item._drag._prepareScroll();
+  }
+
+  /**
+   * @param {Item} item
+   */
+  function applyItemDragScroll(item) {
+    if (item._drag) item._drag._applyScroll();
+  }
+
+  function ScrollRequest() {
+    this.item = null;
+    this.element = null;
+    this.active = false;
+    this.direction = null;
+    this.value = null;
+    this.maxValue = 0;
+    this.threshold = 0;
+    this.distance = 0;
+    this.speed = 0;
+    this.duration = 0;
+    this.action = null;
+  }
+
+  ScrollRequest.prototype.reset = function() {
+    if (this.active) this.onStop();
+
+    this.item = null;
+    this.element = null;
+    this.active = false;
+    this.direction = null;
+    this.value = null;
+    this.maxValue = 0;
+    this.threshold = 0;
+    this.distance = 0;
+    this.speed = 0;
+    this.duration = 0;
+    this.action = null;
+  };
+
+  ScrollRequest.prototype.isAxisX = function() {
+    return this.direction === SCROLL_LEFT || this.direction === SCROLL_RIGHT;
+  };
+
+  ScrollRequest.prototype.computeCurrentScrollValue = function() {
+    if (this.value === null) {
+      return this.isAxisX() ? getScrollLeft(this.element) : getScrollTop(this.element);
+    }
+    return Math.max(0, Math.min(this.value, this.maxValue));
+  };
+
+  ScrollRequest.prototype.computeNextScrollValue = function(deltaTime) {
+    var scrollValue = this.value;
+    var direction = this.direction;
+    var scrollDelta = this.speed * (deltaTime / 1000);
+    var nextScrollValue =
+      direction === SCROLL_LEFT || direction === SCROLL_UP
+        ? scrollValue - scrollDelta
+        : scrollValue + scrollDelta;
+
+    return Math.max(0, Math.min(nextScrollValue, this.maxValue));
+  };
+
+  ScrollRequest.prototype.computeSpeed = (function() {
+    var data = {
+      direction: null,
+      threshold: 0,
+      distance: 0,
+      value: 0,
+      maxValue: 0,
+      deltaTime: 0,
+      duration: 0
+    };
+
+    return function(deltaTime) {
+      var item = this.item;
+      var speed = getItemAutoScrollSettings(item).speed;
+
+      if (isFunction(speed)) {
+        data.direction = this.direction;
+        data.threshold = this.threshold;
+        data.distance = this.distance;
+        data.value = this.value;
+        data.maxValue = this.maxValue;
+        data.duration = this.duration;
+        data.speed = this.speed;
+        data.deltaTime = deltaTime;
+        return speed(item, this.element, data);
+      } else {
+        return speed;
+      }
+    };
+  })();
+
+  ScrollRequest.prototype.tick = function(deltaTime) {
+    if (!this.active) {
+      this.active = true;
+      this.onStart();
+    }
+    this.value = this.computeCurrentScrollValue();
+    this.speed = this.computeSpeed(deltaTime);
+    this.value = this.computeNextScrollValue(deltaTime);
+    this.duration += deltaTime;
+    return this.value;
+  };
+
+  ScrollRequest.prototype.onStart = function() {
+    var item = this.item;
+    var onStart = getItemAutoScrollSettings(item).onStart;
+    if (isFunction(onStart)) onStart(item, this.element, this.direction);
+  };
+
+  ScrollRequest.prototype.onStop = function() {
+    var item = this.item;
+    var onStop = getItemAutoScrollSettings(item).onStop;
+    if (isFunction(onStop)) onStop(item, this.element, this.direction);
+  };
+
+  function ScrollAction() {
+    this.element = null;
+    this.requestX = null;
+    this.requestY = null;
+    this.scrollLeft = 0;
+    this.scrollTop = 0;
+  }
+
+  ScrollAction.prototype.reset = function() {
+    if (this.requestX) this.requestX.action = null;
+    if (this.requestY) this.requestY.action = null;
+    this.element = null;
+    this.requestX = null;
+    this.requestY = null;
+    this.scrollLeft = 0;
+    this.scrollTop = 0;
+  };
+
+  ScrollAction.prototype.addRequest = function(request) {
+    if (request.isAxisX()) {
+      this.requestX = request;
+    } else {
+      this.requestY = request;
+    }
+    request.action = this;
+  };
+
+  ScrollAction.prototype.removeRequest = function(request) {
+    if (this.requestX === request) {
+      this.requestX = null;
+      request.action = null;
+    } else if (this.requestY === request) {
+      this.requestY = null;
+      request.action = null;
+    }
+  };
+
+  ScrollAction.prototype.computeScrollValues = function() {
+    this.scrollLeft = this.requestX ? this.requestX.value : getScrollLeft(this.element);
+    this.scrollTop = this.requestY ? this.requestY.value : getScrollTop(this.element);
+  };
+
+  ScrollAction.prototype.scroll = function() {
+    var element = this.element;
+    if (!element) return;
+
+    if (element.scrollTo) {
+      element.scrollTo(this.scrollLeft, this.scrollTop);
+    } else {
+      element.scrollLeft = this.scrollLeft;
+      element.scrollTop = this.scrollTop;
+    }
+  };
+
+  function Pool(createItem, releaseItem) {
+    this.pool = [];
+    this.createItem = createItem;
+    this.releaseItem = releaseItem;
+  }
+
+  Pool.prototype.pick = function() {
+    return this.pool.pop() || this.createItem();
+  };
+
+  Pool.prototype.release = function(item) {
+    this.releaseItem(item);
+    if (this.pool.indexOf(item) !== -1) return;
+    this.pool.push(item);
+  };
+
+  Pool.prototype.reset = function() {
+    this.pool.length = 0;
+  };
+
+  /**
+   * Calculate intersection area between two rectangle.
+   *
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   */
+  function getIntersectionArea(a, b) {
+    if (
+      a.left + a.width <= b.left ||
+      b.left + b.width <= a.left ||
+      a.top + a.height <= b.top ||
+      b.top + b.height <= a.top
+    ) {
+      return 0;
+    }
+
+    var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+    var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+    return width * height;
+  }
+
+  /**
+   * Calculate how many percent the intersection area of two rectangles is from
+   * the maximum potential intersection area between the rectangles.
+   *
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   */
+  function getIntersectionScore(a, b) {
+    var area = getIntersectionArea(a, b);
+    if (!area) return 0;
+    var maxArea = Math.min(a.width, b.width) * Math.min(a.height, b.height);
+    return (area / maxArea) * 100;
+  }
+
+  var requestPool = new Pool(
+    function() {
+      return new ScrollRequest();
+    },
+    function(request) {
+      request.reset();
+    }
+  );
+
+  var actionPool = new Pool(
+    function() {
+      return new ScrollAction();
+    },
+    function(action) {
+      action.reset();
+    }
+  );
+
+  function AutoScroller() {
+    this._isTicking = false;
+    this._tickTime = 0;
+    this._tickDeltaTime = 0;
+    this._items = [];
+    this._syncItems = [];
+    this._actions = [];
+    this._requests = {};
+    this._requests[AXIS_X] = {};
+    this._requests[AXIS_Y] = {};
+    this._readTick = this._readTick.bind(this);
+    this._writeTick = this._writeTick.bind(this);
+  }
+
+  AutoScroller.smoothSpeed = function(maxSpeed) {
+    return function(item, element, data) {
+      if (data.threshold > 0) {
+        var factor = data.threshold - Math.max(0, data.distance);
+        return (maxSpeed / data.threshold) * factor;
+      } else {
+        return maxSpeed;
+      }
+    };
+  };
+
+  AutoScroller.prototype._readTick = function(time) {
+    if (time && this._tickTime) {
+      this._tickDeltaTime = time - this._tickTime;
+      this._tickTime = time;
+      this._updateRequests();
+      this._updateActions();
+    } else {
+      this._tickTime = time;
+      this._tickDeltaTime = 0;
+    }
+  };
+
+  AutoScroller.prototype._writeTick = function() {
+    this._applyActions();
+    addAutoScrollTick(this._readTick, this._writeTick);
+  };
+
+  AutoScroller.prototype._startTicking = function() {
+    this._isTicking = true;
+    addAutoScrollTick(this._readTick, this._writeTick);
+  };
+
+  AutoScroller.prototype._stopTicking = function() {
+    this._isTicking = false;
+    this._tickTime = 0;
+    this._tickDeltaTime = 0;
+    cancelAutoScrollTick();
+  };
+
+  AutoScroller.prototype._requestItemScroll = function(
+    item,
+    axis,
+    element,
+    direction,
+    threshold,
+    distance,
+    maxValue
+  ) {
+    var reqMap = this._requests[axis];
+    var request = reqMap[item._id];
+
+    if (request) {
+      if (request.element !== element || request.direction !== direction) {
+        request.reset();
+      }
+    } else {
+      request = requestPool.pick();
+    }
+
+    request.item = item;
+    request.element = element;
+    request.direction = direction;
+    request.threshold = threshold;
+    request.distance = distance;
+    request.maxValue = maxValue;
+    reqMap[item._id] = request;
+  };
+
+  AutoScroller.prototype._cancelItemScroll = function(item, axis) {
+    var reqMap = this._requests[axis];
+    var request = reqMap[item._id];
+    if (!request) return;
+    if (request.action) request.action.removeRequest(request);
+    requestPool.release(request);
+    delete reqMap[item._id];
+  };
+
+  AutoScroller.prototype._checkItemOverlap = (function() {
+    var itemRect = {
+      width: 0,
+      height: 0,
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0
+    };
+
+    var testRect = {
+      width: 0,
+      height: 0,
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0
+    };
+
+    return function(item) {
+      var settings = getItemAutoScrollSettings(item);
+      var scrollItems = isFunction(settings.elements) ? settings.elements(item) : settings.elements;
+      var threshold = settings.threshold;
+
+      if (!scrollItems || !scrollItems.length) {
+        this._cancelItemScroll(item, AXIS_X);
+        this._cancelItemScroll(item, AXIS_Y);
+        return;
+      }
+
+      var scrollItem = null;
+      var testElement = null;
+      var testAxisX = true;
+      var testAxisY = true;
+      var testScore = 0;
+      var testPriority = 0;
+      var testThreshold = 0;
+      var testDirection = SCROLL_NONE;
+      var testDistance = 0;
+      var testMaxScrollX = 0;
+      var testMaxScrollY = 0;
+
+      var xElement = null;
+      var xPriority = -Infinity;
+      var xThreshold = 0;
+      var xScore = 0;
+      var xDirection = SCROLL_NONE;
+      var xDistance = 0;
+      var xMaxScroll = 0;
+
+      var yElement = null;
+      var yPriority = -Infinity;
+      var yThreshold = 0;
+      var yScore = 0;
+      var yDirection = SCROLL_NONE;
+      var yDistance = 0;
+      var yMaxScroll = 0;
+
+      var distanceToLeft = 0;
+      var distanceToRight = 0;
+      var distanceToTop = 0;
+      var distanceToBottom = 0;
+
+      itemRect.width = item._width;
+      itemRect.height = item._height;
+      itemRect.left = item._drag._clientX;
+      itemRect.right = itemRect.left + itemRect.width;
+      itemRect.top = item._drag._clientY;
+      itemRect.bottom = itemRect.top + itemRect.height;
+
+      for (var i = 0; i < scrollItems.length; i++) {
+        scrollItem = scrollItems[i];
+        testAxisX = scrollItem.axis !== AXIS_Y;
+        testAxisY = scrollItem.axis !== AXIS_X;
+        testPriority = scrollItem.priority || 0;
+
+        // Ignore this item if it's x-axis and y-axis priority is lower than
+        // the currently matching item's.
+        if ((!testAxisX || testPriority < xPriority) && (!testAxisY || testPriority < yPriority)) {
+          continue;
+        }
+
+        testElement = getScrollElement(scrollItem.element || scrollItem);
+        testMaxScrollX = testAxisX ? getScrollLeftMax(testElement) : -1;
+        testMaxScrollY = testAxisY ? getScrollTopMax(testElement) : -1;
+
+        // Ignore this item if there is no possibility to scroll.
+        if (!testMaxScrollX && !testMaxScrollY) continue;
+
+        testThreshold = typeof scrollItem.threshold === 'number' ? scrollItem.threshold : threshold;
+        testRect = getContentRect(testElement, testRect);
+        testScore = getIntersectionScore(itemRect, testRect);
+
+        if (
+          testAxisX &&
+          testPriority >= xPriority &&
+          testMaxScrollX > 0 &&
+          (testPriority > xPriority || testScore > xScore)
+        ) {
+          testDirection = SCROLL_NONE;
+          distanceToLeft = itemRect.left - testRect.left;
+          distanceToRight = testRect.right - itemRect.right;
+
+          if (distanceToRight < distanceToLeft) {
+            if (distanceToRight <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
+              testDistance = distanceToRight;
+              testDirection = SCROLL_RIGHT;
+            }
+          } else {
+            if (distanceToLeft <= testThreshold && getScrollLeft(testElement) > 0) {
+              testDistance = distanceToLeft;
+              testDirection = SCROLL_LEFT;
+            }
+          }
+
+          if (testDirection !== SCROLL_NONE) {
+            xElement = testElement;
+            xPriority = testPriority;
+            xThreshold = testThreshold;
+            xScore = testScore;
+            xDirection = testDirection;
+            xDistance = testDistance;
+            xMaxScroll = testMaxScrollX;
+          }
+        }
+
+        if (
+          testAxisY &&
+          testPriority >= yPriority &&
+          testMaxScrollY > 0 &&
+          (testPriority > yPriority || testScore > yScore)
+        ) {
+          testDirection = SCROLL_NONE;
+          distanceToTop = itemRect.top - testRect.top;
+          distanceToBottom = testRect.bottom - itemRect.bottom;
+
+          if (distanceToBottom < distanceToTop) {
+            if (distanceToBottom <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
+              testDistance = distanceToBottom;
+              testDirection = SCROLL_DOWN;
+            }
+          } else {
+            if (distanceToTop <= testThreshold && getScrollTop(testElement) > 0) {
+              testDistance = distanceToTop;
+              testDirection = SCROLL_UP;
+            }
+          }
+
+          if (testDirection !== SCROLL_NONE) {
+            yElement = testElement;
+            yPriority = testPriority;
+            yThreshold = testThreshold;
+            yScore = testScore;
+            yDirection = testDirection;
+            yDistance = testDistance;
+            yMaxScroll = testMaxScrollY;
+          }
+        }
+      }
+
+      if (xElement) {
+        this._requestItemScroll(
+          item,
+          AXIS_X,
+          xElement,
+          xDirection,
+          xThreshold,
+          xDistance,
+          xMaxScroll
+        );
+      } else {
+        this._cancelItemScroll(item, AXIS_X);
+      }
+
+      if (yElement) {
+        this._requestItemScroll(
+          item,
+          AXIS_Y,
+          yElement,
+          yDirection,
+          yThreshold,
+          yDistance,
+          yMaxScroll
+        );
+      } else {
+        this._cancelItemScroll(item, AXIS_Y);
+      }
+    };
+  })();
+
+  AutoScroller.prototype._updateRequests = function() {
+    for (var i = 0; i < this._items.length; i++) {
+      this._checkItemOverlap(this._items[i]);
+    }
+  };
+
+  AutoScroller.prototype._requestAction = function(request, axis) {
+    var isAxisX = axis === AXIS_X;
+    var action = null;
+
+    for (var i = 0; i < this._actions.length; i++) {
+      action = this._actions[i];
+
+      // If the action's request does not match the request's -> skip.
+      if (request.element !== action.element) {
+        action = null;
+        continue;
+      }
+
+      // If the request and action share the same element, but the request slot
+      // for the requested axis is already reserved let's ignore and cancel this
+      // request.
+      if (isAxisX ? action.requestX : action.requestY) {
+        this._cancelItemScroll(request.item, axis);
+        return;
+      }
+
+      // Seems like we have found our action, let's break the loop.
+      break;
+    }
+
+    if (!action) action = actionPool.pick();
+    action.element = request.element;
+    action.addRequest(request);
+
+    request.tick(this._tickDeltaTime);
+    this._actions.push(action);
+  };
+
+  AutoScroller.prototype._updateActions = function() {
+    var items = this._items;
+    var syncItems = this._syncItems;
+    var requests = this._requests;
+    var actions = this._actions;
+    var item;
+    var action;
+    var itemId;
+    var reqX;
+    var reqY;
+    var i;
+    var j;
+
+    // Generate actions.
+    for (i = 0; i < items.length; i++) {
+      itemId = items[i]._id;
+      reqX = requests[AXIS_X][itemId];
+      reqY = requests[AXIS_Y][itemId];
+      if (reqX) this._requestAction(reqX, AXIS_X);
+      if (reqY) this._requestAction(reqY, AXIS_Y);
+    }
+
+    // Compute actions' scroll values. Also check which items need to be
+    // synchronously synced after scroll. Basically all items which have a parent
+    // that is scrolled need to be synced.
+    syncItems.length = 0;
+    for (i = 0; i < actions.length; i++) {
+      action = actions[i];
+      action.computeScrollValues();
+      for (j = 0; j < items.length; j++) {
+        item = items[j];
+        if (syncItems.indexOf(item) > -1) continue;
+        if (action.element !== window && !action.element.contains(item.getElement())) continue;
+        syncItems.push(item);
+      }
+    }
+  };
+
+  AutoScroller.prototype._applyActions = function() {
+    var actions = this._actions;
+    var syncItems = this._syncItems;
+    var i;
+
+    if (actions.length) {
+      for (i = 0; i < actions.length; i++) {
+        actions[i].scroll();
+        actionPool.release(actions[i]);
+      }
+      actions.length = 0;
+    }
+
+    if (syncItems.length) {
+      for (i = 0; i < syncItems.length; i++) prepareItemDragScroll(syncItems[i]);
+      for (i = 0; i < syncItems.length; i++) applyItemDragScroll(syncItems[i]);
+      syncItems.length = 0;
+    }
+  };
+
+  AutoScroller.prototype.addItem = function(item) {
+    var index = this._items.indexOf(item);
+    if (index === -1) {
+      this._items.push(item);
+      if (!this._isTicking) this._startTicking();
+    }
+  };
+
+  AutoScroller.prototype.removeItem = function(item) {
+    var index = this._items.indexOf(item);
+    if (index === -1) return;
+
+    var itemId = item._id;
+
+    var reqX = this._requests[AXIS_X][itemId];
+    if (reqX) {
+      this._cancelItemScroll(item, AXIS_X);
+      delete this._requests[AXIS_X][itemId];
+    }
+
+    var reqY = this._requests[AXIS_Y][itemId];
+    if (reqY) {
+      this._cancelItemScroll(item, AXIS_Y);
+      delete this._requests[AXIS_Y][itemId];
+    }
+
+    var syncIndex = this._syncItems.indexOf(item);
+    if (syncIndex > -1) this._syncItems.splice(syncIndex, 1);
+
+    this._items.splice(index, 1);
+
+    if (this._isTicking && !this._items.length) {
+      this._stopTicking();
+    }
+  };
+
+  AutoScroller.prototype.isItemScrolling = function(item) {
+    var itemId = item._id;
+    var requests = this._requests;
+    var reqX = requests[AXIS_X][itemId];
+    var reqY = requests[AXIS_Y][itemId];
+    return !!((reqX && reqX.value !== null) || (reqY && reqY.value !== null));
+  };
 
   var ElProto = window.Element.prototype;
   var matchesFn =
@@ -1228,15 +2054,16 @@
   /**
    * Normalize array index. Basically this function makes sure that the provided
    * array index is within the bounds of the provided array and also transforms
-   * negative index to the matching positive index.
+   * negative index to the matching positive index. The third (optional) argument
+   * allows you to define offset for array's length in case you are adding items
+   * to the array or removing items from the array.
    *
    * @param {Array} array
    * @param {Number} index
-   * @param {Boolean} isMigration
+   * @param {Number} [sizeOffset]
    */
-  function normalizeArrayIndex(array, index, isMigration) {
-    var length = array.length;
-    var maxIndex = Math.max(0, isMigration ? length : length - 1);
+  function normalizeArrayIndex(array, index, sizeOffset) {
+    var maxIndex = Math.max(0, array.length - 1 + (sizeOffset || 0));
     return index > maxIndex ? maxIndex : index < 0 ? Math.max(maxIndex + index + 1, 0) : index;
   }
 
@@ -1289,68 +2116,7 @@
     }
   }
 
-  var actionCancel = 'cancel';
-  var actionFinish = 'finish';
-  var debounceId = 0;
-
-  /**
-   * Returns a function, that, as long as it continues to be invoked, will not
-   * be triggered. The function will be called after it stops being called for
-   * N milliseconds. The returned function accepts one argument which, when
-   * being "finish", calls the debounce function immediately if it is currently
-   * waiting to be called, and when being "cancel" cancels the currently queued
-   * function call.
-   *
-   * @param {Function} fn
-   * @param {Number} wait
-   * @returns {Function}
-   */
-  function debounce(fn, wait) {
-    var timeout;
-    var id = ++debounceId;
-
-    if (wait > 0) {
-      return function(action) {
-        if (timeout !== undefined) {
-          timeout = window.clearTimeout(timeout);
-          cancelDebounceTick(id);
-          if (action === actionFinish) fn();
-        }
-
-        if (action !== actionCancel && action !== actionFinish) {
-          timeout = window.setTimeout(function() {
-            timeout = undefined;
-            addDebounceTick(id, fn);
-          }, wait);
-        }
-      };
-    }
-
-    return function(action) {
-      if (action !== actionCancel) fn();
-    };
-  }
-
-  var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
-
-  /**
-   * Returns the computed value of an element's style property as a string.
-   *
-   * @param {HTMLElement} element
-   * @param {String} style
-   * @returns {String}
-   */
-  function getStyle(element, style) {
-    var styles = stylesCache && stylesCache.get(element);
-    if (!styles) {
-      styles = window.getComputedStyle(element, null);
-      if (stylesCache) stylesCache.set(element, styles);
-    }
-    return styles.getPropertyValue(style);
-  }
-
-  var transformProp =
-    getPrefixedPropName(window.document.documentElement.style, 'transform') || 'transform';
+  var transformProp = getPrefixedPropName(document.documentElement.style, 'transform') || 'transform';
 
   var styleNameRegEx = /([A-Z])/g;
   var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
@@ -1421,24 +2187,12 @@
     // As long as the containing block is an element, static and not
     // transformed, try to get the element's parent element and fallback to
     // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
-    var doc = window.document;
+    var doc = document;
     var res = element || doc;
     while (res && res !== doc && getStyle(res, 'position') === 'static' && !isTransformed(res)) {
       res = res.parentElement || doc;
     }
     return res;
-  }
-
-  /**
-   * Returns the computed value of an element's style property transformed into
-   * a float value.
-   *
-   * @param {HTMLElement} el
-   * @param {String} style
-   * @returns {Number}
-   */
-  function getStyleAsFloat(el, style) {
-    return parseFloat(getStyle(el, style)) || 0;
   }
 
   var offsetA = {};
@@ -1560,7 +2314,7 @@
     result = result || [];
 
     // Find scroll parents.
-    while (element && element !== window.document) {
+    while (element && element !== document) {
       // If element is inside ShadowDOM let's get it's host node from the real
       // DOM and continue looping.
       if (element.getRootNode && element instanceof DocumentFragment) {
@@ -1629,18 +2383,6 @@
     return 'translateX(' + x + 'px) translateY(' + y + 'px)';
   }
 
-  var functionType = 'function';
-
-  /**
-   * Check if a value is a function.
-   *
-   * @param {*} val
-   * @returns {Boolean}
-   */
-  function isFunction(val) {
-    return typeof val === functionType;
-  }
-
   /**
    * Remove class from an element.
    *
@@ -1661,10 +2403,11 @@
     }
   }
 
-  // Drag start predicate states.
-  var startPredicateInactive = 0;
-  var startPredicatePending = 1;
-  var startPredicateResolved = 2;
+  var START_PREDICATE_INACTIVE = 0;
+  var START_PREDICATE_PENDING = 1;
+  var START_PREDICATE_RESOLVED = 2;
+  var AUTO_SCROLLER = new AutoScroller();
+  var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { passive: true } : false;
 
   /**
    * Bind touch interaction to an item.
@@ -1686,15 +2429,17 @@
     this._startPredicate = isFunction(settings.dragStartPredicate)
       ? settings.dragStartPredicate
       : ItemDrag.defaultStartPredicate;
-    this._startPredicateState = startPredicateInactive;
+    this._startPredicateState = START_PREDICATE_INACTIVE;
     this._startPredicateResult = undefined;
 
     // Data for drag sort predicate heuristics.
-    this._hBlockedIndex = null;
-    this._hX1 = 0;
-    this._hX2 = 0;
-    this._hY1 = 0;
-    this._hY2 = 0;
+    this._sortTimerFinished = false;
+    this._sortTimer = undefined;
+    this._blockedSortIndex = null;
+    this._sortX1 = 0;
+    this._sortX2 = 0;
+    this._sortY1 = 0;
+    this._sortY2 = 0;
 
     // Setup item's initial drag data.
     this._reset();
@@ -1709,11 +2454,8 @@
     this._applyMove = this._applyMove.bind(this);
     this._prepareScroll = this._prepareScroll.bind(this);
     this._applyScroll = this._applyScroll.bind(this);
-    this._checkOverlap = this._checkOverlap.bind(this);
-
-    // Create debounce overlap checker function.
-    var sortInterval = settings.dragSortHeuristics.sortInterval;
-    this._checkOverlapDebounce = debounce(this._checkOverlap, sortInterval);
+    this._handleSort = this._handleSort.bind(this);
+    this._handleSortDelayed = this._handleSortDelayed.bind(this);
 
     // Get drag handle element.
     this._handle = (settings.dragHandle && element.querySelector(settings.dragHandle)) || element;
@@ -1815,8 +2557,8 @@
    * @param {Object} [options]
    * @param {Number} [options.threshold=50]
    * @param {String} [options.action='move']
-   * @returns {(Boolean|DragSortCommand)}
-   *   - Returns false if no valid index was found. Otherwise returns drag sort
+   * @returns {?DragSortCommand}
+   *   - Returns `null` if no valid index was found. Otherwise returns drag sort
    *     command.
    */
   ItemDrag.defaultSortPredicate = (function() {
@@ -1834,6 +2576,12 @@
       var gridScore;
       var grids;
       var grid;
+      var container;
+      var containerRect;
+      var left;
+      var top;
+      var right;
+      var bottom;
       var i;
 
       // Get potential target grids.
@@ -1856,16 +2604,53 @@
         // Filter out all destroyed grids.
         if (grid._isDestroyed) continue;
 
-        // We need to update the grid's offsets and dimensions since they might
-        // have changed (e.g during scrolling).
+        // Compute the grid's client rect an clamp the initial boundaries to
+        // viewport dimensions.
         grid._updateBoundingRect();
+        left = Math.max(0, grid._left);
+        top = Math.max(0, grid._top);
+        right = Math.min(window.innerWidth, grid._right);
+        bottom = Math.min(window.innerHeight, grid._bottom);
+
+        // The grid might be inside one or more elements that clip it's visibility
+        // (e.g overflow scroll/hidden) so we want to find out the visible portion
+        // of the grid in the viewport and use that in our calculations.
+        container = grid._element.parentNode;
+        while (
+          container &&
+          container !== document &&
+          container !== document.documentElement &&
+          container !== document.body
+        ) {
+          if (container.getRootNode && container instanceof DocumentFragment) {
+            container = container.getRootNode().host;
+            continue;
+          }
+
+          if (getStyle(container, 'overflow') !== 'visible') {
+            containerRect = container.getBoundingClientRect();
+            left = Math.max(left, containerRect.left);
+            top = Math.max(top, containerRect.top);
+            right = Math.min(right, containerRect.right);
+            bottom = Math.min(bottom, containerRect.bottom);
+          }
+
+          if (getStyle(container, 'position') === 'fixed') {
+            break;
+          }
+
+          container = container.parentNode;
+        }
+
+        // No need to go further if target rect does not have visible area.
+        if (left >= right || top >= bottom) continue;
 
         // Check how much dragged element overlaps the container element.
-        targetRect.width = grid._width;
-        targetRect.height = grid._height;
-        targetRect.left = grid._left;
-        targetRect.top = grid._top;
-        gridScore = getRectOverlapScore(itemRect, targetRect);
+        targetRect.left = left;
+        targetRect.top = top;
+        targetRect.width = right - left;
+        targetRect.height = bottom - top;
+        gridScore = getIntersectionScore(itemRect, targetRect);
 
         // Check if this grid is the best match so far.
         if (gridScore > threshold && gridScore > bestScore) {
@@ -1886,8 +2671,9 @@
 
       // Get drag sort predicate settings.
       var sortThreshold = options && typeof options.threshold === 'number' ? options.threshold : 50;
-      var sortAction = options && options.action === actionSwap ? actionSwap : actionMove;
-      var migrateAction = options && options.migrateAction === actionSwap ? actionSwap : actionMove;
+      var sortAction = options && options.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
+      var migrateAction =
+        options && options.migrateAction === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
 
       // Sort threshold must be a positive number capped to a max value of 100. If
       // that's not the case this function will not work correctly. So let's clamp
@@ -1897,15 +2683,15 @@
       // Populate item rect data.
       itemRect.width = item._width;
       itemRect.height = item._height;
-      itemRect.left = drag._elementClientX;
-      itemRect.top = drag._elementClientY;
+      itemRect.left = drag._clientX;
+      itemRect.top = drag._clientY;
 
       // Calculate the target grid.
       var grid = getTargetGrid(item, rootGrid, sortThreshold);
 
       // Return early if we found no grid container element that overlaps the
       // dragged item enough.
-      if (!grid) return false;
+      if (!grid) return null;
 
       var isMigration = item.getGrid() !== grid;
       var gridOffsetLeft = 0;
@@ -1947,7 +2733,7 @@
         targetRect.height = target._height;
         targetRect.left = target._left + target._marginLeft + gridOffsetLeft;
         targetRect.top = target._top + target._marginTop + gridOffsetTop;
-        score = getRectOverlapScore(itemRect, targetRect);
+        score = getIntersectionScore(itemRect, targetRect);
 
         // Update best match index and score if the target's overlap score with
         // the dragged item is higher than the current best match score.
@@ -1979,7 +2765,7 @@
         return returnData;
       }
 
-      return false;
+      return null;
     };
   })();
 
@@ -2011,12 +2797,12 @@
     cancelDragMoveTick(itemId);
     cancelDragScrollTick(itemId);
 
+    // Cancel sort procedure.
+    this._cancelSort();
+
     if (this._isStarted) {
       // Remove scroll listeners.
       this._unbindScrollListeners();
-
-      // Cancel overlap check.
-      this._checkOverlapDebounce('cancel');
 
       // Append item element to the container if it's not it's child. Also make
       // sure the translate values are adjusted to account for the DOM shift.
@@ -2048,6 +2834,7 @@
     if (this._isDestroyed) return this;
     this.stop();
     this._dragger.destroy();
+    AUTO_SCROLLER.removeItem(this._item);
     this._isDestroyed = true;
     return this;
   };
@@ -2065,7 +2852,7 @@
    * @returns {?Grid}
    */
   ItemDrag.prototype._getGrid = function() {
-    return gridInstances[this._gridId] || null;
+    return GRID_INSTANCES[this._gridId] || null;
   };
 
   /**
@@ -2104,8 +2891,16 @@
 
     // Dragged element's current offset from window's northwest corner. Does
     // not account for element's margins.
-    this._elementClientX = 0;
-    this._elementClientY = 0;
+    this._clientX = 0;
+    this._clientY = 0;
+
+    // Keep track of the clientX/Y diff for scrolling.
+    this._scrollDiffX = 0;
+    this._scrollDiffY = 0;
+
+    // Keep track of the clientX/Y diff for moving.
+    this._moveDiffX = 0;
+    this._moveDiffY = 0;
 
     // Offset difference between the dragged element's temporary drag
     // container and it's original container.
@@ -2146,7 +2941,7 @@
 
     // Bind scroll listeners.
     for (i = 0; i < scrollers.length; i++) {
-      scrollers[i].addEventListener('scroll', this._onScroll);
+      scrollers[i].addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
     }
   };
 
@@ -2162,7 +2957,7 @@
     var i;
 
     for (i = 0; i < scrollers.length; i++) {
-      scrollers[i].removeEventListener('scroll', this._onScroll);
+      scrollers[i].removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
     }
 
     scrollers.length = 0;
@@ -2192,8 +2987,8 @@
    * @param {DraggerEvent} event
    */
   ItemDrag.prototype._forceResolveStartPredicate = function(event) {
-    if (!this._isDestroyed && this._startPredicateState === startPredicatePending) {
-      this._startPredicateState = startPredicateResolved;
+    if (!this._isDestroyed && this._startPredicateState === START_PREDICATE_PENDING) {
+      this._startPredicateState = START_PREDICATE_RESOLVED;
       this._onStart(event);
     }
   };
@@ -2224,12 +3019,13 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Number} x
+   * @param {Number} y
    */
-  ItemDrag.prototype._resetHeuristics = function(event) {
-    this._hBlockedIndex = null;
-    this._hX1 = this._hX2 = event.clientX;
-    this._hY1 = this._hY2 = event.clientY;
+  ItemDrag.prototype._resetHeuristics = function(x, y) {
+    this._blockedSortIndex = null;
+    this._sortX1 = this._sortX2 = x;
+    this._sortY1 = this._sortY2 = y;
   };
 
   /**
@@ -2238,29 +3034,28 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Number} x
+   * @param {Number} y
    * @returns {Boolean}
    */
-  ItemDrag.prototype._checkHeuristics = function(event) {
+  ItemDrag.prototype._checkHeuristics = function(x, y) {
     var settings = this._getGrid()._settings.dragSortHeuristics;
     var minDist = settings.minDragDistance;
 
     // Skip heuristics if not needed.
     if (minDist <= 0) {
-      this._hBlockedIndex = null;
+      this._blockedSortIndex = null;
       return true;
     }
 
-    var x = event.clientX;
-    var y = event.clientY;
-    var diffX = x - this._hX2;
-    var diffY = y - this._hY2;
+    var diffX = x - this._sortX2;
+    var diffY = y - this._sortY2;
 
     // If we can't do proper bounce back check make sure that the blocked index
     // is not set.
     var canCheckBounceBack = minDist > 3 && settings.minBounceBackAngle > 0;
     if (!canCheckBounceBack) {
-      this._hBlockedIndex = null;
+      this._blockedSortIndex = null;
     }
 
     if (Math.abs(diffX) > minDist || Math.abs(diffY) > minDist) {
@@ -2268,18 +3063,18 @@
       // minimum value of 3 for minDragDistance to function properly.
       if (canCheckBounceBack) {
         var angle = Math.atan2(diffX, diffY);
-        var prevAngle = Math.atan2(this._hX2 - this._hX1, this._hY2 - this._hY1);
+        var prevAngle = Math.atan2(this._sortX2 - this._sortX1, this._sortY2 - this._sortY1);
         var deltaAngle = Math.atan2(Math.sin(angle - prevAngle), Math.cos(angle - prevAngle));
         if (Math.abs(deltaAngle) > settings.minBounceBackAngle) {
-          this._hBlockedIndex = null;
+          this._blockedSortIndex = null;
         }
       }
 
       // Update points.
-      this._hX1 = this._hX2;
-      this._hY1 = this._hY2;
-      this._hX2 = x;
-      this._hY2 = y;
+      this._sortX1 = this._sortX2;
+      this._sortY1 = this._sortY2;
+      this._sortX2 = x;
+      this._sortY2 = y;
 
       return true;
     }
@@ -2301,6 +3096,93 @@
       }
       this._startPredicateData = null;
     }
+  };
+
+  /**
+   * Handle the sorting procedure. Manage drag sort heuristics/interval and
+   * check overlap when necessary.
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._handleSort = function() {
+    var settings = this._getGrid()._settings;
+    var isSortDisabled =
+      !settings.dragSort ||
+      (!settings.dragAutoScroll.sortDuringScroll && AUTO_SCROLLER.isItemScrolling(this._item));
+
+    // No sorting when drag sort is disabled. Also, account for the scenario where
+    // dragSort is temporarily disabled during drag procedure so we need to reset
+    // sort timer heuristics state too.
+    if (isSortDisabled) {
+      this._sortX1 = this._sortX2 = this._gridX;
+      this._sortY1 = this._sortY2 = this._gridY;
+      this._sortTimerFinished = false;
+      if (this._sortTimer !== undefined) {
+        this._sortTimer = window.clearTimeout(this._sortTimer);
+      }
+      return;
+    }
+
+    // If sorting is enabled we always need to run the heuristics check to keep
+    // the tracked coordinates updated. We also allow an exception when the sort
+    // timer is finished because the heuristics are intended to prevent overlap
+    // checks based on the dragged element's immediate movement and a delayed
+    // overlap check is valid if it comes through, because it was valid when it
+    // was invoked.
+    if (!(this._checkHeuristics(this._gridX, this._gridY) || this._sortTimerFinished)) {
+      return;
+    }
+
+    var sortInterval = settings.dragSortHeuristics.sortInterval;
+    if (sortInterval <= 0 || this._sortTimerFinished) {
+      this._sortTimerFinished = false;
+      if (this._sortTimer !== undefined) {
+        this._sortTimer = window.clearTimeout(this._sortTimer);
+      }
+      this._checkOverlap();
+    } else if (this._sortTimer === undefined) {
+      this._sortTimer = window.setTimeout(this._handleSortDelayed, sortInterval);
+    }
+  };
+
+  /**
+   * Delayed sort handler.
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._handleSortDelayed = function() {
+    this._sortTimerFinished = true;
+    this._sortTimer = undefined;
+    addDragSortTick(this._item._id, this._handleSort);
+  };
+
+  /**
+   * Cancel and reset sort procedure.
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._cancelSort = function() {
+    this._sortTimerFinished = false;
+    if (this._sortTimer !== undefined) {
+      this._sortTimer = window.clearTimeout(this._sortTimer);
+    }
+    cancelDragSortTick(this._item._id);
+  };
+
+  /**
+   * Handle the ending of the drag procedure for sorting.
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   */
+  ItemDrag.prototype._finishSort = function() {
+    var settings = this._getGrid()._settings;
+    var isUnfinished = this._sortTimerFinished || this._sortTimer !== undefined;
+    this._cancelSort();
+    if (isUnfinished && settings.dragSort) this._checkOverlap();
   };
 
   /**
@@ -2334,15 +3216,19 @@
     // Let's make sure the result object has a valid index before going further.
     if (!result || typeof result.index !== 'number') return;
 
+    sortAction = result.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
     currentGrid = item.getGrid();
     targetGrid = result.grid || currentGrid;
     isMigration = currentGrid !== targetGrid;
     currentIndex = currentGrid._items.indexOf(item);
-    targetIndex = normalizeArrayIndex(targetGrid._items, result.index, isMigration);
-    sortAction = result.action === actionSwap ? actionSwap : actionMove;
+    targetIndex = normalizeArrayIndex(
+      targetGrid._items,
+      result.index,
+      isMigration && sortAction === ACTION_MOVE ? 1 : 0
+    );
 
     // Prevent position bounce.
-    if (!isMigration && targetIndex === this._hBlockedIndex) {
+    if (!isMigration && targetIndex === this._blockedSortIndex) {
       return;
     }
 
@@ -2350,18 +3236,18 @@
     if (!isMigration) {
       // Make sure the target index is not the current index.
       if (currentIndex !== targetIndex) {
-        this._hBlockedIndex = currentIndex;
+        this._blockedSortIndex = currentIndex;
 
         // Do the sort.
-        (sortAction === actionSwap ? arraySwap : arrayMove)(
+        (sortAction === ACTION_SWAP ? arraySwap : arrayMove)(
           currentGrid._items,
           currentIndex,
           targetIndex
         );
 
         // Emit move event.
-        if (currentGrid._hasListeners(eventMove)) {
-          currentGrid._emit(eventMove, {
+        if (currentGrid._hasListeners(EVENT_MOVE)) {
+          currentGrid._emit(EVENT_MOVE, {
             item: item,
             fromIndex: currentIndex,
             toIndex: targetIndex,
@@ -2376,14 +3262,14 @@
 
     // If the item was moved to another grid.
     else {
-      this._hBlockedIndex = null;
+      this._blockedSortIndex = null;
 
       // Let's fetch the target item when it's still in it's original index.
       targetItem = targetGrid._items[targetIndex];
 
       // Emit beforeSend event.
-      if (currentGrid._hasListeners(eventBeforeSend)) {
-        currentGrid._emit(eventBeforeSend, {
+      if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {
+        currentGrid._emit(EVENT_BEFORE_SEND, {
           item: item,
           fromGrid: currentGrid,
           fromIndex: currentIndex,
@@ -2393,8 +3279,8 @@
       }
 
       // Emit beforeReceive event.
-      if (targetGrid._hasListeners(eventBeforeReceive)) {
-        targetGrid._emit(eventBeforeReceive, {
+      if (targetGrid._hasListeners(EVENT_BEFORE_RECEIVE)) {
+        targetGrid._emit(EVENT_BEFORE_RECEIVE, {
           item: item,
           fromGrid: currentGrid,
           fromIndex: currentIndex,
@@ -2419,8 +3305,8 @@
       item._sortData = null;
 
       // Emit send event.
-      if (currentGrid._hasListeners(eventSend)) {
-        currentGrid._emit(eventSend, {
+      if (currentGrid._hasListeners(EVENT_SEND)) {
+        currentGrid._emit(EVENT_SEND, {
           item: item,
           fromGrid: currentGrid,
           fromIndex: currentIndex,
@@ -2430,8 +3316,8 @@
       }
 
       // Emit receive event.
-      if (targetGrid._hasListeners(eventReceive)) {
-        targetGrid._emit(eventReceive, {
+      if (targetGrid._hasListeners(EVENT_RECEIVE)) {
+        targetGrid._emit(EVENT_RECEIVE, {
           item: item,
           fromGrid: currentGrid,
           fromIndex: currentIndex,
@@ -2445,12 +3331,12 @@
       // is done on purpose after the dragged item placed within the target grid
       // so that we can keep this implementation as simple as possible utilizing
       // the existing API.
-      if (sortAction === actionSwap && targetItem && targetItem.isActive()) {
+      if (sortAction === ACTION_SWAP && targetItem && targetItem.isActive()) {
         // Sanity check to make sure that the target item is still part of the
         // target grid. It could have been manipulated in the event handlers.
         if (targetGrid._items.indexOf(targetItem) > -1) {
           targetGrid.send(targetItem, currentGrid, currentIndex, {
-            appendTo: this._container || window.document.body,
+            appendTo: this._container || document.body,
             layoutSender: false,
             layoutReceiver: false
           });
@@ -2545,25 +3431,25 @@
    */
   ItemDrag.prototype._preStartCheck = function(event) {
     // Let's activate drag start predicate state.
-    if (this._startPredicateState === startPredicateInactive) {
-      this._startPredicateState = startPredicatePending;
+    if (this._startPredicateState === START_PREDICATE_INACTIVE) {
+      this._startPredicateState = START_PREDICATE_PENDING;
     }
 
     // If predicate is pending try to resolve it.
-    if (this._startPredicateState === startPredicatePending) {
+    if (this._startPredicateState === START_PREDICATE_PENDING) {
       this._startPredicateResult = this._startPredicate(this._item, event);
       if (this._startPredicateResult === true) {
-        this._startPredicateState = startPredicateResolved;
+        this._startPredicateState = START_PREDICATE_RESOLVED;
         this._onStart(event);
       } else if (this._startPredicateResult === false) {
         this._resetStartPredicate(event);
         this._dragger._reset();
-        this._startPredicateState = startPredicateInactive;
+        this._startPredicateState = START_PREDICATE_INACTIVE;
       }
     }
 
     // Otherwise if predicate is resolved and drag is active, move the item.
-    else if (this._startPredicateState === startPredicateResolved && this._isActive) {
+    else if (this._startPredicateState === START_PREDICATE_RESOLVED && this._isActive) {
       this._onMove(event);
     }
   };
@@ -2576,14 +3462,14 @@
    * @param {DraggerEvent} event
    */
   ItemDrag.prototype._preEndCheck = function(event) {
-    var isResolved = this._startPredicateState === startPredicateResolved;
+    var isResolved = this._startPredicateState === START_PREDICATE_RESOLVED;
 
     // Do final predicate check to allow user to unbind stuff for the current
     // drag procedure within the predicate callback. The return value of this
     // check will have no effect to the state of the predicate.
     this._startPredicate(this._item, event);
 
-    this._startPredicateState = startPredicateInactive;
+    this._startPredicateState = START_PREDICATE_INACTIVE;
 
     if (!isResolved || !this._isActive) return;
 
@@ -2607,8 +3493,8 @@
 
     this._isActive = true;
     this._dragStartEvent = event;
+    AUTO_SCROLLER.addItem(item);
 
-    this._resetHeuristics(event);
     addDragStartTick(item._id, this._prepareStart, this._applyStart);
   };
 
@@ -2634,10 +3520,14 @@
 
     this._container = dragContainer;
     this._containingBlock = containingBlock;
-    this._elementClientX = elementRect.left;
-    this._elementClientY = elementRect.top;
+    this._clientX = elementRect.left;
+    this._clientY = elementRect.top;
     this._left = this._gridX = translate.x;
     this._top = this._gridY = translate.y;
+    this._scrollDiffX = this._scrollDiffY = 0;
+    this._moveDiffX = this._moveDiffY = 0;
+
+    this._resetHeuristics(this._gridX, this._gridY);
 
     // If a specific drag container is set and it is different from the
     // grid's container element we store the offset between containers.
@@ -2688,7 +3578,7 @@
 
     this._isStarted = true;
 
-    grid._emit(eventDragInit, item, this._dragStartEvent);
+    grid._emit(EVENT_DRAG_INIT, item, this._dragStartEvent);
 
     if (hasDragContainer) {
       // If the dragged element is a child of the drag container all we need to
@@ -2710,7 +3600,7 @@
 
     addClass(element, grid._settings.itemDraggingClass);
     this._bindScrollListeners();
-    grid._emit(eventDragStart, item, this._dragStartEvent);
+    grid._emit(EVENT_DRAG_START, item, this._dragStartEvent);
   };
 
   /**
@@ -2730,6 +3620,7 @@
 
     this._dragMoveEvent = event;
     addDragMoveTick(item._id, this._prepareMove, this._applyMove);
+    addDragSortTick(item._id, this._handleSort);
   };
 
   /**
@@ -2739,7 +3630,9 @@
    * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._prepareMove = function() {
-    if (!this._item._isActive) return;
+    var item = this._item;
+
+    if (!item._isActive) return;
 
     var settings = this._getGrid()._settings;
     var axis = settings.dragAxis;
@@ -2748,27 +3641,23 @@
 
     // Update horizontal position data.
     if (axis !== 'y') {
-      var xDiff = nextEvent.clientX - prevEvent.clientX;
-      this._left += xDiff;
-      this._gridX += xDiff;
-      this._elementClientX += xDiff;
+      var moveDiffX = nextEvent.clientX - prevEvent.clientX;
+      this._left = this._left - this._moveDiffX + moveDiffX;
+      this._gridX = this._gridX - this._moveDiffX + moveDiffX;
+      this._clientX = this._clientX - this._moveDiffX + moveDiffX;
+      this._moveDiffX = moveDiffX;
     }
 
     // Update vertical position data.
     if (axis !== 'x') {
-      var yDiff = nextEvent.clientY - prevEvent.clientY;
-      this._top += yDiff;
-      this._gridY += yDiff;
-      this._elementClientY += yDiff;
+      var moveDiffY = nextEvent.clientY - prevEvent.clientY;
+      this._top = this._top - this._moveDiffY + moveDiffY;
+      this._gridY = this._gridY - this._moveDiffY + moveDiffY;
+      this._clientY = this._clientY - this._moveDiffY + moveDiffY;
+      this._moveDiffY = moveDiffY;
     }
 
     this._dragPrevMoveEvent = nextEvent;
-
-    if (this._getGrid()._settings.dragSort) {
-      if (this._checkHeuristics(nextEvent)) {
-        this._checkOverlapDebounce();
-      }
-    }
   };
 
   /**
@@ -2781,8 +3670,9 @@
     var item = this._item;
     if (!item._isActive) return;
 
+    this._moveDiffX = this._moveDiffY = 0;
     item._element.style[transformProp] = getTranslateString(this._left, this._top);
-    this._getGrid()._emit(eventDragMove, item, this._dragMoveEvent);
+    this._getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
   };
 
   /**
@@ -2802,6 +3692,7 @@
 
     this._scrollEvent = event;
     addDragScrollTick(item._id, this._prepareScroll, this._applyScroll);
+    addDragSortTick(item._id, this._handleSort);
   };
 
   /**
@@ -2818,37 +3709,31 @@
 
     var element = item._element;
     var grid = this._getGrid();
-    var settings = grid._settings;
-    var axis = settings.dragAxis;
     var gridContainer = grid._element;
-    var offsetDiff;
 
     // Calculate element's rect and x/y diff.
     var rect = element.getBoundingClientRect();
-    var xDiff = this._elementClientX - rect.left;
-    var yDiff = this._elementClientY - rect.top;
+    var scrollDiffX = this._clientX - this._moveDiffX - this._scrollDiffX - rect.left;
+    var scrollDiffY = this._clientY - this._moveDiffY - this._scrollDiffY - rect.top;
 
     // Update container diff.
     if (this._container !== gridContainer) {
-      offsetDiff = getOffsetDiff(this._containingBlock, gridContainer);
+      var offsetDiff = getOffsetDiff(this._containingBlock, gridContainer);
       this._containerDiffX = offsetDiff.left;
       this._containerDiffY = offsetDiff.top;
     }
 
     // Update horizontal position data.
-    if (axis !== 'y') {
-      this._left += xDiff;
-      this._gridX = this._left - this._containerDiffX;
-    }
+    this._left = this._left - this._scrollDiffX + scrollDiffX;
+    this._gridX = this._left - this._containerDiffX;
 
     // Update vertical position data.
-    if (axis !== 'x') {
-      this._top += yDiff;
-      this._gridY = this._top - this._containerDiffY;
-    }
+    this._top = this._top - this._scrollDiffY + scrollDiffY;
+    this._gridY = this._top - this._containerDiffY;
 
-    // Overlap handling.
-    if (settings.dragSort) this._checkOverlapDebounce();
+    // Update scroll diff.
+    this._scrollDiffX = scrollDiffX;
+    this._scrollDiffY = scrollDiffY;
   };
 
   /**
@@ -2861,8 +3746,9 @@
     var item = this._item;
     if (!item._isActive) return;
 
+    this._scrollDiffX = this._scrollDiffY = 0;
     item._element.style[transformProp] = getTranslateString(this._left, this._top);
-    this._getGrid()._emit(eventDragScroll, item, this._scrollEvent);
+    this._getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
   };
 
   /**
@@ -2890,8 +3776,8 @@
     cancelDragMoveTick(item._id);
     cancelDragScrollTick(item._id);
 
-    // Finish currently queued overlap check.
-    settings.dragSort && this._checkOverlapDebounce('finish');
+    // Finish sort procedure (does final overlap check if needed).
+    this._finishSort();
 
     // Remove scroll listeners.
     this._unbindScrollListeners();
@@ -2906,8 +3792,11 @@
     // Remove drag class name from element.
     removeClass(element, settings.itemDraggingClass);
 
+    // Stop auto-scroll.
+    AUTO_SCROLLER.removeItem(item);
+
     // Emit dragEnd event.
-    grid._emit(eventDragEnd, item, event);
+    grid._emit(EVENT_DRAG_END, item, event);
 
     // Finish up the migration process or start the release process.
     this._isMigrating ? this._finishMigration() : release.start();
@@ -2917,35 +3806,6 @@
    * Private helpers
    * ***************
    */
-
-  /**
-   * Calculate how many percent the intersection area of two rectangles is from
-   * the maximum potential intersection area between the rectangles.
-   *
-   * @param {Rectangle} a
-   * @param {Rectangle} b
-   * @returns {Number}
-   *   - A number between 0-100.
-   */
-  function getRectOverlapScore(a, b) {
-    // Return 0 immediately if the rectangles do not overlap.
-    if (
-      a.left + a.width <= b.left ||
-      b.left + b.width <= a.left ||
-      a.top + a.height <= b.top ||
-      b.top + b.height <= a.top
-    ) {
-      return 0;
-    }
-
-    // Calculate intersection area's width, height, max height and max width.
-    var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
-    var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-    var maxWidth = Math.min(a.width, b.width);
-    var maxHeight = Math.min(a.height, b.height);
-
-    return ((width * height) / (maxWidth * maxHeight)) * 100;
-  }
 
   /**
    * Check if an element is an anchor element and open the href url if possible.
@@ -3045,9 +3905,8 @@
     }
   }
 
-  var Element = window.Element;
-  var hasWebAnimations = !!(Element && isFunction(Element.prototype.animate));
-  var hasNativeWebAnimations = !!(Element && isNative(Element.prototype.animate));
+  var HAS_WEB_ANIMATIONS = !!(Element && isFunction(Element.prototype.animate));
+  var HAS_NATIVE_WEB_ANIMATIONS = !!(Element && isNative(Element.prototype.animate));
 
   /**
    * Item animation handler powered by Web Animations API.
@@ -3092,7 +3951,7 @@
     var opts = options || {};
 
     // If we don't have web animations available let's not animate.
-    if (!hasWebAnimations) {
+    if (!HAS_WEB_ANIMATIONS) {
       setStyles(element, propsTo);
       this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
       this._onFinish();
@@ -3163,8 +4022,8 @@
     this._easing = easing;
     this._animation = element.animate(
       [
-        createFrame(propsFrom, !hasNativeWebAnimations),
-        createFrame(propsTo, !hasNativeWebAnimations)
+        createFrame(propsFrom, !HAS_NATIVE_WEB_ANIMATIONS),
+        createFrame(propsTo, !HAS_NATIVE_WEB_ANIMATIONS)
       ],
       {
         duration: duration,
@@ -3484,16 +4343,16 @@
     var nextGrid = data.toGrid;
 
     // Unbind listeners from current grid.
-    grid.off(eventDragReleaseEnd, this._onReleaseEnd);
-    grid.off(eventLayoutStart, this._onLayoutStart);
-    grid.off(eventBeforeSend, this._onMigrate);
-    grid.off(eventHideStart, this._onHide);
+    grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+    grid.off(EVENT_LAYOUT_START, this._onLayoutStart);
+    grid.off(EVENT_BEFORE_SEND, this._onMigrate);
+    grid.off(EVENT_HIDE_START, this._onHide);
 
     // Bind listeners to the next grid.
-    nextGrid.on(eventDragReleaseEnd, this._onReleaseEnd);
-    nextGrid.on(eventLayoutStart, this._onLayoutStart);
-    nextGrid.on(eventBeforeSend, this._onMigrate);
-    nextGrid.on(eventHideStart, this._onHide);
+    nextGrid.on(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+    nextGrid.on(EVENT_LAYOUT_START, this._onLayoutStart);
+    nextGrid.on(EVENT_BEFORE_SEND, this._onMigrate);
+    nextGrid.on(EVENT_HIDE_START, this._onHide);
 
     // Mark the item as migrated.
     this._didMigrate = true;
@@ -3544,7 +4403,7 @@
     if (isFunction(settings.dragPlaceholder.createElement)) {
       element = settings.dragPlaceholder.createElement(item);
     } else {
-      element = window.document.createElement('div');
+      element = document.createElement('div');
     }
     this._element = element;
 
@@ -3573,10 +4432,10 @@
     element.style[transformProp] = getTranslateString(left, top);
 
     // Bind event listeners.
-    grid.on(eventLayoutStart, this._onLayoutStart);
-    grid.on(eventDragReleaseEnd, this._onReleaseEnd);
-    grid.on(eventBeforeSend, this._onMigrate);
-    grid.on(eventHideStart, this._onHide);
+    grid.on(EVENT_LAYOUT_START, this._onLayoutStart);
+    grid.on(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+    grid.on(EVENT_BEFORE_SEND, this._onMigrate);
+    grid.on(EVENT_HIDE_START, this._onHide);
 
     // onCreate hook.
     if (isFunction(settings.dragPlaceholder.onCreate)) {
@@ -3614,10 +4473,10 @@
     animation._element = null;
 
     // Unbind event listeners.
-    grid.off(eventDragReleaseEnd, this._onReleaseEnd);
-    grid.off(eventLayoutStart, this._onLayoutStart);
-    grid.off(eventBeforeSend, this._onMigrate);
-    grid.off(eventHideStart, this._onHide);
+    grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+    grid.off(EVENT_LAYOUT_START, this._onLayoutStart);
+    grid.off(EVENT_BEFORE_SEND, this._onMigrate);
+    grid.off(EVENT_HIDE_START, this._onHide);
 
     // Remove placeholder class from the placeholder element.
     if (this._className) {
@@ -3719,17 +4578,14 @@
 
     var item = this._item;
     var grid = item.getGrid();
+    var settings = grid._settings;
 
-    // Flag release as active.
     this._isActive = true;
-
-    // Add release class name to the released element.
-    addClass(item._element, grid._settings.itemReleasingClass);
-
-    // Emit dragReleaseStart event.
-    grid._emit(eventDragReleaseStart, item);
-
-    // Position the released item.
+    addClass(item._element, settings.itemReleasingClass);
+    if (!settings.dragRelease.useDragContainer) {
+      this._placeToGrid();
+    }
+    grid._emit(EVENT_DRAG_RELEASE_START, item);
     item._layout.start(false);
 
     return this;
@@ -3755,34 +4611,17 @@
     if (this._isDestroyed || !this._isActive) return this;
 
     var item = this._item;
-    var element = item._element;
     var grid = item.getGrid();
-    var container = grid._element;
-    var translate;
 
-    // Reset data and remove releasing class name from the element.
-    this._reset();
-
-    // If the released element is outside the grid's container element put it
-    // back there and adjust position accordingly.
-    if (element.parentNode !== container) {
-      if (left === undefined || top === undefined) {
-        if (abort) {
-          translate = getTranslate(element);
-          left = translate.x - this._containerDiffX;
-          top = translate.y - this._containerDiffY;
-        } else {
-          left = item._left;
-          top = item._top;
-        }
-      }
-
-      container.appendChild(element);
-      element.style[transformProp] = getTranslateString(left, top);
+    if (!abort && (left === undefined || top === undefined)) {
+      left = item._left;
+      top = item._top;
     }
 
-    // Emit dragReleaseEnd event.
-    if (!abort) grid._emit(eventDragReleaseEnd, item);
+    this._placeToGrid(left, top);
+    this._reset();
+
+    if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
 
     return this;
   };
@@ -3806,6 +4645,40 @@
    * Private prototype methods
    * *************************
    */
+
+  /**
+   * Move the element back to the grid container element if it does not exist
+   * there already.
+   *
+   * @private
+   * @param {Number} [left]
+   *  - The element's current translateX value (optional).
+   * @param {Number} [top]
+   *  - The element's current translateY value (optional).
+   * @memberof ItemDragRelease.prototype
+   */
+  ItemDragRelease.prototype._placeToGrid = function(left, top) {
+    if (this._isDestroyed) return;
+
+    var item = this._item;
+    var element = item._element;
+    var grid = item.getGrid();
+    var container = grid._element;
+
+    if (element.parentNode !== container) {
+      if (left === undefined || top === undefined) {
+        var translate = getTranslate(element);
+        left = translate.x - this._containerDiffX;
+        top = translate.y - this._containerDiffY;
+      }
+
+      container.appendChild(element);
+      element.style[transformProp] = getTranslateString(left, top);
+    }
+
+    this._containerDiffX = 0;
+    this._containerDiffY = 0;
+  };
 
   /**
    * Reset public data and remove releasing class.
@@ -3924,7 +4797,7 @@
     return this;
   };
 
-  var minDistanceToAnimate = 2;
+  var MIN_ANIMATION_DISTANCE = 2;
 
   /**
    * Layout manager for Item instance, handles the positioning of an item.
@@ -3986,9 +4859,11 @@
     var isPositioning = this._isActive;
     var isJustReleased = release._isActive && release._isPositioningStarted === false;
     var animDuration = isJustReleased
-      ? gridSettings.dragReleaseDuration
+      ? gridSettings.dragRelease.layoutDuration
       : gridSettings.layoutDuration;
-    var animEasing = isJustReleased ? gridSettings.dragReleaseEasing : gridSettings.layoutEasing;
+    var animEasing = isJustReleased
+      ? gridSettings.dragRelease.layoutEasing
+      : gridSettings.layoutEasing;
     var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
 
     // If the item is currently positioning cancel potential queued layout tick
@@ -4185,7 +5060,7 @@
 
     // If there is no need for animation or if the item is already in correct
     // position (or near it) let's finish the process early.
-    if (isInstant || (xDiff < minDistanceToAnimate && yDiff < minDistanceToAnimate)) {
+    if (isInstant || (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE)) {
       if (xDiff || yDiff || this._isInterrupted) {
         setStyles(item._element, this._targetStyles);
       }
@@ -4249,7 +5124,7 @@
     var targetElement = targetGrid._element;
     var targetItems = targetGrid._items;
     var currentIndex = grid._items.indexOf(item);
-    var targetContainer = container || window.document.body;
+    var targetContainer = container || document.body;
     var targetIndex;
     var targetItem;
     var currentContainer;
@@ -4262,7 +5137,7 @@
 
     // Get target index.
     if (typeof position === 'number') {
-      targetIndex = normalizeArrayIndex(targetItems, position, true);
+      targetIndex = normalizeArrayIndex(targetItems, position, 1);
     } else {
       targetItem = targetGrid._getItem(position);
       if (!targetItem) return this;
@@ -4307,8 +5182,8 @@
     item._visibility._queue.process(true, item);
 
     // Emit beforeSend event.
-    if (grid._hasListeners(eventBeforeSend)) {
-      grid._emit(eventBeforeSend, {
+    if (grid._hasListeners(EVENT_BEFORE_SEND)) {
+      grid._emit(EVENT_BEFORE_SEND, {
         item: item,
         fromGrid: grid,
         fromIndex: currentIndex,
@@ -4318,8 +5193,8 @@
     }
 
     // Emit beforeReceive event.
-    if (targetGrid._hasListeners(eventBeforeReceive)) {
-      targetGrid._emit(eventBeforeReceive, {
+    if (targetGrid._hasListeners(EVENT_BEFORE_RECEIVE)) {
+      targetGrid._emit(EVENT_BEFORE_RECEIVE, {
         item: item,
         fromGrid: grid,
         fromIndex: currentIndex,
@@ -4388,8 +5263,8 @@
     this._containerDiffY = containerDiff.top;
 
     // Emit send event.
-    if (grid._hasListeners(eventSend)) {
-      grid._emit(eventSend, {
+    if (grid._hasListeners(EVENT_SEND)) {
+      grid._emit(EVENT_SEND, {
         item: item,
         fromGrid: grid,
         fromIndex: currentIndex,
@@ -4399,8 +5274,8 @@
     }
 
     // Emit receive event.
-    if (targetGrid._hasListeners(eventReceive)) {
-      targetGrid._emit(eventReceive, {
+    if (targetGrid._hasListeners(EVENT_RECEIVE)) {
+      targetGrid._emit(EVENT_RECEIVE, {
         item: item,
         fromGrid: grid,
         fromIndex: currentIndex,
@@ -4868,13 +5743,11 @@
     // Set up release handler. Note that although this is fully linked to dragging
     // this still needs to be always instantiated to handle migration scenarios
     // correctly.
-    // TODO: Try to move this inside ItemDrag.
     this._dragRelease = new ItemDragRelease(this);
 
     // Set up drag placeholder handler. Note that although this is fully linked to
     // dragging this still needs to be always instantiated to handle migration
     // scenarios correctly.
-    // TODO: Try to move this inside ItemDrag.
     this._dragPlaceholder = new ItemDragPlaceholder(this);
 
     // Set up the initial dimensions and sort data.
@@ -4895,7 +5768,7 @@
    * @returns {Grid}
    */
   Item.prototype.getGrid = function() {
-    return gridInstances[this._gridId];
+    return GRID_INSTANCES[this._gridId];
   };
 
   /**
@@ -5623,6 +6496,63 @@
     };
   })();
 
+  var debounceId = 0;
+
+  /**
+   * Returns a function, that, as long as it continues to be invoked, will not
+   * be triggered. The function will be called after it stops being called for
+   * N milliseconds. The returned function accepts one argument which, when
+   * being `true`, cancels the debounce function immediately. When the debounce
+   * function is canceled it cannot be invoked again.
+   *
+   * @param {Function} fn
+   * @param {Number} durationMs
+   * @returns {Function}
+   */
+  function debounce(fn, durationMs) {
+    var id = ++debounceId;
+    var timer = 0;
+    var lastTime = 0;
+    var isCanceled = false;
+    var tick = function(time) {
+      if (isCanceled) return;
+
+      if (lastTime) timer -= time - lastTime;
+      lastTime = time;
+
+      if (timer > 0) {
+        addDebounceTick(id, tick);
+      } else {
+        timer = lastTime = 0;
+        fn();
+      }
+    };
+
+    return function(cancel) {
+      if (isCanceled) return;
+
+      if (durationMs <= 0) {
+        if (cancel !== true) fn();
+        return;
+      }
+
+      if (cancel === true) {
+        isCanceled = true;
+        timer = lastTime = 0;
+        tick = undefined;
+        cancelDebounceTick(id);
+        return;
+      }
+
+      if (timer <= 0) {
+        timer = durationMs;
+        tick(0);
+      } else {
+        timer = durationMs;
+      }
+    };
+  }
+
   var htmlCollectionType = '[object HTMLCollection]';
   var nodeListType = '[object NodeList]';
 
@@ -5663,11 +6593,10 @@
     return isNodeList(val) ? Array.prototype.slice.call(val) : Array.prototype.concat(val);
   }
 
-  var packer = new Packer();
-
-  var numberType$1 = 'number';
-  var stringType = 'string';
-  var instantLayout = 'instant';
+  var PACKER = new Packer();
+  var NUMBER_TYPE = 'number';
+  var STRING_TYPE = 'string';
+  var INSTANT_LAYOUT = 'instant';
 
   /**
    * Creates a new Grid instance.
@@ -5688,7 +6617,7 @@
    * @param {Boolean} [options.layout.alignRight=false]
    * @param {Boolean} [options.layout.alignBottom=false]
    * @param {Boolean} [options.layout.rounding=true]
-   * @param {(Boolean|Number)} [options.layoutOnResize=100]
+   * @param {(Boolean|Number)} [options.layoutOnResize=150]
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
    * @param {String} [options.layoutEasing="ease"]
@@ -5709,8 +6638,9 @@
    * @param {Number} [options.dragSortPredicate.threshold=50]
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {String} [options.dragSortPredicate.migrateAction="move"]
-   * @param {Number} [options.dragReleaseDuration=300]
-   * @param {String} [options.dragReleaseEasing="ease"]
+   * @param {Object} [options.dragRelease]
+   * @param {Number} [options.dragRelease.layoutDuration=300]
+   * @param {String} [options.dragRelease.layoutEasing="ease"]
    * @param {Object} [options.dragCssProps]
    * @param {Object} [options.dragPlaceholder]
    * @param {Boolean} [options.dragPlaceholder.enabled=false]
@@ -5729,8 +6659,8 @@
 
   function Grid(element, options) {
     // Allow passing element as selector string
-    if (typeof element === stringType) {
-      element = window.document.querySelector(element);
+    if (typeof element === STRING_TYPE) {
+      element = document.querySelector(element);
     }
 
     // Store element for instance.
@@ -5740,8 +6670,8 @@
     // exist within the body element.
     var isElementInDom = element.getRootNode
       ? element.getRootNode({ composed: true }) === document
-      : window.document.body.contains(element);
-    if (!isElementInDom || element === window.document.documentElement) {
+      : document.body.contains(element);
+    if (!isElementInDom || element === document.documentElement) {
       throw new Error('Container element must be an existing DOM element');
     }
 
@@ -5759,7 +6689,7 @@
 
     // Create instance id and store it to the grid instances collection.
     this._id = createUid();
-    gridInstances[this._id] = this;
+    GRID_INSTANCES[this._id] = this;
 
     // Destroyed flag.
     this._isDestroyed = false;
@@ -5856,6 +6786,11 @@
   Grid.Packer = Packer;
 
   /**
+   * @see AutoScroller
+   */
+  Grid.AutoScroller = AutoScroller;
+
+  /**
    * Default options for Grid instance.
    *
    * @public
@@ -5891,7 +6826,7 @@
       alignBottom: false,
       rounding: true
     },
-    layoutOnResize: 100,
+    layoutOnResize: 150,
     layoutOnInit: true,
     layoutDuration: 300,
     layoutEasing: 'ease',
@@ -5916,11 +6851,14 @@
     },
     dragSortPredicate: {
       threshold: 50,
-      action: actionMove,
-      migrateAction: actionMove
+      action: ACTION_MOVE,
+      migrateAction: ACTION_MOVE
     },
-    dragReleaseDuration: 300,
-    dragReleaseEasing: 'ease',
+    dragRelease: {
+      layoutDuration: 300,
+      layoutEasing: 'ease',
+      useDragContainer: true
+    },
     dragCssProps: {
       touchAction: 'none',
       userSelect: 'none',
@@ -5934,6 +6872,14 @@
       createElement: null,
       onCreate: null,
       onRemove: null
+    },
+    dragAutoScroll: {
+      elements: [],
+      threshold: 50,
+      speed: AutoScroller.smoothSpeed(1000),
+      sortDuringScroll: true,
+      onStart: null,
+      onStop: null
     },
 
     // Classnames
@@ -6090,7 +7036,7 @@
     for (var i = 0; i < items.length; i++) {
       element = items[i]._element;
       if (element.parentNode === this._element) {
-        fragment = fragment || window.document.createDocumentFragment();
+        fragment = fragment || document.createDocumentFragment();
         fragment.appendChild(element);
       }
     }
@@ -6098,7 +7044,7 @@
     if (!fragment) return this;
 
     this._element.appendChild(fragment);
-    this._emit(eventSynchronize);
+    this._emit(EVENT_SYNCHRONIZE);
 
     return this;
   };
@@ -6115,8 +7061,8 @@
   Grid.prototype.layout = function(instant, onFinish) {
     if (this._isDestroyed) return this;
 
-    if (!this._isLayoutFinished && this._hasListeners(eventLayoutAbort)) {
-      this._emit(eventLayoutAbort, this._layout.items.slice(0));
+    if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
+      this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
     }
 
     var grid = this;
@@ -6140,8 +7086,8 @@
     // layoutStart event is intentionally emitted after the container element's
     // dimensions are set, because otherwise there would be no hook for reacting
     // to container dimension changes.
-    if (this._hasListeners(eventLayoutStart)) {
-      this._emit(eventLayoutStart, layout.items.slice(0), instant === true);
+    if (this._hasListeners(EVENT_LAYOUT_START)) {
+      this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
     }
 
     function tryFinish() {
@@ -6158,8 +7104,8 @@
         callback(layout.items.slice(0), hasLayoutChanged);
       }
 
-      if (!hasLayoutChanged && grid._hasListeners(eventLayoutEnd)) {
-        grid._emit(eventLayoutEnd, layout.items.slice(0));
+      if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
+        grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
       }
     }
 
@@ -6239,13 +7185,13 @@
     arrayInsert(items, newItems, opts.index);
 
     // Emit add event.
-    if (this._hasListeners(eventAdd)) {
-      this._emit(eventAdd, newItems.slice(0));
+    if (this._hasListeners(EVENT_ADD)) {
+      this._emit(EVENT_ADD, newItems.slice(0));
     }
 
     // If layout is needed.
     if (needsLayout && layout) {
-      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
 
     return newItems;
@@ -6283,13 +7229,13 @@
     }
 
     // Emit remove event.
-    if (this._hasListeners(eventRemove)) {
-      this._emit(eventRemove, targetItems.slice(0), indices);
+    if (this._hasListeners(EVENT_REMOVE)) {
+      this._emit(EVENT_REMOVE, targetItems.slice(0), indices);
     }
 
     // If layout is needed.
     if (needsLayout && layout) {
-      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
 
     return targetItems;
@@ -6355,7 +7301,7 @@
 
     var itemsToShow = [];
     var itemsToHide = [];
-    var isPredicateString = typeof predicate === stringType;
+    var isPredicateString = typeof predicate === STRING_TYPE;
     var isPredicateFn = isFunction(predicate);
     var opts = options || {};
     var isInstant = opts.instant === true;
@@ -6410,13 +7356,13 @@
     // If there are any items to filter.
     if (itemsToShow.length || itemsToHide.length) {
       // Emit filter event.
-      if (this._hasListeners(eventFilter)) {
-        this._emit(eventFilter, itemsToShow.slice(0), itemsToHide.slice(0));
+      if (this._hasListeners(EVENT_FILTER)) {
+        this._emit(EVENT_FILTER, itemsToShow.slice(0), itemsToHide.slice(0));
       }
 
       // If layout is needed.
       if (layout) {
-        this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+        this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
       }
     }
 
@@ -6541,7 +7487,7 @@
       }
       // Otherwise if we got a string, let's sort by the sort data as provided in
       // the instance's options.
-      else if (typeof sortComparer === stringType) {
+      else if (typeof sortComparer === STRING_TYPE) {
         sortComparer = parseCriteria(comparer);
         items.sort(defaultComparer);
       }
@@ -6565,13 +7511,13 @@
       }
 
       // Emit sort event.
-      if (this._hasListeners(eventSort)) {
-        this._emit(eventSort, items.slice(0), origItems);
+      if (this._hasListeners(EVENT_SORT)) {
+        this._emit(EVENT_SORT, items.slice(0), origItems);
       }
 
       // If layout is needed.
       if (layout) {
-        this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+        this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
       }
 
       return this;
@@ -6599,8 +7545,8 @@
     var items = this._items;
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var isSwap = opts.action === actionSwap;
-    var action = isSwap ? actionSwap : actionMove;
+    var isSwap = opts.action === ACTION_SWAP;
+    var action = isSwap ? ACTION_SWAP : ACTION_MOVE;
     var fromItem = this._getItem(item);
     var toItem = this._getItem(position);
     var fromIndex;
@@ -6620,8 +7566,8 @@
       }
 
       // Emit move event.
-      if (this._hasListeners(eventMove)) {
-        this._emit(eventMove, {
+      if (this._hasListeners(EVENT_MOVE)) {
+        this._emit(EVENT_MOVE, {
           item: fromItem,
           fromIndex: fromIndex,
           toIndex: toIndex,
@@ -6631,7 +7577,7 @@
 
       // If layout is needed.
       if (layout) {
-        this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+        this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
       }
     }
 
@@ -6660,7 +7606,7 @@
     if (!item) return this;
 
     var opts = options || {};
-    var container = opts.appendTo || window.document.body;
+    var container = opts.appendTo || document.body;
     var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
     var layoutReceiver = opts.layoutReceiver
       ? opts.layoutReceiver
@@ -6674,13 +7620,13 @@
     if (item._migrate._isActive && item._isActive) {
       if (layoutSender) {
         this.layout(
-          layoutSender === instantLayout,
+          layoutSender === INSTANT_LAYOUT,
           isFunction(layoutSender) ? layoutSender : undefined
         );
       }
       if (layoutReceiver) {
         grid.layout(
-          layoutReceiver === instantLayout,
+          layoutReceiver === INSTANT_LAYOUT,
           isFunction(layoutReceiver) ? layoutReceiver : undefined
         );
       }
@@ -6718,11 +7664,11 @@
     container.style.width = '';
 
     // Emit destroy event and unbind all events.
-    this._emit(eventDestroy);
+    this._emit(EVENT_DESTROY);
     this._emitter.destroy();
 
     // Remove reference from the grid instances collection.
-    gridInstances[this._id] = undefined;
+    delete GRID_INSTANCES[this._id];
 
     // Flag instance as destroyed.
     this._isDestroyed = true;
@@ -6755,7 +7701,7 @@
     // If target is number return the item in that index. If the number is lower
     // than zero look for the item starting from the end of the items array. For
     // example -1 for the last item, -2 for the second last item, etc.
-    if (typeof target === numberType$1) {
+    if (typeof target === NUMBER_TYPE) {
       return this._items[target > -1 ? target : this._items.length + target] || null;
     }
 
@@ -6785,11 +7731,6 @@
    * @returns {LayoutData}
    */
   Grid.prototype._getLayout = function() {
-    // TODO: Try to come up with a way for getting rid of this. At the moment this
-    // in cobination with grid.layout() causes potentially layout thrashing as
-    // we read the DOM here and then we write into it in grid.layout(). Would be
-    // better if the dimensions were read in witihin the ticker's read queue and
-    // the grid dimensions were set in the ticker's write queue.
     this._refreshDimensions();
 
     var layoutId = this._layout.id + 1;
@@ -6809,7 +7750,7 @@
     if (isFunction(layoutSettings)) {
       layoutData = layoutSettings.call(this, layoutItems, width, height);
     } else {
-      layoutData = packer.setOptions(layoutSettings).getLayout(layoutItems, width, height);
+      layoutData = PACKER.setOptions(layoutSettings).getLayout(layoutItems, width, height);
     }
 
     // Layout data should be considered immutable.
@@ -6863,6 +7804,8 @@
     this._height = rect.height;
     this._left = rect.left;
     this._top = rect.top;
+    this._right = rect.right;
+    this._bottom = rect.bottom;
   };
 
   /**
@@ -6912,14 +7855,14 @@
     var isBorderBox = false;
 
     if (
-      (layout.setHeight && typeof layout.height === numberType$1) ||
-      (layout.setWidth && typeof layout.width === numberType$1)
+      (layout.setHeight && typeof layout.height === NUMBER_TYPE) ||
+      (layout.setWidth && typeof layout.width === NUMBER_TYPE)
     ) {
       isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
     }
 
     if (layout.setHeight) {
-      if (typeof layout.height === numberType$1) {
+      if (typeof layout.height === NUMBER_TYPE) {
         element.style.height =
           (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
       } else {
@@ -6928,7 +7871,7 @@
     }
 
     if (layout.setWidth) {
-      if (typeof layout.width === numberType$1) {
+      if (typeof layout.width === NUMBER_TYPE) {
         element.style.width =
           (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
       } else {
@@ -6957,8 +7900,8 @@
     var callback = opts.onFinish;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var counter = targetItems.length;
-    var startEvent = toVisible ? eventShowStart : eventHideStart;
-    var endEvent = toVisible ? eventShowEnd : eventHideEnd;
+    var startEvent = toVisible ? EVENT_SHOW_START : EVENT_HIDE_START;
+    var endEvent = toVisible ? EVENT_SHOW_END : EVENT_HIDE_END;
     var method = toVisible ? 'show' : 'hide';
     var needsLayout = false;
     var completedItems = [];
@@ -7019,7 +7962,7 @@
 
     // Layout if needed.
     if (needsLayout && layout) {
-      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
   };
 
@@ -7129,7 +8072,7 @@
     var i, elem;
 
     // If we have a selector.
-    if (typeof items === stringType) {
+    if (typeof items === STRING_TYPE) {
       for (i = 0; i < grid._element.children.length; i++) {
         elem = grid._element.children[i];
         if (items === wildCardSelector || elementMatches(elem, items)) {
@@ -7154,7 +8097,7 @@
    * @param {(Number|Boolean)} delay
    */
   function bindLayoutOnResize(grid, delay) {
-    if (typeof delay !== numberType$1) {
+    if (typeof delay !== NUMBER_TYPE) {
       delay = delay === true ? 0 : -1;
     }
 
@@ -7174,7 +8117,7 @@
    */
   function unbindLayoutOnResize(grid) {
     if (grid._resizeHandler) {
-      grid._resizeHandler('cancel');
+      grid._resizeHandler(true);
       window.removeEventListener('resize', grid._resizeHandler);
       grid._resizeHandler = null;
     }
@@ -7189,7 +8132,7 @@
    */
   function normalizeStyles(styles) {
     var normalized = {};
-    var docElemStyle = window.document.documentElement.style;
+    var docElemStyle = document.documentElement.style;
     var prop, prefixedProp;
 
     // Normalize visible styles (prefix and remove invalid).

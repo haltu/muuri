@@ -12,10 +12,10 @@ import {
 } from '../ticker';
 
 import {
-  eventBeforeSend,
-  eventDragReleaseEnd,
-  eventLayoutStart,
-  eventHideStart
+  EVENT_BEFORE_SEND,
+  EVENT_DRAG_RELEASE_END,
+  EVENT_LAYOUT_START,
+  EVENT_HIDE_START
 } from '../constants';
 
 import ItemAnimate from '../Item/ItemAnimate';
@@ -256,16 +256,16 @@ ItemDragPlaceholder.prototype._onMigrate = function(data) {
   var nextGrid = data.toGrid;
 
   // Unbind listeners from current grid.
-  grid.off(eventDragReleaseEnd, this._onReleaseEnd);
-  grid.off(eventLayoutStart, this._onLayoutStart);
-  grid.off(eventBeforeSend, this._onMigrate);
-  grid.off(eventHideStart, this._onHide);
+  grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+  grid.off(EVENT_LAYOUT_START, this._onLayoutStart);
+  grid.off(EVENT_BEFORE_SEND, this._onMigrate);
+  grid.off(EVENT_HIDE_START, this._onHide);
 
   // Bind listeners to the next grid.
-  nextGrid.on(eventDragReleaseEnd, this._onReleaseEnd);
-  nextGrid.on(eventLayoutStart, this._onLayoutStart);
-  nextGrid.on(eventBeforeSend, this._onMigrate);
-  nextGrid.on(eventHideStart, this._onHide);
+  nextGrid.on(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+  nextGrid.on(EVENT_LAYOUT_START, this._onLayoutStart);
+  nextGrid.on(EVENT_BEFORE_SEND, this._onMigrate);
+  nextGrid.on(EVENT_HIDE_START, this._onHide);
 
   // Mark the item as migrated.
   this._didMigrate = true;
@@ -316,7 +316,7 @@ ItemDragPlaceholder.prototype.create = function() {
   if (isFunction(settings.dragPlaceholder.createElement)) {
     element = settings.dragPlaceholder.createElement(item);
   } else {
-    element = window.document.createElement('div');
+    element = document.createElement('div');
   }
   this._element = element;
 
@@ -345,10 +345,10 @@ ItemDragPlaceholder.prototype.create = function() {
   element.style[transformProp] = getTranslateString(left, top);
 
   // Bind event listeners.
-  grid.on(eventLayoutStart, this._onLayoutStart);
-  grid.on(eventDragReleaseEnd, this._onReleaseEnd);
-  grid.on(eventBeforeSend, this._onMigrate);
-  grid.on(eventHideStart, this._onHide);
+  grid.on(EVENT_LAYOUT_START, this._onLayoutStart);
+  grid.on(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+  grid.on(EVENT_BEFORE_SEND, this._onMigrate);
+  grid.on(EVENT_HIDE_START, this._onHide);
 
   // onCreate hook.
   if (isFunction(settings.dragPlaceholder.onCreate)) {
@@ -386,10 +386,10 @@ ItemDragPlaceholder.prototype.reset = function() {
   animation._element = null;
 
   // Unbind event listeners.
-  grid.off(eventDragReleaseEnd, this._onReleaseEnd);
-  grid.off(eventLayoutStart, this._onLayoutStart);
-  grid.off(eventBeforeSend, this._onMigrate);
-  grid.off(eventHideStart, this._onHide);
+  grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+  grid.off(EVENT_LAYOUT_START, this._onLayoutStart);
+  grid.off(EVENT_BEFORE_SEND, this._onMigrate);
+  grid.off(EVENT_HIDE_START, this._onHide);
 
   // Remove placeholder class from the placeholder element.
   if (this._className) {

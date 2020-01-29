@@ -5,23 +5,23 @@
  */
 
 import {
-  actionMove,
-  actionSwap,
-  eventSynchronize,
-  eventLayoutStart,
-  eventLayoutAbort,
-  eventLayoutEnd,
-  eventAdd,
-  eventRemove,
-  eventShowStart,
-  eventShowEnd,
-  eventHideStart,
-  eventHideEnd,
-  eventFilter,
-  eventSort,
-  eventMove,
-  eventDestroy,
-  gridInstances
+  ACTION_MOVE,
+  ACTION_SWAP,
+  EVENT_SYNCHRONIZE,
+  EVENT_LAYOUT_START,
+  EVENT_LAYOUT_ABORT,
+  EVENT_LAYOUT_END,
+  EVENT_ADD,
+  EVENT_REMOVE,
+  EVENT_SHOW_START,
+  EVENT_SHOW_END,
+  EVENT_HIDE_START,
+  EVENT_HIDE_END,
+  EVENT_FILTER,
+  EVENT_SORT,
+  EVENT_MOVE,
+  EVENT_DESTROY,
+  GRID_INSTANCES
 } from '../constants';
 
 import Emitter from '../Emitter/Emitter';
@@ -35,6 +35,7 @@ import ItemRelease from '../Item/ItemDragRelease';
 import ItemVisibility from '../Item/ItemVisibility';
 import Packer from '../Packer/Packer';
 import Dragger from '../Dragger/Dragger';
+import AutoScroller from '../AutoScroller/AutoScroller';
 
 import addClass from '../utils/addClass';
 import arrayInsert from '../utils/arrayInsert';
@@ -53,11 +54,10 @@ import noop from '../utils/noop';
 import removeClass from '../utils/removeClass';
 import toArray from '../utils/toArray';
 
-var packer = new Packer();
-
-var numberType = 'number';
-var stringType = 'string';
-var instantLayout = 'instant';
+var PACKER = new Packer();
+var NUMBER_TYPE = 'number';
+var STRING_TYPE = 'string';
+var INSTANT_LAYOUT = 'instant';
 
 /**
  * Creates a new Grid instance.
@@ -78,7 +78,7 @@ var instantLayout = 'instant';
  * @param {Boolean} [options.layout.alignRight=false]
  * @param {Boolean} [options.layout.alignBottom=false]
  * @param {Boolean} [options.layout.rounding=true]
- * @param {(Boolean|Number)} [options.layoutOnResize=100]
+ * @param {(Boolean|Number)} [options.layoutOnResize=150]
  * @param {Boolean} [options.layoutOnInit=true]
  * @param {Number} [options.layoutDuration=300]
  * @param {String} [options.layoutEasing="ease"]
@@ -99,8 +99,9 @@ var instantLayout = 'instant';
  * @param {Number} [options.dragSortPredicate.threshold=50]
  * @param {String} [options.dragSortPredicate.action="move"]
  * @param {String} [options.dragSortPredicate.migrateAction="move"]
- * @param {Number} [options.dragReleaseDuration=300]
- * @param {String} [options.dragReleaseEasing="ease"]
+ * @param {Object} [options.dragRelease]
+ * @param {Number} [options.dragRelease.layoutDuration=300]
+ * @param {String} [options.dragRelease.layoutEasing="ease"]
  * @param {Object} [options.dragCssProps]
  * @param {Object} [options.dragPlaceholder]
  * @param {Boolean} [options.dragPlaceholder.enabled=false]
@@ -119,8 +120,8 @@ var instantLayout = 'instant';
 
 function Grid(element, options) {
   // Allow passing element as selector string
-  if (typeof element === stringType) {
-    element = window.document.querySelector(element);
+  if (typeof element === STRING_TYPE) {
+    element = document.querySelector(element);
   }
 
   // Store element for instance.
@@ -130,8 +131,8 @@ function Grid(element, options) {
   // exist within the body element.
   var isElementInDom = element.getRootNode
     ? element.getRootNode({ composed: true }) === document
-    : window.document.body.contains(element);
-  if (!isElementInDom || element === window.document.documentElement) {
+    : document.body.contains(element);
+  if (!isElementInDom || element === document.documentElement) {
     throw new Error('Container element must be an existing DOM element');
   }
 
@@ -149,7 +150,7 @@ function Grid(element, options) {
 
   // Create instance id and store it to the grid instances collection.
   this._id = createUid();
-  gridInstances[this._id] = this;
+  GRID_INSTANCES[this._id] = this;
 
   // Destroyed flag.
   this._isDestroyed = false;
@@ -246,6 +247,11 @@ Grid.Dragger = Dragger;
 Grid.Packer = Packer;
 
 /**
+ * @see AutoScroller
+ */
+Grid.AutoScroller = AutoScroller;
+
+/**
  * Default options for Grid instance.
  *
  * @public
@@ -281,7 +287,7 @@ Grid.defaultOptions = {
     alignBottom: false,
     rounding: true
   },
-  layoutOnResize: 100,
+  layoutOnResize: 150,
   layoutOnInit: true,
   layoutDuration: 300,
   layoutEasing: 'ease',
@@ -306,11 +312,14 @@ Grid.defaultOptions = {
   },
   dragSortPredicate: {
     threshold: 50,
-    action: actionMove,
-    migrateAction: actionMove
+    action: ACTION_MOVE,
+    migrateAction: ACTION_MOVE
   },
-  dragReleaseDuration: 300,
-  dragReleaseEasing: 'ease',
+  dragRelease: {
+    layoutDuration: 300,
+    layoutEasing: 'ease',
+    useDragContainer: true
+  },
   dragCssProps: {
     touchAction: 'none',
     userSelect: 'none',
@@ -324,6 +333,14 @@ Grid.defaultOptions = {
     createElement: null,
     onCreate: null,
     onRemove: null
+  },
+  dragAutoScroll: {
+    elements: [],
+    threshold: 50,
+    speed: AutoScroller.smoothSpeed(1000),
+    sortDuringScroll: true,
+    onStart: null,
+    onStop: null
   },
 
   // Classnames
@@ -480,7 +497,7 @@ Grid.prototype.synchronize = function() {
   for (var i = 0; i < items.length; i++) {
     element = items[i]._element;
     if (element.parentNode === this._element) {
-      fragment = fragment || window.document.createDocumentFragment();
+      fragment = fragment || document.createDocumentFragment();
       fragment.appendChild(element);
     }
   }
@@ -488,7 +505,7 @@ Grid.prototype.synchronize = function() {
   if (!fragment) return this;
 
   this._element.appendChild(fragment);
-  this._emit(eventSynchronize);
+  this._emit(EVENT_SYNCHRONIZE);
 
   return this;
 };
@@ -505,8 +522,8 @@ Grid.prototype.synchronize = function() {
 Grid.prototype.layout = function(instant, onFinish) {
   if (this._isDestroyed) return this;
 
-  if (!this._isLayoutFinished && this._hasListeners(eventLayoutAbort)) {
-    this._emit(eventLayoutAbort, this._layout.items.slice(0));
+  if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
+    this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
   }
 
   var grid = this;
@@ -530,8 +547,8 @@ Grid.prototype.layout = function(instant, onFinish) {
   // layoutStart event is intentionally emitted after the container element's
   // dimensions are set, because otherwise there would be no hook for reacting
   // to container dimension changes.
-  if (this._hasListeners(eventLayoutStart)) {
-    this._emit(eventLayoutStart, layout.items.slice(0), instant === true);
+  if (this._hasListeners(EVENT_LAYOUT_START)) {
+    this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
   }
 
   function tryFinish() {
@@ -548,8 +565,8 @@ Grid.prototype.layout = function(instant, onFinish) {
       callback(layout.items.slice(0), hasLayoutChanged);
     }
 
-    if (!hasLayoutChanged && grid._hasListeners(eventLayoutEnd)) {
-      grid._emit(eventLayoutEnd, layout.items.slice(0));
+    if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
+      grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
     }
   }
 
@@ -629,13 +646,13 @@ Grid.prototype.add = function(elements, options) {
   arrayInsert(items, newItems, opts.index);
 
   // Emit add event.
-  if (this._hasListeners(eventAdd)) {
-    this._emit(eventAdd, newItems.slice(0));
+  if (this._hasListeners(EVENT_ADD)) {
+    this._emit(EVENT_ADD, newItems.slice(0));
   }
 
   // If layout is needed.
   if (needsLayout && layout) {
-    this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+    this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
   }
 
   return newItems;
@@ -673,13 +690,13 @@ Grid.prototype.remove = function(items, options) {
   }
 
   // Emit remove event.
-  if (this._hasListeners(eventRemove)) {
-    this._emit(eventRemove, targetItems.slice(0), indices);
+  if (this._hasListeners(EVENT_REMOVE)) {
+    this._emit(EVENT_REMOVE, targetItems.slice(0), indices);
   }
 
   // If layout is needed.
   if (needsLayout && layout) {
-    this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+    this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
   }
 
   return targetItems;
@@ -745,7 +762,7 @@ Grid.prototype.filter = function(predicate, options) {
 
   var itemsToShow = [];
   var itemsToHide = [];
-  var isPredicateString = typeof predicate === stringType;
+  var isPredicateString = typeof predicate === STRING_TYPE;
   var isPredicateFn = isFunction(predicate);
   var opts = options || {};
   var isInstant = opts.instant === true;
@@ -800,13 +817,13 @@ Grid.prototype.filter = function(predicate, options) {
   // If there are any items to filter.
   if (itemsToShow.length || itemsToHide.length) {
     // Emit filter event.
-    if (this._hasListeners(eventFilter)) {
-      this._emit(eventFilter, itemsToShow.slice(0), itemsToHide.slice(0));
+    if (this._hasListeners(EVENT_FILTER)) {
+      this._emit(EVENT_FILTER, itemsToShow.slice(0), itemsToHide.slice(0));
     }
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
   }
 
@@ -931,7 +948,7 @@ Grid.prototype.sort = (function() {
     }
     // Otherwise if we got a string, let's sort by the sort data as provided in
     // the instance's options.
-    else if (typeof sortComparer === stringType) {
+    else if (typeof sortComparer === STRING_TYPE) {
       sortComparer = parseCriteria(comparer);
       items.sort(defaultComparer);
     }
@@ -955,13 +972,13 @@ Grid.prototype.sort = (function() {
     }
 
     // Emit sort event.
-    if (this._hasListeners(eventSort)) {
-      this._emit(eventSort, items.slice(0), origItems);
+    if (this._hasListeners(EVENT_SORT)) {
+      this._emit(EVENT_SORT, items.slice(0), origItems);
     }
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
 
     return this;
@@ -989,8 +1006,8 @@ Grid.prototype.move = function(item, position, options) {
   var items = this._items;
   var opts = options || {};
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
-  var isSwap = opts.action === actionSwap;
-  var action = isSwap ? actionSwap : actionMove;
+  var isSwap = opts.action === ACTION_SWAP;
+  var action = isSwap ? ACTION_SWAP : ACTION_MOVE;
   var fromItem = this._getItem(item);
   var toItem = this._getItem(position);
   var fromIndex;
@@ -1010,8 +1027,8 @@ Grid.prototype.move = function(item, position, options) {
     }
 
     // Emit move event.
-    if (this._hasListeners(eventMove)) {
-      this._emit(eventMove, {
+    if (this._hasListeners(EVENT_MOVE)) {
+      this._emit(EVENT_MOVE, {
         item: fromItem,
         fromIndex: fromIndex,
         toIndex: toIndex,
@@ -1021,7 +1038,7 @@ Grid.prototype.move = function(item, position, options) {
 
     // If layout is needed.
     if (layout) {
-      this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
   }
 
@@ -1050,7 +1067,7 @@ Grid.prototype.send = function(item, grid, position, options) {
   if (!item) return this;
 
   var opts = options || {};
-  var container = opts.appendTo || window.document.body;
+  var container = opts.appendTo || document.body;
   var layoutSender = opts.layoutSender ? opts.layoutSender : opts.layoutSender === undefined;
   var layoutReceiver = opts.layoutReceiver
     ? opts.layoutReceiver
@@ -1064,13 +1081,13 @@ Grid.prototype.send = function(item, grid, position, options) {
   if (item._migrate._isActive && item._isActive) {
     if (layoutSender) {
       this.layout(
-        layoutSender === instantLayout,
+        layoutSender === INSTANT_LAYOUT,
         isFunction(layoutSender) ? layoutSender : undefined
       );
     }
     if (layoutReceiver) {
       grid.layout(
-        layoutReceiver === instantLayout,
+        layoutReceiver === INSTANT_LAYOUT,
         isFunction(layoutReceiver) ? layoutReceiver : undefined
       );
     }
@@ -1108,11 +1125,11 @@ Grid.prototype.destroy = function(removeElements) {
   container.style.width = '';
 
   // Emit destroy event and unbind all events.
-  this._emit(eventDestroy);
+  this._emit(EVENT_DESTROY);
   this._emitter.destroy();
 
   // Remove reference from the grid instances collection.
-  gridInstances[this._id] = undefined;
+  delete GRID_INSTANCES[this._id];
 
   // Flag instance as destroyed.
   this._isDestroyed = true;
@@ -1145,7 +1162,7 @@ Grid.prototype._getItem = function(target) {
   // If target is number return the item in that index. If the number is lower
   // than zero look for the item starting from the end of the items array. For
   // example -1 for the last item, -2 for the second last item, etc.
-  if (typeof target === numberType) {
+  if (typeof target === NUMBER_TYPE) {
     return this._items[target > -1 ? target : this._items.length + target] || null;
   }
 
@@ -1175,11 +1192,6 @@ Grid.prototype._getItem = function(target) {
  * @returns {LayoutData}
  */
 Grid.prototype._getLayout = function() {
-  // TODO: Try to come up with a way for getting rid of this. At the moment this
-  // in cobination with grid.layout() causes potentially layout thrashing as
-  // we read the DOM here and then we write into it in grid.layout(). Would be
-  // better if the dimensions were read in witihin the ticker's read queue and
-  // the grid dimensions were set in the ticker's write queue.
   this._refreshDimensions();
 
   var layoutId = this._layout.id + 1;
@@ -1199,7 +1211,7 @@ Grid.prototype._getLayout = function() {
   if (isFunction(layoutSettings)) {
     layoutData = layoutSettings.call(this, layoutItems, width, height);
   } else {
-    layoutData = packer.setOptions(layoutSettings).getLayout(layoutItems, width, height);
+    layoutData = PACKER.setOptions(layoutSettings).getLayout(layoutItems, width, height);
   }
 
   // Layout data should be considered immutable.
@@ -1253,6 +1265,8 @@ Grid.prototype._updateBoundingRect = function() {
   this._height = rect.height;
   this._left = rect.left;
   this._top = rect.top;
+  this._right = rect.right;
+  this._bottom = rect.bottom;
 };
 
 /**
@@ -1302,14 +1316,14 @@ Grid.prototype._updateGridElementSize = function(layout) {
   var isBorderBox = false;
 
   if (
-    (layout.setHeight && typeof layout.height === numberType) ||
-    (layout.setWidth && typeof layout.width === numberType)
+    (layout.setHeight && typeof layout.height === NUMBER_TYPE) ||
+    (layout.setWidth && typeof layout.width === NUMBER_TYPE)
   ) {
     isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
   }
 
   if (layout.setHeight) {
-    if (typeof layout.height === numberType) {
+    if (typeof layout.height === NUMBER_TYPE) {
       element.style.height =
         (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
     } else {
@@ -1318,7 +1332,7 @@ Grid.prototype._updateGridElementSize = function(layout) {
   }
 
   if (layout.setWidth) {
-    if (typeof layout.width === numberType) {
+    if (typeof layout.width === NUMBER_TYPE) {
       element.style.width =
         (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
     } else {
@@ -1347,8 +1361,8 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   var callback = opts.onFinish;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var counter = targetItems.length;
-  var startEvent = toVisible ? eventShowStart : eventHideStart;
-  var endEvent = toVisible ? eventShowEnd : eventHideEnd;
+  var startEvent = toVisible ? EVENT_SHOW_START : EVENT_HIDE_START;
+  var endEvent = toVisible ? EVENT_SHOW_END : EVENT_HIDE_END;
   var method = toVisible ? 'show' : 'hide';
   var needsLayout = false;
   var completedItems = [];
@@ -1409,7 +1423,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
 
   // Layout if needed.
   if (needsLayout && layout) {
-    this.layout(layout === instantLayout, isFunction(layout) ? layout : undefined);
+    this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
   }
 };
 
@@ -1519,7 +1533,7 @@ function getInitialGridItems(grid, items) {
   var i, elem;
 
   // If we have a selector.
-  if (typeof items === stringType) {
+  if (typeof items === STRING_TYPE) {
     for (i = 0; i < grid._element.children.length; i++) {
       elem = grid._element.children[i];
       if (items === wildCardSelector || elementMatches(elem, items)) {
@@ -1544,7 +1558,7 @@ function getInitialGridItems(grid, items) {
  * @param {(Number|Boolean)} delay
  */
 function bindLayoutOnResize(grid, delay) {
-  if (typeof delay !== numberType) {
+  if (typeof delay !== NUMBER_TYPE) {
     delay = delay === true ? 0 : -1;
   }
 
@@ -1564,7 +1578,7 @@ function bindLayoutOnResize(grid, delay) {
  */
 function unbindLayoutOnResize(grid) {
   if (grid._resizeHandler) {
-    grid._resizeHandler('cancel');
+    grid._resizeHandler(true);
     window.removeEventListener('resize', grid._resizeHandler);
     grid._resizeHandler = null;
   }
@@ -1579,7 +1593,7 @@ function unbindLayoutOnResize(grid) {
  */
 function normalizeStyles(styles) {
   var normalized = {};
-  var docElemStyle = window.document.documentElement.style;
+  var docElemStyle = document.documentElement.style;
   var prop, prefixedProp;
 
   // Normalize visible styles (prefix and remove invalid).

@@ -10,9 +10,8 @@ import isFunction from '../utils/isFunction';
 import isNative from '../utils/isNative';
 import setStyles from '../utils/setStyles';
 
-var Element = window.Element;
-var hasWebAnimations = !!(Element && isFunction(Element.prototype.animate));
-var hasNativeWebAnimations = !!(Element && isNative(Element.prototype.animate));
+var HAS_WEB_ANIMATIONS = !!(Element && isFunction(Element.prototype.animate));
+var HAS_NATIVE_WEB_ANIMATIONS = !!(Element && isNative(Element.prototype.animate));
 
 /**
  * Item animation handler powered by Web Animations API.
@@ -57,7 +56,7 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   var opts = options || {};
 
   // If we don't have web animations available let's not animate.
-  if (!hasWebAnimations) {
+  if (!HAS_WEB_ANIMATIONS) {
     setStyles(element, propsTo);
     this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
     this._onFinish();
@@ -128,8 +127,8 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
   this._easing = easing;
   this._animation = element.animate(
     [
-      createFrame(propsFrom, !hasNativeWebAnimations),
-      createFrame(propsTo, !hasNativeWebAnimations)
+      createFrame(propsFrom, !HAS_NATIVE_WEB_ANIMATIONS),
+      createFrame(propsTo, !HAS_NATIVE_WEB_ANIMATIONS)
     ],
     {
       duration: duration,

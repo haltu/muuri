@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { eventBeforeSend, eventBeforeReceive, eventSend, eventReceive } from '../constants';
+import { EVENT_BEFORE_SEND, EVENT_BEFORE_RECEIVE, EVENT_SEND, EVENT_RECEIVE } from '../constants';
 
 import ItemDrag from './ItemDrag';
 
@@ -60,7 +60,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   var targetElement = targetGrid._element;
   var targetItems = targetGrid._items;
   var currentIndex = grid._items.indexOf(item);
-  var targetContainer = container || window.document.body;
+  var targetContainer = container || document.body;
   var targetIndex;
   var targetItem;
   var currentContainer;
@@ -73,7 +73,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
 
   // Get target index.
   if (typeof position === 'number') {
-    targetIndex = normalizeArrayIndex(targetItems, position, true);
+    targetIndex = normalizeArrayIndex(targetItems, position, 1);
   } else {
     targetItem = targetGrid._getItem(position);
     if (!targetItem) return this;
@@ -118,8 +118,8 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   item._visibility._queue.process(true, item);
 
   // Emit beforeSend event.
-  if (grid._hasListeners(eventBeforeSend)) {
-    grid._emit(eventBeforeSend, {
+  if (grid._hasListeners(EVENT_BEFORE_SEND)) {
+    grid._emit(EVENT_BEFORE_SEND, {
       item: item,
       fromGrid: grid,
       fromIndex: currentIndex,
@@ -129,8 +129,8 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   }
 
   // Emit beforeReceive event.
-  if (targetGrid._hasListeners(eventBeforeReceive)) {
-    targetGrid._emit(eventBeforeReceive, {
+  if (targetGrid._hasListeners(EVENT_BEFORE_RECEIVE)) {
+    targetGrid._emit(EVENT_BEFORE_RECEIVE, {
       item: item,
       fromGrid: grid,
       fromIndex: currentIndex,
@@ -199,8 +199,8 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   this._containerDiffY = containerDiff.top;
 
   // Emit send event.
-  if (grid._hasListeners(eventSend)) {
-    grid._emit(eventSend, {
+  if (grid._hasListeners(EVENT_SEND)) {
+    grid._emit(EVENT_SEND, {
       item: item,
       fromGrid: grid,
       fromIndex: currentIndex,
@@ -210,8 +210,8 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   }
 
   // Emit receive event.
-  if (targetGrid._hasListeners(eventReceive)) {
-    targetGrid._emit(eventReceive, {
+  if (targetGrid._hasListeners(EVENT_RECEIVE)) {
+    targetGrid._emit(EVENT_RECEIVE, {
       item: item,
       fromGrid: grid,
       fromIndex: currentIndex,

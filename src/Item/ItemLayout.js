@@ -17,7 +17,7 @@ import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 import transformProp from '../utils/transformProp';
 
-var minDistanceToAnimate = 2;
+var MIN_ANIMATION_DISTANCE = 2;
 
 /**
  * Layout manager for Item instance, handles the positioning of an item.
@@ -79,9 +79,11 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   var isPositioning = this._isActive;
   var isJustReleased = release._isActive && release._isPositioningStarted === false;
   var animDuration = isJustReleased
-    ? gridSettings.dragReleaseDuration
+    ? gridSettings.dragRelease.layoutDuration
     : gridSettings.layoutDuration;
-  var animEasing = isJustReleased ? gridSettings.dragReleaseEasing : gridSettings.layoutEasing;
+  var animEasing = isJustReleased
+    ? gridSettings.dragRelease.layoutEasing
+    : gridSettings.layoutEasing;
   var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
 
   // If the item is currently positioning cancel potential queued layout tick
@@ -278,7 +280,7 @@ ItemLayout.prototype._startAnimation = function() {
 
   // If there is no need for animation or if the item is already in correct
   // position (or near it) let's finish the process early.
-  if (isInstant || (xDiff < minDistanceToAnimate && yDiff < minDistanceToAnimate)) {
+  if (isInstant || (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE)) {
     if (xDiff || yDiff || this._isInterrupted) {
       setStyles(item._element, this._targetStyles);
     }

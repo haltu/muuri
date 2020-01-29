@@ -6,8 +6,17 @@
     <style>
       html {
         overflow-y: scroll;
+        height: 100%;
       }
-      body {
+      .dragbox {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        z-index: 1000;
+      }
+      .row {
         display: flex;
         justify-content: space-evenly;
         margin: 50px 0;
@@ -15,23 +24,30 @@
       .grid {
         position: relative;
         width: 45%;
-        background: #ccc;
-        border: 5px solid transparent;
-        min-height: 100px;
       }
-      nav {
-        position: absolute;
-        top: -55px;
-        left: -5px;
+      .grid-actions {
+        position: relative;
         height: 50px;
         display: flex;
         justify-content: space-evenly;
       }
-      nav button {
+      .grid-actions button {
         display: block;
         position: relative;
         height: 30px;
         margin: 10px 10px 10px 0px;
+      }
+      .grid-scroller {
+        position: relative;
+        background: #ccc;
+        border: 5px solid transparent;
+        height: 300px;
+        overflow: hidden;
+        overflow-y: scroll;
+      }
+      .grid-content {
+        position: relative;
+        min-height: 100%;
       }
       .item {
         position: absolute;
@@ -98,112 +114,123 @@
     </style>
   </head>
   <body>
-    <div class="grid grid-1">
-      <nav>
-        <button class="add">Add items</button>
-        <button class="remove">Remove items</button>
-      </nav>
+    <div class="dragbox"></div>
+    <div class="row">
+      <div class="grid grid-1">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
     </div>
 
-    <div class="grid grid-2">
-      <nav>
-        <button class="add">Add items</button>
-        <button class="remove">Remove items</button>
-      </nav>
+    <div class="row">
+      <div class="grid grid-3">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-4">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="grid grid-5">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-6">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
     </div>
 
     <script src="../node_modules/web-animations-js/web-animations.min.js"></script>
     <script src="../dist/muuri.js"></script>
     <script>
       (function() {
-        var counter = 0;
+        let counter = 0;
+        const dragbox = document.querySelector('.dragbox');
+        const scrollers = [
+          { element: window, priority: -1 },
+          ...document.querySelectorAll('.grid-scroller')
+        ];
+        const grids = [];
 
-        // Init grids
-
-        var grid1 = new Muuri('.grid-1', {
-          items: '.item',
-          layoutDuration: 2000,
-          dragEnabled: true,
-          dragHandle: '.item-handle',
-          dragContainer: document.body,
-          dragReleaseDuration: 2000,
-          dragSort: function() {
-            return [grid1, grid2];
-          },
-          dragSortPredicate: {
-            migrateAction: 'move'
-          },
-          dragPlaceholder: {
-            enabled: true,
-            createElement: function(item) {
-              return item.getElement().cloneNode(true);
+        [...document.querySelectorAll('.grid')].forEach(containerElement => {
+          const gridElement = containerElement.querySelector('.grid-content');
+          const grid = new Muuri(gridElement, {
+            items: '.item',
+            dragEnabled: true,
+            dragContainer: dragbox,
+            dragRelease: {
+              useDragContainer: false
+            },
+            dragSort: function() {
+              return grids;
+            },
+            dragPlaceholder: {
+              enabled: true,
+              createElement: function(item) {
+                return item.getElement().cloneNode(true);
+              }
+            },
+            dragSortHeuristics: {
+              sortInterval: 150,
+              minDragDistance: 10,
+              minBounceBackAngle: 1
+            },
+            dragAutoScroll: {
+              elements: scrollers,
+              sortDuringScroll: false
             }
-          }
-        });
+          });
 
-        var grid2 = new Muuri('.grid-2', {
-          items: '.item',
-          dragEnabled: true,
-          dragContainer: document.body,
-          dragSort: function() {
-            return [grid1, grid2];
-          },
-          dragSortPredicate: {
-            migrateAction: 'swap'
-          },
-          dragPlaceholder: {
-            enabled: true,
-            createElement: function(item) {
-              return item.getElement().cloneNode(true);
-            }
-          }
-        });
+          containerElement
+            .querySelector('.add')
+            .addEventListener('click', () => addItemsToGrid(grid, 5));
 
-        grid1.on('layoutStart', items => {
-          console.log('layoutStart');
-        });
+          containerElement
+            .querySelector('.remove')
+            .addEventListener('click', () => removeItemsFromGrid(grid, 5));
 
-        grid1.on('layoutAbort', items => {
-          console.log('layoutAbort');
-        });
-
-        grid1.on('layoutEnd', items => {
-          console.log('layoutEnd');
-        });
-
-        grid2.on('layoutStart', items => {
-          console.log('layoutStart');
-        });
-
-        grid2.on('layoutAbort', items => {
-          console.log('layoutAbort');
-        });
-
-        grid2.on('layoutEnd', items => {
-          console.log('layoutEnd');
-        });
-
-        // Init actions
-
-        var grid1AddButton = document.querySelector('.grid-1 .add');
-        var grid1RemoveButton = document.querySelector('.grid-1 .remove');
-        var grid2AddButton = document.querySelector('.grid-2 .add');
-        var grid2RemoveButton = document.querySelector('.grid-2 .remove');
-
-        grid1AddButton.addEventListener('click', function() {
-          addItemsToGrid(grid1, 5);
-        });
-
-        grid1RemoveButton.addEventListener('click', function() {
-          removeItemsFromGrid(grid1, 5);
-        });
-
-        grid2AddButton.addEventListener('click', function() {
-          addItemsToGrid(grid2, 5);
-        });
-
-        grid2RemoveButton.addEventListener('click', function() {
-          removeItemsFromGrid(grid2, 5);
+          grids.push(grid);
         });
 
         // Utils

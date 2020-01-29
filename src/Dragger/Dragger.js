@@ -5,25 +5,13 @@
  * https://github.com/haltu/muuri/blob/master/src/Dragger/LICENSE.md
  */
 
-import { hasTouchEvents, hasPointerEvents, hasMsPointerEvents } from '../constants';
+import { HAS_TOUCH_EVENTS, HAS_POINTER_EVENTS, HAS_MS_POINTER_EVENTS } from '../constants';
 
 import Emitter from '../Emitter/Emitter';
 import EdgeHack from './EdgeHack';
 
 import getPrefixedPropName from '../utils/getPrefixedPropName';
-
-// Detect support for passive events:
-// https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
-var isPassiveEventsSupported = false;
-try {
-  var passiveOpts = Object.defineProperty({}, 'passive', {
-    get: function() {
-      isPassiveEventsSupported = true;
-    }
-  });
-  window.addEventListener('testPassive', null, passiveOpts);
-  window.removeEventListener('testPassive', null, passiveOpts);
-} catch (e) {}
+import hasPassiveEvents from '../utils/hasPassiveEvents';
 
 var ua = window.navigator.userAgent.toLowerCase();
 var isEdge = ua.indexOf('edge') > -1;
@@ -31,10 +19,10 @@ var isIE = ua.indexOf('trident') > -1;
 var isFirefox = ua.indexOf('firefox') > -1;
 var isAndroid = ua.indexOf('android') > -1;
 
-var listenerOptions = isPassiveEventsSupported ? { passive: true } : false;
+var listenerOptions = hasPassiveEvents() ? { passive: true } : false;
 
 var taProp = 'touchAction';
-var taPropPrefixed = getPrefixedPropName(window.document.documentElement.style, taProp);
+var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
 var taDefaultValue = 'auto';
 
 /**
@@ -67,7 +55,7 @@ function Dragger(element, cssProps) {
 
   // Can't believe had to build a freaking class for a hack!
   this._edgeHack = null;
-  if ((isEdge || isIE) && (hasPointerEvents || hasMsPointerEvents)) {
+  if ((isEdge || isIE) && (HAS_POINTER_EVENTS || HAS_MS_POINTER_EVENTS)) {
     this._edgeHack = new EdgeHack(this);
   }
 
@@ -121,9 +109,9 @@ Dragger._mouseEvents = {
 };
 
 Dragger._inputEvents = (function() {
-  if (hasTouchEvents) return Dragger._touchEvents;
-  if (hasPointerEvents) return Dragger._pointerEvents;
-  if (hasMsPointerEvents) return Dragger._msPointerEvents;
+  if (HAS_TOUCH_EVENTS) return Dragger._touchEvents;
+  if (HAS_POINTER_EVENTS) return Dragger._pointerEvents;
+  if (HAS_MS_POINTER_EVENTS) return Dragger._msPointerEvents;
   return Dragger._mouseEvents;
 })();
 
@@ -440,7 +428,7 @@ Dragger.prototype.setTouchAction = function(value) {
   // a can of worms. We do a special exception here for Firefox Android which's
   // touch-action does not work properly if the dragged element is moved in the
   // the DOM tree on touchstart.
-  if (hasTouchEvents) {
+  if (HAS_TOUCH_EVENTS) {
     this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
     if (this._element.style[taPropPrefixed] !== value || (isFirefox && isAndroid)) {
       this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);

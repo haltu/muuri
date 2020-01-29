@@ -1752,6 +1752,9 @@
         testRect = getContentRect(testElement, testRect);
         testScore = getIntersectionScore(itemRect, testRect);
 
+        // Ignore this item if it's not overlapping at all with the dragged item.
+        if (testScore <= 0) continue;
+
         if (
           testAxisX &&
           testPriority >= xPriority &&

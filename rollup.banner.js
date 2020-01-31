@@ -15,5 +15,9 @@ module.exports = `/**
 * Muuri Ticker / Muuri Emitter / Muuri Queue / Muuri Dragger
 * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
+*
+* Muuri AutoScroller
+* Copyright (c) 2019-present, Niklas Rämö <inramo@gmail.com>
+* @license MIT
 */
 `;

@@ -6,7 +6,7 @@
  */
 
 import isFunction from '../utils/isFunction';
-import { SCROLL_LEFT, SCROLL_RIGHT, SCROLL_UP } from './constants';
+import { SCROLL_LEFT, SCROLL_RIGHT, SCROLL_UP, AXIS_X, AXIS_Y } from './constants';
 import { getScrollLeft, getScrollTop, getItemAutoScrollSettings } from './utils';
 
 export default function ScrollRequest() {
@@ -41,6 +41,10 @@ ScrollRequest.prototype.reset = function() {
 
 ScrollRequest.prototype.isAxisX = function() {
   return this.direction === SCROLL_LEFT || this.direction === SCROLL_RIGHT;
+};
+
+ScrollRequest.prototype.getAxis = function() {
+  return this.isAxisX() ? AXIS_X : AXIS_Y;
 };
 
 ScrollRequest.prototype.computeCurrentScrollValue = function() {

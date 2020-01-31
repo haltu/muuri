@@ -5,7 +5,9 @@
  * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
+import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
+import isTransformed from '../utils/isTransformed';
 
 var DOC_ELEM = document.documentElement;
 var BODY = document.body;
@@ -115,4 +117,45 @@ export function prepareItemDragScroll(item) {
  */
 export function applyItemDragScroll(item) {
   if (item._drag) item._drag._applyScroll();
+}
+
+/**
+ * Check if the target element's position is affected by the scrolling of the
+ * scroll element.
+ *
+ * @param {HTMLElement} targetElement
+ * @param {HTMLElement|Window} scrollElement
+ * @returns {Boolean}
+ */
+export function isAffectedByScroll(targetElement, scrollElement) {
+  if (
+    // If scroll element is target element -> not affected.
+    targetElement === scrollElement ||
+    // If scroll element does not contain the item element -> not affected.
+    (scrollElement !== window && !scrollElement.contains(targetElement))
+  ) {
+    return false;
+  }
+
+  var el = targetElement;
+  var isAffected = true;
+
+  // There are many cases where the target element might not be affected by the
+  // scroll, but here we just check the most common one -> if there is a fixed
+  // element between the target element and scroll element and there are no
+  // transformed elements between the fixed element and scroll element.
+  while (el !== scrollElement) {
+    el = el.parentElement || scrollElement;
+    if (el === window) break;
+
+    if (!isAffected && isTransformed(el)) {
+      isAffected = true;
+    }
+
+    if (isAffected && el !== scrollElement && getStyle(el, 'position') === 'fixed') {
+      isAffected = false;
+    }
+  }
+
+  return isAffected;
 }

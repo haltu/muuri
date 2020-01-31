@@ -181,6 +181,50 @@
       </div>
     </div>
 
+    <div class="row">
+      <div class="grid grid-7">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-8">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="grid grid-9">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-10">
+        <nav class="grid-actions">
+          <button class="add">Add items</button>
+          <button class="remove">Remove items</button>
+        </nav>
+        <div class="grid-scroller">
+          <div class="grid-content"></div>
+        </div>
+      </div>
+    </div>
+
     <script src="../node_modules/web-animations-js/web-animations.min.js"></script>
     <script src="../dist/muuri.js"></script>
     <script>
@@ -224,11 +268,11 @@
 
           containerElement
             .querySelector('.add')
-            .addEventListener('click', () => addItemsToGrid(grid, 5));
+            .addEventListener('click', () => addItemsToGrid(grid, 50));
 
           containerElement
             .querySelector('.remove')
-            .addEventListener('click', () => removeItemsFromGrid(grid, 5));
+            .addEventListener('click', () => removeItemsFromGrid(grid, 50));
 
           grids.push(grid);
         });

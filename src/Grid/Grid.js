@@ -337,8 +337,9 @@ Grid.defaultOptions = {
   dragAutoScroll: {
     elements: [],
     threshold: 50,
-    speed: AutoScroller.smoothSpeed(1000),
+    speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
+    syncAfterScroll: true,
     onStart: null,
     onStop: null
   },

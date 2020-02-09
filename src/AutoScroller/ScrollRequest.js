@@ -6,29 +6,19 @@
  */
 
 import isFunction from '../utils/isFunction';
-import { SCROLL_LEFT, SCROLL_RIGHT, SCROLL_UP, AXIS_X, AXIS_Y } from './constants';
+import { AXIS_X, FORWARD } from './constants';
 import { getScrollLeft, getScrollTop, getItemAutoScrollSettings } from './utils';
 
 export default function ScrollRequest() {
-  this.item = null;
-  this.element = null;
-  this.active = false;
-  this.direction = null;
-  this.value = null;
-  this.maxValue = 0;
-  this.threshold = 0;
-  this.distance = 0;
-  this.speed = 0;
-  this.duration = 0;
-  this.action = null;
+  this.reset();
 }
 
 ScrollRequest.prototype.reset = function() {
-  if (this.active) this.onStop();
-
+  if (this.isActive) this.onStop();
   this.item = null;
   this.element = null;
-  this.active = false;
+  this.isActive = false;
+  this.isEnding = false;
   this.direction = null;
   this.value = null;
   this.maxValue = 0;
@@ -37,33 +27,19 @@ ScrollRequest.prototype.reset = function() {
   this.speed = 0;
   this.duration = 0;
   this.action = null;
-};
-
-ScrollRequest.prototype.isAxisX = function() {
-  return this.direction === SCROLL_LEFT || this.direction === SCROLL_RIGHT;
-};
-
-ScrollRequest.prototype.getAxis = function() {
-  return this.isAxisX() ? AXIS_X : AXIS_Y;
 };
 
 ScrollRequest.prototype.computeCurrentScrollValue = function() {
   if (this.value === null) {
-    return this.isAxisX() ? getScrollLeft(this.element) : getScrollTop(this.element);
+    return AXIS_X & this.direction ? getScrollLeft(this.element) : getScrollTop(this.element);
   }
   return Math.max(0, Math.min(this.value, this.maxValue));
 };
 
 ScrollRequest.prototype.computeNextScrollValue = function(deltaTime) {
-  var scrollValue = this.value;
-  var direction = this.direction;
-  var scrollDelta = this.speed * (deltaTime / 1000);
-  var nextScrollValue =
-    direction === SCROLL_LEFT || direction === SCROLL_UP
-      ? scrollValue - scrollDelta
-      : scrollValue + scrollDelta;
-
-  return Math.max(0, Math.min(nextScrollValue, this.maxValue));
+  var delta = this.speed * (deltaTime / 1000);
+  var nextValue = FORWARD & this.direction ? this.value + delta : this.value - delta;
+  return Math.max(0, Math.min(nextValue, this.maxValue));
 };
 
 ScrollRequest.prototype.computeSpeed = (function() {
@@ -74,7 +50,8 @@ ScrollRequest.prototype.computeSpeed = (function() {
     value: 0,
     maxValue: 0,
     deltaTime: 0,
-    duration: 0
+    duration: 0,
+    isEnding: false
   };
 
   return function(deltaTime) {
@@ -90,6 +67,7 @@ ScrollRequest.prototype.computeSpeed = (function() {
       data.duration = this.duration;
       data.speed = this.speed;
       data.deltaTime = deltaTime;
+      data.isEnding = this.isEnding;
       return speed(item, this.element, data);
     } else {
       return speed;
@@ -98,8 +76,8 @@ ScrollRequest.prototype.computeSpeed = (function() {
 })();
 
 ScrollRequest.prototype.tick = function(deltaTime) {
-  if (!this.active) {
-    this.active = true;
+  if (!this.isActive) {
+    this.isActive = true;
     this.onStart();
   }
   this.value = this.computeCurrentScrollValue();

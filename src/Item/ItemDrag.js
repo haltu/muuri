@@ -1338,6 +1338,7 @@ ItemDrag.prototype._applyMove = function() {
   this._moveDiffX = this._moveDiffY = 0;
   item._element.style[transformProp] = getTranslateString(this._left, this._top);
   this._getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
+  AUTO_SCROLLER.updateItem(item);
 };
 
 /**

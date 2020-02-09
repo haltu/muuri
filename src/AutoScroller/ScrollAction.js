@@ -6,6 +6,7 @@
  */
 
 import { getScrollLeft, getScrollTop } from './utils';
+import { AXIS_X } from './constants';
 
 export default function ScrollAction() {
   this.element = null;
@@ -26,15 +27,18 @@ ScrollAction.prototype.reset = function() {
 };
 
 ScrollAction.prototype.addRequest = function(request) {
-  if (request.isAxisX()) {
+  if (AXIS_X & request.direction) {
+    this.removeRequest(this.requestX);
     this.requestX = request;
   } else {
+    this.removeRequest(this.requestY);
     this.requestY = request;
   }
   request.action = this;
 };
 
 ScrollAction.prototype.removeRequest = function(request) {
+  if (!request) return;
   if (this.requestX === request) {
     this.requestX = null;
     request.action = null;

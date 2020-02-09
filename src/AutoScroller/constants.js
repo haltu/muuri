@@ -5,10 +5,11 @@
  * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
-export var SCROLL_NONE = 'none';
-export var SCROLL_LEFT = 'left';
-export var SCROLL_RIGHT = 'right';
-export var SCROLL_UP = 'up';
-export var SCROLL_DOWN = 'down';
-export var AXIS_X = 'x';
-export var AXIS_Y = 'y';
+export var AXIS_X = 1;
+export var AXIS_Y = 2;
+export var FORWARD = 4;
+export var BACKWARD = 8;
+export var LEFT = AXIS_X | BACKWARD;
+export var RIGHT = AXIS_X | FORWARD;
+export var UP = AXIS_Y | BACKWARD;
+export var DOWN = AXIS_Y | FORWARD;

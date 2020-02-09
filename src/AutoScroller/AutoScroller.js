@@ -6,36 +6,28 @@
  */
 
 /**
- * TODO: When checking if element can scroll don't rely solely on the maxScroll
- * value, we need to also check if the CSS style allows scrolling.
- *
  * TODO: Might be a good idea to allow providing a delay before the scrolling
  * starts, especially for the cases where you move the item between grids.
+ * And/or a separate startThreshold and endThreshold, althouhg if we have
+ * dynamic threshold you could dynamically modify the threshold after start.
  *
  * TODO: How should we handle cases where the dragged item is larger than the
  * scrollable element? Should we disallow scrolling in that case? Or maybe
  * there could be another mode where we look at the center of the dragged item
  * instead of the edge?
  *
- * TODO: It is important that the scrolling occurs always in the grid where
- * sorting is currently happening too so make it easy to guarantee that kind of
- * logic.
- *
  * TODO: We should probably allow providing threshold as a function to allow
  * defining the threshold based on the scroll element's and dragged element's
  * dimensions and position.
+ *
+ * TODO: See if values can be cached more efficiently here.
+ *
+ * TODO: Option: define the maximum amount of items that can autoscroll
+ * simultaneously?
  */
 
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
-import {
-  SCROLL_NONE,
-  SCROLL_LEFT,
-  SCROLL_RIGHT,
-  SCROLL_UP,
-  SCROLL_DOWN,
-  AXIS_X,
-  AXIS_Y
-} from './constants';
+import { LEFT, RIGHT, UP, DOWN, AXIS_X, AXIS_Y, FORWARD } from './constants';
 import ScrollRequest from './ScrollRequest';
 import ScrollAction from './ScrollAction';
 import Pool from './Pool';
@@ -100,17 +92,43 @@ export default function AutoScroller() {
   this._requests = {};
   this._requests[AXIS_X] = {};
   this._requests[AXIS_Y] = {};
+  this._needsOverlapCheck = {};
   this._readTick = this._readTick.bind(this);
   this._writeTick = this._writeTick.bind(this);
 }
 
-AutoScroller.smoothSpeed = function(maxSpeed) {
+AutoScroller.AXIS_X = AXIS_X;
+AutoScroller.AXIS_Y = AXIS_Y;
+AutoScroller.LEFT = LEFT;
+AutoScroller.RIGHT = RIGHT;
+AutoScroller.UP = UP;
+AutoScroller.DOWN = DOWN;
+
+AutoScroller.smoothSpeed = function(maxSpeed, acceleration, deceleration) {
   return function(item, element, data) {
-    if (data.threshold > 0) {
-      var factor = data.threshold - Math.max(0, data.distance);
-      return (maxSpeed / data.threshold) * factor;
+    var targetSpeed = 0;
+    if (!data.isEnding) {
+      if (data.threshold > 0) {
+        var factor = data.threshold - Math.max(0, data.distance);
+        targetSpeed = (maxSpeed / data.threshold) * factor;
+      } else {
+        targetSpeed = maxSpeed;
+      }
+    }
+
+    var currentSpeed = data.speed;
+    var nextSpeed = targetSpeed;
+
+    if (currentSpeed === targetSpeed) {
+      return nextSpeed;
+    }
+
+    if (currentSpeed < targetSpeed) {
+      nextSpeed = currentSpeed + acceleration * (data.deltaTime / 1000);
+      return Math.min(targetSpeed, nextSpeed);
     } else {
-      return maxSpeed;
+      nextSpeed = currentSpeed - deceleration * (data.deltaTime / 1000);
+      return Math.max(targetSpeed, nextSpeed);
     }
   };
 };
@@ -203,7 +221,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
   var testScore = 0;
   var testPriority = 0;
   var testThreshold = 0;
-  var testDirection = SCROLL_NONE;
+  var testDirection = null;
   var testDistance = 0;
   var testMaxScrollX = 0;
   var testMaxScrollY = 0;
@@ -212,7 +230,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
   var xPriority = -Infinity;
   var xThreshold = 0;
   var xScore = 0;
-  var xDirection = SCROLL_NONE;
+  var xDirection = null;
   var xDistance = 0;
   var xMaxScroll = 0;
 
@@ -220,7 +238,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
   var yPriority = -Infinity;
   var yThreshold = 0;
   var yScore = 0;
-  var yDirection = SCROLL_NONE;
+  var yDirection = null;
   var yDistance = 0;
   var yMaxScroll = 0;
 
@@ -268,23 +286,23 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       testMaxScrollX > 0 &&
       (testPriority > xPriority || testScore > xScore)
     ) {
-      testDirection = SCROLL_NONE;
+      testDirection = null;
       distanceToLeft = itemRect.left - testRect.left;
       distanceToRight = testRect.right - itemRect.right;
 
       if (distanceToRight < distanceToLeft) {
         if (distanceToRight <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
           testDistance = distanceToRight;
-          testDirection = SCROLL_RIGHT;
+          testDirection = RIGHT;
         }
       } else {
         if (distanceToLeft <= testThreshold && getScrollLeft(testElement) > 0) {
           testDistance = distanceToLeft;
-          testDirection = SCROLL_LEFT;
+          testDirection = LEFT;
         }
       }
 
-      if (testDirection !== SCROLL_NONE) {
+      if (testDirection !== null) {
         xElement = testElement;
         xPriority = testPriority;
         xThreshold = testThreshold;
@@ -301,23 +319,23 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       testMaxScrollY > 0 &&
       (testPriority > yPriority || testScore > yScore)
     ) {
-      testDirection = SCROLL_NONE;
+      testDirection = null;
       distanceToTop = itemRect.top - testRect.top;
       distanceToBottom = testRect.bottom - itemRect.bottom;
 
       if (distanceToBottom < distanceToTop) {
         if (distanceToBottom <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
           testDistance = distanceToBottom;
-          testDirection = SCROLL_DOWN;
+          testDirection = DOWN;
         }
       } else {
         if (distanceToTop <= testThreshold && getScrollTop(testElement) > 0) {
           testDistance = distanceToTop;
-          testDirection = SCROLL_UP;
+          testDirection = UP;
         }
       }
 
-      if (testDirection !== SCROLL_NONE) {
+      if (testDirection !== null) {
         yElement = testElement;
         yPriority = testPriority;
         yThreshold = testThreshold;
@@ -400,7 +418,7 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
     if (testElement !== scrollRequest.element) continue;
 
     // Make sure we have a matching axis.
-    testIsAxisX = scrollRequest.isAxisX();
+    testIsAxisX = !!(AXIS_X & scrollRequest.direction);
     if (testIsAxisX) {
       if (scrollItem.axis === AXIS_Y) continue;
     } else {
@@ -424,11 +442,11 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
     }
 
     // Compute distance (based on current direction).
-    if (scrollRequest.direction === SCROLL_LEFT) {
+    if (scrollRequest.direction === LEFT) {
       testDistance = itemRect.left - testRect.left;
-    } else if (scrollRequest.direction === SCROLL_RIGHT) {
+    } else if (scrollRequest.direction === RIGHT) {
       testDistance = testRect.right - itemRect.right;
-    } else if (scrollRequest.direction === SCROLL_UP) {
+    } else if (scrollRequest.direction === UP) {
       testDistance = itemRect.top - testRect.top;
     } else {
       testDistance = testRect.bottom - itemRect.bottom;
@@ -441,11 +459,7 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
 
     // Stop scrolling if we have reached the end of the scroll value.
     testScroll = testIsAxisX ? getScrollLeft(testElement) : getScrollTop(testElement);
-    if (
-      scrollRequest.direction === SCROLL_LEFT || scrollRequest.direction === SCROLL_UP
-        ? testScroll <= 0
-        : testScroll >= testMaxScroll
-    ) {
+    if (FORWARD & scrollRequest.direction ? testScroll >= testMaxScroll : testScroll <= 0) {
       break;
     }
 
@@ -463,26 +477,47 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
 AutoScroller.prototype._updateRequests = function() {
   var xReqs = this._requests[AXIS_X];
   var yReqs = this._requests[AXIS_Y];
-  var item, reqX, reqY, checkX, checkY;
+  var item, reqX, reqY, needsCheck, checkX, checkY;
 
   for (var i = 0; i < this._items.length; i++) {
     item = this._items[i];
+    needsCheck = this._needsOverlapCheck[item._id];
+
+    this._needsOverlapCheck[item._id] = false;
 
     checkX = true;
     reqX = xReqs[item._id];
-    if (reqX && reqX.active) {
+    if (reqX && reqX.isActive) {
       checkX = !this._updateScrollRequest(reqX);
-      if (checkX) this._cancelItemScroll(item, AXIS_X);
+      if (checkX) {
+        reqX.isEnding = true;
+        if (reqX.speed > 0) {
+          checkX = false;
+        } else {
+          needsCheck = true;
+          this._cancelItemScroll(item, AXIS_X);
+        }
+      }
     }
 
     checkY = true;
     reqY = yReqs[item._id];
-    if (reqY && reqY.active) {
+    if (reqY && reqY.isActive) {
       checkY = !this._updateScrollRequest(reqY);
-      if (checkY) this._cancelItemScroll(item, AXIS_Y);
+      if (checkY) {
+        reqY.isEnding = true;
+        if (reqY.speed > 0) {
+          checkY = false;
+        } else {
+          needsCheck = true;
+          this._cancelItemScroll(item, AXIS_Y);
+        }
+      }
     }
 
-    this._checkItemOverlap(this._items[i], checkX, checkY);
+    if (needsCheck) {
+      this._checkItemOverlap(this._items[i], checkX, checkY);
+    }
   }
 };
 
@@ -547,10 +582,9 @@ AutoScroller.prototype._updateActions = function() {
   for (i = 0; i < actions.length; i++) {
     action = actions[i];
     action.computeScrollValues();
-    // TODO: Might make sense to allow developer to fully enable/disable this
-    // behaviour, or by default use the isAffectedByScroll heuristic.
     for (j = 0; j < items.length; j++) {
       item = items[j];
+      if (getItemAutoScrollSettings(item).syncAfterScroll === false) continue;
       if (syncItems.indexOf(item) > -1) continue;
       if (!isAffectedByScroll(item.getElement(), action.element)) continue;
       syncItems.push(item);
@@ -582,8 +616,16 @@ AutoScroller.prototype.addItem = function(item) {
   var index = this._items.indexOf(item);
   if (index === -1) {
     this._items.push(item);
+    this._needsOverlapCheck[item._id] = true;
     if (!this._isTicking) this._startTicking();
   }
+};
+
+AutoScroller.prototype.updateItem = function(item) {
+  // TODO: This should be throttled/debounced if the item is not currently
+  // scrolling. If the item is scrolling currently this will have no effect
+  // at all.
+  this._needsOverlapCheck[item._id] = true;
 };
 
 AutoScroller.prototype.removeItem = function(item) {
@@ -607,6 +649,7 @@ AutoScroller.prototype.removeItem = function(item) {
   var syncIndex = this._syncItems.indexOf(item);
   if (syncIndex > -1) this._syncItems.splice(syncIndex, 1);
 
+  delete this._needsOverlapCheck[itemId];
   this._items.splice(index, 1);
 
   if (this._isTicking && !this._items.length) {
@@ -616,12 +659,12 @@ AutoScroller.prototype.removeItem = function(item) {
 
 AutoScroller.prototype.isItemScrollingX = function(item) {
   var reqX = this._requests[AXIS_X][item._id];
-  return !!(reqX && reqX.value !== null);
+  return !!(reqX && reqX.isActive);
 };
 
 AutoScroller.prototype.isItemScrollingY = function(item) {
   var reqY = this._requests[AXIS_Y][item._id];
-  return !!(reqY && reqY.value !== null);
+  return !!(reqY && reqY.isActive);
 };
 
 AutoScroller.prototype.isItemScrolling = function(item) {

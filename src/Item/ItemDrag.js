@@ -98,7 +98,7 @@ function ItemDrag(item) {
   this._startPredicateResult = undefined;
 
   // Data for drag sort predicate heuristics.
-  this._sortTimerFinished = false;
+  this._isSortNeeded = false;
   this._sortTimer = undefined;
   this._blockedSortIndex = null;
   this._sortX1 = 0;
@@ -489,6 +489,26 @@ ItemDrag.prototype.stop = function() {
 };
 
 /**
+ * Manually trigger drag sort. This is only needed for special edge cases where
+ * e.g. you have disabled sort and want to trigger a sort right after enabling
+ * it (and don't want to wait for the next move/scroll event).
+ *
+ * @private
+ * @memberof ItemDrag.prototype
+ * @param {Boolean} force
+ */
+ItemDrag.prototype.sort = function(force) {
+  var item = this._item;
+  if (item._isActive && this._dragMoveEvent) {
+    if (force === true) {
+      this._handleSort();
+    } else {
+      addDragSortTick(item._id, this._handleSort);
+    }
+  }
+};
+
+/**
  * Destroy instance.
  *
  * @public
@@ -772,17 +792,19 @@ ItemDrag.prototype._resetStartPredicate = function() {
  */
 ItemDrag.prototype._handleSort = function() {
   var settings = this._getGrid()._settings;
-  var isSortDisabled =
-    !settings.dragSort ||
-    (!settings.dragAutoScroll.sortDuringScroll && AUTO_SCROLLER.isItemScrolling(this._item));
 
   // No sorting when drag sort is disabled. Also, account for the scenario where
   // dragSort is temporarily disabled during drag procedure so we need to reset
   // sort timer heuristics state too.
-  if (isSortDisabled) {
+  if (
+    !settings.dragSort ||
+    (!settings.dragAutoScroll.sortDuringScroll && AUTO_SCROLLER.isItemScrolling(this._item))
+  ) {
     this._sortX1 = this._sortX2 = this._gridX;
     this._sortY1 = this._sortY2 = this._gridY;
-    this._sortTimerFinished = false;
+    // We set this to true intentionally so that overlap check would be
+    // triggered as soon as possible after sort becomes enabled again.
+    this._isSortNeeded = true;
     if (this._sortTimer !== undefined) {
       this._sortTimer = window.clearTimeout(this._sortTimer);
     }
@@ -795,13 +817,12 @@ ItemDrag.prototype._handleSort = function() {
   // checks based on the dragged element's immediate movement and a delayed
   // overlap check is valid if it comes through, because it was valid when it
   // was invoked.
-  if (!(this._checkHeuristics(this._gridX, this._gridY) || this._sortTimerFinished)) {
-    return;
-  }
+  var shouldSort = this._checkHeuristics(this._gridX, this._gridY);
+  if (!this._isSortNeeded && !shouldSort) return;
 
   var sortInterval = settings.dragSortHeuristics.sortInterval;
-  if (sortInterval <= 0 || this._sortTimerFinished) {
-    this._sortTimerFinished = false;
+  if (sortInterval <= 0 || this._isSortNeeded) {
+    this._isSortNeeded = false;
     if (this._sortTimer !== undefined) {
       this._sortTimer = window.clearTimeout(this._sortTimer);
     }
@@ -818,7 +839,7 @@ ItemDrag.prototype._handleSort = function() {
  * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._handleSortDelayed = function() {
-  this._sortTimerFinished = true;
+  this._isSortNeeded = true;
   this._sortTimer = undefined;
   addDragSortTick(this._item._id, this._handleSort);
 };
@@ -830,7 +851,7 @@ ItemDrag.prototype._handleSortDelayed = function() {
  * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._cancelSort = function() {
-  this._sortTimerFinished = false;
+  this._isSortNeeded = false;
   if (this._sortTimer !== undefined) {
     this._sortTimer = window.clearTimeout(this._sortTimer);
   }
@@ -844,10 +865,10 @@ ItemDrag.prototype._cancelSort = function() {
  * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._finishSort = function() {
-  var settings = this._getGrid()._settings;
-  var isUnfinished = this._sortTimerFinished || this._sortTimer !== undefined;
+  var isSortEnabled = this._getGrid()._settings.dragSort;
+  var needsFinalCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
   this._cancelSort();
-  if (isUnfinished && settings.dragSort) this._checkOverlap();
+  if (needsFinalCheck) this._checkOverlap();
 };
 
 /**

@@ -1454,6 +1454,10 @@
     this.action = null;
   };
 
+  ScrollRequest.prototype.hasReachedEnd = function() {
+    return FORWARD & this.direction ? this.value >= this.maxValue : this.value <= 0;
+  };
+
   ScrollRequest.prototype.computeCurrentScrollValue = function() {
     if (this.value === null) {
       return AXIS_X & this.direction ? getScrollLeft(this.element) : getScrollTop(this.element);
@@ -1522,6 +1526,10 @@
     var item = this.item;
     var onStop = getItemAutoScrollSettings(item).onStop;
     if (isFunction(onStop)) onStop(item, this.element, this.direction);
+    // Manually nudge sort to happen. There's a good chance that the item is still
+    // after the scroll stops which means that the next sort will be triggered
+    // only after the item is moved or it's parent scrolled.
+    if (item._drag) item._drag.sort();
   };
 
   function ScrollAction() {
@@ -1674,6 +1682,8 @@
     bottom: 0
   };
 
+  var OVERLAP_CHECK_INTERVAL = 150;
+
   function AutoScroller() {
     this._isTicking = false;
     this._tickTime = 0;
@@ -1684,7 +1694,7 @@
     this._requests = {};
     this._requests[AXIS_X] = {};
     this._requests[AXIS_Y] = {};
-    this._needsOverlapCheck = {};
+    this._requestOverlapCheck = {};
     this._readTick = this._readTick.bind(this);
     this._writeTick = this._writeTick.bind(this);
   }
@@ -1989,11 +1999,12 @@
     var scrollItem = null;
     var testElement = null;
     var testIsAxisX = false;
-    var testScore = 0;
-    var testThreshold = 0;
-    var testDistance = 0;
-    var testScroll = 0;
-    var testMaxScroll = 0;
+    var testScore = null;
+    var testThreshold = null;
+    var testDistance = null;
+    var testScroll = null;
+    var testMaxScroll = null;
+    var hasReachedEnd = null;
 
     itemRect.width = item._width;
     itemRect.height = item._height;
@@ -2051,7 +2062,9 @@
 
       // Stop scrolling if we have reached the end of the scroll value.
       testScroll = testIsAxisX ? getScrollLeft(testElement) : getScrollTop(testElement);
-      if (FORWARD & scrollRequest.direction ? testScroll >= testMaxScroll : testScroll <= 0) {
+      hasReachedEnd =
+        FORWARD & scrollRequest.direction ? testScroll >= testMaxScroll : testScroll <= 0;
+      if (hasReachedEnd) {
         break;
       }
 
@@ -2059,36 +2072,46 @@
       scrollRequest.maxValue = testMaxScroll;
       scrollRequest.threshold = testThreshold;
       scrollRequest.distance = testDistance;
+      scrollRequest.isEnding = false;
       return true;
     }
 
-    // If we reached this point it means scrolling can't continue.
-    return false;
+    // Let's start the end procedure. The request has now "officially" stopped,
+    // but we don't want to make the scroll stop instantly. Let's smoothly reduce
+    // the speed to zero.
+    scrollRequest.isEnding = true;
+
+    // If smooth ending is not supported we can immediately stop scrolling.
+    if (!settings.smoothEnding) return false;
+
+    // We stop scrolling immediately when speed is zero.
+    if (scrollRequest.speed <= 0) return false;
+
+    // We can also stop scrolling immediately when scroll has reached the end.
+    // Note that we intentionally do not update the scroll request's data when
+    // it is in ending mode, as there really is no need to. We just want the
+    // scroll to slow down and stop with the values it has.
+    if (hasReachedEnd === null) hasReachedEnd = scrollRequest.hasReachedEnd();
+    return hasReachedEnd ? false : true;
   };
 
   AutoScroller.prototype._updateRequests = function() {
     var xReqs = this._requests[AXIS_X];
     var yReqs = this._requests[AXIS_Y];
-    var item, reqX, reqY, needsCheck, checkX, checkY;
+    var item, reqX, reqY, checkTime, needsCheck, checkX, checkY;
 
     for (var i = 0; i < this._items.length; i++) {
       item = this._items[i];
-      needsCheck = this._needsOverlapCheck[item._id];
-
-      this._needsOverlapCheck[item._id] = false;
+      checkTime = this._requestOverlapCheck[item._id];
+      needsCheck = checkTime > 0 && this._tickTime - checkTime > OVERLAP_CHECK_INTERVAL;
 
       checkX = true;
       reqX = xReqs[item._id];
       if (reqX && reqX.isActive) {
         checkX = !this._updateScrollRequest(reqX);
         if (checkX) {
-          reqX.isEnding = true;
-          if (reqX.speed > 0) {
-            checkX = false;
-          } else {
-            needsCheck = true;
-            this._cancelItemScroll(item, AXIS_X);
-          }
+          needsCheck = true;
+          this._cancelItemScroll(item, AXIS_X);
         }
       }
 
@@ -2097,17 +2120,13 @@
       if (reqY && reqY.isActive) {
         checkY = !this._updateScrollRequest(reqY);
         if (checkY) {
-          reqY.isEnding = true;
-          if (reqY.speed > 0) {
-            checkY = false;
-          } else {
-            needsCheck = true;
-            this._cancelItemScroll(item, AXIS_Y);
-          }
+          needsCheck = true;
+          this._cancelItemScroll(item, AXIS_Y);
         }
       }
 
       if (needsCheck) {
+        this._requestOverlapCheck[item._id] = 0;
         this._checkItemOverlap(this._items[i], checkX, checkY);
       }
     }
@@ -2208,16 +2227,15 @@
     var index = this._items.indexOf(item);
     if (index === -1) {
       this._items.push(item);
-      this._needsOverlapCheck[item._id] = true;
+      this._requestOverlapCheck[item._id] = this._tickTime;
       if (!this._isTicking) this._startTicking();
     }
   };
 
   AutoScroller.prototype.updateItem = function(item) {
-    // TODO: This should be throttled/debounced if the item is not currently
-    // scrolling. If the item is scrolling currently this will have no effect
-    // at all.
-    this._needsOverlapCheck[item._id] = true;
+    if (!this._requestOverlapCheck[item._id]) {
+      this._requestOverlapCheck[item._id] = this._tickTime;
+    }
   };
 
   AutoScroller.prototype.removeItem = function(item) {
@@ -2241,7 +2259,7 @@
     var syncIndex = this._syncItems.indexOf(item);
     if (syncIndex > -1) this._syncItems.splice(syncIndex, 1);
 
-    delete this._needsOverlapCheck[itemId];
+    delete this._requestOverlapCheck[itemId];
     this._items.splice(index, 1);
 
     if (this._isTicking && !this._items.length) {
@@ -2648,7 +2666,7 @@
     this._startPredicateResult = undefined;
 
     // Data for drag sort predicate heuristics.
-    this._sortTimerFinished = false;
+    this._isSortNeeded = false;
     this._sortTimer = undefined;
     this._blockedSortIndex = null;
     this._sortX1 = 0;
@@ -3039,6 +3057,26 @@
   };
 
   /**
+   * Manually trigger drag sort. This is only needed for special edge cases where
+   * e.g. you have disabled sort and want to trigger a sort right after enabling
+   * it (and don't want to wait for the next move/scroll event).
+   *
+   * @private
+   * @memberof ItemDrag.prototype
+   * @param {Boolean} force
+   */
+  ItemDrag.prototype.sort = function(force) {
+    var item = this._item;
+    if (item._isActive && this._dragMoveEvent) {
+      if (force === true) {
+        this._handleSort();
+      } else {
+        addDragSortTick(item._id, this._handleSort);
+      }
+    }
+  };
+
+  /**
    * Destroy instance.
    *
    * @public
@@ -3322,17 +3360,19 @@
    */
   ItemDrag.prototype._handleSort = function() {
     var settings = this._getGrid()._settings;
-    var isSortDisabled =
-      !settings.dragSort ||
-      (!settings.dragAutoScroll.sortDuringScroll && AUTO_SCROLLER.isItemScrolling(this._item));
 
     // No sorting when drag sort is disabled. Also, account for the scenario where
     // dragSort is temporarily disabled during drag procedure so we need to reset
     // sort timer heuristics state too.
-    if (isSortDisabled) {
+    if (
+      !settings.dragSort ||
+      (!settings.dragAutoScroll.sortDuringScroll && AUTO_SCROLLER.isItemScrolling(this._item))
+    ) {
       this._sortX1 = this._sortX2 = this._gridX;
       this._sortY1 = this._sortY2 = this._gridY;
-      this._sortTimerFinished = false;
+      // We set this to true intentionally so that overlap check would be
+      // triggered as soon as possible after sort becomes enabled again.
+      this._isSortNeeded = true;
       if (this._sortTimer !== undefined) {
         this._sortTimer = window.clearTimeout(this._sortTimer);
       }
@@ -3345,13 +3385,12 @@
     // checks based on the dragged element's immediate movement and a delayed
     // overlap check is valid if it comes through, because it was valid when it
     // was invoked.
-    if (!(this._checkHeuristics(this._gridX, this._gridY) || this._sortTimerFinished)) {
-      return;
-    }
+    var shouldSort = this._checkHeuristics(this._gridX, this._gridY);
+    if (!this._isSortNeeded && !shouldSort) return;
 
     var sortInterval = settings.dragSortHeuristics.sortInterval;
-    if (sortInterval <= 0 || this._sortTimerFinished) {
-      this._sortTimerFinished = false;
+    if (sortInterval <= 0 || this._isSortNeeded) {
+      this._isSortNeeded = false;
       if (this._sortTimer !== undefined) {
         this._sortTimer = window.clearTimeout(this._sortTimer);
       }
@@ -3368,7 +3407,7 @@
    * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._handleSortDelayed = function() {
-    this._sortTimerFinished = true;
+    this._isSortNeeded = true;
     this._sortTimer = undefined;
     addDragSortTick(this._item._id, this._handleSort);
   };
@@ -3380,7 +3419,7 @@
    * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._cancelSort = function() {
-    this._sortTimerFinished = false;
+    this._isSortNeeded = false;
     if (this._sortTimer !== undefined) {
       this._sortTimer = window.clearTimeout(this._sortTimer);
     }
@@ -3394,10 +3433,10 @@
    * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._finishSort = function() {
-    var settings = this._getGrid()._settings;
-    var isUnfinished = this._sortTimerFinished || this._sortTimer !== undefined;
+    var isSortEnabled = this._getGrid()._settings.dragSort;
+    var needsFinalCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
     this._cancelSort();
-    if (isUnfinished && settings.dragSort) this._checkOverlap();
+    if (needsFinalCheck) this._checkOverlap();
   };
 
   /**
@@ -7095,6 +7134,7 @@
       speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
       sortDuringScroll: true,
       syncAfterScroll: true,
+      smoothEnding: true,
       onStart: null,
       onStop: null
     },

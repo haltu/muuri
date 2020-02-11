@@ -6,23 +6,32 @@
  */
 
 /**
- * TODO: Might be a good idea to allow providing a delay before the scrolling
- * starts, especially for the cases where you move the item between grids.
- * And/or a separate startThreshold and endThreshold, althouhg if we have
- * dynamic threshold you could dynamically modify the threshold after start.
+ * TODO: We should probably allow providing threshold as a function to allow
+ * defining the threshold based on the scroll element's and dragged element's
+ * dimensions and position.
  *
  * TODO: How should we handle cases where the dragged item is larger than the
  * scrollable element? Should we disallow scrolling in that case? Or maybe
  * there could be another mode where we look at the center of the dragged item
  * instead of the edge?
  *
- * TODO: We should probably allow providing threshold as a function to allow
- * defining the threshold based on the scroll element's and dragged element's
- * dimensions and position.
+ * IDEA: Check if we can optimize checks done during scroll to boost perf even
+ * more!
  *
- * TODO: See if values can be cached more efficiently here.
+ * IDEA: Might be nice if the scrolling did not start instantly when you e.g.
+ * start to drag an item that's triggerin scrolling from the start. Instead we
+ * could use the direction of the drag as a heuristic and only allow starting
+ * scroll if the last movement's direction is pointing towards the scroll's
+ * direction.
  *
- * TODO: Option: define the maximum amount of items that can autoscroll
+ * IDEA: Allow manually pause/cancel existing scroll request.
+ *
+ * IDEA: Allow defining a speed limit for deciding when sorting during scrolling
+ * is allowed?
+ *
+ * IDEA: See if values can be cached more efficiently here.
+ *
+ * IDEA: Option to define the maximum amount of items that can autoscroll
  * simultaneously?
  */
 
@@ -82,6 +91,8 @@ var RECT_2 = {
   bottom: 0
 };
 
+var OVERLAP_CHECK_INTERVAL = 150;
+
 export default function AutoScroller() {
   this._isTicking = false;
   this._tickTime = 0;
@@ -92,7 +103,7 @@ export default function AutoScroller() {
   this._requests = {};
   this._requests[AXIS_X] = {};
   this._requests[AXIS_Y] = {};
-  this._needsOverlapCheck = {};
+  this._requestOverlapCheck = {};
   this._readTick = this._readTick.bind(this);
   this._writeTick = this._writeTick.bind(this);
 }
@@ -397,11 +408,12 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
   var scrollItem = null;
   var testElement = null;
   var testIsAxisX = false;
-  var testScore = 0;
-  var testThreshold = 0;
-  var testDistance = 0;
-  var testScroll = 0;
-  var testMaxScroll = 0;
+  var testScore = null;
+  var testThreshold = null;
+  var testDistance = null;
+  var testScroll = null;
+  var testMaxScroll = null;
+  var hasReachedEnd = null;
 
   itemRect.width = item._width;
   itemRect.height = item._height;
@@ -459,7 +471,9 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
 
     // Stop scrolling if we have reached the end of the scroll value.
     testScroll = testIsAxisX ? getScrollLeft(testElement) : getScrollTop(testElement);
-    if (FORWARD & scrollRequest.direction ? testScroll >= testMaxScroll : testScroll <= 0) {
+    hasReachedEnd =
+      FORWARD & scrollRequest.direction ? testScroll >= testMaxScroll : testScroll <= 0;
+    if (hasReachedEnd) {
       break;
     }
 
@@ -467,36 +481,46 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
     scrollRequest.maxValue = testMaxScroll;
     scrollRequest.threshold = testThreshold;
     scrollRequest.distance = testDistance;
+    scrollRequest.isEnding = false;
     return true;
   }
 
-  // If we reached this point it means scrolling can't continue.
-  return false;
+  // Let's start the end procedure. The request has now "officially" stopped,
+  // but we don't want to make the scroll stop instantly. Let's smoothly reduce
+  // the speed to zero.
+  scrollRequest.isEnding = true;
+
+  // If smooth ending is not supported we can immediately stop scrolling.
+  if (!settings.smoothEnding) return false;
+
+  // We stop scrolling immediately when speed is zero.
+  if (scrollRequest.speed <= 0) return false;
+
+  // We can also stop scrolling immediately when scroll has reached the end.
+  // Note that we intentionally do not update the scroll request's data when
+  // it is in ending mode, as there really is no need to. We just want the
+  // scroll to slow down and stop with the values it has.
+  if (hasReachedEnd === null) hasReachedEnd = scrollRequest.hasReachedEnd();
+  return hasReachedEnd ? false : true;
 };
 
 AutoScroller.prototype._updateRequests = function() {
   var xReqs = this._requests[AXIS_X];
   var yReqs = this._requests[AXIS_Y];
-  var item, reqX, reqY, needsCheck, checkX, checkY;
+  var item, reqX, reqY, checkTime, needsCheck, checkX, checkY;
 
   for (var i = 0; i < this._items.length; i++) {
     item = this._items[i];
-    needsCheck = this._needsOverlapCheck[item._id];
-
-    this._needsOverlapCheck[item._id] = false;
+    checkTime = this._requestOverlapCheck[item._id];
+    needsCheck = checkTime > 0 && this._tickTime - checkTime > OVERLAP_CHECK_INTERVAL;
 
     checkX = true;
     reqX = xReqs[item._id];
     if (reqX && reqX.isActive) {
       checkX = !this._updateScrollRequest(reqX);
       if (checkX) {
-        reqX.isEnding = true;
-        if (reqX.speed > 0) {
-          checkX = false;
-        } else {
-          needsCheck = true;
-          this._cancelItemScroll(item, AXIS_X);
-        }
+        needsCheck = true;
+        this._cancelItemScroll(item, AXIS_X);
       }
     }
 
@@ -505,17 +529,13 @@ AutoScroller.prototype._updateRequests = function() {
     if (reqY && reqY.isActive) {
       checkY = !this._updateScrollRequest(reqY);
       if (checkY) {
-        reqY.isEnding = true;
-        if (reqY.speed > 0) {
-          checkY = false;
-        } else {
-          needsCheck = true;
-          this._cancelItemScroll(item, AXIS_Y);
-        }
+        needsCheck = true;
+        this._cancelItemScroll(item, AXIS_Y);
       }
     }
 
     if (needsCheck) {
+      this._requestOverlapCheck[item._id] = 0;
       this._checkItemOverlap(this._items[i], checkX, checkY);
     }
   }
@@ -616,16 +636,15 @@ AutoScroller.prototype.addItem = function(item) {
   var index = this._items.indexOf(item);
   if (index === -1) {
     this._items.push(item);
-    this._needsOverlapCheck[item._id] = true;
+    this._requestOverlapCheck[item._id] = this._tickTime;
     if (!this._isTicking) this._startTicking();
   }
 };
 
 AutoScroller.prototype.updateItem = function(item) {
-  // TODO: This should be throttled/debounced if the item is not currently
-  // scrolling. If the item is scrolling currently this will have no effect
-  // at all.
-  this._needsOverlapCheck[item._id] = true;
+  if (!this._requestOverlapCheck[item._id]) {
+    this._requestOverlapCheck[item._id] = this._tickTime;
+  }
 };
 
 AutoScroller.prototype.removeItem = function(item) {
@@ -649,7 +668,7 @@ AutoScroller.prototype.removeItem = function(item) {
   var syncIndex = this._syncItems.indexOf(item);
   if (syncIndex > -1) this._syncItems.splice(syncIndex, 1);
 
-  delete this._needsOverlapCheck[itemId];
+  delete this._requestOverlapCheck[itemId];
   this._items.splice(index, 1);
 
   if (this._isTicking && !this._items.length) {

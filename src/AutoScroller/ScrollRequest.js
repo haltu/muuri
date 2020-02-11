@@ -29,6 +29,10 @@ ScrollRequest.prototype.reset = function() {
   this.action = null;
 };
 
+ScrollRequest.prototype.hasReachedEnd = function() {
+  return FORWARD & this.direction ? this.value >= this.maxValue : this.value <= 0;
+};
+
 ScrollRequest.prototype.computeCurrentScrollValue = function() {
   if (this.value === null) {
     return AXIS_X & this.direction ? getScrollLeft(this.element) : getScrollTop(this.element);
@@ -97,4 +101,8 @@ ScrollRequest.prototype.onStop = function() {
   var item = this.item;
   var onStop = getItemAutoScrollSettings(item).onStop;
   if (isFunction(onStop)) onStop(item, this.element, this.direction);
+  // Manually nudge sort to happen. There's a good chance that the item is still
+  // after the scroll stops which means that the next sort will be triggered
+  // only after the item is moved or it's parent scrolled.
+  if (item._drag) item._drag.sort();
 };

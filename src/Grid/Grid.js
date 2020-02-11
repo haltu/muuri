@@ -340,6 +340,7 @@ Grid.defaultOptions = {
     speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     syncAfterScroll: true,
+    smoothEnding: true,
     onStart: null,
     onStop: null
   },

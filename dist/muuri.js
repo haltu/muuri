@@ -1782,6 +1782,29 @@
     }
   };
 
+  AutoScroller.prototype._getItemHandleRect = function(item, pointer, rect) {
+    var itemDrag = item._drag;
+    var pointerSize = pointer || 0;
+
+    if (pointerSize > 0) {
+      var ev = itemDrag._dragMoveEvent || itemDrag._dragStartEvent;
+      rect.left = ev.clientX - pointerSize * 0.5;
+      rect.top = ev.clientY - pointerSize * 0.5;
+      rect.width = pointerSize;
+      rect.height = pointerSize;
+    } else {
+      rect.left = itemDrag._clientX;
+      rect.top = itemDrag._clientY;
+      rect.width = item._width;
+      rect.height = item._height;
+    }
+
+    rect.right = rect.left + rect.width;
+    rect.bottom = rect.top + rect.height;
+
+    return rect;
+  };
+
   AutoScroller.prototype._requestItemScroll = function(
     item,
     axis,
@@ -1822,10 +1845,10 @@
 
   AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
     var settings = getItemAutoScrollSettings(item);
-    var scrollItems = isFunction(settings.elements) ? settings.elements(item) : settings.elements;
+    var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
     var threshold = settings.threshold;
 
-    if (!scrollItems || !scrollItems.length) {
+    if (!targets || !targets.length) {
       checkX && this._cancelItemScroll(item, AXIS_X);
       checkY && this._cancelItemScroll(item, AXIS_Y);
       return;
@@ -1840,10 +1863,10 @@
       return;
     }
 
-    var itemRect = RECT_1;
+    var itemRect = this._getItemHandleRect(item, settings.pointerSize, RECT_1);
     var testRect = RECT_2;
 
-    var scrollItem = null;
+    var target = null;
     var testElement = null;
     var testAxisX = true;
     var testAxisY = true;
@@ -1871,18 +1894,11 @@
     var yDistance = 0;
     var yMaxScroll = 0;
 
-    itemRect.width = item._width;
-    itemRect.height = item._height;
-    itemRect.left = item._drag._clientX;
-    itemRect.right = itemRect.left + itemRect.width;
-    itemRect.top = item._drag._clientY;
-    itemRect.bottom = itemRect.top + itemRect.height;
-
-    for (var i = 0; i < scrollItems.length; i++) {
-      scrollItem = scrollItems[i];
-      testAxisX = checkX && scrollItem.axis !== AXIS_Y;
-      testAxisY = checkY && scrollItem.axis !== AXIS_X;
-      testPriority = scrollItem.priority || 0;
+    for (var i = 0; i < targets.length; i++) {
+      target = targets[i];
+      testAxisX = checkX && target.axis !== AXIS_Y;
+      testAxisY = checkY && target.axis !== AXIS_X;
+      testPriority = target.priority || 0;
 
       // Ignore this item if it's x-axis and y-axis priority is lower than
       // the currently matching item's.
@@ -1890,14 +1906,14 @@
         continue;
       }
 
-      testElement = getScrollElement(scrollItem.element || scrollItem);
+      testElement = getScrollElement(target.element || target);
       testMaxScrollX = testAxisX ? getScrollLeftMax(testElement) : -1;
       testMaxScrollY = testAxisY ? getScrollTopMax(testElement) : -1;
 
       // Ignore this item if there is no possibility to scroll.
       if (!testMaxScrollX && !testMaxScrollY) continue;
 
-      testThreshold = typeof scrollItem.threshold === 'number' ? scrollItem.threshold : threshold;
+      testThreshold = typeof target.threshold === 'number' ? target.threshold : threshold;
       testRect = getContentRect(testElement, testRect);
       testScore = getIntersectionScore(itemRect, testRect);
 
@@ -2007,18 +2023,18 @@
   AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
     var item = scrollRequest.item;
     var settings = getItemAutoScrollSettings(item);
-    var scrollItems = isFunction(settings.elements) ? settings.elements(item) : settings.elements;
+    var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
     var threshold = settings.threshold;
 
     // Quick exit if no scroll items are found.
-    if (!scrollItems || !scrollItems.length) {
+    if (!targets || !targets.length) {
       return false;
     }
 
-    var itemRect = RECT_1;
+    var itemRect = this._getItemHandleRect(item, settings.pointerSize, RECT_1);
     var testRect = RECT_2;
 
-    var scrollItem = null;
+    var target = null;
     var testElement = null;
     var testIsAxisX = false;
     var testScore = null;
@@ -2028,26 +2044,19 @@
     var testMaxScroll = null;
     var hasReachedEnd = null;
 
-    itemRect.width = item._width;
-    itemRect.height = item._height;
-    itemRect.left = item._drag._clientX;
-    itemRect.right = itemRect.left + itemRect.width;
-    itemRect.top = item._drag._clientY;
-    itemRect.bottom = itemRect.top + itemRect.height;
-
-    for (var i = 0; i < scrollItems.length; i++) {
-      scrollItem = scrollItems[i];
+    for (var i = 0; i < targets.length; i++) {
+      target = targets[i];
 
       // Make sure we have a matching element.
-      testElement = getScrollElement(scrollItem.element || scrollItem);
+      testElement = getScrollElement(target.element || target);
       if (testElement !== scrollRequest.element) continue;
 
       // Make sure we have a matching axis.
       testIsAxisX = !!(AXIS_X & scrollRequest.direction);
       if (testIsAxisX) {
-        if (scrollItem.axis === AXIS_Y) continue;
+        if (target.axis === AXIS_Y) continue;
       } else {
-        if (scrollItem.axis === AXIS_X) continue;
+        if (target.axis === AXIS_X) continue;
       }
 
       // Stop scrolling if there is no room to scroll anymore.
@@ -2056,7 +2065,7 @@
         break;
       }
 
-      testThreshold = typeof scrollItem.threshold === 'number' ? scrollItem.threshold : threshold;
+      testThreshold = typeof target.threshold === 'number' ? target.threshold : threshold;
       testRect = getContentRect(testElement, testRect);
       testScore = getIntersectionScore(itemRect, testRect);
 
@@ -7158,7 +7167,8 @@
       onRemove: null
     },
     dragAutoScroll: {
-      elements: [],
+      targets: [],
+      pointerSize: 0,
       threshold: 50,
       speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
       sortDuringScroll: true,

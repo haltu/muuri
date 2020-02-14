@@ -335,7 +335,8 @@ Grid.defaultOptions = {
     onRemove: null
   },
   dragAutoScroll: {
-    elements: [],
+    targets: [],
+    pointerSize: 0,
     threshold: 50,
     speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,

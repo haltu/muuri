@@ -1695,6 +1695,7 @@
     this._requests[AXIS_X] = {};
     this._requests[AXIS_Y] = {};
     this._requestOverlapCheck = {};
+    this._dragPositions = {};
     this._readTick = this._readTick.bind(this);
     this._writeTick = this._writeTick.bind(this);
   }
@@ -1764,6 +1765,23 @@
     cancelAutoScrollTick();
   };
 
+  AutoScroller.prototype._getItemDragDirection = function(item, axis) {
+    var positions = this._dragPositions[item._id];
+    if (!positions || positions.length < 4) return 0;
+
+    var isAxisX = axis === AXIS_X;
+    var curr = positions[isAxisX ? 0 : 1];
+    var prev = positions[isAxisX ? 2 : 3];
+
+    if (curr > prev) {
+      return isAxisX ? RIGHT : DOWN;
+    } else if (curr < prev) {
+      return isAxisX ? LEFT : UP;
+    } else {
+      return 0;
+    }
+  };
+
   AutoScroller.prototype._requestItemScroll = function(
     item,
     axis,
@@ -1813,6 +1831,15 @@
       return;
     }
 
+    var dragDirectionX = this._getItemDragDirection(item, AXIS_X);
+    var dragDirectionY = this._getItemDragDirection(item, AXIS_Y);
+
+    if (!dragDirectionX && !dragDirectionY) {
+      checkX && this._cancelItemScroll(item, AXIS_X);
+      checkY && this._cancelItemScroll(item, AXIS_Y);
+      return;
+    }
+
     var itemRect = RECT_1;
     var testRect = RECT_2;
 
@@ -1843,11 +1870,6 @@
     var yDirection = null;
     var yDistance = 0;
     var yMaxScroll = 0;
-
-    var distanceToLeft = 0;
-    var distanceToRight = 0;
-    var distanceToTop = 0;
-    var distanceToBottom = 0;
 
     itemRect.width = item._width;
     itemRect.height = item._height;
@@ -1882,6 +1904,7 @@
       // Ignore this item if it's not overlapping at all with the dragged item.
       if (testScore <= 0) continue;
 
+      // Test x-axis.
       if (
         testAxisX &&
         testPriority >= xPriority &&
@@ -1889,17 +1912,15 @@
         (testPriority > xPriority || testScore > xScore)
       ) {
         testDirection = null;
-        distanceToLeft = itemRect.left - testRect.left;
-        distanceToRight = testRect.right - itemRect.right;
 
-        if (distanceToRight < distanceToLeft) {
-          if (distanceToRight <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
-            testDistance = distanceToRight;
+        if (dragDirectionX === RIGHT) {
+          testDistance = testRect.right - itemRect.right;
+          if (testDistance <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
             testDirection = RIGHT;
           }
-        } else {
-          if (distanceToLeft <= testThreshold && getScrollLeft(testElement) > 0) {
-            testDistance = distanceToLeft;
+        } else if (dragDirectionX === LEFT) {
+          testDistance = itemRect.left - testRect.left;
+          if (testDistance <= testThreshold && getScrollLeft(testElement) > 0) {
             testDirection = LEFT;
           }
         }
@@ -1915,6 +1936,7 @@
         }
       }
 
+      // Test y-axis.
       if (
         testAxisY &&
         testPriority >= yPriority &&
@@ -1922,17 +1944,15 @@
         (testPriority > yPriority || testScore > yScore)
       ) {
         testDirection = null;
-        distanceToTop = itemRect.top - testRect.top;
-        distanceToBottom = testRect.bottom - itemRect.bottom;
 
-        if (distanceToBottom < distanceToTop) {
-          if (distanceToBottom <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
-            testDistance = distanceToBottom;
+        if (dragDirectionY === DOWN) {
+          testDistance = testRect.bottom - itemRect.bottom;
+          if (testDistance <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
             testDirection = DOWN;
           }
-        } else {
-          if (distanceToTop <= testThreshold && getScrollTop(testElement) > 0) {
-            testDistance = distanceToTop;
+        } else if (dragDirectionY === UP) {
+          testDistance = itemRect.top - testRect.top;
+          if (testDistance <= testThreshold && getScrollTop(testElement) > 0) {
             testDirection = UP;
           }
         }
@@ -1949,6 +1969,7 @@
       }
     }
 
+    // Request or cancel x-axis scroll.
     if (checkX) {
       if (xElement) {
         this._requestItemScroll(
@@ -1965,6 +1986,7 @@
       }
     }
 
+    // Request or cancel y-axis scroll.
     if (checkY) {
       if (yElement) {
         this._requestItemScroll(
@@ -2081,8 +2103,8 @@
     // the speed to zero.
     scrollRequest.isEnding = true;
 
-    // If smooth ending is not supported we can immediately stop scrolling.
-    if (!settings.smoothEnding) return false;
+    // If smooth stop is not supported we can immediately stop scrolling.
+    if (!settings.smoothStop) return false;
 
     // We stop scrolling immediately when speed is zero.
     if (scrollRequest.speed <= 0) return false;
@@ -2228,11 +2250,17 @@
     if (index === -1) {
       this._items.push(item);
       this._requestOverlapCheck[item._id] = this._tickTime;
+      this._dragPositions[item._id] = [];
       if (!this._isTicking) this._startTicking();
     }
   };
 
   AutoScroller.prototype.updateItem = function(item) {
+    this._dragPositions[item._id].unshift(item._drag._left, item._drag._top);
+    if (this._dragPositions.length > 4) {
+      this._dragPositions.length = 4;
+    }
+
     if (!this._requestOverlapCheck[item._id]) {
       this._requestOverlapCheck[item._id] = this._tickTime;
     }
@@ -2260,6 +2288,7 @@
     if (syncIndex > -1) this._syncItems.splice(syncIndex, 1);
 
     delete this._requestOverlapCheck[itemId];
+    delete this._dragPositions[itemId];
     this._items.splice(index, 1);
 
     if (this._isTicking && !this._items.length) {
@@ -7134,7 +7163,7 @@
       speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
       sortDuringScroll: true,
       syncAfterScroll: true,
-      smoothEnding: true,
+      smoothStop: true,
       onStart: null,
       onStop: null
     },

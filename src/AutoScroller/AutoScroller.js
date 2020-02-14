@@ -6,23 +6,17 @@
  */
 
 /**
- * TODO: We should probably allow providing threshold as a function to allow
- * defining the threshold based on the scroll element's and dragged element's
- * dimensions and position.
- *
  * TODO: How should we handle cases where the dragged item is larger than the
  * scrollable element? Should we disallow scrolling in that case? Or maybe
  * there could be another mode where we look at the center of the dragged item
  * instead of the edge?
  *
+ * TODO: We should probably allow providing threshold as a function to allow
+ * defining the threshold based on the scroll element's and dragged element's
+ * dimensions and position.
+ *
  * IDEA: Check if we can optimize checks done during scroll to boost perf even
  * more!
- *
- * IDEA: Might be nice if the scrolling did not start instantly when you e.g.
- * start to drag an item that's triggerin scrolling from the start. Instead we
- * could use the direction of the drag as a heuristic and only allow starting
- * scroll if the last movement's direction is pointing towards the scroll's
- * direction.
  *
  * IDEA: Allow manually pause/cancel existing scroll request.
  *
@@ -104,6 +98,7 @@ export default function AutoScroller() {
   this._requests[AXIS_X] = {};
   this._requests[AXIS_Y] = {};
   this._requestOverlapCheck = {};
+  this._dragPositions = {};
   this._readTick = this._readTick.bind(this);
   this._writeTick = this._writeTick.bind(this);
 }
@@ -173,6 +168,23 @@ AutoScroller.prototype._stopTicking = function() {
   cancelAutoScrollTick();
 };
 
+AutoScroller.prototype._getItemDragDirection = function(item, axis) {
+  var positions = this._dragPositions[item._id];
+  if (!positions || positions.length < 4) return 0;
+
+  var isAxisX = axis === AXIS_X;
+  var curr = positions[isAxisX ? 0 : 1];
+  var prev = positions[isAxisX ? 2 : 3];
+
+  if (curr > prev) {
+    return isAxisX ? RIGHT : DOWN;
+  } else if (curr < prev) {
+    return isAxisX ? LEFT : UP;
+  } else {
+    return 0;
+  }
+};
+
 AutoScroller.prototype._requestItemScroll = function(
   item,
   axis,
@@ -222,6 +234,15 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
     return;
   }
 
+  var dragDirectionX = this._getItemDragDirection(item, AXIS_X);
+  var dragDirectionY = this._getItemDragDirection(item, AXIS_Y);
+
+  if (!dragDirectionX && !dragDirectionY) {
+    checkX && this._cancelItemScroll(item, AXIS_X);
+    checkY && this._cancelItemScroll(item, AXIS_Y);
+    return;
+  }
+
   var itemRect = RECT_1;
   var testRect = RECT_2;
 
@@ -252,11 +273,6 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
   var yDirection = null;
   var yDistance = 0;
   var yMaxScroll = 0;
-
-  var distanceToLeft = 0;
-  var distanceToRight = 0;
-  var distanceToTop = 0;
-  var distanceToBottom = 0;
 
   itemRect.width = item._width;
   itemRect.height = item._height;
@@ -291,6 +307,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
     // Ignore this item if it's not overlapping at all with the dragged item.
     if (testScore <= 0) continue;
 
+    // Test x-axis.
     if (
       testAxisX &&
       testPriority >= xPriority &&
@@ -298,17 +315,15 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       (testPriority > xPriority || testScore > xScore)
     ) {
       testDirection = null;
-      distanceToLeft = itemRect.left - testRect.left;
-      distanceToRight = testRect.right - itemRect.right;
 
-      if (distanceToRight < distanceToLeft) {
-        if (distanceToRight <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
-          testDistance = distanceToRight;
+      if (dragDirectionX === RIGHT) {
+        testDistance = testRect.right - itemRect.right;
+        if (testDistance <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
           testDirection = RIGHT;
         }
-      } else {
-        if (distanceToLeft <= testThreshold && getScrollLeft(testElement) > 0) {
-          testDistance = distanceToLeft;
+      } else if (dragDirectionX === LEFT) {
+        testDistance = itemRect.left - testRect.left;
+        if (testDistance <= testThreshold && getScrollLeft(testElement) > 0) {
           testDirection = LEFT;
         }
       }
@@ -324,6 +339,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       }
     }
 
+    // Test y-axis.
     if (
       testAxisY &&
       testPriority >= yPriority &&
@@ -331,17 +347,15 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       (testPriority > yPriority || testScore > yScore)
     ) {
       testDirection = null;
-      distanceToTop = itemRect.top - testRect.top;
-      distanceToBottom = testRect.bottom - itemRect.bottom;
 
-      if (distanceToBottom < distanceToTop) {
-        if (distanceToBottom <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
-          testDistance = distanceToBottom;
+      if (dragDirectionY === DOWN) {
+        testDistance = testRect.bottom - itemRect.bottom;
+        if (testDistance <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
           testDirection = DOWN;
         }
-      } else {
-        if (distanceToTop <= testThreshold && getScrollTop(testElement) > 0) {
-          testDistance = distanceToTop;
+      } else if (dragDirectionY === UP) {
+        testDistance = itemRect.top - testRect.top;
+        if (testDistance <= testThreshold && getScrollTop(testElement) > 0) {
           testDirection = UP;
         }
       }
@@ -358,6 +372,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
     }
   }
 
+  // Request or cancel x-axis scroll.
   if (checkX) {
     if (xElement) {
       this._requestItemScroll(
@@ -374,6 +389,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
     }
   }
 
+  // Request or cancel y-axis scroll.
   if (checkY) {
     if (yElement) {
       this._requestItemScroll(
@@ -490,8 +506,8 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
   // the speed to zero.
   scrollRequest.isEnding = true;
 
-  // If smooth ending is not supported we can immediately stop scrolling.
-  if (!settings.smoothEnding) return false;
+  // If smooth stop is not supported we can immediately stop scrolling.
+  if (!settings.smoothStop) return false;
 
   // We stop scrolling immediately when speed is zero.
   if (scrollRequest.speed <= 0) return false;
@@ -637,11 +653,17 @@ AutoScroller.prototype.addItem = function(item) {
   if (index === -1) {
     this._items.push(item);
     this._requestOverlapCheck[item._id] = this._tickTime;
+    this._dragPositions[item._id] = [];
     if (!this._isTicking) this._startTicking();
   }
 };
 
 AutoScroller.prototype.updateItem = function(item) {
+  this._dragPositions[item._id].unshift(item._drag._left, item._drag._top);
+  if (this._dragPositions.length > 4) {
+    this._dragPositions.length = 4;
+  }
+
   if (!this._requestOverlapCheck[item._id]) {
     this._requestOverlapCheck[item._id] = this._tickTime;
   }
@@ -669,6 +691,7 @@ AutoScroller.prototype.removeItem = function(item) {
   if (syncIndex > -1) this._syncItems.splice(syncIndex, 1);
 
   delete this._requestOverlapCheck[itemId];
+  delete this._dragPositions[itemId];
   this._items.splice(index, 1);
 
   if (this._isTicking && !this._items.length) {

@@ -139,6 +139,18 @@ AutoScroller.smoothSpeed = function(maxSpeed, acceleration, deceleration) {
   };
 };
 
+AutoScroller.pointerHandle = function(pointerSize) {
+  var rect = { left: 0, top: 0, width: 0, height: 0 };
+  var size = pointerSize || 1;
+  return function(item, x, y, w, h, pX, pY) {
+    rect.left = pX - size * 0.5;
+    rect.top = pY - size * 0.5;
+    rect.width = size;
+    rect.height = size;
+    return rect;
+  };
+};
+
 AutoScroller.prototype._readTick = function(time) {
   if (time && this._tickTime) {
     this._tickDeltaTime = time - this._tickTime;
@@ -185,16 +197,24 @@ AutoScroller.prototype._getItemDragDirection = function(item, axis) {
   }
 };
 
-AutoScroller.prototype._getItemHandleRect = function(item, pointer, rect) {
+AutoScroller.prototype._getItemHandleRect = function(item, handle, rect) {
   var itemDrag = item._drag;
-  var pointerSize = pointer || 0;
 
-  if (pointerSize > 0) {
+  if (handle) {
     var ev = itemDrag._dragMoveEvent || itemDrag._dragStartEvent;
-    rect.left = ev.clientX - pointerSize * 0.5;
-    rect.top = ev.clientY - pointerSize * 0.5;
-    rect.width = pointerSize;
-    rect.height = pointerSize;
+    var data = handle(
+      item,
+      itemDrag._clientX,
+      itemDrag._clientY,
+      item._width,
+      item._height,
+      ev.clientX,
+      ev.clientY
+    );
+    rect.left = data.left;
+    rect.top = data.top;
+    rect.width = data.width;
+    rect.height = data.height;
   } else {
     rect.left = itemDrag._clientX;
     rect.top = itemDrag._clientY;
@@ -266,7 +286,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
     return;
   }
 
-  var itemRect = this._getItemHandleRect(item, settings.pointerSize, RECT_1);
+  var itemRect = this._getItemHandleRect(item, settings.handle, RECT_1);
   var testRect = RECT_2;
 
   var target = null;
@@ -434,7 +454,7 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
     return false;
   }
 
-  var itemRect = this._getItemHandleRect(item, settings.pointerSize, RECT_1);
+  var itemRect = this._getItemHandleRect(item, settings.handle, RECT_1);
   var testRect = RECT_2;
 
   var target = null;

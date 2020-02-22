@@ -239,6 +239,17 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     onCreate: null,
     onRemove: null
   },
+  dragAutoScroll: {
+    targets: [],
+    handle: null,
+    threshold: 50,
+    speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500),
+    sortDuringScroll: true,
+    syncAfterScroll: true,
+    smoothStop: true,
+    onStart: null,
+    onStop: null
+  },
 
   // Classnames
   containerClass: 'muuri',
@@ -298,6 +309,7 @@ var gridB = new Muuri('.grid-b', {
 * [dragReleaseEasing](#dragreleaseeasing-)
 * [dragCssProps](#dragcssprops-)
 * [dragPlaceholder](#dragplaceholder-)
+* [dragAutoScroll](#dragautoscroll-)
 * [containerClass](#containerclass-)
 * [itemClass](#itemclass-)
 * [itemVisibleClass](#itemvisibleclass-)
@@ -1022,6 +1034,113 @@ var grid = new Muuri(elem, {
       phPool.push(element);
     }
   }
+});
+```
+
+### dragAutoScroll &nbsp;
+
+If you want to trigger scrolling on any element during dragging you can enable and configure it here. By default this feature is disabled.
+
+When you use this feature it is _highly_ recommended that you create a `fixed` positioned element right under `document.body` and use that as the `dragContainer` for all the dragged items. If you don't do this and a dragged item's parent is auto-scrolled, the dragged item will potentially grow the scrolled element's scroll area to infinity unintentionally.
+
+* Default value: `{ targets: [], handle: null, threshold: 50, speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500), sortDuringScroll: true, syncAfterScroll: true, smoothStop: true, onStart: null, onStop: null }`.
+* Accepted types: object.
+
+You can define the following properties:
+
+* **targets** &nbsp;&mdash;&nbsp; *array / function*
+  * Default value: `[]`.
+  * Define the DOM elements that should be scrolled during drag. As long as this array is empty there will be no scrolling during drag. To keep it simple you can just provide an array of elements here, in which case Muuri attempts to scroll the elements both vertically and horizontally when possible. If you want more fine-grained control, e.g. scroll an element only on specific axis or prioritize some element over another (handy for cases when there are overlapping elements), you can provide an array of scroll targets (objects). Finally, you can also provide a function which receives the dragged `item` instance as it's argument and which should return an array of scroll targets (elements/objects). This way you can provide different configurations for different items.
+  * **scrollTarget** &nbsp;&mdash;&nbsp; *object*
+    * **element** &nbsp;&mdash;&nbsp; *element*
+      * The DOM element to scroll.
+      * Required.
+    * **axis** &nbsp;&mdash;&nbsp; *number*
+      * Optional. Defaults to scrolling both axes: `Muuri.AutoScroller.AXIS_X | Muuri.AutoScroller.AXIS_Y`.
+      * To scroll only x-axis: `Muuri.AutoScroller.AXIS_X`.
+      * To scroll only y-axis: `Muuri.AutoScroller.AXIS_Y`.
+    * **priority** &nbsp;&mdash;&nbsp; *number*
+      * Default: `0`.
+      * A dragged item can only scroll one element horizontally and one element vertically simultaneously. This is an artificial limit to fend off unnecesary complexity, and to avoid awkward situations. In the case where the dragged item overlaps multiple scrollable elements simultaneously and exceeds their scroll thresholds we pick the one that the dragged item overlaps most. However, that's not always the best choice. This is where `priority` comes in. Here you can manually tell Muuri which element to prefer over another in these scenarios. The element with highest priority _always_ wins the fight, in matches with equal priority we determine the winner by the amount of overlap.
+      * Optional.
+    * **threshold** &nbsp;&mdash;&nbsp; *number / null*
+      * Default: `null`;
+      * If defined (a number is provided), this value will override the default threshold for _this scroll target_. Otherwise the default threshold will be used.
+      * Optional.
+* **handle** &nbsp;&mdash;&nbsp; *function / null*
+  * Default value: `null`.
+  * This property defines size and position of the handle (the rectangle that is compared against the scroll element's threshold). By default (when `null`) the dragged element's dimensions and offsets are used. However, you can provide a function which should return an object containing the handle's client offsets in pixels (`left` and `top`) and dimensions in pixels (`width` and `height`). The function receives the following arguments:
+    * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+    * **itemClientX** &nbsp;&mdash;&nbsp; *number*
+    * **itemClientY** &nbsp;&mdash;&nbsp; *number*
+    * **itemWidth** &nbsp;&mdash;&nbsp; *number*
+    * **itemHeight** &nbsp;&mdash;&nbsp; *number*
+    * **pointerClientX** &nbsp;&mdash;&nbsp; *number*
+    * **pointerClientY** &nbsp;&mdash;&nbsp; *number*
+  * Tip: Use `Muuri.AutoScroller.pointerHandle(pointerSize)` utility method if you want to use the pointer (instead of the element) as the handle.
+* **threshold** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `50`.
+  * Defines the distance (in pixels) from the edge of the scrollable element when scrolling should start, in pixels. If this value is `0` the scrolling will start when the dragged element reaches the scrollable element's edge. Do note that Muuri may dynamically adjust the scroll element's _edge_ for the calculations (when needed) to make sure that there is always some space to move the item around in the center of the scrollable element without triggering auto-scroll. In practice this kind of mechanic is needed for large items that would otherwise trigger auto-scroll always.
+* **safeZone** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `0.2`.
+  * Defines the minimum "safe zone" space (as a percentage, something between `0` and `1`) in the center of the scrollable element that will not trigger scrolling.
+* **speed** &nbsp;&mdash;&nbsp; *number / function*
+  * Default value: `Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500)`.
+  * Defines the scrolling speed in pixels per second. You can provide either static speed with a `number` or dynamic speed with a `function`. The function is called before every scroll operation and should return the speed (`number`, pixels per second) for the next scroll operation. The function receives three arguments:
+    * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The dragged `Muuri.Item` instance.
+    * **scrollElement** &nbsp;&mdash;&nbsp; *element*
+      * The scrolled element.
+    * **data** &nbsp;&mdash;&nbsp; *object*
+      * **data.direction** &nbsp;&mdash;&nbsp; *number*
+        * The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
+      * **data.threshold** &nbsp;&mdash;&nbsp; *number*
+        * The current threshold in pixels.
+      * **data.distance** &nbsp;&mdash;&nbsp; *number*
+        * The handle rectangle's (as defined in `handle` option) current distance from the edge of the scroll element. E.g, if `direction` is `Muuri.AutoScroller.RIGHT` then distance is `scrollElement.getBoundingClientRect().right - handleRect.right`, and if `direction` is `Muuri.AutoScroller.LEFT` then distance is `handleRect.left - scrollElement.getBoundingClientRect().left`. Can be a negative value too.
+      * **data.value** &nbsp;&mdash;&nbsp; *number*
+        * The scroll element's current scroll value on the scrolled axis.
+      * **data.maxValue** &nbsp;&mdash;&nbsp; *number*
+        * The scroll element's maximum scroll value on the scrolled axis.
+      * **data.duration** &nbsp;&mdash;&nbsp; *number*
+        * How long (in milliseconds) this specific auto-scroll operation has lasted so far.
+      * **data.speed** &nbsp;&mdash;&nbsp; *number*
+        * The current speed as pixels per second.
+      * **data.deltaTime** &nbsp;&mdash;&nbsp; *number*
+        * `requestAnimationFrame`'s delta time (in milliseconds).
+      * **data.isEnding** &nbsp;&mdash;&nbsp; *boolean*
+        * Is the scroll process ending? When this is `true` it means that the associated drag item does not satisfy the threshold anymore. You should now start decreasing the speed towards `0` to allow the item to come to rest smoothly.
+* **sortDuringScroll** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `true`.
+  * Should the grid items be sorted during auto-scroll or not?
+* **syncAfterScroll** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `true`.
+  * Should Muuri automatically update the positions of the dragged items that were affected by scrolling? If you disable this option and the dragged item's parent is scrolled, the dragged item will visually shake during scroll. Unless all of your dragged items are inside a `fixed` positioned container element (which is the recommeded pattern), you should leave this enabled.
+* **smoothStop** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `true`.
+  * When a dragged item is moved out of the threshold area the scroll process is set to _ending_ state. However, it's up to you to decide if the actual scrolling motion is stopped gradually or instantly. By default, when this is `true`, scrolling will continue until speed reaches `0`. If you set this to `false` scrolling will stop immediately. _Always_ set this to `false` is you use static speed. When this option is `enabled` you _must_ handle decelerating the speed to `0` yourself within speed `function`. The default `speed` fuction handles the deceleration automatically.
+* **onStart** &nbsp;&mdash;&nbsp; *null / function*
+  * Default value: `null`.
+  * Optionally, you can provide a callback that will be called when an item starts auto-scrolling a scroll target. The callback function will receive the following arguments:
+    * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The dragged `Muuri.Item` instance.
+    * **scrollElement** &nbsp;&mdash;&nbsp; *element*
+      * The scrolled element.
+    * **direction** &nbsp;&mdash;&nbsp; *number*
+      * The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
+* **onStop** &nbsp;&mdash;&nbsp; *null / function*
+  * Default value: `null`.
+  * Optionally, you can provide a callback that will be called when an item stops auto-scrolling a scroll target. The callback function will receive the following arguments:
+    * **item** &nbsp;&mdash;&nbsp; *Muuri.Item*
+      * The dragged `Muuri.Item` instance.
+    * **scrollElement** &nbsp;&mdash;&nbsp; *element*
+      * The scrolled element.
+    * **direction** &nbsp;&mdash;&nbsp; *number*
+      * The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
+
+```javascript
+var grid = new Muuri(elem, {
+  containerClass: 'foo'
 });
 ```
 

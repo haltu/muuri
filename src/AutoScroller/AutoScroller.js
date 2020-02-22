@@ -5,30 +5,6 @@
  * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
-/**
- * TODO: How should we handle cases where the dragged item is larger than the
- * scrollable element? Should we disallow scrolling in that case? Or maybe
- * there could be another mode where we look at the center of the dragged item
- * instead of the edge?
- *
- * TODO: We should probably allow providing threshold as a function to allow
- * defining the threshold based on the scroll element's and dragged element's
- * dimensions and position.
- *
- * IDEA: Check if we can optimize checks done during scroll to boost perf even
- * more!
- *
- * IDEA: Allow manually pause/cancel existing scroll request.
- *
- * IDEA: Allow defining a speed limit for deciding when sorting during scrolling
- * is allowed?
- *
- * IDEA: See if values can be cached more efficiently here.
- *
- * IDEA: Option to define the maximum amount of items that can autoscroll
- * simultaneously?
- */
-
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
 import { LEFT, RIGHT, UP, DOWN, AXIS_X, AXIS_Y, FORWARD } from './constants';
 import ScrollRequest from './ScrollRequest';
@@ -46,7 +22,8 @@ import {
   getItemAutoScrollSettings,
   isAffectedByScroll,
   prepareItemDragScroll,
-  applyItemDragScroll
+  applyItemDragScroll,
+  computeThreshold
 } from './utils';
 
 var REQUEST_POOL = new Pool(
@@ -270,6 +247,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
   var settings = getItemAutoScrollSettings(item);
   var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
   var threshold = settings.threshold;
+  var safeZone = settings.safeZone;
 
   if (!targets || !targets.length) {
     checkX && this._cancelItemScroll(item, AXIS_X);
@@ -295,7 +273,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
   var testAxisY = true;
   var testScore = 0;
   var testPriority = 0;
-  var testThreshold = 0;
+  var testThreshold = null;
   var testDirection = null;
   var testDistance = 0;
   var testMaxScrollX = 0;
@@ -319,8 +297,8 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
 
   for (var i = 0; i < targets.length; i++) {
     target = targets[i];
-    testAxisX = checkX && target.axis !== AXIS_Y;
-    testAxisY = checkY && target.axis !== AXIS_X;
+    testAxisX = checkX && dragDirectionX && target.axis !== AXIS_Y;
+    testAxisY = checkY && dragDirectionY && target.axis !== AXIS_X;
     testPriority = target.priority || 0;
 
     // Ignore this item if it's x-axis and y-axis priority is lower than
@@ -336,7 +314,6 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
     // Ignore this item if there is no possibility to scroll.
     if (!testMaxScrollX && !testMaxScrollY) continue;
 
-    testThreshold = typeof target.threshold === 'number' ? target.threshold : threshold;
     testRect = getContentRect(testElement, testRect);
     testScore = getIntersectionScore(itemRect, testRect);
 
@@ -351,15 +328,21 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       (testPriority > xPriority || testScore > xScore)
     ) {
       testDirection = null;
-
+      testThreshold = computeThreshold(
+        threshold,
+        target.threshold,
+        safeZone,
+        itemRect.width,
+        testRect.width
+      );
       if (dragDirectionX === RIGHT) {
-        testDistance = testRect.right - itemRect.right;
-        if (testDistance <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
+        testDistance = testRect.right + testThreshold.offset - itemRect.right;
+        if (testDistance <= testThreshold.value && getScrollLeft(testElement) < testMaxScrollX) {
           testDirection = RIGHT;
         }
       } else if (dragDirectionX === LEFT) {
-        testDistance = itemRect.left - testRect.left;
-        if (testDistance <= testThreshold && getScrollLeft(testElement) > 0) {
+        testDistance = itemRect.left - (testRect.left - testThreshold.offset);
+        if (testDistance <= testThreshold.value && getScrollLeft(testElement) > 0) {
           testDirection = LEFT;
         }
       }
@@ -367,7 +350,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       if (testDirection !== null) {
         xElement = testElement;
         xPriority = testPriority;
-        xThreshold = testThreshold;
+        xThreshold = testThreshold.value;
         xScore = testScore;
         xDirection = testDirection;
         xDistance = testDistance;
@@ -383,15 +366,21 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       (testPriority > yPriority || testScore > yScore)
     ) {
       testDirection = null;
-
+      testThreshold = computeThreshold(
+        threshold,
+        target.threshold,
+        safeZone,
+        itemRect.height,
+        testRect.height
+      );
       if (dragDirectionY === DOWN) {
-        testDistance = testRect.bottom - itemRect.bottom;
-        if (testDistance <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
+        testDistance = testRect.bottom + testThreshold.offset - itemRect.bottom;
+        if (testDistance <= testThreshold.value && getScrollTop(testElement) < testMaxScrollY) {
           testDirection = DOWN;
         }
       } else if (dragDirectionY === UP) {
-        testDistance = itemRect.top - testRect.top;
-        if (testDistance <= testThreshold && getScrollTop(testElement) > 0) {
+        testDistance = itemRect.top - (testRect.top - testThreshold.offset);
+        if (testDistance <= testThreshold.value && getScrollTop(testElement) > 0) {
           testDirection = UP;
         }
       }
@@ -399,7 +388,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
       if (testDirection !== null) {
         yElement = testElement;
         yPriority = testPriority;
-        yThreshold = testThreshold;
+        yThreshold = testThreshold.value;
         yScore = testScore;
         yDirection = testDirection;
         yDistance = testDistance;
@@ -448,6 +437,7 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
   var settings = getItemAutoScrollSettings(item);
   var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
   var threshold = settings.threshold;
+  var safeZone = settings.safeZone;
 
   // Quick exit if no scroll items are found.
   if (!targets || !targets.length) {
@@ -488,7 +478,6 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
       break;
     }
 
-    testThreshold = typeof target.threshold === 'number' ? target.threshold : threshold;
     testRect = getContentRect(testElement, testRect);
     testScore = getIntersectionScore(itemRect, testRect);
 
@@ -498,19 +487,38 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
       break;
     }
 
+    // Compute threshold and edge offset.
+    if (testIsAxisX) {
+      testThreshold = computeThreshold(
+        threshold,
+        target.threshold,
+        safeZone,
+        itemRect.width,
+        testRect.width
+      );
+    } else {
+      testThreshold = computeThreshold(
+        threshold,
+        target.threshold,
+        safeZone,
+        itemRect.height,
+        testRect.height
+      );
+    }
+
     // Compute distance (based on current direction).
     if (scrollRequest.direction === LEFT) {
-      testDistance = itemRect.left - testRect.left;
+      testDistance = itemRect.left - (testRect.left - testThreshold.offset);
     } else if (scrollRequest.direction === RIGHT) {
-      testDistance = testRect.right - itemRect.right;
+      testDistance = testRect.right + testThreshold.offset - itemRect.right;
     } else if (scrollRequest.direction === UP) {
-      testDistance = itemRect.top - testRect.top;
+      testDistance = itemRect.top - (testRect.top - testThreshold.offset);
     } else {
-      testDistance = testRect.bottom - itemRect.bottom;
+      testDistance = testRect.bottom + testThreshold.offset - itemRect.bottom;
     }
 
     // Stop scrolling if threshold is not exceeded.
-    if (testDistance > testThreshold) {
+    if (testDistance > testThreshold.value) {
       break;
     }
 
@@ -524,7 +532,7 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
 
     // Scrolling can continue, let's update the values.
     scrollRequest.maxValue = testMaxScroll;
-    scrollRequest.threshold = testThreshold;
+    scrollRequest.threshold = testThreshold.value;
     scrollRequest.distance = testDistance;
     scrollRequest.isEnding = false;
     return true;

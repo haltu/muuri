@@ -1285,6 +1285,7 @@
 
   var DOC_ELEM = document.documentElement;
   var BODY = document.body;
+  var THRESHOLD_DATA = { value: 0, offset: 0 };
 
   /**
    * @param {HTMLElement|Window} element
@@ -1432,6 +1433,26 @@
     }
 
     return isAffected;
+  }
+
+  /**
+   * Compute threshold value and edge offset.
+   *
+   * @param {Number} threshold
+   * @param {(Number|undefined)} scrollElement
+   * @param {Number} safeZone
+   * @param {Number} itemSize
+   * @param {Number} targetSize
+   * @returns {Object}
+   */
+  function computeThreshold(threshold, targetThreshold, safeZone, itemSize, targetSize) {
+    THRESHOLD_DATA.value = Math.min(
+      targetSize / 2,
+      typeof targetThreshold === 'number' ? targetThreshold : threshold
+    );
+    THRESHOLD_DATA.offset =
+      Math.max(0, itemSize + THRESHOLD_DATA.value * 2 + targetSize * safeZone - targetSize) / 2;
+    return THRESHOLD_DATA;
   }
 
   function ScrollRequest() {
@@ -1867,6 +1888,7 @@
     var settings = getItemAutoScrollSettings(item);
     var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
     var threshold = settings.threshold;
+    var safeZone = settings.safeZone;
 
     if (!targets || !targets.length) {
       checkX && this._cancelItemScroll(item, AXIS_X);
@@ -1892,7 +1914,7 @@
     var testAxisY = true;
     var testScore = 0;
     var testPriority = 0;
-    var testThreshold = 0;
+    var testThreshold = null;
     var testDirection = null;
     var testDistance = 0;
     var testMaxScrollX = 0;
@@ -1916,8 +1938,8 @@
 
     for (var i = 0; i < targets.length; i++) {
       target = targets[i];
-      testAxisX = checkX && target.axis !== AXIS_Y;
-      testAxisY = checkY && target.axis !== AXIS_X;
+      testAxisX = checkX && dragDirectionX && target.axis !== AXIS_Y;
+      testAxisY = checkY && dragDirectionY && target.axis !== AXIS_X;
       testPriority = target.priority || 0;
 
       // Ignore this item if it's x-axis and y-axis priority is lower than
@@ -1933,7 +1955,6 @@
       // Ignore this item if there is no possibility to scroll.
       if (!testMaxScrollX && !testMaxScrollY) continue;
 
-      testThreshold = typeof target.threshold === 'number' ? target.threshold : threshold;
       testRect = getContentRect(testElement, testRect);
       testScore = getIntersectionScore(itemRect, testRect);
 
@@ -1948,15 +1969,21 @@
         (testPriority > xPriority || testScore > xScore)
       ) {
         testDirection = null;
-
+        testThreshold = computeThreshold(
+          threshold,
+          target.threshold,
+          safeZone,
+          itemRect.width,
+          testRect.width
+        );
         if (dragDirectionX === RIGHT) {
-          testDistance = testRect.right - itemRect.right;
-          if (testDistance <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
+          testDistance = testRect.right + testThreshold.offset - itemRect.right;
+          if (testDistance <= testThreshold.value && getScrollLeft(testElement) < testMaxScrollX) {
             testDirection = RIGHT;
           }
         } else if (dragDirectionX === LEFT) {
-          testDistance = itemRect.left - testRect.left;
-          if (testDistance <= testThreshold && getScrollLeft(testElement) > 0) {
+          testDistance = itemRect.left - (testRect.left - testThreshold.offset);
+          if (testDistance <= testThreshold.value && getScrollLeft(testElement) > 0) {
             testDirection = LEFT;
           }
         }
@@ -1964,7 +1991,7 @@
         if (testDirection !== null) {
           xElement = testElement;
           xPriority = testPriority;
-          xThreshold = testThreshold;
+          xThreshold = testThreshold.value;
           xScore = testScore;
           xDirection = testDirection;
           xDistance = testDistance;
@@ -1980,15 +2007,21 @@
         (testPriority > yPriority || testScore > yScore)
       ) {
         testDirection = null;
-
+        testThreshold = computeThreshold(
+          threshold,
+          target.threshold,
+          safeZone,
+          itemRect.height,
+          testRect.height
+        );
         if (dragDirectionY === DOWN) {
-          testDistance = testRect.bottom - itemRect.bottom;
-          if (testDistance <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
+          testDistance = testRect.bottom + testThreshold.offset - itemRect.bottom;
+          if (testDistance <= testThreshold.value && getScrollTop(testElement) < testMaxScrollY) {
             testDirection = DOWN;
           }
         } else if (dragDirectionY === UP) {
-          testDistance = itemRect.top - testRect.top;
-          if (testDistance <= testThreshold && getScrollTop(testElement) > 0) {
+          testDistance = itemRect.top - (testRect.top - testThreshold.offset);
+          if (testDistance <= testThreshold.value && getScrollTop(testElement) > 0) {
             testDirection = UP;
           }
         }
@@ -1996,7 +2029,7 @@
         if (testDirection !== null) {
           yElement = testElement;
           yPriority = testPriority;
-          yThreshold = testThreshold;
+          yThreshold = testThreshold.value;
           yScore = testScore;
           yDirection = testDirection;
           yDistance = testDistance;
@@ -2045,6 +2078,7 @@
     var settings = getItemAutoScrollSettings(item);
     var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
     var threshold = settings.threshold;
+    var safeZone = settings.safeZone;
 
     // Quick exit if no scroll items are found.
     if (!targets || !targets.length) {
@@ -2085,7 +2119,6 @@
         break;
       }
 
-      testThreshold = typeof target.threshold === 'number' ? target.threshold : threshold;
       testRect = getContentRect(testElement, testRect);
       testScore = getIntersectionScore(itemRect, testRect);
 
@@ -2095,19 +2128,38 @@
         break;
       }
 
+      // Compute threshold and edge offset.
+      if (testIsAxisX) {
+        testThreshold = computeThreshold(
+          threshold,
+          target.threshold,
+          safeZone,
+          itemRect.width,
+          testRect.width
+        );
+      } else {
+        testThreshold = computeThreshold(
+          threshold,
+          target.threshold,
+          safeZone,
+          itemRect.height,
+          testRect.height
+        );
+      }
+
       // Compute distance (based on current direction).
       if (scrollRequest.direction === LEFT) {
-        testDistance = itemRect.left - testRect.left;
+        testDistance = itemRect.left - (testRect.left - testThreshold.offset);
       } else if (scrollRequest.direction === RIGHT) {
-        testDistance = testRect.right - itemRect.right;
+        testDistance = testRect.right + testThreshold.offset - itemRect.right;
       } else if (scrollRequest.direction === UP) {
-        testDistance = itemRect.top - testRect.top;
+        testDistance = itemRect.top - (testRect.top - testThreshold.offset);
       } else {
-        testDistance = testRect.bottom - itemRect.bottom;
+        testDistance = testRect.bottom + testThreshold.offset - itemRect.bottom;
       }
 
       // Stop scrolling if threshold is not exceeded.
-      if (testDistance > testThreshold) {
+      if (testDistance > testThreshold.value) {
         break;
       }
 
@@ -2121,7 +2173,7 @@
 
       // Scrolling can continue, let's update the values.
       scrollRequest.maxValue = testMaxScroll;
-      scrollRequest.threshold = testThreshold;
+      scrollRequest.threshold = testThreshold.value;
       scrollRequest.distance = testDistance;
       scrollRequest.isEnding = false;
       return true;
@@ -6960,6 +7012,17 @@
    * @param {?Function} [options.dragPlaceholder.createElement=null]
    * @param {?Function} [options.dragPlaceholder.onCreate=null]
    * @param {?Function} [options.dragPlaceholder.onRemove=null]
+   * @param {Object} [options.dragAutoScroll]
+   * @param {(Function|Array)} [options.dragAutoScroll.targets=[]]
+   * @param {?Function} [options.dragAutoScroll.handle=null]
+   * @param {Number} [options.dragAutoScroll.threshold=50]
+   * @param {Number} [options.dragAutoScroll.safeZone=0.2]
+   * @param {(Function|Number)} [options.dragAutoScroll.speed]
+   * @param {Boolean} [options.dragAutoScroll.sortDuringScroll=true]
+   * @param {Boolean} [options.dragAutoScroll.syncAfterScroll=true]
+   * @param {Boolean} [options.dragAutoScroll.smoothStop=true]
+   * @param {?Function} [options.dragAutoScroll.onStart=null]
+   * @param {?Function} [options.dragAutoScroll.onStop=null]
    * @param {String} [options.containerClass="muuri"]
    * @param {String} [options.itemClass="muuri-item"]
    * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -7190,6 +7253,7 @@
       targets: [],
       handle: null,
       threshold: 50,
+      safeZone: 0.2,
       speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
       sortDuringScroll: true,
       syncAfterScroll: true,

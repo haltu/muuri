@@ -11,6 +11,7 @@ import isTransformed from '../utils/isTransformed';
 
 var DOC_ELEM = document.documentElement;
 var BODY = document.body;
+var THRESHOLD_DATA = { value: 0, offset: 0 };
 
 /**
  * @param {HTMLElement|Window} element
@@ -158,4 +159,24 @@ export function isAffectedByScroll(targetElement, scrollElement) {
   }
 
   return isAffected;
+}
+
+/**
+ * Compute threshold value and edge offset.
+ *
+ * @param {Number} threshold
+ * @param {(Number|undefined)} scrollElement
+ * @param {Number} safeZone
+ * @param {Number} itemSize
+ * @param {Number} targetSize
+ * @returns {Object}
+ */
+export function computeThreshold(threshold, targetThreshold, safeZone, itemSize, targetSize) {
+  THRESHOLD_DATA.value = Math.min(
+    targetSize / 2,
+    typeof targetThreshold === 'number' ? targetThreshold : threshold
+  );
+  THRESHOLD_DATA.offset =
+    Math.max(0, itemSize + THRESHOLD_DATA.value * 2 + targetSize * safeZone - targetSize) / 2;
+  return THRESHOLD_DATA;
 }

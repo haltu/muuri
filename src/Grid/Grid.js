@@ -108,6 +108,17 @@ var INSTANT_LAYOUT = 'instant';
  * @param {?Function} [options.dragPlaceholder.createElement=null]
  * @param {?Function} [options.dragPlaceholder.onCreate=null]
  * @param {?Function} [options.dragPlaceholder.onRemove=null]
+ * @param {Object} [options.dragAutoScroll]
+ * @param {(Function|Array)} [options.dragAutoScroll.targets=[]]
+ * @param {?Function} [options.dragAutoScroll.handle=null]
+ * @param {Number} [options.dragAutoScroll.threshold=50]
+ * @param {Number} [options.dragAutoScroll.safeZone=0.2]
+ * @param {(Function|Number)} [options.dragAutoScroll.speed]
+ * @param {Boolean} [options.dragAutoScroll.sortDuringScroll=true]
+ * @param {Boolean} [options.dragAutoScroll.syncAfterScroll=true]
+ * @param {Boolean} [options.dragAutoScroll.smoothStop=true]
+ * @param {?Function} [options.dragAutoScroll.onStart=null]
+ * @param {?Function} [options.dragAutoScroll.onStop=null]
  * @param {String} [options.containerClass="muuri"]
  * @param {String} [options.itemClass="muuri-item"]
  * @param {String} [options.itemVisibleClass="muuri-item-visible"]
@@ -338,6 +349,7 @@ Grid.defaultOptions = {
     targets: [],
     handle: null,
     threshold: 50,
+    safeZone: 0.2,
     speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     syncAfterScroll: true,

@@ -47,7 +47,7 @@
 
   };
 
-  utils.dragElement = function(element, moveLeft, moveTop, onStop) {
+  utils.dragElement = function(element, moveLeft, moveTop, onStop, opts) {
 
     // Calculate start point.
     var from = mezr.offset(element, window);
@@ -74,13 +74,25 @@
       y: from.top
     });
 
+    var pressDuration = opts && opts.pressDuration || 100;
+    var moveDuration = opts && opts.moveDuration || 100;
+    var holdDuration = opts && opts.holdDuration || 200;
+
     // Do the drag if movement is defined.
     if (moveTop || moveLeft) {
-      finger.down().wait(100).moveTo(from.left + moveLeft, from.top + moveTop, 100).wait(200).up();
+      finger
+        .down()
+        .wait(pressDuration)
+        .moveTo(from.left + moveLeft, from.top + moveTop, moveDuration)
+        .wait(holdDuration)
+        .up();
     }
     // Otherwise do a press.
     else {
-      finger.down().wait(400).up();
+      finger
+        .down()
+        .wait(pressDuration + holdDuration)
+        .up();
     }
 
   };

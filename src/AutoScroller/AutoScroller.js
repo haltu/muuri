@@ -5,6 +5,14 @@
  * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
+// TODO: One little UX nag. If you scroll down and then quickly drag the
+// element up to start the scroll to opposite direction, there's a really good
+// chance that the scroll won't start.. until you nudge the element at least 1px
+// up. This happens when the vertical direction is not up, which effectively
+// blocks the scroll from starting to up direction. We _should_ start checking
+// the normal overlap checking as soon as isEnding flag is activated, but just
+// act on it after the previous scroll request has fully stopped.
+
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
 import { LEFT, RIGHT, UP, DOWN, AXIS_X, AXIS_Y, FORWARD } from './constants';
 import ScrollRequest from './ScrollRequest';

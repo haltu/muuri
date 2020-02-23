@@ -243,6 +243,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     targets: [],
     handle: null,
     threshold: 50,
+    safeZone: 0.2,
     speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     syncAfterScroll: true,
@@ -1039,9 +1040,7 @@ var grid = new Muuri(elem, {
 
 ### dragAutoScroll &nbsp;
 
-If you want to trigger scrolling on any element during dragging you can enable and configure it here. By default this feature is disabled.
-
-When you use this feature it is _highly_ recommended that you create a `fixed` positioned element right under `document.body` and use that as the `dragContainer` for all the dragged items. If you don't do this and a dragged item's parent is auto-scrolled, the dragged item will potentially grow the scrolled element's scroll area to infinity unintentionally.
+If you want to trigger scrolling on any element during dragging you can enable and configure it here. By default this feature is disabled. When you use this feature it is _highly_ recommended that you create a `fixed` positioned element right under `document.body` and use that as the `dragContainer` for all the dragged items. If you don't do this and a dragged item's parent is auto-scrolled, the dragged item will potentially grow the scrolled element's scroll area to infinity unintentionally.
 
 * Default value: `{ targets: [], handle: null, threshold: 50, speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500), sortDuringScroll: true, syncAfterScroll: true, smoothStop: true, onStart: null, onStop: null }`.
 * Accepted types: object.
@@ -1064,7 +1063,7 @@ You can define the following properties:
       * A dragged item can only scroll one element horizontally and one element vertically simultaneously. This is an artificial limit to fend off unnecesary complexity, and to avoid awkward situations. In the case where the dragged item overlaps multiple scrollable elements simultaneously and exceeds their scroll thresholds we pick the one that the dragged item overlaps most. However, that's not always the best choice. This is where `priority` comes in. Here you can manually tell Muuri which element to prefer over another in these scenarios. The element with highest priority _always_ wins the fight, in matches with equal priority we determine the winner by the amount of overlap.
       * Optional.
     * **threshold** &nbsp;&mdash;&nbsp; *number / null*
-      * Default: `null`;
+      * Default: `null`.
       * If defined (a number is provided), this value will override the default threshold for _this scroll target_. Otherwise the default threshold will be used.
       * Optional.
 * **handle** &nbsp;&mdash;&nbsp; *function / null*
@@ -1080,10 +1079,10 @@ You can define the following properties:
   * Tip: Use `Muuri.AutoScroller.pointerHandle(pointerSize)` utility method if you want to use the pointer (instead of the element) as the handle.
 * **threshold** &nbsp;&mdash;&nbsp; *number*
   * Default value: `50`.
-  * Defines the distance (in pixels) from the edge of the scrollable element when scrolling should start, in pixels. If this value is `0` the scrolling will start when the dragged element reaches the scrollable element's edge. Do note that Muuri may dynamically adjust the scroll element's _edge_ for the calculations (when needed) to make sure that there is always some space to move the item around in the center of the scrollable element without triggering auto-scroll. In practice this kind of mechanic is needed for large items that would otherwise trigger auto-scroll always.
+  * Defines the distance (in pixels) from the edge of the scrollable element when scrolling should start, in pixels. If this value is `0` the scrolling will start when the dragged element reaches the scrollable element's edge. Do note that Muuri dynamically adjusts the scroll element's _edge_ for the calculations (when needed).
 * **safeZone** &nbsp;&mdash;&nbsp; *number*
   * Default value: `0.2`.
-  * Defines the minimum "safe zone" space (as a percentage, something between `0` and `1`) in the center of the scrollable element that will not trigger scrolling.
+  * Defines the size of the minimum "safe zone" space, an area in the center of the scrollable element that will be guaranteed not trigger scrolling regardless threshold size and the dragged item size. This value is a percentage of the scrollable element's size (width or height depending on the scroll axis), and should be something between `0` and `1`. So in practice, if you set this to e.g `0.5` the safe zone would be 50% of the scrollable element's width and height.
 * **speed** &nbsp;&mdash;&nbsp; *number / function*
   * Default value: `Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500)`.
   * Defines the scrolling speed in pixels per second. You can provide either static speed with a `number` or dynamic speed with a `function`. The function is called before every scroll operation and should return the speed (`number`, pixels per second) for the next scroll operation. The function receives three arguments:
@@ -1110,6 +1109,13 @@ You can define the following properties:
         * `requestAnimationFrame`'s delta time (in milliseconds).
       * **data.isEnding** &nbsp;&mdash;&nbsp; *boolean*
         * Is the scroll process ending? When this is `true` it means that the associated drag item does not satisfy the threshold anymore. You should now start decreasing the speed towards `0` to allow the item to come to rest smoothly.
+  * Pro tip: Use `Muuri.AutoScroller.smoothSpeed()` for dynamic speed that provides a smooth scrolling experience. When executed it creates and returns a speed function which you can directly provide for `speed` option. The method _requires_ three arguments (in the following order):
+    * **maxSpeed** &nbsp;&mdash;&nbsp; *number*
+      * The maximum speed (pixels per second) when the handle's distance to the scroll target's edge is `0` or less.
+    * **acceleration** &nbsp;&mdash;&nbsp; *number*
+      * How fast the the speed may accelerate (pixels per second).
+    * **deceleration** &nbsp;&mdash;&nbsp; *number*
+      * How fast the the speed may decelerate (pixels per second).
 * **sortDuringScroll** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `true`.
   * Should the grid items be sorted during auto-scroll or not?
@@ -1139,8 +1145,52 @@ You can define the following properties:
       * The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
 
 ```javascript
+// Create a fixed drag container for the dragged items, this is done with JS
+// just for example's purposes.
+var dragContainer = document.createElement('div');
+dragContainer.style.position = 'fixed';
+dragContainer.style.left = '0px';
+dragContainer.style.top = '0px';
+dragContainer.style.zIndex = 1000;
+document.body.appendChild(dragContainer);
+
 var grid = new Muuri(elem, {
-  containerClass: 'foo'
+  dragEnabled: true,
+  dragContainer: dragContainer,
+  dragAutoScroll: {
+    targets: [
+      // Scroll window on both x-axis and y-axis.
+      { element: window, priority: 0 },
+      // Scroll scrollElement (can be any scrollable element) on y-axis only,
+      // and prefer it over window in conflict scenarios.
+      { element: scrollElement, priority: 1, axis: Muuri.AutoScroller.AXIS_Y }
+    ],
+    // Let's use the dragged item element as the handle.
+    handle: null,
+    // Start auto-scroll when the distance from scroll target's edge to dragged
+    // item is 40px or less.
+    threshold: 40,
+    // Make sure the inner 10% of the scroll target's area is always "safe zone"
+    // which does not trigger auto-scroll.
+    safeZone: 0.1,
+    // Let's define smooth dynamic speed.
+    // Max speed: 2000 pixels per second
+    // Acceleration: 2700 pixels per second
+    // Deceleration: 3200 pixels per second.
+    speed: Muuri.AutoScroller.smoothSpeed(2000, 2700, 3200),
+    // Let's not sort during scroll.
+    sortDuringScroll: false,
+    // No need to sync dragged item positions after scroll since we place all
+    // the dragged items within a fixed element which does not scroll.
+    syncAfterScroll: false,
+    // Finally let's log some data when auto-scroll starts and stops.
+    onStart: function (item, scrollElement, direction) {
+      console.log('AUTOSCROLL STARTED', item, scrollElement, direction);
+    },
+    onStop: function (item, scrollElement, direction) {
+      console.log('AUTOSCROLL STOPPED', item, scrollElement, direction);
+    }
+  }
 });
 ```
 

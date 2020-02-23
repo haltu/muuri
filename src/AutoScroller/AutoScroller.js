@@ -558,17 +558,18 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
 };
 
 AutoScroller.prototype._updateRequests = function() {
-  var xReqs = this._requests[AXIS_X];
-  var yReqs = this._requests[AXIS_Y];
+  var items = this._items;
+  var requestsX = this._requests[AXIS_X];
+  var requestsY = this._requests[AXIS_Y];
   var item, reqX, reqY, checkTime, needsCheck, checkX, checkY;
 
-  for (var i = 0; i < this._items.length; i++) {
-    item = this._items[i];
+  for (var i = 0; i < items.length; i++) {
+    item = items[i];
     checkTime = this._requestOverlapCheck[item._id];
     needsCheck = checkTime > 0 && this._tickTime - checkTime > OVERLAP_CHECK_INTERVAL;
 
     checkX = true;
-    reqX = xReqs[item._id];
+    reqX = requestsX[item._id];
     if (reqX && reqX.isActive) {
       checkX = !this._updateScrollRequest(reqX);
       if (checkX) {
@@ -578,7 +579,7 @@ AutoScroller.prototype._updateRequests = function() {
     }
 
     checkY = true;
-    reqY = yReqs[item._id];
+    reqY = requestsY[item._id];
     if (reqY && reqY.isActive) {
       checkY = !this._updateScrollRequest(reqY);
       if (checkY) {
@@ -589,7 +590,7 @@ AutoScroller.prototype._updateRequests = function() {
 
     if (needsCheck) {
       this._requestOverlapCheck[item._id] = 0;
-      this._checkItemOverlap(this._items[i], checkX, checkY);
+      this._checkItemOverlap(item, checkX, checkY);
     }
   }
 };
@@ -650,7 +651,7 @@ AutoScroller.prototype._updateActions = function() {
   }
 
   // Compute actions' scroll values. Also check which items need to be
-  // synchronously synced after scroll (this operation causes)
+  // synchronously synced after scroll.
   syncItems.length = 0;
   for (i = 0; i < actions.length; i++) {
     action = actions[i];

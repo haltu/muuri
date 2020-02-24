@@ -5225,10 +5225,10 @@
     var isPositioning = this._isActive;
     var isJustReleased = release._isActive && release._isPositioningStarted === false;
     var animDuration = isJustReleased
-      ? gridSettings.dragRelease.layoutDuration
+      ? gridSettings.dragRelease.duration
       : gridSettings.layoutDuration;
     var animEasing = isJustReleased
-      ? gridSettings.dragRelease.layoutEasing
+      ? gridSettings.dragRelease.easing
       : gridSettings.layoutEasing;
     var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
 
@@ -7005,8 +7005,9 @@
    * @param {String} [options.dragSortPredicate.action="move"]
    * @param {String} [options.dragSortPredicate.migrateAction="move"]
    * @param {Object} [options.dragRelease]
-   * @param {Number} [options.dragRelease.layoutDuration=300]
-   * @param {String} [options.dragRelease.layoutEasing="ease"]
+   * @param {Number} [options.dragRelease.duration=300]
+   * @param {String} [options.dragRelease.easing="ease"]
+   * @param {Boolean} [options.dragRelease.useDragContainer=true]
    * @param {Object} [options.dragCssProps]
    * @param {Object} [options.dragPlaceholder]
    * @param {Boolean} [options.dragPlaceholder.enabled=false]
@@ -7232,8 +7233,8 @@
       migrateAction: ACTION_MOVE
     },
     dragRelease: {
-      layoutDuration: 300,
-      layoutEasing: 'ease',
+      duration: 300,
+      easing: 'ease',
       useDragContainer: true
     },
     dragCssProps: {

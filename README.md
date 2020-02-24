@@ -221,10 +221,13 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   dragSortPredicate: {
     threshold: 50,
     action: 'move',
-    migrateAction: 'move'
+    migrateAction: 'swap'
   },
-  dragReleaseDuration: 300,
-  dragReleaseEasing: 'ease',
+  dragRelease: {
+    duration: 300,
+    easing: 'ease',
+    useDragContainer: true
+  },
   dragCssProps: {
     touchAction: 'none',
     userSelect: 'none',
@@ -306,8 +309,7 @@ var gridB = new Muuri('.grid-b', {
 * [dragSort](#dragsort-)
 * [dragSortHeuristics](#dragsortheuristics-)
 * [dragSortPredicate](#dragsortpredicate-)
-* [dragReleaseDuration](#dragreleaseduration-)
-* [dragReleaseEasing](#dragreleaseeasing-)
+* [dragRelease](#dragrelease-)
 * [dragCssProps](#dragcssprops-)
 * [dragPlaceholder](#dragplaceholder-)
 * [dragAutoScroll](#dragautoscroll-)
@@ -916,29 +918,30 @@ var grid = new Muuri(elem, {
 });
 ```
 
-### dragReleaseDuration &nbsp;
+### dragRelease &nbsp;
 
-The duration for item's drag release animation. Set to `0` to disable.
+* Default value: `{ duration: 300, easing: 'ease', useDragContainer: true }`.
+* Accepted types: object.
 
-* Default value: `300`.
-* Accepted types: number.
+You can define the following properties:
 
-```javascript
-var grid = new Muuri(elem, {
-  dragReleaseDuration: 600
-});
-```
-
-### dragReleaseEasing &nbsp;
-
-The easing for item's drag release animation. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
-
-* Default value: `'ease'`.
-* Accepted types: string.
+* **duration** &nbsp;&mdash;&nbsp; *number*
+  * Default value: `300`.
+  * The duration for item's drag release animation. Set to `0` to disable.
+* **easing** &nbsp;&mdash;&nbsp; *string*
+  * Default value: `'ease'`.
+  * The easing for item's drag release animation. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
+* **useDragContainer** &nbsp;&mdash;&nbsp; *boolean*
+  * Default value: `true`.
+  * If `true` the item element will remain within the `dragContainer` for the duration of the release process. Otherwise the item element will be inserted within the grid element (if not already inside it) at the beginning of the release process.
 
 ```javascript
 var grid = new Muuri(elem, {
-  dragReleaseEasing: 'ease-out'
+  dragRelease: {
+    duration: 600,
+    easing: 'ease-out',
+    useDragContainer: false
+  }
 });
 ```
 

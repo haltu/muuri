@@ -20,7 +20,12 @@
       assert.strictEqual(item._dragPlaceholder.isActive(), false, '');
     });
 
-    utils.dragElement(item.getElement(), 0, 70, teardown);
+    utils.dragElement({
+      element: item.getElement(),
+      x: 70,
+      y: 70,
+      onFinished: teardown
+    });
   });
 
   QUnit.test('dragPlaceholder: should be enabled when `enabled` is set to true', function(assert) {
@@ -100,7 +105,11 @@
       );
     });
 
-    utils.dragElement(item.getElement(), 0, 70);
+    utils.dragElement({
+      element: item.getElement(),
+      x: 0,
+      y: 70
+    });
   });
 
   QUnit.test(
@@ -158,7 +167,12 @@
         );
       });
 
-      utils.dragElement(item.getElement(), 0, 70, teardown);
+      utils.dragElement({
+        element: item.getElement(),
+        x: 0,
+        y: 70,
+        onFinished: teardown
+      });
     }
   );
 })(this);

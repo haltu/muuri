@@ -1,11 +1,11 @@
-(function (window) {
-
+(function(window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('dragScroll: should be triggered when scroll occurs during drag process', function (assert) {
-
+  QUnit.test('dragScroll: should be triggered when scroll occurs during drag process', function(
+    assert
+  ) {
     assert.expect(4);
 
     var done = assert.async();
@@ -24,33 +24,40 @@
     var calls = 0;
     var isStartCalled = false;
     var isMoveCalled = false;
-    var teardown = function () {
+    var teardown = function() {
       grid.destroy();
       container.parentNode.removeChild(container);
-      utils.setStyles(docElem, {height: ''});
+      utils.setStyles(docElem, { height: '' });
       body.scrollTop = 0;
       done();
     };
 
-    utils.setStyles(docElem, {height: '1000%'});
+    utils.setStyles(docElem, { height: '1000%' });
 
-    grid.on('dragStart', function () {
+    grid.on('dragStart', function() {
       body.scrollTop = 100;
       docElem.scrollTop = 100;
     });
 
-    grid.on('dragScroll', function (draggedItem, ev) {
+    grid.on('dragScroll', function(draggedItem, ev) {
       assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
       assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
-      assert.strictEqual(utils.isScrollEvent(ev), true, 'callback: second argument should be a scroll event object');
+      assert.strictEqual(
+        utils.isScrollEvent(ev),
+        true,
+        'callback: second argument should be a scroll event object'
+      );
       ++calls;
     });
 
-    utils.dragElement(item.getElement(), 0, 100, function () {
-      assert.strictEqual(calls, 1, 'should be called only once');
-      teardown();
+    utils.dragElement({
+      element: item.getElement(),
+      x: 0,
+      y: 100,
+      onFinished: function() {
+        assert.strictEqual(calls, 1, 'should be called only once');
+        teardown();
+      }
     });
-
   });
-
 })(this);

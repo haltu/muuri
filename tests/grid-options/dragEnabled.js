@@ -1,33 +1,34 @@
-(function (window) {
-
+(function(window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
-  QUnit.test('dragEnabled: drag should be disabled by default', function (assert) {
-
+  QUnit.test('dragEnabled: drag should be disabled by default', function(assert) {
     assert.expect(0);
 
     var done = assert.async();
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var item = grid.getItems()[0];
-    var teardown = function () {
+    var teardown = function() {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('dragStart', function () {
+    grid.on('dragStart', function() {
       assert.strictEqual(true, false, 'drag should not be started');
     });
 
-    utils.dragElement(item.getElement(), 100, 100, teardown);
-
+    utils.dragElement({
+      element: item.getElement(),
+      x: 100,
+      y: 100,
+      onFinished: teardown
+    });
   });
 
-  QUnit.test('dragEnabled: drag is enabled when provided true is provided', function (assert) {
-
+  QUnit.test('dragEnabled: drag is enabled when provided true is provided', function(assert) {
     assert.expect(1);
 
     var done = assert.async();
@@ -36,18 +37,21 @@
       dragEnabled: true
     });
     var item = grid.getItems()[0];
-    var teardown = function () {
+    var teardown = function() {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('dragStart', function () {
+    grid.on('dragStart', function() {
       assert.strictEqual(true, true, 'drag should be started');
     });
 
-    utils.dragElement(item.getElement(), 100, 100, teardown);
-
+    utils.dragElement({
+      element: item.getElement(),
+      x: 100,
+      y: 100,
+      onFinished: teardown
+    });
   });
-
 })(this);

@@ -79,11 +79,9 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   var isPositioning = this._isActive;
   var isJustReleased = release._isActive && release._isPositioningStarted === false;
   var animDuration = isJustReleased
-    ? gridSettings.dragRelease.layoutDuration
+    ? gridSettings.dragRelease.duration
     : gridSettings.layoutDuration;
-  var animEasing = isJustReleased
-    ? gridSettings.dragRelease.layoutEasing
-    : gridSettings.layoutEasing;
+  var animEasing = isJustReleased ? gridSettings.dragRelease.easing : gridSettings.layoutEasing;
   var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
 
   // If the item is currently positioning cancel potential queued layout tick

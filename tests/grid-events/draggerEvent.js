@@ -1,20 +1,18 @@
-(function (window) {
-
+(function(window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('draggerEvent interface', function (assert) {
-
+  QUnit.test('draggerEvent interface', function(assert) {
     assert.expect(35);
 
     var done = assert.async();
     var container = utils.createGridElements();
-    var grid = new Muuri(container, {dragEnabled: true});
+    var grid = new Muuri(container, { dragEnabled: true });
     var item = grid.getItems()[0];
     var evStart, evMove1, evMove2, evEnd;
     var startClientX, startClientY;
-    var teardown = function () {
+    var teardown = function() {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
@@ -35,7 +33,11 @@
       }
 
       if (!srcInterface) {
-        assert.strictEqual(true, false, 'No matching touch/event interface found from source event');
+        assert.strictEqual(
+          true,
+          false,
+          'No matching touch/event interface found from source event'
+        );
       }
 
       var dX = srcInterface.clientX - startClientX;
@@ -59,14 +61,14 @@
       }
     }
 
-    grid.on('dragStart', function (item, ev) {
+    grid.on('dragStart', function(item, ev) {
       startClientX = ev.clientX;
       startClientY = ev.clientY;
       evStart = ev;
       assertDraggerEvent(ev);
     });
 
-    grid.on('dragMove', function (item, ev) {
+    grid.on('dragMove', function(item, ev) {
       if (!evMove1) {
         evMove1 = ev;
         assertDraggerEvent(ev);
@@ -75,32 +77,36 @@
       }
     });
 
-    grid.on('dragEnd', function (item, ev) {
+    grid.on('dragEnd', function(item, ev) {
       evEnd = ev;
       assertDraggerEvent(ev);
     });
 
-    grid.on('dragReleaseEnd', function () {
-      var hasUniqueEvents = evStart !== evMove1 &&
-                            evStart !== evMove2 &&
-                            evStart !== evEnd &&
-                            evMove1 !== evMove2 &&
-                            evMove1 !== evEnd &&
-                            evMove2 !== evEnd;
+    grid.on('dragReleaseEnd', function() {
+      var hasUniqueEvents =
+        evStart !== evMove1 &&
+        evStart !== evMove2 &&
+        evStart !== evEnd &&
+        evMove1 !== evMove2 &&
+        evMove1 !== evEnd &&
+        evMove2 !== evEnd;
 
       assert.strictEqual(hasUniqueEvents, true, 'event objects should not be pooled');
 
-      var hasSameId = evStart.identifier === evMove1.identifier &&
-                      evStart.identifier === evMove2.identifier &&
-                      evStart.identifier === evEnd.identifier;
+      var hasSameId =
+        evStart.identifier === evMove1.identifier &&
+        evStart.identifier === evMove2.identifier &&
+        evStart.identifier === evEnd.identifier;
 
       assert.strictEqual(hasSameId, true, 'identifier should be same for all events');
 
       teardown();
     });
 
-    utils.dragElement(item.getElement(), 100, 100);
-
+    utils.dragElement({
+      element: item.getElement(),
+      x: 100,
+      y: 100
+    });
   });
-
 })(this);

@@ -100,8 +100,9 @@ var INSTANT_LAYOUT = 'instant';
  * @param {String} [options.dragSortPredicate.action="move"]
  * @param {String} [options.dragSortPredicate.migrateAction="move"]
  * @param {Object} [options.dragRelease]
- * @param {Number} [options.dragRelease.layoutDuration=300]
- * @param {String} [options.dragRelease.layoutEasing="ease"]
+ * @param {Number} [options.dragRelease.duration=300]
+ * @param {String} [options.dragRelease.easing="ease"]
+ * @param {Boolean} [options.dragRelease.useDragContainer=true]
  * @param {Object} [options.dragCssProps]
  * @param {Object} [options.dragPlaceholder]
  * @param {Boolean} [options.dragPlaceholder.enabled=false]
@@ -327,8 +328,8 @@ Grid.defaultOptions = {
     migrateAction: ACTION_MOVE
   },
   dragRelease: {
-    layoutDuration: 300,
-    layoutEasing: 'ease',
+    duration: 300,
+    easing: 'ease',
     useDragContainer: true
   },
   dragCssProps: {

@@ -1335,6 +1335,7 @@ Grid.prototype._updateGridElementSize = function(layout) {
     (layout.setHeight && typeof layout.height === NUMBER_TYPE) ||
     (layout.setWidth && typeof layout.width === NUMBER_TYPE)
   ) {
+    // TODO: Cache this value with refreshDimensions.
     isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
   }
 

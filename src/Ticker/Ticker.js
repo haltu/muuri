@@ -29,19 +29,21 @@ Ticker.prototype._step = function(time) {
   var lanes = this._lanes;
   var stepQueue = this._stepQueue;
   var stepCallbacks = this._stepCallbacks;
-  var i, j, id, laneQueue, laneCallbacks;
+  var i, j, id, laneQueue, laneCallbacks, laneIndices;
 
   this._nextStep = null;
 
   for (i = 0; i < lanes.length; i++) {
     laneQueue = lanes[i].queue;
     laneCallbacks = lanes[i].callbacks;
+    laneIndices = lanes[i].indices;
     for (j = 0; j < laneQueue.length; j++) {
       id = laneQueue[j];
       if (!id) continue;
       stepQueue.push(id);
       stepCallbacks[id] = laneCallbacks[id];
       delete laneCallbacks[id];
+      delete laneIndices[id];
     }
     laneQueue.length = 0;
   }
@@ -71,24 +73,24 @@ Ticker.prototype.remove = function(laneIndex, id) {
  */
 function TickerLane() {
   this.queue = [];
+  this.indices = {};
   this.callbacks = {};
 }
 
 TickerLane.prototype.add = function(id, callback) {
-  var index = this.queue.indexOf(id);
-  if (index > -1) {
-    this.queue[index] = undefined;
-  }
-
+  var index = this.indices[id];
+  if (index !== undefined) this.queue[index] = undefined;
   this.queue.push(id);
   this.callbacks[id] = callback;
+  this.indices[id] = this.queue.length - 1;
 };
 
 TickerLane.prototype.remove = function(id) {
-  var index = this.queue.indexOf(id);
-  if (index === -1) return;
+  var index = this.indices[id];
+  if (index === undefined) return;
   this.queue[index] = undefined;
   delete this.callbacks[id];
+  delete this.indices[id];
 };
 
 export default Ticker;

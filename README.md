@@ -5,7 +5,7 @@
 
 Muuri is a JavaScript layout engine that allows you to build all kinds of layouts and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
 
-Muuri's default "First Fit" bin packing layout algorithm generates layouts similar to [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf). If that's not your cup of tea you can always provide your own layout algorithm to position the items as you wish.
+Muuri's default "First Fit" bin packing layout algorithm generates layouts similar to [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his survey "A Thousand Ways to Pack the Bin - A Practical Approach to Two-Dimensional Rectangle Bin Packing" (check out the survey's [source code](https://github.com/juj/RectangleBinPack)). If that's not your cup of tea you can always provide your own layout algorithm to position the items as you wish.
 
 Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) for animations and has an internal mechanism to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
 
@@ -2477,7 +2477,7 @@ var isDestroyed = item.isDestroyed();
 **Created and maintained by [Niklas Rämö](https://github.com/niklasramo).**
 
 * This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/), [Packery](http://packery.metafizzy.co/) and [Isotope](https://isotope.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
-* Jukka Jylänki's research [A Thousand Ways to Pack the Bin](http://clb.demon.fi/files/RectangleBinPack.pdf) came in handy when building Muuri's layout algorithms. Thanks Jukka!
+* Jukka Jylänki's survey "A Thousand Ways to Pack the Bin - A Practical Approach to Two-Dimensional Rectangle Bin Packing" came in handy when building Muuri's layout algorithms. Check out the survey's source code here: https://github.com/juj/RectangleBinPack. Thanks Jukka!
 * Big thanks to the people behind [Web Animations polyfill](https://github.com/web-animations/web-animations-js), Muuri would be much less cool without smooth animations.
 * [Haltu Oy](http://www.haltu.fi/) was responsible for initiating this project in the first place and funded the initial development. Thanks Haltu!
 

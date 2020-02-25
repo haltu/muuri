@@ -7440,77 +7440,100 @@
    * @param {LayoutCallback} [onFinish]
    * @returns {Grid}
    */
-  Grid.prototype.layout = function(instant, onFinish) {
-    if (this._isDestroyed) return this;
+  Grid.prototype.layout = (function() {
+    var itemsToLayout = [];
+    return function(instant, onFinish) {
+      if (this._isDestroyed) return this;
 
-    if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
-      this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
-    }
-
-    var grid = this;
-    var layout = this._getLayout();
-    var numItems = layout.items.length;
-    var counter = numItems;
-    var item;
-    var i;
-
-    this._layout = layout;
-
-    for (i = 0; i < numItems; i++) {
-      item = layout.items[i];
-      if (!item) continue;
-      item._left = layout.slots[i * 2];
-      item._top = layout.slots[i * 2 + 1];
-    }
-
-    this._updateGridElementSize(layout);
-
-    // layoutStart event is intentionally emitted after the container element's
-    // dimensions are set, because otherwise there would be no hook for reacting
-    // to container dimension changes.
-    if (this._hasListeners(EVENT_LAYOUT_START)) {
-      this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
-    }
-
-    function tryFinish() {
-      if (--counter > 0) return;
-
-      var hasLayoutChanged = grid._layout.id !== layout.id;
-      var callback = isFunction(instant) ? instant : onFinish;
-
-      if (!hasLayoutChanged) {
-        grid._isLayoutFinished = true;
+      if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
+        this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
       }
 
-      if (isFunction(callback)) {
-        callback(layout.items.slice(0), hasLayoutChanged);
+      var grid = this;
+      var layout = this._getLayout();
+      var numItems = layout.items.length;
+      var counter = numItems;
+      var item;
+      var left;
+      var top;
+      var i;
+
+      // Update the layout reference.
+      this._layout = layout;
+
+      // Update the item positions and collect all items that need to be laid
+      // out. It is critical that we update the item position _before_ the
+      // layoutStart event as the new data might be needed in the callback.
+      itemsToLayout.length = 0;
+      for (i = 0; i < numItems; i++) {
+        item = layout.items[i];
+        if (!item) {
+          --counter;
+          continue;
+        }
+
+        left = layout.slots[i * 2];
+        top = layout.slots[i * 2 + 1];
+        if (left === item._left && top === item._top) {
+          --counter;
+          continue;
+        }
+
+        item._left = left;
+        item._top = top;
+
+        if (item.isActive() && !item.isDragging()) {
+          itemsToLayout.push(item);
+        }
       }
 
-      if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
-        grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
+      this._updateGridElementSize(layout);
+
+      // layoutStart event is intentionally emitted after the container element's
+      // dimensions are set, because otherwise there would be no hook for reacting
+      // to container dimension changes.
+      if (this._hasListeners(EVENT_LAYOUT_START)) {
+        this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
       }
-    }
 
-    if (!numItems) {
-      tryFinish();
-      return this;
-    }
+      function tryFinish() {
+        if (--counter > 0) return;
 
-    this._isLayoutFinished = false;
-    for (i = 0; i < numItems; i++) {
-      item = layout.items[i];
+        var hasLayoutChanged = grid._layout.id !== layout.id;
+        var callback = isFunction(instant) ? instant : onFinish;
 
-      // Sanity check if layout is still possible for the item.
-      if (this._layout.id !== layout.id || !item || !item.isActive() || item.isDragging()) {
+        if (!hasLayoutChanged) {
+          grid._isLayoutFinished = true;
+        }
+
+        if (isFunction(callback)) {
+          callback(layout.items.slice(0), hasLayoutChanged);
+        }
+
+        if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
+          grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
+        }
+      }
+
+      if (!itemsToLayout.length) {
         tryFinish();
-        continue;
+        return this;
       }
 
-      item._layout.start(instant === true, tryFinish);
-    }
+      this._isLayoutFinished = false;
 
-    return this;
-  };
+      for (i = 0; i < itemsToLayout.length; i++) {
+        if (this._layout.id !== layout.id) break;
+        itemsToLayout[i]._layout.start(instant === true, tryFinish);
+      }
+
+      if (this._layout.id === layout.id) {
+        itemsToLayout.length = 0;
+      }
+
+      return this;
+    };
+  })();
 
   /**
    * Add new items by providing the elements you wish to add to the instance and

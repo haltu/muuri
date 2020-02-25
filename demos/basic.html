@@ -243,6 +243,10 @@
           const gridElement = containerElement.querySelector('.grid-content');
           const grid = new Muuri(gridElement, {
             items: '.item',
+            layout: {
+              fillGaps: true,
+              rounding: false
+            },
             dragEnabled: true,
             dragContainer: dragbox,
             dragRelease: {
@@ -271,7 +275,7 @@
 
           containerElement
             .querySelector('.add')
-            .addEventListener('click', () => addItemsToGrid(grid, 50));
+            .addEventListener('click', () => addItemsToGrid(grid, 1000));
 
           containerElement
             .querySelector('.remove')

@@ -77,7 +77,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   var release = item._dragRelease;
   var gridSettings = item.getGrid()._settings;
   var isPositioning = this._isActive;
-  var isJustReleased = release._isActive && release._isPositioningStarted === false;
+  var isJustReleased = release.isJustReleased();
   var animDuration = isJustReleased
     ? gridSettings.dragRelease.duration
     : gridSettings.layoutDuration;

@@ -5,6 +5,7 @@
  */
 
 var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
+var cache = {};
 
 /**
  * Remove any potential vendor prefixes from a property name.
@@ -13,11 +14,16 @@ var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
  * @returns {String}
  */
 export default function getUnprefixedPropName(prop) {
-  var result = prop.replace(unprefixRegEx, '');
+  var result = cache[prop];
+  if (result) return result;
 
-  if (result === prop) {
-    return prop;
+  result = prop.replace(unprefixRegEx, '');
+
+  if (result !== prop) {
+    result = result[0].toLowerCase() + result.slice(1);
   }
 
-  return result[0].toLowerCase() + result.slice(1);
+  cache[prop] = result;
+
+  return result;
 }

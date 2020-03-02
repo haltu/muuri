@@ -1197,7 +1197,18 @@
     return typeof val === functionType;
   }
 
-  var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  var stylesCache = typeof Map === 'function' ? new Map() : null;
+  var cacheCleanInterval = 3000;
+  var cacheCleanTimer;
+  var canCleanCache = true;
+  var cacheCleanCheck = function() {
+    if (canCleanCache) {
+      cacheCleanTimer = window.clearInterval(cacheCleanTimer);
+      stylesCache.clear();
+    } else {
+      canCleanCache = true;
+    }
+  };
 
   /**
    * Returns the computed value of an element's style property as a string.
@@ -1208,10 +1219,20 @@
    */
   function getStyle(element, style) {
     var styles = stylesCache && stylesCache.get(element);
+
     if (!styles) {
       styles = window.getComputedStyle(element, null);
       if (stylesCache) stylesCache.set(element, styles);
     }
+
+    if (stylesCache) {
+      if (!cacheCleanTimer) {
+        cacheCleanTimer = window.setInterval(cacheCleanCheck, cacheCleanInterval);
+      } else {
+        canCleanCache = false;
+      }
+    }
+
     return styles.getPropertyValue(style);
   }
 
@@ -4223,6 +4244,7 @@
   }
 
   var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
+  var cache = {};
 
   /**
    * Remove any potential vendor prefixes from a property name.
@@ -4231,13 +4253,18 @@
    * @returns {String}
    */
   function getUnprefixedPropName(prop) {
-    var result = prop.replace(unprefixRegEx, '');
+    var result = cache[prop];
+    if (result) return result;
 
-    if (result === prop) {
-      return prop;
+    result = prop.replace(unprefixRegEx, '');
+
+    if (result !== prop) {
+      result = result[0].toLowerCase() + result.slice(1);
     }
 
-    return result[0].toLowerCase() + result.slice(1);
+    cache[prop] = result;
+
+    return result;
   }
 
   var nativeCode = '[native code]';
@@ -4302,6 +4329,9 @@
   /**
    * Start instance's animation. Automatically stops current animation if it is
    * running.
+   *
+   * @todo Simplify this as it's doing way too much checking/processing in most
+   * cases.
    *
    * @public
    * @memberof ItemAnimate.prototype
@@ -4954,7 +4984,10 @@
       this._placeToGrid();
     }
     grid._emit(EVENT_DRAG_RELEASE_START, item);
-    item._layout.start(false);
+
+    // Let's start layout manually _only_ if there is no unfinished layout in
+    // about to finish.
+    if (!grid._nextLayoutData) item._layout.start(false);
 
     return this;
   };
@@ -4992,6 +5025,10 @@
     if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
 
     return this;
+  };
+
+  ItemDragRelease.prototype.isJustReleased = function() {
+    return this._isActive && this._isPositioningStarted === false;
   };
 
   /**
@@ -5225,7 +5262,7 @@
     var release = item._dragRelease;
     var gridSettings = item.getGrid()._settings;
     var isPositioning = this._isActive;
-    var isJustReleased = release._isActive && release._isPositioningStarted === false;
+    var isJustReleased = release.isJustReleased();
     var animDuration = isJustReleased
       ? gridSettings.dragRelease.duration
       : gridSettings.layoutDuration;
@@ -6379,119 +6416,201 @@
     this._isDestroyed = true;
   };
 
+  const kIsNodeJS = Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]';
+  const kRequire = kIsNodeJS && typeof module.require === 'function' ? module.require : null; // eslint-disable-line
+
+  function browserDecodeBase64(base64, enableUnicode) {
+      const binaryString = atob(base64);
+      if (enableUnicode) {
+          const binaryView = new Uint8Array(binaryString.length);
+          Array.prototype.forEach.call(binaryView, (el, idx, arr) => {
+              arr[idx] = binaryString.charCodeAt(idx);
+          });
+          return String.fromCharCode.apply(null, new Uint16Array(binaryView.buffer));
+      }
+      return binaryString;
+  }
+
+  function nodeDecodeBase64(base64, enableUnicode) {
+      return Buffer.from(base64, 'base64').toString(enableUnicode ? 'utf16' : 'utf8');
+  }
+
+  function createBase64WorkerFactory(base64, sourcemap = null, enableUnicode = false) {
+      const source = kIsNodeJS ? nodeDecodeBase64(base64, enableUnicode) : browserDecodeBase64(base64, enableUnicode);
+      const start = source.indexOf('\n', 10) + 1;
+      const body = source.substring(start) + (sourcemap ? `\/\/# sourceMappingURL=${sourcemap}` : '');
+
+      if (kRequire) {
+          /* node.js */
+          const Worker = kRequire('worker_threads').Worker; // eslint-disable-line
+          return function WorkerFactory(options) {
+              return new Worker(body, Object.assign({}, options, { eval: true }));
+          };
+      }
+
+      /* browser */
+      const blob = new Blob([body], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      return function WorkerFactory(options) {
+          return new Worker(url, options);
+      };
+  }
+
+  /* eslint-disable */
+  const WorkerFactory = createBase64WorkerFactory('Lyogcm9sbHVwLXBsdWdpbi13ZWItd29ya2VyLWxvYWRlciAqLwp2YXIgRklMTF9HQVBTID0gMTsKdmFyIEhPUklaT05UQUwgPSAyOwp2YXIgQUxJR05fUklHSFQgPSA0Owp2YXIgQUxJR05fQk9UVE9NID0gODsKdmFyIFJPVU5ESU5HID0gMTY7CnZhciBQQUNLRVRfSU5ERVhfV0lEVEggPSAxOwp2YXIgUEFDS0VUX0lOREVYX0hFSUdIVCA9IDI7CnZhciBQQUNLRVRfSU5ERVhfT1BUSU9OUyA9IDM7CnZhciBQQUNLRVRfSEVBREVSX1NMT1RTID0gNDsKCi8qKgogKiBAY2xhc3MKICovCmZ1bmN0aW9uIFBhY2tlclByb2Nlc3NvcigpIHsKICB0aGlzLnNsb3RTaXplcyA9IFtdOwogIHRoaXMuZnJlZVNsb3RzID0gW107CiAgdGhpcy5uZXdTbG90cyA9IFtdOwogIHRoaXMucmVjdEl0ZW0gPSB7fTsKICB0aGlzLnJlY3RTdG9yZSA9IFtdOwogIHRoaXMucmVjdElkID0gMDsKICB0aGlzLnNsb3RJbmRleCA9IC0xOwogIHRoaXMuc29ydFJlY3RzTGVmdFRvcCA9IHRoaXMuc29ydFJlY3RzTGVmdFRvcC5iaW5kKHRoaXMpOwogIHRoaXMuc29ydFJlY3RzVG9wTGVmdCA9IHRoaXMuc29ydFJlY3RzVG9wTGVmdC5iaW5kKHRoaXMpOwp9CgovKioKICogVGFrZXMgYSBsYXlvdXQgb2JqZWN0IGFzIGFuIGFyZ3VtZW50IGFuZCBjb21wdXRlcyBwb3NpdGlvbnMgKHNsb3RzKSBmb3IgdGhlCiAqIGxheW91dCBpdGVtcy4gQWxzbyBjb21wdXRlcyB0aGUgZmluYWwgd2lkdGggYW5kIGhlaWdodCBvZiB0aGUgbGF5b3V0LiBUaGUKICogcHJvdmlkZWQgbGF5b3V0IG9iamVjdCdzIHNsb3RzIGFycmF5IGlzIG11dGF0ZWQgYXMgd2VsbCBhcyB0aGUgd2lkdGggYW5kCiAqIGhlaWdodCBwcm9wZXJ0aWVzLgogKgogKiBAcGFyYW0ge09iamVjdH0gbGF5b3V0CiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQud2lkdGgKICogICAtIFRoZSBzdGFydCAoY3VycmVudCkgd2lkdGggb2YgdGhlIGxheW91dCBpbiBwaXhlbHMuCiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQuaGVpZ2h0CiAqICAgLSBUaGUgc3RhcnQgKGN1cnJlbnQpIGhlaWdodCBvZiB0aGUgbGF5b3V0IGluIHBpeGVscy4KICogQHBhcmFtIHsoSXRlbVtdfE51bWJlcltdKX0gbGF5b3V0Lml0ZW1zCiAqICAgLSBMaXN0IG9mIE11dXJpLkl0ZW0gaW5zdGFuY2VzIG9yIGEgbGlzdCBvZiBpdGVtIGRpbWVuc2lvbnMKICogICAgIChlLmcgWyBpdGVtMVdpZHRoLCBpdGVtMUhlaWdodCwgaXRlbTJXaWR0aCwgaXRlbTJIZWlnaHQsIC4uLiBdKS4KICogQHBhcmFtIHsoQXJyYXl8RmxvYXQzMkFycmF5KX0gbGF5b3V0LnNsb3RzCiAqICAgLSBBbiBBcnJheS9GbG9hdDMyQXJyYXkgaW5zdGFuY2Ugd2hpY2gncyBsZW5ndGggc2hvdWxkIGVxdWFsIHRvCiAqICAgICB0aGUgYW1vdW50IG9mIGl0ZW1zIHRpbWVzIHR3by4gVGhlIHBvc2l0aW9uICh3aWR0aCBhbmQgaGVpZ2h0KSBvZiBlYWNoCiAqICAgICBpdGVtIHdpbGwgYmUgd3JpdHRlbiBpbnRvIHRoaXMgYXJyYXkuCiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQuc2V0dGluZ3MKICogICAtIFRoZSBsYXlvdXQncyBzZXR0aW5ncyBhcyBiaXRtYXNrcy4KICogQHJldHVybnMge09iamVjdH0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZmlsbExheW91dCA9IGZ1bmN0aW9uKGxheW91dCkgewogIHZhciBpdGVtcyA9IGxheW91dC5pdGVtczsKICB2YXIgc2xvdHMgPSBsYXlvdXQuc2xvdHM7CiAgdmFyIHNldHRpbmdzID0gbGF5b3V0LnNldHRpbmdzIHx8IDA7CiAgdmFyIGZpbGxHYXBzID0gISEoc2V0dGluZ3MgJiBGSUxMX0dBUFMpOwogIHZhciBob3Jpem9udGFsID0gISEoc2V0dGluZ3MgJiBIT1JJWk9OVEFMKTsKICB2YXIgYWxpZ25SaWdodCA9ICEhKHNldHRpbmdzICYgQUxJR05fUklHSFQpOwogIHZhciBhbGlnbkJvdHRvbSA9ICEhKHNldHRpbmdzICYgQUxJR05fQk9UVE9NKTsKICB2YXIgcm91bmRpbmcgPSAhIShzZXR0aW5ncyAmIFJPVU5ESU5HKTsKICB2YXIgaXNJdGVtc1ByZVByb2Nlc3NlZCA9IHR5cGVvZiBpdGVtc1swXSA9PT0gJ251bWJlcic7CiAgdmFyIGksIGJ1bXAsIGl0ZW0sIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgc2xvdDsKCiAgaWYgKHJvdW5kaW5nKSB7CiAgICBsYXlvdXQud2lkdGggPSBNYXRoLnJvdW5kKGxheW91dC53aWR0aCk7CiAgICBsYXlvdXQuaGVpZ2h0ID0gTWF0aC5yb3VuZChsYXlvdXQuaGVpZ2h0KTsKICB9CgogIC8vIE5vIG5lZWQgdG8gZ28gZnVydGhlciBpZiBpdGVtcyBkbyBub3QgZXhpc3QuCiAgaWYgKCFpdGVtcy5sZW5ndGgpIHJldHVybiBsYXlvdXQ7CgogIC8vIENvbXB1dGUgc2xvdHMgZm9yIHRoZSBpdGVtcy4KICBidW1wID0gaXNJdGVtc1ByZVByb2Nlc3NlZCA/IDIgOiAxOwogIGZvciAoaSA9IDA7IGkgPCBpdGVtcy5sZW5ndGg7IGkgKz0gYnVtcCkgewogICAgLy8gSWYgaXRlbXMgYXJlIHByZS1wcm9jZXNzZWQgaXQgbWVhbnMgdGhhdCBpdGVtcyBhcnJheSBjb250YWlucyBvbmx5CiAgICAvLyB0aGUgcmF3IGRpbWVuc2lvbnMgb2YgdGhlIGl0ZW1zLiBPdGhlcndpc2Ugd2UgYXNzdW1lIGl0IGlzIGFuIGFycmF5CiAgICAvLyBvZiBub3JtYWwgTXV1cmkgaXRlbXMuCiAgICBpZiAoaXNJdGVtc1ByZVByb2Nlc3NlZCkgewogICAgICBzbG90V2lkdGggPSBpdGVtc1tpXTsKICAgICAgc2xvdEhlaWdodCA9IGl0ZW1zW2kgKyAxXTsKICAgIH0gZWxzZSB7CiAgICAgIGl0ZW0gPSBpdGVtc1tpXTsKICAgICAgc2xvdFdpZHRoID0gaXRlbS5fd2lkdGggKyBpdGVtLl9tYXJnaW5MZWZ0ICsgaXRlbS5fbWFyZ2luUmlnaHQ7CiAgICAgIHNsb3RIZWlnaHQgPSBpdGVtLl9oZWlnaHQgKyBpdGVtLl9tYXJnaW5Ub3AgKyBpdGVtLl9tYXJnaW5Cb3R0b207CiAgICB9CgogICAgLy8gUm91bmQgc2xvdCBzaXplIGlmIG5lZWRlZC4KICAgIGlmIChyb3VuZGluZykgewogICAgICBzbG90V2lkdGggPSBNYXRoLnJvdW5kKHNsb3RXaWR0aCk7CiAgICAgIHNsb3RIZWlnaHQgPSBNYXRoLnJvdW5kKHNsb3RIZWlnaHQpOwogICAgfQoKICAgIC8vIEdldCBzbG90IGRhdGEuCiAgICBzbG90ID0gdGhpcy5nZXROZXh0U2xvdChsYXlvdXQsIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgZmlsbEdhcHMsIGhvcml6b250YWwpOwoKICAgIC8vIFVwZGF0ZSBsYXlvdXQgd2lkdGgvaGVpZ2h0LgogICAgaWYgKGhvcml6b250YWwpIHsKICAgICAgbGF5b3V0LndpZHRoID0gTWF0aC5tYXgobGF5b3V0LndpZHRoLCBzbG90LmxlZnQgKyBzbG90LndpZHRoKTsKICAgIH0gZWxzZSB7CiAgICAgIGxheW91dC5oZWlnaHQgPSBNYXRoLm1heChsYXlvdXQuaGVpZ2h0LCBzbG90LnRvcCArIHNsb3QuaGVpZ2h0KTsKICAgIH0KCiAgICAvLyBBZGQgaXRlbSBzbG90IGRhdGEgdG8gbGF5b3V0IHNsb3RzLgogICAgc2xvdHNbKyt0aGlzLnNsb3RJbmRleF0gPSBzbG90LmxlZnQ7CiAgICBzbG90c1srK3RoaXMuc2xvdEluZGV4XSA9IHNsb3QudG9wOwoKICAgIC8vIFN0b3JlIHRoZSBzaXplIHRvbyAoZm9yIGxhdGVyIHVzYWdlKSBpZiBuZWVkZWQuCiAgICBpZiAoYWxpZ25SaWdodCB8fCBhbGlnbkJvdHRvbSkgewogICAgICB0aGlzLnNsb3RTaXplcy5wdXNoKHNsb3Qud2lkdGgsIHNsb3QuaGVpZ2h0KTsKICAgIH0KICB9CgogIC8vIElmIHRoZSBhbGlnbm1lbnQgaXMgc2V0IHRvIHJpZ2h0IHdlIG5lZWQgdG8gYWRqdXN0IHRoZSByZXN1bHRzLgogIGlmIChhbGlnblJpZ2h0KSB7CiAgICBmb3IgKGkgPSAwOyBpIDwgc2xvdHMubGVuZ3RoOyBpICs9IDIpIHsKICAgICAgc2xvdHNbaV0gPSBsYXlvdXQud2lkdGggLSAoc2xvdHNbaV0gKyB0aGlzLnNsb3RTaXplc1tpXSk7CiAgICB9CiAgfQoKICAvLyBJZiB0aGUgYWxpZ25tZW50IGlzIHNldCB0byBib3R0b20gd2UgbmVlZCB0byBhZGp1c3QgdGhlIHJlc3VsdHMuCiAgaWYgKGFsaWduQm90dG9tKSB7CiAgICBmb3IgKGkgPSAxOyBpIDwgc2xvdHMubGVuZ3RoOyBpICs9IDIpIHsKICAgICAgc2xvdHNbaV0gPSBsYXlvdXQuaGVpZ2h0IC0gKHNsb3RzW2ldICsgdGhpcy5zbG90U2l6ZXNbaV0pOwogICAgfQogIH0KCiAgLy8gUmVzZXQgc3R1ZmYuCiAgdGhpcy5zbG90U2l6ZXMubGVuZ3RoID0gMDsKICB0aGlzLmZyZWVTbG90cy5sZW5ndGggPSAwOwogIHRoaXMubmV3U2xvdHMubGVuZ3RoID0gMDsKICB0aGlzLnJlY3RJZCA9IDA7CiAgdGhpcy5zbG90SW5kZXggPSAtMTsKCiAgcmV0dXJuIGxheW91dDsKfTsKCi8qKgogKiBDYWxjdWxhdGUgbmV4dCBzbG90IGluIHRoZSBsYXlvdXQuIFJldHVybnMgYSBzbG90IG9iamVjdCB3aXRoIHBvc2l0aW9uIGFuZAogKiBkaW1lbnNpb25zIGRhdGEuCiAqCiAqIEBwYXJhbSB7T2JqZWN0fSBsYXlvdXQKICogQHBhcmFtIHtOdW1iZXJ9IHNsb3RXaWR0aAogKiBAcGFyYW0ge051bWJlcn0gc2xvdEhlaWdodAogKiBAcGFyYW0ge0Jvb2xlYW59IGZpbGxHYXBzCiAqIEBwYXJhbSB7Qm9vbGVhbn0gaG9yaXpvbnRhbAogKiBAcmV0dXJucyB7T2JqZWN0fQogKi8KUGFja2VyUHJvY2Vzc29yLnByb3RvdHlwZS5nZXROZXh0U2xvdCA9IChmdW5jdGlvbigpIHsKICB2YXIgZXBzID0gMC4wMDE7CiAgdmFyIG1pblNpemUgPSAwLjU7CiAgdmFyIHNsb3QgPSB7IGxlZnQ6IDAsIHRvcDogMCwgd2lkdGg6IDAsIGhlaWdodDogMCB9OwogIHJldHVybiBmdW5jdGlvbihsYXlvdXQsIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgZmlsbEdhcHMsIGhvcml6b250YWwpIHsKICAgIHZhciBmcmVlU2xvdHMgPSB0aGlzLmZyZWVTbG90czsKICAgIHZhciBuZXdTbG90cyA9IHRoaXMubmV3U2xvdHM7CiAgICB2YXIgcmVjdDsKICAgIHZhciByZWN0SWQ7CiAgICB2YXIgcG90ZW50aWFsU2xvdHM7CiAgICB2YXIgaWdub3JlQ3VycmVudFNsb3RzOwogICAgdmFyIGk7CiAgICB2YXIgajsKCiAgICAvLyBSZXNldCBuZXcgc2xvdHMuCiAgICBuZXdTbG90cy5sZW5ndGggPSAwOwoKICAgIC8vIFNldCBpdGVtIHNsb3QgaW5pdGlhbCBkYXRhLgogICAgc2xvdC5sZWZ0ID0gbnVsbDsKICAgIHNsb3QudG9wID0gbnVsbDsKICAgIHNsb3Qud2lkdGggPSBzbG90V2lkdGg7CiAgICBzbG90LmhlaWdodCA9IHNsb3RIZWlnaHQ7CgogICAgLy8gVHJ5IHRvIGZpbmQgYSBzbG90IGZvciB0aGUgaXRlbS4KICAgIGZvciAoaSA9IDA7IGkgPCBmcmVlU2xvdHMubGVuZ3RoOyBpKyspIHsKICAgICAgcmVjdElkID0gZnJlZVNsb3RzW2ldOwogICAgICBpZiAoIXJlY3RJZCkgY29udGludWU7CiAgICAgIHJlY3QgPSB0aGlzLmdldFJlY3QocmVjdElkKTsKICAgICAgaWYgKHNsb3Qud2lkdGggPD0gcmVjdC53aWR0aCArIGVwcyAmJiBzbG90LmhlaWdodCA8PSByZWN0LmhlaWdodCArIGVwcykgewogICAgICAgIHNsb3QubGVmdCA9IHJlY3QubGVmdDsKICAgICAgICBzbG90LnRvcCA9IHJlY3QudG9wOwogICAgICAgIGJyZWFrOwogICAgICB9CiAgICB9CgogICAgLy8gSWYgbm8gc2xvdCB3YXMgZm91bmQgZm9yIHRoZSBpdGVtLgogICAgaWYgKHNsb3QubGVmdCA9PT0gbnVsbCkgewogICAgICAvLyBQb3NpdGlvbiB0aGUgaXRlbSBpbiB0byB0aGUgYm90dG9tIGxlZnQgKHZlcnRpY2FsIG1vZGUpIG9yIHRvcCByaWdodAogICAgICAvLyAoaG9yaXpvbnRhbCBtb2RlKSBvZiB0aGUgZ3JpZC4KICAgICAgc2xvdC5sZWZ0ID0gIWhvcml6b250YWwgPyAwIDogbGF5b3V0LndpZHRoOwogICAgICBzbG90LnRvcCA9ICFob3Jpem9udGFsID8gbGF5b3V0LmhlaWdodCA6IDA7CgogICAgICAvLyBJZiBnYXBzIGRvbid0IG5lZWQgZmlsbGluZyBkbyBub3QgYWRkIGFueSBjdXJyZW50IHNsb3RzIHRvIHRoZSBuZXcKICAgICAgLy8gc2xvdHMgYXJyYXkuCiAgICAgIGlmICghZmlsbEdhcHMpIHsKICAgICAgICBpZ25vcmVDdXJyZW50U2xvdHMgPSB0cnVlOwogICAgICB9CiAgICB9CgogICAgLy8gSW4gdmVydGljYWwgbW9kZSwgaWYgdGhlIGl0ZW0ncyBib3R0b20gb3ZlcmxhcHMgdGhlIGdyaWQncyBib3R0b20uCiAgICBpZiAoIWhvcml6b250YWwgJiYgc2xvdC50b3AgKyBzbG90LmhlaWdodCA+IGxheW91dC5oZWlnaHQpIHsKICAgICAgLy8gSWYgaXRlbSBpcyBub3QgYWxpZ25lZCB0byB0aGUgbGVmdCBlZGdlLCBjcmVhdGUgYSBuZXcgc2xvdC4KICAgICAgaWYgKHNsb3QubGVmdCA+IDApIHsKICAgICAgICBuZXdTbG90cy5wdXNoKHRoaXMuYWRkUmVjdCgwLCBsYXlvdXQuaGVpZ2h0LCBzbG90LmxlZnQsIEluZmluaXR5KSk7CiAgICAgIH0KCiAgICAgIC8vIElmIGl0ZW0gaXMgbm90IGFsaWduZWQgdG8gdGhlIHJpZ2h0IGVkZ2UsIGNyZWF0ZSBhIG5ldyBzbG90LgogICAgICBpZiAoc2xvdC5sZWZ0ICsgc2xvdC53aWR0aCA8IGxheW91dC53aWR0aCkgewogICAgICAgIG5ld1Nsb3RzLnB1c2goCiAgICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICAgIHNsb3QubGVmdCArIHNsb3Qud2lkdGgsCiAgICAgICAgICAgIGxheW91dC5oZWlnaHQsCiAgICAgICAgICAgIGxheW91dC53aWR0aCAtIHNsb3QubGVmdCAtIHNsb3Qud2lkdGgsCiAgICAgICAgICAgIEluZmluaXR5CiAgICAgICAgICApCiAgICAgICAgKTsKICAgICAgfQoKICAgICAgLy8gVXBkYXRlIGdyaWQgaGVpZ2h0LgogICAgICBsYXlvdXQuaGVpZ2h0ID0gc2xvdC50b3AgKyBzbG90LmhlaWdodDsKICAgIH0KCiAgICAvLyBJbiBob3Jpem9udGFsIG1vZGUsIGlmIHRoZSBpdGVtJ3MgcmlnaHQgb3ZlcmxhcHMgdGhlIGdyaWQncyByaWdodCBlZGdlLgogICAgaWYgKGhvcml6b250YWwgJiYgc2xvdC5sZWZ0ICsgc2xvdC53aWR0aCA+IGxheW91dC53aWR0aCkgewogICAgICAvLyBJZiBpdGVtIGlzIG5vdCBhbGlnbmVkIHRvIHRoZSB0b3AsIGNyZWF0ZSBhIG5ldyBzbG90LgogICAgICBpZiAoc2xvdC50b3AgPiAwKSB7CiAgICAgICAgbmV3U2xvdHMucHVzaCh0aGlzLmFkZFJlY3QobGF5b3V0LndpZHRoLCAwLCBJbmZpbml0eSwgc2xvdC50b3ApKTsKICAgICAgfQoKICAgICAgLy8gSWYgaXRlbSBpcyBub3QgYWxpZ25lZCB0byB0aGUgYm90dG9tLCBjcmVhdGUgYSBuZXcgc2xvdC4KICAgICAgaWYgKHNsb3QudG9wICsgc2xvdC5oZWlnaHQgPCBsYXlvdXQuaGVpZ2h0KSB7CiAgICAgICAgbmV3U2xvdHMucHVzaCgKICAgICAgICAgIHRoaXMuYWRkUmVjdCgKICAgICAgICAgICAgbGF5b3V0LndpZHRoLAogICAgICAgICAgICBzbG90LnRvcCArIHNsb3QuaGVpZ2h0LAogICAgICAgICAgICBJbmZpbml0eSwKICAgICAgICAgICAgbGF5b3V0LmhlaWdodCAtIHNsb3QudG9wIC0gc2xvdC5oZWlnaHQKICAgICAgICAgICkKICAgICAgICApOwogICAgICB9CgogICAgICAvLyBVcGRhdGUgZ3JpZCB3aWR0aC4KICAgICAgbGF5b3V0LndpZHRoID0gc2xvdC5sZWZ0ICsgc2xvdC53aWR0aDsKICAgIH0KCiAgICAvLyBDbGVhbiB1cCB0aGUgY3VycmVudCBzbG90cyBtYWtpbmcgc3VyZSB0aGVyZSBhcmUgbm8gb2xkIHNsb3RzIHRoYXQKICAgIC8vIG92ZXJsYXAgd2l0aCB0aGUgaXRlbS4gSWYgYW4gb2xkIHNsb3Qgb3ZlcmxhcHMgd2l0aCB0aGUgaXRlbSwgc3BsaXQgaXQKICAgIC8vIGludG8gc21hbGxlciBzbG90cyBpZiBuZWNlc3NhcnkuCiAgICBmb3IgKGkgPSBmaWxsR2FwcyA/IDAgOiBpZ25vcmVDdXJyZW50U2xvdHMgPyBmcmVlU2xvdHMubGVuZ3RoIDogaTsgaSA8IGZyZWVTbG90cy5sZW5ndGg7IGkrKykgewogICAgICByZWN0SWQgPSBmcmVlU2xvdHNbaV07CiAgICAgIGlmICghcmVjdElkKSBjb250aW51ZTsKICAgICAgcmVjdCA9IHRoaXMuZ2V0UmVjdChyZWN0SWQpOwogICAgICBwb3RlbnRpYWxTbG90cyA9IHRoaXMuc3BsaXRSZWN0KHJlY3QsIHNsb3QpOwogICAgICBmb3IgKGogPSAwOyBqIDwgcG90ZW50aWFsU2xvdHMubGVuZ3RoOyBqKyspIHsKICAgICAgICByZWN0SWQgPSBwb3RlbnRpYWxTbG90c1tqXTsKICAgICAgICByZWN0ID0gdGhpcy5nZXRSZWN0KHJlY3RJZCk7CiAgICAgICAgLy8gTGV0J3MgbWFrZSBzdXJlIGhlcmUgdGhhdCB3ZSBoYXZlIGEgYmlnIGVub3VnaCBzbG90LgogICAgICAgIGlmIChyZWN0LndpZHRoIDwgbWluU2l6ZSB8fCByZWN0LmhlaWdodCA8IG1pblNpemUpIGNvbnRpbnVlOwogICAgICAgIC8vIExldCdzIGFsc28gbGV0J3MgbWFrZSBzdXJlIHRoYXQgdGhlIHNsb3QgaXMgd2l0aGluIHRoZSBib3VuZGFyaWVzIG9mCiAgICAgICAgLy8gdGhlIGdyaWQuCiAgICAgICAgaWYgKGhvcml6b250YWwgPyByZWN0LmxlZnQgPCBsYXlvdXQud2lkdGggOiByZWN0LnRvcCA8IGxheW91dC5oZWlnaHQpIHsKICAgICAgICAgIG5ld1Nsb3RzLnB1c2gocmVjdElkKTsKICAgICAgICB9CiAgICAgIH0KICAgIH0KCiAgICAvLyBTYW5pdGl6ZSBuZXcgc2xvdHMuCiAgICBpZiAobmV3U2xvdHMubGVuZ3RoKSB7CiAgICAgIHRoaXMucHVyZ2VSZWN0cyhuZXdTbG90cykuc29ydChob3Jpem9udGFsID8gdGhpcy5zb3J0UmVjdHNMZWZ0VG9wIDogdGhpcy5zb3J0UmVjdHNUb3BMZWZ0KTsKICAgIH0KCiAgICAvLyBGcmVlL25ldyBzbG90cyBzd2l0Y2hlcm9vIQogICAgdGhpcy5mcmVlU2xvdHMgPSBuZXdTbG90czsKICAgIHRoaXMubmV3U2xvdHMgPSBmcmVlU2xvdHM7CgogICAgcmV0dXJuIHNsb3Q7CiAgfTsKfSkoKTsKCi8qKgogKiBBZGQgYSBuZXcgcmVjdGFuZ2xlIHRvIHRoZSByZWN0YW5nbGUgc3RvcmUuIFJldHVybnMgdGhlIGlkIG9mIHRoZSBuZXcKICogcmVjdGFuZ2xlLgogKgogKiBAcGFyYW0ge051bWJlcn0gbGVmdAogKiBAcGFyYW0ge051bWJlcn0gdG9wCiAqIEBwYXJhbSB7TnVtYmVyfSB3aWR0aAogKiBAcGFyYW0ge051bWJlcn0gaGVpZ2h0CiAqIEByZXR1cm5zIHtSZWN0SWR9CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLmFkZFJlY3QgPSBmdW5jdGlvbihsZWZ0LCB0b3AsIHdpZHRoLCBoZWlnaHQpIHsKICB2YXIgcmVjdElkID0gKyt0aGlzLnJlY3RJZDsKICB2YXIgcmVjdFN0b3JlID0gdGhpcy5yZWN0U3RvcmU7CgogIHJlY3RTdG9yZVtyZWN0SWRdID0gbGVmdCB8fCAwOwogIHJlY3RTdG9yZVsrK3RoaXMucmVjdElkXSA9IHRvcCB8fCAwOwogIHJlY3RTdG9yZVsrK3RoaXMucmVjdElkXSA9IHdpZHRoIHx8IDA7CiAgcmVjdFN0b3JlWysrdGhpcy5yZWN0SWRdID0gaGVpZ2h0IHx8IDA7CgogIHJldHVybiByZWN0SWQ7Cn07CgovKioKICogR2V0IHJlY3RhbmdsZSBkYXRhIGZyb20gdGhlIHJlY3RhbmdsZSBzdG9yZSBieSBpZC4gT3B0aW9uYWxseSB5b3UgY2FuCiAqIHByb3ZpZGUgYSB0YXJnZXQgb2JqZWN0IHdoZXJlIHRoZSByZWN0YW5nbGUgZGF0YSB3aWxsIGJlIHdyaXR0ZW4gaW4uIEJ5CiAqIGRlZmF1bHQgYW4gaW50ZXJuYWwgb2JqZWN0IGlzIHJldXNlZCBhcyBhIHRhcmdldCBvYmplY3QuCiAqCiAqIEBwYXJhbSB7UmVjdElkfSBpZAogKiBAcGFyYW0ge09iamVjdH0gW3RhcmdldF0KICogQHJldHVybnMge09iamVjdH0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZ2V0UmVjdCA9IGZ1bmN0aW9uKGlkLCB0YXJnZXQpIHsKICB2YXIgcmVjdEl0ZW0gPSB0YXJnZXQgPyB0YXJnZXQgOiB0aGlzLnJlY3RJdGVtOwogIHZhciByZWN0U3RvcmUgPSB0aGlzLnJlY3RTdG9yZTsKCiAgcmVjdEl0ZW0ubGVmdCA9IHJlY3RTdG9yZVtpZF0gfHwgMDsKICByZWN0SXRlbS50b3AgPSByZWN0U3RvcmVbKytpZF0gfHwgMDsKICByZWN0SXRlbS53aWR0aCA9IHJlY3RTdG9yZVsrK2lkXSB8fCAwOwogIHJlY3RJdGVtLmhlaWdodCA9IHJlY3RTdG9yZVsrK2lkXSB8fCAwOwoKICByZXR1cm4gcmVjdEl0ZW07Cn07CgovKioKICogUHVuY2ggYSBob2xlIGludG8gYSByZWN0YW5nbGUgYW5kIHNwbGl0IHRoZSByZW1haW5pbmcgYXJlYSBpbnRvIHNtYWxsZXIKICogcmVjdGFuZ2xlcyAoNCBhdCBtYXgpLgogKiBAcGFyYW0ge1JlY3RhbmdsZX0gcmVjdAogKiBAcGFyYW0ge1JlY3RhbmdsZX0gaG9sZQogKiBAcmV0dXJucyB7UmVjdElkW119CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLnNwbGl0UmVjdCA9IChmdW5jdGlvbigpIHsKICB2YXIgcmVzdWx0cyA9IFtdOwogIHJldHVybiBmdW5jdGlvbihyZWN0LCBob2xlKSB7CiAgICAvLyBSZXNldCBvbGQgcmVzdWx0cy4KICAgIHJlc3VsdHMubGVuZ3RoID0gMDsKCiAgICAvLyBJZiB0aGUgcmVjdCBkb2VzIG5vdCBvdmVybGFwIHdpdGggdGhlIGhvbGUgYWRkIHJlY3QgdG8gdGhlIHJldHVybiBkYXRhCiAgICAvLyBhcyBpcy4KICAgIGlmICghdGhpcy5kb1JlY3RzT3ZlcmxhcChyZWN0LCBob2xlKSkgewogICAgICByZXN1bHRzLnB1c2godGhpcy5hZGRSZWN0KHJlY3QubGVmdCwgcmVjdC50b3AsIHJlY3Qud2lkdGgsIHJlY3QuaGVpZ2h0KSk7CiAgICAgIHJldHVybiByZXN1bHRzOwogICAgfQoKICAgIC8vIExlZnQgc3BsaXQuCiAgICBpZiAocmVjdC5sZWZ0IDwgaG9sZS5sZWZ0KSB7CiAgICAgIHJlc3VsdHMucHVzaCh0aGlzLmFkZFJlY3QocmVjdC5sZWZ0LCByZWN0LnRvcCwgaG9sZS5sZWZ0IC0gcmVjdC5sZWZ0LCByZWN0LmhlaWdodCkpOwogICAgfQoKICAgIC8vIFJpZ2h0IHNwbGl0LgogICAgaWYgKHJlY3QubGVmdCArIHJlY3Qud2lkdGggPiBob2xlLmxlZnQgKyBob2xlLndpZHRoKSB7CiAgICAgIHJlc3VsdHMucHVzaCgKICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICBob2xlLmxlZnQgKyBob2xlLndpZHRoLAogICAgICAgICAgcmVjdC50b3AsCiAgICAgICAgICByZWN0LmxlZnQgKyByZWN0LndpZHRoIC0gKGhvbGUubGVmdCArIGhvbGUud2lkdGgpLAogICAgICAgICAgcmVjdC5oZWlnaHQKICAgICAgICApCiAgICAgICk7CiAgICB9CgogICAgLy8gVG9wIHNwbGl0LgogICAgaWYgKHJlY3QudG9wIDwgaG9sZS50b3ApIHsKICAgICAgcmVzdWx0cy5wdXNoKHRoaXMuYWRkUmVjdChyZWN0LmxlZnQsIHJlY3QudG9wLCByZWN0LndpZHRoLCBob2xlLnRvcCAtIHJlY3QudG9wKSk7CiAgICB9CgogICAgLy8gQm90dG9tIHNwbGl0LgogICAgaWYgKHJlY3QudG9wICsgcmVjdC5oZWlnaHQgPiBob2xlLnRvcCArIGhvbGUuaGVpZ2h0KSB7CiAgICAgIHJlc3VsdHMucHVzaCgKICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICByZWN0LmxlZnQsCiAgICAgICAgICBob2xlLnRvcCArIGhvbGUuaGVpZ2h0LAogICAgICAgICAgcmVjdC53aWR0aCwKICAgICAgICAgIHJlY3QudG9wICsgcmVjdC5oZWlnaHQgLSAoaG9sZS50b3AgKyBob2xlLmhlaWdodCkKICAgICAgICApCiAgICAgICk7CiAgICB9CgogICAgcmV0dXJuIHJlc3VsdHM7CiAgfTsKfSkoKTsKCi8qKgogKiBDaGVjayBpZiB0d28gcmVjdGFuZ2xlcyBvdmVybGFwLgogKgogKiBAcGFyYW0ge1JlY3RhbmdsZX0gYQogKiBAcGFyYW0ge1JlY3RhbmdsZX0gYgogKiBAcmV0dXJucyB7Qm9vbGVhbn0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZG9SZWN0c092ZXJsYXAgPSBmdW5jdGlvbihhLCBiKSB7CiAgcmV0dXJuICEoCiAgICBhLmxlZnQgKyBhLndpZHRoIDw9IGIubGVmdCB8fAogICAgYi5sZWZ0ICsgYi53aWR0aCA8PSBhLmxlZnQgfHwKICAgIGEudG9wICsgYS5oZWlnaHQgPD0gYi50b3AgfHwKICAgIGIudG9wICsgYi5oZWlnaHQgPD0gYS50b3AKICApOwp9OwoKLyoqCiAqIENoZWNrIGlmIGEgcmVjdGFuZ2xlIGlzIGZ1bGx5IHdpdGhpbiBhbm90aGVyIHJlY3RhbmdsZS4KICoKICogQHBhcmFtIHtSZWN0YW5nbGV9IGEKICogQHBhcmFtIHtSZWN0YW5nbGV9IGIKICogQHJldHVybnMge0Jvb2xlYW59CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLmlzUmVjdFdpdGhpblJlY3QgPSBmdW5jdGlvbihhLCBiKSB7CiAgcmV0dXJuICgKICAgIGEubGVmdCA+PSBiLmxlZnQgJiYKICAgIGEudG9wID49IGIudG9wICYmCiAgICBhLmxlZnQgKyBhLndpZHRoIDw9IGIubGVmdCArIGIud2lkdGggJiYKICAgIGEudG9wICsgYS5oZWlnaHQgPD0gYi50b3AgKyBiLmhlaWdodAogICk7Cn07CgovKioKICogTG9vcHMgdGhyb3VnaCBhbiBhcnJheSBvZiByZWN0YW5nbGUgaWRzIGFuZCByZXNldHMgYWxsIHRoYXQgYXJlIGZ1bGx5CiAqIHdpdGhpbiBhbm90aGVyIHJlY3RhbmdsZSBpbiB0aGUgYXJyYXkuIFJlc2V0dGluZyBpbiB0aGlzIGNhc2UgbWVhbnMgdGhhdAogKiB0aGUgcmVjdGFuZ2xlIGlkIHZhbHVlIGlzIHJlcGxhY2VkIHdpdGggemVyby4KICoKICogQHBhcmFtIHtSZWN0SWRbXX0gcmVjdElkcwogKiBAcmV0dXJucyB7UmVjdElkW119CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLnB1cmdlUmVjdHMgPSAoZnVuY3Rpb24oKSB7CiAgdmFyIHJlY3RBID0ge307CiAgdmFyIHJlY3RCID0ge307CiAgcmV0dXJuIGZ1bmN0aW9uKHJlY3RJZHMpIHsKICAgIHZhciBpID0gcmVjdElkcy5sZW5ndGg7CiAgICB2YXIgajsKCiAgICB3aGlsZSAoaS0tKSB7CiAgICAgIGogPSByZWN0SWRzLmxlbmd0aDsKICAgICAgaWYgKCFyZWN0SWRzW2ldKSBjb250aW51ZTsKICAgICAgdGhpcy5nZXRSZWN0KHJlY3RJZHNbaV0sIHJlY3RBKTsKICAgICAgd2hpbGUgKGotLSkgewogICAgICAgIGlmICghcmVjdElkc1tqXSB8fCBpID09PSBqKSBjb250aW51ZTsKICAgICAgICBpZiAodGhpcy5pc1JlY3RXaXRoaW5SZWN0KHJlY3RBLCB0aGlzLmdldFJlY3QocmVjdElkc1tqXSwgcmVjdEIpKSkgewogICAgICAgICAgcmVjdElkc1tpXSA9IDA7CiAgICAgICAgICBicmVhazsKICAgICAgICB9CiAgICAgIH0KICAgIH0KCiAgICByZXR1cm4gcmVjdElkczsKICB9Owp9KSgpOwoKLyoqCiAqIFNvcnQgcmVjdGFuZ2xlcyB3aXRoIHRvcC1sZWZ0IGdyYXZpdHkuCiAqCiAqIEBwYXJhbSB7UmVjdElkfSBhSWQKICogQHBhcmFtIHtSZWN0SWR9IGJJZAogKiBAcmV0dXJucyB7TnVtYmVyfQogKi8KUGFja2VyUHJvY2Vzc29yLnByb3RvdHlwZS5zb3J0UmVjdHNUb3BMZWZ0ID0gKGZ1bmN0aW9uKCkgewogIHZhciByZWN0QSA9IHt9OwogIHZhciByZWN0QiA9IHt9OwogIHJldHVybiBmdW5jdGlvbihhSWQsIGJJZCkgewogICAgdGhpcy5nZXRSZWN0KGFJZCwgcmVjdEEpOwogICAgdGhpcy5nZXRSZWN0KGJJZCwgcmVjdEIpOwogICAgLy8gcHJldHRpZXItaWdub3JlCiAgICByZXR1cm4gcmVjdEEudG9wIDwgcmVjdEIudG9wID8gLTEgOgogICAgICAgICAgIHJlY3RBLnRvcCA+IHJlY3RCLnRvcCA/IDEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPCByZWN0Qi5sZWZ0ID8gLTEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPiByZWN0Qi5sZWZ0ID8gMSA6IDA7CiAgfTsKfSkoKTsKCi8qKgogKiBTb3J0IHJlY3RhbmdsZXMgd2l0aCBsZWZ0LXRvcCBncmF2aXR5LgogKgogKiBAcGFyYW0ge1JlY3RJZH0gYUlkCiAqIEBwYXJhbSB7UmVjdElkfSBiSWQKICogQHJldHVybnMge051bWJlcn0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuc29ydFJlY3RzTGVmdFRvcCA9IChmdW5jdGlvbigpIHsKICB2YXIgcmVjdEEgPSB7fTsKICB2YXIgcmVjdEIgPSB7fTsKICByZXR1cm4gZnVuY3Rpb24oYUlkLCBiSWQpIHsKICAgIHRoaXMuZ2V0UmVjdChhSWQsIHJlY3RBKTsKICAgIHRoaXMuZ2V0UmVjdChiSWQsIHJlY3RCKTsKICAgIC8vIHByZXR0aWVyLWlnbm9yZQogICAgcmV0dXJuIHJlY3RBLmxlZnQgPCByZWN0Qi5sZWZ0ID8gLTEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPiByZWN0Qi5sZWZ0ID8gMSA6CiAgICAgICAgICAgcmVjdEEudG9wIDwgcmVjdEIudG9wID8gLTEgOgogICAgICAgICAgIHJlY3RBLnRvcCA+IHJlY3RCLnRvcCA/IDEgOiAwOwogIH07Cn0pKCk7Cgp2YXIgcHJvY2Vzc29yID0gbmV3IFBhY2tlclByb2Nlc3NvcigpOwoKb25tZXNzYWdlID0gZnVuY3Rpb24obXNnKSB7CiAgdmFyIGRhdGEgPSBuZXcgRmxvYXQzMkFycmF5KG1zZy5kYXRhKTsKICB2YXIgaXRlbXMgPSBkYXRhLnN1YmFycmF5KFBBQ0tFVF9IRUFERVJfU0xPVFMsIGRhdGEubGVuZ3RoKTsKICB2YXIgc2xvdHMgPSBuZXcgRmxvYXQzMkFycmF5KGl0ZW1zLmxlbmd0aCk7CiAgdmFyIGxheW91dCA9IHsKICAgIGl0ZW1zOiBpdGVtcywKICAgIHNsb3RzOiBzbG90cywKICAgIHdpZHRoOiBkYXRhW1BBQ0tFVF9JTkRFWF9XSURUSF0sCiAgICBoZWlnaHQ6IGRhdGFbUEFDS0VUX0lOREVYX0hFSUdIVF0sCiAgICBzZXR0aW5nczogZGF0YVtQQUNLRVRfSU5ERVhfT1BUSU9OU10KICB9OwoKICAvLyBGaWxsIHRoZSBsYXlvdXQgKHdpZHRoIC8gaGVpZ2h0IC8gc2xvdHMpLgogIHByb2Nlc3Nvci5maWxsTGF5b3V0KGxheW91dCk7CgogIC8vIENvcHkgbGF5b3V0IGRhdGEgdG8gdGhlIHJldHVybiBkYXRhLgogIGRhdGFbUEFDS0VUX0lOREVYX1dJRFRIXSA9IGxheW91dC53aWR0aDsKICBkYXRhW1BBQ0tFVF9JTkRFWF9IRUlHSFRdID0gbGF5b3V0LmhlaWdodDsKICBkYXRhLnNldChsYXlvdXQuc2xvdHMsIFBBQ0tFVF9IRUFERVJfU0xPVFMpOwoKICAvLyBTZW5kIGxheW91dCBiYWNrIHRvIHRoZSBtYWluIHRocmVhZC4KICBwb3N0TWVzc2FnZShkYXRhLmJ1ZmZlciwgW2RhdGEuYnVmZmVyXSk7Cn07Cgo=', null, false);
+  /* eslint-enable */
+
+  var FILL_GAPS = 1;
+  var HORIZONTAL = 2;
+  var ALIGN_RIGHT = 4;
+  var ALIGN_BOTTOM = 8;
+  var ROUNDING = 16;
+  var PACKET_INDEX_ID = 0;
+  var PACKET_INDEX_WIDTH = 1;
+  var PACKET_INDEX_HEIGHT = 2;
+  var PACKET_INDEX_OPTIONS = 3;
+  var PACKET_HEADER_SLOTS = 4;
+
   /**
-   * This is the default layout algorithm for Muuri. Based on MAXRECTS approach
-   * as described by Jukka Jylänki in his survey: "A Thousand Ways to Pack the
-   * Bin - A Practical Approach to Two-Dimensional Rectangle Bin Packing.".
-   *
    * @class
-   * @param {Object} [options]
-   * @param {Boolean} [options.fillGaps=false]
-   * @param {Boolean} [options.horizontal=false]
-   * @param {Boolean} [options.alignRight=false]
-   * @param {Boolean} [options.alignBottom=false]
-   * @param {Boolean} [options.rounding=false]
    */
-  function Packer(options) {
-    this._slotSizes = [];
-    this._freeSlots = [];
-    this._newSlots = [];
-    this._rectItem = {};
-    this._rectStore = [];
-    this._rectId = 0;
-    this._sortRectsLeftTop = this._sortRectsLeftTop.bind(this);
-    this._sortRectsTopLeft = this._sortRectsTopLeft.bind(this);
-    this.setOptions(options);
+  function PackerProcessor() {
+    this.slotSizes = [];
+    this.freeSlots = [];
+    this.newSlots = [];
+    this.rectItem = {};
+    this.rectStore = [];
+    this.rectId = 0;
+    this.slotIndex = -1;
+    this.sortRectsLeftTop = this.sortRectsLeftTop.bind(this);
+    this.sortRectsTopLeft = this.sortRectsTopLeft.bind(this);
   }
 
   /**
-   * @public
-   * @memberof Packer.prototype
-   * @param {Object} [options]
-   * @param {Boolean} [options.fillGaps=false]
-   * @param {Boolean} [options.horizontal=false]
-   * @param {Boolean} [options.alignRight=false]
-   * @param {Boolean} [options.alignBottom=false]
-   * @param {Boolean} [options.rounding=false]
-   * @returns {Packer}
-   */
-  Packer.prototype.setOptions = function(options) {
-    this._fillGaps = !!(options && options.fillGaps);
-    this._isHorizontal = !!(options && options.horizontal);
-    this._alignRight = !!(options && options.alignRight);
-    this._alignBottom = !!(options && options.alignBottom);
-    this._rounding = !!(options && options.rounding);
-    return this;
-  };
-
-  /**
-   * @public
-   * @memberof Packer.prototype
-   * @param {Item[]} items
-   * @param {Number} width
-   * @param {Number} height
+   * Takes a layout object as an argument and computes positions (slots) for the
+   * layout items. Also computes the final width and height of the layout. The
+   * provided layout object's slots array is mutated as well as the width and
+   * height properties.
+   *
+   * @param {Object} layout
+   * @param {Number} layout.width
+   *   - The start (current) width of the layout in pixels.
+   * @param {Number} layout.height
+   *   - The start (current) height of the layout in pixels.
+   * @param {(Item[]|Number[])} layout.items
+   *   - List of Muuri.Item instances or a list of item dimensions
+   *     (e.g [ item1Width, item1Height, item2Width, item2Height, ... ]).
+   * @param {(Array|Float32Array)} layout.slots
+   *   - An Array/Float32Array instance which's length should equal to
+   *     the amount of items times two. The position (width and height) of each
+   *     item will be written into this array.
+   * @param {Number} layout.settings
+   *   - The layout's settings as bitmasks.
    * @returns {Object}
    */
-  Packer.prototype.getLayout = function(items, width, height) {
-    var layout = {
-      items: items,
-      slots: [],
-      width: this._isHorizontal ? 0 : this._rounding ? Math.round(width) : width,
-      height: !this._isHorizontal ? 0 : this._rounding ? Math.round(height) : height,
-      setWidth: this._isHorizontal,
-      setHeight: !this._isHorizontal
-    };
-    var i;
+  PackerProcessor.prototype.fillLayout = function(layout) {
+    var items = layout.items;
+    var slots = layout.slots;
+    var settings = layout.settings || 0;
+    var fillGaps = !!(settings & FILL_GAPS);
+    var horizontal = !!(settings & HORIZONTAL);
+    var alignRight = !!(settings & ALIGN_RIGHT);
+    var alignBottom = !!(settings & ALIGN_BOTTOM);
+    var rounding = !!(settings & ROUNDING);
+    var isItemsPreProcessed = typeof items[0] === 'number';
+    var i, bump, item, slotWidth, slotHeight, slot;
+
+    if (rounding) {
+      layout.width = Math.round(layout.width);
+      layout.height = Math.round(layout.height);
+    }
 
     // No need to go further if items do not exist.
     if (!items.length) return layout;
 
-    // Find slots for items.
-    for (i = 0; i < items.length; i++) {
-      this._addSlot(layout, items[i]);
+    // Compute slots for the items.
+    bump = isItemsPreProcessed ? 2 : 1;
+    for (i = 0; i < items.length; i += bump) {
+      // If items are pre-processed it means that items array contains only
+      // the raw dimensions of the items. Otherwise we assume it is an array
+      // of normal Muuri items.
+      if (isItemsPreProcessed) {
+        slotWidth = items[i];
+        slotHeight = items[i + 1];
+      } else {
+        item = items[i];
+        slotWidth = item._width + item._marginLeft + item._marginRight;
+        slotHeight = item._height + item._marginTop + item._marginBottom;
+      }
+
+      // Round slot size if needed.
+      if (rounding) {
+        slotWidth = Math.round(slotWidth);
+        slotHeight = Math.round(slotHeight);
+      }
+
+      // Get slot data.
+      slot = this.getNextSlot(layout, slotWidth, slotHeight, fillGaps, horizontal);
+
+      // Update layout width/height.
+      if (horizontal) {
+        layout.width = Math.max(layout.width, slot.left + slot.width);
+      } else {
+        layout.height = Math.max(layout.height, slot.top + slot.height);
+      }
+
+      // Add item slot data to layout slots.
+      slots[++this.slotIndex] = slot.left;
+      slots[++this.slotIndex] = slot.top;
+
+      // Store the size too (for later usage) if needed.
+      if (alignRight || alignBottom) {
+        this.slotSizes.push(slot.width, slot.height);
+      }
     }
 
     // If the alignment is set to right we need to adjust the results.
-    if (this._alignRight) {
-      for (i = 0; i < layout.slots.length; i = i + 2) {
-        layout.slots[i] = layout.width - (layout.slots[i] + this._slotSizes[i]);
+    if (alignRight) {
+      for (i = 0; i < slots.length; i += 2) {
+        slots[i] = layout.width - (slots[i] + this.slotSizes[i]);
       }
     }
 
     // If the alignment is set to bottom we need to adjust the results.
-    if (this._alignBottom) {
-      for (i = 1; i < layout.slots.length; i = i + 2) {
-        layout.slots[i] = layout.height - (layout.slots[i] + this._slotSizes[i]);
+    if (alignBottom) {
+      for (i = 1; i < slots.length; i += 2) {
+        slots[i] = layout.height - (slots[i] + this.slotSizes[i]);
       }
     }
 
-    // Reset slots arrays and rect id.
-    this._slotSizes.length = 0;
-    this._freeSlots.length = 0;
-    this._newSlots.length = 0;
-    this._rectId = 0;
+    // Reset stuff.
+    this.slotSizes.length = 0;
+    this.freeSlots.length = 0;
+    this.newSlots.length = 0;
+    this.rectId = 0;
+    this.slotIndex = -1;
 
     return layout;
   };
 
   /**
-   * Calculate position for the layout item. Returns the left and top position
-   * of the item in pixels.
+   * Calculate next slot in the layout. Returns a slot object with position and
+   * dimensions data.
    *
-   * @private
-   * @memberof Packer.prototype
    * @param {Object} layout
-   * @param {Item} item
-   * @returns {Array}
+   * @param {Number} slotWidth
+   * @param {Number} slotHeight
+   * @param {Boolean} fillGaps
+   * @param {Boolean} horizontal
+   * @returns {Object}
    */
-  Packer.prototype._addSlot = (function() {
+  PackerProcessor.prototype.getNextSlot = (function() {
     var eps = 0.001;
-    var slot = {};
-    return function(layout, item) {
-      var isHorizontal = this._isHorizontal;
-      var fillGaps = this._fillGaps;
-      var freeSlots = this._freeSlots;
-      var newSlots = this._newSlots;
+    var minSize = 0.5;
+    var slot = { left: 0, top: 0, width: 0, height: 0 };
+    return function(layout, slotWidth, slotHeight, fillGaps, horizontal) {
+      var freeSlots = this.freeSlots;
+      var newSlots = this.newSlots;
       var rect;
       var rectId;
       var potentialSlots;
@@ -6505,20 +6624,14 @@
       // Set item slot initial data.
       slot.left = null;
       slot.top = null;
-      slot.width = item._width + item._marginLeft + item._marginRight;
-      slot.height = item._height + item._marginTop + item._marginBottom;
-
-      // Round item slot width and height if needed.
-      if (this._rounding) {
-        slot.width = Math.round(slot.width);
-        slot.height = Math.round(slot.height);
-      }
+      slot.width = slotWidth;
+      slot.height = slotHeight;
 
       // Try to find a slot for the item.
       for (i = 0; i < freeSlots.length; i++) {
         rectId = freeSlots[i];
         if (!rectId) continue;
-        rect = this._getRect(rectId);
+        rect = this.getRect(rectId);
         if (slot.width <= rect.width + eps && slot.height <= rect.height + eps) {
           slot.left = rect.left;
           slot.top = rect.top;
@@ -6530,8 +6643,8 @@
       if (slot.left === null) {
         // Position the item in to the bottom left (vertical mode) or top right
         // (horizontal mode) of the grid.
-        slot.left = !isHorizontal ? 0 : layout.width;
-        slot.top = !isHorizontal ? layout.height : 0;
+        slot.left = !horizontal ? 0 : layout.width;
+        slot.top = !horizontal ? layout.height : 0;
 
         // If gaps don't need filling do not add any current slots to the new
         // slots array.
@@ -6541,16 +6654,16 @@
       }
 
       // In vertical mode, if the item's bottom overlaps the grid's bottom.
-      if (!isHorizontal && slot.top + slot.height > layout.height) {
+      if (!horizontal && slot.top + slot.height > layout.height) {
         // If item is not aligned to the left edge, create a new slot.
         if (slot.left > 0) {
-          newSlots.push(this._addRect(0, layout.height, slot.left, Infinity));
+          newSlots.push(this.addRect(0, layout.height, slot.left, Infinity));
         }
 
         // If item is not aligned to the right edge, create a new slot.
         if (slot.left + slot.width < layout.width) {
           newSlots.push(
-            this._addRect(
+            this.addRect(
               slot.left + slot.width,
               layout.height,
               layout.width - slot.left - slot.width,
@@ -6564,16 +6677,16 @@
       }
 
       // In horizontal mode, if the item's right overlaps the grid's right edge.
-      if (isHorizontal && slot.left + slot.width > layout.width) {
+      if (horizontal && slot.left + slot.width > layout.width) {
         // If item is not aligned to the top, create a new slot.
         if (slot.top > 0) {
-          newSlots.push(this._addRect(layout.width, 0, Infinity, slot.top));
+          newSlots.push(this.addRect(layout.width, 0, Infinity, slot.top));
         }
 
         // If item is not aligned to the bottom, create a new slot.
         if (slot.top + slot.height < layout.height) {
           newSlots.push(
-            this._addRect(
+            this.addRect(
               layout.width,
               slot.top + slot.height,
               Infinity,
@@ -6592,20 +6705,16 @@
       for (i = fillGaps ? 0 : ignoreCurrentSlots ? freeSlots.length : i; i < freeSlots.length; i++) {
         rectId = freeSlots[i];
         if (!rectId) continue;
-        rect = this._getRect(rectId);
-        potentialSlots = this._splitRect(rect, slot);
+        rect = this.getRect(rectId);
+        potentialSlots = this.splitRect(rect, slot);
         for (j = 0; j < potentialSlots.length; j++) {
           rectId = potentialSlots[j];
-          rect = this._getRect(rectId);
-          // Let's make sure here that we have a big enough slot
-          // (width/height > 0.49px) and also let's make sure that the slot is
-          // within the boundaries of the grid.
-          if (
-            rect.width > 0.49 &&
-            rect.height > 0.49 &&
-            ((!isHorizontal && rect.top < layout.height) ||
-              (isHorizontal && rect.left < layout.width))
-          ) {
+          rect = this.getRect(rectId);
+          // Let's make sure here that we have a big enough slot.
+          if (rect.width < minSize || rect.height < minSize) continue;
+          // Let's also let's make sure that the slot is within the boundaries of
+          // the grid.
+          if (horizontal ? rect.left < layout.width : rect.top < layout.height) {
             newSlots.push(rectId);
           }
         }
@@ -6613,28 +6722,14 @@
 
       // Sanitize new slots.
       if (newSlots.length) {
-        this._purgeRects(newSlots).sort(
-          isHorizontal ? this._sortRectsLeftTop : this._sortRectsTopLeft
-        );
-      }
-
-      // Update layout width/height.
-      if (isHorizontal) {
-        layout.width = Math.max(layout.width, slot.left + slot.width);
-      } else {
-        layout.height = Math.max(layout.height, slot.top + slot.height);
-      }
-
-      // Add item slot data to layout slots (and store the slot size for later
-      // usage too if necessary).
-      layout.slots.push(slot.left, slot.top);
-      if (this._alignRight || this._alignBottom) {
-        this._slotSizes.push(slot.width, slot.height);
+        this.purgeRects(newSlots).sort(horizontal ? this.sortRectsLeftTop : this.sortRectsTopLeft);
       }
 
       // Free/new slots switcheroo!
-      this._freeSlots = newSlots;
-      this._newSlots = freeSlots;
+      this.freeSlots = newSlots;
+      this.newSlots = freeSlots;
+
+      return slot;
     };
   })();
 
@@ -6642,22 +6737,20 @@
    * Add a new rectangle to the rectangle store. Returns the id of the new
    * rectangle.
    *
-   * @private
-   * @memberof Packer.prototype
    * @param {Number} left
    * @param {Number} top
    * @param {Number} width
    * @param {Number} height
    * @returns {RectId}
    */
-  Packer.prototype._addRect = function(left, top, width, height) {
-    var rectId = ++this._rectId;
-    var rectStore = this._rectStore;
+  PackerProcessor.prototype.addRect = function(left, top, width, height) {
+    var rectId = ++this.rectId;
+    var rectStore = this.rectStore;
 
     rectStore[rectId] = left || 0;
-    rectStore[++this._rectId] = top || 0;
-    rectStore[++this._rectId] = width || 0;
-    rectStore[++this._rectId] = height || 0;
+    rectStore[++this.rectId] = top || 0;
+    rectStore[++this.rectId] = width || 0;
+    rectStore[++this.rectId] = height || 0;
 
     return rectId;
   };
@@ -6667,15 +6760,13 @@
    * provide a target object where the rectangle data will be written in. By
    * default an internal object is reused as a target object.
    *
-   * @private
-   * @memberof Packer.prototype
    * @param {RectId} id
    * @param {Object} [target]
    * @returns {Object}
    */
-  Packer.prototype._getRect = function(id, target) {
-    var rectItem = target ? target : this._rectItem;
-    var rectStore = this._rectStore;
+  PackerProcessor.prototype.getRect = function(id, target) {
+    var rectItem = target ? target : this.rectItem;
+    var rectStore = this.rectStore;
 
     rectItem.left = rectStore[id] || 0;
     rectItem.top = rectStore[++id] || 0;
@@ -6688,14 +6779,11 @@
   /**
    * Punch a hole into a rectangle and split the remaining area into smaller
    * rectangles (4 at max).
-   *
-   * @private
-   * @memberof Packer.prototype
    * @param {Rectangle} rect
    * @param {Rectangle} hole
    * @returns {RectId[]}
    */
-  Packer.prototype._splitRect = (function() {
+  PackerProcessor.prototype.splitRect = (function() {
     var results = [];
     return function(rect, hole) {
       // Reset old results.
@@ -6703,20 +6791,20 @@
 
       // If the rect does not overlap with the hole add rect to the return data
       // as is.
-      if (!this._doRectsOverlap(rect, hole)) {
-        results.push(this._addRect(rect.left, rect.top, rect.width, rect.height));
+      if (!this.doRectsOverlap(rect, hole)) {
+        results.push(this.addRect(rect.left, rect.top, rect.width, rect.height));
         return results;
       }
 
       // Left split.
       if (rect.left < hole.left) {
-        results.push(this._addRect(rect.left, rect.top, hole.left - rect.left, rect.height));
+        results.push(this.addRect(rect.left, rect.top, hole.left - rect.left, rect.height));
       }
 
       // Right split.
       if (rect.left + rect.width > hole.left + hole.width) {
         results.push(
-          this._addRect(
+          this.addRect(
             hole.left + hole.width,
             rect.top,
             rect.left + rect.width - (hole.left + hole.width),
@@ -6727,13 +6815,13 @@
 
       // Top split.
       if (rect.top < hole.top) {
-        results.push(this._addRect(rect.left, rect.top, rect.width, hole.top - rect.top));
+        results.push(this.addRect(rect.left, rect.top, rect.width, hole.top - rect.top));
       }
 
       // Bottom split.
       if (rect.top + rect.height > hole.top + hole.height) {
         results.push(
-          this._addRect(
+          this.addRect(
             rect.left,
             hole.top + hole.height,
             rect.width,
@@ -6749,13 +6837,11 @@
   /**
    * Check if two rectangles overlap.
    *
-   * @private
-   * @memberof Packer.prototype
    * @param {Rectangle} a
    * @param {Rectangle} b
    * @returns {Boolean}
    */
-  Packer.prototype._doRectsOverlap = function(a, b) {
+  PackerProcessor.prototype.doRectsOverlap = function(a, b) {
     return !(
       a.left + a.width <= b.left ||
       b.left + b.width <= a.left ||
@@ -6767,13 +6853,11 @@
   /**
    * Check if a rectangle is fully within another rectangle.
    *
-   * @private
-   * @memberof Packer.prototype
    * @param {Rectangle} a
    * @param {Rectangle} b
    * @returns {Boolean}
    */
-  Packer.prototype._isRectWithinRect = function(a, b) {
+  PackerProcessor.prototype.isRectWithinRect = function(a, b) {
     return (
       a.left >= b.left &&
       a.top >= b.top &&
@@ -6787,12 +6871,10 @@
    * within another rectangle in the array. Resetting in this case means that
    * the rectangle id value is replaced with zero.
    *
-   * @private
-   * @memberof Packer.prototype
    * @param {RectId[]} rectIds
    * @returns {RectId[]}
    */
-  Packer.prototype._purgeRects = (function() {
+  PackerProcessor.prototype.purgeRects = (function() {
     var rectA = {};
     var rectB = {};
     return function(rectIds) {
@@ -6802,10 +6884,10 @@
       while (i--) {
         j = rectIds.length;
         if (!rectIds[i]) continue;
-        this._getRect(rectIds[i], rectA);
+        this.getRect(rectIds[i], rectA);
         while (j--) {
           if (!rectIds[j] || i === j) continue;
-          if (this._isRectWithinRect(rectA, this._getRect(rectIds[j], rectB))) {
+          if (this.isRectWithinRect(rectA, this.getRect(rectIds[j], rectB))) {
             rectIds[i] = 0;
             break;
           }
@@ -6819,18 +6901,16 @@
   /**
    * Sort rectangles with top-left gravity.
    *
-   * @private
-   * @memberof Packer.prototype
    * @param {RectId} aId
    * @param {RectId} bId
    * @returns {Number}
    */
-  Packer.prototype._sortRectsTopLeft = (function() {
+  PackerProcessor.prototype.sortRectsTopLeft = (function() {
     var rectA = {};
     var rectB = {};
     return function(aId, bId) {
-      this._getRect(aId, rectA);
-      this._getRect(bId, rectB);
+      this.getRect(aId, rectA);
+      this.getRect(bId, rectB);
       // prettier-ignore
       return rectA.top < rectB.top ? -1 :
              rectA.top > rectB.top ? 1 :
@@ -6842,18 +6922,16 @@
   /**
    * Sort rectangles with left-top gravity.
    *
-   * @private
-   * @memberof Packer.prototype
    * @param {RectId} aId
    * @param {RectId} bId
    * @returns {Number}
    */
-  Packer.prototype._sortRectsLeftTop = (function() {
+  PackerProcessor.prototype.sortRectsLeftTop = (function() {
     var rectA = {};
     var rectB = {};
     return function(aId, bId) {
-      this._getRect(aId, rectA);
-      this._getRect(bId, rectB);
+      this.getRect(aId, rectA);
+      this.getRect(bId, rectB);
       // prettier-ignore
       return rectA.left < rectB.left ? -1 :
              rectA.left > rectB.left ? 1 :
@@ -6861,6 +6939,257 @@
              rectA.top > rectB.top ? 1 : 0;
     };
   })();
+
+  /**
+   * @class
+   * @param {Number} [numWorkers=2]
+   * @param {Object} [options]
+   * @param {Boolean} [options.fillGaps=false]
+   * @param {Boolean} [options.horizontal=false]
+   * @param {Boolean} [options.alignRight=false]
+   * @param {Boolean} [options.alignBottom=false]
+   * @param {Boolean} [options.rounding=false]
+   */
+  function Packer(numWorkers, options) {
+    this._options = 0;
+    this._processor = null;
+    this._layoutQueue = [];
+    this._layouts = {};
+    this._layoutCallbacks = {};
+    this._layoutWorkers = {};
+    this._layoutWorkerData = {};
+    this._workers = [];
+    this._onWorkerMessage = this._onWorkerMessage.bind(this);
+
+    // Set initial options.
+    this.setOptions(options);
+
+    // Init the worker(s) or the processor if workers can't be used.
+    var workerCount = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
+    if (workerCount && window.Worker) {
+      for (var i = 0, worker; i < workerCount; i++) {
+        worker = new WorkerFactory();
+        worker.onmessage = this._onWorkerMessage;
+        this._workers.push(worker);
+      }
+    } else {
+      this._processor = new PackerProcessor();
+    }
+  }
+
+  Packer.prototype._sendToWorker = function() {
+    if (!this._layoutQueue.length || !this._workers.length) return;
+
+    var id = this._layoutQueue.shift();
+    var worker = this._workers.pop();
+    var data = this._layoutWorkerData[id];
+
+    delete this._layoutWorkerData[id];
+    this._layoutWorkers[id] = worker;
+    worker.postMessage(data.buffer, [data.buffer]);
+  };
+
+  Packer.prototype._onWorkerMessage = function(msg) {
+    var data = new Float32Array(msg.data);
+    var id = data[PACKET_INDEX_ID];
+    var layout = this._layouts[id];
+    var callback = this._layoutCallbacks[id];
+    var worker = this._layoutWorkers[id];
+
+    if (layout) delete this._layoutCallbacks[id];
+    if (callback) delete this._layoutCallbacks[id];
+    if (worker) delete this._layoutWorkers[id];
+
+    if (layout && callback) {
+      layout.width = data[PACKET_INDEX_WIDTH];
+      layout.height = data[PACKET_INDEX_HEIGHT];
+      layout.slots = data.subarray(PACKET_HEADER_SLOTS, data.length);
+      callback(layout);
+    }
+
+    if (worker) {
+      this._workers.push(worker);
+      this._sendToWorker();
+    }
+  };
+
+  /**
+   * @public
+   * @memberof Packer.prototype
+   * @param {Object} [options]
+   * @param {Boolean} [options.fillGaps]
+   * @param {Boolean} [options.horizontal]
+   * @param {Boolean} [options.alignRight]
+   * @param {Boolean} [options.alignBottom]
+   * @param {Boolean} [options.rounding]
+   * @returns {Packer}
+   */
+  Packer.prototype.setOptions = function(options) {
+    if (!options) return this;
+
+    var fillGaps;
+    if (typeof options.fillGaps === 'boolean') {
+      fillGaps = options.fillGaps ? FILL_GAPS : 0;
+    } else {
+      fillGaps = this._options & FILL_GAPS;
+    }
+
+    var horizontal;
+    if (typeof options.horizontal === 'boolean') {
+      horizontal = options.horizontal ? HORIZONTAL : 0;
+    } else {
+      horizontal = this._options & HORIZONTAL;
+    }
+
+    var alignRight;
+    if (typeof options.alignRight === 'boolean') {
+      alignRight = options.alignRight ? ALIGN_RIGHT : 0;
+    } else {
+      alignRight = this._options & ALIGN_RIGHT;
+    }
+
+    var alignBottom;
+    if (typeof options.alignBottom === 'boolean') {
+      alignBottom = options.alignBottom ? ALIGN_BOTTOM : 0;
+    } else {
+      alignBottom = this._options & ALIGN_BOTTOM;
+    }
+
+    var rounding;
+    if (typeof options.rounding === 'boolean') {
+      rounding = options.rounding ? ROUNDING : 0;
+    } else {
+      rounding = this._options & ROUNDING;
+    }
+
+    this._options = fillGaps | horizontal | alignRight | alignBottom | rounding;
+
+    return this;
+  };
+
+  /**
+   * @public
+   * @memberof Packer.prototype
+   * @param {Number} id
+   * @param {Item[]} items
+   * @param {Number} width
+   * @param {Number} height
+   * @param {Function} callback
+   */
+  Packer.prototype.createLayout = function(id, items, width, height, callback) {
+    if (this._layouts[id]) {
+      throw new Error('A layout with the provided id is currently being processed.');
+    }
+
+    var rounding = this._options & ROUNDING;
+    var horizontal = this._options & HORIZONTAL;
+    var layout = {
+      id: id,
+      items: items,
+      slots: null,
+      width: horizontal ? 0 : width,
+      height: !horizontal ? 0 : height,
+      setWidth: horizontal,
+      setHeight: !horizontal,
+      settings: this._options
+    };
+
+    // If there are no items let's call the callback immediately.
+    if (!items.length) {
+      layout.slots = [];
+      if (rounding) {
+        layout.width = Math.round(layout.width);
+        layout.height = Math.round(layout.height);
+      }
+      callback(layout);
+      return;
+    }
+
+    // Create layout synchronously if needed.
+    if (this._processor) {
+      layout.slots = window.Float32Array
+        ? new Float32Array(items.length * 2)
+        : new Array(items.length * 2);
+      this._processor.fillLayout(layout);
+      callback(layout);
+      return;
+    }
+
+    // Worker data.
+    var data = new Float32Array(PACKET_HEADER_SLOTS + items.length * 2);
+
+    // Worker data header.
+    data[PACKET_INDEX_ID] = id;
+    data[PACKET_INDEX_WIDTH] = layout.width;
+    data[PACKET_INDEX_HEIGHT] = layout.height;
+    data[PACKET_INDEX_OPTIONS] = layout.settings;
+
+    // Worker data items.
+    var i, j, item;
+    for (i = 0, j = PACKET_HEADER_SLOTS - 1, item; i < items.length; i++) {
+      item = items[i];
+      data[++j] = item._width + item._marginLeft + item._marginRight;
+      data[++j] = item._height + item._marginTop + item._marginBottom;
+    }
+
+    this._layoutQueue.push(id);
+    this._layouts[id] = layout;
+    this._layoutCallbacks[id] = callback;
+    this._layoutWorkerData[id] = data;
+
+    this._sendToWorker();
+
+    return this.cancelLayout.bind(this, id);
+  };
+
+  /**
+   * @public
+   * @memberof Packer.prototype
+   * @param {Number} id
+   */
+  Packer.prototype.cancelLayout = function(id) {
+    var layout = this._layouts[id];
+    if (!layout) return;
+
+    delete this._layouts[id];
+    delete this._layoutCallbacks[id];
+
+    if (this._layoutWorkerData[id]) {
+      delete this._layoutWorkerData[id];
+      var queueIndex = this._layoutQueue.indexOf(id);
+      if (queueIndex > -1) this._layoutQueue.splice(queueIndex, 1);
+    }
+  };
+
+  /**
+   * @public
+   * @memberof Packer.prototype
+   */
+  Packer.prototype.destroy = function() {
+    var worker, id, i;
+
+    // Terminate active workers.
+    for (id in this._layoutWorkers) {
+      worker = this._layoutWorkers[id];
+      worker.onmessage = null;
+      worker.terminate();
+    }
+
+    // Terminate idle workers.
+    for (i = 0; i < this._workers.length; i++) {
+      worker = this._workers[i];
+      worker.onmessage = null;
+      worker.terminate();
+    }
+
+    // Reset data.
+    this._workers.length = 0;
+    this._layoutQueue.length = 0;
+    this._layouts = {};
+    this._layoutCallbacks = {};
+    this._layoutWorkers = {};
+    this._layoutWorkerData = {};
+  };
 
   var debounceId = 0;
 
@@ -6959,10 +7288,11 @@
     return isNodeList(val) ? Array.prototype.slice.call(val) : Array.prototype.concat(val);
   }
 
-  var PACKER = new Packer();
+  var PACKER = new Packer(2);
   var NUMBER_TYPE = 'number';
   var STRING_TYPE = 'string';
   var INSTANT_LAYOUT = 'instant';
+  var layoutId = 0;
 
   /**
    * Creates a new Grid instance.
@@ -7072,8 +7402,7 @@
     // Destroyed flag.
     this._isDestroyed = false;
 
-    // The layout object (immutable).
-    this._isLayoutFinished = true;
+    // Layout data.
     this._layout = {
       id: 0,
       items: [],
@@ -7083,6 +7412,9 @@
       width: 0,
       height: 0
     };
+    this._isLayoutFinished = true;
+    this._nextLayoutData = null;
+    this._onLayoutDataReceived = this._onLayoutDataReceived.bind(this);
 
     // Create private Emitter instance.
     this._emitter = new Emitter();
@@ -7440,100 +7772,68 @@
    * @param {LayoutCallback} [onFinish]
    * @returns {Grid}
    */
-  Grid.prototype.layout = (function() {
-    var itemsToLayout = [];
-    return function(instant, onFinish) {
-      if (this._isDestroyed) return this;
+  Grid.prototype.layout = function(instant, onFinish) {
+    if (this._isDestroyed) return this;
 
-      if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
-        this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
-      }
+    // Cancel unfinished layout algorithm if possible.
+    var unfinishedLayout = this._nextLayoutData;
+    if (unfinishedLayout && isFunction(unfinishedLayout.cancel)) {
+      unfinishedLayout.cancel();
+    }
 
-      var grid = this;
-      var layout = this._getLayout();
-      var numItems = layout.items.length;
-      var counter = numItems;
-      var item;
-      var left;
-      var top;
-      var i;
-
-      // Update the layout reference.
-      this._layout = layout;
-
-      // Update the item positions and collect all items that need to be laid
-      // out. It is critical that we update the item position _before_ the
-      // layoutStart event as the new data might be needed in the callback.
-      itemsToLayout.length = 0;
-      for (i = 0; i < numItems; i++) {
-        item = layout.items[i];
-        if (!item) {
-          --counter;
-          continue;
-        }
-
-        left = layout.slots[i * 2];
-        top = layout.slots[i * 2 + 1];
-        if (left === item._left && top === item._top) {
-          --counter;
-          continue;
-        }
-
-        item._left = left;
-        item._top = top;
-
-        if (item.isActive() && !item.isDragging()) {
-          itemsToLayout.push(item);
-        }
-      }
-
-      this._updateGridElementSize(layout);
-
-      // layoutStart event is intentionally emitted after the container element's
-      // dimensions are set, because otherwise there would be no hook for reacting
-      // to container dimension changes.
-      if (this._hasListeners(EVENT_LAYOUT_START)) {
-        this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
-      }
-
-      function tryFinish() {
-        if (--counter > 0) return;
-
-        var hasLayoutChanged = grid._layout.id !== layout.id;
-        var callback = isFunction(instant) ? instant : onFinish;
-
-        if (!hasLayoutChanged) {
-          grid._isLayoutFinished = true;
-        }
-
-        if (isFunction(callback)) {
-          callback(layout.items.slice(0), hasLayoutChanged);
-        }
-
-        if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
-          grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
-        }
-      }
-
-      if (!itemsToLayout.length) {
-        tryFinish();
-        return this;
-      }
-
-      this._isLayoutFinished = false;
-
-      for (i = 0; i < itemsToLayout.length; i++) {
-        if (this._layout.id !== layout.id) break;
-        itemsToLayout[i]._layout.start(instant === true, tryFinish);
-      }
-
-      if (this._layout.id === layout.id) {
-        itemsToLayout.length = 0;
-      }
-
-      return this;
+    // Store data for next layout.
+    var nextLayoutId = ++layoutId;
+    this._nextLayoutData = {
+      id: nextLayoutId,
+      instant: instant,
+      onFinish: onFinish,
+      cancel: null
     };
-  })();
+
+    // Collect layout items (all active grid items).
+    var items = this._items;
+    var layoutItems = [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i]._isActive) layoutItems.push(items[i]);
+    }
+
+    // Compute new layout.
+    this._refreshDimensions();
+    var gridWidth = this._width - this._borderLeft - this._borderRight;
+    var gridHeight = this._height - this._borderTop - this._borderBottom;
+    var layoutSettings = this._settings.layout;
+    var cancelLayout;
+    if (isFunction(layoutSettings)) {
+      cancelLayout = layoutSettings.call(
+        this,
+        nextLayoutId,
+        layoutItems,
+        gridWidth,
+        gridHeight,
+        this._onLayoutDataReceived
+      );
+    } else {
+      PACKER.setOptions(layoutSettings);
+      cancelLayout = PACKER.createLayout(
+        nextLayoutId,
+        layoutItems,
+        gridWidth,
+        gridHeight,
+        this._onLayoutDataReceived
+      );
+    }
+
+    // Store layout cancel method if available.
+    if (
+      isFunction(cancelLayout) &&
+      this._nextLayoutData &&
+      this._nextLayoutData.id === nextLayoutId
+    ) {
+      this._nextLayoutData.cancel = cancelLayout;
+    }
+
+    return this;
+  };
 
   /**
    * Add new items by providing the elements you wish to add to the instance and
@@ -8129,48 +8429,6 @@
   };
 
   /**
-   * Compute and return new layout data based on the grid's current state.
-   *
-   * @private
-   * @memberof Grid.prototype
-   * @returns {LayoutData}
-   */
-  Grid.prototype._getLayout = function() {
-    this._refreshDimensions();
-
-    var layoutId = this._layout.id + 1;
-
-    // Collect layout items (all active grid items).
-    var gridItems = this._items;
-    var layoutItems = [];
-    for (var i = 0; i < gridItems.length; i++) {
-      if (gridItems[i]._isActive) layoutItems.push(gridItems[i]);
-    }
-
-    // Compute new layout.
-    var width = this._width - this._borderLeft - this._borderRight;
-    var height = this._height - this._borderTop - this._borderBottom;
-    var layoutSettings = this._settings.layout;
-    var layoutData;
-    if (isFunction(layoutSettings)) {
-      layoutData = layoutSettings.call(this, layoutItems, width, height);
-    } else {
-      layoutData = PACKER.setOptions(layoutSettings).getLayout(layoutItems, width, height);
-    }
-
-    // Layout data should be considered immutable.
-    return {
-      id: layoutId,
-      items: layoutData.items.slice(0),
-      slots: layoutData.slots.slice(0),
-      width: layoutData.width,
-      height: layoutData.height,
-      setWidth: !!layoutData.setWidth,
-      setHeight: !!layoutData.setHeight
-    };
-  };
-
-  /**
    * Emit a grid event.
    *
    * @private
@@ -8285,6 +8543,112 @@
       }
     }
   };
+
+  /**
+   * Calculate and apply item positions.
+   *
+   * @private
+   * @memberof Grid.prototype
+   * @param {Object} layout
+   */
+  Grid.prototype._onLayoutDataReceived = (function() {
+    var itemsToLayout = [];
+    return function(layout) {
+      if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
+
+      var grid = this;
+      var instant = this._nextLayoutData.instant;
+      var onFinish = this._nextLayoutData.onFinish;
+      var numItems = layout.items.length;
+      var counter = numItems;
+      var item;
+      var left;
+      var top;
+      var i;
+
+      // Reset next layout data.
+      this._nextLayoutData = null;
+
+      if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
+        this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
+      }
+
+      // Update the layout reference.
+      this._layout = layout;
+
+      // Update the item positions and collect all items that need to be laid
+      // out. It is critical that we update the item position _before_ the
+      // layoutStart event as the new data might be needed in the callback.
+      itemsToLayout.length = 0;
+      for (i = 0; i < numItems; i++) {
+        item = layout.items[i];
+        if (!item) {
+          --counter;
+          continue;
+        }
+
+        left = layout.slots[i * 2];
+        top = layout.slots[i * 2 + 1];
+        if (left === item._left && top === item._top && !item._dragRelease.isJustReleased()) {
+          --counter;
+          continue;
+        }
+
+        item._left = left;
+        item._top = top;
+
+        if (item.isActive() && !item.isDragging()) {
+          itemsToLayout.push(item);
+        }
+      }
+
+      this._updateGridElementSize(layout);
+
+      // layoutStart event is intentionally emitted after the container element's
+      // dimensions are set, because otherwise there would be no hook for reacting
+      // to container dimension changes.
+      if (this._hasListeners(EVENT_LAYOUT_START)) {
+        this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
+      }
+
+      function tryFinish() {
+        if (--counter > 0) return;
+
+        var hasLayoutChanged = grid._layout.id !== layout.id;
+        var callback = isFunction(instant) ? instant : onFinish;
+
+        if (!hasLayoutChanged) {
+          grid._isLayoutFinished = true;
+        }
+
+        if (isFunction(callback)) {
+          callback(layout.items.slice(0), hasLayoutChanged);
+        }
+
+        if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
+          grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
+        }
+      }
+
+      if (!itemsToLayout.length) {
+        tryFinish();
+        return this;
+      }
+
+      this._isLayoutFinished = false;
+
+      for (i = 0; i < itemsToLayout.length; i++) {
+        if (this._layout.id !== layout.id) break;
+        itemsToLayout[i]._layout.start(instant === true, tryFinish);
+      }
+
+      if (this._layout.id === layout.id) {
+        itemsToLayout.length = 0;
+      }
+
+      return this;
+    };
+  })();
 
   /**
    * Show or hide Grid instance's items.

@@ -54,10 +54,11 @@ import noop from '../utils/noop';
 import removeClass from '../utils/removeClass';
 import toArray from '../utils/toArray';
 
-var PACKER = new Packer();
+var PACKER = new Packer(2);
 var NUMBER_TYPE = 'number';
 var STRING_TYPE = 'string';
 var INSTANT_LAYOUT = 'instant';
+var layoutId = 0;
 
 /**
  * Creates a new Grid instance.
@@ -167,8 +168,7 @@ function Grid(element, options) {
   // Destroyed flag.
   this._isDestroyed = false;
 
-  // The layout object (immutable).
-  this._isLayoutFinished = true;
+  // Layout data.
   this._layout = {
     id: 0,
     items: [],
@@ -178,6 +178,9 @@ function Grid(element, options) {
     width: 0,
     height: 0
   };
+  this._isLayoutFinished = true;
+  this._nextLayoutData = null;
+  this._onLayoutDataReceived = this._onLayoutDataReceived.bind(this);
 
   // Create private Emitter instance.
   this._emitter = new Emitter();
@@ -535,100 +538,68 @@ Grid.prototype.synchronize = function() {
  * @param {LayoutCallback} [onFinish]
  * @returns {Grid}
  */
-Grid.prototype.layout = (function() {
-  var itemsToLayout = [];
-  return function(instant, onFinish) {
-    if (this._isDestroyed) return this;
+Grid.prototype.layout = function(instant, onFinish) {
+  if (this._isDestroyed) return this;
 
-    if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
-      this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
-    }
+  // Cancel unfinished layout algorithm if possible.
+  var unfinishedLayout = this._nextLayoutData;
+  if (unfinishedLayout && isFunction(unfinishedLayout.cancel)) {
+    unfinishedLayout.cancel();
+  }
 
-    var grid = this;
-    var layout = this._getLayout();
-    var numItems = layout.items.length;
-    var counter = numItems;
-    var item;
-    var left;
-    var top;
-    var i;
-
-    // Update the layout reference.
-    this._layout = layout;
-
-    // Update the item positions and collect all items that need to be laid
-    // out. It is critical that we update the item position _before_ the
-    // layoutStart event as the new data might be needed in the callback.
-    itemsToLayout.length = 0;
-    for (i = 0; i < numItems; i++) {
-      item = layout.items[i];
-      if (!item) {
-        --counter;
-        continue;
-      }
-
-      left = layout.slots[i * 2];
-      top = layout.slots[i * 2 + 1];
-      if (left === item._left && top === item._top) {
-        --counter;
-        continue;
-      }
-
-      item._left = left;
-      item._top = top;
-
-      if (item.isActive() && !item.isDragging()) {
-        itemsToLayout.push(item);
-      }
-    }
-
-    this._updateGridElementSize(layout);
-
-    // layoutStart event is intentionally emitted after the container element's
-    // dimensions are set, because otherwise there would be no hook for reacting
-    // to container dimension changes.
-    if (this._hasListeners(EVENT_LAYOUT_START)) {
-      this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
-    }
-
-    function tryFinish() {
-      if (--counter > 0) return;
-
-      var hasLayoutChanged = grid._layout.id !== layout.id;
-      var callback = isFunction(instant) ? instant : onFinish;
-
-      if (!hasLayoutChanged) {
-        grid._isLayoutFinished = true;
-      }
-
-      if (isFunction(callback)) {
-        callback(layout.items.slice(0), hasLayoutChanged);
-      }
-
-      if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
-        grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
-      }
-    }
-
-    if (!itemsToLayout.length) {
-      tryFinish();
-      return this;
-    }
-
-    this._isLayoutFinished = false;
-
-    for (i = 0; i < itemsToLayout.length; i++) {
-      if (this._layout.id !== layout.id) break;
-      itemsToLayout[i]._layout.start(instant === true, tryFinish);
-    }
-
-    if (this._layout.id === layout.id) {
-      itemsToLayout.length = 0;
-    }
-
-    return this;
+  // Store data for next layout.
+  var nextLayoutId = ++layoutId;
+  this._nextLayoutData = {
+    id: nextLayoutId,
+    instant: instant,
+    onFinish: onFinish,
+    cancel: null
   };
-})();
+
+  // Collect layout items (all active grid items).
+  var items = this._items;
+  var layoutItems = [];
+  for (var i = 0; i < items.length; i++) {
+    if (items[i]._isActive) layoutItems.push(items[i]);
+  }
+
+  // Compute new layout.
+  this._refreshDimensions();
+  var gridWidth = this._width - this._borderLeft - this._borderRight;
+  var gridHeight = this._height - this._borderTop - this._borderBottom;
+  var layoutSettings = this._settings.layout;
+  var cancelLayout;
+  if (isFunction(layoutSettings)) {
+    cancelLayout = layoutSettings.call(
+      this,
+      nextLayoutId,
+      layoutItems,
+      gridWidth,
+      gridHeight,
+      this._onLayoutDataReceived
+    );
+  } else {
+    PACKER.setOptions(layoutSettings);
+    cancelLayout = PACKER.createLayout(
+      nextLayoutId,
+      layoutItems,
+      gridWidth,
+      gridHeight,
+      this._onLayoutDataReceived
+    );
+  }
+
+  // Store layout cancel method if available.
+  if (
+    isFunction(cancelLayout) &&
+    this._nextLayoutData &&
+    this._nextLayoutData.id === nextLayoutId
+  ) {
+    this._nextLayoutData.cancel = cancelLayout;
+  }
+
+  return this;
+};
 
 /**
  * Add new items by providing the elements you wish to add to the instance and
@@ -1224,48 +1195,6 @@ Grid.prototype._getItem = function(target) {
 };
 
 /**
- * Compute and return new layout data based on the grid's current state.
- *
- * @private
- * @memberof Grid.prototype
- * @returns {LayoutData}
- */
-Grid.prototype._getLayout = function() {
-  this._refreshDimensions();
-
-  var layoutId = this._layout.id + 1;
-
-  // Collect layout items (all active grid items).
-  var gridItems = this._items;
-  var layoutItems = [];
-  for (var i = 0; i < gridItems.length; i++) {
-    if (gridItems[i]._isActive) layoutItems.push(gridItems[i]);
-  }
-
-  // Compute new layout.
-  var width = this._width - this._borderLeft - this._borderRight;
-  var height = this._height - this._borderTop - this._borderBottom;
-  var layoutSettings = this._settings.layout;
-  var layoutData;
-  if (isFunction(layoutSettings)) {
-    layoutData = layoutSettings.call(this, layoutItems, width, height);
-  } else {
-    layoutData = PACKER.setOptions(layoutSettings).getLayout(layoutItems, width, height);
-  }
-
-  // Layout data should be considered immutable.
-  return {
-    id: layoutId,
-    items: layoutData.items.slice(0),
-    slots: layoutData.slots.slice(0),
-    width: layoutData.width,
-    height: layoutData.height,
-    setWidth: !!layoutData.setWidth,
-    setHeight: !!layoutData.setHeight
-  };
-};
-
-/**
  * Emit a grid event.
  *
  * @private
@@ -1380,6 +1309,112 @@ Grid.prototype._updateGridElementSize = function(layout) {
     }
   }
 };
+
+/**
+ * Calculate and apply item positions.
+ *
+ * @private
+ * @memberof Grid.prototype
+ * @param {Object} layout
+ */
+Grid.prototype._onLayoutDataReceived = (function() {
+  var itemsToLayout = [];
+  return function(layout) {
+    if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
+
+    var grid = this;
+    var instant = this._nextLayoutData.instant;
+    var onFinish = this._nextLayoutData.onFinish;
+    var numItems = layout.items.length;
+    var counter = numItems;
+    var item;
+    var left;
+    var top;
+    var i;
+
+    // Reset next layout data.
+    this._nextLayoutData = null;
+
+    if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
+      this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
+    }
+
+    // Update the layout reference.
+    this._layout = layout;
+
+    // Update the item positions and collect all items that need to be laid
+    // out. It is critical that we update the item position _before_ the
+    // layoutStart event as the new data might be needed in the callback.
+    itemsToLayout.length = 0;
+    for (i = 0; i < numItems; i++) {
+      item = layout.items[i];
+      if (!item) {
+        --counter;
+        continue;
+      }
+
+      left = layout.slots[i * 2];
+      top = layout.slots[i * 2 + 1];
+      if (left === item._left && top === item._top && !item._dragRelease.isJustReleased()) {
+        --counter;
+        continue;
+      }
+
+      item._left = left;
+      item._top = top;
+
+      if (item.isActive() && !item.isDragging()) {
+        itemsToLayout.push(item);
+      }
+    }
+
+    this._updateGridElementSize(layout);
+
+    // layoutStart event is intentionally emitted after the container element's
+    // dimensions are set, because otherwise there would be no hook for reacting
+    // to container dimension changes.
+    if (this._hasListeners(EVENT_LAYOUT_START)) {
+      this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
+    }
+
+    function tryFinish() {
+      if (--counter > 0) return;
+
+      var hasLayoutChanged = grid._layout.id !== layout.id;
+      var callback = isFunction(instant) ? instant : onFinish;
+
+      if (!hasLayoutChanged) {
+        grid._isLayoutFinished = true;
+      }
+
+      if (isFunction(callback)) {
+        callback(layout.items.slice(0), hasLayoutChanged);
+      }
+
+      if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
+        grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
+      }
+    }
+
+    if (!itemsToLayout.length) {
+      tryFinish();
+      return this;
+    }
+
+    this._isLayoutFinished = false;
+
+    for (i = 0; i < itemsToLayout.length; i++) {
+      if (this._layout.id !== layout.id) break;
+      itemsToLayout[i]._layout.start(instant === true, tryFinish);
+    }
+
+    if (this._layout.id === layout.id) {
+      itemsToLayout.length = 0;
+    }
+
+    return this;
+  };
+})();
 
 /**
  * Show or hide Grid instance's items.

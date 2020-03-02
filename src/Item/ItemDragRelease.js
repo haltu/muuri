@@ -55,7 +55,10 @@ ItemDragRelease.prototype.start = function() {
     this._placeToGrid();
   }
   grid._emit(EVENT_DRAG_RELEASE_START, item);
-  item._layout.start(false);
+
+  // Let's start layout manually _only_ if there is no unfinished layout in
+  // about to finish.
+  if (!grid._nextLayoutData) item._layout.start(false);
 
   return this;
 };
@@ -93,6 +96,10 @@ ItemDragRelease.prototype.stop = function(abort, left, top) {
   if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
 
   return this;
+};
+
+ItemDragRelease.prototype.isJustReleased = function() {
+  return this._isActive && this._isPositioningStarted === false;
 };
 
 /**

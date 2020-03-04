@@ -45,9 +45,7 @@ function ItemVisibility(item) {
   this._finishShow = this._finishShow.bind(this);
   this._finishHide = this._finishHide.bind(this);
 
-  // Force item to be either visible or hidden on init.
   element.style.display = isActive ? 'block' : 'none';
-
   addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
   this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
 }

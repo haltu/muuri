@@ -40,9 +40,6 @@ function ItemAnimate(element) {
  * Start instance's animation. Automatically stops current animation if it is
  * running.
  *
- * @todo Simplify this as it's doing way too much checking/processing in most
- * cases.
- *
  * @public
  * @memberof ItemAnimate.prototype
  * @param {Object} propsFrom

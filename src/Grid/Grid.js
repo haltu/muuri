@@ -633,13 +633,32 @@ Grid.prototype.add = function(elements, options) {
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var items = this._items;
   var needsLayout = false;
+  var fragment;
+  var element;
   var item;
   var i;
 
+  // Collect all the elements that are not child of the grid element into a
+  // document fragment.
+  for (i = 0; i < newItems.length; i++) {
+    element = newItems[i];
+    if (element.parentNode === this._element) {
+      fragment = fragment || document.createDocumentFragment();
+      fragment.appendChild(element);
+    }
+  }
+
+  // If we have a fragment, let's append it to the grid element. We could just
+  // not do this and the `new Item()` instantiation would handle this for us,
+  // but this way we can add the elements into the DOM a bit faster.
+  if (fragment) {
+    this._element.appendChild(fragment);
+  }
+
   // Map provided elements into new grid items.
   for (i = 0; i < newItems.length; i++) {
-    item = new Item(this, newItems[i], opts.isActive);
-    newItems[i] = item;
+    element = newItems[i];
+    item = newItems[i] = new Item(this, element, opts.isActive);
 
     // If the item to be added is active, we need to do a layout. Also, we
     // need to mark the item with the skipNextAnimation flag to make it
@@ -650,6 +669,14 @@ Grid.prototype.add = function(elements, options) {
       needsLayout = true;
       item._layout._skipNextAnimation = true;
     }
+  }
+
+  // Set up the items' initial dimensions and sort data. This needs to be done
+  // in a separate loop to avoid layout thrashing.
+  for (i = 0; i < newItems.length; i++) {
+    item = newItems[i];
+    item._refreshDimensions();
+    item._refreshSortData();
   }
 
   // Add the new items to the items collection to correct index.

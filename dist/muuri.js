@@ -1654,6 +1654,22 @@
   };
 
   /**
+   * Check if two rectangles are overlapping.
+   *
+   * @param {Rectangle} a
+   * @param {Rectangle} b
+   * @returns {Number}
+   */
+  function isOverlapping(a, b) {
+    return !(
+      a.left + a.width <= b.left ||
+      b.left + b.width <= a.left ||
+      a.top + a.height <= b.top ||
+      b.top + b.height <= a.top
+    );
+  }
+
+  /**
    * Calculate intersection area between two rectangle.
    *
    * @param {Rectangle} a
@@ -1661,15 +1677,7 @@
    * @returns {Number}
    */
   function getIntersectionArea(a, b) {
-    if (
-      a.left + a.width <= b.left ||
-      b.left + b.width <= a.left ||
-      a.top + a.height <= b.top ||
-      b.top + b.height <= a.top
-    ) {
-      return 0;
-    }
-
+    if (!isOverlapping(a, b)) return 0;
     var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
     var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
     return width * height;
@@ -4330,9 +4338,6 @@
    * Start instance's animation. Automatically stops current animation if it is
    * running.
    *
-   * @todo Simplify this as it's doing way too much checking/processing in most
-   * cases.
-   *
    * @public
    * @memberof ItemAnimate.prototype
    * @param {Object} propsFrom
@@ -5438,6 +5443,8 @@
    * @memberof ItemLayout.prototype
    */
   ItemLayout.prototype._setupAnimation = function() {
+    // TODO: Keep track of the translate value so we only need to query the DOM
+    // here if the item is animating currently.
     var translate = getTranslate(this._item._element);
     this._currentLeft = translate.x;
     this._currentTop = translate.y;
@@ -5780,9 +5787,7 @@
     this._finishShow = this._finishShow.bind(this);
     this._finishHide = this._finishHide.bind(this);
 
-    // Force item to be either visible or hidden on init.
     element.style.display = isActive ? 'block' : 'none';
-
     addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
     this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
   }
@@ -6098,6 +6103,9 @@
   /**
    * Creates a new Item instance for a Grid instance.
    *
+   * @todo Element should be hidden until it has a computed position! This is a
+   * new problem with async layout.
+   *
    * @class
    * @param {Grid} grid
    * @param {HTMLElement} element
@@ -6112,9 +6120,17 @@
     this._isDestroyed = false;
     this._left = 0;
     this._top = 0;
+    this._width = 0;
+    this._height = 0;
+    this._marginLeft = 0;
+    this._marginRight = 0;
+    this._marginTop = 0;
+    this._marginBottom = 0;
+    this._sortData = null;
 
     // If the provided item element is not a direct child of the grid container
-    // element, append it to the grid container.
+    // element, append it to the grid container. Note, we are indeed reading the
+    // DOM here but it's a property that does not cause reflowing.
     if (element.parentNode !== grid._element) {
       grid._element.appendChild(element);
     }
@@ -6122,7 +6138,9 @@
     // Set item class.
     addClass(element, settings.itemClass);
 
-    // If isActive is not defined, let's try to auto-detect it.
+    // If isActive is not defined, let's try to auto-detect it. Note, we are
+    // indeed reading the DOM here but it's a property that does not cause
+    // reflowing.
     if (typeof isActive !== 'boolean') {
       isActive = getStyle(element, 'display') !== 'none';
     }
@@ -6153,9 +6171,12 @@
     // scenarios correctly.
     this._dragPlaceholder = new ItemDragPlaceholder(this);
 
-    // Set up the initial dimensions and sort data.
-    this._refreshDimensions();
-    this._refreshSortData();
+    // Note! You must call the following methods before you start using the
+    // instance. They are deliberately not called in the end as it would cause
+    // potentially a massive amount of reflows if multiple items were instantiated
+    // in a loop.
+    // this._refreshDimensions();
+    // this._refreshSortData();
   }
 
   /**
@@ -7867,13 +7888,32 @@
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var items = this._items;
     var needsLayout = false;
+    var fragment;
+    var element;
     var item;
     var i;
 
+    // Collect all the elements that are not child of the grid element into a
+    // document fragment.
+    for (i = 0; i < newItems.length; i++) {
+      element = newItems[i];
+      if (element.parentNode === this._element) {
+        fragment = fragment || document.createDocumentFragment();
+        fragment.appendChild(element);
+      }
+    }
+
+    // If we have a fragment, let's append it to the grid element. We could just
+    // not do this and the `new Item()` instantiation would handle this for us,
+    // but this way we can add the elements into the DOM a bit faster.
+    if (fragment) {
+      this._element.appendChild(fragment);
+    }
+
     // Map provided elements into new grid items.
     for (i = 0; i < newItems.length; i++) {
-      item = new Item(this, newItems[i], opts.isActive);
-      newItems[i] = item;
+      element = newItems[i];
+      item = newItems[i] = new Item(this, element, opts.isActive);
 
       // If the item to be added is active, we need to do a layout. Also, we
       // need to mark the item with the skipNextAnimation flag to make it
@@ -7884,6 +7924,14 @@
         needsLayout = true;
         item._layout._skipNextAnimation = true;
       }
+    }
+
+    // Set up the items' initial dimensions and sort data. This needs to be done
+    // in a separate loop to avoid layout thrashing.
+    for (i = 0; i < newItems.length; i++) {
+      item = newItems[i];
+      item._refreshDimensions();
+      item._refreshSortData();
     }
 
     // Add the new items to the items collection to correct index.

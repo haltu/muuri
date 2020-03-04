@@ -22,6 +22,9 @@ import removeClass from '../utils/removeClass';
 /**
  * Creates a new Item instance for a Grid instance.
  *
+ * @todo Element should be hidden until it has a computed position! This is a
+ * new problem with async layout.
+ *
  * @class
  * @param {Grid} grid
  * @param {HTMLElement} element
@@ -36,9 +39,17 @@ function Item(grid, element, isActive) {
   this._isDestroyed = false;
   this._left = 0;
   this._top = 0;
+  this._width = 0;
+  this._height = 0;
+  this._marginLeft = 0;
+  this._marginRight = 0;
+  this._marginTop = 0;
+  this._marginBottom = 0;
+  this._sortData = null;
 
   // If the provided item element is not a direct child of the grid container
-  // element, append it to the grid container.
+  // element, append it to the grid container. Note, we are indeed reading the
+  // DOM here but it's a property that does not cause reflowing.
   if (element.parentNode !== grid._element) {
     grid._element.appendChild(element);
   }
@@ -46,7 +57,9 @@ function Item(grid, element, isActive) {
   // Set item class.
   addClass(element, settings.itemClass);
 
-  // If isActive is not defined, let's try to auto-detect it.
+  // If isActive is not defined, let's try to auto-detect it. Note, we are
+  // indeed reading the DOM here but it's a property that does not cause
+  // reflowing.
   if (typeof isActive !== 'boolean') {
     isActive = getStyle(element, 'display') !== 'none';
   }
@@ -77,9 +90,12 @@ function Item(grid, element, isActive) {
   // scenarios correctly.
   this._dragPlaceholder = new ItemDragPlaceholder(this);
 
-  // Set up the initial dimensions and sort data.
-  this._refreshDimensions();
-  this._refreshSortData();
+  // Note! You must call the following methods before you start using the
+  // instance. They are deliberately not called in the end as it would cause
+  // potentially a massive amount of reflows if multiple items were instantiated
+  // in a loop.
+  // this._refreshDimensions();
+  // this._refreshSortData();
 }
 
 /**

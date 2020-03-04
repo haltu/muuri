@@ -253,6 +253,8 @@ ItemLayout.prototype._finish = function() {
  * @memberof ItemLayout.prototype
  */
 ItemLayout.prototype._setupAnimation = function() {
+  // TODO: Keep track of the translate value so we only need to query the DOM
+  // here if the item is animating currently.
   var translate = getTranslate(this._item._element);
   this._currentLeft = translate.x;
   this._currentTop = translate.y;

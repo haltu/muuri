@@ -9,8 +9,6 @@ import raf from '../utils/raf';
 
 /**
  * A ticker system for handling DOM reads and writes in an efficient way.
- * Contains a read queue and a write queue that are processed on the next
- * animation frame when needed.
  *
  * @class
  */

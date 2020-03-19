@@ -10,8 +10,8 @@ import getIntersectionArea from './getIntersectionArea';
  * Calculate how many percent the intersection area of two rectangles is from
  * the maximum potential intersection area between the rectangles.
  *
- * @param {Rectangle} a
- * @param {Rectangle} b
+ * @param {Object} a
+ * @param {Object} b
  * @returns {Number}
  */
 export default function getIntersectionScore(a, b) {

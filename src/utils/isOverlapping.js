@@ -7,8 +7,8 @@
 /**
  * Check if two rectangles are overlapping.
  *
- * @param {Rectangle} a
- * @param {Rectangle} b
+ * @param {Object} a
+ * @param {Object} b
  * @returns {Number}
  */
 export default function isOverlapping(a, b) {

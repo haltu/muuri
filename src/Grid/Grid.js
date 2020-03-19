@@ -21,7 +21,8 @@ import {
   EVENT_SORT,
   EVENT_MOVE,
   EVENT_DESTROY,
-  GRID_INSTANCES
+  GRID_INSTANCES,
+  ITEM_ELEMENT_MAP
 } from '../constants';
 
 import Emitter from '../Emitter/Emitter';
@@ -66,7 +67,7 @@ var layoutId = 0;
  * @class
  * @param {(HTMLElement|String)} element
  * @param {Object} [options]
- * @param {?(HTMLElement[]|NodeList|String)} [options.items]
+ * @param {?(HTMLElement[]|NodeList|HtmlCollection|String)} [options.items]
  * @param {Number} [options.showDuration=300]
  * @param {String} [options.showEasing="ease"]
  * @param {Object} [options.visibleStyles]
@@ -137,38 +138,28 @@ function Grid(element, options) {
     element = document.querySelector(element);
   }
 
-  // Store element for instance.
-  this._element = element;
-
   // Throw an error if the container element is not body element or does not
   // exist within the body element.
   var isElementInDom = element.getRootNode
     ? element.getRootNode({ composed: true }) === document
     : document.body.contains(element);
   if (!isElementInDom || element === document.documentElement) {
-    throw new Error('Container element must be an existing DOM element');
+    throw new Error('Container element must be an existing DOM element.');
   }
 
   // Create instance settings by merging the options with default options.
-  var settings = (this._settings = mergeSettings(Grid.defaultOptions, options));
-
-  // Sanitize dragSort setting.
+  var settings = mergeSettings(Grid.defaultOptions, options);
+  settings.visibleStyles = normalizeStyles(settings.visibleStyles);
+  settings.hiddenStyles = normalizeStyles(settings.hiddenStyles);
   if (!isFunction(settings.dragSort)) {
     settings.dragSort = !!settings.dragSort;
   }
 
-  // Normalize visible and hidden styles.
-  settings.visibleStyles = normalizeStyles(settings.visibleStyles);
-  settings.hiddenStyles = normalizeStyles(settings.hiddenStyles);
-
-  // Create instance id and store it to the grid instances collection.
   this._id = createUid();
-  GRID_INSTANCES[this._id] = this;
-
-  // Destroyed flag.
+  this._element = element;
+  this._settings = settings;
   this._isDestroyed = false;
-
-  // Layout data.
+  this._items = [];
   this._layout = {
     id: 0,
     items: [],
@@ -180,20 +171,21 @@ function Grid(element, options) {
   };
   this._isLayoutFinished = true;
   this._nextLayoutData = null;
+  this._emitter = new Emitter();
   this._onLayoutDataReceived = this._onLayoutDataReceived.bind(this);
 
-  // Create private Emitter instance.
-  this._emitter = new Emitter();
+  // Store grid instance to the grid instances collection.
+  GRID_INSTANCES[this._id] = this;
 
   // Add container element's class name.
   addClass(element, settings.containerClass);
 
-  // Create initial items.
-  this._items = getInitialGridItems(this, settings.items);
-
   // If layoutOnResize option is a valid number sanitize it and bind the resize
   // handler.
   bindLayoutOnResize(this, settings.layoutOnResize);
+
+  // Add initial items.
+  this.add(getInitialGridElements(element, settings.items), { layout: false });
 
   // Layout on init if necessary.
   if (settings.layoutOnInit) {
@@ -418,14 +410,60 @@ Grid.prototype.getElement = function() {
 };
 
 /**
- * Get all items. Optionally you can provide specific targets (elements and
- * indices). Note that the returned array is not the same object used by the
- * instance so modifying it will not affect instance's items. All items that
- * are not found are omitted from the returned array.
+ * Get instance's item by element or by index. Target can also be an Item
+ * instance in which case the function returns the item if it exists within
+ * related Grid instance. If nothing is found with the provided target, null
+ * is returned.
+ *
+ * @private
+ * @memberof Grid.prototype
+ * @param {(HtmlElement|Number|Item)} [target]
+ * @returns {?Item}
+ */
+Grid.prototype.getItem = function(target) {
+  // If no target is specified or the instance is destroyed, return null.
+  if (this._isDestroyed || (!target && target !== 0)) {
+    return null;
+  }
+
+  // If target is number return the item in that index. If the number is lower
+  // than zero look for the item starting from the end of the items array. For
+  // example -1 for the last item, -2 for the second last item, etc.
+  if (typeof target === NUMBER_TYPE) {
+    return this._items[target > -1 ? target : this._items.length + target] || null;
+  }
+
+  // If the target is an instance of Item return it if it is attached to this
+  // Grid instance, otherwise return null.
+  if (target instanceof Item) {
+    return target._gridId === this._id ? target : null;
+  }
+
+  // In other cases let's assume that the target is an element, so let's try
+  // to find an item that matches the element and return it. If item is not
+  // found return null.
+  if (ITEM_ELEMENT_MAP) {
+    var item = ITEM_ELEMENT_MAP.get(target);
+    return item && item._gridId === this._id ? item : null;
+  } else {
+    for (var i = 0; i < this._items.length; i++) {
+      if (this._items[i]._element === target) {
+        return this._items[i];
+      }
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Get all items. Optionally you can provide specific targets (elements,
+ * indices and item instances). All items that are not found are omitted from
+ * the returned array.
  *
  * @public
  * @memberof Grid.prototype
- * @param {GridMultiItemQuery} [targets]
+ * @param {(HtmlElement|Number|Item|Array)} [targets]
  * @returns {Item[]}
  */
 Grid.prototype.getItems = function(targets) {
@@ -440,11 +478,11 @@ Grid.prototype.getItems = function(targets) {
 
   if (Array.isArray(targets) || isNodeList(targets)) {
     for (i = 0; i < targets.length; i++) {
-      item = this._getItem(targets[i]);
+      item = this.getItem(targets[i]);
       if (item) items.push(item);
     }
   } else {
-    item = this._getItem(targets);
+    item = this.getItem(targets);
     if (item) items.push(item);
   }
 
@@ -452,42 +490,72 @@ Grid.prototype.getItems = function(targets) {
 };
 
 /**
- * Update the cached dimensions of the instance's items.
+ * Update the cached dimensions of the instance's items. By default all the
+ * items are refreshed, but you can also provide an array of target items as the
+ * first argument if you want to refresh specific items. Note that all hidden
+ * items are not refreshed by default since their "display" property is "none"
+ * and their dimensions are therefore not readable from the DOM. However, if you
+ * do want to force refresh hidden item dimensions too you can provide `true``
+ * as the second argument, which makes the elements temporarily visible while
+ * their dimensions are being read.
  *
  * @public
  * @memberof Grid.prototype
- * @param {GridMultiItemQuery} [items]
+ * @param {Item[]} [items]
+ * @param {Boolean} [force=false]
  * @returns {Grid}
  */
-Grid.prototype.refreshItems = function(items) {
+Grid.prototype.refreshItems = function(items, force) {
   if (this._isDestroyed) return this;
 
-  var targets = this.getItems(items);
-  var i;
+  var targets = items || this._items;
+  var i, item, style, hiddenItemStyles;
+
+  if (force === true) {
+    hiddenItemStyles = [];
+    for (i = 0; i < targets.length; i++) {
+      item = targets[i];
+      if (!item.isVisible() && !item.isHiding()) {
+        style = item.getElement().style;
+        style.visibility = 'hidden';
+        style.display = 'block';
+        hiddenItemStyles.push(style);
+      }
+    }
+  }
 
   for (i = 0; i < targets.length; i++) {
-    targets[i]._refreshDimensions();
+    targets[i]._refreshDimensions(force);
+  }
+
+  if (force === true) {
+    for (i = 0; i < hiddenItemStyles.length; i++) {
+      style = hiddenItemStyles[i];
+      style.visibility = '';
+      style.display = 'none';
+    }
+    hiddenItemStyles.length = 0;
   }
 
   return this;
 };
 
 /**
- * Update the sort data of the instance's items.
+ * Update the sort data of the instance's items. By default all the items are
+ * refreshed, but you can also provide an array of target items if you want to
+ * refresh specific items.
  *
  * @public
  * @memberof Grid.prototype
- * @param {GridMultiItemQuery} [items]
+ * @param {Item[]} [items]
  * @returns {Grid}
  */
 Grid.prototype.refreshSortData = function(items) {
   if (this._isDestroyed) return this;
 
-  var targetItems = this.getItems(items);
-  var i;
-
-  for (i = 0; i < targetItems.length; i++) {
-    targetItems[i]._refreshSortData();
+  var targets = items || this._items;
+  for (var i = 0; i < targets.length; i++) {
+    targets[i]._refreshSortData();
   }
 
   return this;
@@ -535,7 +603,7 @@ Grid.prototype.synchronize = function() {
  * @public
  * @memberof Grid.prototype
  * @param {Boolean} [instant=false]
- * @param {LayoutCallback} [onFinish]
+ * @param {Function} [onFinish]
  * @returns {Grid}
  */
 Grid.prototype.layout = function(instant, onFinish) {
@@ -619,8 +687,8 @@ Grid.prototype.layout = function(instant, onFinish) {
  * @param {(HTMLElement|HTMLElement[])} elements
  * @param {Object} [options]
  * @param {Number} [options.index=-1]
- * @param {Boolean} [options.isActive]
- * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+ * @param {Boolean} [options.active]
+ * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Item[]}
  */
 Grid.prototype.add = function(elements, options) {
@@ -642,7 +710,7 @@ Grid.prototype.add = function(elements, options) {
   // document fragment.
   for (i = 0; i < newItems.length; i++) {
     element = newItems[i];
-    if (element.parentNode === this._element) {
+    if (element.parentNode !== this._element) {
       fragment = fragment || document.createDocumentFragment();
       fragment.appendChild(element);
     }
@@ -658,7 +726,7 @@ Grid.prototype.add = function(elements, options) {
   // Map provided elements into new grid items.
   for (i = 0; i < newItems.length; i++) {
     element = newItems[i];
-    item = newItems[i] = new Item(this, element, opts.isActive);
+    item = newItems[i] = new Item(this, element, opts.active);
 
     // If the item to be added is active, we need to do a layout. Also, we
     // need to mark the item with the skipNextAnimation flag to make it
@@ -700,30 +768,39 @@ Grid.prototype.add = function(elements, options) {
  *
  * @public
  * @memberof Grid.prototype
- * @param {GridMultiItemQuery} items
+ * @param {Item[]} items
  * @param {Object} [options]
  * @param {Boolean} [options.removeElements=false]
- * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+ * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Item[]}
  */
 Grid.prototype.remove = function(items, options) {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed || !items.length) return [];
 
   var opts = options || {};
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var needsLayout = false;
   var allItems = this.getItems();
-  var targetItems = this.getItems(items);
+  var targetItems = [];
   var indices = [];
+  var index;
   var item;
   var i;
 
   // Remove the individual items.
-  for (i = 0; i < targetItems.length; i++) {
-    item = targetItems[i];
-    indices.push(allItems.indexOf(item));
+  for (i = 0; i < items.length; i++) {
+    item = items[i];
+    if (item._isDestroyed) continue;
+
+    index = this._items.indexOf(item);
+    if (index === -1) continue;
+
     if (item._isActive) needsLayout = true;
+
+    targetItems.push(item);
+    indices.push(allItems.indexOf(item));
     item._destroy(opts.removeElements);
+    this._items.splice(index, 1);
   }
 
   // Emit remove event.
@@ -740,38 +817,42 @@ Grid.prototype.remove = function(items, options) {
 };
 
 /**
- * Show instance items.
+ * Show specific instance items.
  *
  * @public
  * @memberof Grid.prototype
- * @param {GridMultiItemQuery} items
+ * @param {Item[]} items
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
+ * @param {Boolean} [options.syncWithLayout=true]
  * @param {ShowCallback} [options.onFinish]
- * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+ * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Grid}
  */
 Grid.prototype.show = function(items, options) {
-  if (this._isDestroyed) return this;
-  this._setItemsVisibility(items, true, options);
+  if (!this._isDestroyed && items.length) {
+    this._setItemsVisibility(items, true, options);
+  }
   return this;
 };
 
 /**
- * Hide instance items.
+ * Hide specific instance items.
  *
  * @public
  * @memberof Grid.prototype
- * @param {GridMultiItemQuery} items
+ * @param {Item[]} items
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
+ * @param {Boolean} [options.syncWithLayout=true]
  * @param {HideCallback} [options.onFinish]
- * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+ * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Grid}
  */
 Grid.prototype.hide = function(items, options) {
-  if (this._isDestroyed) return this;
-  this._setItemsVisibility(items, false, options);
+  if (!this._isDestroyed && items.length) {
+    this._setItemsVisibility(items, false, options);
+  }
   return this;
 };
 
@@ -790,8 +871,9 @@ Grid.prototype.hide = function(items, options) {
  * @param {(Function|String)} predicate
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
+ * @param {Boolean} [options.syncWithLayout=true]
  * @param {FilterCallback} [options.onFinish]
- * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+ * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Grid}
  */
 Grid.prototype.filter = function(predicate, options) {
@@ -803,6 +885,7 @@ Grid.prototype.filter = function(predicate, options) {
   var isPredicateFn = isFunction(predicate);
   var opts = options || {};
   var isInstant = opts.instant === true;
+  var syncWithLayout = opts.syncWithLayout;
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var onFinish = isFunction(opts.onFinish) ? opts.onFinish : null;
   var tryFinishCounter = -1;
@@ -833,6 +916,7 @@ Grid.prototype.filter = function(predicate, options) {
   if (itemsToShow.length) {
     this.show(itemsToShow, {
       instant: isInstant,
+      syncWithLayout: syncWithLayout,
       onFinish: tryFinish,
       layout: false
     });
@@ -844,6 +928,7 @@ Grid.prototype.filter = function(predicate, options) {
   if (itemsToHide.length) {
     this.hide(itemsToHide, {
       instant: isInstant,
+      syncWithLayout: syncWithLayout,
       onFinish: tryFinish,
       layout: false
     });
@@ -882,7 +967,7 @@ Grid.prototype.filter = function(predicate, options) {
  * @param {(Function|Item[]|String|String[])} comparer
  * @param {Object} [options]
  * @param {Boolean} [options.descending=false]
- * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+ * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Grid}
  */
 Grid.prototype.sort = (function() {
@@ -890,29 +975,6 @@ Grid.prototype.sort = (function() {
   var isDescending;
   var origItems;
   var indexMap;
-
-  function parseCriteria(data) {
-    return data
-      .trim()
-      .split(' ')
-      .map(function(val) {
-        return val.split(':');
-      });
-  }
-
-  function getIndexMap(items) {
-    var result = {};
-    for (var i = 0; i < items.length; i++) {
-      result[items[i]._id] = i;
-    }
-    return result;
-  }
-
-  function compareIndices(itemA, itemB) {
-    var indexA = indexMap[itemA._id];
-    var indexB = indexMap[itemB._id];
-    return isDescending ? indexB - indexA : indexA - indexB;
-  }
 
   function defaultComparer(a, b) {
     var result = 0;
@@ -945,24 +1007,23 @@ Grid.prototype.sort = (function() {
     }
 
     // If values are equal let's compare the item indices to make sure we
-    // have a stable sort.
+    // have a stable sort. Note that this is not necessary in evergreen browsers
+    // because Array.sort() is nowadays stable. However, in order to guarantee
+    // same results in older browsers we need this.
     if (!result) {
-      if (!indexMap) indexMap = getIndexMap(origItems);
-      result = compareIndices(a, b);
+      if (!indexMap) indexMap = createIndexMap(origItems);
+      result = isDescending ? compareIndexMap(indexMap, b, a) : compareIndexMap(indexMap, a, b);
     }
     return result;
   }
 
   function customComparer(a, b) {
-    var result = sortComparer(a, b);
-    // If descending let's invert the result value.
-    if (isDescending && result) result = -result;
-    // If we have a valid result (not zero) let's return it right away.
-    if (result) return result;
-    // If result is zero let's compare the item indices to make sure we have a
-    // stable sort.
-    if (!indexMap) indexMap = getIndexMap(origItems);
-    return compareIndices(a, b);
+    var result = isDescending ? -sortComparer(a, b) : sortComparer(a, b);
+    if (!result) {
+      if (!indexMap) indexMap = createIndexMap(origItems);
+      result = isDescending ? compareIndexMap(indexMap, b, a) : compareIndexMap(indexMap, a, b);
+    }
+    return result;
   }
 
   return function(comparer, options) {
@@ -971,41 +1032,43 @@ Grid.prototype.sort = (function() {
     var items = this._items;
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
-    var i;
 
     // Setup parent scope data.
-    sortComparer = comparer;
     isDescending = !!opts.descending;
     origItems = items.slice(0);
     indexMap = null;
 
     // If function is provided do a native array sort.
-    if (isFunction(sortComparer)) {
+    if (isFunction(comparer)) {
+      sortComparer = comparer;
       items.sort(customComparer);
     }
     // Otherwise if we got a string, let's sort by the sort data as provided in
     // the instance's options.
-    else if (typeof sortComparer === STRING_TYPE) {
-      sortComparer = parseCriteria(comparer);
+    else if (typeof comparer === STRING_TYPE) {
+      sortComparer = comparer
+        .trim()
+        .split(' ')
+        .filter(function(val) {
+          return val;
+        })
+        .map(function(val) {
+          return val.split(':');
+        });
       items.sort(defaultComparer);
     }
     // Otherwise if we got an array, let's assume it's a presorted array of the
-    // items and order the items based on it.
-    else if (Array.isArray(sortComparer)) {
-      if (sortComparer.length !== items.length) {
-        throw new Error('Sort reference items do not match with grid items.');
-      }
-      for (i = 0; i < items.length; i++) {
-        if (sortComparer.indexOf(items[i]) < 0) {
-          throw new Error('Sort reference items do not match with grid items.');
-        }
-        items[i] = sortComparer[i];
-      }
-      if (isDescending) items.reverse();
+    // items and order the items based on it. Here we blindly trust that the
+    // presorted array consists of the same item instances as the current
+    // `gird._items` array.
+    else if (Array.isArray(comparer)) {
+      items.length = 0;
+      Array.prototype.push.apply(items, comparer);
     }
-    // Otherwise let's just skip it, nothing we can do here.
+    // Otherwise let's throw an error.
     else {
-      return this;
+      sortComparer = isDescending = origItems = indexMap = null;
+      throw new Error('Invalid comparer argument provided.');
     }
 
     // Emit sort event.
@@ -1018,6 +1081,9 @@ Grid.prototype.sort = (function() {
       this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
 
+    // Reset data (to avoid mem leaks).
+    sortComparer = isDescending = origItems = indexMap = null;
+
     return this;
   };
 })();
@@ -1027,14 +1093,14 @@ Grid.prototype.sort = (function() {
  *
  * @public
  * @memberof Grid.prototype
- * @param {GridSingleItemQuery} item
- * @param {GridSingleItemQuery} position
+ * @param {(HtmlElement|Number|Item)} item
+ * @param {(HtmlElement|Number|Item)} position
  * @param {Object} [options]
  * @param {String} [options.action="move"]
  *   - Accepts either "move" or "swap".
  *   - "move" moves the item in place of the other item.
  *   - "swap" swaps the position of the items.
- * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+ * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Grid}
  */
 Grid.prototype.move = function(item, position, options) {
@@ -1045,8 +1111,8 @@ Grid.prototype.move = function(item, position, options) {
   var layout = opts.layout ? opts.layout : opts.layout === undefined;
   var isSwap = opts.action === ACTION_SWAP;
   var action = isSwap ? ACTION_SWAP : ACTION_MOVE;
-  var fromItem = this._getItem(item);
-  var toItem = this._getItem(position);
+  var fromItem = this.getItem(item);
+  var toItem = this.getItem(position);
   var fromIndex;
   var toIndex;
 
@@ -1087,20 +1153,20 @@ Grid.prototype.move = function(item, position, options) {
  *
  * @public
  * @memberof Grid.prototype
- * @param {GridSingleItemQuery} item
+ * @param {(HtmlElement|Number|Item)} item
  * @param {Grid} grid
- * @param {GridSingleItemQuery} position
+ * @param {(HtmlElement|Number|Item)} position
  * @param {Object} [options]
  * @param {HTMLElement} [options.appendTo=document.body]
- * @param {(Boolean|LayoutCallback|String)} [options.layoutSender=true]
- * @param {(Boolean|LayoutCallback|String)} [options.layoutReceiver=true]
+ * @param {(Boolean|Function|String)} [options.layoutSender=true]
+ * @param {(Boolean|Function|String)} [options.layoutReceiver=true]
  * @returns {Grid}
  */
 Grid.prototype.send = function(item, grid, position, options) {
   if (this._isDestroyed || grid._isDestroyed || this === grid) return this;
 
   // Make sure we have a valid target item.
-  item = this._getItem(item);
+  item = this.getItem(item);
   if (!item) return this;
 
   var opts = options || {};
@@ -1155,6 +1221,7 @@ Grid.prototype.destroy = function(removeElements) {
   for (i = 0; i < items.length; i++) {
     items[i]._destroy(removeElements);
   }
+  this._items.length = 0;
 
   // Restore container.
   removeClass(container, this._settings.containerClass);
@@ -1178,48 +1245,6 @@ Grid.prototype.destroy = function(removeElements) {
  * Private prototype methods
  * *************************
  */
-
-/**
- * Get instance's item by element or by index. Target can also be an Item
- * instance in which case the function returns the item if it exists within
- * related Grid instance. If nothing is found with the provided target, null
- * is returned.
- *
- * @private
- * @memberof Grid.prototype
- * @param {GridSingleItemQuery} [target]
- * @returns {?Item}
- */
-Grid.prototype._getItem = function(target) {
-  // If no target is specified or the instance is destroyed, return null.
-  if (this._isDestroyed || (!target && target !== 0)) {
-    return null;
-  }
-
-  // If target is number return the item in that index. If the number is lower
-  // than zero look for the item starting from the end of the items array. For
-  // example -1 for the last item, -2 for the second last item, etc.
-  if (typeof target === NUMBER_TYPE) {
-    return this._items[target > -1 ? target : this._items.length + target] || null;
-  }
-
-  // If the target is an instance of Item return it if it is attached to this
-  // Grid instance, otherwise return null.
-  if (target instanceof Item) {
-    return target._gridId === this._id ? target : null;
-  }
-
-  // In other cases let's assume that the target is an element, so let's try
-  // to find an item that matches the element and return it. If item is not
-  // found return null.
-  for (var i = 0; i < this._items.length; i++) {
-    if (this._items[i]._element === target) {
-      return this._items[i];
-    }
-  }
-
-  return null;
-};
 
 /**
  * Emit a grid event.
@@ -1291,6 +1316,7 @@ Grid.prototype._updateBorders = function(left, right, top, bottom) {
 Grid.prototype._refreshDimensions = function() {
   this._updateBoundingRect();
   this._updateBorders(1, 1, 1, 1);
+  this._boxSizing = getStyle(this._element, 'box-sizing');
 };
 
 /**
@@ -1304,36 +1330,20 @@ Grid.prototype._refreshDimensions = function() {
  *
  * @private
  * @memberof Grid.prototype
- * @param {LayoutData} layout
+ * @param {Object} layout
  */
 Grid.prototype._updateGridElementSize = function(layout) {
   var element = this._element;
-  var isBorderBox = false;
-
-  if (
-    (layout.setHeight && typeof layout.height === NUMBER_TYPE) ||
-    (layout.setWidth && typeof layout.width === NUMBER_TYPE)
-  ) {
-    // TODO: Cache this value with refreshDimensions.
-    isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
-  }
+  var isBorderBox = this._boxSizing === 'border-box';
 
   if (layout.setHeight) {
-    if (typeof layout.height === NUMBER_TYPE) {
-      element.style.height =
-        (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
-    } else {
-      element.style.height = layout.height;
-    }
+    element.style.height =
+      (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
   }
 
   if (layout.setWidth) {
-    if (typeof layout.width === NUMBER_TYPE) {
-      element.style.width =
-        (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
-    } else {
-      element.style.width = layout.width;
-    }
+    element.style.width =
+      (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
   }
 };
 
@@ -1448,16 +1458,17 @@ Grid.prototype._onLayoutDataReceived = (function() {
  *
  * @private
  * @memberof Grid.prototype
- * @param {GridMultiItemQuery} items
+ * @param {Item[]} items
  * @param {Boolean} toVisible
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
- * @param {(ShowCallback|HideCallback)} [options.onFinish]
- * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+ * @param {Boolean} [options.syncWithLayout=true]
+ * @param {Function} [options.onFinish]
+ * @param {(Boolean|Function|String)} [options.layout=true]
  */
 Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
   var grid = this;
-  var targetItems = this.getItems(items);
+  var targetItems = items.slice(0);
   var opts = options || {};
   var isInstant = opts.instant === true;
   var callback = opts.onFinish;
@@ -1478,12 +1489,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
     return;
   }
 
-  // Emit showStart/hideStart event.
-  if (this._hasListeners(startEvent)) {
-    this._emit(startEvent, targetItems.slice(0));
-  }
-
-  // Show/hide items.
+  // Prepare the items.
   for (i = 0; i < targetItems.length; i++) {
     item = targetItems[i];
 
@@ -1495,9 +1501,7 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
 
     // If inactive item is shown we also need to do a little hack to make the
     // item not animate it's next positioning (layout).
-    if (toVisible && !item._isActive) {
-      item._layout._skipNextAnimation = true;
-    }
+    item._layout._skipNextAnimation = !!(toVisible && !item._isActive);
 
     // If a hidden item is being shown we need to refresh the item's
     // dimensions.
@@ -1505,25 +1509,50 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
       hiddenItems.push(item);
     }
 
-    // Show/hide the item.
-    item._visibility[method](isInstant, function(interrupted, item) {
-      // If the current item's animation was not interrupted add it to the
-      // completedItems array.
-      if (!interrupted) completedItems.push(item);
-
-      // If all items have finished their animations call the callback
-      // and emit showEnd/hideEnd event.
-      if (--counter < 1) {
-        if (isFunction(callback)) callback(completedItems.slice(0));
-        if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
-      }
-    });
+    // Set item active state based on visibility.
+    item._isActive = toVisible;
   }
 
-  // Refresh hidden items.
-  if (hiddenItems.length) this.refreshItems(hiddenItems);
+  // Force refresh the dimensions of all hidden items.
+  if (hiddenItems.length) {
+    this.refreshItems(hiddenItems, true);
+    hiddenItems.length = 0;
+  }
 
-  // Layout if needed.
+  // Show the items in sync with the next layout.
+  function triggerVisibilityChange() {
+    if (needsLayout && opts.syncWithLayout !== false) {
+      grid.off(EVENT_LAYOUT_START, triggerVisibilityChange);
+    }
+
+    if (grid._hasListeners(startEvent)) {
+      grid._emit(startEvent, targetItems.slice(0));
+    }
+
+    for (i = 0; i < targetItems.length; i++) {
+      targetItems[i]._visibility[method](isInstant, function(interrupted, item) {
+        // If the current item's animation was not interrupted add it to the
+        // completedItems array.
+        if (!interrupted) completedItems.push(item);
+
+        // If all items have finished their animations call the callback
+        // and emit showEnd/hideEnd event.
+        if (--counter < 1) {
+          if (isFunction(callback)) callback(completedItems.slice(0));
+          if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
+        }
+      });
+    }
+  }
+
+  // Trigger the visibility change, either async with layout or instantly.
+  if (needsLayout && opts.syncWithLayout !== false) {
+    this.on(EVENT_LAYOUT_START, triggerVisibilityChange);
+  } else {
+    triggerVisibilityChange();
+  }
+
+  // Trigger layout if needed.
   if (needsLayout && layout) {
     this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
   }
@@ -1625,32 +1654,35 @@ function mergeObjects(target, source) {
 /**
  * Collect and return initial items for grid.
  *
- * @param {Grid} grid
- * @param {?(HTMLElement[]|NodeList|String)} items
- * @returns {HTMLElement[]}
+ * @param {HTMLElement} gridElement
+ * @param {?(HTMLElement[]|NodeList|HtmlCollection|String)} elements
+ * @returns {(HTMLElement[]|NodeList|HtmlCollection)}
  */
-function getInitialGridItems(grid, items) {
-  var result = [];
-  var wildCardSelector = '*';
-  var i, elem;
+function getInitialGridElements(gridElement, elements) {
+  // If we have a wildcard selector let's return all the children.
+  if (elements === '*') {
+    return gridElement.children;
+  }
 
-  // If we have a selector.
-  if (typeof items === STRING_TYPE) {
-    for (i = 0; i < grid._element.children.length; i++) {
-      elem = grid._element.children[i];
-      if (items === wildCardSelector || elementMatches(elem, items)) {
-        result.push(new Item(grid, elem));
+  // If we have some more specific selector, let's filter the elements.
+  if (typeof elements === STRING_TYPE) {
+    var result = [];
+    var children = gridElement.children;
+    for (var i = 0; i < children.length; i++) {
+      if (elementMatches(children[i], elements)) {
+        result.push(children[i]);
       }
     }
-  }
-  // If we have an array of elements or a node list.
-  else if (Array.isArray(items) || isNodeList(items)) {
-    for (i = 0; i < items.length; i++) {
-      result.push(new Item(grid, items[i]));
-    }
+    return result;
   }
 
-  return result;
+  // If we have an array of elements or a node list.
+  if (Array.isArray(elements) || isNodeList(elements)) {
+    return elements;
+  }
+
+  // Otherwise just return an empty array.
+  return [];
 }
 
 /**
@@ -1707,6 +1739,34 @@ function normalizeStyles(styles) {
   }
 
   return normalized;
+}
+
+/**
+ * Create index map from items.
+ *
+ * @param {Item[]} items
+ * @returns {Object}
+ */
+function createIndexMap(items) {
+  var result = {};
+  for (var i = 0; i < items.length; i++) {
+    result[items[i]._id] = i;
+  }
+  return result;
+}
+
+/**
+ * Sort comparer function for items' index map.
+ *
+ * @param {Object} indexMap
+ * @param {Item} itemA
+ * @param {Item} itemB
+ * @returns {Number}
+ */
+function compareIndexMap(indexMap, itemA, itemB) {
+  var indexA = indexMap[itemA._id];
+  var indexB = indexMap[itemB._id];
+  return indexA - indexB;
 }
 
 export default Grid;

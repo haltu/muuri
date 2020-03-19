@@ -68,7 +68,6 @@ function ItemLayout(item) {
  * @memberof ItemLayout.prototype
  * @param {Boolean} [instant=false]
  * @param {Function} [onFinish]
- * @returns {ItemLayout}
  */
 ItemLayout.prototype.start = function(instant, onFinish) {
   if (this._isDestroyed) return;
@@ -107,7 +106,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
     setStyles(item._element, this._targetStyles);
     this._animation.stop(false);
     this._finish();
-    return this;
+    return;
   }
 
   // Kick off animation to be started in the next tick.
@@ -116,8 +115,6 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   this._animOptions.duration = animDuration;
   this._isInterrupted = isPositioning;
   addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
-
-  return this;
 };
 
 /**
@@ -127,10 +124,9 @@ ItemLayout.prototype.start = function(instant, onFinish) {
  * @memberof ItemLayout.prototype
  * @param {Boolean} [processCallbackQueue=false]
  * @param {Object} [targetStyles]
- * @returns {ItemLayout}
  */
 ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
-  if (this._isDestroyed || !this._isActive) return this;
+  if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
 
@@ -149,8 +145,6 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
 
   // Process callback queue if needed.
   if (processCallbackQueue) this._queue.process(true, item);
-
-  return this;
 };
 
 /**
@@ -158,10 +152,9 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
  *
  * @public
  * @memberof ItemLayout.prototype
- * @returns {ItemLayout}
  */
 ItemLayout.prototype.destroy = function() {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
   this.stop(true, {});
   this._queue.destroy();
   this._animation.destroy();
@@ -171,7 +164,6 @@ ItemLayout.prototype.destroy = function() {
   this._targetStyles = null;
   this._animOptions = null;
   this._isDestroyed = true;
-  return this;
 };
 
 /**

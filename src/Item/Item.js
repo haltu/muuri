@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { GRID_INSTANCES } from '../constants';
+import { GRID_INSTANCES, ITEM_ELEMENT_MAP } from '../constants';
 
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';
@@ -22,9 +22,6 @@ import removeClass from '../utils/removeClass';
 /**
  * Creates a new Item instance for a Grid instance.
  *
- * @todo Element should be hidden until it has a computed position! This is a
- * new problem with async layout.
- *
  * @class
  * @param {Grid} grid
  * @param {HTMLElement} element
@@ -32,6 +29,15 @@ import removeClass from '../utils/removeClass';
  */
 function Item(grid, element, isActive) {
   var settings = grid._settings;
+
+  // Store item/element pair to a map (for faster item querying by element).
+  if (ITEM_ELEMENT_MAP) {
+    if (ITEM_ELEMENT_MAP.has(element)) {
+      throw new Error('You can only create one Muuri Item per element!');
+    } else {
+      ITEM_ELEMENT_MAP.set(element, this);
+    }
+  }
 
   this._id = createUid();
   this._gridId = grid._id;
@@ -279,9 +285,11 @@ Item.prototype.isDestroyed = function() {
  *
  * @private
  * @memberof Item.prototype
+ * @param {Boolean} [force=false]
  */
-Item.prototype._refreshDimensions = function() {
-  if (this._isDestroyed || this._visibility._isHidden) return;
+Item.prototype._refreshDimensions = function(force) {
+  if (this._isDestroyed) return;
+  if (force !== true && this._visibility._isHidden) return;
 
   var element = this._element;
   var dragPlaceholder = this._dragPlaceholder;
@@ -332,7 +340,6 @@ Item.prototype._destroy = function(removeElement) {
   var element = this._element;
   var grid = this.getGrid();
   var settings = grid._settings;
-  var index = grid._items.indexOf(this);
 
   // Destroy handlers.
   this._dragPlaceholder.destroy();
@@ -345,11 +352,11 @@ Item.prototype._destroy = function(removeElement) {
   // Remove item class.
   removeClass(element, settings.itemClass);
 
-  // Remove item from Grid instance if it still exists there.
-  if (index > -1) grid._items.splice(index, 1);
-
   // Remove element from DOM.
   if (removeElement) element.parentNode.removeChild(element);
+
+  // Remove item/element pair from map.
+  if (ITEM_ELEMENT_MAP) ITEM_ELEMENT_MAP.delete(element);
 
   // Reset state.
   this._isActive = false;

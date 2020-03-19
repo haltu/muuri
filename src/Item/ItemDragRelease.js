@@ -40,10 +40,9 @@ function ItemDragRelease(item) {
  *
  * @public
  * @memberof ItemDragRelease.prototype
- * @returns {ItemDragRelease}
  */
 ItemDragRelease.prototype.start = function() {
-  if (this._isDestroyed || this._isActive) return this;
+  if (this._isDestroyed || this._isActive) return;
 
   var item = this._item;
   var grid = item.getGrid();
@@ -59,8 +58,6 @@ ItemDragRelease.prototype.start = function() {
   // Let's start layout manually _only_ if there is no unfinished layout in
   // about to finish.
   if (!grid._nextLayoutData) item._layout.start(false);
-
-  return this;
 };
 
 /**
@@ -77,10 +74,9 @@ ItemDragRelease.prototype.start = function() {
  *  - The element's current translateX value (optional).
  * @param {Number} [top]
  *  - The element's current translateY value (optional).
- * @returns {ItemDragRelease}
  */
 ItemDragRelease.prototype.stop = function(abort, left, top) {
-  if (this._isDestroyed || !this._isActive) return this;
+  if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
   var grid = item.getGrid();
@@ -94,8 +90,6 @@ ItemDragRelease.prototype.stop = function(abort, left, top) {
   this._reset();
 
   if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
-
-  return this;
 };
 
 ItemDragRelease.prototype.isJustReleased = function() {
@@ -107,14 +101,12 @@ ItemDragRelease.prototype.isJustReleased = function() {
  *
  * @public
  * @memberof ItemDragRelease.prototype
- * @returns {ItemDragRelease}
  */
 ItemDragRelease.prototype.destroy = function() {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
   this.stop(true);
   this._item = null;
   this._isDestroyed = true;
-  return this;
 };
 
 /**

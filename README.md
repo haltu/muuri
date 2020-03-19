@@ -324,10 +324,10 @@ var gridB = new Muuri('.grid-b', {
 
 ### items &nbsp;
 
-The initial item elements, which should be children of the container element. All elements that are not children of the container will be appended to the container. You can provide an *array* of elements, a [*node list*](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
+The initial item elements, which should be children of the container element. All elements that are not children of the container will be appended to the container. You can provide an array of elements, [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), [HTMLCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
 
 * Default value: `'*'`.
-* Accepted types: array (of elements), [node list](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), string, null.
+* Accepted types: array (of elements), [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), [HTMLCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection), string, null.
 
 ```javascript
 // Use specific items.
@@ -440,7 +440,9 @@ var grid = new Muuri(elem, {
 
 ### layout &nbsp;
 
-Define how the items will be laid out. Muuri ships with a configurable layout algorithm which is used by default. It's pretty flexible and suitable for most common situations (lists, grids and even bin packed grids). If that does not fit the bill you can always provide your own layout algorithm (it's not as scary as it sounds).
+Define how the items will be positioned. Muuri ships with a configurable layout algorithm which is used by default. It's pretty flexible and suitable for most common situations (lists, grids and even bin packed grids). If that does not fit the bill you can always provide your own layout algorithm (it's not as scary as it sounds).
+
+Muuri supports calculating the layout both synchronously and asynchronously. By default (if you use the default layout algorithm) Muuri will use two shared web workers to compute the layouts asynchronously. In browsers that do not support web workers Muuri will fallback to synchronous layout calculations.
 
 * Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
 * Accepted types: function, object.
@@ -449,7 +451,7 @@ Define how the items will be laid out. Muuri ships with a configurable layout al
 
 * **fillGaps** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
-  * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid. By default this option is `false` which basically means that the following condition will be always true when calculating the layout (assuming `alignRight` and `alignBottom` are `false`): `nextItem.top > prevItem.top || (nextItem.top === prevItem.top && nextItem.left > prevItem.left)`. This also means that the items will be visually in order.
+  * When `true` the algorithm goes through every item in order and places each item to the first available free slot, even if the slot happens to be visually *before* the previous element's slot. Practically this means that the items might not end up visually in order, but there will be less gaps in the grid.
 * **horizontal** &nbsp;&mdash;&nbsp; *boolean*
   * Default value: `false`.
   *  When `true` the grid works in landscape mode (grid expands to the right). Use for horizontally scrolling sites. When `false` the grid works in "portrait" mode and expands downwards.
@@ -480,77 +482,92 @@ var grid = new Muuri(elem, {
 
 When you provide a custom layout function Muuri calls it whenever calculation of layout is necessary. Before calling the layout function Muuri always calculates the current width and height of the grid's container element and also creates an array of all the items that are part of the layout currently (all _active_ items).
 
-* `customLayout( items, gridWidth, gridHeight )`
+The layout function always receives the following arguments:
+
+  * **layoutId** &nbsp;&mdash;&nbsp; *number*
+    * Automatically generated unique id for the layout which is used to keep track of the layout requests and to make sure that the correct layout gets applied at correct time.
   * **items** &nbsp;&mdash;&nbsp; *array*
-    * Array of `Muuri.Item` instances.
-  * **gridWidth** &nbsp;&mdash;&nbsp; *number*
-    * Current width of the grid's container element.
-  * **gridHeight** &nbsp;&mdash;&nbsp; *number*
-    * Current height of the grid's container element.
+    * Array of `Muuri.Item` instances. A new array instance is created for each layout so there's no harm in manipulating this if you need to.
+  * **containerWidth** &nbsp;&mdash;&nbsp; *number*
+    * Current width (in pixels) of the grid's container element.
+  * **containerHeight** &nbsp;&mdash;&nbsp; *number*
+    * Current height (in pixels) of the grid's container element.
+  * **callback** &nbsp;&mdash;&nbsp; *function*
+    * When the layout is calculated and ready to be applied you need to call this callback function and provide a _layout object_ as it's argument. Note that if another layout is requesteded while the current layout is still being calculated (asynchronously) this layout will be ignored.
 
-The layout function's job is using this data, which is provided to the layout function as arguments (as detailed above), and calculating position for each item in the array.
+If the layout function's calculations are asynchronous you can optionally return a cancel function, which Muuri will call if there is a new layout request before the current layout has finished it's calculations.
 
-The layout function should _always_ return an object with following properties:
+The layout object, which needs to be provided to the callback, must include the following properties.
 
+* **id** &nbsp;&mdash;&nbsp; *number*
+  * The layout's unique id (must be the `layoutId` provided by Muuri).
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * Array of the active item instances that are part of the layout. You can pass the same `items` array here which is provided by Muuri (in case you haven't mutated it). This array items must be identical to the array of items provided by Muuri.
 * **slots** &nbsp;&mdash;&nbsp; *array*
   * Array of the item positions (numbers). E.g. if the items were `[a, b]` this should be `[aLeft, aTop, bLeft, bTop]`. You have to calculate the `left` and `top` position for each item in the provided _items_ array in the same order the items are provided.
 * **width** &nbsp;&mdash;&nbsp; *number*
-  * The width of the grid.
+  * The width of the layout (in pixels).
 * **height** &nbsp;&mdash;&nbsp; *number*
-  * The height of the grid.
+  * The height of the layout (in pixels).
 * **setWidth** &nbsp;&mdash;&nbsp; *boolean*
-  * Should Muuri set the provided _width_ as the grid element's width?
+  * Should Muuri set the layout's width as the grid element's width?
 * **setHeight** &nbsp;&mdash;&nbsp; *boolean*
-  * Should Muuri set the provided _height_ as the grid element's height?
+  * Should Muuri set the layout's height as the grid element's height?
 
 ```javascript
 // Build your own layout algorithm.
 var grid = new Muuri(elem, {
-  layout: function (items, gridWidth, gridHeight) {
-    // The layout data object. Muuri will read this data and position the items
-    // based on it.
+  layout: function (layoutId, items, containerWidth, containerHeight, callback) {
     var layout = {
-      // The layout's item slots (left/top coordinates).
+      id: layoutId,
+      items: items,
       slots: [],
-      // The layout's total width.
       width: 0,
-      // The layout's total height.
       height: 0,
-      // Should Muuri set the grid's width after layout?
       setWidth: true,
-      // Should Muuri set the grid's height after layout?
       setHeight: true
     };
 
-    // Calculate the slots.
-    var item;
-    var m;
-    var x = 0;
-    var y = 0;
-    var w = 0;
-    var h = 0;
-    for (var i = 0; i < items.length; i++) {
-      item = items[i];
-      x += w;
-      y += h;
-      m = item.getMargin();
-      w = item.getWidth() + m.left + m.right;
-      h = item.getHeight() + m.top + m.bottom;
-      layout.slots.push(x, y);
-    }
+    // Calculate the slots asynchronously. Note that the timeout is here only
+    // as an example and does not help at all in the calculations. You should
+    // offload the calculations to web workers if you want real benefits.
+    // Also note that doing asynchronous layout is completely optional and you
+    // can call the callback function synchronously also.
+    var timerId = window.setTimeout(function () {
+      var item, m, x = 0, y = 0, w = 0, h = 0;
 
-    // Calculate the layout's total width and height. 
-    layout.width = x + w;
-    layout.height = y + h;
+      for (var i = 0; i < items.length; i++) {
+        item = items[i];
+        x += w;
+        y += h;
+        m = item.getMargin();
+        w = item.getWidth() + m.left + m.right;
+        h = item.getHeight() + m.top + m.bottom;
+        layout.slots.push(x, y);
+      }
 
-    return layout;
+      // Calculate the layout's total width and height. 
+      layout.width = x + w;
+      layout.height = y + h;
+
+      // When the layout is fully computed let's call the callback function and
+      // provide the layout object as it's argument.
+      callback(layout);
+    }, 200);
+
+    // If you are doing an async layout you _can_ (if you want to) return a
+    // function that cancels this specific layout calculations if it's still
+    // processing/queueing when the next layout is requested.
+    return function () {
+      window.clearTimeout(timerId);
+    };
   }
 });
 ```
 
 ### layoutOnResize &nbsp;
 
-Should Muuri automatically trigger `layout` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically lay out the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are laid out after each window resize event.
+Should Muuri automatically trigger `layout` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically position the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are positioned after each window resize event.
 
 * Default value: `150`.
 * Accepted types: boolean, number.
@@ -1304,6 +1321,7 @@ var grid = new Muuri(elem, {
 ### Grid methods
 
 * [grid.getElement()](#gridgetelement)
+* [grid.getItem( target )](#gridgetitem-target-)
 * [grid.getItems( [targets] )](#gridgetitems-targets-)
 * [grid.refreshItems( [items] )](#gridrefreshitems-items-)
 * [grid.refreshSortData( [items] )](#gridrefreshsortdata-items-)
@@ -1329,6 +1347,26 @@ Get the grid element.
 
 ```javascript
 var elem = grid.getElement();
+```
+
+### grid.getItem( target )
+
+Get a single grid item by element or by index. Target can also be a `Muuri.Item` instance in which case the function returns the item if it exists within related `Muuri` instance. If nothing is found with the provided target, `null` is returned.
+
+**Parameters**
+
+* **target** &nbsp;&mdash;&nbsp; *element / number / Muuri.Item*
+
+**Returns** &nbsp;&mdash;&nbsp; *Muuri.Item / null*
+
+Returns the queried item or `null` if no item is found.
+
+```javascript
+// Get first item in grid.
+var itemA = grid.getItem(0);
+
+// Get item by element reference.
+var itemB = grid.getItem(someElement);
 ```
 
 ### grid.getItems( [targets] )
@@ -1473,6 +1511,10 @@ Add new items by providing the elements you wish to add to the grid and optional
 
 * **elements** &nbsp;&mdash;&nbsp; *array / element*
   * An array of DOM elements.
+* **options.active** &nbsp;&mdash;&nbsp; *boolean / undefined*
+  * By default (when this option is `undefined`) Muuri will automatically detect from each element's `display` style if the item should be active (visible) or inactive (hidden) on init. If the element's `display` style is `none` then the item will be inactive on init. However, you can also provide a boolean here to force the item to be active (`true`) or inactive (`false`) on init.
+  * Default value: `undefined`.
+  * Optional.
 * **options.index** &nbsp;&mdash;&nbsp; *number*
   * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `grid.synchronize()` method to arrange the DOM elements to the same order as the items.
   * Default value: `-1`.
@@ -1503,8 +1545,8 @@ Remove items from the grid.
 
 **Parameters**
 
-* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of item instances/elements/indices.
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * An array of item instances.
 * **options.removeElements** &nbsp;&mdash;&nbsp; *boolean*
   * Should the associated DOM element be removed from the DOM?
   * Default value: `false`.
@@ -1520,13 +1562,13 @@ Returns the destroyed items.
 
 ```javascript
 // Remove the first item, but keep the element in the DOM.
-grid.remove(0);
+grid.remove(grid.getItems(0));
 
 // Remove items and the associated elements.
-grid.remove([elemA, elemB], {removeElements: true});
+grid.remove([itemA, itemB], {removeElements: true});
 
 // Skip the layout.
-grid.remove([elemA, elemB], {layout: false});
+grid.remove([itemA, itemB], {layout: false});
 ```
 
 ### grid.show( items, [options] )
@@ -1535,11 +1577,15 @@ Show the targeted items.
 
 **Parameters**
 
-* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of item instances/elements/indices.
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * An array of item instances.
 * **options.instant** &nbsp;&mdash;&nbsp; *boolean*
   * Should the items be shown instantly without any possible animation?
   * Default value: `false`.
+  * Optional.
+* **options.syncWithLayout** &nbsp;&mdash;&nbsp; *boolean*
+  * Should we wait for the next layout's calculations (which are potentially async) to finish before starting the show animations? By default this option is enabled so that the show animations are triggered in sync with the layout animations. If that's not needed set this to `false` and the show animations will begin immediately.
+  * Default value: `true`.
   * Optional.
 * **options.onFinish** &nbsp;&mdash;&nbsp; *function*
   * A callback function that is called after the items are shown.
@@ -1555,13 +1601,13 @@ Returns the grid instance.
 
 ```javascript
 // Show items with animation (if any).
-grid.show([elemA, elemB]);
+grid.show([itemA, itemB]);
 
 // Show items instantly without animations.
-grid.show([elemA, elemB], {instant: true});
+grid.show([itemA, itemB], {instant: true});
 
 // Show items with callback (and with animations if any).
-grid.show([elemA, elemB], {onFinish: function (items) {
+grid.show([itemA, itemB], {onFinish: function (items) {
   console.log('items shown!');
 }});
 ```
@@ -1572,11 +1618,15 @@ Hide the targeted items.
 
 **Parameters**
 
-* **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number*
-  * An array of item instances/elements/indices.
+* **items** &nbsp;&mdash;&nbsp; *array*
+  * An array of item instances.
 * **options.instant** &nbsp;&mdash;&nbsp; *boolean*
   * Should the items be hidden instantly without any possible animation?
   * Default value: `false`.
+  * Optional.
+* **options.syncWithLayout** &nbsp;&mdash;&nbsp; *boolean*
+  * Should we wait for the next layout's calculations (which are potentially async) to finish before starting the hide animations? By default this option is enabled so that the hide animations are triggered in sync with the layout animations. If that's not needed set this to `false` and the hide animations will begin immediately.
+  * Default value: `true`.
   * Optional.
 * **options.onFinish** &nbsp;&mdash;&nbsp; *function*
   * A callback function that is called after the items are hidden.
@@ -1592,14 +1642,14 @@ Returns the grid instance.
 
 ```javascript
 // Hide items with animation.
-grid.hide([elemA, elemB]);
+grid.hide([itemA, itemB]);
 
 // Hide items instantly without animations.
-grid.hide([elemA, elemB], {instant: true});
+grid.hide([itemA, itemB], {instant: true});
 
 // Hide items and call the callback function after
 // all items are hidden.
-grid.hide([elemA, elemB], {onFinish: function (items) {
+grid.hide([itemA, itemB], {onFinish: function (items) {
   console.log('items hidden!');
 }});
 ```
@@ -1615,6 +1665,10 @@ Filter items. Expects at least one argument, a predicate, which should be either
 * **options.instant** &nbsp;&mdash;&nbsp; *boolean*
   * Should the items be shown/hidden instantly without any possible animation?
   * Default value: `false`.
+  * Optional.
+* **options.syncWithLayout** &nbsp;&mdash;&nbsp; *boolean*
+  * Should we wait for the next layout's calculations (which are potentially async) to finish before starting the visibility animations? By default this option is enabled so that the visibility animations are triggered in sync with the layout animations. If that's not needed set this to `false` and the visibility animations will begin immediately.
+  * Default value: `true`.
   * Optional.
 * **options.onFinish** &nbsp;&mdash;&nbsp; *function*
   * An optional callback function that is called after all the items are shown/hidden.
@@ -1648,9 +1702,9 @@ Sort items. There are three ways to sort the items. The first is simply by provi
 **Parameters**
 
 * **comparer** &nbsp;&mdash;&nbsp; *array / function / string*
-  * Provide a comparer function, sort data keys as a string (separated with space) or a presorted array of items. It is recommended to use the sort data feature, because it allows you to cache the sort data and make the sorting faster.
+  * Provide a comparer function, sort data keys as a string (separated with space) or a pre-sorted array of items. When you provide a pre-sorted array of items you _must_ make sure that it contains _exactly_ the same item instances as exists currently in `grid._items` (retrievable safely via `grid.getItems()`), only change the order of items. Muuri does not validate the array of items you provide due to performance reasons.
 * **options.descending** &nbsp;&mdash;&nbsp; *boolean*
-  * By default the items are sorted in ascending order. If you want to sort them in descending order set this to `true`.
+  * By default the items are sorted in ascending order. If you want to sort them in descending order set this to `true`. Note that this option has no effect when you provide a pre-sorted array of items.
   * Default value: `false`.
   * Optional.
 * **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
@@ -1671,7 +1725,7 @@ grid.sort(function (itemA, itemB) {
 });
 
 // Sort items with a presorted array of items.
-grid.sort(presortedItems);
+grid.sort(grid.getItems().reverse());
 
 // Sort items using the sort data keys (ascending).
 grid.sort('foo bar');

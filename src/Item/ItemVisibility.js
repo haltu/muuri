@@ -62,10 +62,9 @@ function ItemVisibility(item) {
  * @memberof ItemVisibility.prototype
  * @param {Boolean} instant
  * @param {Function} [onFinish]
- * @returns {ItemVisibility}
  */
 ItemVisibility.prototype.show = function(instant, onFinish) {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
 
   var item = this._item;
   var element = item._element;
@@ -77,14 +76,14 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
   // If item is visible call the callback and be done with it.
   if (!this._isShowing && !this._isHidden) {
     callback && callback(false, item);
-    return this;
+    return;
   }
 
   // If item is showing and does not need to be shown instantly, let's just
   // push callback to the callback queue and be done with it.
   if (this._isShowing && !instant) {
     callback && queue.add(callback);
-    return this;
+    return;
   }
 
   // If the item is hiding or hidden process the current visibility callback
@@ -106,8 +105,6 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
 
   // Finally let's start show animation.
   this._startAnimation(true, instant, this._finishShow);
-
-  return this;
 };
 
 /**
@@ -117,10 +114,9 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
  * @memberof ItemVisibility.prototype
  * @param {Boolean} instant
  * @param {Function} [onFinish]
- * @returns {ItemVisibility}
  */
 ItemVisibility.prototype.hide = function(instant, onFinish) {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
 
   var item = this._item;
   var element = item._element;
@@ -132,14 +128,14 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
   // If item is already hidden call the callback and be done with it.
   if (!this._isHiding && this._isHidden) {
     callback && callback(false, item);
-    return this;
+    return;
   }
 
   // If item is hiding and does not need to be hidden instantly, let's just
   // push callback to the callback queue and be done with it.
   if (this._isHiding && !instant) {
     callback && queue.add(callback);
-    return this;
+    return;
   }
 
   // If the item is showing or visible process the current visibility callback
@@ -160,8 +156,6 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
 
   // Finally let's start hide animation.
   this._startAnimation(false, instant, this._finishHide);
-
-  return this;
 };
 
 /**
@@ -173,20 +167,15 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
  * @public
  * @memberof ItemVisibility.prototype
  * @param {Object} styles
- * @returns {ItemVisibility}
  */
 ItemVisibility.prototype.setStyles = function(styles) {
   var childElement = this._childElement;
   var currentStyleProps = this._currentStyleProps;
-
   this._removeCurrentStyles();
-
   for (var prop in styles) {
     currentStyleProps.push(prop);
     childElement.style[prop] = styles[prop];
   }
-
-  return this;
 };
 
 /**
@@ -194,10 +183,9 @@ ItemVisibility.prototype.setStyles = function(styles) {
  *
  * @public
  * @memberof ItemVisibility.prototype
- * @returns {ItemVisibility}
  */
 ItemVisibility.prototype.destroy = function() {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
 
   var item = this._item;
   var element = item._element;
@@ -220,8 +208,6 @@ ItemVisibility.prototype.destroy = function() {
   // Reset state.
   this._isHiding = this._isShowing = false;
   this._isDestroyed = this._isHidden = true;
-
-  return this;
 };
 
 /**

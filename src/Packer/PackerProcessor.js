@@ -277,7 +277,7 @@ PackerProcessor.prototype.getNextSlot = (function() {
  * @param {Number} top
  * @param {Number} width
  * @param {Number} height
- * @returns {RectId}
+ * @returns {Number}
  */
 PackerProcessor.prototype.addRect = function(left, top, width, height) {
   var rectId = ++this.rectId;
@@ -296,7 +296,7 @@ PackerProcessor.prototype.addRect = function(left, top, width, height) {
  * provide a target object where the rectangle data will be written in. By
  * default an internal object is reused as a target object.
  *
- * @param {RectId} id
+ * @param {Number} id
  * @param {Object} [target]
  * @returns {Object}
  */
@@ -315,9 +315,9 @@ PackerProcessor.prototype.getRect = function(id, target) {
 /**
  * Punch a hole into a rectangle and split the remaining area into smaller
  * rectangles (4 at max).
- * @param {Rectangle} rect
- * @param {Rectangle} hole
- * @returns {RectId[]}
+ * @param {Object} rect
+ * @param {Object} hole
+ * @returns {Number[]}
  */
 PackerProcessor.prototype.splitRect = (function() {
   var results = [];
@@ -373,8 +373,8 @@ PackerProcessor.prototype.splitRect = (function() {
 /**
  * Check if two rectangles overlap.
  *
- * @param {Rectangle} a
- * @param {Rectangle} b
+ * @param {Object} a
+ * @param {Object} b
  * @returns {Boolean}
  */
 PackerProcessor.prototype.doRectsOverlap = function(a, b) {
@@ -389,8 +389,8 @@ PackerProcessor.prototype.doRectsOverlap = function(a, b) {
 /**
  * Check if a rectangle is fully within another rectangle.
  *
- * @param {Rectangle} a
- * @param {Rectangle} b
+ * @param {Object} a
+ * @param {Object} b
  * @returns {Boolean}
  */
 PackerProcessor.prototype.isRectWithinRect = function(a, b) {
@@ -407,8 +407,8 @@ PackerProcessor.prototype.isRectWithinRect = function(a, b) {
  * within another rectangle in the array. Resetting in this case means that
  * the rectangle id value is replaced with zero.
  *
- * @param {RectId[]} rectIds
- * @returns {RectId[]}
+ * @param {Number[]} rectIds
+ * @returns {Number[]}
  */
 PackerProcessor.prototype.purgeRects = (function() {
   var rectA = {};
@@ -437,8 +437,8 @@ PackerProcessor.prototype.purgeRects = (function() {
 /**
  * Sort rectangles with top-left gravity.
  *
- * @param {RectId} aId
- * @param {RectId} bId
+ * @param {Number} aId
+ * @param {Number} bId
  * @returns {Number}
  */
 PackerProcessor.prototype.sortRectsTopLeft = (function() {
@@ -458,8 +458,8 @@ PackerProcessor.prototype.sortRectsTopLeft = (function() {
 /**
  * Sort rectangles with left-top gravity.
  *
- * @param {RectId} aId
- * @param {RectId} bId
+ * @param {Number} aId
+ * @param {Number} bId
  * @returns {Number}
  */
 PackerProcessor.prototype.sortRectsLeftTop = (function() {

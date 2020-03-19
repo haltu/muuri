@@ -20,6 +20,8 @@ import transformProp from '../utils/transformProp';
 /**
  * The migrate process handler constructor.
  *
+ * @todo This method does way too much layout thrashing! Let's see if we can
+ * optimize it a bit.
  * @class
  * @param {Item} item
  */
@@ -44,12 +46,11 @@ function ItemMigrate(item) {
  * @public
  * @memberof ItemMigrate.prototype
  * @param {Grid} targetGrid
- * @param {GridSingleItemQuery} position
+ * @param {(HTMLElement|Number|Item)} position
  * @param {HTMLElement} [container]
- * @returns {ItemMigrate}
  */
 ItemMigrate.prototype.start = function(targetGrid, position, container) {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
 
   var item = this._item;
   var element = item._element;
@@ -75,8 +76,8 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   if (typeof position === 'number') {
     targetIndex = normalizeArrayIndex(targetItems, position, 1);
   } else {
-    targetItem = targetGrid._getItem(position);
-    if (!targetItem) return this;
+    targetItem = targetGrid.getItem(position);
+    if (!targetItem) return;
     targetIndex = targetItems.indexOf(targetItem);
   }
 
@@ -219,8 +220,6 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
       toIndex: targetIndex
     });
   }
-
-  return this;
 };
 
 /**
@@ -235,10 +234,9 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
  *  - The element's current translateX value (optional).
  * @param {Number} [top]
  *  - The element's current translateY value (optional).
- * @returns {ItemMigrate}
  */
 ItemMigrate.prototype.stop = function(abort, left, top) {
-  if (this._isDestroyed || !this._isActive) return this;
+  if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
   var element = item._element;
@@ -266,8 +264,6 @@ ItemMigrate.prototype.stop = function(abort, left, top) {
   this._container = null;
   this._containerDiffX = 0;
   this._containerDiffY = 0;
-
-  return this;
 };
 
 /**
@@ -275,14 +271,12 @@ ItemMigrate.prototype.stop = function(abort, left, top) {
  *
  * @public
  * @memberof ItemMigrate.prototype
- * @returns {ItemMigrate}
  */
 ItemMigrate.prototype.destroy = function() {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
   this.stop(true);
   this._item = null;
   this._isDestroyed = true;
-  return this;
 };
 
 export default ItemMigrate;

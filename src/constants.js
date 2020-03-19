@@ -5,6 +5,7 @@
  */
 
 export var GRID_INSTANCES = {};
+export var ITEM_ELEMENT_MAP = typeof Map === 'function' ? new Map() : null;
 
 export var ACTION_SWAP = 'swap';
 export var ACTION_MOVE = 'move';

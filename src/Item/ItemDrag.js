@@ -148,7 +148,7 @@ function ItemDrag(item) {
  * @public
  * @memberof ItemDrag
  * @param {Item} item
- * @param {DraggerEvent} event
+ * @param {Object} event
  * @param {Object} [options]
  *   - An optional options object which can be used to pass the predicate
  *     it's options manually. By default the predicate retrieves the options
@@ -222,7 +222,7 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
  * @param {Object} [options]
  * @param {Number} [options.threshold=50]
  * @param {String} [options.action='move']
- * @returns {?DragSortCommand}
+ * @returns {?Object}
  *   - Returns `null` if no valid index was found. Otherwise returns drag sort
  *     command.
  */
@@ -444,16 +444,15 @@ ItemDrag.defaultSortPredicate = (function() {
  *
  * @public
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype.stop = function() {
-  if (!this._isActive) return this;
+  if (!this._isActive) return;
 
   // If the item is being dropped into another grid, finish it up and return
   // immediately.
   if (this._isMigrating) {
     this._finishMigration();
-    return this;
+    return;
   }
 
   // Cancel queued ticks.
@@ -484,8 +483,6 @@ ItemDrag.prototype.stop = function() {
 
   // Reset drag data.
   this._reset();
-
-  return this;
 };
 
 /**
@@ -513,15 +510,13 @@ ItemDrag.prototype.sort = function(force) {
  *
  * @public
  * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
 ItemDrag.prototype.destroy = function() {
-  if (this._isDestroyed) return this;
+  if (this._isDestroyed) return;
   this.stop();
   this._dragger.destroy();
   AUTO_SCROLLER.removeItem(this._item);
   this._isDestroyed = true;
-  return this;
 };
 
 /**
@@ -654,7 +649,7 @@ ItemDrag.prototype._unbindScrollListeners = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  * @returns {Boolean}
  */
 ItemDrag.prototype._resolveStartPredicate = function(event) {
@@ -669,7 +664,7 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
 ItemDrag.prototype._forceResolveStartPredicate = function(event) {
   if (!this._isDestroyed && this._startPredicateState === START_PREDICATE_PENDING) {
@@ -683,7 +678,7 @@ ItemDrag.prototype._forceResolveStartPredicate = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
 ItemDrag.prototype._finishStartPredicate = function(event) {
   var element = this._item._element;
@@ -1113,7 +1108,7 @@ ItemDrag.prototype._finishMigration = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
 ItemDrag.prototype._preStartCheck = function(event) {
   // Let's activate drag start predicate state.
@@ -1145,7 +1140,7 @@ ItemDrag.prototype._preStartCheck = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
 ItemDrag.prototype._preEndCheck = function(event) {
   var isResolved = this._startPredicateState === START_PREDICATE_RESOLVED;
@@ -1171,7 +1166,7 @@ ItemDrag.prototype._preEndCheck = function(event) {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
 ItemDrag.prototype._onStart = function(event) {
   var item = this._item;
@@ -1294,7 +1289,7 @@ ItemDrag.prototype._applyStart = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
 ItemDrag.prototype._onMove = function(event) {
   var item = this._item;
@@ -1367,7 +1362,7 @@ ItemDrag.prototype._applyMove = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {Event} event
+ * @param {Object} event
  */
 ItemDrag.prototype._onScroll = function(event) {
   var item = this._item;
@@ -1443,7 +1438,7 @@ ItemDrag.prototype._applyScroll = function() {
  *
  * @private
  * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
 ItemDrag.prototype._onEnd = function(event) {
   var item = this._item;

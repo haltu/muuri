@@ -26,6 +26,7 @@
 }(this, (function () { 'use strict';
 
   var GRID_INSTANCES = {};
+  var ITEM_ELEMENT_MAP = typeof Map === 'function' ? new Map() : null;
 
   var ACTION_SWAP = 'swap';
   var ACTION_MOVE = 'move';
@@ -336,27 +337,32 @@
 
   // Playing it safe here, test all potential prefixes capitalized and lowercase.
   var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
+  var cache = {};
 
   /**
    * Get prefixed CSS property name when given a non-prefixed CSS property name.
    * Returns null if the property is not supported at all.
    *
-   * @param {Object} styleObject
+   * @param {CSSStyleDeclaration} style
    * @param {String} prop
-   * @returns {?String}
+   * @returns {String}
    */
-  function getPrefixedPropName(styleObject, prop) {
+  function getPrefixedPropName(style, prop) {
+    var prefixedProp = cache[prop] || '';
+    if (prefixedProp) return prefixedProp;
+
     var camelProp = prop[0].toUpperCase() + prop.slice(1);
     var i = 0;
-    var prefixedProp;
-
     while (i < vendorPrefixes.length) {
       prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : prop;
-      if (prefixedProp in styleObject) return prefixedProp;
+      if (prefixedProp in style) {
+        cache[prop] = prefixedProp;
+        return prefixedProp;
+      }
       ++i;
     }
 
-    return null;
+    return '';
   }
 
   /**
@@ -626,7 +632,7 @@
    * @memberof Dragger.prototype
    * @param {String} type
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
-   * @returns {DraggerEvent}
+   * @returns {Object}
    */
   Dragger.prototype._createEvent = function(type, e) {
     var touch = this._getTrackedTouch(e);
@@ -1656,8 +1662,8 @@
   /**
    * Check if two rectangles are overlapping.
    *
-   * @param {Rectangle} a
-   * @param {Rectangle} b
+   * @param {Object} a
+   * @param {Object} b
    * @returns {Number}
    */
   function isOverlapping(a, b) {
@@ -1672,8 +1678,8 @@
   /**
    * Calculate intersection area between two rectangle.
    *
-   * @param {Rectangle} a
-   * @param {Rectangle} b
+   * @param {Object} a
+   * @param {Object} b
    * @returns {Number}
    */
   function getIntersectionArea(a, b) {
@@ -1687,8 +1693,8 @@
    * Calculate how many percent the intersection area of two rectangles is from
    * the maximum potential intersection area between the rectangles.
    *
-   * @param {Rectangle} a
-   * @param {Rectangle} b
+   * @param {Object} a
+   * @param {Object} b
    * @returns {Number}
    */
   function getIntersectionScore(a, b) {
@@ -2858,7 +2864,7 @@
    * @public
    * @memberof ItemDrag
    * @param {Item} item
-   * @param {DraggerEvent} event
+   * @param {Object} event
    * @param {Object} [options]
    *   - An optional options object which can be used to pass the predicate
    *     it's options manually. By default the predicate retrieves the options
@@ -2932,7 +2938,7 @@
    * @param {Object} [options]
    * @param {Number} [options.threshold=50]
    * @param {String} [options.action='move']
-   * @returns {?DragSortCommand}
+   * @returns {?Object}
    *   - Returns `null` if no valid index was found. Otherwise returns drag sort
    *     command.
    */
@@ -3154,16 +3160,15 @@
    *
    * @public
    * @memberof ItemDrag.prototype
-   * @returns {ItemDrag}
    */
   ItemDrag.prototype.stop = function() {
-    if (!this._isActive) return this;
+    if (!this._isActive) return;
 
     // If the item is being dropped into another grid, finish it up and return
     // immediately.
     if (this._isMigrating) {
       this._finishMigration();
-      return this;
+      return;
     }
 
     // Cancel queued ticks.
@@ -3194,8 +3199,6 @@
 
     // Reset drag data.
     this._reset();
-
-    return this;
   };
 
   /**
@@ -3223,15 +3226,13 @@
    *
    * @public
    * @memberof ItemDrag.prototype
-   * @returns {ItemDrag}
    */
   ItemDrag.prototype.destroy = function() {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed) return;
     this.stop();
     this._dragger.destroy();
     AUTO_SCROLLER.removeItem(this._item);
     this._isDestroyed = true;
-    return this;
   };
 
   /**
@@ -3364,7 +3365,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Object} event
    * @returns {Boolean}
    */
   ItemDrag.prototype._resolveStartPredicate = function(event) {
@@ -3379,7 +3380,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Object} event
    */
   ItemDrag.prototype._forceResolveStartPredicate = function(event) {
     if (!this._isDestroyed && this._startPredicateState === START_PREDICATE_PENDING) {
@@ -3393,7 +3394,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Object} event
    */
   ItemDrag.prototype._finishStartPredicate = function(event) {
     var element = this._item._element;
@@ -3823,7 +3824,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Object} event
    */
   ItemDrag.prototype._preStartCheck = function(event) {
     // Let's activate drag start predicate state.
@@ -3855,7 +3856,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Object} event
    */
   ItemDrag.prototype._preEndCheck = function(event) {
     var isResolved = this._startPredicateState === START_PREDICATE_RESOLVED;
@@ -3881,7 +3882,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Object} event
    */
   ItemDrag.prototype._onStart = function(event) {
     var item = this._item;
@@ -4004,7 +4005,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Object} event
    */
   ItemDrag.prototype._onMove = function(event) {
     var item = this._item;
@@ -4077,7 +4078,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {Event} event
+   * @param {Object} event
    */
   ItemDrag.prototype._onScroll = function(event) {
     var item = this._item;
@@ -4153,7 +4154,7 @@
    *
    * @private
    * @memberof ItemDrag.prototype
-   * @param {DraggerEvent} event
+   * @param {Object} event
    */
   ItemDrag.prototype._onEnd = function(event) {
     var item = this._item;
@@ -4252,7 +4253,7 @@
   }
 
   var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
-  var cache = {};
+  var cache$1 = {};
 
   /**
    * Remove any potential vendor prefixes from a property name.
@@ -4261,7 +4262,7 @@
    * @returns {String}
    */
   function getUnprefixedPropName(prop) {
-    var result = cache[prop];
+    var result = cache$1[prop];
     if (result) return result;
 
     result = prop.replace(unprefixRegEx, '');
@@ -4270,7 +4271,7 @@
       result = result[0].toLowerCase() + result.slice(1);
     }
 
-    cache[prop] = result;
+    cache$1[prop] = result;
 
     return result;
   }
@@ -4974,10 +4975,9 @@
    *
    * @public
    * @memberof ItemDragRelease.prototype
-   * @returns {ItemDragRelease}
    */
   ItemDragRelease.prototype.start = function() {
-    if (this._isDestroyed || this._isActive) return this;
+    if (this._isDestroyed || this._isActive) return;
 
     var item = this._item;
     var grid = item.getGrid();
@@ -4993,8 +4993,6 @@
     // Let's start layout manually _only_ if there is no unfinished layout in
     // about to finish.
     if (!grid._nextLayoutData) item._layout.start(false);
-
-    return this;
   };
 
   /**
@@ -5011,10 +5009,9 @@
    *  - The element's current translateX value (optional).
    * @param {Number} [top]
    *  - The element's current translateY value (optional).
-   * @returns {ItemDragRelease}
    */
   ItemDragRelease.prototype.stop = function(abort, left, top) {
-    if (this._isDestroyed || !this._isActive) return this;
+    if (this._isDestroyed || !this._isActive) return;
 
     var item = this._item;
     var grid = item.getGrid();
@@ -5028,8 +5025,6 @@
     this._reset();
 
     if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
-
-    return this;
   };
 
   ItemDragRelease.prototype.isJustReleased = function() {
@@ -5041,14 +5036,12 @@
    *
    * @public
    * @memberof ItemDragRelease.prototype
-   * @returns {ItemDragRelease}
    */
   ItemDragRelease.prototype.destroy = function() {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed) return;
     this.stop(true);
     this._item = null;
     this._isDestroyed = true;
-    return this;
   };
 
   /**
@@ -5258,7 +5251,6 @@
    * @memberof ItemLayout.prototype
    * @param {Boolean} [instant=false]
    * @param {Function} [onFinish]
-   * @returns {ItemLayout}
    */
   ItemLayout.prototype.start = function(instant, onFinish) {
     if (this._isDestroyed) return;
@@ -5297,7 +5289,7 @@
       setStyles(item._element, this._targetStyles);
       this._animation.stop(false);
       this._finish();
-      return this;
+      return;
     }
 
     // Kick off animation to be started in the next tick.
@@ -5306,8 +5298,6 @@
     this._animOptions.duration = animDuration;
     this._isInterrupted = isPositioning;
     addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
-
-    return this;
   };
 
   /**
@@ -5317,10 +5307,9 @@
    * @memberof ItemLayout.prototype
    * @param {Boolean} [processCallbackQueue=false]
    * @param {Object} [targetStyles]
-   * @returns {ItemLayout}
    */
   ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
-    if (this._isDestroyed || !this._isActive) return this;
+    if (this._isDestroyed || !this._isActive) return;
 
     var item = this._item;
 
@@ -5339,8 +5328,6 @@
 
     // Process callback queue if needed.
     if (processCallbackQueue) this._queue.process(true, item);
-
-    return this;
   };
 
   /**
@@ -5348,10 +5335,9 @@
    *
    * @public
    * @memberof ItemLayout.prototype
-   * @returns {ItemLayout}
    */
   ItemLayout.prototype.destroy = function() {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed) return;
     this.stop(true, {});
     this._queue.destroy();
     this._animation.destroy();
@@ -5361,7 +5347,6 @@
     this._targetStyles = null;
     this._animOptions = null;
     this._isDestroyed = true;
-    return this;
   };
 
   /**
@@ -5494,6 +5479,8 @@
   /**
    * The migrate process handler constructor.
    *
+   * @todo This method does way too much layout thrashing! Let's see if we can
+   * optimize it a bit.
    * @class
    * @param {Item} item
    */
@@ -5518,12 +5505,11 @@
    * @public
    * @memberof ItemMigrate.prototype
    * @param {Grid} targetGrid
-   * @param {GridSingleItemQuery} position
+   * @param {(HTMLElement|Number|Item)} position
    * @param {HTMLElement} [container]
-   * @returns {ItemMigrate}
    */
   ItemMigrate.prototype.start = function(targetGrid, position, container) {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed) return;
 
     var item = this._item;
     var element = item._element;
@@ -5549,8 +5535,8 @@
     if (typeof position === 'number') {
       targetIndex = normalizeArrayIndex(targetItems, position, 1);
     } else {
-      targetItem = targetGrid._getItem(position);
-      if (!targetItem) return this;
+      targetItem = targetGrid.getItem(position);
+      if (!targetItem) return;
       targetIndex = targetItems.indexOf(targetItem);
     }
 
@@ -5693,8 +5679,6 @@
         toIndex: targetIndex
       });
     }
-
-    return this;
   };
 
   /**
@@ -5709,10 +5693,9 @@
    *  - The element's current translateX value (optional).
    * @param {Number} [top]
    *  - The element's current translateY value (optional).
-   * @returns {ItemMigrate}
    */
   ItemMigrate.prototype.stop = function(abort, left, top) {
-    if (this._isDestroyed || !this._isActive) return this;
+    if (this._isDestroyed || !this._isActive) return;
 
     var item = this._item;
     var element = item._element;
@@ -5740,8 +5723,6 @@
     this._container = null;
     this._containerDiffX = 0;
     this._containerDiffY = 0;
-
-    return this;
   };
 
   /**
@@ -5749,14 +5730,12 @@
    *
    * @public
    * @memberof ItemMigrate.prototype
-   * @returns {ItemMigrate}
    */
   ItemMigrate.prototype.destroy = function() {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed) return;
     this.stop(true);
     this._item = null;
     this._isDestroyed = true;
-    return this;
   };
 
   /**
@@ -5804,10 +5783,9 @@
    * @memberof ItemVisibility.prototype
    * @param {Boolean} instant
    * @param {Function} [onFinish]
-   * @returns {ItemVisibility}
    */
   ItemVisibility.prototype.show = function(instant, onFinish) {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed) return;
 
     var item = this._item;
     var element = item._element;
@@ -5819,14 +5797,14 @@
     // If item is visible call the callback and be done with it.
     if (!this._isShowing && !this._isHidden) {
       callback && callback(false, item);
-      return this;
+      return;
     }
 
     // If item is showing and does not need to be shown instantly, let's just
     // push callback to the callback queue and be done with it.
     if (this._isShowing && !instant) {
       callback && queue.add(callback);
-      return this;
+      return;
     }
 
     // If the item is hiding or hidden process the current visibility callback
@@ -5848,8 +5826,6 @@
 
     // Finally let's start show animation.
     this._startAnimation(true, instant, this._finishShow);
-
-    return this;
   };
 
   /**
@@ -5859,10 +5835,9 @@
    * @memberof ItemVisibility.prototype
    * @param {Boolean} instant
    * @param {Function} [onFinish]
-   * @returns {ItemVisibility}
    */
   ItemVisibility.prototype.hide = function(instant, onFinish) {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed) return;
 
     var item = this._item;
     var element = item._element;
@@ -5874,14 +5849,14 @@
     // If item is already hidden call the callback and be done with it.
     if (!this._isHiding && this._isHidden) {
       callback && callback(false, item);
-      return this;
+      return;
     }
 
     // If item is hiding and does not need to be hidden instantly, let's just
     // push callback to the callback queue and be done with it.
     if (this._isHiding && !instant) {
       callback && queue.add(callback);
-      return this;
+      return;
     }
 
     // If the item is showing or visible process the current visibility callback
@@ -5902,8 +5877,6 @@
 
     // Finally let's start hide animation.
     this._startAnimation(false, instant, this._finishHide);
-
-    return this;
   };
 
   /**
@@ -5915,20 +5888,15 @@
    * @public
    * @memberof ItemVisibility.prototype
    * @param {Object} styles
-   * @returns {ItemVisibility}
    */
   ItemVisibility.prototype.setStyles = function(styles) {
     var childElement = this._childElement;
     var currentStyleProps = this._currentStyleProps;
-
     this._removeCurrentStyles();
-
     for (var prop in styles) {
       currentStyleProps.push(prop);
       childElement.style[prop] = styles[prop];
     }
-
-    return this;
   };
 
   /**
@@ -5936,10 +5904,9 @@
    *
    * @public
    * @memberof ItemVisibility.prototype
-   * @returns {ItemVisibility}
    */
   ItemVisibility.prototype.destroy = function() {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed) return;
 
     var item = this._item;
     var element = item._element;
@@ -5962,8 +5929,6 @@
     // Reset state.
     this._isHiding = this._isShowing = false;
     this._isDestroyed = this._isHidden = true;
-
-    return this;
   };
 
   /**
@@ -6103,9 +6068,6 @@
   /**
    * Creates a new Item instance for a Grid instance.
    *
-   * @todo Element should be hidden until it has a computed position! This is a
-   * new problem with async layout.
-   *
    * @class
    * @param {Grid} grid
    * @param {HTMLElement} element
@@ -6113,6 +6075,15 @@
    */
   function Item(grid, element, isActive) {
     var settings = grid._settings;
+
+    // Store item/element pair to a map (for faster item querying by element).
+    if (ITEM_ELEMENT_MAP) {
+      if (ITEM_ELEMENT_MAP.has(element)) {
+        throw new Error('You can only create one Muuri Item per element!');
+      } else {
+        ITEM_ELEMENT_MAP.set(element, this);
+      }
+    }
 
     this._id = createUid();
     this._gridId = grid._id;
@@ -6360,9 +6331,11 @@
    *
    * @private
    * @memberof Item.prototype
+   * @param {Boolean} [force=false]
    */
-  Item.prototype._refreshDimensions = function() {
-    if (this._isDestroyed || this._visibility._isHidden) return;
+  Item.prototype._refreshDimensions = function(force) {
+    if (this._isDestroyed) return;
+    if (force !== true && this._visibility._isHidden) return;
 
     var element = this._element;
     var dragPlaceholder = this._dragPlaceholder;
@@ -6413,7 +6386,6 @@
     var element = this._element;
     var grid = this.getGrid();
     var settings = grid._settings;
-    var index = grid._items.indexOf(this);
 
     // Destroy handlers.
     this._dragPlaceholder.destroy();
@@ -6426,11 +6398,11 @@
     // Remove item class.
     removeClass(element, settings.itemClass);
 
-    // Remove item from Grid instance if it still exists there.
-    if (index > -1) grid._items.splice(index, 1);
-
     // Remove element from DOM.
     if (removeElement) element.parentNode.removeChild(element);
+
+    // Remove item/element pair from map.
+    if (ITEM_ELEMENT_MAP) ITEM_ELEMENT_MAP.delete(element);
 
     // Reset state.
     this._isActive = false;
@@ -6478,7 +6450,7 @@
   }
 
   /* eslint-disable */
-  const WorkerFactory = createBase64WorkerFactory('Lyogcm9sbHVwLXBsdWdpbi13ZWItd29ya2VyLWxvYWRlciAqLwp2YXIgRklMTF9HQVBTID0gMTsKdmFyIEhPUklaT05UQUwgPSAyOwp2YXIgQUxJR05fUklHSFQgPSA0Owp2YXIgQUxJR05fQk9UVE9NID0gODsKdmFyIFJPVU5ESU5HID0gMTY7CnZhciBQQUNLRVRfSU5ERVhfV0lEVEggPSAxOwp2YXIgUEFDS0VUX0lOREVYX0hFSUdIVCA9IDI7CnZhciBQQUNLRVRfSU5ERVhfT1BUSU9OUyA9IDM7CnZhciBQQUNLRVRfSEVBREVSX1NMT1RTID0gNDsKCi8qKgogKiBAY2xhc3MKICovCmZ1bmN0aW9uIFBhY2tlclByb2Nlc3NvcigpIHsKICB0aGlzLnNsb3RTaXplcyA9IFtdOwogIHRoaXMuZnJlZVNsb3RzID0gW107CiAgdGhpcy5uZXdTbG90cyA9IFtdOwogIHRoaXMucmVjdEl0ZW0gPSB7fTsKICB0aGlzLnJlY3RTdG9yZSA9IFtdOwogIHRoaXMucmVjdElkID0gMDsKICB0aGlzLnNsb3RJbmRleCA9IC0xOwogIHRoaXMuc29ydFJlY3RzTGVmdFRvcCA9IHRoaXMuc29ydFJlY3RzTGVmdFRvcC5iaW5kKHRoaXMpOwogIHRoaXMuc29ydFJlY3RzVG9wTGVmdCA9IHRoaXMuc29ydFJlY3RzVG9wTGVmdC5iaW5kKHRoaXMpOwp9CgovKioKICogVGFrZXMgYSBsYXlvdXQgb2JqZWN0IGFzIGFuIGFyZ3VtZW50IGFuZCBjb21wdXRlcyBwb3NpdGlvbnMgKHNsb3RzKSBmb3IgdGhlCiAqIGxheW91dCBpdGVtcy4gQWxzbyBjb21wdXRlcyB0aGUgZmluYWwgd2lkdGggYW5kIGhlaWdodCBvZiB0aGUgbGF5b3V0LiBUaGUKICogcHJvdmlkZWQgbGF5b3V0IG9iamVjdCdzIHNsb3RzIGFycmF5IGlzIG11dGF0ZWQgYXMgd2VsbCBhcyB0aGUgd2lkdGggYW5kCiAqIGhlaWdodCBwcm9wZXJ0aWVzLgogKgogKiBAcGFyYW0ge09iamVjdH0gbGF5b3V0CiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQud2lkdGgKICogICAtIFRoZSBzdGFydCAoY3VycmVudCkgd2lkdGggb2YgdGhlIGxheW91dCBpbiBwaXhlbHMuCiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQuaGVpZ2h0CiAqICAgLSBUaGUgc3RhcnQgKGN1cnJlbnQpIGhlaWdodCBvZiB0aGUgbGF5b3V0IGluIHBpeGVscy4KICogQHBhcmFtIHsoSXRlbVtdfE51bWJlcltdKX0gbGF5b3V0Lml0ZW1zCiAqICAgLSBMaXN0IG9mIE11dXJpLkl0ZW0gaW5zdGFuY2VzIG9yIGEgbGlzdCBvZiBpdGVtIGRpbWVuc2lvbnMKICogICAgIChlLmcgWyBpdGVtMVdpZHRoLCBpdGVtMUhlaWdodCwgaXRlbTJXaWR0aCwgaXRlbTJIZWlnaHQsIC4uLiBdKS4KICogQHBhcmFtIHsoQXJyYXl8RmxvYXQzMkFycmF5KX0gbGF5b3V0LnNsb3RzCiAqICAgLSBBbiBBcnJheS9GbG9hdDMyQXJyYXkgaW5zdGFuY2Ugd2hpY2gncyBsZW5ndGggc2hvdWxkIGVxdWFsIHRvCiAqICAgICB0aGUgYW1vdW50IG9mIGl0ZW1zIHRpbWVzIHR3by4gVGhlIHBvc2l0aW9uICh3aWR0aCBhbmQgaGVpZ2h0KSBvZiBlYWNoCiAqICAgICBpdGVtIHdpbGwgYmUgd3JpdHRlbiBpbnRvIHRoaXMgYXJyYXkuCiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQuc2V0dGluZ3MKICogICAtIFRoZSBsYXlvdXQncyBzZXR0aW5ncyBhcyBiaXRtYXNrcy4KICogQHJldHVybnMge09iamVjdH0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZmlsbExheW91dCA9IGZ1bmN0aW9uKGxheW91dCkgewogIHZhciBpdGVtcyA9IGxheW91dC5pdGVtczsKICB2YXIgc2xvdHMgPSBsYXlvdXQuc2xvdHM7CiAgdmFyIHNldHRpbmdzID0gbGF5b3V0LnNldHRpbmdzIHx8IDA7CiAgdmFyIGZpbGxHYXBzID0gISEoc2V0dGluZ3MgJiBGSUxMX0dBUFMpOwogIHZhciBob3Jpem9udGFsID0gISEoc2V0dGluZ3MgJiBIT1JJWk9OVEFMKTsKICB2YXIgYWxpZ25SaWdodCA9ICEhKHNldHRpbmdzICYgQUxJR05fUklHSFQpOwogIHZhciBhbGlnbkJvdHRvbSA9ICEhKHNldHRpbmdzICYgQUxJR05fQk9UVE9NKTsKICB2YXIgcm91bmRpbmcgPSAhIShzZXR0aW5ncyAmIFJPVU5ESU5HKTsKICB2YXIgaXNJdGVtc1ByZVByb2Nlc3NlZCA9IHR5cGVvZiBpdGVtc1swXSA9PT0gJ251bWJlcic7CiAgdmFyIGksIGJ1bXAsIGl0ZW0sIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgc2xvdDsKCiAgaWYgKHJvdW5kaW5nKSB7CiAgICBsYXlvdXQud2lkdGggPSBNYXRoLnJvdW5kKGxheW91dC53aWR0aCk7CiAgICBsYXlvdXQuaGVpZ2h0ID0gTWF0aC5yb3VuZChsYXlvdXQuaGVpZ2h0KTsKICB9CgogIC8vIE5vIG5lZWQgdG8gZ28gZnVydGhlciBpZiBpdGVtcyBkbyBub3QgZXhpc3QuCiAgaWYgKCFpdGVtcy5sZW5ndGgpIHJldHVybiBsYXlvdXQ7CgogIC8vIENvbXB1dGUgc2xvdHMgZm9yIHRoZSBpdGVtcy4KICBidW1wID0gaXNJdGVtc1ByZVByb2Nlc3NlZCA/IDIgOiAxOwogIGZvciAoaSA9IDA7IGkgPCBpdGVtcy5sZW5ndGg7IGkgKz0gYnVtcCkgewogICAgLy8gSWYgaXRlbXMgYXJlIHByZS1wcm9jZXNzZWQgaXQgbWVhbnMgdGhhdCBpdGVtcyBhcnJheSBjb250YWlucyBvbmx5CiAgICAvLyB0aGUgcmF3IGRpbWVuc2lvbnMgb2YgdGhlIGl0ZW1zLiBPdGhlcndpc2Ugd2UgYXNzdW1lIGl0IGlzIGFuIGFycmF5CiAgICAvLyBvZiBub3JtYWwgTXV1cmkgaXRlbXMuCiAgICBpZiAoaXNJdGVtc1ByZVByb2Nlc3NlZCkgewogICAgICBzbG90V2lkdGggPSBpdGVtc1tpXTsKICAgICAgc2xvdEhlaWdodCA9IGl0ZW1zW2kgKyAxXTsKICAgIH0gZWxzZSB7CiAgICAgIGl0ZW0gPSBpdGVtc1tpXTsKICAgICAgc2xvdFdpZHRoID0gaXRlbS5fd2lkdGggKyBpdGVtLl9tYXJnaW5MZWZ0ICsgaXRlbS5fbWFyZ2luUmlnaHQ7CiAgICAgIHNsb3RIZWlnaHQgPSBpdGVtLl9oZWlnaHQgKyBpdGVtLl9tYXJnaW5Ub3AgKyBpdGVtLl9tYXJnaW5Cb3R0b207CiAgICB9CgogICAgLy8gUm91bmQgc2xvdCBzaXplIGlmIG5lZWRlZC4KICAgIGlmIChyb3VuZGluZykgewogICAgICBzbG90V2lkdGggPSBNYXRoLnJvdW5kKHNsb3RXaWR0aCk7CiAgICAgIHNsb3RIZWlnaHQgPSBNYXRoLnJvdW5kKHNsb3RIZWlnaHQpOwogICAgfQoKICAgIC8vIEdldCBzbG90IGRhdGEuCiAgICBzbG90ID0gdGhpcy5nZXROZXh0U2xvdChsYXlvdXQsIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgZmlsbEdhcHMsIGhvcml6b250YWwpOwoKICAgIC8vIFVwZGF0ZSBsYXlvdXQgd2lkdGgvaGVpZ2h0LgogICAgaWYgKGhvcml6b250YWwpIHsKICAgICAgbGF5b3V0LndpZHRoID0gTWF0aC5tYXgobGF5b3V0LndpZHRoLCBzbG90LmxlZnQgKyBzbG90LndpZHRoKTsKICAgIH0gZWxzZSB7CiAgICAgIGxheW91dC5oZWlnaHQgPSBNYXRoLm1heChsYXlvdXQuaGVpZ2h0LCBzbG90LnRvcCArIHNsb3QuaGVpZ2h0KTsKICAgIH0KCiAgICAvLyBBZGQgaXRlbSBzbG90IGRhdGEgdG8gbGF5b3V0IHNsb3RzLgogICAgc2xvdHNbKyt0aGlzLnNsb3RJbmRleF0gPSBzbG90LmxlZnQ7CiAgICBzbG90c1srK3RoaXMuc2xvdEluZGV4XSA9IHNsb3QudG9wOwoKICAgIC8vIFN0b3JlIHRoZSBzaXplIHRvbyAoZm9yIGxhdGVyIHVzYWdlKSBpZiBuZWVkZWQuCiAgICBpZiAoYWxpZ25SaWdodCB8fCBhbGlnbkJvdHRvbSkgewogICAgICB0aGlzLnNsb3RTaXplcy5wdXNoKHNsb3Qud2lkdGgsIHNsb3QuaGVpZ2h0KTsKICAgIH0KICB9CgogIC8vIElmIHRoZSBhbGlnbm1lbnQgaXMgc2V0IHRvIHJpZ2h0IHdlIG5lZWQgdG8gYWRqdXN0IHRoZSByZXN1bHRzLgogIGlmIChhbGlnblJpZ2h0KSB7CiAgICBmb3IgKGkgPSAwOyBpIDwgc2xvdHMubGVuZ3RoOyBpICs9IDIpIHsKICAgICAgc2xvdHNbaV0gPSBsYXlvdXQud2lkdGggLSAoc2xvdHNbaV0gKyB0aGlzLnNsb3RTaXplc1tpXSk7CiAgICB9CiAgfQoKICAvLyBJZiB0aGUgYWxpZ25tZW50IGlzIHNldCB0byBib3R0b20gd2UgbmVlZCB0byBhZGp1c3QgdGhlIHJlc3VsdHMuCiAgaWYgKGFsaWduQm90dG9tKSB7CiAgICBmb3IgKGkgPSAxOyBpIDwgc2xvdHMubGVuZ3RoOyBpICs9IDIpIHsKICAgICAgc2xvdHNbaV0gPSBsYXlvdXQuaGVpZ2h0IC0gKHNsb3RzW2ldICsgdGhpcy5zbG90U2l6ZXNbaV0pOwogICAgfQogIH0KCiAgLy8gUmVzZXQgc3R1ZmYuCiAgdGhpcy5zbG90U2l6ZXMubGVuZ3RoID0gMDsKICB0aGlzLmZyZWVTbG90cy5sZW5ndGggPSAwOwogIHRoaXMubmV3U2xvdHMubGVuZ3RoID0gMDsKICB0aGlzLnJlY3RJZCA9IDA7CiAgdGhpcy5zbG90SW5kZXggPSAtMTsKCiAgcmV0dXJuIGxheW91dDsKfTsKCi8qKgogKiBDYWxjdWxhdGUgbmV4dCBzbG90IGluIHRoZSBsYXlvdXQuIFJldHVybnMgYSBzbG90IG9iamVjdCB3aXRoIHBvc2l0aW9uIGFuZAogKiBkaW1lbnNpb25zIGRhdGEuCiAqCiAqIEBwYXJhbSB7T2JqZWN0fSBsYXlvdXQKICogQHBhcmFtIHtOdW1iZXJ9IHNsb3RXaWR0aAogKiBAcGFyYW0ge051bWJlcn0gc2xvdEhlaWdodAogKiBAcGFyYW0ge0Jvb2xlYW59IGZpbGxHYXBzCiAqIEBwYXJhbSB7Qm9vbGVhbn0gaG9yaXpvbnRhbAogKiBAcmV0dXJucyB7T2JqZWN0fQogKi8KUGFja2VyUHJvY2Vzc29yLnByb3RvdHlwZS5nZXROZXh0U2xvdCA9IChmdW5jdGlvbigpIHsKICB2YXIgZXBzID0gMC4wMDE7CiAgdmFyIG1pblNpemUgPSAwLjU7CiAgdmFyIHNsb3QgPSB7IGxlZnQ6IDAsIHRvcDogMCwgd2lkdGg6IDAsIGhlaWdodDogMCB9OwogIHJldHVybiBmdW5jdGlvbihsYXlvdXQsIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgZmlsbEdhcHMsIGhvcml6b250YWwpIHsKICAgIHZhciBmcmVlU2xvdHMgPSB0aGlzLmZyZWVTbG90czsKICAgIHZhciBuZXdTbG90cyA9IHRoaXMubmV3U2xvdHM7CiAgICB2YXIgcmVjdDsKICAgIHZhciByZWN0SWQ7CiAgICB2YXIgcG90ZW50aWFsU2xvdHM7CiAgICB2YXIgaWdub3JlQ3VycmVudFNsb3RzOwogICAgdmFyIGk7CiAgICB2YXIgajsKCiAgICAvLyBSZXNldCBuZXcgc2xvdHMuCiAgICBuZXdTbG90cy5sZW5ndGggPSAwOwoKICAgIC8vIFNldCBpdGVtIHNsb3QgaW5pdGlhbCBkYXRhLgogICAgc2xvdC5sZWZ0ID0gbnVsbDsKICAgIHNsb3QudG9wID0gbnVsbDsKICAgIHNsb3Qud2lkdGggPSBzbG90V2lkdGg7CiAgICBzbG90LmhlaWdodCA9IHNsb3RIZWlnaHQ7CgogICAgLy8gVHJ5IHRvIGZpbmQgYSBzbG90IGZvciB0aGUgaXRlbS4KICAgIGZvciAoaSA9IDA7IGkgPCBmcmVlU2xvdHMubGVuZ3RoOyBpKyspIHsKICAgICAgcmVjdElkID0gZnJlZVNsb3RzW2ldOwogICAgICBpZiAoIXJlY3RJZCkgY29udGludWU7CiAgICAgIHJlY3QgPSB0aGlzLmdldFJlY3QocmVjdElkKTsKICAgICAgaWYgKHNsb3Qud2lkdGggPD0gcmVjdC53aWR0aCArIGVwcyAmJiBzbG90LmhlaWdodCA8PSByZWN0LmhlaWdodCArIGVwcykgewogICAgICAgIHNsb3QubGVmdCA9IHJlY3QubGVmdDsKICAgICAgICBzbG90LnRvcCA9IHJlY3QudG9wOwogICAgICAgIGJyZWFrOwogICAgICB9CiAgICB9CgogICAgLy8gSWYgbm8gc2xvdCB3YXMgZm91bmQgZm9yIHRoZSBpdGVtLgogICAgaWYgKHNsb3QubGVmdCA9PT0gbnVsbCkgewogICAgICAvLyBQb3NpdGlvbiB0aGUgaXRlbSBpbiB0byB0aGUgYm90dG9tIGxlZnQgKHZlcnRpY2FsIG1vZGUpIG9yIHRvcCByaWdodAogICAgICAvLyAoaG9yaXpvbnRhbCBtb2RlKSBvZiB0aGUgZ3JpZC4KICAgICAgc2xvdC5sZWZ0ID0gIWhvcml6b250YWwgPyAwIDogbGF5b3V0LndpZHRoOwogICAgICBzbG90LnRvcCA9ICFob3Jpem9udGFsID8gbGF5b3V0LmhlaWdodCA6IDA7CgogICAgICAvLyBJZiBnYXBzIGRvbid0IG5lZWQgZmlsbGluZyBkbyBub3QgYWRkIGFueSBjdXJyZW50IHNsb3RzIHRvIHRoZSBuZXcKICAgICAgLy8gc2xvdHMgYXJyYXkuCiAgICAgIGlmICghZmlsbEdhcHMpIHsKICAgICAgICBpZ25vcmVDdXJyZW50U2xvdHMgPSB0cnVlOwogICAgICB9CiAgICB9CgogICAgLy8gSW4gdmVydGljYWwgbW9kZSwgaWYgdGhlIGl0ZW0ncyBib3R0b20gb3ZlcmxhcHMgdGhlIGdyaWQncyBib3R0b20uCiAgICBpZiAoIWhvcml6b250YWwgJiYgc2xvdC50b3AgKyBzbG90LmhlaWdodCA+IGxheW91dC5oZWlnaHQpIHsKICAgICAgLy8gSWYgaXRlbSBpcyBub3QgYWxpZ25lZCB0byB0aGUgbGVmdCBlZGdlLCBjcmVhdGUgYSBuZXcgc2xvdC4KICAgICAgaWYgKHNsb3QubGVmdCA+IDApIHsKICAgICAgICBuZXdTbG90cy5wdXNoKHRoaXMuYWRkUmVjdCgwLCBsYXlvdXQuaGVpZ2h0LCBzbG90LmxlZnQsIEluZmluaXR5KSk7CiAgICAgIH0KCiAgICAgIC8vIElmIGl0ZW0gaXMgbm90IGFsaWduZWQgdG8gdGhlIHJpZ2h0IGVkZ2UsIGNyZWF0ZSBhIG5ldyBzbG90LgogICAgICBpZiAoc2xvdC5sZWZ0ICsgc2xvdC53aWR0aCA8IGxheW91dC53aWR0aCkgewogICAgICAgIG5ld1Nsb3RzLnB1c2goCiAgICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICAgIHNsb3QubGVmdCArIHNsb3Qud2lkdGgsCiAgICAgICAgICAgIGxheW91dC5oZWlnaHQsCiAgICAgICAgICAgIGxheW91dC53aWR0aCAtIHNsb3QubGVmdCAtIHNsb3Qud2lkdGgsCiAgICAgICAgICAgIEluZmluaXR5CiAgICAgICAgICApCiAgICAgICAgKTsKICAgICAgfQoKICAgICAgLy8gVXBkYXRlIGdyaWQgaGVpZ2h0LgogICAgICBsYXlvdXQuaGVpZ2h0ID0gc2xvdC50b3AgKyBzbG90LmhlaWdodDsKICAgIH0KCiAgICAvLyBJbiBob3Jpem9udGFsIG1vZGUsIGlmIHRoZSBpdGVtJ3MgcmlnaHQgb3ZlcmxhcHMgdGhlIGdyaWQncyByaWdodCBlZGdlLgogICAgaWYgKGhvcml6b250YWwgJiYgc2xvdC5sZWZ0ICsgc2xvdC53aWR0aCA+IGxheW91dC53aWR0aCkgewogICAgICAvLyBJZiBpdGVtIGlzIG5vdCBhbGlnbmVkIHRvIHRoZSB0b3AsIGNyZWF0ZSBhIG5ldyBzbG90LgogICAgICBpZiAoc2xvdC50b3AgPiAwKSB7CiAgICAgICAgbmV3U2xvdHMucHVzaCh0aGlzLmFkZFJlY3QobGF5b3V0LndpZHRoLCAwLCBJbmZpbml0eSwgc2xvdC50b3ApKTsKICAgICAgfQoKICAgICAgLy8gSWYgaXRlbSBpcyBub3QgYWxpZ25lZCB0byB0aGUgYm90dG9tLCBjcmVhdGUgYSBuZXcgc2xvdC4KICAgICAgaWYgKHNsb3QudG9wICsgc2xvdC5oZWlnaHQgPCBsYXlvdXQuaGVpZ2h0KSB7CiAgICAgICAgbmV3U2xvdHMucHVzaCgKICAgICAgICAgIHRoaXMuYWRkUmVjdCgKICAgICAgICAgICAgbGF5b3V0LndpZHRoLAogICAgICAgICAgICBzbG90LnRvcCArIHNsb3QuaGVpZ2h0LAogICAgICAgICAgICBJbmZpbml0eSwKICAgICAgICAgICAgbGF5b3V0LmhlaWdodCAtIHNsb3QudG9wIC0gc2xvdC5oZWlnaHQKICAgICAgICAgICkKICAgICAgICApOwogICAgICB9CgogICAgICAvLyBVcGRhdGUgZ3JpZCB3aWR0aC4KICAgICAgbGF5b3V0LndpZHRoID0gc2xvdC5sZWZ0ICsgc2xvdC53aWR0aDsKICAgIH0KCiAgICAvLyBDbGVhbiB1cCB0aGUgY3VycmVudCBzbG90cyBtYWtpbmcgc3VyZSB0aGVyZSBhcmUgbm8gb2xkIHNsb3RzIHRoYXQKICAgIC8vIG92ZXJsYXAgd2l0aCB0aGUgaXRlbS4gSWYgYW4gb2xkIHNsb3Qgb3ZlcmxhcHMgd2l0aCB0aGUgaXRlbSwgc3BsaXQgaXQKICAgIC8vIGludG8gc21hbGxlciBzbG90cyBpZiBuZWNlc3NhcnkuCiAgICBmb3IgKGkgPSBmaWxsR2FwcyA/IDAgOiBpZ25vcmVDdXJyZW50U2xvdHMgPyBmcmVlU2xvdHMubGVuZ3RoIDogaTsgaSA8IGZyZWVTbG90cy5sZW5ndGg7IGkrKykgewogICAgICByZWN0SWQgPSBmcmVlU2xvdHNbaV07CiAgICAgIGlmICghcmVjdElkKSBjb250aW51ZTsKICAgICAgcmVjdCA9IHRoaXMuZ2V0UmVjdChyZWN0SWQpOwogICAgICBwb3RlbnRpYWxTbG90cyA9IHRoaXMuc3BsaXRSZWN0KHJlY3QsIHNsb3QpOwogICAgICBmb3IgKGogPSAwOyBqIDwgcG90ZW50aWFsU2xvdHMubGVuZ3RoOyBqKyspIHsKICAgICAgICByZWN0SWQgPSBwb3RlbnRpYWxTbG90c1tqXTsKICAgICAgICByZWN0ID0gdGhpcy5nZXRSZWN0KHJlY3RJZCk7CiAgICAgICAgLy8gTGV0J3MgbWFrZSBzdXJlIGhlcmUgdGhhdCB3ZSBoYXZlIGEgYmlnIGVub3VnaCBzbG90LgogICAgICAgIGlmIChyZWN0LndpZHRoIDwgbWluU2l6ZSB8fCByZWN0LmhlaWdodCA8IG1pblNpemUpIGNvbnRpbnVlOwogICAgICAgIC8vIExldCdzIGFsc28gbGV0J3MgbWFrZSBzdXJlIHRoYXQgdGhlIHNsb3QgaXMgd2l0aGluIHRoZSBib3VuZGFyaWVzIG9mCiAgICAgICAgLy8gdGhlIGdyaWQuCiAgICAgICAgaWYgKGhvcml6b250YWwgPyByZWN0LmxlZnQgPCBsYXlvdXQud2lkdGggOiByZWN0LnRvcCA8IGxheW91dC5oZWlnaHQpIHsKICAgICAgICAgIG5ld1Nsb3RzLnB1c2gocmVjdElkKTsKICAgICAgICB9CiAgICAgIH0KICAgIH0KCiAgICAvLyBTYW5pdGl6ZSBuZXcgc2xvdHMuCiAgICBpZiAobmV3U2xvdHMubGVuZ3RoKSB7CiAgICAgIHRoaXMucHVyZ2VSZWN0cyhuZXdTbG90cykuc29ydChob3Jpem9udGFsID8gdGhpcy5zb3J0UmVjdHNMZWZ0VG9wIDogdGhpcy5zb3J0UmVjdHNUb3BMZWZ0KTsKICAgIH0KCiAgICAvLyBGcmVlL25ldyBzbG90cyBzd2l0Y2hlcm9vIQogICAgdGhpcy5mcmVlU2xvdHMgPSBuZXdTbG90czsKICAgIHRoaXMubmV3U2xvdHMgPSBmcmVlU2xvdHM7CgogICAgcmV0dXJuIHNsb3Q7CiAgfTsKfSkoKTsKCi8qKgogKiBBZGQgYSBuZXcgcmVjdGFuZ2xlIHRvIHRoZSByZWN0YW5nbGUgc3RvcmUuIFJldHVybnMgdGhlIGlkIG9mIHRoZSBuZXcKICogcmVjdGFuZ2xlLgogKgogKiBAcGFyYW0ge051bWJlcn0gbGVmdAogKiBAcGFyYW0ge051bWJlcn0gdG9wCiAqIEBwYXJhbSB7TnVtYmVyfSB3aWR0aAogKiBAcGFyYW0ge051bWJlcn0gaGVpZ2h0CiAqIEByZXR1cm5zIHtSZWN0SWR9CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLmFkZFJlY3QgPSBmdW5jdGlvbihsZWZ0LCB0b3AsIHdpZHRoLCBoZWlnaHQpIHsKICB2YXIgcmVjdElkID0gKyt0aGlzLnJlY3RJZDsKICB2YXIgcmVjdFN0b3JlID0gdGhpcy5yZWN0U3RvcmU7CgogIHJlY3RTdG9yZVtyZWN0SWRdID0gbGVmdCB8fCAwOwogIHJlY3RTdG9yZVsrK3RoaXMucmVjdElkXSA9IHRvcCB8fCAwOwogIHJlY3RTdG9yZVsrK3RoaXMucmVjdElkXSA9IHdpZHRoIHx8IDA7CiAgcmVjdFN0b3JlWysrdGhpcy5yZWN0SWRdID0gaGVpZ2h0IHx8IDA7CgogIHJldHVybiByZWN0SWQ7Cn07CgovKioKICogR2V0IHJlY3RhbmdsZSBkYXRhIGZyb20gdGhlIHJlY3RhbmdsZSBzdG9yZSBieSBpZC4gT3B0aW9uYWxseSB5b3UgY2FuCiAqIHByb3ZpZGUgYSB0YXJnZXQgb2JqZWN0IHdoZXJlIHRoZSByZWN0YW5nbGUgZGF0YSB3aWxsIGJlIHdyaXR0ZW4gaW4uIEJ5CiAqIGRlZmF1bHQgYW4gaW50ZXJuYWwgb2JqZWN0IGlzIHJldXNlZCBhcyBhIHRhcmdldCBvYmplY3QuCiAqCiAqIEBwYXJhbSB7UmVjdElkfSBpZAogKiBAcGFyYW0ge09iamVjdH0gW3RhcmdldF0KICogQHJldHVybnMge09iamVjdH0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZ2V0UmVjdCA9IGZ1bmN0aW9uKGlkLCB0YXJnZXQpIHsKICB2YXIgcmVjdEl0ZW0gPSB0YXJnZXQgPyB0YXJnZXQgOiB0aGlzLnJlY3RJdGVtOwogIHZhciByZWN0U3RvcmUgPSB0aGlzLnJlY3RTdG9yZTsKCiAgcmVjdEl0ZW0ubGVmdCA9IHJlY3RTdG9yZVtpZF0gfHwgMDsKICByZWN0SXRlbS50b3AgPSByZWN0U3RvcmVbKytpZF0gfHwgMDsKICByZWN0SXRlbS53aWR0aCA9IHJlY3RTdG9yZVsrK2lkXSB8fCAwOwogIHJlY3RJdGVtLmhlaWdodCA9IHJlY3RTdG9yZVsrK2lkXSB8fCAwOwoKICByZXR1cm4gcmVjdEl0ZW07Cn07CgovKioKICogUHVuY2ggYSBob2xlIGludG8gYSByZWN0YW5nbGUgYW5kIHNwbGl0IHRoZSByZW1haW5pbmcgYXJlYSBpbnRvIHNtYWxsZXIKICogcmVjdGFuZ2xlcyAoNCBhdCBtYXgpLgogKiBAcGFyYW0ge1JlY3RhbmdsZX0gcmVjdAogKiBAcGFyYW0ge1JlY3RhbmdsZX0gaG9sZQogKiBAcmV0dXJucyB7UmVjdElkW119CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLnNwbGl0UmVjdCA9IChmdW5jdGlvbigpIHsKICB2YXIgcmVzdWx0cyA9IFtdOwogIHJldHVybiBmdW5jdGlvbihyZWN0LCBob2xlKSB7CiAgICAvLyBSZXNldCBvbGQgcmVzdWx0cy4KICAgIHJlc3VsdHMubGVuZ3RoID0gMDsKCiAgICAvLyBJZiB0aGUgcmVjdCBkb2VzIG5vdCBvdmVybGFwIHdpdGggdGhlIGhvbGUgYWRkIHJlY3QgdG8gdGhlIHJldHVybiBkYXRhCiAgICAvLyBhcyBpcy4KICAgIGlmICghdGhpcy5kb1JlY3RzT3ZlcmxhcChyZWN0LCBob2xlKSkgewogICAgICByZXN1bHRzLnB1c2godGhpcy5hZGRSZWN0KHJlY3QubGVmdCwgcmVjdC50b3AsIHJlY3Qud2lkdGgsIHJlY3QuaGVpZ2h0KSk7CiAgICAgIHJldHVybiByZXN1bHRzOwogICAgfQoKICAgIC8vIExlZnQgc3BsaXQuCiAgICBpZiAocmVjdC5sZWZ0IDwgaG9sZS5sZWZ0KSB7CiAgICAgIHJlc3VsdHMucHVzaCh0aGlzLmFkZFJlY3QocmVjdC5sZWZ0LCByZWN0LnRvcCwgaG9sZS5sZWZ0IC0gcmVjdC5sZWZ0LCByZWN0LmhlaWdodCkpOwogICAgfQoKICAgIC8vIFJpZ2h0IHNwbGl0LgogICAgaWYgKHJlY3QubGVmdCArIHJlY3Qud2lkdGggPiBob2xlLmxlZnQgKyBob2xlLndpZHRoKSB7CiAgICAgIHJlc3VsdHMucHVzaCgKICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICBob2xlLmxlZnQgKyBob2xlLndpZHRoLAogICAgICAgICAgcmVjdC50b3AsCiAgICAgICAgICByZWN0LmxlZnQgKyByZWN0LndpZHRoIC0gKGhvbGUubGVmdCArIGhvbGUud2lkdGgpLAogICAgICAgICAgcmVjdC5oZWlnaHQKICAgICAgICApCiAgICAgICk7CiAgICB9CgogICAgLy8gVG9wIHNwbGl0LgogICAgaWYgKHJlY3QudG9wIDwgaG9sZS50b3ApIHsKICAgICAgcmVzdWx0cy5wdXNoKHRoaXMuYWRkUmVjdChyZWN0LmxlZnQsIHJlY3QudG9wLCByZWN0LndpZHRoLCBob2xlLnRvcCAtIHJlY3QudG9wKSk7CiAgICB9CgogICAgLy8gQm90dG9tIHNwbGl0LgogICAgaWYgKHJlY3QudG9wICsgcmVjdC5oZWlnaHQgPiBob2xlLnRvcCArIGhvbGUuaGVpZ2h0KSB7CiAgICAgIHJlc3VsdHMucHVzaCgKICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICByZWN0LmxlZnQsCiAgICAgICAgICBob2xlLnRvcCArIGhvbGUuaGVpZ2h0LAogICAgICAgICAgcmVjdC53aWR0aCwKICAgICAgICAgIHJlY3QudG9wICsgcmVjdC5oZWlnaHQgLSAoaG9sZS50b3AgKyBob2xlLmhlaWdodCkKICAgICAgICApCiAgICAgICk7CiAgICB9CgogICAgcmV0dXJuIHJlc3VsdHM7CiAgfTsKfSkoKTsKCi8qKgogKiBDaGVjayBpZiB0d28gcmVjdGFuZ2xlcyBvdmVybGFwLgogKgogKiBAcGFyYW0ge1JlY3RhbmdsZX0gYQogKiBAcGFyYW0ge1JlY3RhbmdsZX0gYgogKiBAcmV0dXJucyB7Qm9vbGVhbn0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZG9SZWN0c092ZXJsYXAgPSBmdW5jdGlvbihhLCBiKSB7CiAgcmV0dXJuICEoCiAgICBhLmxlZnQgKyBhLndpZHRoIDw9IGIubGVmdCB8fAogICAgYi5sZWZ0ICsgYi53aWR0aCA8PSBhLmxlZnQgfHwKICAgIGEudG9wICsgYS5oZWlnaHQgPD0gYi50b3AgfHwKICAgIGIudG9wICsgYi5oZWlnaHQgPD0gYS50b3AKICApOwp9OwoKLyoqCiAqIENoZWNrIGlmIGEgcmVjdGFuZ2xlIGlzIGZ1bGx5IHdpdGhpbiBhbm90aGVyIHJlY3RhbmdsZS4KICoKICogQHBhcmFtIHtSZWN0YW5nbGV9IGEKICogQHBhcmFtIHtSZWN0YW5nbGV9IGIKICogQHJldHVybnMge0Jvb2xlYW59CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLmlzUmVjdFdpdGhpblJlY3QgPSBmdW5jdGlvbihhLCBiKSB7CiAgcmV0dXJuICgKICAgIGEubGVmdCA+PSBiLmxlZnQgJiYKICAgIGEudG9wID49IGIudG9wICYmCiAgICBhLmxlZnQgKyBhLndpZHRoIDw9IGIubGVmdCArIGIud2lkdGggJiYKICAgIGEudG9wICsgYS5oZWlnaHQgPD0gYi50b3AgKyBiLmhlaWdodAogICk7Cn07CgovKioKICogTG9vcHMgdGhyb3VnaCBhbiBhcnJheSBvZiByZWN0YW5nbGUgaWRzIGFuZCByZXNldHMgYWxsIHRoYXQgYXJlIGZ1bGx5CiAqIHdpdGhpbiBhbm90aGVyIHJlY3RhbmdsZSBpbiB0aGUgYXJyYXkuIFJlc2V0dGluZyBpbiB0aGlzIGNhc2UgbWVhbnMgdGhhdAogKiB0aGUgcmVjdGFuZ2xlIGlkIHZhbHVlIGlzIHJlcGxhY2VkIHdpdGggemVyby4KICoKICogQHBhcmFtIHtSZWN0SWRbXX0gcmVjdElkcwogKiBAcmV0dXJucyB7UmVjdElkW119CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLnB1cmdlUmVjdHMgPSAoZnVuY3Rpb24oKSB7CiAgdmFyIHJlY3RBID0ge307CiAgdmFyIHJlY3RCID0ge307CiAgcmV0dXJuIGZ1bmN0aW9uKHJlY3RJZHMpIHsKICAgIHZhciBpID0gcmVjdElkcy5sZW5ndGg7CiAgICB2YXIgajsKCiAgICB3aGlsZSAoaS0tKSB7CiAgICAgIGogPSByZWN0SWRzLmxlbmd0aDsKICAgICAgaWYgKCFyZWN0SWRzW2ldKSBjb250aW51ZTsKICAgICAgdGhpcy5nZXRSZWN0KHJlY3RJZHNbaV0sIHJlY3RBKTsKICAgICAgd2hpbGUgKGotLSkgewogICAgICAgIGlmICghcmVjdElkc1tqXSB8fCBpID09PSBqKSBjb250aW51ZTsKICAgICAgICBpZiAodGhpcy5pc1JlY3RXaXRoaW5SZWN0KHJlY3RBLCB0aGlzLmdldFJlY3QocmVjdElkc1tqXSwgcmVjdEIpKSkgewogICAgICAgICAgcmVjdElkc1tpXSA9IDA7CiAgICAgICAgICBicmVhazsKICAgICAgICB9CiAgICAgIH0KICAgIH0KCiAgICByZXR1cm4gcmVjdElkczsKICB9Owp9KSgpOwoKLyoqCiAqIFNvcnQgcmVjdGFuZ2xlcyB3aXRoIHRvcC1sZWZ0IGdyYXZpdHkuCiAqCiAqIEBwYXJhbSB7UmVjdElkfSBhSWQKICogQHBhcmFtIHtSZWN0SWR9IGJJZAogKiBAcmV0dXJucyB7TnVtYmVyfQogKi8KUGFja2VyUHJvY2Vzc29yLnByb3RvdHlwZS5zb3J0UmVjdHNUb3BMZWZ0ID0gKGZ1bmN0aW9uKCkgewogIHZhciByZWN0QSA9IHt9OwogIHZhciByZWN0QiA9IHt9OwogIHJldHVybiBmdW5jdGlvbihhSWQsIGJJZCkgewogICAgdGhpcy5nZXRSZWN0KGFJZCwgcmVjdEEpOwogICAgdGhpcy5nZXRSZWN0KGJJZCwgcmVjdEIpOwogICAgLy8gcHJldHRpZXItaWdub3JlCiAgICByZXR1cm4gcmVjdEEudG9wIDwgcmVjdEIudG9wID8gLTEgOgogICAgICAgICAgIHJlY3RBLnRvcCA+IHJlY3RCLnRvcCA/IDEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPCByZWN0Qi5sZWZ0ID8gLTEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPiByZWN0Qi5sZWZ0ID8gMSA6IDA7CiAgfTsKfSkoKTsKCi8qKgogKiBTb3J0IHJlY3RhbmdsZXMgd2l0aCBsZWZ0LXRvcCBncmF2aXR5LgogKgogKiBAcGFyYW0ge1JlY3RJZH0gYUlkCiAqIEBwYXJhbSB7UmVjdElkfSBiSWQKICogQHJldHVybnMge051bWJlcn0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuc29ydFJlY3RzTGVmdFRvcCA9IChmdW5jdGlvbigpIHsKICB2YXIgcmVjdEEgPSB7fTsKICB2YXIgcmVjdEIgPSB7fTsKICByZXR1cm4gZnVuY3Rpb24oYUlkLCBiSWQpIHsKICAgIHRoaXMuZ2V0UmVjdChhSWQsIHJlY3RBKTsKICAgIHRoaXMuZ2V0UmVjdChiSWQsIHJlY3RCKTsKICAgIC8vIHByZXR0aWVyLWlnbm9yZQogICAgcmV0dXJuIHJlY3RBLmxlZnQgPCByZWN0Qi5sZWZ0ID8gLTEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPiByZWN0Qi5sZWZ0ID8gMSA6CiAgICAgICAgICAgcmVjdEEudG9wIDwgcmVjdEIudG9wID8gLTEgOgogICAgICAgICAgIHJlY3RBLnRvcCA+IHJlY3RCLnRvcCA/IDEgOiAwOwogIH07Cn0pKCk7Cgp2YXIgcHJvY2Vzc29yID0gbmV3IFBhY2tlclByb2Nlc3NvcigpOwoKb25tZXNzYWdlID0gZnVuY3Rpb24obXNnKSB7CiAgdmFyIGRhdGEgPSBuZXcgRmxvYXQzMkFycmF5KG1zZy5kYXRhKTsKICB2YXIgaXRlbXMgPSBkYXRhLnN1YmFycmF5KFBBQ0tFVF9IRUFERVJfU0xPVFMsIGRhdGEubGVuZ3RoKTsKICB2YXIgc2xvdHMgPSBuZXcgRmxvYXQzMkFycmF5KGl0ZW1zLmxlbmd0aCk7CiAgdmFyIGxheW91dCA9IHsKICAgIGl0ZW1zOiBpdGVtcywKICAgIHNsb3RzOiBzbG90cywKICAgIHdpZHRoOiBkYXRhW1BBQ0tFVF9JTkRFWF9XSURUSF0sCiAgICBoZWlnaHQ6IGRhdGFbUEFDS0VUX0lOREVYX0hFSUdIVF0sCiAgICBzZXR0aW5nczogZGF0YVtQQUNLRVRfSU5ERVhfT1BUSU9OU10KICB9OwoKICAvLyBGaWxsIHRoZSBsYXlvdXQgKHdpZHRoIC8gaGVpZ2h0IC8gc2xvdHMpLgogIHByb2Nlc3Nvci5maWxsTGF5b3V0KGxheW91dCk7CgogIC8vIENvcHkgbGF5b3V0IGRhdGEgdG8gdGhlIHJldHVybiBkYXRhLgogIGRhdGFbUEFDS0VUX0lOREVYX1dJRFRIXSA9IGxheW91dC53aWR0aDsKICBkYXRhW1BBQ0tFVF9JTkRFWF9IRUlHSFRdID0gbGF5b3V0LmhlaWdodDsKICBkYXRhLnNldChsYXlvdXQuc2xvdHMsIFBBQ0tFVF9IRUFERVJfU0xPVFMpOwoKICAvLyBTZW5kIGxheW91dCBiYWNrIHRvIHRoZSBtYWluIHRocmVhZC4KICBwb3N0TWVzc2FnZShkYXRhLmJ1ZmZlciwgW2RhdGEuYnVmZmVyXSk7Cn07Cgo=', null, false);
+  const WorkerFactory = createBase64WorkerFactory('Lyogcm9sbHVwLXBsdWdpbi13ZWItd29ya2VyLWxvYWRlciAqLwp2YXIgRklMTF9HQVBTID0gMTsKdmFyIEhPUklaT05UQUwgPSAyOwp2YXIgQUxJR05fUklHSFQgPSA0Owp2YXIgQUxJR05fQk9UVE9NID0gODsKdmFyIFJPVU5ESU5HID0gMTY7CnZhciBQQUNLRVRfSU5ERVhfV0lEVEggPSAxOwp2YXIgUEFDS0VUX0lOREVYX0hFSUdIVCA9IDI7CnZhciBQQUNLRVRfSU5ERVhfT1BUSU9OUyA9IDM7CnZhciBQQUNLRVRfSEVBREVSX1NMT1RTID0gNDsKCi8qKgogKiBAY2xhc3MKICovCmZ1bmN0aW9uIFBhY2tlclByb2Nlc3NvcigpIHsKICB0aGlzLnNsb3RTaXplcyA9IFtdOwogIHRoaXMuZnJlZVNsb3RzID0gW107CiAgdGhpcy5uZXdTbG90cyA9IFtdOwogIHRoaXMucmVjdEl0ZW0gPSB7fTsKICB0aGlzLnJlY3RTdG9yZSA9IFtdOwogIHRoaXMucmVjdElkID0gMDsKICB0aGlzLnNsb3RJbmRleCA9IC0xOwogIHRoaXMuc29ydFJlY3RzTGVmdFRvcCA9IHRoaXMuc29ydFJlY3RzTGVmdFRvcC5iaW5kKHRoaXMpOwogIHRoaXMuc29ydFJlY3RzVG9wTGVmdCA9IHRoaXMuc29ydFJlY3RzVG9wTGVmdC5iaW5kKHRoaXMpOwp9CgovKioKICogVGFrZXMgYSBsYXlvdXQgb2JqZWN0IGFzIGFuIGFyZ3VtZW50IGFuZCBjb21wdXRlcyBwb3NpdGlvbnMgKHNsb3RzKSBmb3IgdGhlCiAqIGxheW91dCBpdGVtcy4gQWxzbyBjb21wdXRlcyB0aGUgZmluYWwgd2lkdGggYW5kIGhlaWdodCBvZiB0aGUgbGF5b3V0LiBUaGUKICogcHJvdmlkZWQgbGF5b3V0IG9iamVjdCdzIHNsb3RzIGFycmF5IGlzIG11dGF0ZWQgYXMgd2VsbCBhcyB0aGUgd2lkdGggYW5kCiAqIGhlaWdodCBwcm9wZXJ0aWVzLgogKgogKiBAcGFyYW0ge09iamVjdH0gbGF5b3V0CiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQud2lkdGgKICogICAtIFRoZSBzdGFydCAoY3VycmVudCkgd2lkdGggb2YgdGhlIGxheW91dCBpbiBwaXhlbHMuCiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQuaGVpZ2h0CiAqICAgLSBUaGUgc3RhcnQgKGN1cnJlbnQpIGhlaWdodCBvZiB0aGUgbGF5b3V0IGluIHBpeGVscy4KICogQHBhcmFtIHsoSXRlbVtdfE51bWJlcltdKX0gbGF5b3V0Lml0ZW1zCiAqICAgLSBMaXN0IG9mIE11dXJpLkl0ZW0gaW5zdGFuY2VzIG9yIGEgbGlzdCBvZiBpdGVtIGRpbWVuc2lvbnMKICogICAgIChlLmcgWyBpdGVtMVdpZHRoLCBpdGVtMUhlaWdodCwgaXRlbTJXaWR0aCwgaXRlbTJIZWlnaHQsIC4uLiBdKS4KICogQHBhcmFtIHsoQXJyYXl8RmxvYXQzMkFycmF5KX0gbGF5b3V0LnNsb3RzCiAqICAgLSBBbiBBcnJheS9GbG9hdDMyQXJyYXkgaW5zdGFuY2Ugd2hpY2gncyBsZW5ndGggc2hvdWxkIGVxdWFsIHRvCiAqICAgICB0aGUgYW1vdW50IG9mIGl0ZW1zIHRpbWVzIHR3by4gVGhlIHBvc2l0aW9uICh3aWR0aCBhbmQgaGVpZ2h0KSBvZiBlYWNoCiAqICAgICBpdGVtIHdpbGwgYmUgd3JpdHRlbiBpbnRvIHRoaXMgYXJyYXkuCiAqIEBwYXJhbSB7TnVtYmVyfSBsYXlvdXQuc2V0dGluZ3MKICogICAtIFRoZSBsYXlvdXQncyBzZXR0aW5ncyBhcyBiaXRtYXNrcy4KICogQHJldHVybnMge09iamVjdH0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZmlsbExheW91dCA9IGZ1bmN0aW9uKGxheW91dCkgewogIHZhciBpdGVtcyA9IGxheW91dC5pdGVtczsKICB2YXIgc2xvdHMgPSBsYXlvdXQuc2xvdHM7CiAgdmFyIHNldHRpbmdzID0gbGF5b3V0LnNldHRpbmdzIHx8IDA7CiAgdmFyIGZpbGxHYXBzID0gISEoc2V0dGluZ3MgJiBGSUxMX0dBUFMpOwogIHZhciBob3Jpem9udGFsID0gISEoc2V0dGluZ3MgJiBIT1JJWk9OVEFMKTsKICB2YXIgYWxpZ25SaWdodCA9ICEhKHNldHRpbmdzICYgQUxJR05fUklHSFQpOwogIHZhciBhbGlnbkJvdHRvbSA9ICEhKHNldHRpbmdzICYgQUxJR05fQk9UVE9NKTsKICB2YXIgcm91bmRpbmcgPSAhIShzZXR0aW5ncyAmIFJPVU5ESU5HKTsKICB2YXIgaXNJdGVtc1ByZVByb2Nlc3NlZCA9IHR5cGVvZiBpdGVtc1swXSA9PT0gJ251bWJlcic7CiAgdmFyIGksIGJ1bXAsIGl0ZW0sIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgc2xvdDsKCiAgaWYgKHJvdW5kaW5nKSB7CiAgICBsYXlvdXQud2lkdGggPSBNYXRoLnJvdW5kKGxheW91dC53aWR0aCk7CiAgICBsYXlvdXQuaGVpZ2h0ID0gTWF0aC5yb3VuZChsYXlvdXQuaGVpZ2h0KTsKICB9CgogIC8vIE5vIG5lZWQgdG8gZ28gZnVydGhlciBpZiBpdGVtcyBkbyBub3QgZXhpc3QuCiAgaWYgKCFpdGVtcy5sZW5ndGgpIHJldHVybiBsYXlvdXQ7CgogIC8vIENvbXB1dGUgc2xvdHMgZm9yIHRoZSBpdGVtcy4KICBidW1wID0gaXNJdGVtc1ByZVByb2Nlc3NlZCA/IDIgOiAxOwogIGZvciAoaSA9IDA7IGkgPCBpdGVtcy5sZW5ndGg7IGkgKz0gYnVtcCkgewogICAgLy8gSWYgaXRlbXMgYXJlIHByZS1wcm9jZXNzZWQgaXQgbWVhbnMgdGhhdCBpdGVtcyBhcnJheSBjb250YWlucyBvbmx5CiAgICAvLyB0aGUgcmF3IGRpbWVuc2lvbnMgb2YgdGhlIGl0ZW1zLiBPdGhlcndpc2Ugd2UgYXNzdW1lIGl0IGlzIGFuIGFycmF5CiAgICAvLyBvZiBub3JtYWwgTXV1cmkgaXRlbXMuCiAgICBpZiAoaXNJdGVtc1ByZVByb2Nlc3NlZCkgewogICAgICBzbG90V2lkdGggPSBpdGVtc1tpXTsKICAgICAgc2xvdEhlaWdodCA9IGl0ZW1zW2kgKyAxXTsKICAgIH0gZWxzZSB7CiAgICAgIGl0ZW0gPSBpdGVtc1tpXTsKICAgICAgc2xvdFdpZHRoID0gaXRlbS5fd2lkdGggKyBpdGVtLl9tYXJnaW5MZWZ0ICsgaXRlbS5fbWFyZ2luUmlnaHQ7CiAgICAgIHNsb3RIZWlnaHQgPSBpdGVtLl9oZWlnaHQgKyBpdGVtLl9tYXJnaW5Ub3AgKyBpdGVtLl9tYXJnaW5Cb3R0b207CiAgICB9CgogICAgLy8gUm91bmQgc2xvdCBzaXplIGlmIG5lZWRlZC4KICAgIGlmIChyb3VuZGluZykgewogICAgICBzbG90V2lkdGggPSBNYXRoLnJvdW5kKHNsb3RXaWR0aCk7CiAgICAgIHNsb3RIZWlnaHQgPSBNYXRoLnJvdW5kKHNsb3RIZWlnaHQpOwogICAgfQoKICAgIC8vIEdldCBzbG90IGRhdGEuCiAgICBzbG90ID0gdGhpcy5nZXROZXh0U2xvdChsYXlvdXQsIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgZmlsbEdhcHMsIGhvcml6b250YWwpOwoKICAgIC8vIFVwZGF0ZSBsYXlvdXQgd2lkdGgvaGVpZ2h0LgogICAgaWYgKGhvcml6b250YWwpIHsKICAgICAgbGF5b3V0LndpZHRoID0gTWF0aC5tYXgobGF5b3V0LndpZHRoLCBzbG90LmxlZnQgKyBzbG90LndpZHRoKTsKICAgIH0gZWxzZSB7CiAgICAgIGxheW91dC5oZWlnaHQgPSBNYXRoLm1heChsYXlvdXQuaGVpZ2h0LCBzbG90LnRvcCArIHNsb3QuaGVpZ2h0KTsKICAgIH0KCiAgICAvLyBBZGQgaXRlbSBzbG90IGRhdGEgdG8gbGF5b3V0IHNsb3RzLgogICAgc2xvdHNbKyt0aGlzLnNsb3RJbmRleF0gPSBzbG90LmxlZnQ7CiAgICBzbG90c1srK3RoaXMuc2xvdEluZGV4XSA9IHNsb3QudG9wOwoKICAgIC8vIFN0b3JlIHRoZSBzaXplIHRvbyAoZm9yIGxhdGVyIHVzYWdlKSBpZiBuZWVkZWQuCiAgICBpZiAoYWxpZ25SaWdodCB8fCBhbGlnbkJvdHRvbSkgewogICAgICB0aGlzLnNsb3RTaXplcy5wdXNoKHNsb3Qud2lkdGgsIHNsb3QuaGVpZ2h0KTsKICAgIH0KICB9CgogIC8vIElmIHRoZSBhbGlnbm1lbnQgaXMgc2V0IHRvIHJpZ2h0IHdlIG5lZWQgdG8gYWRqdXN0IHRoZSByZXN1bHRzLgogIGlmIChhbGlnblJpZ2h0KSB7CiAgICBmb3IgKGkgPSAwOyBpIDwgc2xvdHMubGVuZ3RoOyBpICs9IDIpIHsKICAgICAgc2xvdHNbaV0gPSBsYXlvdXQud2lkdGggLSAoc2xvdHNbaV0gKyB0aGlzLnNsb3RTaXplc1tpXSk7CiAgICB9CiAgfQoKICAvLyBJZiB0aGUgYWxpZ25tZW50IGlzIHNldCB0byBib3R0b20gd2UgbmVlZCB0byBhZGp1c3QgdGhlIHJlc3VsdHMuCiAgaWYgKGFsaWduQm90dG9tKSB7CiAgICBmb3IgKGkgPSAxOyBpIDwgc2xvdHMubGVuZ3RoOyBpICs9IDIpIHsKICAgICAgc2xvdHNbaV0gPSBsYXlvdXQuaGVpZ2h0IC0gKHNsb3RzW2ldICsgdGhpcy5zbG90U2l6ZXNbaV0pOwogICAgfQogIH0KCiAgLy8gUmVzZXQgc3R1ZmYuCiAgdGhpcy5zbG90U2l6ZXMubGVuZ3RoID0gMDsKICB0aGlzLmZyZWVTbG90cy5sZW5ndGggPSAwOwogIHRoaXMubmV3U2xvdHMubGVuZ3RoID0gMDsKICB0aGlzLnJlY3RJZCA9IDA7CiAgdGhpcy5zbG90SW5kZXggPSAtMTsKCiAgcmV0dXJuIGxheW91dDsKfTsKCi8qKgogKiBDYWxjdWxhdGUgbmV4dCBzbG90IGluIHRoZSBsYXlvdXQuIFJldHVybnMgYSBzbG90IG9iamVjdCB3aXRoIHBvc2l0aW9uIGFuZAogKiBkaW1lbnNpb25zIGRhdGEuCiAqCiAqIEBwYXJhbSB7T2JqZWN0fSBsYXlvdXQKICogQHBhcmFtIHtOdW1iZXJ9IHNsb3RXaWR0aAogKiBAcGFyYW0ge051bWJlcn0gc2xvdEhlaWdodAogKiBAcGFyYW0ge0Jvb2xlYW59IGZpbGxHYXBzCiAqIEBwYXJhbSB7Qm9vbGVhbn0gaG9yaXpvbnRhbAogKiBAcmV0dXJucyB7T2JqZWN0fQogKi8KUGFja2VyUHJvY2Vzc29yLnByb3RvdHlwZS5nZXROZXh0U2xvdCA9IChmdW5jdGlvbigpIHsKICB2YXIgZXBzID0gMC4wMDE7CiAgdmFyIG1pblNpemUgPSAwLjU7CiAgdmFyIHNsb3QgPSB7IGxlZnQ6IDAsIHRvcDogMCwgd2lkdGg6IDAsIGhlaWdodDogMCB9OwogIHJldHVybiBmdW5jdGlvbihsYXlvdXQsIHNsb3RXaWR0aCwgc2xvdEhlaWdodCwgZmlsbEdhcHMsIGhvcml6b250YWwpIHsKICAgIHZhciBmcmVlU2xvdHMgPSB0aGlzLmZyZWVTbG90czsKICAgIHZhciBuZXdTbG90cyA9IHRoaXMubmV3U2xvdHM7CiAgICB2YXIgcmVjdDsKICAgIHZhciByZWN0SWQ7CiAgICB2YXIgcG90ZW50aWFsU2xvdHM7CiAgICB2YXIgaWdub3JlQ3VycmVudFNsb3RzOwogICAgdmFyIGk7CiAgICB2YXIgajsKCiAgICAvLyBSZXNldCBuZXcgc2xvdHMuCiAgICBuZXdTbG90cy5sZW5ndGggPSAwOwoKICAgIC8vIFNldCBpdGVtIHNsb3QgaW5pdGlhbCBkYXRhLgogICAgc2xvdC5sZWZ0ID0gbnVsbDsKICAgIHNsb3QudG9wID0gbnVsbDsKICAgIHNsb3Qud2lkdGggPSBzbG90V2lkdGg7CiAgICBzbG90LmhlaWdodCA9IHNsb3RIZWlnaHQ7CgogICAgLy8gVHJ5IHRvIGZpbmQgYSBzbG90IGZvciB0aGUgaXRlbS4KICAgIGZvciAoaSA9IDA7IGkgPCBmcmVlU2xvdHMubGVuZ3RoOyBpKyspIHsKICAgICAgcmVjdElkID0gZnJlZVNsb3RzW2ldOwogICAgICBpZiAoIXJlY3RJZCkgY29udGludWU7CiAgICAgIHJlY3QgPSB0aGlzLmdldFJlY3QocmVjdElkKTsKICAgICAgaWYgKHNsb3Qud2lkdGggPD0gcmVjdC53aWR0aCArIGVwcyAmJiBzbG90LmhlaWdodCA8PSByZWN0LmhlaWdodCArIGVwcykgewogICAgICAgIHNsb3QubGVmdCA9IHJlY3QubGVmdDsKICAgICAgICBzbG90LnRvcCA9IHJlY3QudG9wOwogICAgICAgIGJyZWFrOwogICAgICB9CiAgICB9CgogICAgLy8gSWYgbm8gc2xvdCB3YXMgZm91bmQgZm9yIHRoZSBpdGVtLgogICAgaWYgKHNsb3QubGVmdCA9PT0gbnVsbCkgewogICAgICAvLyBQb3NpdGlvbiB0aGUgaXRlbSBpbiB0byB0aGUgYm90dG9tIGxlZnQgKHZlcnRpY2FsIG1vZGUpIG9yIHRvcCByaWdodAogICAgICAvLyAoaG9yaXpvbnRhbCBtb2RlKSBvZiB0aGUgZ3JpZC4KICAgICAgc2xvdC5sZWZ0ID0gIWhvcml6b250YWwgPyAwIDogbGF5b3V0LndpZHRoOwogICAgICBzbG90LnRvcCA9ICFob3Jpem9udGFsID8gbGF5b3V0LmhlaWdodCA6IDA7CgogICAgICAvLyBJZiBnYXBzIGRvbid0IG5lZWQgZmlsbGluZyBkbyBub3QgYWRkIGFueSBjdXJyZW50IHNsb3RzIHRvIHRoZSBuZXcKICAgICAgLy8gc2xvdHMgYXJyYXkuCiAgICAgIGlmICghZmlsbEdhcHMpIHsKICAgICAgICBpZ25vcmVDdXJyZW50U2xvdHMgPSB0cnVlOwogICAgICB9CiAgICB9CgogICAgLy8gSW4gdmVydGljYWwgbW9kZSwgaWYgdGhlIGl0ZW0ncyBib3R0b20gb3ZlcmxhcHMgdGhlIGdyaWQncyBib3R0b20uCiAgICBpZiAoIWhvcml6b250YWwgJiYgc2xvdC50b3AgKyBzbG90LmhlaWdodCA+IGxheW91dC5oZWlnaHQpIHsKICAgICAgLy8gSWYgaXRlbSBpcyBub3QgYWxpZ25lZCB0byB0aGUgbGVmdCBlZGdlLCBjcmVhdGUgYSBuZXcgc2xvdC4KICAgICAgaWYgKHNsb3QubGVmdCA+IDApIHsKICAgICAgICBuZXdTbG90cy5wdXNoKHRoaXMuYWRkUmVjdCgwLCBsYXlvdXQuaGVpZ2h0LCBzbG90LmxlZnQsIEluZmluaXR5KSk7CiAgICAgIH0KCiAgICAgIC8vIElmIGl0ZW0gaXMgbm90IGFsaWduZWQgdG8gdGhlIHJpZ2h0IGVkZ2UsIGNyZWF0ZSBhIG5ldyBzbG90LgogICAgICBpZiAoc2xvdC5sZWZ0ICsgc2xvdC53aWR0aCA8IGxheW91dC53aWR0aCkgewogICAgICAgIG5ld1Nsb3RzLnB1c2goCiAgICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICAgIHNsb3QubGVmdCArIHNsb3Qud2lkdGgsCiAgICAgICAgICAgIGxheW91dC5oZWlnaHQsCiAgICAgICAgICAgIGxheW91dC53aWR0aCAtIHNsb3QubGVmdCAtIHNsb3Qud2lkdGgsCiAgICAgICAgICAgIEluZmluaXR5CiAgICAgICAgICApCiAgICAgICAgKTsKICAgICAgfQoKICAgICAgLy8gVXBkYXRlIGdyaWQgaGVpZ2h0LgogICAgICBsYXlvdXQuaGVpZ2h0ID0gc2xvdC50b3AgKyBzbG90LmhlaWdodDsKICAgIH0KCiAgICAvLyBJbiBob3Jpem9udGFsIG1vZGUsIGlmIHRoZSBpdGVtJ3MgcmlnaHQgb3ZlcmxhcHMgdGhlIGdyaWQncyByaWdodCBlZGdlLgogICAgaWYgKGhvcml6b250YWwgJiYgc2xvdC5sZWZ0ICsgc2xvdC53aWR0aCA+IGxheW91dC53aWR0aCkgewogICAgICAvLyBJZiBpdGVtIGlzIG5vdCBhbGlnbmVkIHRvIHRoZSB0b3AsIGNyZWF0ZSBhIG5ldyBzbG90LgogICAgICBpZiAoc2xvdC50b3AgPiAwKSB7CiAgICAgICAgbmV3U2xvdHMucHVzaCh0aGlzLmFkZFJlY3QobGF5b3V0LndpZHRoLCAwLCBJbmZpbml0eSwgc2xvdC50b3ApKTsKICAgICAgfQoKICAgICAgLy8gSWYgaXRlbSBpcyBub3QgYWxpZ25lZCB0byB0aGUgYm90dG9tLCBjcmVhdGUgYSBuZXcgc2xvdC4KICAgICAgaWYgKHNsb3QudG9wICsgc2xvdC5oZWlnaHQgPCBsYXlvdXQuaGVpZ2h0KSB7CiAgICAgICAgbmV3U2xvdHMucHVzaCgKICAgICAgICAgIHRoaXMuYWRkUmVjdCgKICAgICAgICAgICAgbGF5b3V0LndpZHRoLAogICAgICAgICAgICBzbG90LnRvcCArIHNsb3QuaGVpZ2h0LAogICAgICAgICAgICBJbmZpbml0eSwKICAgICAgICAgICAgbGF5b3V0LmhlaWdodCAtIHNsb3QudG9wIC0gc2xvdC5oZWlnaHQKICAgICAgICAgICkKICAgICAgICApOwogICAgICB9CgogICAgICAvLyBVcGRhdGUgZ3JpZCB3aWR0aC4KICAgICAgbGF5b3V0LndpZHRoID0gc2xvdC5sZWZ0ICsgc2xvdC53aWR0aDsKICAgIH0KCiAgICAvLyBDbGVhbiB1cCB0aGUgY3VycmVudCBzbG90cyBtYWtpbmcgc3VyZSB0aGVyZSBhcmUgbm8gb2xkIHNsb3RzIHRoYXQKICAgIC8vIG92ZXJsYXAgd2l0aCB0aGUgaXRlbS4gSWYgYW4gb2xkIHNsb3Qgb3ZlcmxhcHMgd2l0aCB0aGUgaXRlbSwgc3BsaXQgaXQKICAgIC8vIGludG8gc21hbGxlciBzbG90cyBpZiBuZWNlc3NhcnkuCiAgICBmb3IgKGkgPSBmaWxsR2FwcyA/IDAgOiBpZ25vcmVDdXJyZW50U2xvdHMgPyBmcmVlU2xvdHMubGVuZ3RoIDogaTsgaSA8IGZyZWVTbG90cy5sZW5ndGg7IGkrKykgewogICAgICByZWN0SWQgPSBmcmVlU2xvdHNbaV07CiAgICAgIGlmICghcmVjdElkKSBjb250aW51ZTsKICAgICAgcmVjdCA9IHRoaXMuZ2V0UmVjdChyZWN0SWQpOwogICAgICBwb3RlbnRpYWxTbG90cyA9IHRoaXMuc3BsaXRSZWN0KHJlY3QsIHNsb3QpOwogICAgICBmb3IgKGogPSAwOyBqIDwgcG90ZW50aWFsU2xvdHMubGVuZ3RoOyBqKyspIHsKICAgICAgICByZWN0SWQgPSBwb3RlbnRpYWxTbG90c1tqXTsKICAgICAgICByZWN0ID0gdGhpcy5nZXRSZWN0KHJlY3RJZCk7CiAgICAgICAgLy8gTGV0J3MgbWFrZSBzdXJlIGhlcmUgdGhhdCB3ZSBoYXZlIGEgYmlnIGVub3VnaCBzbG90LgogICAgICAgIGlmIChyZWN0LndpZHRoIDwgbWluU2l6ZSB8fCByZWN0LmhlaWdodCA8IG1pblNpemUpIGNvbnRpbnVlOwogICAgICAgIC8vIExldCdzIGFsc28gbGV0J3MgbWFrZSBzdXJlIHRoYXQgdGhlIHNsb3QgaXMgd2l0aGluIHRoZSBib3VuZGFyaWVzIG9mCiAgICAgICAgLy8gdGhlIGdyaWQuCiAgICAgICAgaWYgKGhvcml6b250YWwgPyByZWN0LmxlZnQgPCBsYXlvdXQud2lkdGggOiByZWN0LnRvcCA8IGxheW91dC5oZWlnaHQpIHsKICAgICAgICAgIG5ld1Nsb3RzLnB1c2gocmVjdElkKTsKICAgICAgICB9CiAgICAgIH0KICAgIH0KCiAgICAvLyBTYW5pdGl6ZSBuZXcgc2xvdHMuCiAgICBpZiAobmV3U2xvdHMubGVuZ3RoKSB7CiAgICAgIHRoaXMucHVyZ2VSZWN0cyhuZXdTbG90cykuc29ydChob3Jpem9udGFsID8gdGhpcy5zb3J0UmVjdHNMZWZ0VG9wIDogdGhpcy5zb3J0UmVjdHNUb3BMZWZ0KTsKICAgIH0KCiAgICAvLyBGcmVlL25ldyBzbG90cyBzd2l0Y2hlcm9vIQogICAgdGhpcy5mcmVlU2xvdHMgPSBuZXdTbG90czsKICAgIHRoaXMubmV3U2xvdHMgPSBmcmVlU2xvdHM7CgogICAgcmV0dXJuIHNsb3Q7CiAgfTsKfSkoKTsKCi8qKgogKiBBZGQgYSBuZXcgcmVjdGFuZ2xlIHRvIHRoZSByZWN0YW5nbGUgc3RvcmUuIFJldHVybnMgdGhlIGlkIG9mIHRoZSBuZXcKICogcmVjdGFuZ2xlLgogKgogKiBAcGFyYW0ge051bWJlcn0gbGVmdAogKiBAcGFyYW0ge051bWJlcn0gdG9wCiAqIEBwYXJhbSB7TnVtYmVyfSB3aWR0aAogKiBAcGFyYW0ge051bWJlcn0gaGVpZ2h0CiAqIEByZXR1cm5zIHtOdW1iZXJ9CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLmFkZFJlY3QgPSBmdW5jdGlvbihsZWZ0LCB0b3AsIHdpZHRoLCBoZWlnaHQpIHsKICB2YXIgcmVjdElkID0gKyt0aGlzLnJlY3RJZDsKICB2YXIgcmVjdFN0b3JlID0gdGhpcy5yZWN0U3RvcmU7CgogIHJlY3RTdG9yZVtyZWN0SWRdID0gbGVmdCB8fCAwOwogIHJlY3RTdG9yZVsrK3RoaXMucmVjdElkXSA9IHRvcCB8fCAwOwogIHJlY3RTdG9yZVsrK3RoaXMucmVjdElkXSA9IHdpZHRoIHx8IDA7CiAgcmVjdFN0b3JlWysrdGhpcy5yZWN0SWRdID0gaGVpZ2h0IHx8IDA7CgogIHJldHVybiByZWN0SWQ7Cn07CgovKioKICogR2V0IHJlY3RhbmdsZSBkYXRhIGZyb20gdGhlIHJlY3RhbmdsZSBzdG9yZSBieSBpZC4gT3B0aW9uYWxseSB5b3UgY2FuCiAqIHByb3ZpZGUgYSB0YXJnZXQgb2JqZWN0IHdoZXJlIHRoZSByZWN0YW5nbGUgZGF0YSB3aWxsIGJlIHdyaXR0ZW4gaW4uIEJ5CiAqIGRlZmF1bHQgYW4gaW50ZXJuYWwgb2JqZWN0IGlzIHJldXNlZCBhcyBhIHRhcmdldCBvYmplY3QuCiAqCiAqIEBwYXJhbSB7TnVtYmVyfSBpZAogKiBAcGFyYW0ge09iamVjdH0gW3RhcmdldF0KICogQHJldHVybnMge09iamVjdH0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZ2V0UmVjdCA9IGZ1bmN0aW9uKGlkLCB0YXJnZXQpIHsKICB2YXIgcmVjdEl0ZW0gPSB0YXJnZXQgPyB0YXJnZXQgOiB0aGlzLnJlY3RJdGVtOwogIHZhciByZWN0U3RvcmUgPSB0aGlzLnJlY3RTdG9yZTsKCiAgcmVjdEl0ZW0ubGVmdCA9IHJlY3RTdG9yZVtpZF0gfHwgMDsKICByZWN0SXRlbS50b3AgPSByZWN0U3RvcmVbKytpZF0gfHwgMDsKICByZWN0SXRlbS53aWR0aCA9IHJlY3RTdG9yZVsrK2lkXSB8fCAwOwogIHJlY3RJdGVtLmhlaWdodCA9IHJlY3RTdG9yZVsrK2lkXSB8fCAwOwoKICByZXR1cm4gcmVjdEl0ZW07Cn07CgovKioKICogUHVuY2ggYSBob2xlIGludG8gYSByZWN0YW5nbGUgYW5kIHNwbGl0IHRoZSByZW1haW5pbmcgYXJlYSBpbnRvIHNtYWxsZXIKICogcmVjdGFuZ2xlcyAoNCBhdCBtYXgpLgogKiBAcGFyYW0ge09iamVjdH0gcmVjdAogKiBAcGFyYW0ge09iamVjdH0gaG9sZQogKiBAcmV0dXJucyB7TnVtYmVyW119CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLnNwbGl0UmVjdCA9IChmdW5jdGlvbigpIHsKICB2YXIgcmVzdWx0cyA9IFtdOwogIHJldHVybiBmdW5jdGlvbihyZWN0LCBob2xlKSB7CiAgICAvLyBSZXNldCBvbGQgcmVzdWx0cy4KICAgIHJlc3VsdHMubGVuZ3RoID0gMDsKCiAgICAvLyBJZiB0aGUgcmVjdCBkb2VzIG5vdCBvdmVybGFwIHdpdGggdGhlIGhvbGUgYWRkIHJlY3QgdG8gdGhlIHJldHVybiBkYXRhCiAgICAvLyBhcyBpcy4KICAgIGlmICghdGhpcy5kb1JlY3RzT3ZlcmxhcChyZWN0LCBob2xlKSkgewogICAgICByZXN1bHRzLnB1c2godGhpcy5hZGRSZWN0KHJlY3QubGVmdCwgcmVjdC50b3AsIHJlY3Qud2lkdGgsIHJlY3QuaGVpZ2h0KSk7CiAgICAgIHJldHVybiByZXN1bHRzOwogICAgfQoKICAgIC8vIExlZnQgc3BsaXQuCiAgICBpZiAocmVjdC5sZWZ0IDwgaG9sZS5sZWZ0KSB7CiAgICAgIHJlc3VsdHMucHVzaCh0aGlzLmFkZFJlY3QocmVjdC5sZWZ0LCByZWN0LnRvcCwgaG9sZS5sZWZ0IC0gcmVjdC5sZWZ0LCByZWN0LmhlaWdodCkpOwogICAgfQoKICAgIC8vIFJpZ2h0IHNwbGl0LgogICAgaWYgKHJlY3QubGVmdCArIHJlY3Qud2lkdGggPiBob2xlLmxlZnQgKyBob2xlLndpZHRoKSB7CiAgICAgIHJlc3VsdHMucHVzaCgKICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICBob2xlLmxlZnQgKyBob2xlLndpZHRoLAogICAgICAgICAgcmVjdC50b3AsCiAgICAgICAgICByZWN0LmxlZnQgKyByZWN0LndpZHRoIC0gKGhvbGUubGVmdCArIGhvbGUud2lkdGgpLAogICAgICAgICAgcmVjdC5oZWlnaHQKICAgICAgICApCiAgICAgICk7CiAgICB9CgogICAgLy8gVG9wIHNwbGl0LgogICAgaWYgKHJlY3QudG9wIDwgaG9sZS50b3ApIHsKICAgICAgcmVzdWx0cy5wdXNoKHRoaXMuYWRkUmVjdChyZWN0LmxlZnQsIHJlY3QudG9wLCByZWN0LndpZHRoLCBob2xlLnRvcCAtIHJlY3QudG9wKSk7CiAgICB9CgogICAgLy8gQm90dG9tIHNwbGl0LgogICAgaWYgKHJlY3QudG9wICsgcmVjdC5oZWlnaHQgPiBob2xlLnRvcCArIGhvbGUuaGVpZ2h0KSB7CiAgICAgIHJlc3VsdHMucHVzaCgKICAgICAgICB0aGlzLmFkZFJlY3QoCiAgICAgICAgICByZWN0LmxlZnQsCiAgICAgICAgICBob2xlLnRvcCArIGhvbGUuaGVpZ2h0LAogICAgICAgICAgcmVjdC53aWR0aCwKICAgICAgICAgIHJlY3QudG9wICsgcmVjdC5oZWlnaHQgLSAoaG9sZS50b3AgKyBob2xlLmhlaWdodCkKICAgICAgICApCiAgICAgICk7CiAgICB9CgogICAgcmV0dXJuIHJlc3VsdHM7CiAgfTsKfSkoKTsKCi8qKgogKiBDaGVjayBpZiB0d28gcmVjdGFuZ2xlcyBvdmVybGFwLgogKgogKiBAcGFyYW0ge09iamVjdH0gYQogKiBAcGFyYW0ge09iamVjdH0gYgogKiBAcmV0dXJucyB7Qm9vbGVhbn0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuZG9SZWN0c092ZXJsYXAgPSBmdW5jdGlvbihhLCBiKSB7CiAgcmV0dXJuICEoCiAgICBhLmxlZnQgKyBhLndpZHRoIDw9IGIubGVmdCB8fAogICAgYi5sZWZ0ICsgYi53aWR0aCA8PSBhLmxlZnQgfHwKICAgIGEudG9wICsgYS5oZWlnaHQgPD0gYi50b3AgfHwKICAgIGIudG9wICsgYi5oZWlnaHQgPD0gYS50b3AKICApOwp9OwoKLyoqCiAqIENoZWNrIGlmIGEgcmVjdGFuZ2xlIGlzIGZ1bGx5IHdpdGhpbiBhbm90aGVyIHJlY3RhbmdsZS4KICoKICogQHBhcmFtIHtPYmplY3R9IGEKICogQHBhcmFtIHtPYmplY3R9IGIKICogQHJldHVybnMge0Jvb2xlYW59CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLmlzUmVjdFdpdGhpblJlY3QgPSBmdW5jdGlvbihhLCBiKSB7CiAgcmV0dXJuICgKICAgIGEubGVmdCA+PSBiLmxlZnQgJiYKICAgIGEudG9wID49IGIudG9wICYmCiAgICBhLmxlZnQgKyBhLndpZHRoIDw9IGIubGVmdCArIGIud2lkdGggJiYKICAgIGEudG9wICsgYS5oZWlnaHQgPD0gYi50b3AgKyBiLmhlaWdodAogICk7Cn07CgovKioKICogTG9vcHMgdGhyb3VnaCBhbiBhcnJheSBvZiByZWN0YW5nbGUgaWRzIGFuZCByZXNldHMgYWxsIHRoYXQgYXJlIGZ1bGx5CiAqIHdpdGhpbiBhbm90aGVyIHJlY3RhbmdsZSBpbiB0aGUgYXJyYXkuIFJlc2V0dGluZyBpbiB0aGlzIGNhc2UgbWVhbnMgdGhhdAogKiB0aGUgcmVjdGFuZ2xlIGlkIHZhbHVlIGlzIHJlcGxhY2VkIHdpdGggemVyby4KICoKICogQHBhcmFtIHtOdW1iZXJbXX0gcmVjdElkcwogKiBAcmV0dXJucyB7TnVtYmVyW119CiAqLwpQYWNrZXJQcm9jZXNzb3IucHJvdG90eXBlLnB1cmdlUmVjdHMgPSAoZnVuY3Rpb24oKSB7CiAgdmFyIHJlY3RBID0ge307CiAgdmFyIHJlY3RCID0ge307CiAgcmV0dXJuIGZ1bmN0aW9uKHJlY3RJZHMpIHsKICAgIHZhciBpID0gcmVjdElkcy5sZW5ndGg7CiAgICB2YXIgajsKCiAgICB3aGlsZSAoaS0tKSB7CiAgICAgIGogPSByZWN0SWRzLmxlbmd0aDsKICAgICAgaWYgKCFyZWN0SWRzW2ldKSBjb250aW51ZTsKICAgICAgdGhpcy5nZXRSZWN0KHJlY3RJZHNbaV0sIHJlY3RBKTsKICAgICAgd2hpbGUgKGotLSkgewogICAgICAgIGlmICghcmVjdElkc1tqXSB8fCBpID09PSBqKSBjb250aW51ZTsKICAgICAgICBpZiAodGhpcy5pc1JlY3RXaXRoaW5SZWN0KHJlY3RBLCB0aGlzLmdldFJlY3QocmVjdElkc1tqXSwgcmVjdEIpKSkgewogICAgICAgICAgcmVjdElkc1tpXSA9IDA7CiAgICAgICAgICBicmVhazsKICAgICAgICB9CiAgICAgIH0KICAgIH0KCiAgICByZXR1cm4gcmVjdElkczsKICB9Owp9KSgpOwoKLyoqCiAqIFNvcnQgcmVjdGFuZ2xlcyB3aXRoIHRvcC1sZWZ0IGdyYXZpdHkuCiAqCiAqIEBwYXJhbSB7TnVtYmVyfSBhSWQKICogQHBhcmFtIHtOdW1iZXJ9IGJJZAogKiBAcmV0dXJucyB7TnVtYmVyfQogKi8KUGFja2VyUHJvY2Vzc29yLnByb3RvdHlwZS5zb3J0UmVjdHNUb3BMZWZ0ID0gKGZ1bmN0aW9uKCkgewogIHZhciByZWN0QSA9IHt9OwogIHZhciByZWN0QiA9IHt9OwogIHJldHVybiBmdW5jdGlvbihhSWQsIGJJZCkgewogICAgdGhpcy5nZXRSZWN0KGFJZCwgcmVjdEEpOwogICAgdGhpcy5nZXRSZWN0KGJJZCwgcmVjdEIpOwogICAgLy8gcHJldHRpZXItaWdub3JlCiAgICByZXR1cm4gcmVjdEEudG9wIDwgcmVjdEIudG9wID8gLTEgOgogICAgICAgICAgIHJlY3RBLnRvcCA+IHJlY3RCLnRvcCA/IDEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPCByZWN0Qi5sZWZ0ID8gLTEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPiByZWN0Qi5sZWZ0ID8gMSA6IDA7CiAgfTsKfSkoKTsKCi8qKgogKiBTb3J0IHJlY3RhbmdsZXMgd2l0aCBsZWZ0LXRvcCBncmF2aXR5LgogKgogKiBAcGFyYW0ge051bWJlcn0gYUlkCiAqIEBwYXJhbSB7TnVtYmVyfSBiSWQKICogQHJldHVybnMge051bWJlcn0KICovClBhY2tlclByb2Nlc3Nvci5wcm90b3R5cGUuc29ydFJlY3RzTGVmdFRvcCA9IChmdW5jdGlvbigpIHsKICB2YXIgcmVjdEEgPSB7fTsKICB2YXIgcmVjdEIgPSB7fTsKICByZXR1cm4gZnVuY3Rpb24oYUlkLCBiSWQpIHsKICAgIHRoaXMuZ2V0UmVjdChhSWQsIHJlY3RBKTsKICAgIHRoaXMuZ2V0UmVjdChiSWQsIHJlY3RCKTsKICAgIC8vIHByZXR0aWVyLWlnbm9yZQogICAgcmV0dXJuIHJlY3RBLmxlZnQgPCByZWN0Qi5sZWZ0ID8gLTEgOgogICAgICAgICAgIHJlY3RBLmxlZnQgPiByZWN0Qi5sZWZ0ID8gMSA6CiAgICAgICAgICAgcmVjdEEudG9wIDwgcmVjdEIudG9wID8gLTEgOgogICAgICAgICAgIHJlY3RBLnRvcCA+IHJlY3RCLnRvcCA/IDEgOiAwOwogIH07Cn0pKCk7Cgp2YXIgcHJvY2Vzc29yID0gbmV3IFBhY2tlclByb2Nlc3NvcigpOwoKb25tZXNzYWdlID0gZnVuY3Rpb24obXNnKSB7CiAgdmFyIGRhdGEgPSBuZXcgRmxvYXQzMkFycmF5KG1zZy5kYXRhKTsKICB2YXIgaXRlbXMgPSBkYXRhLnN1YmFycmF5KFBBQ0tFVF9IRUFERVJfU0xPVFMsIGRhdGEubGVuZ3RoKTsKICB2YXIgc2xvdHMgPSBuZXcgRmxvYXQzMkFycmF5KGl0ZW1zLmxlbmd0aCk7CiAgdmFyIGxheW91dCA9IHsKICAgIGl0ZW1zOiBpdGVtcywKICAgIHNsb3RzOiBzbG90cywKICAgIHdpZHRoOiBkYXRhW1BBQ0tFVF9JTkRFWF9XSURUSF0sCiAgICBoZWlnaHQ6IGRhdGFbUEFDS0VUX0lOREVYX0hFSUdIVF0sCiAgICBzZXR0aW5nczogZGF0YVtQQUNLRVRfSU5ERVhfT1BUSU9OU10KICB9OwoKICAvLyBGaWxsIHRoZSBsYXlvdXQgKHdpZHRoIC8gaGVpZ2h0IC8gc2xvdHMpLgogIHByb2Nlc3Nvci5maWxsTGF5b3V0KGxheW91dCk7CgogIC8vIENvcHkgbGF5b3V0IGRhdGEgdG8gdGhlIHJldHVybiBkYXRhLgogIGRhdGFbUEFDS0VUX0lOREVYX1dJRFRIXSA9IGxheW91dC53aWR0aDsKICBkYXRhW1BBQ0tFVF9JTkRFWF9IRUlHSFRdID0gbGF5b3V0LmhlaWdodDsKICBkYXRhLnNldChsYXlvdXQuc2xvdHMsIFBBQ0tFVF9IRUFERVJfU0xPVFMpOwoKICAvLyBTZW5kIGxheW91dCBiYWNrIHRvIHRoZSBtYWluIHRocmVhZC4KICBwb3N0TWVzc2FnZShkYXRhLmJ1ZmZlciwgW2RhdGEuYnVmZmVyXSk7Cn07Cgo=', null, false);
   /* eslint-enable */
 
   var FILL_GAPS = 1;
@@ -6762,7 +6734,7 @@
    * @param {Number} top
    * @param {Number} width
    * @param {Number} height
-   * @returns {RectId}
+   * @returns {Number}
    */
   PackerProcessor.prototype.addRect = function(left, top, width, height) {
     var rectId = ++this.rectId;
@@ -6781,7 +6753,7 @@
    * provide a target object where the rectangle data will be written in. By
    * default an internal object is reused as a target object.
    *
-   * @param {RectId} id
+   * @param {Number} id
    * @param {Object} [target]
    * @returns {Object}
    */
@@ -6800,9 +6772,9 @@
   /**
    * Punch a hole into a rectangle and split the remaining area into smaller
    * rectangles (4 at max).
-   * @param {Rectangle} rect
-   * @param {Rectangle} hole
-   * @returns {RectId[]}
+   * @param {Object} rect
+   * @param {Object} hole
+   * @returns {Number[]}
    */
   PackerProcessor.prototype.splitRect = (function() {
     var results = [];
@@ -6858,8 +6830,8 @@
   /**
    * Check if two rectangles overlap.
    *
-   * @param {Rectangle} a
-   * @param {Rectangle} b
+   * @param {Object} a
+   * @param {Object} b
    * @returns {Boolean}
    */
   PackerProcessor.prototype.doRectsOverlap = function(a, b) {
@@ -6874,8 +6846,8 @@
   /**
    * Check if a rectangle is fully within another rectangle.
    *
-   * @param {Rectangle} a
-   * @param {Rectangle} b
+   * @param {Object} a
+   * @param {Object} b
    * @returns {Boolean}
    */
   PackerProcessor.prototype.isRectWithinRect = function(a, b) {
@@ -6892,8 +6864,8 @@
    * within another rectangle in the array. Resetting in this case means that
    * the rectangle id value is replaced with zero.
    *
-   * @param {RectId[]} rectIds
-   * @returns {RectId[]}
+   * @param {Number[]} rectIds
+   * @returns {Number[]}
    */
   PackerProcessor.prototype.purgeRects = (function() {
     var rectA = {};
@@ -6922,8 +6894,8 @@
   /**
    * Sort rectangles with top-left gravity.
    *
-   * @param {RectId} aId
-   * @param {RectId} bId
+   * @param {Number} aId
+   * @param {Number} bId
    * @returns {Number}
    */
   PackerProcessor.prototype.sortRectsTopLeft = (function() {
@@ -6943,8 +6915,8 @@
   /**
    * Sort rectangles with left-top gravity.
    *
-   * @param {RectId} aId
-   * @param {RectId} bId
+   * @param {Number} aId
+   * @param {Number} bId
    * @returns {Number}
    */
   PackerProcessor.prototype.sortRectsLeftTop = (function() {
@@ -7321,7 +7293,7 @@
    * @class
    * @param {(HTMLElement|String)} element
    * @param {Object} [options]
-   * @param {?(HTMLElement[]|NodeList|String)} [options.items]
+   * @param {?(HTMLElement[]|NodeList|HtmlCollection|String)} [options.items]
    * @param {Number} [options.showDuration=300]
    * @param {String} [options.showEasing="ease"]
    * @param {Object} [options.visibleStyles]
@@ -7392,38 +7364,28 @@
       element = document.querySelector(element);
     }
 
-    // Store element for instance.
-    this._element = element;
-
     // Throw an error if the container element is not body element or does not
     // exist within the body element.
     var isElementInDom = element.getRootNode
       ? element.getRootNode({ composed: true }) === document
       : document.body.contains(element);
     if (!isElementInDom || element === document.documentElement) {
-      throw new Error('Container element must be an existing DOM element');
+      throw new Error('Container element must be an existing DOM element.');
     }
 
     // Create instance settings by merging the options with default options.
-    var settings = (this._settings = mergeSettings(Grid.defaultOptions, options));
-
-    // Sanitize dragSort setting.
+    var settings = mergeSettings(Grid.defaultOptions, options);
+    settings.visibleStyles = normalizeStyles(settings.visibleStyles);
+    settings.hiddenStyles = normalizeStyles(settings.hiddenStyles);
     if (!isFunction(settings.dragSort)) {
       settings.dragSort = !!settings.dragSort;
     }
 
-    // Normalize visible and hidden styles.
-    settings.visibleStyles = normalizeStyles(settings.visibleStyles);
-    settings.hiddenStyles = normalizeStyles(settings.hiddenStyles);
-
-    // Create instance id and store it to the grid instances collection.
     this._id = createUid();
-    GRID_INSTANCES[this._id] = this;
-
-    // Destroyed flag.
+    this._element = element;
+    this._settings = settings;
     this._isDestroyed = false;
-
-    // Layout data.
+    this._items = [];
     this._layout = {
       id: 0,
       items: [],
@@ -7435,20 +7397,21 @@
     };
     this._isLayoutFinished = true;
     this._nextLayoutData = null;
+    this._emitter = new Emitter();
     this._onLayoutDataReceived = this._onLayoutDataReceived.bind(this);
 
-    // Create private Emitter instance.
-    this._emitter = new Emitter();
+    // Store grid instance to the grid instances collection.
+    GRID_INSTANCES[this._id] = this;
 
     // Add container element's class name.
     addClass(element, settings.containerClass);
 
-    // Create initial items.
-    this._items = getInitialGridItems(this, settings.items);
-
     // If layoutOnResize option is a valid number sanitize it and bind the resize
     // handler.
     bindLayoutOnResize(this, settings.layoutOnResize);
+
+    // Add initial items.
+    this.add(getInitialGridElements(element, settings.items), { layout: false });
 
     // Layout on init if necessary.
     if (settings.layoutOnInit) {
@@ -7673,14 +7636,60 @@
   };
 
   /**
-   * Get all items. Optionally you can provide specific targets (elements and
-   * indices). Note that the returned array is not the same object used by the
-   * instance so modifying it will not affect instance's items. All items that
-   * are not found are omitted from the returned array.
+   * Get instance's item by element or by index. Target can also be an Item
+   * instance in which case the function returns the item if it exists within
+   * related Grid instance. If nothing is found with the provided target, null
+   * is returned.
+   *
+   * @private
+   * @memberof Grid.prototype
+   * @param {(HtmlElement|Number|Item)} [target]
+   * @returns {?Item}
+   */
+  Grid.prototype.getItem = function(target) {
+    // If no target is specified or the instance is destroyed, return null.
+    if (this._isDestroyed || (!target && target !== 0)) {
+      return null;
+    }
+
+    // If target is number return the item in that index. If the number is lower
+    // than zero look for the item starting from the end of the items array. For
+    // example -1 for the last item, -2 for the second last item, etc.
+    if (typeof target === NUMBER_TYPE) {
+      return this._items[target > -1 ? target : this._items.length + target] || null;
+    }
+
+    // If the target is an instance of Item return it if it is attached to this
+    // Grid instance, otherwise return null.
+    if (target instanceof Item) {
+      return target._gridId === this._id ? target : null;
+    }
+
+    // In other cases let's assume that the target is an element, so let's try
+    // to find an item that matches the element and return it. If item is not
+    // found return null.
+    if (ITEM_ELEMENT_MAP) {
+      var item = ITEM_ELEMENT_MAP.get(target);
+      return item && item._gridId === this._id ? item : null;
+    } else {
+      for (var i = 0; i < this._items.length; i++) {
+        if (this._items[i]._element === target) {
+          return this._items[i];
+        }
+      }
+    }
+
+    return null;
+  };
+
+  /**
+   * Get all items. Optionally you can provide specific targets (elements,
+   * indices and item instances). All items that are not found are omitted from
+   * the returned array.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {GridMultiItemQuery} [targets]
+   * @param {(HtmlElement|Number|Item|Array)} [targets]
    * @returns {Item[]}
    */
   Grid.prototype.getItems = function(targets) {
@@ -7695,11 +7704,11 @@
 
     if (Array.isArray(targets) || isNodeList(targets)) {
       for (i = 0; i < targets.length; i++) {
-        item = this._getItem(targets[i]);
+        item = this.getItem(targets[i]);
         if (item) items.push(item);
       }
     } else {
-      item = this._getItem(targets);
+      item = this.getItem(targets);
       if (item) items.push(item);
     }
 
@@ -7707,42 +7716,72 @@
   };
 
   /**
-   * Update the cached dimensions of the instance's items.
+   * Update the cached dimensions of the instance's items. By default all the
+   * items are refreshed, but you can also provide an array of target items as the
+   * first argument if you want to refresh specific items. Note that all hidden
+   * items are not refreshed by default since their "display" property is "none"
+   * and their dimensions are therefore not readable from the DOM. However, if you
+   * do want to force refresh hidden item dimensions too you can provide `true``
+   * as the second argument, which makes the elements temporarily visible while
+   * their dimensions are being read.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {GridMultiItemQuery} [items]
+   * @param {Item[]} [items]
+   * @param {Boolean} [force=false]
    * @returns {Grid}
    */
-  Grid.prototype.refreshItems = function(items) {
+  Grid.prototype.refreshItems = function(items, force) {
     if (this._isDestroyed) return this;
 
-    var targets = this.getItems(items);
-    var i;
+    var targets = items || this._items;
+    var i, item, style, hiddenItemStyles;
+
+    if (force === true) {
+      hiddenItemStyles = [];
+      for (i = 0; i < targets.length; i++) {
+        item = targets[i];
+        if (!item.isVisible() && !item.isHiding()) {
+          style = item.getElement().style;
+          style.visibility = 'hidden';
+          style.display = 'block';
+          hiddenItemStyles.push(style);
+        }
+      }
+    }
 
     for (i = 0; i < targets.length; i++) {
-      targets[i]._refreshDimensions();
+      targets[i]._refreshDimensions(force);
+    }
+
+    if (force === true) {
+      for (i = 0; i < hiddenItemStyles.length; i++) {
+        style = hiddenItemStyles[i];
+        style.visibility = '';
+        style.display = 'none';
+      }
+      hiddenItemStyles.length = 0;
     }
 
     return this;
   };
 
   /**
-   * Update the sort data of the instance's items.
+   * Update the sort data of the instance's items. By default all the items are
+   * refreshed, but you can also provide an array of target items if you want to
+   * refresh specific items.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {GridMultiItemQuery} [items]
+   * @param {Item[]} [items]
    * @returns {Grid}
    */
   Grid.prototype.refreshSortData = function(items) {
     if (this._isDestroyed) return this;
 
-    var targetItems = this.getItems(items);
-    var i;
-
-    for (i = 0; i < targetItems.length; i++) {
-      targetItems[i]._refreshSortData();
+    var targets = items || this._items;
+    for (var i = 0; i < targets.length; i++) {
+      targets[i]._refreshSortData();
     }
 
     return this;
@@ -7790,7 +7829,7 @@
    * @public
    * @memberof Grid.prototype
    * @param {Boolean} [instant=false]
-   * @param {LayoutCallback} [onFinish]
+   * @param {Function} [onFinish]
    * @returns {Grid}
    */
   Grid.prototype.layout = function(instant, onFinish) {
@@ -7874,8 +7913,8 @@
    * @param {(HTMLElement|HTMLElement[])} elements
    * @param {Object} [options]
    * @param {Number} [options.index=-1]
-   * @param {Boolean} [options.isActive]
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @param {Boolean} [options.active]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Item[]}
    */
   Grid.prototype.add = function(elements, options) {
@@ -7897,7 +7936,7 @@
     // document fragment.
     for (i = 0; i < newItems.length; i++) {
       element = newItems[i];
-      if (element.parentNode === this._element) {
+      if (element.parentNode !== this._element) {
         fragment = fragment || document.createDocumentFragment();
         fragment.appendChild(element);
       }
@@ -7913,7 +7952,7 @@
     // Map provided elements into new grid items.
     for (i = 0; i < newItems.length; i++) {
       element = newItems[i];
-      item = newItems[i] = new Item(this, element, opts.isActive);
+      item = newItems[i] = new Item(this, element, opts.active);
 
       // If the item to be added is active, we need to do a layout. Also, we
       // need to mark the item with the skipNextAnimation flag to make it
@@ -7955,30 +7994,39 @@
    *
    * @public
    * @memberof Grid.prototype
-   * @param {GridMultiItemQuery} items
+   * @param {Item[]} items
    * @param {Object} [options]
    * @param {Boolean} [options.removeElements=false]
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Item[]}
    */
   Grid.prototype.remove = function(items, options) {
-    if (this._isDestroyed) return this;
+    if (this._isDestroyed || !items.length) return [];
 
     var opts = options || {};
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var needsLayout = false;
     var allItems = this.getItems();
-    var targetItems = this.getItems(items);
+    var targetItems = [];
     var indices = [];
+    var index;
     var item;
     var i;
 
     // Remove the individual items.
-    for (i = 0; i < targetItems.length; i++) {
-      item = targetItems[i];
-      indices.push(allItems.indexOf(item));
+    for (i = 0; i < items.length; i++) {
+      item = items[i];
+      if (item._isDestroyed) continue;
+
+      index = this._items.indexOf(item);
+      if (index === -1) continue;
+
       if (item._isActive) needsLayout = true;
+
+      targetItems.push(item);
+      indices.push(allItems.indexOf(item));
       item._destroy(opts.removeElements);
+      this._items.splice(index, 1);
     }
 
     // Emit remove event.
@@ -7995,38 +8043,42 @@
   };
 
   /**
-   * Show instance items.
+   * Show specific instance items.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {GridMultiItemQuery} items
+   * @param {Item[]} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
+   * @param {Boolean} [options.syncWithLayout=true]
    * @param {ShowCallback} [options.onFinish]
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.show = function(items, options) {
-    if (this._isDestroyed) return this;
-    this._setItemsVisibility(items, true, options);
+    if (!this._isDestroyed && items.length) {
+      this._setItemsVisibility(items, true, options);
+    }
     return this;
   };
 
   /**
-   * Hide instance items.
+   * Hide specific instance items.
    *
    * @public
    * @memberof Grid.prototype
-   * @param {GridMultiItemQuery} items
+   * @param {Item[]} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
+   * @param {Boolean} [options.syncWithLayout=true]
    * @param {HideCallback} [options.onFinish]
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.hide = function(items, options) {
-    if (this._isDestroyed) return this;
-    this._setItemsVisibility(items, false, options);
+    if (!this._isDestroyed && items.length) {
+      this._setItemsVisibility(items, false, options);
+    }
     return this;
   };
 
@@ -8045,8 +8097,9 @@
    * @param {(Function|String)} predicate
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
+   * @param {Boolean} [options.syncWithLayout=true]
    * @param {FilterCallback} [options.onFinish]
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.filter = function(predicate, options) {
@@ -8058,6 +8111,7 @@
     var isPredicateFn = isFunction(predicate);
     var opts = options || {};
     var isInstant = opts.instant === true;
+    var syncWithLayout = opts.syncWithLayout;
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var onFinish = isFunction(opts.onFinish) ? opts.onFinish : null;
     var tryFinishCounter = -1;
@@ -8088,6 +8142,7 @@
     if (itemsToShow.length) {
       this.show(itemsToShow, {
         instant: isInstant,
+        syncWithLayout: syncWithLayout,
         onFinish: tryFinish,
         layout: false
       });
@@ -8099,6 +8154,7 @@
     if (itemsToHide.length) {
       this.hide(itemsToHide, {
         instant: isInstant,
+        syncWithLayout: syncWithLayout,
         onFinish: tryFinish,
         layout: false
       });
@@ -8137,7 +8193,7 @@
    * @param {(Function|Item[]|String|String[])} comparer
    * @param {Object} [options]
    * @param {Boolean} [options.descending=false]
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.sort = (function() {
@@ -8145,29 +8201,6 @@
     var isDescending;
     var origItems;
     var indexMap;
-
-    function parseCriteria(data) {
-      return data
-        .trim()
-        .split(' ')
-        .map(function(val) {
-          return val.split(':');
-        });
-    }
-
-    function getIndexMap(items) {
-      var result = {};
-      for (var i = 0; i < items.length; i++) {
-        result[items[i]._id] = i;
-      }
-      return result;
-    }
-
-    function compareIndices(itemA, itemB) {
-      var indexA = indexMap[itemA._id];
-      var indexB = indexMap[itemB._id];
-      return isDescending ? indexB - indexA : indexA - indexB;
-    }
 
     function defaultComparer(a, b) {
       var result = 0;
@@ -8200,24 +8233,23 @@
       }
 
       // If values are equal let's compare the item indices to make sure we
-      // have a stable sort.
+      // have a stable sort. Note that this is not necessary in evergreen browsers
+      // because Array.sort() is nowadays stable. However, in order to guarantee
+      // same results in older browsers we need this.
       if (!result) {
-        if (!indexMap) indexMap = getIndexMap(origItems);
-        result = compareIndices(a, b);
+        if (!indexMap) indexMap = createIndexMap(origItems);
+        result = isDescending ? compareIndexMap(indexMap, b, a) : compareIndexMap(indexMap, a, b);
       }
       return result;
     }
 
     function customComparer(a, b) {
-      var result = sortComparer(a, b);
-      // If descending let's invert the result value.
-      if (isDescending && result) result = -result;
-      // If we have a valid result (not zero) let's return it right away.
-      if (result) return result;
-      // If result is zero let's compare the item indices to make sure we have a
-      // stable sort.
-      if (!indexMap) indexMap = getIndexMap(origItems);
-      return compareIndices(a, b);
+      var result = isDescending ? -sortComparer(a, b) : sortComparer(a, b);
+      if (!result) {
+        if (!indexMap) indexMap = createIndexMap(origItems);
+        result = isDescending ? compareIndexMap(indexMap, b, a) : compareIndexMap(indexMap, a, b);
+      }
+      return result;
     }
 
     return function(comparer, options) {
@@ -8226,41 +8258,43 @@
       var items = this._items;
       var opts = options || {};
       var layout = opts.layout ? opts.layout : opts.layout === undefined;
-      var i;
 
       // Setup parent scope data.
-      sortComparer = comparer;
       isDescending = !!opts.descending;
       origItems = items.slice(0);
       indexMap = null;
 
       // If function is provided do a native array sort.
-      if (isFunction(sortComparer)) {
+      if (isFunction(comparer)) {
+        sortComparer = comparer;
         items.sort(customComparer);
       }
       // Otherwise if we got a string, let's sort by the sort data as provided in
       // the instance's options.
-      else if (typeof sortComparer === STRING_TYPE) {
-        sortComparer = parseCriteria(comparer);
+      else if (typeof comparer === STRING_TYPE) {
+        sortComparer = comparer
+          .trim()
+          .split(' ')
+          .filter(function(val) {
+            return val;
+          })
+          .map(function(val) {
+            return val.split(':');
+          });
         items.sort(defaultComparer);
       }
       // Otherwise if we got an array, let's assume it's a presorted array of the
-      // items and order the items based on it.
-      else if (Array.isArray(sortComparer)) {
-        if (sortComparer.length !== items.length) {
-          throw new Error('Sort reference items do not match with grid items.');
-        }
-        for (i = 0; i < items.length; i++) {
-          if (sortComparer.indexOf(items[i]) < 0) {
-            throw new Error('Sort reference items do not match with grid items.');
-          }
-          items[i] = sortComparer[i];
-        }
-        if (isDescending) items.reverse();
+      // items and order the items based on it. Here we blindly trust that the
+      // presorted array consists of the same item instances as the current
+      // `gird._items` array.
+      else if (Array.isArray(comparer)) {
+        items.length = 0;
+        Array.prototype.push.apply(items, comparer);
       }
-      // Otherwise let's just skip it, nothing we can do here.
+      // Otherwise let's throw an error.
       else {
-        return this;
+        sortComparer = isDescending = origItems = indexMap = null;
+        throw new Error('Invalid comparer argument provided.');
       }
 
       // Emit sort event.
@@ -8273,6 +8307,9 @@
         this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
       }
 
+      // Reset data (to avoid mem leaks).
+      sortComparer = isDescending = origItems = indexMap = null;
+
       return this;
     };
   })();
@@ -8282,14 +8319,14 @@
    *
    * @public
    * @memberof Grid.prototype
-   * @param {GridSingleItemQuery} item
-   * @param {GridSingleItemQuery} position
+   * @param {(HtmlElement|Number|Item)} item
+   * @param {(HtmlElement|Number|Item)} position
    * @param {Object} [options]
    * @param {String} [options.action="move"]
    *   - Accepts either "move" or "swap".
    *   - "move" moves the item in place of the other item.
    *   - "swap" swaps the position of the items.
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
   Grid.prototype.move = function(item, position, options) {
@@ -8300,8 +8337,8 @@
     var layout = opts.layout ? opts.layout : opts.layout === undefined;
     var isSwap = opts.action === ACTION_SWAP;
     var action = isSwap ? ACTION_SWAP : ACTION_MOVE;
-    var fromItem = this._getItem(item);
-    var toItem = this._getItem(position);
+    var fromItem = this.getItem(item);
+    var toItem = this.getItem(position);
     var fromIndex;
     var toIndex;
 
@@ -8342,20 +8379,20 @@
    *
    * @public
    * @memberof Grid.prototype
-   * @param {GridSingleItemQuery} item
+   * @param {(HtmlElement|Number|Item)} item
    * @param {Grid} grid
-   * @param {GridSingleItemQuery} position
+   * @param {(HtmlElement|Number|Item)} position
    * @param {Object} [options]
    * @param {HTMLElement} [options.appendTo=document.body]
-   * @param {(Boolean|LayoutCallback|String)} [options.layoutSender=true]
-   * @param {(Boolean|LayoutCallback|String)} [options.layoutReceiver=true]
+   * @param {(Boolean|Function|String)} [options.layoutSender=true]
+   * @param {(Boolean|Function|String)} [options.layoutReceiver=true]
    * @returns {Grid}
    */
   Grid.prototype.send = function(item, grid, position, options) {
     if (this._isDestroyed || grid._isDestroyed || this === grid) return this;
 
     // Make sure we have a valid target item.
-    item = this._getItem(item);
+    item = this.getItem(item);
     if (!item) return this;
 
     var opts = options || {};
@@ -8410,6 +8447,7 @@
     for (i = 0; i < items.length; i++) {
       items[i]._destroy(removeElements);
     }
+    this._items.length = 0;
 
     // Restore container.
     removeClass(container, this._settings.containerClass);
@@ -8433,48 +8471,6 @@
    * Private prototype methods
    * *************************
    */
-
-  /**
-   * Get instance's item by element or by index. Target can also be an Item
-   * instance in which case the function returns the item if it exists within
-   * related Grid instance. If nothing is found with the provided target, null
-   * is returned.
-   *
-   * @private
-   * @memberof Grid.prototype
-   * @param {GridSingleItemQuery} [target]
-   * @returns {?Item}
-   */
-  Grid.prototype._getItem = function(target) {
-    // If no target is specified or the instance is destroyed, return null.
-    if (this._isDestroyed || (!target && target !== 0)) {
-      return null;
-    }
-
-    // If target is number return the item in that index. If the number is lower
-    // than zero look for the item starting from the end of the items array. For
-    // example -1 for the last item, -2 for the second last item, etc.
-    if (typeof target === NUMBER_TYPE) {
-      return this._items[target > -1 ? target : this._items.length + target] || null;
-    }
-
-    // If the target is an instance of Item return it if it is attached to this
-    // Grid instance, otherwise return null.
-    if (target instanceof Item) {
-      return target._gridId === this._id ? target : null;
-    }
-
-    // In other cases let's assume that the target is an element, so let's try
-    // to find an item that matches the element and return it. If item is not
-    // found return null.
-    for (var i = 0; i < this._items.length; i++) {
-      if (this._items[i]._element === target) {
-        return this._items[i];
-      }
-    }
-
-    return null;
-  };
 
   /**
    * Emit a grid event.
@@ -8546,6 +8542,7 @@
   Grid.prototype._refreshDimensions = function() {
     this._updateBoundingRect();
     this._updateBorders(1, 1, 1, 1);
+    this._boxSizing = getStyle(this._element, 'box-sizing');
   };
 
   /**
@@ -8559,36 +8556,20 @@
    *
    * @private
    * @memberof Grid.prototype
-   * @param {LayoutData} layout
+   * @param {Object} layout
    */
   Grid.prototype._updateGridElementSize = function(layout) {
     var element = this._element;
-    var isBorderBox = false;
-
-    if (
-      (layout.setHeight && typeof layout.height === NUMBER_TYPE) ||
-      (layout.setWidth && typeof layout.width === NUMBER_TYPE)
-    ) {
-      // TODO: Cache this value with refreshDimensions.
-      isBorderBox = getStyle(element, 'box-sizing') === 'border-box';
-    }
+    var isBorderBox = this._boxSizing === 'border-box';
 
     if (layout.setHeight) {
-      if (typeof layout.height === NUMBER_TYPE) {
-        element.style.height =
-          (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
-      } else {
-        element.style.height = layout.height;
-      }
+      element.style.height =
+        (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
     }
 
     if (layout.setWidth) {
-      if (typeof layout.width === NUMBER_TYPE) {
-        element.style.width =
-          (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
-      } else {
-        element.style.width = layout.width;
-      }
+      element.style.width =
+        (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
     }
   };
 
@@ -8703,16 +8684,17 @@
    *
    * @private
    * @memberof Grid.prototype
-   * @param {GridMultiItemQuery} items
+   * @param {Item[]} items
    * @param {Boolean} toVisible
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
-   * @param {(ShowCallback|HideCallback)} [options.onFinish]
-   * @param {(Boolean|LayoutCallback|String)} [options.layout=true]
+   * @param {Boolean} [options.syncWithLayout=true]
+   * @param {Function} [options.onFinish]
+   * @param {(Boolean|Function|String)} [options.layout=true]
    */
   Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
     var grid = this;
-    var targetItems = this.getItems(items);
+    var targetItems = items.slice(0);
     var opts = options || {};
     var isInstant = opts.instant === true;
     var callback = opts.onFinish;
@@ -8733,12 +8715,7 @@
       return;
     }
 
-    // Emit showStart/hideStart event.
-    if (this._hasListeners(startEvent)) {
-      this._emit(startEvent, targetItems.slice(0));
-    }
-
-    // Show/hide items.
+    // Prepare the items.
     for (i = 0; i < targetItems.length; i++) {
       item = targetItems[i];
 
@@ -8750,9 +8727,7 @@
 
       // If inactive item is shown we also need to do a little hack to make the
       // item not animate it's next positioning (layout).
-      if (toVisible && !item._isActive) {
-        item._layout._skipNextAnimation = true;
-      }
+      item._layout._skipNextAnimation = !!(toVisible && !item._isActive);
 
       // If a hidden item is being shown we need to refresh the item's
       // dimensions.
@@ -8760,25 +8735,50 @@
         hiddenItems.push(item);
       }
 
-      // Show/hide the item.
-      item._visibility[method](isInstant, function(interrupted, item) {
-        // If the current item's animation was not interrupted add it to the
-        // completedItems array.
-        if (!interrupted) completedItems.push(item);
-
-        // If all items have finished their animations call the callback
-        // and emit showEnd/hideEnd event.
-        if (--counter < 1) {
-          if (isFunction(callback)) callback(completedItems.slice(0));
-          if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
-        }
-      });
+      // Set item active state based on visibility.
+      item._isActive = toVisible;
     }
 
-    // Refresh hidden items.
-    if (hiddenItems.length) this.refreshItems(hiddenItems);
+    // Force refresh the dimensions of all hidden items.
+    if (hiddenItems.length) {
+      this.refreshItems(hiddenItems, true);
+      hiddenItems.length = 0;
+    }
 
-    // Layout if needed.
+    // Show the items in sync with the next layout.
+    function triggerVisibilityChange() {
+      if (needsLayout && opts.syncWithLayout !== false) {
+        grid.off(EVENT_LAYOUT_START, triggerVisibilityChange);
+      }
+
+      if (grid._hasListeners(startEvent)) {
+        grid._emit(startEvent, targetItems.slice(0));
+      }
+
+      for (i = 0; i < targetItems.length; i++) {
+        targetItems[i]._visibility[method](isInstant, function(interrupted, item) {
+          // If the current item's animation was not interrupted add it to the
+          // completedItems array.
+          if (!interrupted) completedItems.push(item);
+
+          // If all items have finished their animations call the callback
+          // and emit showEnd/hideEnd event.
+          if (--counter < 1) {
+            if (isFunction(callback)) callback(completedItems.slice(0));
+            if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
+          }
+        });
+      }
+    }
+
+    // Trigger the visibility change, either async with layout or instantly.
+    if (needsLayout && opts.syncWithLayout !== false) {
+      this.on(EVENT_LAYOUT_START, triggerVisibilityChange);
+    } else {
+      triggerVisibilityChange();
+    }
+
+    // Trigger layout if needed.
     if (needsLayout && layout) {
       this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
@@ -8880,32 +8880,35 @@
   /**
    * Collect and return initial items for grid.
    *
-   * @param {Grid} grid
-   * @param {?(HTMLElement[]|NodeList|String)} items
-   * @returns {HTMLElement[]}
+   * @param {HTMLElement} gridElement
+   * @param {?(HTMLElement[]|NodeList|HtmlCollection|String)} elements
+   * @returns {(HTMLElement[]|NodeList|HtmlCollection)}
    */
-  function getInitialGridItems(grid, items) {
-    var result = [];
-    var wildCardSelector = '*';
-    var i, elem;
+  function getInitialGridElements(gridElement, elements) {
+    // If we have a wildcard selector let's return all the children.
+    if (elements === '*') {
+      return gridElement.children;
+    }
 
-    // If we have a selector.
-    if (typeof items === STRING_TYPE) {
-      for (i = 0; i < grid._element.children.length; i++) {
-        elem = grid._element.children[i];
-        if (items === wildCardSelector || elementMatches(elem, items)) {
-          result.push(new Item(grid, elem));
+    // If we have some more specific selector, let's filter the elements.
+    if (typeof elements === STRING_TYPE) {
+      var result = [];
+      var children = gridElement.children;
+      for (var i = 0; i < children.length; i++) {
+        if (elementMatches(children[i], elements)) {
+          result.push(children[i]);
         }
       }
-    }
-    // If we have an array of elements or a node list.
-    else if (Array.isArray(items) || isNodeList(items)) {
-      for (i = 0; i < items.length; i++) {
-        result.push(new Item(grid, items[i]));
-      }
+      return result;
     }
 
-    return result;
+    // If we have an array of elements or a node list.
+    if (Array.isArray(elements) || isNodeList(elements)) {
+      return elements;
+    }
+
+    // Otherwise just return an empty array.
+    return [];
   }
 
   /**
@@ -8962,6 +8965,34 @@
     }
 
     return normalized;
+  }
+
+  /**
+   * Create index map from items.
+   *
+   * @param {Item[]} items
+   * @returns {Object}
+   */
+  function createIndexMap(items) {
+    var result = {};
+    for (var i = 0; i < items.length; i++) {
+      result[items[i]._id] = i;
+    }
+    return result;
+  }
+
+  /**
+   * Sort comparer function for items' index map.
+   *
+   * @param {Object} indexMap
+   * @param {Item} itemA
+   * @param {Item} itemB
+   * @returns {Number}
+   */
+  function compareIndexMap(indexMap, itemA, itemB) {
+    var indexA = indexMap[itemA._id];
+    var indexB = indexMap[itemB._id];
+    return indexA - indexB;
   }
 
   return Grid;

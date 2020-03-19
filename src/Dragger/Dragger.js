@@ -258,7 +258,7 @@ Dragger.prototype._reset = function() {
  * @memberof Dragger.prototype
  * @param {String} type
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
- * @returns {DraggerEvent}
+ * @returns {Object}
  */
 Dragger.prototype._createEvent = function(type, e) {
   var touch = this._getTrackedTouch(e);

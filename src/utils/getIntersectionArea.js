@@ -9,8 +9,8 @@ import isOverlapping from './isOverlapping';
 /**
  * Calculate intersection area between two rectangle.
  *
- * @param {Rectangle} a
- * @param {Rectangle} b
+ * @param {Object} a
+ * @param {Object} b
  * @returns {Number}
  */
 export default function getIntersectionArea(a, b) {

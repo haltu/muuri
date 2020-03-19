@@ -41,7 +41,6 @@ function ItemAnimate(element) {
  * running.
  *
  * @public
- * @memberof ItemAnimate.prototype
  * @param {Object} propsFrom
  * @param {Object} propsTo
  * @param {Object} [options]
@@ -146,7 +145,6 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
  * Stop instance's current animation if running.
  *
  * @public
- * @memberof ItemAnimate.prototype
  * @param {Boolean} [applyCurrentStyles=true]
  */
 ItemAnimate.prototype.stop = function(applyCurrentStyles) {
@@ -169,7 +167,6 @@ ItemAnimate.prototype.stop = function(applyCurrentStyles) {
  * Check if the item is being animated currently.
  *
  * @public
- * @memberof ItemAnimate.prototype
  * @return {Boolean}
  */
 ItemAnimate.prototype.isAnimating = function() {
@@ -180,7 +177,6 @@ ItemAnimate.prototype.isAnimating = function() {
  * Destroy the instance and stop current animation if it is running.
  *
  * @public
- * @memberof ItemAnimate.prototype
  */
 ItemAnimate.prototype.destroy = function() {
   if (this._isDestroyed) return;
@@ -198,7 +194,6 @@ ItemAnimate.prototype.destroy = function() {
  * Animation end handler.
  *
  * @private
- * @memberof ItemAnimate.prototype
  */
 ItemAnimate.prototype._onFinish = function() {
   var callback = this._callback;

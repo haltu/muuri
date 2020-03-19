@@ -146,7 +146,6 @@ function ItemDrag(item) {
  * the predicate will be called again on the next drag movement.
  *
  * @public
- * @memberof ItemDrag
  * @param {Item} item
  * @param {Object} event
  * @param {Object} [options]
@@ -217,7 +216,6 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
  * Default drag sort predicate.
  *
  * @public
- * @memberof ItemDrag
  * @param {Item} item
  * @param {Object} [options]
  * @param {Number} [options.threshold=50]
@@ -443,7 +441,6 @@ ItemDrag.defaultSortPredicate = (function() {
  * Abort dragging and reset drag data.
  *
  * @public
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype.stop = function() {
   if (!this._isActive) return;
@@ -491,7 +488,6 @@ ItemDrag.prototype.stop = function() {
  * it (and don't want to wait for the next move/scroll event).
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Boolean} force
  */
 ItemDrag.prototype.sort = function(force) {
@@ -509,7 +505,6 @@ ItemDrag.prototype.sort = function(force) {
  * Destroy instance.
  *
  * @public
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype.destroy = function() {
   if (this._isDestroyed) return;
@@ -528,7 +523,6 @@ ItemDrag.prototype.destroy = function() {
  * Get Grid instance.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @returns {?Grid}
  */
 ItemDrag.prototype._getGrid = function() {
@@ -539,7 +533,6 @@ ItemDrag.prototype._getGrid = function() {
  * Setup/reset drag data.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._reset = function() {
   this._isActive = false;
@@ -593,7 +586,6 @@ ItemDrag.prototype._reset = function() {
  * dragged element and the drag container element.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._bindScrollListeners = function() {
   var gridContainer = this._getGrid()._element;
@@ -630,7 +622,6 @@ ItemDrag.prototype._bindScrollListeners = function() {
  * elements of the dragged element and the drag container element.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._unbindScrollListeners = function() {
   var scrollers = this._scrollers;
@@ -648,7 +639,6 @@ ItemDrag.prototype._unbindScrollListeners = function() {
  * elements of the dragged element and the drag container element.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  * @returns {Boolean}
  */
@@ -663,7 +653,6 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
  * Forcefully resolve drag start predicate.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  */
 ItemDrag.prototype._forceResolveStartPredicate = function(event) {
@@ -677,7 +666,6 @@ ItemDrag.prototype._forceResolveStartPredicate = function(event) {
  * Finalize start predicate.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  */
 ItemDrag.prototype._finishStartPredicate = function(event) {
@@ -698,7 +686,6 @@ ItemDrag.prototype._finishStartPredicate = function(event) {
  * Reset drag sort heuristics.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Number} x
  * @param {Number} y
  */
@@ -713,7 +700,6 @@ ItemDrag.prototype._resetHeuristics = function(x, y) {
  * if it can not.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Number} x
  * @param {Number} y
  * @returns {Boolean}
@@ -766,7 +752,6 @@ ItemDrag.prototype._checkHeuristics = function(x, y) {
  * Reset for default drag start predicate function.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._resetStartPredicate = function() {
   var predicate = this._startPredicateData;
@@ -783,7 +768,6 @@ ItemDrag.prototype._resetStartPredicate = function() {
  * check overlap when necessary.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._handleSort = function() {
   var settings = this._getGrid()._settings;
@@ -831,7 +815,6 @@ ItemDrag.prototype._handleSort = function() {
  * Delayed sort handler.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._handleSortDelayed = function() {
   this._isSortNeeded = true;
@@ -843,7 +826,6 @@ ItemDrag.prototype._handleSortDelayed = function() {
  * Cancel and reset sort procedure.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._cancelSort = function() {
   this._isSortNeeded = false;
@@ -857,7 +839,6 @@ ItemDrag.prototype._cancelSort = function() {
  * Handle the ending of the drag procedure for sorting.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._finishSort = function() {
   var isSortEnabled = this._getGrid()._settings.dragSort;
@@ -871,7 +852,6 @@ ItemDrag.prototype._finishSort = function() {
  * the configuration layout the items.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._checkOverlap = function() {
   if (!this._isActive) return;
@@ -1035,7 +1015,6 @@ ItemDrag.prototype._checkOverlap = function() {
  * gracefully.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._finishMigration = function() {
   var item = this._item;
@@ -1107,7 +1086,6 @@ ItemDrag.prototype._finishMigration = function() {
  * Drag pre-start handler.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  */
 ItemDrag.prototype._preStartCheck = function(event) {
@@ -1139,7 +1117,6 @@ ItemDrag.prototype._preStartCheck = function(event) {
  * Drag pre-end handler.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  */
 ItemDrag.prototype._preEndCheck = function(event) {
@@ -1165,7 +1142,6 @@ ItemDrag.prototype._preEndCheck = function(event) {
  * Drag start handler.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  */
 ItemDrag.prototype._onStart = function(event) {
@@ -1183,7 +1159,7 @@ ItemDrag.prototype._onStart = function(event) {
  * Prepare item to be dragged.
  *
  * @private
- * @memberof ItemDrag.prototype
+ *  ItemDrag.prototype
  */
 ItemDrag.prototype._prepareStart = function() {
   var item = this._item;
@@ -1223,7 +1199,6 @@ ItemDrag.prototype._prepareStart = function() {
  * Start drag for the item.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._applyStart = function() {
   var item = this._item;
@@ -1288,7 +1263,6 @@ ItemDrag.prototype._applyStart = function() {
  * Drag move handler.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  */
 ItemDrag.prototype._onMove = function(event) {
@@ -1308,7 +1282,6 @@ ItemDrag.prototype._onMove = function(event) {
  * Prepare dragged item for moving.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._prepareMove = function() {
   var item = this._item;
@@ -1345,7 +1318,6 @@ ItemDrag.prototype._prepareMove = function() {
  * Apply movement to dragged item.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._applyMove = function() {
   var item = this._item;
@@ -1361,7 +1333,6 @@ ItemDrag.prototype._applyMove = function() {
  * Drag scroll handler.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  */
 ItemDrag.prototype._onScroll = function(event) {
@@ -1381,7 +1352,6 @@ ItemDrag.prototype._onScroll = function(event) {
  * Prepare dragged item for scrolling.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._prepareScroll = function() {
   var item = this._item;
@@ -1422,7 +1392,6 @@ ItemDrag.prototype._prepareScroll = function() {
  * Apply scroll to dragged item.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
 ItemDrag.prototype._applyScroll = function() {
   var item = this._item;
@@ -1437,7 +1406,6 @@ ItemDrag.prototype._applyScroll = function() {
  * Drag end handler.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @param {Object} event
  */
 ItemDrag.prototype._onEnd = function(event) {

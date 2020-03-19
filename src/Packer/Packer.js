@@ -95,7 +95,6 @@ Packer.prototype._onWorkerMessage = function(msg) {
 
 /**
  * @public
- * @memberof Packer.prototype
  * @param {Object} [options]
  * @param {Boolean} [options.fillGaps]
  * @param {Boolean} [options.horizontal]
@@ -149,7 +148,6 @@ Packer.prototype.setOptions = function(options) {
 
 /**
  * @public
- * @memberof Packer.prototype
  * @param {Number} id
  * @param {Item[]} items
  * @param {Number} width
@@ -224,7 +222,6 @@ Packer.prototype.createLayout = function(id, items, width, height, callback) {
 
 /**
  * @public
- * @memberof Packer.prototype
  * @param {Number} id
  */
 Packer.prototype.cancelLayout = function(id) {
@@ -243,7 +240,6 @@ Packer.prototype.cancelLayout = function(id) {
 
 /**
  * @public
- * @memberof Packer.prototype
  */
 Packer.prototype.destroy = function() {
   var worker, id, i;

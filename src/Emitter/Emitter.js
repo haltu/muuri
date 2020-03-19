@@ -26,7 +26,6 @@ function Emitter() {
  * Bind an event listener.
  *
  * @public
- * @memberof Emitter.prototype
  * @param {String} event
  * @param {Function} listener
  * @returns {Emitter}
@@ -48,7 +47,6 @@ Emitter.prototype.on = function(event, listener) {
  * Unbind all event listeners that match the provided listener function.
  *
  * @public
- * @memberof Emitter.prototype
  * @param {String} event
  * @param {Function} [listener]
  * @returns {Emitter}
@@ -79,7 +77,6 @@ Emitter.prototype.off = function(event, listener) {
  * Emit all listeners in a specified event with the provided arguments.
  *
  * @public
- * @memberof Emitter.prototype
  * @param {String} event
  * @param {*} [arg1]
  * @param {*} [arg2]
@@ -137,7 +134,6 @@ Emitter.prototype.emit = function(event, arg1, arg2, arg3) {
  * Destroy emitter instance. Basically just removes all bound listeners.
  *
  * @public
- * @memberof Emitter.prototype
  * @returns {Emitter}
  */
 Emitter.prototype.destroy = function() {

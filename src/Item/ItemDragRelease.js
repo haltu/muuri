@@ -39,7 +39,6 @@ function ItemDragRelease(item) {
  * Start the release process of an item.
  *
  * @public
- * @memberof ItemDragRelease.prototype
  */
 ItemDragRelease.prototype.start = function() {
   if (this._isDestroyed || this._isActive) return;
@@ -65,7 +64,6 @@ ItemDragRelease.prototype.start = function() {
  * ongoing release process (animation) or finish the release process.
  *
  * @public
- * @memberof ItemDragRelease.prototype
  * @param {Boolean} [abort=false]
  *  - Should the release be aborted? When true, the release end event won't be
  *    emitted. Set to true only when you need to abort the release process
@@ -100,7 +98,6 @@ ItemDragRelease.prototype.isJustReleased = function() {
  * Destroy instance.
  *
  * @public
- * @memberof ItemDragRelease.prototype
  */
 ItemDragRelease.prototype.destroy = function() {
   if (this._isDestroyed) return;
@@ -123,7 +120,6 @@ ItemDragRelease.prototype.destroy = function() {
  *  - The element's current translateX value (optional).
  * @param {Number} [top]
  *  - The element's current translateY value (optional).
- * @memberof ItemDragRelease.prototype
  */
 ItemDragRelease.prototype._placeToGrid = function(left, top) {
   if (this._isDestroyed) return;
@@ -152,7 +148,6 @@ ItemDragRelease.prototype._placeToGrid = function(left, top) {
  * Reset public data and remove releasing class.
  *
  * @private
- * @memberof ItemDragRelease.prototype
  */
 ItemDragRelease.prototype._reset = function() {
   if (this._isDestroyed) return;

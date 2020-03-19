@@ -65,7 +65,6 @@ function ItemLayout(item) {
  * Start item layout based on it's current data.
  *
  * @public
- * @memberof ItemLayout.prototype
  * @param {Boolean} [instant=false]
  * @param {Function} [onFinish]
  */
@@ -121,7 +120,6 @@ ItemLayout.prototype.start = function(instant, onFinish) {
  * Stop item's position animation if it is currently animating.
  *
  * @public
- * @memberof ItemLayout.prototype
  * @param {Boolean} [processCallbackQueue=false]
  * @param {Object} [targetStyles]
  */
@@ -151,7 +149,6 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
  * Destroy the instance and stop current animation if it is running.
  *
  * @public
- * @memberof ItemLayout.prototype
  */
 ItemLayout.prototype.destroy = function() {
   if (this._isDestroyed) return;
@@ -175,7 +172,6 @@ ItemLayout.prototype.destroy = function() {
  * Calculate and update item's current layout offset data.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
 ItemLayout.prototype._updateOffsets = function() {
   if (this._isDestroyed) return;
@@ -201,7 +197,6 @@ ItemLayout.prototype._updateOffsets = function() {
  * Calculate and update item's layout target styles.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
 ItemLayout.prototype._updateTargetStyles = function() {
   if (this._isDestroyed) return;
@@ -215,7 +210,6 @@ ItemLayout.prototype._updateTargetStyles = function() {
  * Finish item layout procedure.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
 ItemLayout.prototype._finish = function() {
   if (this._isDestroyed) return;
@@ -242,7 +236,6 @@ ItemLayout.prototype._finish = function() {
  * Prepare item for layout animation.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
 ItemLayout.prototype._setupAnimation = function() {
   // TODO: Keep track of the translate value so we only need to query the DOM
@@ -256,7 +249,6 @@ ItemLayout.prototype._setupAnimation = function() {
  * Start layout animation.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
 ItemLayout.prototype._startAnimation = function() {
   var item = this._item;

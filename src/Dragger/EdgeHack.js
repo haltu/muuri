@@ -46,7 +46,6 @@ function EdgeHack(dragger) {
 
 /**
  * @private
- * @memberof EdgeHack.prototype
  */
 EdgeHack.prototype._addBehaviour = function() {
   if (this._isActive) return;
@@ -59,7 +58,6 @@ EdgeHack.prototype._addBehaviour = function() {
 
 /**
  * @private
- * @memberof EdgeHack.prototype
  */
 EdgeHack.prototype._removeBehaviour = function() {
   if (!this._isActive) return;
@@ -73,7 +71,6 @@ EdgeHack.prototype._removeBehaviour = function() {
 
 /**
  * @private
- * @memberof EdgeHack.prototype
  */
 EdgeHack.prototype._resetData = function() {
   window.clearTimeout(this._timeout);
@@ -83,7 +80,6 @@ EdgeHack.prototype._resetData = function() {
 
 /**
  * @private
- * @memberof EdgeHack.prototype
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
 EdgeHack.prototype._onStart = function(e) {
@@ -93,7 +89,6 @@ EdgeHack.prototype._onStart = function(e) {
 
 /**
  * @private
- * @memberof EdgeHack.prototype
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
 EdgeHack.prototype._onOut = function(e) {
@@ -105,7 +100,6 @@ EdgeHack.prototype._onOut = function(e) {
 
 /**
  * @private
- * @memberof EdgeHack.prototype
  */
 EdgeHack.prototype._onTimeout = function() {
   var e = this._outEvent;
@@ -115,7 +109,6 @@ EdgeHack.prototype._onTimeout = function() {
 
 /**
  * @public
- * @memberof EdgeHack.prototype
  */
 EdgeHack.prototype.destroy = function() {
   if (!pointerout) return;

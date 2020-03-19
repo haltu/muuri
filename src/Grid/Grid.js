@@ -262,7 +262,6 @@ Grid.AutoScroller = AutoScroller;
  * Default options for Grid instance.
  *
  * @public
- * @memberof Grid
  */
 Grid.defaultOptions = {
   // Item elements
@@ -374,7 +373,6 @@ Grid.defaultOptions = {
  * Bind an event listener.
  *
  * @public
- * @memberof Grid.prototype
  * @param {String} event
  * @param {Function} listener
  * @returns {Grid}
@@ -388,7 +386,6 @@ Grid.prototype.on = function(event, listener) {
  * Unbind an event listener.
  *
  * @public
- * @memberof Grid.prototype
  * @param {String} event
  * @param {Function} listener
  * @returns {Grid}
@@ -402,7 +399,6 @@ Grid.prototype.off = function(event, listener) {
  * Get the container element.
  *
  * @public
- * @memberof Grid.prototype
  * @returns {HTMLElement}
  */
 Grid.prototype.getElement = function() {
@@ -416,7 +412,6 @@ Grid.prototype.getElement = function() {
  * is returned.
  *
  * @private
- * @memberof Grid.prototype
  * @param {(HtmlElement|Number|Item)} [target]
  * @returns {?Item}
  */
@@ -462,7 +457,6 @@ Grid.prototype.getItem = function(target) {
  * the returned array.
  *
  * @public
- * @memberof Grid.prototype
  * @param {(HtmlElement|Number|Item|Array)} [targets]
  * @returns {Item[]}
  */
@@ -500,7 +494,6 @@ Grid.prototype.getItems = function(targets) {
  * their dimensions are being read.
  *
  * @public
- * @memberof Grid.prototype
  * @param {Item[]} [items]
  * @param {Boolean} [force=false]
  * @returns {Grid}
@@ -546,7 +539,6 @@ Grid.prototype.refreshItems = function(items, force) {
  * refresh specific items.
  *
  * @public
- * @memberof Grid.prototype
  * @param {Item[]} [items]
  * @returns {Grid}
  */
@@ -569,7 +561,6 @@ Grid.prototype.refreshSortData = function(items) {
  * left untouched.
  *
  * @public
- * @memberof Grid.prototype
  * @returns {Grid}
  */
 Grid.prototype.synchronize = function() {
@@ -601,7 +592,6 @@ Grid.prototype.synchronize = function() {
  * Calculate and apply item positions.
  *
  * @public
- * @memberof Grid.prototype
  * @param {Boolean} [instant=false]
  * @param {Function} [onFinish]
  * @returns {Grid}
@@ -683,7 +673,6 @@ Grid.prototype.layout = function(instant, onFinish) {
  * are positioned without animation during their first layout.
  *
  * @public
- * @memberof Grid.prototype
  * @param {(HTMLElement|HTMLElement[])} elements
  * @param {Object} [options]
  * @param {Number} [options.index=-1]
@@ -767,7 +756,6 @@ Grid.prototype.add = function(elements, options) {
  * Remove items from the instance.
  *
  * @public
- * @memberof Grid.prototype
  * @param {Item[]} items
  * @param {Object} [options]
  * @param {Boolean} [options.removeElements=false]
@@ -820,7 +808,6 @@ Grid.prototype.remove = function(items, options) {
  * Show specific instance items.
  *
  * @public
- * @memberof Grid.prototype
  * @param {Item[]} items
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
@@ -840,7 +827,6 @@ Grid.prototype.show = function(items, options) {
  * Hide specific instance items.
  *
  * @public
- * @memberof Grid.prototype
  * @param {Item[]} items
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
@@ -867,7 +853,6 @@ Grid.prototype.hide = function(items, options) {
  * matching items will be shown and others hidden.
  *
  * @public
- * @memberof Grid.prototype
  * @param {(Function|String)} predicate
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
@@ -963,7 +948,6 @@ Grid.prototype.filter = function(predicate, options) {
  * same order.
  *
  * @public
- * @memberof Grid.prototype
  * @param {(Function|Item[]|String|String[])} comparer
  * @param {Object} [options]
  * @param {Boolean} [options.descending=false]
@@ -1092,7 +1076,6 @@ Grid.prototype.sort = (function() {
  * Move item to another index or in place of another item.
  *
  * @public
- * @memberof Grid.prototype
  * @param {(HtmlElement|Number|Item)} item
  * @param {(HtmlElement|Number|Item)} position
  * @param {Object} [options]
@@ -1152,7 +1135,6 @@ Grid.prototype.move = function(item, position, options) {
  * Send item to another Grid instance.
  *
  * @public
- * @memberof Grid.prototype
  * @param {(HtmlElement|Number|Item)} item
  * @param {Grid} grid
  * @param {(HtmlElement|Number|Item)} position
@@ -1203,7 +1185,6 @@ Grid.prototype.send = function(item, grid, position, options) {
  * Destroy the instance.
  *
  * @public
- * @memberof Grid.prototype
  * @param {Boolean} [removeElements=false]
  * @returns {Grid}
  */
@@ -1250,7 +1231,6 @@ Grid.prototype.destroy = function(removeElements) {
  * Emit a grid event.
  *
  * @private
- * @memberof Grid.prototype
  * @param {String} event
  * @param {...*} [arg]
  */
@@ -1263,7 +1243,6 @@ Grid.prototype._emit = function() {
  * Check if there are any events listeners for an event.
  *
  * @private
- * @memberof Grid.prototype
  * @param {String} event
  * @returns {Boolean}
  */
@@ -1276,7 +1255,6 @@ Grid.prototype._hasListeners = function(event) {
  * Update container's width, height and offsets.
  *
  * @private
- * @memberof Grid.prototype
  */
 Grid.prototype._updateBoundingRect = function() {
   var element = this._element;
@@ -1293,7 +1271,6 @@ Grid.prototype._updateBoundingRect = function() {
  * Update container's border sizes.
  *
  * @private
- * @memberof Grid.prototype
  * @param {Boolean} left
  * @param {Boolean} right
  * @param {Boolean} top
@@ -1311,7 +1288,6 @@ Grid.prototype._updateBorders = function(left, right, top, bottom) {
  * Refresh all of container's internal dimensions and offsets.
  *
  * @private
- * @memberof Grid.prototype
  */
 Grid.prototype._refreshDimensions = function() {
   this._updateBoundingRect();
@@ -1329,7 +1305,6 @@ Grid.prototype._refreshDimensions = function() {
  * dimensions, in which case we don't do the border-box check.
  *
  * @private
- * @memberof Grid.prototype
  * @param {Object} layout
  */
 Grid.prototype._updateGridElementSize = function(layout) {
@@ -1351,7 +1326,6 @@ Grid.prototype._updateGridElementSize = function(layout) {
  * Calculate and apply item positions.
  *
  * @private
- * @memberof Grid.prototype
  * @param {Object} layout
  */
 Grid.prototype._onLayoutDataReceived = (function() {
@@ -1457,7 +1431,6 @@ Grid.prototype._onLayoutDataReceived = (function() {
  * Show or hide Grid instance's items.
  *
  * @private
- * @memberof Grid.prototype
  * @param {Item[]} items
  * @param {Boolean} toVisible
  * @param {Object} [options]

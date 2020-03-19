@@ -26,7 +26,6 @@ function Queue() {
  * Add callback to the queue.
  *
  * @public
- * @memberof Queue.prototype
  * @param {Function} callback
  * @returns {Queue}
  */
@@ -41,7 +40,6 @@ Queue.prototype.add = function(callback) {
  * The provided arguments are passed on to the callbacks.
  *
  * @public
- * @memberof Queue.prototype
  * @param {...*} args
  * @returns {Queue}
  */
@@ -92,7 +90,6 @@ Queue.prototype.process = function() {
  * Destroy Queue instance.
  *
  * @public
- * @memberof Queue.prototype
  * @returns {Queue}
  */
 Queue.prototype.destroy = function() {

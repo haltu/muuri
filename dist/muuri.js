@@ -82,7 +82,6 @@
    * Bind an event listener.
    *
    * @public
-   * @memberof Emitter.prototype
    * @param {String} event
    * @param {Function} listener
    * @returns {Emitter}
@@ -104,7 +103,6 @@
    * Unbind all event listeners that match the provided listener function.
    *
    * @public
-   * @memberof Emitter.prototype
    * @param {String} event
    * @param {Function} [listener]
    * @returns {Emitter}
@@ -135,7 +133,6 @@
    * Emit all listeners in a specified event with the provided arguments.
    *
    * @public
-   * @memberof Emitter.prototype
    * @param {String} event
    * @param {*} [arg1]
    * @param {*} [arg2]
@@ -193,7 +190,6 @@
    * Destroy emitter instance. Basically just removes all bound listeners.
    *
    * @public
-   * @memberof Emitter.prototype
    * @returns {Emitter}
    */
   Emitter.prototype.destroy = function() {
@@ -258,7 +254,6 @@
 
   /**
    * @private
-   * @memberof EdgeHack.prototype
    */
   EdgeHack.prototype._addBehaviour = function() {
     if (this._isActive) return;
@@ -271,7 +266,6 @@
 
   /**
    * @private
-   * @memberof EdgeHack.prototype
    */
   EdgeHack.prototype._removeBehaviour = function() {
     if (!this._isActive) return;
@@ -285,7 +279,6 @@
 
   /**
    * @private
-   * @memberof EdgeHack.prototype
    */
   EdgeHack.prototype._resetData = function() {
     window.clearTimeout(this._timeout);
@@ -295,7 +288,6 @@
 
   /**
    * @private
-   * @memberof EdgeHack.prototype
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   EdgeHack.prototype._onStart = function(e) {
@@ -305,7 +297,6 @@
 
   /**
    * @private
-   * @memberof EdgeHack.prototype
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   EdgeHack.prototype._onOut = function(e) {
@@ -317,7 +308,6 @@
 
   /**
    * @private
-   * @memberof EdgeHack.prototype
    */
   EdgeHack.prototype._onTimeout = function() {
     var e = this._outEvent;
@@ -327,7 +317,6 @@
 
   /**
    * @public
-   * @memberof EdgeHack.prototype
    */
   EdgeHack.prototype.destroy = function() {
     if (!pointerout) return;
@@ -612,7 +601,6 @@
    * Reset current drag operation (if any).
    *
    * @private
-   * @memberof Dragger.prototype
    */
   Dragger.prototype._reset = function() {
     this._pointerId = null;
@@ -629,7 +617,6 @@
    * Create a custom dragger event from a raw event.
    *
    * @private
-   * @memberof Dragger.prototype
    * @param {String} type
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    * @returns {Object}
@@ -663,7 +650,6 @@
    * Emit a raw event as dragger event internally.
    *
    * @private
-   * @memberof Dragger.prototype
    * @param {String} type
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
@@ -680,7 +666,6 @@
    * it will be returned immediately.
    *
    * @private
-   * @memberof Dragger.prototype
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    * @returns {?(Touch|PointerEvent|MouseEvent)}
    */
@@ -693,7 +678,6 @@
    * Handler for start event.
    *
    * @private
-   * @memberof Dragger.prototype
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   Dragger.prototype._onStart = function(e) {
@@ -725,7 +709,6 @@
    * Handler for move event.
    *
    * @private
-   * @memberof Dragger.prototype
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   Dragger.prototype._onMove = function(e) {
@@ -740,7 +723,6 @@
    * Handler for cancel event.
    *
    * @private
-   * @memberof Dragger.prototype
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   Dragger.prototype._onCancel = function(e) {
@@ -753,7 +735,6 @@
    * Handler for end event.
    *
    * @private
-   * @memberof Dragger.prototype
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
   Dragger.prototype._onEnd = function(e) {
@@ -771,7 +752,6 @@
    * Check if the element is being dragged at the moment.
    *
    * @public
-   * @memberof Dragger.prototype
    * @returns {Boolean}
    */
   Dragger.prototype.isActive = function() {
@@ -782,7 +762,6 @@
    * Set element's touch-action CSS property.
    *
    * @public
-   * @memberof Dragger.prototype
    * @param {String} value
    */
   Dragger.prototype.setTouchAction = function(value) {
@@ -815,7 +794,6 @@
    * props with value pairs as it's first argument.
    *
    * @public
-   * @memberof Dragger.prototype
    * @param {Object} [newProps]
    */
   Dragger.prototype.setCssProps = function(newProps) {
@@ -858,7 +836,6 @@
    * Positive value indicates movement from left to right.
    *
    * @public
-   * @memberof Dragger.prototype
    * @returns {Number}
    */
   Dragger.prototype.getDeltaX = function() {
@@ -870,7 +847,6 @@
    * Positive value indicates movement from top to bottom.
    *
    * @public
-   * @memberof Dragger.prototype
    * @returns {Number}
    */
   Dragger.prototype.getDeltaY = function() {
@@ -881,7 +857,6 @@
    * How far (in pixels) has pointer moved from start position.
    *
    * @public
-   * @memberof Dragger.prototype
    * @returns {Number}
    */
   Dragger.prototype.getDistance = function() {
@@ -894,7 +869,6 @@
    * How long has pointer been dragged.
    *
    * @public
-   * @memberof Dragger.prototype
    * @returns {Number}
    */
   Dragger.prototype.getDeltaTime = function() {
@@ -905,7 +879,6 @@
    * Bind drag event listeners.
    *
    * @public
-   * @memberof Dragger.prototype
    * @param {String} eventName
    *   - 'start', 'move', 'cancel' or 'end'.
    * @param {Function} listener
@@ -918,7 +891,6 @@
    * Unbind drag event listeners.
    *
    * @public
-   * @memberof Dragger.prototype
    * @param {String} eventName
    *   - 'start', 'move', 'cancel' or 'end'.
    * @param {Function} listener
@@ -931,7 +903,6 @@
    * Destroy the instance and unbind all drag event listeners.
    *
    * @public
-   * @memberof Dragger.prototype
    */
   Dragger.prototype.destroy = function() {
     if (this._isDestroyed) return;
@@ -2862,7 +2833,6 @@
    * the predicate will be called again on the next drag movement.
    *
    * @public
-   * @memberof ItemDrag
    * @param {Item} item
    * @param {Object} event
    * @param {Object} [options]
@@ -2933,7 +2903,6 @@
    * Default drag sort predicate.
    *
    * @public
-   * @memberof ItemDrag
    * @param {Item} item
    * @param {Object} [options]
    * @param {Number} [options.threshold=50]
@@ -3159,7 +3128,6 @@
    * Abort dragging and reset drag data.
    *
    * @public
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype.stop = function() {
     if (!this._isActive) return;
@@ -3207,7 +3175,6 @@
    * it (and don't want to wait for the next move/scroll event).
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Boolean} force
    */
   ItemDrag.prototype.sort = function(force) {
@@ -3225,7 +3192,6 @@
    * Destroy instance.
    *
    * @public
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype.destroy = function() {
     if (this._isDestroyed) return;
@@ -3244,7 +3210,6 @@
    * Get Grid instance.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @returns {?Grid}
    */
   ItemDrag.prototype._getGrid = function() {
@@ -3255,7 +3220,6 @@
    * Setup/reset drag data.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._reset = function() {
     this._isActive = false;
@@ -3309,7 +3273,6 @@
    * dragged element and the drag container element.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._bindScrollListeners = function() {
     var gridContainer = this._getGrid()._element;
@@ -3346,7 +3309,6 @@
    * elements of the dragged element and the drag container element.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._unbindScrollListeners = function() {
     var scrollers = this._scrollers;
@@ -3364,7 +3326,6 @@
    * elements of the dragged element and the drag container element.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    * @returns {Boolean}
    */
@@ -3379,7 +3340,6 @@
    * Forcefully resolve drag start predicate.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    */
   ItemDrag.prototype._forceResolveStartPredicate = function(event) {
@@ -3393,7 +3353,6 @@
    * Finalize start predicate.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    */
   ItemDrag.prototype._finishStartPredicate = function(event) {
@@ -3414,7 +3373,6 @@
    * Reset drag sort heuristics.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Number} x
    * @param {Number} y
    */
@@ -3429,7 +3387,6 @@
    * if it can not.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Number} x
    * @param {Number} y
    * @returns {Boolean}
@@ -3482,7 +3439,6 @@
    * Reset for default drag start predicate function.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._resetStartPredicate = function() {
     var predicate = this._startPredicateData;
@@ -3499,7 +3455,6 @@
    * check overlap when necessary.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._handleSort = function() {
     var settings = this._getGrid()._settings;
@@ -3547,7 +3502,6 @@
    * Delayed sort handler.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._handleSortDelayed = function() {
     this._isSortNeeded = true;
@@ -3559,7 +3513,6 @@
    * Cancel and reset sort procedure.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._cancelSort = function() {
     this._isSortNeeded = false;
@@ -3573,7 +3526,6 @@
    * Handle the ending of the drag procedure for sorting.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._finishSort = function() {
     var isSortEnabled = this._getGrid()._settings.dragSort;
@@ -3587,7 +3539,6 @@
    * the configuration layout the items.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._checkOverlap = function() {
     if (!this._isActive) return;
@@ -3751,7 +3702,6 @@
    * gracefully.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._finishMigration = function() {
     var item = this._item;
@@ -3823,7 +3773,6 @@
    * Drag pre-start handler.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    */
   ItemDrag.prototype._preStartCheck = function(event) {
@@ -3855,7 +3804,6 @@
    * Drag pre-end handler.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    */
   ItemDrag.prototype._preEndCheck = function(event) {
@@ -3881,7 +3829,6 @@
    * Drag start handler.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    */
   ItemDrag.prototype._onStart = function(event) {
@@ -3899,7 +3846,7 @@
    * Prepare item to be dragged.
    *
    * @private
-   * @memberof ItemDrag.prototype
+   *  ItemDrag.prototype
    */
   ItemDrag.prototype._prepareStart = function() {
     var item = this._item;
@@ -3939,7 +3886,6 @@
    * Start drag for the item.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._applyStart = function() {
     var item = this._item;
@@ -4004,7 +3950,6 @@
    * Drag move handler.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    */
   ItemDrag.prototype._onMove = function(event) {
@@ -4024,7 +3969,6 @@
    * Prepare dragged item for moving.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._prepareMove = function() {
     var item = this._item;
@@ -4061,7 +4005,6 @@
    * Apply movement to dragged item.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._applyMove = function() {
     var item = this._item;
@@ -4077,7 +4020,6 @@
    * Drag scroll handler.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    */
   ItemDrag.prototype._onScroll = function(event) {
@@ -4097,7 +4039,6 @@
    * Prepare dragged item for scrolling.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._prepareScroll = function() {
     var item = this._item;
@@ -4138,7 +4079,6 @@
    * Apply scroll to dragged item.
    *
    * @private
-   * @memberof ItemDrag.prototype
    */
   ItemDrag.prototype._applyScroll = function() {
     var item = this._item;
@@ -4153,7 +4093,6 @@
    * Drag end handler.
    *
    * @private
-   * @memberof ItemDrag.prototype
    * @param {Object} event
    */
   ItemDrag.prototype._onEnd = function(event) {
@@ -4340,7 +4279,6 @@
    * running.
    *
    * @public
-   * @memberof ItemAnimate.prototype
    * @param {Object} propsFrom
    * @param {Object} propsTo
    * @param {Object} [options]
@@ -4445,7 +4383,6 @@
    * Stop instance's current animation if running.
    *
    * @public
-   * @memberof ItemAnimate.prototype
    * @param {Boolean} [applyCurrentStyles=true]
    */
   ItemAnimate.prototype.stop = function(applyCurrentStyles) {
@@ -4468,7 +4405,6 @@
    * Check if the item is being animated currently.
    *
    * @public
-   * @memberof ItemAnimate.prototype
    * @return {Boolean}
    */
   ItemAnimate.prototype.isAnimating = function() {
@@ -4479,7 +4415,6 @@
    * Destroy the instance and stop current animation if it is running.
    *
    * @public
-   * @memberof ItemAnimate.prototype
    */
   ItemAnimate.prototype.destroy = function() {
     if (this._isDestroyed) return;
@@ -4497,7 +4432,6 @@
    * Animation end handler.
    *
    * @private
-   * @memberof ItemAnimate.prototype
    */
   ItemAnimate.prototype._onFinish = function() {
     var callback = this._callback;
@@ -4561,7 +4495,6 @@
    * Update placeholder's dimensions to match the item's dimensions.
    *
    * @private
-   * @memberof ItemDragPlaceholder.prototype
    */
   ItemDragPlaceholder.prototype._updateDimensions = function() {
     if (!this.isActive()) return;
@@ -4575,7 +4508,6 @@
    * Move placeholder to a new position.
    *
    * @private
-   * @memberof ItemDragPlaceholder.prototype
    * @param {Item[]} items
    * @param {Boolean} isInstant
    */
@@ -4643,7 +4575,6 @@
    * Prepare placeholder for layout animation.
    *
    * @private
-   * @memberof ItemDragPlaceholder.prototype
    */
   ItemDragPlaceholder.prototype._setupAnimation = function() {
     if (!this.isActive()) return;
@@ -4657,7 +4588,6 @@
    * Start layout animation.
    *
    * @private
-   * @memberof ItemDragPlaceholder.prototype
    */
   ItemDragPlaceholder.prototype._startAnimation = function() {
     if (!this.isActive()) return;
@@ -4696,7 +4626,6 @@
    * Layout end handler.
    *
    * @private
-   * @memberof ItemDragPlaceholder.prototype
    */
   ItemDragPlaceholder.prototype._onLayoutEnd = function() {
     if (this._resetAfterLayout) {
@@ -4709,7 +4638,6 @@
    * emitted and receives the event data as it's argument.
    *
    * @private
-   * @memberof ItemDragPlaceholder.prototype
    * @param {Item} item
    */
   ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
@@ -4731,7 +4659,6 @@
    * emitted and receives the event data as it's argument.
    *
    * @private
-   * @memberof ItemDragPlaceholder.prototype
    * @param {Object} data
    * @param {Item} data.item
    * @param {Grid} data.fromGrid
@@ -4766,7 +4693,6 @@
    * Reset placeholder if the associated item is hidden.
    *
    * @private
-   * @memberof ItemDragPlaceholder.prototype
    * @param {Item[]} items
    */
   ItemDragPlaceholder.prototype._onHide = function(items) {
@@ -4784,7 +4710,6 @@
    * thrashing when it's called at the end of the drag start procedure.
    *
    * @public
-   * @memberof ItemDragPlaceholder.prototype
    */
   ItemDragPlaceholder.prototype.create = function() {
     // If we already have placeholder set up we can skip the initiation logic.
@@ -4854,7 +4779,6 @@
    * Reset placeholder data.
    *
    * @public
-   * @memberof ItemDragPlaceholder.prototype
    */
   ItemDragPlaceholder.prototype.reset = function() {
     if (!this.isActive()) return;
@@ -4904,7 +4828,6 @@
    * Check if placeholder is currently active (visible).
    *
    * @public
-   * @memberof ItemDragPlaceholder.prototype
    * @returns {Boolean}
    */
   ItemDragPlaceholder.prototype.isActive = function() {
@@ -4915,7 +4838,6 @@
    * Get placeholder element.
    *
    * @public
-   * @memberof ItemDragPlaceholder.prototype
    * @returns {?HTMLElement}
    */
   ItemDragPlaceholder.prototype.getElement = function() {
@@ -4928,7 +4850,6 @@
    * thrashing.
    *
    * @public
-   * @memberof ItemDragPlaceholder.prototype
    */
   ItemDragPlaceholder.prototype.updateDimensions = function() {
     if (!this.isActive()) return;
@@ -4939,7 +4860,6 @@
    * Destroy placeholder instance.
    *
    * @public
-   * @memberof ItemDragPlaceholder.prototype
    */
   ItemDragPlaceholder.prototype.destroy = function() {
     this.reset();
@@ -4974,7 +4894,6 @@
    * Start the release process of an item.
    *
    * @public
-   * @memberof ItemDragRelease.prototype
    */
   ItemDragRelease.prototype.start = function() {
     if (this._isDestroyed || this._isActive) return;
@@ -5000,7 +4919,6 @@
    * ongoing release process (animation) or finish the release process.
    *
    * @public
-   * @memberof ItemDragRelease.prototype
    * @param {Boolean} [abort=false]
    *  - Should the release be aborted? When true, the release end event won't be
    *    emitted. Set to true only when you need to abort the release process
@@ -5035,7 +4953,6 @@
    * Destroy instance.
    *
    * @public
-   * @memberof ItemDragRelease.prototype
    */
   ItemDragRelease.prototype.destroy = function() {
     if (this._isDestroyed) return;
@@ -5058,7 +4975,6 @@
    *  - The element's current translateX value (optional).
    * @param {Number} [top]
    *  - The element's current translateY value (optional).
-   * @memberof ItemDragRelease.prototype
    */
   ItemDragRelease.prototype._placeToGrid = function(left, top) {
     if (this._isDestroyed) return;
@@ -5087,7 +5003,6 @@
    * Reset public data and remove releasing class.
    *
    * @private
-   * @memberof ItemDragRelease.prototype
    */
   ItemDragRelease.prototype._reset = function() {
     if (this._isDestroyed) return;
@@ -5120,7 +5035,6 @@
    * Add callback to the queue.
    *
    * @public
-   * @memberof Queue.prototype
    * @param {Function} callback
    * @returns {Queue}
    */
@@ -5135,7 +5049,6 @@
    * The provided arguments are passed on to the callbacks.
    *
    * @public
-   * @memberof Queue.prototype
    * @param {...*} args
    * @returns {Queue}
    */
@@ -5186,7 +5099,6 @@
    * Destroy Queue instance.
    *
    * @public
-   * @memberof Queue.prototype
    * @returns {Queue}
    */
   Queue.prototype.destroy = function() {
@@ -5248,7 +5160,6 @@
    * Start item layout based on it's current data.
    *
    * @public
-   * @memberof ItemLayout.prototype
    * @param {Boolean} [instant=false]
    * @param {Function} [onFinish]
    */
@@ -5304,7 +5215,6 @@
    * Stop item's position animation if it is currently animating.
    *
    * @public
-   * @memberof ItemLayout.prototype
    * @param {Boolean} [processCallbackQueue=false]
    * @param {Object} [targetStyles]
    */
@@ -5334,7 +5244,6 @@
    * Destroy the instance and stop current animation if it is running.
    *
    * @public
-   * @memberof ItemLayout.prototype
    */
   ItemLayout.prototype.destroy = function() {
     if (this._isDestroyed) return;
@@ -5358,7 +5267,6 @@
    * Calculate and update item's current layout offset data.
    *
    * @private
-   * @memberof ItemLayout.prototype
    */
   ItemLayout.prototype._updateOffsets = function() {
     if (this._isDestroyed) return;
@@ -5384,7 +5292,6 @@
    * Calculate and update item's layout target styles.
    *
    * @private
-   * @memberof ItemLayout.prototype
    */
   ItemLayout.prototype._updateTargetStyles = function() {
     if (this._isDestroyed) return;
@@ -5398,7 +5305,6 @@
    * Finish item layout procedure.
    *
    * @private
-   * @memberof ItemLayout.prototype
    */
   ItemLayout.prototype._finish = function() {
     if (this._isDestroyed) return;
@@ -5425,7 +5331,6 @@
    * Prepare item for layout animation.
    *
    * @private
-   * @memberof ItemLayout.prototype
    */
   ItemLayout.prototype._setupAnimation = function() {
     // TODO: Keep track of the translate value so we only need to query the DOM
@@ -5439,7 +5344,6 @@
    * Start layout animation.
    *
    * @private
-   * @memberof ItemLayout.prototype
    */
   ItemLayout.prototype._startAnimation = function() {
     var item = this._item;
@@ -5503,7 +5407,6 @@
    * Start the migrate process of an item.
    *
    * @public
-   * @memberof ItemMigrate.prototype
    * @param {Grid} targetGrid
    * @param {(HTMLElement|Number|Item)} position
    * @param {HTMLElement} [container]
@@ -5686,7 +5589,6 @@
    * ongoing migrate process (animation) or finish the migrate process.
    *
    * @public
-   * @memberof ItemMigrate.prototype
    * @param {Boolean} [abort=false]
    *  - Should the migration be aborted?
    * @param {Number} [left]
@@ -5729,7 +5631,6 @@
    * Destroy instance.
    *
    * @public
-   * @memberof ItemMigrate.prototype
    */
   ItemMigrate.prototype.destroy = function() {
     if (this._isDestroyed) return;
@@ -5780,7 +5681,6 @@
    * Show item.
    *
    * @public
-   * @memberof ItemVisibility.prototype
    * @param {Boolean} instant
    * @param {Function} [onFinish]
    */
@@ -5832,7 +5732,6 @@
    * Hide item.
    *
    * @public
-   * @memberof ItemVisibility.prototype
    * @param {Boolean} instant
    * @param {Function} [onFinish]
    */
@@ -5886,7 +5785,6 @@
    * on init and on migrations).
    *
    * @public
-   * @memberof ItemVisibility.prototype
    * @param {Object} styles
    */
   ItemVisibility.prototype.setStyles = function(styles) {
@@ -5903,7 +5801,6 @@
    * Destroy the instance and stop current animation if it is running.
    *
    * @public
-   * @memberof ItemVisibility.prototype
    */
   ItemVisibility.prototype.destroy = function() {
     if (this._isDestroyed) return;
@@ -5940,7 +5837,6 @@
    * Start visibility animation.
    *
    * @private
-   * @memberof ItemVisibility.prototype
    * @param {Boolean} toVisible
    * @param {Boolean} [instant]
    * @param {Function} [onFinish]
@@ -5997,7 +5893,6 @@
    * Stop visibility animation.
    *
    * @private
-   * @memberof ItemVisibility.prototype
    * @param {Boolean} [applyCurrentStyles=true]
    */
   ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
@@ -6011,7 +5906,6 @@
    * Finish show procedure.
    *
    * @private
-   * @memberof ItemVisibility.prototype
    */
   ItemVisibility.prototype._finishShow = function() {
     if (this._isHidden) return;
@@ -6023,7 +5917,6 @@
    * Finish hide procedure.
    *
    * @private
-   * @memberof ItemVisibility.prototype
    */
   ItemVisibility.prototype._finishHide = (function() {
     var layoutStyles = {};
@@ -6042,7 +5935,6 @@
    * Remove currently applied visibility related inline style properties.
    *
    * @private
-   * @memberof ItemVisibility.prototype
    */
   ItemVisibility.prototype._removeCurrentStyles = function() {
     var childElement = this._childElement;
@@ -6159,7 +6051,6 @@
    * Get the instance grid reference.
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Grid}
    */
   Item.prototype.getGrid = function() {
@@ -6170,7 +6061,6 @@
    * Get the instance element.
    *
    * @public
-   * @memberof Item.prototype
    * @returns {HTMLElement}
    */
   Item.prototype.getElement = function() {
@@ -6181,7 +6071,6 @@
    * Get instance element's cached width.
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Number}
    */
   Item.prototype.getWidth = function() {
@@ -6192,7 +6081,6 @@
    * Get instance element's cached height.
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Number}
    */
   Item.prototype.getHeight = function() {
@@ -6203,7 +6091,6 @@
    * Get instance element's cached margins.
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Object}
    *   - The returned object contains left, right, top and bottom properties
    *     which indicate the item element's cached margins.
@@ -6221,7 +6108,6 @@
    * Get instance element's cached position.
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Object}
    *   - The returned object contains left and top properties which indicate the
    *     item element's cached position in the grid.
@@ -6237,7 +6123,6 @@
    * Is the item active?
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Boolean}
    */
   Item.prototype.isActive = function() {
@@ -6248,7 +6133,6 @@
    * Is the item visible?
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Boolean}
    */
   Item.prototype.isVisible = function() {
@@ -6259,7 +6143,6 @@
    * Is the item being animated to visible?
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Boolean}
    */
   Item.prototype.isShowing = function() {
@@ -6270,7 +6153,6 @@
    * Is the item being animated to hidden?
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Boolean}
    */
   Item.prototype.isHiding = function() {
@@ -6281,7 +6163,6 @@
    * Is the item positioning?
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Boolean}
    */
   Item.prototype.isPositioning = function() {
@@ -6292,7 +6173,6 @@
    * Is the item being dragged (or queued for dragging)?
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Boolean}
    */
   Item.prototype.isDragging = function() {
@@ -6303,7 +6183,6 @@
    * Is the item being released?
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Boolean}
    */
   Item.prototype.isReleasing = function() {
@@ -6314,7 +6193,6 @@
    * Is the item destroyed?
    *
    * @public
-   * @memberof Item.prototype
    * @returns {Boolean}
    */
   Item.prototype.isDestroyed = function() {
@@ -6330,7 +6208,6 @@
    * Recalculate item's dimensions.
    *
    * @private
-   * @memberof Item.prototype
    * @param {Boolean} [force=false]
    */
   Item.prototype._refreshDimensions = function(force) {
@@ -6359,7 +6236,6 @@
    * Fetch and store item's sort data.
    *
    * @private
-   * @memberof Item.prototype
    */
   Item.prototype._refreshSortData = function() {
     if (this._isDestroyed) return;
@@ -6377,7 +6253,6 @@
    * Destroy item instance.
    *
    * @private
-   * @memberof Item.prototype
    * @param {Boolean} [removeElement=false]
    */
   Item.prototype._destroy = function(removeElement) {
@@ -7008,7 +6883,6 @@
 
   /**
    * @public
-   * @memberof Packer.prototype
    * @param {Object} [options]
    * @param {Boolean} [options.fillGaps]
    * @param {Boolean} [options.horizontal]
@@ -7062,7 +6936,6 @@
 
   /**
    * @public
-   * @memberof Packer.prototype
    * @param {Number} id
    * @param {Item[]} items
    * @param {Number} width
@@ -7137,7 +7010,6 @@
 
   /**
    * @public
-   * @memberof Packer.prototype
    * @param {Number} id
    */
   Packer.prototype.cancelLayout = function(id) {
@@ -7156,7 +7028,6 @@
 
   /**
    * @public
-   * @memberof Packer.prototype
    */
   Packer.prototype.destroy = function() {
     var worker, id, i;
@@ -7488,7 +7359,6 @@
    * Default options for Grid instance.
    *
    * @public
-   * @memberof Grid
    */
   Grid.defaultOptions = {
     // Item elements
@@ -7600,7 +7470,6 @@
    * Bind an event listener.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {String} event
    * @param {Function} listener
    * @returns {Grid}
@@ -7614,7 +7483,6 @@
    * Unbind an event listener.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {String} event
    * @param {Function} listener
    * @returns {Grid}
@@ -7628,7 +7496,6 @@
    * Get the container element.
    *
    * @public
-   * @memberof Grid.prototype
    * @returns {HTMLElement}
    */
   Grid.prototype.getElement = function() {
@@ -7642,7 +7509,6 @@
    * is returned.
    *
    * @private
-   * @memberof Grid.prototype
    * @param {(HtmlElement|Number|Item)} [target]
    * @returns {?Item}
    */
@@ -7688,7 +7554,6 @@
    * the returned array.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {(HtmlElement|Number|Item|Array)} [targets]
    * @returns {Item[]}
    */
@@ -7726,7 +7591,6 @@
    * their dimensions are being read.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {Item[]} [items]
    * @param {Boolean} [force=false]
    * @returns {Grid}
@@ -7772,7 +7636,6 @@
    * refresh specific items.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {Item[]} [items]
    * @returns {Grid}
    */
@@ -7795,7 +7658,6 @@
    * left untouched.
    *
    * @public
-   * @memberof Grid.prototype
    * @returns {Grid}
    */
   Grid.prototype.synchronize = function() {
@@ -7827,7 +7689,6 @@
    * Calculate and apply item positions.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {Boolean} [instant=false]
    * @param {Function} [onFinish]
    * @returns {Grid}
@@ -7909,7 +7770,6 @@
    * are positioned without animation during their first layout.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {(HTMLElement|HTMLElement[])} elements
    * @param {Object} [options]
    * @param {Number} [options.index=-1]
@@ -7993,7 +7853,6 @@
    * Remove items from the instance.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {Item[]} items
    * @param {Object} [options]
    * @param {Boolean} [options.removeElements=false]
@@ -8046,7 +7905,6 @@
    * Show specific instance items.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {Item[]} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
@@ -8066,7 +7924,6 @@
    * Hide specific instance items.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {Item[]} items
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
@@ -8093,7 +7950,6 @@
    * matching items will be shown and others hidden.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {(Function|String)} predicate
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
@@ -8189,7 +8045,6 @@
    * same order.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {(Function|Item[]|String|String[])} comparer
    * @param {Object} [options]
    * @param {Boolean} [options.descending=false]
@@ -8318,7 +8173,6 @@
    * Move item to another index or in place of another item.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {(HtmlElement|Number|Item)} item
    * @param {(HtmlElement|Number|Item)} position
    * @param {Object} [options]
@@ -8378,7 +8232,6 @@
    * Send item to another Grid instance.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {(HtmlElement|Number|Item)} item
    * @param {Grid} grid
    * @param {(HtmlElement|Number|Item)} position
@@ -8429,7 +8282,6 @@
    * Destroy the instance.
    *
    * @public
-   * @memberof Grid.prototype
    * @param {Boolean} [removeElements=false]
    * @returns {Grid}
    */
@@ -8476,7 +8328,6 @@
    * Emit a grid event.
    *
    * @private
-   * @memberof Grid.prototype
    * @param {String} event
    * @param {...*} [arg]
    */
@@ -8489,7 +8340,6 @@
    * Check if there are any events listeners for an event.
    *
    * @private
-   * @memberof Grid.prototype
    * @param {String} event
    * @returns {Boolean}
    */
@@ -8502,7 +8352,6 @@
    * Update container's width, height and offsets.
    *
    * @private
-   * @memberof Grid.prototype
    */
   Grid.prototype._updateBoundingRect = function() {
     var element = this._element;
@@ -8519,7 +8368,6 @@
    * Update container's border sizes.
    *
    * @private
-   * @memberof Grid.prototype
    * @param {Boolean} left
    * @param {Boolean} right
    * @param {Boolean} top
@@ -8537,7 +8385,6 @@
    * Refresh all of container's internal dimensions and offsets.
    *
    * @private
-   * @memberof Grid.prototype
    */
   Grid.prototype._refreshDimensions = function() {
     this._updateBoundingRect();
@@ -8555,7 +8402,6 @@
    * dimensions, in which case we don't do the border-box check.
    *
    * @private
-   * @memberof Grid.prototype
    * @param {Object} layout
    */
   Grid.prototype._updateGridElementSize = function(layout) {
@@ -8577,7 +8423,6 @@
    * Calculate and apply item positions.
    *
    * @private
-   * @memberof Grid.prototype
    * @param {Object} layout
    */
   Grid.prototype._onLayoutDataReceived = (function() {
@@ -8683,7 +8528,6 @@
    * Show or hide Grid instance's items.
    *
    * @private
-   * @memberof Grid.prototype
    * @param {Item[]} items
    * @param {Boolean} toVisible
    * @param {Object} [options]

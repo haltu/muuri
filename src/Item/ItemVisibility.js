@@ -59,7 +59,6 @@ function ItemVisibility(item) {
  * Show item.
  *
  * @public
- * @memberof ItemVisibility.prototype
  * @param {Boolean} instant
  * @param {Function} [onFinish]
  */
@@ -111,7 +110,6 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
  * Hide item.
  *
  * @public
- * @memberof ItemVisibility.prototype
  * @param {Boolean} instant
  * @param {Function} [onFinish]
  */
@@ -165,7 +163,6 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
  * on init and on migrations).
  *
  * @public
- * @memberof ItemVisibility.prototype
  * @param {Object} styles
  */
 ItemVisibility.prototype.setStyles = function(styles) {
@@ -182,7 +179,6 @@ ItemVisibility.prototype.setStyles = function(styles) {
  * Destroy the instance and stop current animation if it is running.
  *
  * @public
- * @memberof ItemVisibility.prototype
  */
 ItemVisibility.prototype.destroy = function() {
   if (this._isDestroyed) return;
@@ -219,7 +215,6 @@ ItemVisibility.prototype.destroy = function() {
  * Start visibility animation.
  *
  * @private
- * @memberof ItemVisibility.prototype
  * @param {Boolean} toVisible
  * @param {Boolean} [instant]
  * @param {Function} [onFinish]
@@ -276,7 +271,6 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
  * Stop visibility animation.
  *
  * @private
- * @memberof ItemVisibility.prototype
  * @param {Boolean} [applyCurrentStyles=true]
  */
 ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
@@ -290,7 +284,6 @@ ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
  * Finish show procedure.
  *
  * @private
- * @memberof ItemVisibility.prototype
  */
 ItemVisibility.prototype._finishShow = function() {
   if (this._isHidden) return;
@@ -302,7 +295,6 @@ ItemVisibility.prototype._finishShow = function() {
  * Finish hide procedure.
  *
  * @private
- * @memberof ItemVisibility.prototype
  */
 ItemVisibility.prototype._finishHide = (function() {
   var layoutStyles = {};
@@ -321,7 +313,6 @@ ItemVisibility.prototype._finishHide = (function() {
  * Remove currently applied visibility related inline style properties.
  *
  * @private
- * @memberof ItemVisibility.prototype
  */
 ItemVisibility.prototype._removeCurrentStyles = function() {
   var childElement = this._childElement;

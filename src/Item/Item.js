@@ -113,7 +113,6 @@ function Item(grid, element, isActive) {
  * Get the instance grid reference.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Grid}
  */
 Item.prototype.getGrid = function() {
@@ -124,7 +123,6 @@ Item.prototype.getGrid = function() {
  * Get the instance element.
  *
  * @public
- * @memberof Item.prototype
  * @returns {HTMLElement}
  */
 Item.prototype.getElement = function() {
@@ -135,7 +133,6 @@ Item.prototype.getElement = function() {
  * Get instance element's cached width.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Number}
  */
 Item.prototype.getWidth = function() {
@@ -146,7 +143,6 @@ Item.prototype.getWidth = function() {
  * Get instance element's cached height.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Number}
  */
 Item.prototype.getHeight = function() {
@@ -157,7 +153,6 @@ Item.prototype.getHeight = function() {
  * Get instance element's cached margins.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Object}
  *   - The returned object contains left, right, top and bottom properties
  *     which indicate the item element's cached margins.
@@ -175,7 +170,6 @@ Item.prototype.getMargin = function() {
  * Get instance element's cached position.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Object}
  *   - The returned object contains left and top properties which indicate the
  *     item element's cached position in the grid.
@@ -191,7 +185,6 @@ Item.prototype.getPosition = function() {
  * Is the item active?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
 Item.prototype.isActive = function() {
@@ -202,7 +195,6 @@ Item.prototype.isActive = function() {
  * Is the item visible?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
 Item.prototype.isVisible = function() {
@@ -213,7 +205,6 @@ Item.prototype.isVisible = function() {
  * Is the item being animated to visible?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
 Item.prototype.isShowing = function() {
@@ -224,7 +215,6 @@ Item.prototype.isShowing = function() {
  * Is the item being animated to hidden?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
 Item.prototype.isHiding = function() {
@@ -235,7 +225,6 @@ Item.prototype.isHiding = function() {
  * Is the item positioning?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
 Item.prototype.isPositioning = function() {
@@ -246,7 +235,6 @@ Item.prototype.isPositioning = function() {
  * Is the item being dragged (or queued for dragging)?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
 Item.prototype.isDragging = function() {
@@ -257,7 +245,6 @@ Item.prototype.isDragging = function() {
  * Is the item being released?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
 Item.prototype.isReleasing = function() {
@@ -268,7 +255,6 @@ Item.prototype.isReleasing = function() {
  * Is the item destroyed?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
 Item.prototype.isDestroyed = function() {
@@ -284,7 +270,6 @@ Item.prototype.isDestroyed = function() {
  * Recalculate item's dimensions.
  *
  * @private
- * @memberof Item.prototype
  * @param {Boolean} [force=false]
  */
 Item.prototype._refreshDimensions = function(force) {
@@ -313,7 +298,6 @@ Item.prototype._refreshDimensions = function(force) {
  * Fetch and store item's sort data.
  *
  * @private
- * @memberof Item.prototype
  */
 Item.prototype._refreshSortData = function() {
   if (this._isDestroyed) return;
@@ -331,7 +315,6 @@ Item.prototype._refreshSortData = function() {
  * Destroy item instance.
  *
  * @private
- * @memberof Item.prototype
  * @param {Boolean} [removeElement=false]
  */
 Item.prototype._destroy = function(removeElement) {

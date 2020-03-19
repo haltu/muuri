@@ -44,7 +44,6 @@ function ItemMigrate(item) {
  * Start the migrate process of an item.
  *
  * @public
- * @memberof ItemMigrate.prototype
  * @param {Grid} targetGrid
  * @param {(HTMLElement|Number|Item)} position
  * @param {HTMLElement} [container]
@@ -227,7 +226,6 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
  * ongoing migrate process (animation) or finish the migrate process.
  *
  * @public
- * @memberof ItemMigrate.prototype
  * @param {Boolean} [abort=false]
  *  - Should the migration be aborted?
  * @param {Number} [left]
@@ -270,7 +268,6 @@ ItemMigrate.prototype.stop = function(abort, left, top) {
  * Destroy instance.
  *
  * @public
- * @memberof ItemMigrate.prototype
  */
 ItemMigrate.prototype.destroy = function() {
   if (this._isDestroyed) return;

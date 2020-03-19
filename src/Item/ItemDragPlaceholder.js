@@ -70,7 +70,6 @@ function ItemDragPlaceholder(item) {
  * Update placeholder's dimensions to match the item's dimensions.
  *
  * @private
- * @memberof ItemDragPlaceholder.prototype
  */
 ItemDragPlaceholder.prototype._updateDimensions = function() {
   if (!this.isActive()) return;
@@ -84,7 +83,6 @@ ItemDragPlaceholder.prototype._updateDimensions = function() {
  * Move placeholder to a new position.
  *
  * @private
- * @memberof ItemDragPlaceholder.prototype
  * @param {Item[]} items
  * @param {Boolean} isInstant
  */
@@ -152,7 +150,6 @@ ItemDragPlaceholder.prototype._onLayoutStart = function(items, isInstant) {
  * Prepare placeholder for layout animation.
  *
  * @private
- * @memberof ItemDragPlaceholder.prototype
  */
 ItemDragPlaceholder.prototype._setupAnimation = function() {
   if (!this.isActive()) return;
@@ -166,7 +163,6 @@ ItemDragPlaceholder.prototype._setupAnimation = function() {
  * Start layout animation.
  *
  * @private
- * @memberof ItemDragPlaceholder.prototype
  */
 ItemDragPlaceholder.prototype._startAnimation = function() {
   if (!this.isActive()) return;
@@ -205,7 +201,6 @@ ItemDragPlaceholder.prototype._startAnimation = function() {
  * Layout end handler.
  *
  * @private
- * @memberof ItemDragPlaceholder.prototype
  */
 ItemDragPlaceholder.prototype._onLayoutEnd = function() {
   if (this._resetAfterLayout) {
@@ -218,7 +213,6 @@ ItemDragPlaceholder.prototype._onLayoutEnd = function() {
  * emitted and receives the event data as it's argument.
  *
  * @private
- * @memberof ItemDragPlaceholder.prototype
  * @param {Item} item
  */
 ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
@@ -240,7 +234,6 @@ ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
  * emitted and receives the event data as it's argument.
  *
  * @private
- * @memberof ItemDragPlaceholder.prototype
  * @param {Object} data
  * @param {Item} data.item
  * @param {Grid} data.fromGrid
@@ -275,7 +268,6 @@ ItemDragPlaceholder.prototype._onMigrate = function(data) {
  * Reset placeholder if the associated item is hidden.
  *
  * @private
- * @memberof ItemDragPlaceholder.prototype
  * @param {Item[]} items
  */
 ItemDragPlaceholder.prototype._onHide = function(items) {
@@ -293,7 +285,6 @@ ItemDragPlaceholder.prototype._onHide = function(items) {
  * thrashing when it's called at the end of the drag start procedure.
  *
  * @public
- * @memberof ItemDragPlaceholder.prototype
  */
 ItemDragPlaceholder.prototype.create = function() {
   // If we already have placeholder set up we can skip the initiation logic.
@@ -363,7 +354,6 @@ ItemDragPlaceholder.prototype.create = function() {
  * Reset placeholder data.
  *
  * @public
- * @memberof ItemDragPlaceholder.prototype
  */
 ItemDragPlaceholder.prototype.reset = function() {
   if (!this.isActive()) return;
@@ -413,7 +403,6 @@ ItemDragPlaceholder.prototype.reset = function() {
  * Check if placeholder is currently active (visible).
  *
  * @public
- * @memberof ItemDragPlaceholder.prototype
  * @returns {Boolean}
  */
 ItemDragPlaceholder.prototype.isActive = function() {
@@ -424,7 +413,6 @@ ItemDragPlaceholder.prototype.isActive = function() {
  * Get placeholder element.
  *
  * @public
- * @memberof ItemDragPlaceholder.prototype
  * @returns {?HTMLElement}
  */
 ItemDragPlaceholder.prototype.getElement = function() {
@@ -437,7 +425,6 @@ ItemDragPlaceholder.prototype.getElement = function() {
  * thrashing.
  *
  * @public
- * @memberof ItemDragPlaceholder.prototype
  */
 ItemDragPlaceholder.prototype.updateDimensions = function() {
   if (!this.isActive()) return;
@@ -448,7 +435,6 @@ ItemDragPlaceholder.prototype.updateDimensions = function() {
  * Destroy placeholder instance.
  *
  * @public
- * @memberof ItemDragPlaceholder.prototype
  */
 ItemDragPlaceholder.prototype.destroy = function() {
   this.reset();

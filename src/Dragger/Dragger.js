@@ -238,7 +238,6 @@ Dragger._onEnd = function(e) {
  * Reset current drag operation (if any).
  *
  * @private
- * @memberof Dragger.prototype
  */
 Dragger.prototype._reset = function() {
   this._pointerId = null;
@@ -255,7 +254,6 @@ Dragger.prototype._reset = function() {
  * Create a custom dragger event from a raw event.
  *
  * @private
- * @memberof Dragger.prototype
  * @param {String} type
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  * @returns {Object}
@@ -289,7 +287,6 @@ Dragger.prototype._createEvent = function(type, e) {
  * Emit a raw event as dragger event internally.
  *
  * @private
- * @memberof Dragger.prototype
  * @param {String} type
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
@@ -306,7 +303,6 @@ Dragger.prototype._emit = function(type, e) {
  * it will be returned immediately.
  *
  * @private
- * @memberof Dragger.prototype
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  * @returns {?(Touch|PointerEvent|MouseEvent)}
  */
@@ -319,7 +315,6 @@ Dragger.prototype._getTrackedTouch = function(e) {
  * Handler for start event.
  *
  * @private
- * @memberof Dragger.prototype
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
 Dragger.prototype._onStart = function(e) {
@@ -351,7 +346,6 @@ Dragger.prototype._onStart = function(e) {
  * Handler for move event.
  *
  * @private
- * @memberof Dragger.prototype
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
 Dragger.prototype._onMove = function(e) {
@@ -366,7 +360,6 @@ Dragger.prototype._onMove = function(e) {
  * Handler for cancel event.
  *
  * @private
- * @memberof Dragger.prototype
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
 Dragger.prototype._onCancel = function(e) {
@@ -379,7 +372,6 @@ Dragger.prototype._onCancel = function(e) {
  * Handler for end event.
  *
  * @private
- * @memberof Dragger.prototype
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
 Dragger.prototype._onEnd = function(e) {
@@ -397,7 +389,6 @@ Dragger.prototype._onEnd = function(e) {
  * Check if the element is being dragged at the moment.
  *
  * @public
- * @memberof Dragger.prototype
  * @returns {Boolean}
  */
 Dragger.prototype.isActive = function() {
@@ -408,7 +399,6 @@ Dragger.prototype.isActive = function() {
  * Set element's touch-action CSS property.
  *
  * @public
- * @memberof Dragger.prototype
  * @param {String} value
  */
 Dragger.prototype.setTouchAction = function(value) {
@@ -441,7 +431,6 @@ Dragger.prototype.setTouchAction = function(value) {
  * props with value pairs as it's first argument.
  *
  * @public
- * @memberof Dragger.prototype
  * @param {Object} [newProps]
  */
 Dragger.prototype.setCssProps = function(newProps) {
@@ -484,7 +473,6 @@ Dragger.prototype.setCssProps = function(newProps) {
  * Positive value indicates movement from left to right.
  *
  * @public
- * @memberof Dragger.prototype
  * @returns {Number}
  */
 Dragger.prototype.getDeltaX = function() {
@@ -496,7 +484,6 @@ Dragger.prototype.getDeltaX = function() {
  * Positive value indicates movement from top to bottom.
  *
  * @public
- * @memberof Dragger.prototype
  * @returns {Number}
  */
 Dragger.prototype.getDeltaY = function() {
@@ -507,7 +494,6 @@ Dragger.prototype.getDeltaY = function() {
  * How far (in pixels) has pointer moved from start position.
  *
  * @public
- * @memberof Dragger.prototype
  * @returns {Number}
  */
 Dragger.prototype.getDistance = function() {
@@ -520,7 +506,6 @@ Dragger.prototype.getDistance = function() {
  * How long has pointer been dragged.
  *
  * @public
- * @memberof Dragger.prototype
  * @returns {Number}
  */
 Dragger.prototype.getDeltaTime = function() {
@@ -531,7 +516,6 @@ Dragger.prototype.getDeltaTime = function() {
  * Bind drag event listeners.
  *
  * @public
- * @memberof Dragger.prototype
  * @param {String} eventName
  *   - 'start', 'move', 'cancel' or 'end'.
  * @param {Function} listener
@@ -544,7 +528,6 @@ Dragger.prototype.on = function(eventName, listener) {
  * Unbind drag event listeners.
  *
  * @public
- * @memberof Dragger.prototype
  * @param {String} eventName
  *   - 'start', 'move', 'cancel' or 'end'.
  * @param {Function} listener
@@ -557,7 +540,6 @@ Dragger.prototype.off = function(eventName, listener) {
  * Destroy the instance and unbind all drag event listeners.
  *
  * @public
- * @memberof Dragger.prototype
  */
 Dragger.prototype.destroy = function() {
   if (this._isDestroyed) return;

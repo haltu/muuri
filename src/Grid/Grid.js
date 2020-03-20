@@ -55,7 +55,6 @@ import noop from '../utils/noop';
 import removeClass from '../utils/removeClass';
 import toArray from '../utils/toArray';
 
-var PACKER = new Packer(2);
 var NUMBER_TYPE = 'number';
 var STRING_TYPE = 'string';
 var INSTANT_LAYOUT = 'instant';
@@ -257,6 +256,13 @@ Grid.Packer = Packer;
  * @see AutoScroller
  */
 Grid.AutoScroller = AutoScroller;
+
+/**
+ * The default Packer instance used by default for all layouts.
+ *
+ * @public
+ */
+Grid.defaultPacker = new Packer(2);
 
 /**
  * Default options for Grid instance.
@@ -637,8 +643,8 @@ Grid.prototype.layout = function(instant, onFinish) {
       this._onLayoutDataReceived
     );
   } else {
-    PACKER.setOptions(layoutSettings);
-    cancelLayout = PACKER.createLayout(
+    Grid.defaultPacker.setOptions(layoutSettings);
+    cancelLayout = Grid.defaultPacker.createLayout(
       nextLayoutId,
       layoutItems,
       gridWidth,

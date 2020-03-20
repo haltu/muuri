@@ -7590,7 +7590,7 @@
    * first argument if you want to refresh specific items. Note that all hidden
    * items are not refreshed by default since their "display" property is "none"
    * and their dimensions are therefore not readable from the DOM. However, if you
-   * do want to force refresh hidden item dimensions too you can provide `true``
+   * do want to force update hidden item dimensions too you can provide `true`
    * as the second argument, which makes the elements temporarily visible while
    * their dimensions are being read.
    *

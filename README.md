@@ -1323,7 +1323,7 @@ var grid = new Muuri(elem, {
 * [grid.getElement()](#gridgetelement)
 * [grid.getItem( target )](#gridgetitem-target-)
 * [grid.getItems( [targets] )](#gridgetitems-targets-)
-* [grid.refreshItems( [items] )](#gridrefreshitems-items-)
+* [grid.refreshItems( [items, force] )](#gridrefreshitems-items-force-)
 * [grid.refreshSortData( [items] )](#gridrefreshsortdata-items-)
 * [grid.synchronize()](#gridsynchronize)
 * [grid.layout( [instant], [callback] )](#gridlayout-instant-callback-)
@@ -1404,14 +1404,18 @@ var firstItem = grid.getItems(0)[0];
 var items = grid.getItems([elemA, elemB]);
 ```
 
-### grid.refreshItems( [items] )
+### grid.refreshItems( [items], [force] )
 
-Refresh the cached dimensions of the grid's items.
+Update the cached dimensions of the instance's items. By default all the items are refreshed, but you can also provide an array of target items as the first argument if you want to refresh specific items. Note that all hidden items are not refreshed by default since their `display` property is `'none'` and their dimensions are therefore not readable from the DOM. However, if you do want to force update hidden item dimensions too you can provide `true` as the second argument, which makes the elements temporarily visible while their dimensions are being read.
 
 **Parameters**
 
 * **items** &nbsp;&mdash;&nbsp; *array / element / Muuri.Item / number / string*
   * To target specific items provide an array of item instances/elements/indices. By default all items are targeted.
+  * Optional.
+* **force** &nbsp;&mdash;&nbsp; *boolean*
+  * Set to `true` to read dimensions of hidden items too (and make them visible for the duration of the reading).
+  * Default: `false`.
   * Optional.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
@@ -1424,6 +1428,10 @@ grid.refreshItems();
 
 // Refresh dimensions of specific items.
 grid.refreshItems([0, someElem, someItem]);
+
+// Refresh dimensions of specific items and force read their
+// dimensions even if they are hidden. Note that this has performance cost.
+grid.refreshItems([0, someElem, someHiddenItem], true);
 ```
 
 ### grid.refreshSortData( [items] )

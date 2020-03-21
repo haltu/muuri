@@ -6844,19 +6844,26 @@
 
   var PackerProcessor = createPackerProcessor();
 
-  function createWorker() {
+  function createWorkers(amount, onmessage) {
+    var workers = [];
     var blobUrl = URL.createObjectURL(
       new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
         type: 'application/javascript'
       })
     );
-    var worker = new Worker(blobUrl);
+
+    for (var i = 0, worker; i < amount; i++) {
+      worker = new Worker(blobUrl);
+      if (onmessage) worker.onmessage = onmessage;
+      workers.push(worker);
+    }
+
     URL.revokeObjectURL(blobUrl);
-    return worker;
+    return workers;
   }
 
   function isWorkerSupported() {
-    return !!window.Worker && !!window.URL && !!window.Blob;
+    return !!(window.Worker && window.URL && window.Blob);
   }
 
   var FILL_GAPS = 1;
@@ -6895,14 +6902,10 @@
     this.setOptions(options);
 
     // Init the worker(s) or the processor if workers can't be used.
-    var workerCount = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
-    if (workerCount && isWorkerSupported()) {
+    numWorkers = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
+    if (numWorkers && isWorkerSupported()) {
       try {
-        for (var i = 0, worker; i < workerCount; i++) {
-          worker = createWorker();
-          worker.onmessage = this._onWorkerMessage;
-          this._workers.push(worker);
-        }
+        this._workers = createWorkers(numWorkers, this._onWorkerMessage);
       } catch (e) {
         this._processor = new PackerProcessor();
       }

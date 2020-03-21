@@ -5,7 +5,7 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-import PackerProcessor, { createWorker, isWorkerSupported } from './PackerProcessor';
+import PackerProcessor, { createWorkers, isWorkerSupported } from './PackerProcessor';
 
 export var FILL_GAPS = 1;
 export var HORIZONTAL = 2;
@@ -43,14 +43,10 @@ function Packer(numWorkers, options) {
   this.setOptions(options);
 
   // Init the worker(s) or the processor if workers can't be used.
-  var workerCount = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
-  if (workerCount && isWorkerSupported()) {
+  numWorkers = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
+  if (numWorkers && isWorkerSupported()) {
     try {
-      for (var i = 0, worker; i < workerCount; i++) {
-        worker = createWorker();
-        worker.onmessage = this._onWorkerMessage;
-        this._workers.push(worker);
-      }
+      this._workers = createWorkers(numWorkers, this._onWorkerMessage);
     } catch (e) {
       this._processor = new PackerProcessor();
     }

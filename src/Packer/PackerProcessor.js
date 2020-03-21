@@ -524,17 +524,24 @@ var PackerProcessor = createPackerProcessor();
 
 export default PackerProcessor;
 
-export function createWorker() {
+export function createWorkers(amount, onmessage) {
+  var workers = [];
   var blobUrl = URL.createObjectURL(
     new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
       type: 'application/javascript'
     })
   );
-  var worker = new Worker(blobUrl);
+
+  for (var i = 0, worker; i < amount; i++) {
+    worker = new Worker(blobUrl);
+    if (onmessage) worker.onmessage = onmessage;
+    workers.push(worker);
+  }
+
   URL.revokeObjectURL(blobUrl);
-  return worker;
+  return workers;
 }
 
 export function isWorkerSupported() {
-  return !!window.Worker && !!window.URL && !!window.Blob;
+  return !!(window.Worker && window.URL && window.Blob);
 }

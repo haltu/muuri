@@ -312,6 +312,30 @@ Item.prototype._refreshSortData = function() {
 };
 
 /**
+ * Add item to layout.
+ *
+ * @private
+ */
+Item.prototype._addToLayout = function(left, top) {
+  if (this._isActive === true) return;
+  this._isActive = true;
+  this._left = left || 0;
+  this._top = top || 0;
+};
+
+/**
+ * Remove item from layout.
+ *
+ * @private
+ */
+Item.prototype._removeFromLayout = function() {
+  if (this._isActive === false) return;
+  this._isActive = false;
+  this._left = 0;
+  this._top = 0;
+};
+
+/**
  * Destroy item instance.
  *
  * @private

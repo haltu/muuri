@@ -26,6 +26,9 @@ var MIN_ANIMATION_DISTANCE = 2;
  * @param {Item} item
  */
 function ItemLayout(item) {
+  var element = item._element;
+  var elementStyle = element.style;
+
   this._item = item;
   this._isActive = false;
   this._isDestroyed = false;
@@ -44,11 +47,11 @@ function ItemLayout(item) {
   };
 
   // Set element's initial position styles.
-  item._element.style.left = '0px';
-  item._element.style.top = '0px';
-  item._element.style[transformProp] = getTranslateString(0, 0);
+  elementStyle.left = '0px';
+  elementStyle.top = '0px';
+  elementStyle[transformProp] = getTranslateString(0, 0);
 
-  this._animation = new ItemAnimate(item._element);
+  this._animation = new ItemAnimate(element);
   this._queue = new Queue();
 
   // Bind animation handlers and finish method.
@@ -152,10 +155,17 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
  */
 ItemLayout.prototype.destroy = function() {
   if (this._isDestroyed) return;
+
+  var elementStyle = this._item._element.style;
+
   this.stop(true, {});
   this._queue.destroy();
   this._animation.destroy();
-  this._item._element.style[transformProp] = '';
+
+  elementStyle[transformProp] = '';
+  elementStyle.left = '';
+  elementStyle.top = '';
+
   this._item = null;
   this._currentStyles = null;
   this._targetStyles = null;

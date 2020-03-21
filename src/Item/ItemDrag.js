@@ -960,9 +960,7 @@ ItemDrag.prototype._checkOverlap = function() {
     currentGrid._items.splice(currentIndex, 1);
     arrayInsert(targetGrid._items, item, targetIndex);
 
-    // Set sort data as null, which is an indicator for the item comparison
-    // function that the sort data of this specific item should be fetched
-    // lazily.
+    // Reset sort data.
     item._sortData = null;
 
     // Emit send event.
@@ -1055,9 +1053,8 @@ ItemDrag.prototype._finishMigration = function() {
     translate.y -= offsetDiff.top;
   }
 
-  // Update item's cached dimensions and sort data.
+  // Update item's cached dimensions.
   item._refreshDimensions();
-  item._refreshSortData();
 
   // Calculate the offset difference between target's drag container (if any)
   // and actual grid container element. We save it later for the release

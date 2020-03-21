@@ -138,7 +138,7 @@
     });
     var grid = new Muuri(container, {
       dragEnabled: true,
-      dragSortPredicate: function(draggedItem, ev) {
+      dragSortPredicate: function() {
         return false;
       }
     });

@@ -99,7 +99,7 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
   callback && queue.add(callback);
 
   // Update visibility states.
-  item._isActive = this._isShowing = true;
+  this._isShowing = true;
   this._isHiding = this._isHidden = false;
 
   // Finally let's start show animation.
@@ -150,7 +150,7 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
 
   // Update visibility states.
   this._isHidden = this._isHiding = true;
-  item._isActive = this._isShowing = false;
+  this._isShowing = false;
 
   // Finally let's start hide animation.
   this._startAnimation(false, instant, this._finishHide);

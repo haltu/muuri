@@ -22,7 +22,7 @@ import {
 
 /**
  * @class
- * @param {Number} [numWorkers=2]
+ * @param {Number} [numWorkers=0]
  * @param {Object} [options]
  * @param {Boolean} [options.fillGaps=false]
  * @param {Boolean} [options.horizontal=false]

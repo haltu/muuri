@@ -1,11 +1,9 @@
-(function (window) {
-
+(function(window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
-  QUnit.test('hideDuration: should disable hide animation when set to 0', function (assert) {
-
+  QUnit.test('hideDuration: should disable hide animation when set to 0', function(assert) {
     assert.expect(2);
 
     var container = utils.createGridElements();
@@ -13,16 +11,14 @@
       hideDuration: 0
     });
     var item = grid.getItems()[0];
-    var teardown = function () {
+    var teardown = function() {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    grid.hide(item);
+    grid.hide([item]);
     assert.strictEqual(item.isVisible(), false, 'item should be hidden');
     assert.strictEqual(item.isHiding(), false, 'item should not be hiding');
     teardown();
-
   });
-
 })(this);

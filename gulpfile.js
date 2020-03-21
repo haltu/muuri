@@ -149,8 +149,8 @@ gulp.task('test-sauce-min', done => {
   ).start();
 });
 
-gulp.task('format-test', cb => {
-  exec('npm run format-test', (err, stdout, stderr) => {
+gulp.task('validate-formatting', cb => {
+  exec('npm run validate-formatting', (err, stdout, stderr) => {
     console.log(stdout);
     console.log(stderr);
     cb(err);
@@ -182,14 +182,14 @@ gulp.task(
 
 gulp.task(
   'pre-commit',
-  gulp.series('lint', 'format-test', done => {
+  gulp.series('lint', 'validate-formatting', done => {
     done();
   })
 );
 
 gulp.task(
   'test',
-  gulp.series('lint', 'format-test', 'test-sauce', 'test-sauce-min', 'clean', done => {
+  gulp.series('lint', 'validate-formatting', 'test-sauce', 'test-sauce-min', 'clean', done => {
     done();
   })
 );

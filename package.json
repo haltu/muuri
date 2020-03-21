@@ -33,7 +33,8 @@
     "build": "./node_modules/.bin/gulp build",
     "lint": "./node_modules/.bin/gulp lint",
     "format": "./node_modules/.bin/prettier --write ./src/**/*.js",
-    "format-test": "./node_modules/.bin/prettier --list-different ./src/**/*.js",
+    "format-tests": "./node_modules/.bin/prettier --write ./tests/**/*.js",
+    "validate-formatting": "./node_modules/.bin/prettier --list-different ./src/**/*.js",
     "size": "./node_modules/.bin/gulp size",
     "pre-commit-hook": "./node_modules/.bin/gulp pre-commit"
   },

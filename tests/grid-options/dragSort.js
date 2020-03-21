@@ -127,7 +127,7 @@
       done();
     };
 
-    gridB.on('receive', function(data) {
+    gridB.on('receive', function() {
       assert.strictEqual(true, false);
     });
 
@@ -209,7 +209,7 @@
 
     grids.push(gridA, gridB);
 
-    gridB.on('receive', function(data) {
+    gridB.on('receive', function() {
       assert.strictEqual(true, true);
     });
 

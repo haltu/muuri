@@ -1142,7 +1142,7 @@ Grid.prototype.move = function(item, position, options) {
  *
  * @public
  * @param {(HtmlElement|Number|Item)} item
- * @param {Grid} grid
+ * @param {Grid} targetGrid
  * @param {(HtmlElement|Number|Item)} position
  * @param {Object} [options]
  * @param {HTMLElement} [options.appendTo=document.body]
@@ -1150,8 +1150,8 @@ Grid.prototype.move = function(item, position, options) {
  * @param {(Boolean|Function|String)} [options.layoutReceiver=true]
  * @returns {Grid}
  */
-Grid.prototype.send = function(item, grid, position, options) {
-  if (this._isDestroyed || grid._isDestroyed || this === grid) return this;
+Grid.prototype.send = function(item, targetGrid, position, options) {
+  if (this._isDestroyed || targetGrid._isDestroyed || this === targetGrid) return this;
 
   // Make sure we have a valid target item.
   item = this.getItem(item);
@@ -1165,7 +1165,7 @@ Grid.prototype.send = function(item, grid, position, options) {
     : opts.layoutReceiver === undefined;
 
   // Start the migration process.
-  item._migrate.start(grid, position, container);
+  item._migrate.start(targetGrid, position, container);
 
   // If migration was started successfully and the item is active, let's layout
   // the grids.
@@ -1177,7 +1177,7 @@ Grid.prototype.send = function(item, grid, position, options) {
       );
     }
     if (layoutReceiver) {
-      grid.layout(
+      targetGrid.layout(
         layoutReceiver === INSTANT_LAYOUT,
         isFunction(layoutReceiver) ? layoutReceiver : undefined
       );
@@ -1365,14 +1365,30 @@ Grid.prototype._onLayoutDataReceived = (function() {
     itemsToLayout.length = 0;
     for (i = 0; i < numItems; i++) {
       item = layout.items[i];
+
+      // Make sure we have a matching item.
       if (!item) {
         --counter;
         continue;
       }
 
+      // Get the item's new left and top values.
       left = layout.slots[i * 2];
       top = layout.slots[i * 2 + 1];
-      if (left === item._left && top === item._top && !item._dragRelease.isJustReleased()) {
+
+      // If the left and top values have not changed since the last layout and
+      // if some other conditions are met, we can skip the item's layout process
+      // and save some CPU time.
+      // TODO: Might make more sense to have a single item._layout.isDirty flag
+      // for example which we would set to true whenever this optimization can
+      // not be used for the next layout.
+      if (
+        left === item._left &&
+        top === item._top &&
+        !item._migrate._isActive &&
+        !item._layout._skipNextAnimation &&
+        !item._dragRelease.isJustReleased()
+      ) {
         --counter;
         continue;
       }
@@ -1488,8 +1504,12 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
       hiddenItems.push(item);
     }
 
-    // Set item active state based on visibility.
-    item._isActive = toVisible;
+    // Add item to layout or remove it from layout.
+    if (toVisible) {
+      item._addToLayout();
+    } else {
+      item._removeFromLayout();
+    }
   }
 
   // Force refresh the dimensions of all hidden items.

@@ -22,8 +22,6 @@
     });
     var item = grid.getItems()[0];
     var calls = 0;
-    var isStartCalled = false;
-    var isMoveCalled = false;
     var teardown = function() {
       grid.destroy();
       container.parentNode.removeChild(container);

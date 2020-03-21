@@ -53,6 +53,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
 
   var item = this._item;
   var element = item._element;
+  var isActive = item.isActive();
   var isVisible = item.isVisible();
   var grid = item.getGrid();
   var settings = grid._settings;
@@ -155,23 +156,28 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   // Update item's grid id reference.
   item._gridId = targetGrid._id;
 
-  // Get current container.
-  currentContainer = element.parentNode;
-
-  // Move the item inside the target container if it's different than the
+  // If item is active we need to move the item inside the target container for
+  // the duration of the (potential) animation if it's different than the
   // current container.
-  if (targetContainer !== currentContainer) {
-    targetContainer.appendChild(element);
-    offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
-    if (!translate) {
-      translate = getTranslate(element);
-      translateX = translate.x;
-      translateY = translate.y;
+  if (isActive) {
+    currentContainer = element.parentNode;
+    if (targetContainer !== currentContainer) {
+      targetContainer.appendChild(element);
+      offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
+      if (!translate) {
+        translate = getTranslate(element);
+        translateX = translate.x;
+        translateY = translate.y;
+      }
+      element.style[transformProp] = getTranslateString(
+        translateX + offsetDiff.left,
+        translateY + offsetDiff.top
+      );
     }
-    element.style[transformProp] = getTranslateString(
-      translateX + offsetDiff.left,
-      translateY + offsetDiff.top
-    );
+  }
+  // If item is not active let's just append it to the target grid's element.
+  else {
+    targetElement.appendChild(element);
   }
 
   // Update child element's styles to reflect the current visibility state.
@@ -179,24 +185,32 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
     isVisible ? targetSettings.visibleStyles : targetSettings.hiddenStyles
   );
 
-  // Update display style.
-  element.style.display = isVisible ? 'block' : 'hidden';
+  // Get offset diff for the migration data, if the item is active.
+  if (isActive) {
+    containerDiff = getOffsetDiff(targetContainer, targetElement, true);
+  }
 
-  // Get offset diff for the migration data.
-  containerDiff = getOffsetDiff(targetContainer, targetElement, true);
-
-  // Update item's cached dimensions and sort data.
+  // Update item's cached dimensions.
   item._refreshDimensions();
-  item._refreshSortData();
+
+  // Reset item's sort data.
+  item._sortData = null;
 
   // Create new drag handler.
   item._drag = targetSettings.dragEnabled ? new ItemDrag(item) : null;
 
   // Setup migration data.
-  this._isActive = true;
-  this._container = targetContainer;
-  this._containerDiffX = containerDiff.left;
-  this._containerDiffY = containerDiff.top;
+  if (isActive) {
+    this._isActive = true;
+    this._container = targetContainer;
+    this._containerDiffX = containerDiff.left;
+    this._containerDiffY = containerDiff.top;
+  } else {
+    this._isActive = false;
+    this._container = null;
+    this._containerDiffX = 0;
+    this._containerDiffY = 0;
+  }
 
   // Emit send event.
   if (grid._hasListeners(EVENT_SEND)) {

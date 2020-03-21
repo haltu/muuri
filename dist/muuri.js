@@ -3645,9 +3645,7 @@
       currentGrid._items.splice(currentIndex, 1);
       arrayInsert(targetGrid._items, item, targetIndex);
 
-      // Set sort data as null, which is an indicator for the item comparison
-      // function that the sort data of this specific item should be fetched
-      // lazily.
+      // Reset sort data.
       item._sortData = null;
 
       // Emit send event.
@@ -3740,9 +3738,8 @@
       translate.y -= offsetDiff.top;
     }
 
-    // Update item's cached dimensions and sort data.
+    // Update item's cached dimensions.
     item._refreshDimensions();
-    item._refreshSortData();
 
     // Calculate the offset difference between target's drag container (if any)
     // and actual grid container element. We save it later for the release
@@ -5119,6 +5116,9 @@
    * @param {Item} item
    */
   function ItemLayout(item) {
+    var element = item._element;
+    var elementStyle = element.style;
+
     this._item = item;
     this._isActive = false;
     this._isDestroyed = false;
@@ -5137,11 +5137,11 @@
     };
 
     // Set element's initial position styles.
-    item._element.style.left = '0px';
-    item._element.style.top = '0px';
-    item._element.style[transformProp] = getTranslateString(0, 0);
+    elementStyle.left = '0px';
+    elementStyle.top = '0px';
+    elementStyle[transformProp] = getTranslateString(0, 0);
 
-    this._animation = new ItemAnimate(item._element);
+    this._animation = new ItemAnimate(element);
     this._queue = new Queue();
 
     // Bind animation handlers and finish method.
@@ -5245,10 +5245,17 @@
    */
   ItemLayout.prototype.destroy = function() {
     if (this._isDestroyed) return;
+
+    var elementStyle = this._item._element.style;
+
     this.stop(true, {});
     this._queue.destroy();
     this._animation.destroy();
-    this._item._element.style[transformProp] = '';
+
+    elementStyle[transformProp] = '';
+    elementStyle.left = '';
+    elementStyle.top = '';
+
     this._item = null;
     this._currentStyles = null;
     this._targetStyles = null;
@@ -5414,6 +5421,7 @@
 
     var item = this._item;
     var element = item._element;
+    var isActive = item.isActive();
     var isVisible = item.isVisible();
     var grid = item.getGrid();
     var settings = grid._settings;
@@ -5516,23 +5524,28 @@
     // Update item's grid id reference.
     item._gridId = targetGrid._id;
 
-    // Get current container.
-    currentContainer = element.parentNode;
-
-    // Move the item inside the target container if it's different than the
+    // If item is active we need to move the item inside the target container for
+    // the duration of the (potential) animation if it's different than the
     // current container.
-    if (targetContainer !== currentContainer) {
-      targetContainer.appendChild(element);
-      offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
-      if (!translate) {
-        translate = getTranslate(element);
-        translateX = translate.x;
-        translateY = translate.y;
+    if (isActive) {
+      currentContainer = element.parentNode;
+      if (targetContainer !== currentContainer) {
+        targetContainer.appendChild(element);
+        offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
+        if (!translate) {
+          translate = getTranslate(element);
+          translateX = translate.x;
+          translateY = translate.y;
+        }
+        element.style[transformProp] = getTranslateString(
+          translateX + offsetDiff.left,
+          translateY + offsetDiff.top
+        );
       }
-      element.style[transformProp] = getTranslateString(
-        translateX + offsetDiff.left,
-        translateY + offsetDiff.top
-      );
+    }
+    // If item is not active let's just append it to the target grid's element.
+    else {
+      targetElement.appendChild(element);
     }
 
     // Update child element's styles to reflect the current visibility state.
@@ -5540,24 +5553,32 @@
       isVisible ? targetSettings.visibleStyles : targetSettings.hiddenStyles
     );
 
-    // Update display style.
-    element.style.display = isVisible ? 'block' : 'hidden';
+    // Get offset diff for the migration data, if the item is active.
+    if (isActive) {
+      containerDiff = getOffsetDiff(targetContainer, targetElement, true);
+    }
 
-    // Get offset diff for the migration data.
-    containerDiff = getOffsetDiff(targetContainer, targetElement, true);
-
-    // Update item's cached dimensions and sort data.
+    // Update item's cached dimensions.
     item._refreshDimensions();
-    item._refreshSortData();
+
+    // Reset item's sort data.
+    item._sortData = null;
 
     // Create new drag handler.
     item._drag = targetSettings.dragEnabled ? new ItemDrag(item) : null;
 
     // Setup migration data.
-    this._isActive = true;
-    this._container = targetContainer;
-    this._containerDiffX = containerDiff.left;
-    this._containerDiffY = containerDiff.top;
+    if (isActive) {
+      this._isActive = true;
+      this._container = targetContainer;
+      this._containerDiffX = containerDiff.left;
+      this._containerDiffY = containerDiff.top;
+    } else {
+      this._isActive = false;
+      this._container = null;
+      this._containerDiffX = 0;
+      this._containerDiffY = 0;
+    }
 
     // Emit send event.
     if (grid._hasListeners(EVENT_SEND)) {
@@ -5719,7 +5740,7 @@
     callback && queue.add(callback);
 
     // Update visibility states.
-    item._isActive = this._isShowing = true;
+    this._isShowing = true;
     this._isHiding = this._isHidden = false;
 
     // Finally let's start show animation.
@@ -5770,7 +5791,7 @@
 
     // Update visibility states.
     this._isHidden = this._isHiding = true;
-    item._isActive = this._isShowing = false;
+    this._isShowing = false;
 
     // Finally let's start hide animation.
     this._startAnimation(false, instant, this._finishHide);
@@ -6245,6 +6266,30 @@
     for (prop in getters) {
       data[prop] = getters[prop](this, this._element);
     }
+  };
+
+  /**
+   * Add item to layout.
+   *
+   * @private
+   */
+  Item.prototype._addToLayout = function(left, top) {
+    if (this._isActive === true) return;
+    this._isActive = true;
+    this._left = left || 0;
+    this._top = top || 0;
+  };
+
+  /**
+   * Remove item from layout.
+   *
+   * @private
+   */
+  Item.prototype._removeFromLayout = function() {
+    if (this._isActive === false) return;
+    this._isActive = false;
+    this._left = 0;
+    this._top = 0;
   };
 
   /**
@@ -6808,7 +6853,7 @@
 
   /**
    * @class
-   * @param {Number} [numWorkers=2]
+   * @param {Number} [numWorkers=0]
    * @param {Object} [options]
    * @param {Boolean} [options.fillGaps=false]
    * @param {Boolean} [options.horizontal=false]
@@ -8237,7 +8282,7 @@
    *
    * @public
    * @param {(HtmlElement|Number|Item)} item
-   * @param {Grid} grid
+   * @param {Grid} targetGrid
    * @param {(HtmlElement|Number|Item)} position
    * @param {Object} [options]
    * @param {HTMLElement} [options.appendTo=document.body]
@@ -8245,8 +8290,8 @@
    * @param {(Boolean|Function|String)} [options.layoutReceiver=true]
    * @returns {Grid}
    */
-  Grid.prototype.send = function(item, grid, position, options) {
-    if (this._isDestroyed || grid._isDestroyed || this === grid) return this;
+  Grid.prototype.send = function(item, targetGrid, position, options) {
+    if (this._isDestroyed || targetGrid._isDestroyed || this === targetGrid) return this;
 
     // Make sure we have a valid target item.
     item = this.getItem(item);
@@ -8260,7 +8305,7 @@
       : opts.layoutReceiver === undefined;
 
     // Start the migration process.
-    item._migrate.start(grid, position, container);
+    item._migrate.start(targetGrid, position, container);
 
     // If migration was started successfully and the item is active, let's layout
     // the grids.
@@ -8272,7 +8317,7 @@
         );
       }
       if (layoutReceiver) {
-        grid.layout(
+        targetGrid.layout(
           layoutReceiver === INSTANT_LAYOUT,
           isFunction(layoutReceiver) ? layoutReceiver : undefined
         );
@@ -8460,14 +8505,30 @@
       itemsToLayout.length = 0;
       for (i = 0; i < numItems; i++) {
         item = layout.items[i];
+
+        // Make sure we have a matching item.
         if (!item) {
           --counter;
           continue;
         }
 
+        // Get the item's new left and top values.
         left = layout.slots[i * 2];
         top = layout.slots[i * 2 + 1];
-        if (left === item._left && top === item._top && !item._dragRelease.isJustReleased()) {
+
+        // If the left and top values have not changed since the last layout and
+        // if some other conditions are met, we can skip the item's layout process
+        // and save some CPU time.
+        // TODO: Might make more sense to have a single item._layout.isDirty flag
+        // for example which we would set to true whenever this optimization can
+        // not be used for the next layout.
+        if (
+          left === item._left &&
+          top === item._top &&
+          !item._migrate._isActive &&
+          !item._layout._skipNextAnimation &&
+          !item._dragRelease.isJustReleased()
+        ) {
           --counter;
           continue;
         }
@@ -8583,8 +8644,12 @@
         hiddenItems.push(item);
       }
 
-      // Set item active state based on visibility.
-      item._isActive = toVisible;
+      // Add item to layout or remove it from layout.
+      if (toVisible) {
+        item._addToLayout();
+      } else {
+        item._removeFromLayout();
+      }
     }
 
     // Force refresh the dimensions of all hidden items.

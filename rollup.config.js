@@ -1,6 +1,5 @@
 const pkg = require('./package.json');
 const banner = require('./rollup.banner.js');
-const webWorkerLoader = require('rollup-plugin-web-worker-loader');
 
 const stripBanner = {
   transform(code) {
@@ -19,5 +18,5 @@ module.exports = {
     format: 'umd',
     banner: banner
   },
-  plugins: [webWorkerLoader(), stripBanner]
+  plugins: [stripBanner]
 };

@@ -5,20 +5,18 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-import PackerWorker from 'web-worker:./PackerWorker.js';
-import PackerProcessor from './PackerProcessor';
-import {
-  FILL_GAPS,
-  HORIZONTAL,
-  ALIGN_RIGHT,
-  ALIGN_BOTTOM,
-  ROUNDING,
-  PACKET_INDEX_ID,
-  PACKET_INDEX_WIDTH,
-  PACKET_INDEX_HEIGHT,
-  PACKET_INDEX_OPTIONS,
-  PACKET_HEADER_SLOTS
-} from './constants';
+import PackerProcessor, { createWorker, isWorkerSupported } from './PackerProcessor';
+
+export var FILL_GAPS = 1;
+export var HORIZONTAL = 2;
+export var ALIGN_RIGHT = 4;
+export var ALIGN_BOTTOM = 8;
+export var ROUNDING = 16;
+export var PACKET_INDEX_ID = 0;
+export var PACKET_INDEX_WIDTH = 1;
+export var PACKET_INDEX_HEIGHT = 2;
+export var PACKET_INDEX_OPTIONS = 3;
+export var PACKET_HEADER_SLOTS = 4;
 
 /**
  * @class
@@ -46,11 +44,15 @@ function Packer(numWorkers, options) {
 
   // Init the worker(s) or the processor if workers can't be used.
   var workerCount = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
-  if (workerCount && window.Worker) {
-    for (var i = 0, worker; i < workerCount; i++) {
-      worker = new PackerWorker();
-      worker.onmessage = this._onWorkerMessage;
-      this._workers.push(worker);
+  if (workerCount && isWorkerSupported()) {
+    try {
+      for (var i = 0, worker; i < workerCount; i++) {
+        worker = createWorker();
+        worker.onmessage = this._onWorkerMessage;
+        this._workers.push(worker);
+      }
+    } catch (e) {
+      this._processor = new PackerProcessor();
     }
   } else {
     this._processor = new PackerProcessor();

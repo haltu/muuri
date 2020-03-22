@@ -5479,12 +5479,10 @@
 
     // Stop current visibility animations.
     item._visibility._stopAnimation();
+    item._visibility._queue.process(true, item);
 
     // Destroy current drag.
     if (item._drag) item._drag.destroy();
-
-    // Process current visibility animation queue.
-    item._visibility._queue.process(true, item);
 
     // Emit beforeSend event.
     if (grid._hasListeners(EVENT_BEFORE_SEND)) {
@@ -5510,8 +5508,7 @@
 
     // Remove current classnames.
     removeClass(element, settings.itemClass);
-    removeClass(element, settings.itemVisibleClass);
-    removeClass(element, settings.itemHiddenClass);
+    removeClass(element, isVisible ? settings.itemVisibleClass : settings.itemHiddenClass);
 
     // Add new classnames.
     addClass(element, targetSettings.itemClass);
@@ -5916,8 +5913,7 @@
    */
   ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
     if (this._isDestroyed) return;
-    var item = this._item;
-    cancelVisibilityTick(item._id);
+    cancelVisibilityTick(this._item._id);
     this._animation.stop(applyCurrentStyles);
   };
 
@@ -8695,6 +8691,16 @@
       }
 
       for (i = 0; i < targetItems.length; i++) {
+        // Make sure the item is still in the original grid. There is a chance
+        // that the item starts migrating before tiggerVisibilityChange is called.
+        if (targetItems[i]._gridId !== grid._id) {
+          if (--counter < 1) {
+            if (isFunction(callback)) callback(completedItems.slice(0));
+            if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
+          }
+          continue;
+        }
+
         targetItems[i]._visibility[method](isInstant, function(interrupted, item) {
           // If the current item's animation was not interrupted add it to the
           // completedItems array.

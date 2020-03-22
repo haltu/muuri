@@ -275,8 +275,7 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
  */
 ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
   if (this._isDestroyed) return;
-  var item = this._item;
-  cancelVisibilityTick(item._id);
+  cancelVisibilityTick(this._item._id);
   this._animation.stop(applyCurrentStyles);
 };
 

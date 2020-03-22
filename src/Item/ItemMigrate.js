@@ -111,12 +111,10 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
 
   // Stop current visibility animations.
   item._visibility._stopAnimation();
+  item._visibility._queue.process(true, item);
 
   // Destroy current drag.
   if (item._drag) item._drag.destroy();
-
-  // Process current visibility animation queue.
-  item._visibility._queue.process(true, item);
 
   // Emit beforeSend event.
   if (grid._hasListeners(EVENT_BEFORE_SEND)) {
@@ -142,8 +140,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
 
   // Remove current classnames.
   removeClass(element, settings.itemClass);
-  removeClass(element, settings.itemVisibleClass);
-  removeClass(element, settings.itemHiddenClass);
+  removeClass(element, isVisible ? settings.itemVisibleClass : settings.itemHiddenClass);
 
   // Add new classnames.
   addClass(element, targetSettings.itemClass);

@@ -1529,6 +1529,16 @@ Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
     }
 
     for (i = 0; i < targetItems.length; i++) {
+      // Make sure the item is still in the original grid. There is a chance
+      // that the item starts migrating before tiggerVisibilityChange is called.
+      if (targetItems[i]._gridId !== grid._id) {
+        if (--counter < 1) {
+          if (isFunction(callback)) callback(completedItems.slice(0));
+          if (grid._hasListeners(endEvent)) grid._emit(endEvent, completedItems.slice(0));
+        }
+        continue;
+      }
+
       targetItems[i]._visibility[method](isInstant, function(interrupted, item) {
         // If the current item's animation was not interrupted add it to the
         // completedItems array.

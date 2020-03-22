@@ -344,7 +344,7 @@
           console.log('grid.getItems()', performance.now() - t);
 
           t = performance.now();
-          items.length = amount;
+          if (items.length > amount) items.length = amount;
           grid.hide(items, {
             onFinish: function(hiddenItems) {
               t = performance.now();

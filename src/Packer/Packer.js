@@ -99,10 +99,9 @@ Packer.prototype._onWorkerMessage = function(msg) {
  * @param {Boolean} [options.alignRight]
  * @param {Boolean} [options.alignBottom]
  * @param {Boolean} [options.rounding]
- * @returns {Packer}
  */
 Packer.prototype.setOptions = function(options) {
-  if (!options) return this;
+  if (!options) return;
 
   var fillGaps;
   if (typeof options.fillGaps === 'boolean') {
@@ -140,8 +139,6 @@ Packer.prototype.setOptions = function(options) {
   }
 
   this._options = fillGaps | horizontal | alignRight | alignBottom | rounding;
-
-  return this;
 };
 
 /**
@@ -151,6 +148,7 @@ Packer.prototype.setOptions = function(options) {
  * @param {Number} width
  * @param {Number} height
  * @param {Function} callback
+ * @returns {?Function}
  */
 Packer.prototype.createLayout = function(id, items, width, height, callback) {
   if (this._layouts[id]) {

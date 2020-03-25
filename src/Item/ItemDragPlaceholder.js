@@ -18,7 +18,7 @@ import {
   EVENT_HIDE_START
 } from '../constants';
 
-import ItemAnimate from '../Item/ItemAnimate';
+import Animator from '../Animator/Animator';
 
 import addClass from '../utils/addClass';
 import getTranslateString from '../utils/getTranslateString';
@@ -36,7 +36,7 @@ import transformProp from '../utils/transformProp';
  */
 function ItemDragPlaceholder(item) {
   this._item = item;
-  this._animation = new ItemAnimate();
+  this._animation = new Animator();
   this._element = null;
   this._className = '';
   this._didMigrate = false;

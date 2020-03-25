@@ -22,6 +22,16 @@
     "url": "git@github.com:haltu/muuri.git"
   },
   "main": "dist/muuri.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "package.json",
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE.md",
+    "AUTHORS.txt",
+    "CONTRIBUTING.md"
+  ],
   "scripts": {
     "test": "./node_modules/.bin/gulp test",
     "test-sauce": "./node_modules/.bin/gulp test-sauce",

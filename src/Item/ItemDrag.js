@@ -488,7 +488,7 @@ ItemDrag.prototype.stop = function() {
  * it (and don't want to wait for the next move/scroll event).
  *
  * @private
- * @param {Boolean} force
+ * @param {Boolean} [force=false]
  */
 ItemDrag.prototype.sort = function(force) {
   var item = this._item;

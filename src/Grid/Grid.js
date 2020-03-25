@@ -25,15 +25,15 @@ import {
   ITEM_ELEMENT_MAP
 } from '../constants';
 
-import Emitter from '../Emitter/Emitter';
 import Item from '../Item/Item';
-import ItemAnimate from '../Item/ItemAnimate';
 import ItemDrag from '../Item/ItemDrag';
 import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
 import ItemLayout from '../Item/ItemLayout';
 import ItemMigrate from '../Item/ItemMigrate';
-import ItemRelease from '../Item/ItemDragRelease';
+import ItemDragRelease from '../Item/ItemDragRelease';
 import ItemVisibility from '../Item/ItemVisibility';
+import Emitter from '../Emitter/Emitter';
+import Animator from '../Animator/Animator';
 import Packer from '../Packer/Packer';
 import Dragger from '../Dragger/Dragger';
 import AutoScroller from '../AutoScroller/AutoScroller';
@@ -66,13 +66,13 @@ var layoutId = 0;
  * @class
  * @param {(HTMLElement|String)} element
  * @param {Object} [options]
- * @param {?(HTMLElement[]|NodeList|HtmlCollection|String)} [options.items]
+ * @param {(String|HTMLElement[]|NodeList|HTMLCollection)} [options.items="*"]
  * @param {Number} [options.showDuration=300]
  * @param {String} [options.showEasing="ease"]
- * @param {Object} [options.visibleStyles]
+ * @param {Object} [options.visibleStyles={opacity: "1", transform: "scale(1)"}]
  * @param {Number} [options.hideDuration=300]
  * @param {String} [options.hideEasing="ease"]
- * @param {Object} [options.hiddenStyles]
+ * @param {Object} [options.hiddenStyles={opacity: "0", transform: "scale(0.5)"}]
  * @param {(Function|Object)} [options.layout]
  * @param {Boolean} [options.layout.fillGaps=false]
  * @param {Boolean} [options.layout.horizontal=false]
@@ -130,7 +130,6 @@ var layoutId = 0;
  * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
  * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
  */
-
 function Grid(element, options) {
   // Allow passing element as selector string
   if (typeof element === STRING_TYPE) {
@@ -218,19 +217,14 @@ Grid.ItemVisibility = ItemVisibility;
 Grid.ItemMigrate = ItemMigrate;
 
 /**
- * @see ItemAnimate
- */
-Grid.ItemAnimate = ItemAnimate;
-
-/**
  * @see ItemDrag
  */
 Grid.ItemDrag = ItemDrag;
 
 /**
- * @see ItemRelease
+ * @see ItemDragRelease
  */
-Grid.ItemRelease = ItemRelease;
+Grid.ItemDragRelease = ItemDragRelease;
 
 /**
  * @see ItemDragPlaceholder
@@ -241,6 +235,11 @@ Grid.ItemDragPlaceholder = ItemDragPlaceholder;
  * @see Emitter
  */
 Grid.Emitter = Emitter;
+
+/**
+ * @see Animator
+ */
+Grid.Animator = Animator;
 
 /**
  * @see Dragger
@@ -818,7 +817,7 @@ Grid.prototype.remove = function(items, options) {
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
  * @param {Boolean} [options.syncWithLayout=true]
- * @param {ShowCallback} [options.onFinish]
+ * @param {Function} [options.onFinish]
  * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Grid}
  */
@@ -837,7 +836,7 @@ Grid.prototype.show = function(items, options) {
  * @param {Object} [options]
  * @param {Boolean} [options.instant=false]
  * @param {Boolean} [options.syncWithLayout=true]
- * @param {HideCallback} [options.onFinish]
+ * @param {Function} [options.onFinish]
  * @param {(Boolean|Function|String)} [options.layout=true]
  * @returns {Grid}
  */
@@ -954,7 +953,7 @@ Grid.prototype.filter = function(predicate, options) {
  * same order.
  *
  * @public
- * @param {(Function|Item[]|String|String[])} comparer
+ * @param {(Function|String|Item[])} comparer
  * @param {Object} [options]
  * @param {Boolean} [options.descending=false]
  * @param {(Boolean|Function|String)} [options.layout=true]
@@ -1053,7 +1052,7 @@ Grid.prototype.sort = (function() {
     // `gird._items` array.
     else if (Array.isArray(comparer)) {
       items.length = 0;
-      Array.prototype.push.apply(items, comparer);
+      items.push.apply(items, comparer);
     }
     // Otherwise let's throw an error.
     else {
@@ -1253,8 +1252,8 @@ Grid.prototype._emit = function() {
  * @returns {Boolean}
  */
 Grid.prototype._hasListeners = function(event) {
-  var listeners = this._emitter._events[event];
-  return !!(listeners && listeners.length);
+  if (this._isDestroyed) return false;
+  return this._emitter.countListeners(event) > 0;
 };
 
 /**

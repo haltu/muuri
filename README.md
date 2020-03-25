@@ -1974,7 +1974,7 @@ grid.on('layoutEnd', function (items) {
 
 ### layoutAbort
 
-Triggered if you start a new layout process (`grid.layout()`) while the current layout process is still busy positioning items.
+Triggered if you start a new layout process (`grid.layout()`) while the current layout process is still busy positioning items. Note that this event is not triggered if you start a new layout process while the layout is being computed and the items have not yet started positioning.
 
 **Arguments**
 
@@ -1983,10 +1983,10 @@ Triggered if you start a new layout process (`grid.layout()`) while the current 
 
 ```javascript
 grid.on('layoutAbort', function (items) {
-  console.log(activeItems);
+  console.log(items);
   // For good measure you might want to filter out all the non-active items,
-  // because it's techniclly possible that some of the items are
-  // destroyed/hidden when we receive this event.
+  // because it's techniclly possible that some of the items are destroyed or
+  // hidden when we receive this event.
   var activeItems = items.filter(function(item) {
     return item.isActive();
   });

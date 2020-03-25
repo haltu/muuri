@@ -6,8 +6,7 @@
 
 import { addLayoutTick, cancelLayoutTick } from '../ticker';
 
-import ItemAnimate from './ItemAnimate';
-import Queue from '../Queue/Queue';
+import Animator from '../Animator/Animator';
 
 import addClass from '../utils/addClass';
 import getTranslate from '../utils/getTranslate';
@@ -51,8 +50,8 @@ function ItemLayout(item) {
   elementStyle.top = '0px';
   elementStyle[transformProp] = getTranslateString(0, 0);
 
-  this._animation = new ItemAnimate(element);
-  this._queue = new Queue();
+  this._animation = new Animator(element);
+  this._queue = 'layout-' + item._id;
 
   // Bind animation handlers and finish method.
   this._setupAnimation = this._setupAnimation.bind(this);
@@ -68,7 +67,7 @@ function ItemLayout(item) {
  * Start item layout based on it's current data.
  *
  * @public
- * @param {Boolean} [instant=false]
+ * @param {Boolean} instant
  * @param {Function} [onFinish]
  */
 ItemLayout.prototype.start = function(instant, onFinish) {
@@ -89,14 +88,16 @@ ItemLayout.prototype.start = function(instant, onFinish) {
   // and process current layout callback queue with interrupted flag on.
   if (isPositioning) {
     cancelLayoutTick(item._id);
-    this._queue.process(true, item);
+    item._emitter.flush(this._queue, true, item);
   }
 
   // Mark release positioning as started.
   if (isJustReleased) release._isPositioningStarted = true;
 
   // Push the callback to the callback queue.
-  if (isFunction(onFinish)) this._queue.add(onFinish);
+  if (isFunction(onFinish)) {
+    item._emitter.on(this._queue, onFinish);
+  }
 
   // Reset animation skipping flag.
   this._skipNextAnimation = false;
@@ -123,7 +124,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
  * Stop item's position animation if it is currently animating.
  *
  * @public
- * @param {Boolean} [processCallbackQueue=false]
+ * @param {Boolean} processCallbackQueue
  * @param {Object} [targetStyles]
  */
 ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
@@ -145,7 +146,9 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
   this._isActive = false;
 
   // Process callback queue if needed.
-  if (processCallbackQueue) this._queue.process(true, item);
+  if (processCallbackQueue) {
+    item._emitter.flush(this._queue, true, item);
+  }
 };
 
 /**
@@ -159,7 +162,7 @@ ItemLayout.prototype.destroy = function() {
   var elementStyle = this._item._element.style;
 
   this.stop(true, {});
-  this._queue.destroy();
+  this._item._emitter.clear(this._queue);
   this._animation.destroy();
 
   elementStyle[transformProp] = '';
@@ -239,7 +242,7 @@ ItemLayout.prototype._finish = function() {
   if (migrate._isActive) migrate.stop();
 
   // Process the callback queue.
-  this._queue.process(false, item);
+  item._emitter.flush(this._queue, false, item);
 };
 
 /**

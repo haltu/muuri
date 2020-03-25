@@ -19,7 +19,7 @@ var HAS_NATIVE_WEB_ANIMATIONS = !!(Element && isNative(Element.prototype.animate
  * @class
  * @param {HTMLElement} element
  */
-function ItemAnimate(element) {
+function Animator(element) {
   this._element = element;
   this._animation = null;
   this._duration = 0;
@@ -48,7 +48,7 @@ function ItemAnimate(element) {
  * @param {String} [options.easing='ease']
  * @param {Function} [options.onFinish]
  */
-ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
+Animator.prototype.start = function(propsFrom, propsTo, options) {
   if (this._isDestroyed) return;
 
   var element = this._element;
@@ -147,7 +147,7 @@ ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
  * @public
  * @param {Boolean} [applyCurrentStyles=true]
  */
-ItemAnimate.prototype.stop = function(applyCurrentStyles) {
+Animator.prototype.stop = function(applyCurrentStyles) {
   if (this._isDestroyed || !this._animation) return;
 
   var element = this._element;
@@ -169,7 +169,7 @@ ItemAnimate.prototype.stop = function(applyCurrentStyles) {
  * @public
  * @return {Boolean}
  */
-ItemAnimate.prototype.isAnimating = function() {
+Animator.prototype.isAnimating = function() {
   return !!this._animation;
 };
 
@@ -178,7 +178,7 @@ ItemAnimate.prototype.isAnimating = function() {
  *
  * @public
  */
-ItemAnimate.prototype.destroy = function() {
+Animator.prototype.destroy = function() {
   if (this._isDestroyed) return;
   this.stop();
   this._element = null;
@@ -195,7 +195,7 @@ ItemAnimate.prototype.destroy = function() {
  *
  * @private
  */
-ItemAnimate.prototype._onFinish = function() {
+Animator.prototype._onFinish = function() {
   var callback = this._callback;
   this._animation = this._callback = null;
   this._props.length = this._values.length = 0;
@@ -215,4 +215,4 @@ function createFrame(props, unprefix) {
   return frame;
 }
 
-export default ItemAnimate;
+export default Animator;

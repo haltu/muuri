@@ -12,6 +12,7 @@ import ItemDragRelease from './ItemDragRelease';
 import ItemLayout from './ItemLayout';
 import ItemMigrate from './ItemMigrate';
 import ItemVisibility from './ItemVisibility';
+import Emitter from '../Emitter/Emitter';
 
 import addClass from '../utils/addClass';
 import createUid from '../utils/createUid';
@@ -52,6 +53,7 @@ function Item(grid, element, isActive) {
   this._marginTop = 0;
   this._marginBottom = 0;
   this._sortData = null;
+  this._emitter = new Emitter();
 
   // If the provided item element is not a direct child of the grid container
   // element, append it to the grid container. Note, we are indeed reading the
@@ -355,6 +357,9 @@ Item.prototype._destroy = function(removeElement) {
   this._layout.destroy();
   this._visibility.destroy();
   if (this._drag) this._drag.destroy();
+
+  // Destroy emitter.
+  this._emitter.destroy();
 
   // Remove item class.
   removeClass(element, settings.itemClass);

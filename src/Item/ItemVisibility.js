@@ -6,8 +6,7 @@
 
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
 
-import ItemAnimate from './ItemAnimate';
-import Queue from '../Queue/Queue';
+import Animator from '../Animator/Animator';
 
 import addClass from '../utils/addClass';
 import getCurrentStyles from '../utils/getCurrentStyles';
@@ -40,8 +39,8 @@ function ItemVisibility(item) {
   this._isShowing = false;
   this._childElement = childElement;
   this._currentStyleProps = [];
-  this._animation = new ItemAnimate(childElement);
-  this._queue = new Queue();
+  this._animation = new Animator(childElement);
+  this._queue = 'visibility-' + item._id;
   this._finishShow = this._finishShow.bind(this);
   this._finishHide = this._finishHide.bind(this);
 
@@ -67,7 +66,6 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
 
   var item = this._item;
   var element = item._element;
-  var queue = this._queue;
   var callback = isFunction(onFinish) ? onFinish : null;
   var grid = item.getGrid();
   var settings = grid._settings;
@@ -81,7 +79,7 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
   // If item is showing and does not need to be shown instantly, let's just
   // push callback to the callback queue and be done with it.
   if (this._isShowing && !instant) {
-    callback && queue.add(callback);
+    callback && item._emitter.on(this._queue, callback);
     return;
   }
 
@@ -89,14 +87,14 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
   // queue with the interrupted flag active, update classes and set display
   // to block if necessary.
   if (!this._isShowing) {
-    queue.process(true, item);
+    item._emitter.flush(this._queue, true, item);
     removeClass(element, settings.itemHiddenClass);
     addClass(element, settings.itemVisibleClass);
     if (!this._isHiding) element.style.display = 'block';
   }
 
   // Push callback to the callback queue.
-  callback && queue.add(callback);
+  callback && item._emitter.on(this._queue, callback);
 
   // Update visibility states.
   this._isShowing = true;
@@ -118,7 +116,6 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
 
   var item = this._item;
   var element = item._element;
-  var queue = this._queue;
   var callback = isFunction(onFinish) ? onFinish : null;
   var grid = item.getGrid();
   var settings = grid._settings;
@@ -132,7 +129,7 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
   // If item is hiding and does not need to be hidden instantly, let's just
   // push callback to the callback queue and be done with it.
   if (this._isHiding && !instant) {
-    callback && queue.add(callback);
+    callback && item._emitter.on(this._queue, callback);
     return;
   }
 
@@ -140,13 +137,13 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
   // queue with the interrupted flag active, update classes and set display
   // to block if necessary.
   if (!this._isHiding) {
-    queue.process(true, item);
+    item._emitter.flush(this._queue, true, item);
     addClass(element, settings.itemHiddenClass);
     removeClass(element, settings.itemVisibleClass);
   }
 
   // Push callback to the callback queue.
-  callback && queue.add(callback);
+  callback && item._emitter.on(this._queue, callback);
 
   // Update visibility states.
   this._isHidden = this._isHiding = true;
@@ -154,6 +151,26 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
 
   // Finally let's start hide animation.
   this._startAnimation(false, instant, this._finishHide);
+};
+
+/**
+ * Stop current hiding/showing process.
+ *
+ * @public
+ * @param {Boolean} processCallbackQueue
+ * @param {Boolean} [applyCurrentStyles=true]
+ */
+ItemVisibility.prototype.stop = function(processCallbackQueue, applyCurrentStyles) {
+  if (this._isDestroyed) return;
+  if (!this._isHiding && !this._isShowing) return;
+
+  var item = this._item;
+
+  cancelVisibilityTick(item._id);
+  this._animation.stop(applyCurrentStyles !== false);
+  if (processCallbackQueue) {
+    item._emitter.flush(this._queue, true, item);
+  }
 };
 
 /**
@@ -186,15 +203,10 @@ ItemVisibility.prototype.destroy = function() {
   var item = this._item;
   var element = item._element;
   var grid = item.getGrid();
-  var queue = this._queue;
   var settings = grid._settings;
 
-  this._stopAnimation(false);
-
-  // Fire all uncompleted callbacks with interrupted flag and destroy the queue.
-  queue.process(true, item);
-  queue.destroy();
-
+  this.stop(true, false);
+  item._emitter.clear(this._queue);
   this._animation.destroy();
   this._removeCurrentStyles();
   removeClass(element, settings.itemVisibleClass);
@@ -268,18 +280,6 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
 };
 
 /**
- * Stop visibility animation.
- *
- * @private
- * @param {Boolean} [applyCurrentStyles=true]
- */
-ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
-  if (this._isDestroyed) return;
-  cancelVisibilityTick(this._item._id);
-  this._animation.stop(applyCurrentStyles);
-};
-
-/**
  * Finish show procedure.
  *
  * @private
@@ -287,7 +287,7 @@ ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
 ItemVisibility.prototype._finishShow = function() {
   if (this._isHidden) return;
   this._isShowing = false;
-  this._queue.process(false, this._item);
+  this._item._emitter.flush(this._queue, false, this._item);
 };
 
 /**
@@ -304,7 +304,7 @@ ItemVisibility.prototype._finishHide = (function() {
     this._isHiding = false;
     item._layout.stop(true, layoutStyles);
     item._element.style.display = 'none';
-    this._queue.process(false, item);
+    item._emitter.flush(this._queue, false, item);
   };
 })();
 

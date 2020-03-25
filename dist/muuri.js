@@ -70,7 +70,7 @@
     this._events = {};
     this._queue = [];
     this._counter = 0;
-    this._isDestroyed = false;
+    this._flush = false;
   }
 
   /**
@@ -87,7 +87,7 @@
    * @returns {Emitter}
    */
   Emitter.prototype.on = function(event, listener) {
-    if (this._isDestroyed) return this;
+    if (!this._events || !event || !listener) return this;
 
     // Get listeners queue and create it if it does not exist.
     var listeners = this._events[event];
@@ -104,26 +104,39 @@
    *
    * @public
    * @param {String} event
-   * @param {Function} [listener]
+   * @param {Function} listener
    * @returns {Emitter}
    */
   Emitter.prototype.off = function(event, listener) {
-    if (this._isDestroyed) return this;
+    if (!this._events || !event || !listener) return this;
 
     // Get listeners and return immediately if none is found.
     var listeners = this._events[event];
     if (!listeners || !listeners.length) return this;
 
-    // If no specific listener is provided remove all listeners.
-    if (!listener) {
-      listeners.length = 0;
-      return this;
+    // Remove all matching listeners.
+    var index;
+    while ((index = listeners.indexOf(listener)) !== -1) {
+      listeners.splice(index, 1);
     }
 
-    // Remove all matching listeners.
-    var i = listeners.length;
-    while (i--) {
-      if (listener === listeners[i]) listeners.splice(i, 1);
+    return this;
+  };
+
+  /**
+   * Unbind all listeners of the provided event.
+   *
+   * @public
+   * @param {String} event
+   * @returns {Emitter}
+   */
+  Emitter.prototype.clear = function(event) {
+    if (!this._events || !event) return this;
+
+    var listeners = this._events[event];
+    if (listeners) {
+      listeners.length = 0;
+      delete this._events[event];
     }
 
     return this;
@@ -134,29 +147,45 @@
    *
    * @public
    * @param {String} event
-   * @param {*} [arg1]
-   * @param {*} [arg2]
-   * @param {*} [arg3]
+   * @param {...*} [args]
    * @returns {Emitter}
    */
-  Emitter.prototype.emit = function(event, arg1, arg2, arg3) {
-    if (this._isDestroyed) return this;
+  Emitter.prototype.emit = function(event) {
+    if (!this._events || !event) {
+      this._flush = false;
+      return this;
+    }
 
     // Get event listeners and quit early if there's no listeners.
     var listeners = this._events[event];
-    if (!listeners || !listeners.length) return this;
+    if (!listeners || !listeners.length) {
+      this._flush = false;
+      return this;
+    }
 
     var queue = this._queue;
-    var qLength = queue.length;
-    var aLength = arguments.length - 1;
-    var i;
+    var startIndex = queue.length;
+    var argsLength = arguments.length - 1;
+    var args;
+
+    // If we have more than 3 arguments let's put the arguments in an array and
+    // apply it to the listeners.
+    if (argsLength > 3) {
+      args = [];
+      args.push.apply(args, arguments);
+      args.shift();
+    }
 
     // Add the current listeners to the callback queue before we process them.
     // This is necessary to guarantee that all of the listeners are called in
     // correct order even if new event listeners are removed/added during
     // processing and/or events are emitted during processing.
-    for (i = 0; i < listeners.length; i++) {
-      queue.push(listeners[i]);
+    queue.push.apply(queue, listeners);
+
+    // Reset the event's listeners if flushing is active.
+    if (this._flush) {
+      listeners.length = 0;
+      this._flush = false;
     }
 
     // Increment queue counter. This is needed for the scenarios where emit is
@@ -166,15 +195,18 @@
     ++this._counter;
 
     // Process the queue (the specific part of it for this emit).
-    for (i = qLength, qLength = queue.length; i < qLength; i++) {
+    var i = startIndex;
+    var endIndex = queue.length;
+    for (; i < endIndex; i++) {
       // prettier-ignore
-      aLength === 0 ? queue[i]() :
-      aLength === 1 ? queue[i](arg1) :
-      aLength === 2 ? queue[i](arg1, arg2) :
-                      queue[i](arg1, arg2, arg3);
+      argsLength === 0 ? queue[i]() :
+      argsLength === 1 ? queue[i](arguments[1]) :
+      argsLength === 2 ? queue[i](arguments[1], arguments[2]) :
+      argsLength === 3 ? queue[i](arguments[1], arguments[2], arguments[3]) :
+                         queue[i].apply(null, args);
 
       // Stop processing if the emitter is destroyed.
-      if (this._isDestroyed) return this;
+      if (!this._events) return this;
     }
 
     // Decrement queue process counter.
@@ -187,31 +219,45 @@
   };
 
   /**
+   * Emit all listeners in a specified event with the provided arguments and
+   * remove the event's listeners just before calling the them. This method allows
+   * the emitter to serve as a queue too.
+   *
+   * @public
+   * @param {String} event
+   * @param {...*} [args]
+   * @returns {Emitter}
+   */
+  Emitter.prototype.flush = function() {
+    if (!this._events) return this;
+    this._flush = true;
+    this.emit.apply(this, arguments);
+    return this;
+  };
+
+  /**
+   * Check how many listeners there are for a specific event.
+   *
+   * @public
+   * @param {String} event
+   * @returns {Boolean}
+   */
+  Emitter.prototype.countListeners = function(event) {
+    if (!this._events) return 0;
+    var listeners = this._events[event];
+    return listeners ? listeners.length : 0;
+  };
+
+  /**
    * Destroy emitter instance. Basically just removes all bound listeners.
    *
    * @public
    * @returns {Emitter}
    */
   Emitter.prototype.destroy = function() {
-    if (this._isDestroyed) return this;
-
-    var events = this._events;
-    var event;
-
-    // Flag as destroyed.
-    this._isDestroyed = true;
-
-    // Reset queue (if queue is currently processing this will also stop that).
+    if (!this._events) return this;
     this._queue.length = this._counter = 0;
-
-    // Remove all listeners.
-    for (event in events) {
-      if (events[event]) {
-        events[event].length = 0;
-        events[event] = undefined;
-      }
-    }
-
+    this._events = null;
     return this;
   };
 
@@ -1729,6 +1775,8 @@
 
   AutoScroller.AXIS_X = AXIS_X;
   AutoScroller.AXIS_Y = AXIS_Y;
+  AutoScroller.FORWARD = FORWARD;
+  AutoScroller.BACKWARD = BACKWARD;
   AutoScroller.LEFT = LEFT;
   AutoScroller.RIGHT = RIGHT;
   AutoScroller.UP = UP;
@@ -3173,7 +3221,7 @@
    * it (and don't want to wait for the next move/scroll event).
    *
    * @private
-   * @param {Boolean} force
+   * @param {Boolean} [force=false]
    */
   ItemDrag.prototype.sort = function(force) {
     var item = this._item;
@@ -4252,7 +4300,7 @@
    * @class
    * @param {HTMLElement} element
    */
-  function ItemAnimate(element) {
+  function Animator(element) {
     this._element = element;
     this._animation = null;
     this._duration = 0;
@@ -4281,7 +4329,7 @@
    * @param {String} [options.easing='ease']
    * @param {Function} [options.onFinish]
    */
-  ItemAnimate.prototype.start = function(propsFrom, propsTo, options) {
+  Animator.prototype.start = function(propsFrom, propsTo, options) {
     if (this._isDestroyed) return;
 
     var element = this._element;
@@ -4380,7 +4428,7 @@
    * @public
    * @param {Boolean} [applyCurrentStyles=true]
    */
-  ItemAnimate.prototype.stop = function(applyCurrentStyles) {
+  Animator.prototype.stop = function(applyCurrentStyles) {
     if (this._isDestroyed || !this._animation) return;
 
     var element = this._element;
@@ -4402,7 +4450,7 @@
    * @public
    * @return {Boolean}
    */
-  ItemAnimate.prototype.isAnimating = function() {
+  Animator.prototype.isAnimating = function() {
     return !!this._animation;
   };
 
@@ -4411,7 +4459,7 @@
    *
    * @public
    */
-  ItemAnimate.prototype.destroy = function() {
+  Animator.prototype.destroy = function() {
     if (this._isDestroyed) return;
     this.stop();
     this._element = null;
@@ -4428,7 +4476,7 @@
    *
    * @private
    */
-  ItemAnimate.prototype._onFinish = function() {
+  Animator.prototype._onFinish = function() {
     var callback = this._callback;
     this._animation = this._callback = null;
     this._props.length = this._values.length = 0;
@@ -4456,7 +4504,7 @@
    */
   function ItemDragPlaceholder(item) {
     this._item = item;
-    this._animation = new ItemAnimate();
+    this._animation = new Animator();
     this._element = null;
     this._className = '';
     this._didMigrate = false;
@@ -5009,104 +5057,6 @@
     removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
   };
 
-  /**
-   * Queue constructor.
-   *
-   * @class
-   */
-  function Queue() {
-    this._queue = [];
-    this._processQueue = [];
-    this._processCounter = 0;
-    this._isDestroyed = false;
-  }
-
-  /**
-   * Public prototype methods
-   * ************************
-   */
-
-  /**
-   * Add callback to the queue.
-   *
-   * @public
-   * @param {Function} callback
-   * @returns {Queue}
-   */
-  Queue.prototype.add = function(callback) {
-    if (this._isDestroyed) return this;
-    this._queue.push(callback);
-    return this;
-  };
-
-  /**
-   * Process queue callbacks in the order they were insterted and reset the queue.
-   * The provided arguments are passed on to the callbacks.
-   *
-   * @public
-   * @param {...*} args
-   * @returns {Queue}
-   */
-  Queue.prototype.process = function() {
-    if (this._isDestroyed) return this;
-
-    var queue = this._queue;
-    var queueLength = queue.length;
-
-    // Quit early if the queue is empty.
-    if (!queueLength) return this;
-
-    var pQueue = this._processQueue;
-    var pQueueLength = pQueue.length;
-    var i;
-
-    // Append the current queue callbacks to the process queue.
-    for (i = 0; i < queueLength; i++) {
-      pQueue.push(queue[i]);
-    }
-
-    // Reset queue.
-    queue.length = 0;
-
-    // Increment process counter.
-    ++this._processCounter;
-
-    // Call the new process queue callbacks.
-    var indexFrom = pQueueLength;
-    var indexTo = pQueue.length;
-    for (i = indexFrom; i < indexTo; i++) {
-      if (this._isDestroyed) return this;
-      pQueue[i].apply(null, arguments);
-    }
-
-    // Decrement process counter.
-    --this._processCounter;
-
-    // Reset process queue once it has stop processing.
-    if (!this._processCounter) {
-      pQueue.length = 0;
-    }
-
-    return this;
-  };
-
-  /**
-   * Destroy Queue instance.
-   *
-   * @public
-   * @returns {Queue}
-   */
-  Queue.prototype.destroy = function() {
-    if (this._isDestroyed) return this;
-
-    this._isDestroyed = true;
-    this._queue.length = 0;
-    this._processQueue.length = 0;
-    this._processCounter = 0;
-
-    return this;
-  };
-
   var MIN_ANIMATION_DISTANCE = 2;
 
   /**
@@ -5141,8 +5091,8 @@
     elementStyle.top = '0px';
     elementStyle[transformProp] = getTranslateString(0, 0);
 
-    this._animation = new ItemAnimate(element);
-    this._queue = new Queue();
+    this._animation = new Animator(element);
+    this._queue = 'layout-' + item._id;
 
     // Bind animation handlers and finish method.
     this._setupAnimation = this._setupAnimation.bind(this);
@@ -5158,7 +5108,7 @@
    * Start item layout based on it's current data.
    *
    * @public
-   * @param {Boolean} [instant=false]
+   * @param {Boolean} instant
    * @param {Function} [onFinish]
    */
   ItemLayout.prototype.start = function(instant, onFinish) {
@@ -5179,14 +5129,16 @@
     // and process current layout callback queue with interrupted flag on.
     if (isPositioning) {
       cancelLayoutTick(item._id);
-      this._queue.process(true, item);
+      item._emitter.flush(this._queue, true, item);
     }
 
     // Mark release positioning as started.
     if (isJustReleased) release._isPositioningStarted = true;
 
     // Push the callback to the callback queue.
-    if (isFunction(onFinish)) this._queue.add(onFinish);
+    if (isFunction(onFinish)) {
+      item._emitter.on(this._queue, onFinish);
+    }
 
     // Reset animation skipping flag.
     this._skipNextAnimation = false;
@@ -5213,7 +5165,7 @@
    * Stop item's position animation if it is currently animating.
    *
    * @public
-   * @param {Boolean} [processCallbackQueue=false]
+   * @param {Boolean} processCallbackQueue
    * @param {Object} [targetStyles]
    */
   ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
@@ -5235,7 +5187,9 @@
     this._isActive = false;
 
     // Process callback queue if needed.
-    if (processCallbackQueue) this._queue.process(true, item);
+    if (processCallbackQueue) {
+      item._emitter.flush(this._queue, true, item);
+    }
   };
 
   /**
@@ -5249,7 +5203,7 @@
     var elementStyle = this._item._element.style;
 
     this.stop(true, {});
-    this._queue.destroy();
+    this._item._emitter.clear(this._queue);
     this._animation.destroy();
 
     elementStyle[transformProp] = '';
@@ -5329,7 +5283,7 @@
     if (migrate._isActive) migrate.stop();
 
     // Process the callback queue.
-    this._queue.process(false, item);
+    item._emitter.flush(this._queue, false, item);
   };
 
   /**
@@ -5478,8 +5432,7 @@
     }
 
     // Stop current visibility animations.
-    item._visibility._stopAnimation();
-    item._visibility._queue.process(true, item);
+    item._visibility.stop(true, true);
 
     // Destroy current drag.
     if (item._drag) item._drag.destroy();
@@ -5678,8 +5631,8 @@
     this._isShowing = false;
     this._childElement = childElement;
     this._currentStyleProps = [];
-    this._animation = new ItemAnimate(childElement);
-    this._queue = new Queue();
+    this._animation = new Animator(childElement);
+    this._queue = 'visibility-' + item._id;
     this._finishShow = this._finishShow.bind(this);
     this._finishHide = this._finishHide.bind(this);
 
@@ -5705,7 +5658,6 @@
 
     var item = this._item;
     var element = item._element;
-    var queue = this._queue;
     var callback = isFunction(onFinish) ? onFinish : null;
     var grid = item.getGrid();
     var settings = grid._settings;
@@ -5719,7 +5671,7 @@
     // If item is showing and does not need to be shown instantly, let's just
     // push callback to the callback queue and be done with it.
     if (this._isShowing && !instant) {
-      callback && queue.add(callback);
+      callback && item._emitter.on(this._queue, callback);
       return;
     }
 
@@ -5727,14 +5679,14 @@
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isShowing) {
-      queue.process(true, item);
+      item._emitter.flush(this._queue, true, item);
       removeClass(element, settings.itemHiddenClass);
       addClass(element, settings.itemVisibleClass);
       if (!this._isHiding) element.style.display = 'block';
     }
 
     // Push callback to the callback queue.
-    callback && queue.add(callback);
+    callback && item._emitter.on(this._queue, callback);
 
     // Update visibility states.
     this._isShowing = true;
@@ -5756,7 +5708,6 @@
 
     var item = this._item;
     var element = item._element;
-    var queue = this._queue;
     var callback = isFunction(onFinish) ? onFinish : null;
     var grid = item.getGrid();
     var settings = grid._settings;
@@ -5770,7 +5721,7 @@
     // If item is hiding and does not need to be hidden instantly, let's just
     // push callback to the callback queue and be done with it.
     if (this._isHiding && !instant) {
-      callback && queue.add(callback);
+      callback && item._emitter.on(this._queue, callback);
       return;
     }
 
@@ -5778,13 +5729,13 @@
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isHiding) {
-      queue.process(true, item);
+      item._emitter.flush(this._queue, true, item);
       addClass(element, settings.itemHiddenClass);
       removeClass(element, settings.itemVisibleClass);
     }
 
     // Push callback to the callback queue.
-    callback && queue.add(callback);
+    callback && item._emitter.on(this._queue, callback);
 
     // Update visibility states.
     this._isHidden = this._isHiding = true;
@@ -5792,6 +5743,26 @@
 
     // Finally let's start hide animation.
     this._startAnimation(false, instant, this._finishHide);
+  };
+
+  /**
+   * Stop current hiding/showing process.
+   *
+   * @public
+   * @param {Boolean} processCallbackQueue
+   * @param {Boolean} [applyCurrentStyles=true]
+   */
+  ItemVisibility.prototype.stop = function(processCallbackQueue, applyCurrentStyles) {
+    if (this._isDestroyed) return;
+    if (!this._isHiding && !this._isShowing) return;
+
+    var item = this._item;
+
+    cancelVisibilityTick(item._id);
+    this._animation.stop(applyCurrentStyles !== false);
+    if (processCallbackQueue) {
+      item._emitter.flush(this._queue, true, item);
+    }
   };
 
   /**
@@ -5824,15 +5795,10 @@
     var item = this._item;
     var element = item._element;
     var grid = item.getGrid();
-    var queue = this._queue;
     var settings = grid._settings;
 
-    this._stopAnimation(false);
-
-    // Fire all uncompleted callbacks with interrupted flag and destroy the queue.
-    queue.process(true, item);
-    queue.destroy();
-
+    this.stop(true, false);
+    item._emitter.clear(this._queue);
     this._animation.destroy();
     this._removeCurrentStyles();
     removeClass(element, settings.itemVisibleClass);
@@ -5906,18 +5872,6 @@
   };
 
   /**
-   * Stop visibility animation.
-   *
-   * @private
-   * @param {Boolean} [applyCurrentStyles=true]
-   */
-  ItemVisibility.prototype._stopAnimation = function(applyCurrentStyles) {
-    if (this._isDestroyed) return;
-    cancelVisibilityTick(this._item._id);
-    this._animation.stop(applyCurrentStyles);
-  };
-
-  /**
    * Finish show procedure.
    *
    * @private
@@ -5925,7 +5879,7 @@
   ItemVisibility.prototype._finishShow = function() {
     if (this._isHidden) return;
     this._isShowing = false;
-    this._queue.process(false, this._item);
+    this._item._emitter.flush(this._queue, false, this._item);
   };
 
   /**
@@ -5942,7 +5896,7 @@
       this._isHiding = false;
       item._layout.stop(true, layoutStyles);
       item._element.style.display = 'none';
-      this._queue.process(false, item);
+      item._emitter.flush(this._queue, false, item);
     };
   })();
 
@@ -6005,6 +5959,7 @@
     this._marginTop = 0;
     this._marginBottom = 0;
     this._sortData = null;
+    this._emitter = new Emitter();
 
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container. Note, we are indeed reading the
@@ -6308,6 +6263,9 @@
     this._layout.destroy();
     this._visibility.destroy();
     if (this._drag) this._drag.destroy();
+
+    // Destroy emitter.
+    this._emitter.destroy();
 
     // Remove item class.
     removeClass(element, settings.itemClass);
@@ -6954,10 +6912,9 @@
    * @param {Boolean} [options.alignRight]
    * @param {Boolean} [options.alignBottom]
    * @param {Boolean} [options.rounding]
-   * @returns {Packer}
    */
   Packer.prototype.setOptions = function(options) {
-    if (!options) return this;
+    if (!options) return;
 
     var fillGaps;
     if (typeof options.fillGaps === 'boolean') {
@@ -6995,8 +6952,6 @@
     }
 
     this._options = fillGaps | horizontal | alignRight | alignBottom | rounding;
-
-    return this;
   };
 
   /**
@@ -7006,6 +6961,7 @@
    * @param {Number} width
    * @param {Number} height
    * @param {Function} callback
+   * @returns {?Function}
    */
   Packer.prototype.createLayout = function(id, items, width, height, callback) {
     if (this._layouts[id]) {
@@ -7228,13 +7184,13 @@
    * @class
    * @param {(HTMLElement|String)} element
    * @param {Object} [options]
-   * @param {?(HTMLElement[]|NodeList|HtmlCollection|String)} [options.items]
+   * @param {(String|HTMLElement[]|NodeList|HTMLCollection)} [options.items="*"]
    * @param {Number} [options.showDuration=300]
    * @param {String} [options.showEasing="ease"]
-   * @param {Object} [options.visibleStyles]
+   * @param {Object} [options.visibleStyles={opacity: "1", transform: "scale(1)"}]
    * @param {Number} [options.hideDuration=300]
    * @param {String} [options.hideEasing="ease"]
-   * @param {Object} [options.hiddenStyles]
+   * @param {Object} [options.hiddenStyles={opacity: "0", transform: "scale(0.5)"}]
    * @param {(Function|Object)} [options.layout]
    * @param {Boolean} [options.layout.fillGaps=false]
    * @param {Boolean} [options.layout.horizontal=false]
@@ -7292,7 +7248,6 @@
    * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
    * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
    */
-
   function Grid(element, options) {
     // Allow passing element as selector string
     if (typeof element === STRING_TYPE) {
@@ -7380,19 +7335,14 @@
   Grid.ItemMigrate = ItemMigrate;
 
   /**
-   * @see ItemAnimate
-   */
-  Grid.ItemAnimate = ItemAnimate;
-
-  /**
    * @see ItemDrag
    */
   Grid.ItemDrag = ItemDrag;
 
   /**
-   * @see ItemRelease
+   * @see ItemDragRelease
    */
-  Grid.ItemRelease = ItemDragRelease;
+  Grid.ItemDragRelease = ItemDragRelease;
 
   /**
    * @see ItemDragPlaceholder
@@ -7403,6 +7353,11 @@
    * @see Emitter
    */
   Grid.Emitter = Emitter;
+
+  /**
+   * @see Animator
+   */
+  Grid.Animator = Animator;
 
   /**
    * @see Dragger
@@ -7980,7 +7935,7 @@
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
    * @param {Boolean} [options.syncWithLayout=true]
-   * @param {ShowCallback} [options.onFinish]
+   * @param {Function} [options.onFinish]
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
@@ -7999,7 +7954,7 @@
    * @param {Object} [options]
    * @param {Boolean} [options.instant=false]
    * @param {Boolean} [options.syncWithLayout=true]
-   * @param {HideCallback} [options.onFinish]
+   * @param {Function} [options.onFinish]
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
@@ -8116,7 +8071,7 @@
    * same order.
    *
    * @public
-   * @param {(Function|Item[]|String|String[])} comparer
+   * @param {(Function|String|Item[])} comparer
    * @param {Object} [options]
    * @param {Boolean} [options.descending=false]
    * @param {(Boolean|Function|String)} [options.layout=true]
@@ -8215,7 +8170,7 @@
       // `gird._items` array.
       else if (Array.isArray(comparer)) {
         items.length = 0;
-        Array.prototype.push.apply(items, comparer);
+        items.push.apply(items, comparer);
       }
       // Otherwise let's throw an error.
       else {
@@ -8415,8 +8370,8 @@
    * @returns {Boolean}
    */
   Grid.prototype._hasListeners = function(event) {
-    var listeners = this._emitter._events[event];
-    return !!(listeners && listeners.length);
+    if (this._isDestroyed) return false;
+    return this._emitter.countListeners(event) > 0;
   };
 
   /**

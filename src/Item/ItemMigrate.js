@@ -110,8 +110,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
   }
 
   // Stop current visibility animations.
-  item._visibility._stopAnimation();
-  item._visibility._queue.process(true, item);
+  item._visibility.stop(true, true);
 
   // Destroy current drag.
   if (item._drag) item._drag.destroy();

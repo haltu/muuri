@@ -14,7 +14,7 @@
 // act on it after the previous scroll request has fully stopped.
 
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
-import { LEFT, RIGHT, UP, DOWN, AXIS_X, AXIS_Y, FORWARD } from './constants';
+import { LEFT, RIGHT, UP, DOWN, AXIS_X, AXIS_Y, FORWARD, BACKWARD } from './constants';
 import ScrollRequest from './ScrollRequest';
 import ScrollAction from './ScrollAction';
 import Pool from './Pool';
@@ -90,6 +90,8 @@ export default function AutoScroller() {
 
 AutoScroller.AXIS_X = AXIS_X;
 AutoScroller.AXIS_Y = AXIS_Y;
+AutoScroller.FORWARD = FORWARD;
+AutoScroller.BACKWARD = BACKWARD;
 AutoScroller.LEFT = LEFT;
 AutoScroller.RIGHT = RIGHT;
 AutoScroller.UP = UP;

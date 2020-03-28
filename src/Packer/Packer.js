@@ -55,7 +55,7 @@ function Packer(numWorkers, options) {
   }
 }
 
-Packer.prototype._sendToWorker = function() {
+Packer.prototype._sendToWorker = function () {
   if (!this._layoutQueue.length || !this._workers.length) return;
 
   var id = this._layoutQueue.shift();
@@ -67,7 +67,7 @@ Packer.prototype._sendToWorker = function() {
   worker.postMessage(data.buffer, [data.buffer]);
 };
 
-Packer.prototype._onWorkerMessage = function(msg) {
+Packer.prototype._onWorkerMessage = function (msg) {
   var data = new Float32Array(msg.data);
   var id = data[PACKET_INDEX_ID];
   var layout = this._layouts[id];
@@ -100,7 +100,7 @@ Packer.prototype._onWorkerMessage = function(msg) {
  * @param {Boolean} [options.alignBottom]
  * @param {Boolean} [options.rounding]
  */
-Packer.prototype.setOptions = function(options) {
+Packer.prototype.setOptions = function (options) {
   if (!options) return;
 
   var fillGaps;
@@ -150,7 +150,7 @@ Packer.prototype.setOptions = function(options) {
  * @param {Function} callback
  * @returns {?Function}
  */
-Packer.prototype.createLayout = function(id, items, width, height, callback) {
+Packer.prototype.createLayout = function (id, items, width, height, callback) {
   if (this._layouts[id]) {
     throw new Error('A layout with the provided id is currently being processed.');
   }
@@ -165,7 +165,7 @@ Packer.prototype.createLayout = function(id, items, width, height, callback) {
     height: !horizontal ? 0 : height,
     setWidth: horizontal,
     setHeight: !horizontal,
-    settings: this._options
+    settings: this._options,
   };
 
   // If there are no items let's call the callback immediately.
@@ -220,7 +220,7 @@ Packer.prototype.createLayout = function(id, items, width, height, callback) {
  * @public
  * @param {Number} id
  */
-Packer.prototype.cancelLayout = function(id) {
+Packer.prototype.cancelLayout = function (id) {
   var layout = this._layouts[id];
   if (!layout) return;
 
@@ -237,7 +237,7 @@ Packer.prototype.cancelLayout = function(id) {
 /**
  * @public
  */
-Packer.prototype.destroy = function() {
+Packer.prototype.destroy = function () {
   var worker, id, i;
 
   // Terminate active workers.

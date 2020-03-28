@@ -117,7 +117,7 @@ function Item(grid, element, isActive) {
  * @public
  * @returns {Grid}
  */
-Item.prototype.getGrid = function() {
+Item.prototype.getGrid = function () {
   return GRID_INSTANCES[this._gridId];
 };
 
@@ -127,7 +127,7 @@ Item.prototype.getGrid = function() {
  * @public
  * @returns {HTMLElement}
  */
-Item.prototype.getElement = function() {
+Item.prototype.getElement = function () {
   return this._element;
 };
 
@@ -137,7 +137,7 @@ Item.prototype.getElement = function() {
  * @public
  * @returns {Number}
  */
-Item.prototype.getWidth = function() {
+Item.prototype.getWidth = function () {
   return this._width;
 };
 
@@ -147,7 +147,7 @@ Item.prototype.getWidth = function() {
  * @public
  * @returns {Number}
  */
-Item.prototype.getHeight = function() {
+Item.prototype.getHeight = function () {
   return this._height;
 };
 
@@ -159,12 +159,12 @@ Item.prototype.getHeight = function() {
  *   - The returned object contains left, right, top and bottom properties
  *     which indicate the item element's cached margins.
  */
-Item.prototype.getMargin = function() {
+Item.prototype.getMargin = function () {
   return {
     left: this._marginLeft,
     right: this._marginRight,
     top: this._marginTop,
-    bottom: this._marginBottom
+    bottom: this._marginBottom,
   };
 };
 
@@ -176,10 +176,10 @@ Item.prototype.getMargin = function() {
  *   - The returned object contains left and top properties which indicate the
  *     item element's cached position in the grid.
  */
-Item.prototype.getPosition = function() {
+Item.prototype.getPosition = function () {
   return {
     left: this._left,
-    top: this._top
+    top: this._top,
   };
 };
 
@@ -189,7 +189,7 @@ Item.prototype.getPosition = function() {
  * @public
  * @returns {Boolean}
  */
-Item.prototype.isActive = function() {
+Item.prototype.isActive = function () {
   return this._isActive;
 };
 
@@ -199,7 +199,7 @@ Item.prototype.isActive = function() {
  * @public
  * @returns {Boolean}
  */
-Item.prototype.isVisible = function() {
+Item.prototype.isVisible = function () {
   return !!this._visibility && !this._visibility._isHidden;
 };
 
@@ -209,7 +209,7 @@ Item.prototype.isVisible = function() {
  * @public
  * @returns {Boolean}
  */
-Item.prototype.isShowing = function() {
+Item.prototype.isShowing = function () {
   return !!(this._visibility && this._visibility._isShowing);
 };
 
@@ -219,7 +219,7 @@ Item.prototype.isShowing = function() {
  * @public
  * @returns {Boolean}
  */
-Item.prototype.isHiding = function() {
+Item.prototype.isHiding = function () {
   return !!(this._visibility && this._visibility._isHiding);
 };
 
@@ -229,7 +229,7 @@ Item.prototype.isHiding = function() {
  * @public
  * @returns {Boolean}
  */
-Item.prototype.isPositioning = function() {
+Item.prototype.isPositioning = function () {
   return !!(this._layout && this._layout._isActive);
 };
 
@@ -239,7 +239,7 @@ Item.prototype.isPositioning = function() {
  * @public
  * @returns {Boolean}
  */
-Item.prototype.isDragging = function() {
+Item.prototype.isDragging = function () {
   return !!(this._drag && this._drag._isActive);
 };
 
@@ -249,7 +249,7 @@ Item.prototype.isDragging = function() {
  * @public
  * @returns {Boolean}
  */
-Item.prototype.isReleasing = function() {
+Item.prototype.isReleasing = function () {
   return !!(this._dragRelease && this._dragRelease._isActive);
 };
 
@@ -259,7 +259,7 @@ Item.prototype.isReleasing = function() {
  * @public
  * @returns {Boolean}
  */
-Item.prototype.isDestroyed = function() {
+Item.prototype.isDestroyed = function () {
   return this._isDestroyed;
 };
 
@@ -274,7 +274,7 @@ Item.prototype.isDestroyed = function() {
  * @private
  * @param {Boolean} [force=false]
  */
-Item.prototype._refreshDimensions = function(force) {
+Item.prototype._refreshDimensions = function (force) {
   if (this._isDestroyed) return;
   if (force !== true && this._visibility._isHidden) return;
 
@@ -301,7 +301,7 @@ Item.prototype._refreshDimensions = function(force) {
  *
  * @private
  */
-Item.prototype._refreshSortData = function() {
+Item.prototype._refreshSortData = function () {
   if (this._isDestroyed) return;
 
   var data = (this._sortData = {});
@@ -318,7 +318,7 @@ Item.prototype._refreshSortData = function() {
  *
  * @private
  */
-Item.prototype._addToLayout = function(left, top) {
+Item.prototype._addToLayout = function (left, top) {
   if (this._isActive === true) return;
   this._isActive = true;
   this._left = left || 0;
@@ -330,7 +330,7 @@ Item.prototype._addToLayout = function(left, top) {
  *
  * @private
  */
-Item.prototype._removeFromLayout = function() {
+Item.prototype._removeFromLayout = function () {
   if (this._isActive === false) return;
   this._isActive = false;
   this._left = 0;
@@ -343,7 +343,7 @@ Item.prototype._removeFromLayout = function() {
  * @private
  * @param {Boolean} [removeElement=false]
  */
-Item.prototype._destroy = function(removeElement) {
+Item.prototype._destroy = function (removeElement) {
   if (this._isDestroyed) return;
 
   var element = this._element;

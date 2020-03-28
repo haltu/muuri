@@ -31,26 +31,8 @@ import {
   isAffectedByScroll,
   prepareItemDragScroll,
   applyItemDragScroll,
-  computeThreshold
+  computeThreshold,
 } from './utils';
-
-var REQUEST_POOL = new Pool(
-  function() {
-    return new ScrollRequest();
-  },
-  function(request) {
-    request.reset();
-  }
-);
-
-var ACTION_POOL = new Pool(
-  function() {
-    return new ScrollAction();
-  },
-  function(action) {
-    action.reset();
-  }
-);
 
 var RECT_1 = {
   width: 0,
@@ -58,7 +40,7 @@ var RECT_1 = {
   left: 0,
   right: 0,
   top: 0,
-  bottom: 0
+  bottom: 0,
 };
 
 var RECT_2 = {
@@ -67,12 +49,11 @@ var RECT_2 = {
   left: 0,
   right: 0,
   top: 0,
-  bottom: 0
+  bottom: 0,
 };
 
-var OVERLAP_CHECK_INTERVAL = 150;
-
 export default function AutoScroller() {
+  this._isDestroyed = false;
   this._isTicking = false;
   this._tickTime = 0;
   this._tickDeltaTime = 0;
@@ -84,6 +65,26 @@ export default function AutoScroller() {
   this._requests[AXIS_Y] = {};
   this._requestOverlapCheck = {};
   this._dragPositions = {};
+  this._overlapCheckInterval = 150;
+
+  this._requestPool = new Pool(
+    function () {
+      return new ScrollRequest();
+    },
+    function (request) {
+      request.reset();
+    }
+  );
+
+  this._actionPool = new Pool(
+    function () {
+      return new ScrollAction();
+    },
+    function (action) {
+      action.reset();
+    }
+  );
+
   this._readTick = this._readTick.bind(this);
   this._writeTick = this._writeTick.bind(this);
 }
@@ -97,8 +98,8 @@ AutoScroller.RIGHT = RIGHT;
 AutoScroller.UP = UP;
 AutoScroller.DOWN = DOWN;
 
-AutoScroller.smoothSpeed = function(maxSpeed, acceleration, deceleration) {
-  return function(item, element, data) {
+AutoScroller.smoothSpeed = function (maxSpeed, acceleration, deceleration) {
+  return function (item, element, data) {
     var targetSpeed = 0;
     if (!data.isEnding) {
       if (data.threshold > 0) {
@@ -126,10 +127,10 @@ AutoScroller.smoothSpeed = function(maxSpeed, acceleration, deceleration) {
   };
 };
 
-AutoScroller.pointerHandle = function(pointerSize) {
+AutoScroller.pointerHandle = function (pointerSize) {
   var rect = { left: 0, top: 0, width: 0, height: 0 };
   var size = pointerSize || 1;
-  return function(item, x, y, w, h, pX, pY) {
+  return function (item, x, y, w, h, pX, pY) {
     rect.left = pX - size * 0.5;
     rect.top = pY - size * 0.5;
     rect.width = size;
@@ -138,7 +139,8 @@ AutoScroller.pointerHandle = function(pointerSize) {
   };
 };
 
-AutoScroller.prototype._readTick = function(time) {
+AutoScroller.prototype._readTick = function (time) {
+  if (this._isDestroyed) return;
   if (time && this._tickTime) {
     this._tickDeltaTime = time - this._tickTime;
     this._tickTime = time;
@@ -150,24 +152,25 @@ AutoScroller.prototype._readTick = function(time) {
   }
 };
 
-AutoScroller.prototype._writeTick = function() {
+AutoScroller.prototype._writeTick = function () {
+  if (this._isDestroyed) return;
   this._applyActions();
   addAutoScrollTick(this._readTick, this._writeTick);
 };
 
-AutoScroller.prototype._startTicking = function() {
+AutoScroller.prototype._startTicking = function () {
   this._isTicking = true;
   addAutoScrollTick(this._readTick, this._writeTick);
 };
 
-AutoScroller.prototype._stopTicking = function() {
+AutoScroller.prototype._stopTicking = function () {
   this._isTicking = false;
   this._tickTime = 0;
   this._tickDeltaTime = 0;
   cancelAutoScrollTick();
 };
 
-AutoScroller.prototype._getItemDragDirection = function(item, axis) {
+AutoScroller.prototype._getItemDragDirection = function (item, axis) {
   var positions = this._dragPositions[item._id];
   if (!positions || positions.length < 4) return 0;
 
@@ -184,7 +187,7 @@ AutoScroller.prototype._getItemDragDirection = function(item, axis) {
   }
 };
 
-AutoScroller.prototype._getItemHandleRect = function(item, handle, rect) {
+AutoScroller.prototype._getItemHandleRect = function (item, handle, rect) {
   var itemDrag = item._drag;
 
   if (handle) {
@@ -215,7 +218,7 @@ AutoScroller.prototype._getItemHandleRect = function(item, handle, rect) {
   return rect;
 };
 
-AutoScroller.prototype._requestItemScroll = function(
+AutoScroller.prototype._requestItemScroll = function (
   item,
   axis,
   element,
@@ -232,7 +235,7 @@ AutoScroller.prototype._requestItemScroll = function(
       request.reset();
     }
   } else {
-    request = REQUEST_POOL.pick();
+    request = this._requestPool.pick();
   }
 
   request.item = item;
@@ -244,16 +247,16 @@ AutoScroller.prototype._requestItemScroll = function(
   reqMap[item._id] = request;
 };
 
-AutoScroller.prototype._cancelItemScroll = function(item, axis) {
+AutoScroller.prototype._cancelItemScroll = function (item, axis) {
   var reqMap = this._requests[axis];
   var request = reqMap[item._id];
   if (!request) return;
   if (request.action) request.action.removeRequest(request);
-  REQUEST_POOL.release(request);
+  this._requestPool.release(request);
   delete reqMap[item._id];
 };
 
-AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
+AutoScroller.prototype._checkItemOverlap = function (item, checkX, checkY) {
   var settings = getItemAutoScrollSettings(item);
   var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
   var threshold = settings.threshold;
@@ -442,7 +445,7 @@ AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
   }
 };
 
-AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
+AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
   var item = scrollRequest.item;
   var settings = getItemAutoScrollSettings(item);
   var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
@@ -567,7 +570,7 @@ AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
   return hasReachedEnd ? false : true;
 };
 
-AutoScroller.prototype._updateRequests = function() {
+AutoScroller.prototype._updateRequests = function () {
   var items = this._items;
   var requestsX = this._requests[AXIS_X];
   var requestsY = this._requests[AXIS_Y];
@@ -576,7 +579,7 @@ AutoScroller.prototype._updateRequests = function() {
   for (var i = 0; i < items.length; i++) {
     item = items[i];
     checkTime = this._requestOverlapCheck[item._id];
-    needsCheck = checkTime > 0 && this._tickTime - checkTime > OVERLAP_CHECK_INTERVAL;
+    needsCheck = checkTime > 0 && this._tickTime - checkTime > this._overlapCheckInterval;
 
     checkX = true;
     reqX = requestsX[item._id];
@@ -605,7 +608,7 @@ AutoScroller.prototype._updateRequests = function() {
   }
 };
 
-AutoScroller.prototype._requestAction = function(request, axis) {
+AutoScroller.prototype._requestAction = function (request, axis) {
   var isAxisX = axis === AXIS_X;
   var action = null;
 
@@ -630,7 +633,7 @@ AutoScroller.prototype._requestAction = function(request, axis) {
     break;
   }
 
-  if (!action) action = ACTION_POOL.pick();
+  if (!action) action = this._actionPool.pick();
   action.element = request.element;
   action.addRequest(request);
 
@@ -638,7 +641,7 @@ AutoScroller.prototype._requestAction = function(request, axis) {
   this._actions.push(action);
 };
 
-AutoScroller.prototype._updateActions = function() {
+AutoScroller.prototype._updateActions = function () {
   var items = this._items;
   var syncItems = this._syncItems;
   var requests = this._requests;
@@ -676,7 +679,7 @@ AutoScroller.prototype._updateActions = function() {
   }
 };
 
-AutoScroller.prototype._applyActions = function() {
+AutoScroller.prototype._applyActions = function () {
   var actions = this._actions;
   var syncItems = this._syncItems;
   var i;
@@ -684,7 +687,7 @@ AutoScroller.prototype._applyActions = function() {
   if (actions.length) {
     for (i = 0; i < actions.length; i++) {
       actions[i].scroll();
-      ACTION_POOL.release(actions[i]);
+      this._actionPool.release(actions[i]);
     }
     actions.length = 0;
   }
@@ -696,7 +699,8 @@ AutoScroller.prototype._applyActions = function() {
   }
 };
 
-AutoScroller.prototype.addItem = function(item) {
+AutoScroller.prototype.addItem = function (item) {
+  if (this._isDestroyed) return;
   var index = this._items.indexOf(item);
   if (index === -1) {
     this._items.push(item);
@@ -706,7 +710,9 @@ AutoScroller.prototype.addItem = function(item) {
   }
 };
 
-AutoScroller.prototype.updateItem = function(item) {
+AutoScroller.prototype.updateItem = function (item) {
+  if (this._isDestroyed) return;
+
   this._dragPositions[item._id].unshift(item._drag._left, item._drag._top);
   if (this._dragPositions.length > 4) {
     this._dragPositions.length = 4;
@@ -717,7 +723,9 @@ AutoScroller.prototype.updateItem = function(item) {
   }
 };
 
-AutoScroller.prototype.removeItem = function(item) {
+AutoScroller.prototype.removeItem = function (item) {
+  if (this._isDestroyed) return;
+
   var index = this._items.indexOf(item);
   if (index === -1) return;
 
@@ -747,16 +755,31 @@ AutoScroller.prototype.removeItem = function(item) {
   }
 };
 
-AutoScroller.prototype.isItemScrollingX = function(item) {
+AutoScroller.prototype.isItemScrollingX = function (item) {
   var reqX = this._requests[AXIS_X][item._id];
   return !!(reqX && reqX.isActive);
 };
 
-AutoScroller.prototype.isItemScrollingY = function(item) {
+AutoScroller.prototype.isItemScrollingY = function (item) {
   var reqY = this._requests[AXIS_Y][item._id];
   return !!(reqY && reqY.isActive);
 };
 
-AutoScroller.prototype.isItemScrolling = function(item) {
+AutoScroller.prototype.isItemScrolling = function (item) {
   return this.isItemScrollingX(item) || this.isItemScrollingY(item);
+};
+
+AutoScroller.prototype.destroy = function () {
+  if (this._isDestroyed) return;
+
+  var items = this._items.slice(0);
+  for (var i = 0; i < items.length; i++) {
+    this.removeItem(items[i]);
+  }
+
+  this._actions.length = 0;
+  this._requestPool.reset();
+  this._actionPool.reset();
+
+  this._isDestroyed = true;
 };

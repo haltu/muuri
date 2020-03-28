@@ -16,7 +16,7 @@ export default function ScrollAction() {
   this.scrollTop = 0;
 }
 
-ScrollAction.prototype.reset = function() {
+ScrollAction.prototype.reset = function () {
   if (this.requestX) this.requestX.action = null;
   if (this.requestY) this.requestY.action = null;
   this.element = null;
@@ -26,7 +26,7 @@ ScrollAction.prototype.reset = function() {
   this.scrollTop = 0;
 };
 
-ScrollAction.prototype.addRequest = function(request) {
+ScrollAction.prototype.addRequest = function (request) {
   if (AXIS_X & request.direction) {
     this.removeRequest(this.requestX);
     this.requestX = request;
@@ -37,7 +37,7 @@ ScrollAction.prototype.addRequest = function(request) {
   request.action = this;
 };
 
-ScrollAction.prototype.removeRequest = function(request) {
+ScrollAction.prototype.removeRequest = function (request) {
   if (!request) return;
   if (this.requestX === request) {
     this.requestX = null;
@@ -48,12 +48,12 @@ ScrollAction.prototype.removeRequest = function(request) {
   }
 };
 
-ScrollAction.prototype.computeScrollValues = function() {
+ScrollAction.prototype.computeScrollValues = function () {
   this.scrollLeft = this.requestX ? this.requestX.value : getScrollLeft(this.element);
   this.scrollTop = this.requestY ? this.requestY.value : getScrollTop(this.element);
 };
 
-ScrollAction.prototype.scroll = function() {
+ScrollAction.prototype.scroll = function () {
   var element = this.element;
   if (!element) return;
 

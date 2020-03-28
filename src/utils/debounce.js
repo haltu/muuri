@@ -24,7 +24,7 @@ export default function debounce(fn, durationMs) {
   var timer = 0;
   var lastTime = 0;
   var isCanceled = false;
-  var tick = function(time) {
+  var tick = function (time) {
     if (isCanceled) return;
 
     if (lastTime) timer -= time - lastTime;
@@ -38,7 +38,7 @@ export default function debounce(fn, durationMs) {
     }
   };
 
-  return function(cancel) {
+  return function (cancel) {
     if (isCanceled) return;
 
     if (durationMs <= 0) {

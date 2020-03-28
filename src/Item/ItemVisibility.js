@@ -61,7 +61,7 @@ function ItemVisibility(item) {
  * @param {Boolean} instant
  * @param {Function} [onFinish]
  */
-ItemVisibility.prototype.show = function(instant, onFinish) {
+ItemVisibility.prototype.show = function (instant, onFinish) {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -111,7 +111,7 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
  * @param {Boolean} instant
  * @param {Function} [onFinish]
  */
-ItemVisibility.prototype.hide = function(instant, onFinish) {
+ItemVisibility.prototype.hide = function (instant, onFinish) {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -160,7 +160,7 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
  * @param {Boolean} processCallbackQueue
  * @param {Boolean} [applyCurrentStyles=true]
  */
-ItemVisibility.prototype.stop = function(processCallbackQueue, applyCurrentStyles) {
+ItemVisibility.prototype.stop = function (processCallbackQueue, applyCurrentStyles) {
   if (this._isDestroyed) return;
   if (!this._isHiding && !this._isShowing) return;
 
@@ -182,7 +182,7 @@ ItemVisibility.prototype.stop = function(processCallbackQueue, applyCurrentStyle
  * @public
  * @param {Object} styles
  */
-ItemVisibility.prototype.setStyles = function(styles) {
+ItemVisibility.prototype.setStyles = function (styles) {
   var childElement = this._childElement;
   var currentStyleProps = this._currentStyleProps;
   this._removeCurrentStyles();
@@ -197,7 +197,7 @@ ItemVisibility.prototype.setStyles = function(styles) {
  *
  * @public
  */
-ItemVisibility.prototype.destroy = function() {
+ItemVisibility.prototype.destroy = function () {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -231,7 +231,7 @@ ItemVisibility.prototype.destroy = function() {
  * @param {Boolean} [instant]
  * @param {Function} [onFinish]
  */
-ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish) {
+ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinish) {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -266,14 +266,14 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
   // Start the animation in the next tick (to avoid layout thrashing).
   addVisibilityTick(
     item._id,
-    function() {
+    function () {
       currentStyles = getCurrentStyles(childElement, targetStyles);
     },
-    function() {
+    function () {
       animation.start(currentStyles, targetStyles, {
         duration: duration,
         easing: easing,
-        onFinish: onFinish
+        onFinish: onFinish,
       });
     }
   );
@@ -284,7 +284,7 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
  *
  * @private
  */
-ItemVisibility.prototype._finishShow = function() {
+ItemVisibility.prototype._finishShow = function () {
   if (this._isHidden) return;
   this._isShowing = false;
   this._item._emitter.flush(this._queue, false, this._item);
@@ -295,10 +295,10 @@ ItemVisibility.prototype._finishShow = function() {
  *
  * @private
  */
-ItemVisibility.prototype._finishHide = (function() {
+ItemVisibility.prototype._finishHide = (function () {
   var layoutStyles = {};
   layoutStyles[transformProp] = getTranslateString(0, 0);
-  return function() {
+  return function () {
     if (!this._isHidden) return;
     var item = this._item;
     this._isHiding = false;
@@ -313,7 +313,7 @@ ItemVisibility.prototype._finishHide = (function() {
  *
  * @private
  */
-ItemVisibility.prototype._removeCurrentStyles = function() {
+ItemVisibility.prototype._removeCurrentStyles = function () {
   var childElement = this._childElement;
   var currentStyleProps = this._currentStyleProps;
 

@@ -13,7 +13,7 @@ export default function ScrollRequest() {
   this.reset();
 }
 
-ScrollRequest.prototype.reset = function() {
+ScrollRequest.prototype.reset = function () {
   if (this.isActive) this.onStop();
   this.item = null;
   this.element = null;
@@ -29,24 +29,24 @@ ScrollRequest.prototype.reset = function() {
   this.action = null;
 };
 
-ScrollRequest.prototype.hasReachedEnd = function() {
+ScrollRequest.prototype.hasReachedEnd = function () {
   return FORWARD & this.direction ? this.value >= this.maxValue : this.value <= 0;
 };
 
-ScrollRequest.prototype.computeCurrentScrollValue = function() {
+ScrollRequest.prototype.computeCurrentScrollValue = function () {
   if (this.value === null) {
     return AXIS_X & this.direction ? getScrollLeft(this.element) : getScrollTop(this.element);
   }
   return Math.max(0, Math.min(this.value, this.maxValue));
 };
 
-ScrollRequest.prototype.computeNextScrollValue = function(deltaTime) {
+ScrollRequest.prototype.computeNextScrollValue = function (deltaTime) {
   var delta = this.speed * (deltaTime / 1000);
   var nextValue = FORWARD & this.direction ? this.value + delta : this.value - delta;
   return Math.max(0, Math.min(nextValue, this.maxValue));
 };
 
-ScrollRequest.prototype.computeSpeed = (function() {
+ScrollRequest.prototype.computeSpeed = (function () {
   var data = {
     direction: null,
     threshold: 0,
@@ -55,10 +55,10 @@ ScrollRequest.prototype.computeSpeed = (function() {
     maxValue: 0,
     deltaTime: 0,
     duration: 0,
-    isEnding: false
+    isEnding: false,
   };
 
-  return function(deltaTime) {
+  return function (deltaTime) {
     var item = this.item;
     var speed = getItemAutoScrollSettings(item).speed;
 
@@ -79,7 +79,7 @@ ScrollRequest.prototype.computeSpeed = (function() {
   };
 })();
 
-ScrollRequest.prototype.tick = function(deltaTime) {
+ScrollRequest.prototype.tick = function (deltaTime) {
   if (!this.isActive) {
     this.isActive = true;
     this.onStart();
@@ -91,13 +91,13 @@ ScrollRequest.prototype.tick = function(deltaTime) {
   return this.value;
 };
 
-ScrollRequest.prototype.onStart = function() {
+ScrollRequest.prototype.onStart = function () {
   var item = this.item;
   var onStart = getItemAutoScrollSettings(item).onStart;
   if (isFunction(onStart)) onStart(item, this.element, this.direction);
 };
 
-ScrollRequest.prototype.onStop = function() {
+ScrollRequest.prototype.onStop = function () {
   var item = this.item;
   var onStop = getItemAutoScrollSettings(item).onStop;
   if (isFunction(onStop)) onStop(item, this.element, this.direction);

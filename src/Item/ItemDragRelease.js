@@ -40,7 +40,7 @@ function ItemDragRelease(item) {
  *
  * @public
  */
-ItemDragRelease.prototype.start = function() {
+ItemDragRelease.prototype.start = function () {
   if (this._isDestroyed || this._isActive) return;
 
   var item = this._item;
@@ -73,7 +73,7 @@ ItemDragRelease.prototype.start = function() {
  * @param {Number} [top]
  *  - The element's current translateY value (optional).
  */
-ItemDragRelease.prototype.stop = function(abort, left, top) {
+ItemDragRelease.prototype.stop = function (abort, left, top) {
   if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
@@ -90,7 +90,7 @@ ItemDragRelease.prototype.stop = function(abort, left, top) {
   if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
 };
 
-ItemDragRelease.prototype.isJustReleased = function() {
+ItemDragRelease.prototype.isJustReleased = function () {
   return this._isActive && this._isPositioningStarted === false;
 };
 
@@ -99,7 +99,7 @@ ItemDragRelease.prototype.isJustReleased = function() {
  *
  * @public
  */
-ItemDragRelease.prototype.destroy = function() {
+ItemDragRelease.prototype.destroy = function () {
   if (this._isDestroyed) return;
   this.stop(true);
   this._item = null;
@@ -121,7 +121,7 @@ ItemDragRelease.prototype.destroy = function() {
  * @param {Number} [top]
  *  - The element's current translateY value (optional).
  */
-ItemDragRelease.prototype._placeToGrid = function(left, top) {
+ItemDragRelease.prototype._placeToGrid = function (left, top) {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -149,7 +149,7 @@ ItemDragRelease.prototype._placeToGrid = function(left, top) {
  *
  * @private
  */
-ItemDragRelease.prototype._reset = function() {
+ItemDragRelease.prototype._reset = function () {
   if (this._isDestroyed) return;
   var item = this._item;
   this._isActive = false;

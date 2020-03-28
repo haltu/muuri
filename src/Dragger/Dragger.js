@@ -84,31 +84,31 @@ Dragger._pointerEvents = {
   start: 'pointerdown',
   move: 'pointermove',
   cancel: 'pointercancel',
-  end: 'pointerup'
+  end: 'pointerup',
 };
 
 Dragger._msPointerEvents = {
   start: 'MSPointerDown',
   move: 'MSPointerMove',
   cancel: 'MSPointerCancel',
-  end: 'MSPointerUp'
+  end: 'MSPointerUp',
 };
 
 Dragger._touchEvents = {
   start: 'touchstart',
   move: 'touchmove',
   cancel: 'touchcancel',
-  end: 'touchend'
+  end: 'touchend',
 };
 
 Dragger._mouseEvents = {
   start: 'mousedown',
   move: 'mousemove',
   cancel: '',
-  end: 'mouseup'
+  end: 'mouseup',
 };
 
-Dragger._inputEvents = (function() {
+Dragger._inputEvents = (function () {
   if (HAS_TOUCH_EVENTS) return Dragger._touchEvents;
   if (HAS_POINTER_EVENTS) return Dragger._pointerEvents;
   if (HAS_MS_POINTER_EVENTS) return Dragger._msPointerEvents;
@@ -121,7 +121,7 @@ Dragger._emitterEvents = {
   start: 'start',
   move: 'move',
   end: 'end',
-  cancel: 'cancel'
+  cancel: 'cancel',
 };
 
 Dragger._activeInstances = [];
@@ -131,11 +131,11 @@ Dragger._activeInstances = [];
  * ************************
  */
 
-Dragger._preventDefault = function(e) {
+Dragger._preventDefault = function (e) {
   if (e.preventDefault && e.cancelable !== false) e.preventDefault();
 };
 
-Dragger._activateInstance = function(instance) {
+Dragger._activateInstance = function (instance) {
   var index = Dragger._activeInstances.indexOf(instance);
   if (index > -1) return;
 
@@ -149,7 +149,7 @@ Dragger._activateInstance = function(instance) {
   }
 };
 
-Dragger._deactivateInstance = function(instance) {
+Dragger._deactivateInstance = function (instance) {
   var index = Dragger._activeInstances.indexOf(instance);
   if (index === -1) return;
 
@@ -163,7 +163,7 @@ Dragger._deactivateInstance = function(instance) {
   }
 };
 
-Dragger._bindListeners = function() {
+Dragger._bindListeners = function () {
   window.addEventListener(Dragger._inputEvents.move, Dragger._onMove, listenerOptions);
   window.addEventListener(Dragger._inputEvents.end, Dragger._onEnd, listenerOptions);
   if (Dragger._inputEvents.cancel) {
@@ -171,7 +171,7 @@ Dragger._bindListeners = function() {
   }
 };
 
-Dragger._unbindListeners = function() {
+Dragger._unbindListeners = function () {
   window.removeEventListener(Dragger._inputEvents.move, Dragger._onMove, listenerOptions);
   window.removeEventListener(Dragger._inputEvents.end, Dragger._onEnd, listenerOptions);
   if (Dragger._inputEvents.cancel) {
@@ -179,7 +179,7 @@ Dragger._unbindListeners = function() {
   }
 };
 
-Dragger._getEventPointerId = function(event) {
+Dragger._getEventPointerId = function (event) {
   // If we have pointer id available let's use it.
   if (typeof event.pointerId === 'number') {
     return event.pointerId;
@@ -194,7 +194,7 @@ Dragger._getEventPointerId = function(event) {
   return 1;
 };
 
-Dragger._getTouchById = function(event, id) {
+Dragger._getTouchById = function (event, id) {
   // If we have a pointer event return the whole event if there's a match, and
   // null otherwise.
   if (typeof event.pointerId === 'number') {
@@ -217,15 +217,15 @@ Dragger._getTouchById = function(event, id) {
   return event;
 };
 
-Dragger._onMove = function(e) {
+Dragger._onMove = function (e) {
   Dragger._emitter.emit(Dragger._emitterEvents.move, e);
 };
 
-Dragger._onCancel = function(e) {
+Dragger._onCancel = function (e) {
   Dragger._emitter.emit(Dragger._emitterEvents.cancel, e);
 };
 
-Dragger._onEnd = function(e) {
+Dragger._onEnd = function (e) {
   Dragger._emitter.emit(Dragger._emitterEvents.end, e);
 };
 
@@ -239,7 +239,7 @@ Dragger._onEnd = function(e) {
  *
  * @private
  */
-Dragger.prototype._reset = function() {
+Dragger.prototype._reset = function () {
   this._pointerId = null;
   this._startTime = 0;
   this._startX = 0;
@@ -258,7 +258,7 @@ Dragger.prototype._reset = function() {
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  * @returns {Object}
  */
-Dragger.prototype._createEvent = function(type, e) {
+Dragger.prototype._createEvent = function (type, e) {
   var touch = this._getTrackedTouch(e);
   return {
     // Hammer.js compatibility interface.
@@ -279,7 +279,7 @@ Dragger.prototype._createEvent = function(type, e) {
     clientY: touch.clientY,
     pageX: touch.pageX,
     pageY: touch.pageY,
-    target: touch.target
+    target: touch.target,
   };
 };
 
@@ -290,7 +290,7 @@ Dragger.prototype._createEvent = function(type, e) {
  * @param {String} type
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
-Dragger.prototype._emit = function(type, e) {
+Dragger.prototype._emit = function (type, e) {
   this._emitter.emit(type, this._createEvent(type, e));
 };
 
@@ -306,7 +306,7 @@ Dragger.prototype._emit = function(type, e) {
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  * @returns {?(Touch|PointerEvent|MouseEvent)}
  */
-Dragger.prototype._getTrackedTouch = function(e) {
+Dragger.prototype._getTrackedTouch = function (e) {
   if (this._pointerId === null) return null;
   return Dragger._getTouchById(e, this._pointerId);
 };
@@ -317,7 +317,7 @@ Dragger.prototype._getTrackedTouch = function(e) {
  * @private
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
-Dragger.prototype._onStart = function(e) {
+Dragger.prototype._onStart = function (e) {
   if (this._isDestroyed) return;
 
   // If pointer id is already assigned let's return early.
@@ -348,7 +348,7 @@ Dragger.prototype._onStart = function(e) {
  * @private
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
-Dragger.prototype._onMove = function(e) {
+Dragger.prototype._onMove = function (e) {
   var touch = this._getTrackedTouch(e);
   if (!touch) return;
   this._currentX = touch.clientX;
@@ -362,7 +362,7 @@ Dragger.prototype._onMove = function(e) {
  * @private
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
-Dragger.prototype._onCancel = function(e) {
+Dragger.prototype._onCancel = function (e) {
   if (!this._getTrackedTouch(e)) return;
   this._emit(Dragger._emitterEvents.cancel, e);
   this._reset();
@@ -374,7 +374,7 @@ Dragger.prototype._onCancel = function(e) {
  * @private
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
-Dragger.prototype._onEnd = function(e) {
+Dragger.prototype._onEnd = function (e) {
   if (!this._getTrackedTouch(e)) return;
   this._emit(Dragger._emitterEvents.end, e);
   this._reset();
@@ -391,7 +391,7 @@ Dragger.prototype._onEnd = function(e) {
  * @public
  * @returns {Boolean}
  */
-Dragger.prototype.isActive = function() {
+Dragger.prototype.isActive = function () {
   return this._isActive;
 };
 
@@ -401,7 +401,7 @@ Dragger.prototype.isActive = function() {
  * @public
  * @param {String} value
  */
-Dragger.prototype.setTouchAction = function(value) {
+Dragger.prototype.setTouchAction = function (value) {
   // Store unmodified touch action value (we trust user input here).
   this._touchAction = value;
 
@@ -433,7 +433,7 @@ Dragger.prototype.setTouchAction = function(value) {
  * @public
  * @param {Object} [newProps]
  */
-Dragger.prototype.setCssProps = function(newProps) {
+Dragger.prototype.setCssProps = function (newProps) {
   if (!newProps) return;
 
   var currentProps = this._cssProps;
@@ -475,7 +475,7 @@ Dragger.prototype.setCssProps = function(newProps) {
  * @public
  * @returns {Number}
  */
-Dragger.prototype.getDeltaX = function() {
+Dragger.prototype.getDeltaX = function () {
   return this._currentX - this._startX;
 };
 
@@ -486,7 +486,7 @@ Dragger.prototype.getDeltaX = function() {
  * @public
  * @returns {Number}
  */
-Dragger.prototype.getDeltaY = function() {
+Dragger.prototype.getDeltaY = function () {
   return this._currentY - this._startY;
 };
 
@@ -496,7 +496,7 @@ Dragger.prototype.getDeltaY = function() {
  * @public
  * @returns {Number}
  */
-Dragger.prototype.getDistance = function() {
+Dragger.prototype.getDistance = function () {
   var x = this.getDeltaX();
   var y = this.getDeltaY();
   return Math.sqrt(x * x + y * y);
@@ -508,7 +508,7 @@ Dragger.prototype.getDistance = function() {
  * @public
  * @returns {Number}
  */
-Dragger.prototype.getDeltaTime = function() {
+Dragger.prototype.getDeltaTime = function () {
   return this._startTime ? Date.now() - this._startTime : 0;
 };
 
@@ -520,7 +520,7 @@ Dragger.prototype.getDeltaTime = function() {
  *   - 'start', 'move', 'cancel' or 'end'.
  * @param {Function} listener
  */
-Dragger.prototype.on = function(eventName, listener) {
+Dragger.prototype.on = function (eventName, listener) {
   this._emitter.on(eventName, listener);
 };
 
@@ -532,7 +532,7 @@ Dragger.prototype.on = function(eventName, listener) {
  *   - 'start', 'move', 'cancel' or 'end'.
  * @param {Function} listener
  */
-Dragger.prototype.off = function(eventName, listener) {
+Dragger.prototype.off = function (eventName, listener) {
   this._emitter.off(eventName, listener);
 };
 
@@ -541,7 +541,7 @@ Dragger.prototype.off = function(eventName, listener) {
  *
  * @public
  */
-Dragger.prototype.destroy = function() {
+Dragger.prototype.destroy = function () {
   if (this._isDestroyed) return;
 
   var element = this._element;

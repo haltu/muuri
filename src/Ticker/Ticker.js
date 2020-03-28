@@ -23,7 +23,7 @@ function Ticker(numLanes) {
   }
 }
 
-Ticker.prototype._step = function(time) {
+Ticker.prototype._step = function (time) {
   var lanes = this._lanes;
   var stepQueue = this._stepQueue;
   var stepCallbacks = this._stepCallbacks;
@@ -55,12 +55,12 @@ Ticker.prototype._step = function(time) {
   stepQueue.length = 0;
 };
 
-Ticker.prototype.add = function(laneIndex, id, callback) {
+Ticker.prototype.add = function (laneIndex, id, callback) {
   this._lanes[laneIndex].add(id, callback);
   if (!this._nextStep) this._nextStep = raf(this._step);
 };
 
-Ticker.prototype.remove = function(laneIndex, id) {
+Ticker.prototype.remove = function (laneIndex, id) {
   this._lanes[laneIndex].remove(id);
 };
 
@@ -75,7 +75,7 @@ function TickerLane() {
   this.callbacks = {};
 }
 
-TickerLane.prototype.add = function(id, callback) {
+TickerLane.prototype.add = function (id, callback) {
   var index = this.indices[id];
   if (index !== undefined) this.queue[index] = undefined;
   this.queue.push(id);
@@ -83,7 +83,7 @@ TickerLane.prototype.add = function(id, callback) {
   this.indices[id] = this.queue.length - 1;
 };
 
-TickerLane.prototype.remove = function(id) {
+TickerLane.prototype.remove = function (id) {
   var index = this.indices[id];
   if (index === undefined) return;
   this.queue[index] = undefined;

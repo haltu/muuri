@@ -355,6 +355,7 @@ export class ItemMigrate {
 
 export class ItemDrag {
   constructor(item: Item);
+  static autoScroller: AutoScroller;
   static defaultStartPredicate(
     item: Item,
     event: DraggerEvent,
@@ -450,6 +451,7 @@ export class AutoScroller {
   isItemScrollingX(item: Item): boolean;
   isItemScrollingY(item: Item): boolean;
   isItemScrolling(item: Item): boolean;
+  destroy(): void;
 }
 
 export class Packer {

@@ -42,7 +42,7 @@ function ItemLayout(item) {
   this._animOptions = {
     onFinish: this._finish.bind(this),
     duration: 0,
-    easing: 0
+    easing: 0,
   };
 
   // Set element's initial position styles.
@@ -70,7 +70,7 @@ function ItemLayout(item) {
  * @param {Boolean} instant
  * @param {Function} [onFinish]
  */
-ItemLayout.prototype.start = function(instant, onFinish) {
+ItemLayout.prototype.start = function (instant, onFinish) {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -127,7 +127,7 @@ ItemLayout.prototype.start = function(instant, onFinish) {
  * @param {Boolean} processCallbackQueue
  * @param {Object} [targetStyles]
  */
-ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
+ItemLayout.prototype.stop = function (processCallbackQueue, targetStyles) {
   if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
@@ -156,7 +156,7 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
  *
  * @public
  */
-ItemLayout.prototype.destroy = function() {
+ItemLayout.prototype.destroy = function () {
   if (this._isDestroyed) return;
 
   var elementStyle = this._item._element.style;
@@ -186,7 +186,7 @@ ItemLayout.prototype.destroy = function() {
  *
  * @private
  */
-ItemLayout.prototype._updateOffsets = function() {
+ItemLayout.prototype._updateOffsets = function () {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -211,7 +211,7 @@ ItemLayout.prototype._updateOffsets = function() {
  *
  * @private
  */
-ItemLayout.prototype._updateTargetStyles = function() {
+ItemLayout.prototype._updateTargetStyles = function () {
   if (this._isDestroyed) return;
   this._targetStyles[transformProp] = getTranslateString(
     this._item._left + this._offsetLeft,
@@ -224,7 +224,7 @@ ItemLayout.prototype._updateTargetStyles = function() {
  *
  * @private
  */
-ItemLayout.prototype._finish = function() {
+ItemLayout.prototype._finish = function () {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -250,7 +250,7 @@ ItemLayout.prototype._finish = function() {
  *
  * @private
  */
-ItemLayout.prototype._setupAnimation = function() {
+ItemLayout.prototype._setupAnimation = function () {
   // TODO: Keep track of the translate value so we only need to query the DOM
   // here if the item is animating currently.
   var translate = getTranslate(this._item._element);
@@ -263,7 +263,7 @@ ItemLayout.prototype._setupAnimation = function() {
  *
  * @private
  */
-ItemLayout.prototype._startAnimation = function() {
+ItemLayout.prototype._startAnimation = function () {
   var item = this._item;
   var settings = item.getGrid()._settings;
   var isInstant = this._animOptions.duration <= 0;

@@ -34,7 +34,7 @@ import {
   EVENT_DRAG_MOVE,
   EVENT_DRAG_SCROLL,
   EVENT_DRAG_END,
-  GRID_INSTANCES
+  GRID_INSTANCES,
 } from '../constants';
 
 import Dragger from '../Dragger/Dragger';
@@ -48,7 +48,7 @@ import {
   addDragScrollTick,
   cancelDragScrollTick,
   addDragSortTick,
-  cancelDragSortTick
+  cancelDragSortTick,
 } from '../ticker';
 
 import addClass from '../utils/addClass';
@@ -71,7 +71,6 @@ import transformProp from '../utils/transformProp';
 var START_PREDICATE_INACTIVE = 0;
 var START_PREDICATE_PENDING = 1;
 var START_PREDICATE_RESOLVED = 2;
-var AUTO_SCROLLER = new AutoScroller();
 var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { passive: true } : false;
 
 /**
@@ -134,6 +133,18 @@ function ItemDrag(item) {
 }
 
 /**
+ * Public properties
+ * *****************
+ */
+
+/**
+ * @public
+ * @static
+ * @type {AutoScroller}
+ */
+ItemDrag.autoScroller = new AutoScroller();
+
+/**
  * Public static methods
  * *********************
  */
@@ -146,6 +157,7 @@ function ItemDrag(item) {
  * the predicate will be called again on the next drag movement.
  *
  * @public
+ * @static
  * @param {Item} item
  * @param {Object} event
  * @param {Object} [options]
@@ -154,7 +166,7 @@ function ItemDrag(item) {
  *     from the grid's settings.
  * @returns {Boolean}
  */
-ItemDrag.defaultStartPredicate = function(item, event, options) {
+ItemDrag.defaultStartPredicate = function (item, event, options) {
   var drag = item._drag;
 
   // Make sure left button is pressed on mouse.
@@ -190,7 +202,7 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
     var config = options || drag._getGrid()._settings.dragStartPredicate || {};
     drag._startPredicateData = predicate = {
       distance: Math.max(config.distance, 0) || 0,
-      delay: Math.max(config.delay, 0) || 0
+      delay: Math.max(config.delay, 0) || 0,
     };
   }
 
@@ -199,7 +211,7 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
   if (predicate.delay) {
     predicate.event = event;
     if (!predicate.delayTimer) {
-      predicate.delayTimer = window.setTimeout(function() {
+      predicate.delayTimer = window.setTimeout(function () {
         predicate.delay = 0;
         if (drag._resolveStartPredicate(predicate.event)) {
           drag._forceResolveStartPredicate(predicate.event);
@@ -216,6 +228,7 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
  * Default drag sort predicate.
  *
  * @public
+ * @static
  * @param {Item} item
  * @param {Object} [options]
  * @param {Number} [options.threshold=50]
@@ -224,7 +237,7 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
  *   - Returns `null` if no valid index was found. Otherwise returns drag sort
  *     command.
  */
-ItemDrag.defaultSortPredicate = (function() {
+ItemDrag.defaultSortPredicate = (function () {
   var itemRect = {};
   var targetRect = {};
   var returnData = {};
@@ -328,7 +341,7 @@ ItemDrag.defaultSortPredicate = (function() {
     return target;
   }
 
-  return function(item, options) {
+  return function (item, options) {
     var drag = item._drag;
     var rootGrid = drag._getGrid();
 
@@ -442,7 +455,7 @@ ItemDrag.defaultSortPredicate = (function() {
  *
  * @public
  */
-ItemDrag.prototype.stop = function() {
+ItemDrag.prototype.stop = function () {
   if (!this._isActive) return;
 
   // If the item is being dropped into another grid, finish it up and return
@@ -490,7 +503,7 @@ ItemDrag.prototype.stop = function() {
  * @private
  * @param {Boolean} [force=false]
  */
-ItemDrag.prototype.sort = function(force) {
+ItemDrag.prototype.sort = function (force) {
   var item = this._item;
   if (item._isActive && this._dragMoveEvent) {
     if (force === true) {
@@ -506,11 +519,11 @@ ItemDrag.prototype.sort = function(force) {
  *
  * @public
  */
-ItemDrag.prototype.destroy = function() {
+ItemDrag.prototype.destroy = function () {
   if (this._isDestroyed) return;
   this.stop();
   this._dragger.destroy();
-  AUTO_SCROLLER.removeItem(this._item);
+  ItemDrag.autoScroller.removeItem(this._item);
   this._isDestroyed = true;
 };
 
@@ -525,7 +538,7 @@ ItemDrag.prototype.destroy = function() {
  * @private
  * @returns {?Grid}
  */
-ItemDrag.prototype._getGrid = function() {
+ItemDrag.prototype._getGrid = function () {
   return GRID_INSTANCES[this._gridId] || null;
 };
 
@@ -534,7 +547,7 @@ ItemDrag.prototype._getGrid = function() {
  *
  * @private
  */
-ItemDrag.prototype._reset = function() {
+ItemDrag.prototype._reset = function () {
   this._isActive = false;
   this._isStarted = false;
 
@@ -587,7 +600,7 @@ ItemDrag.prototype._reset = function() {
  *
  * @private
  */
-ItemDrag.prototype._bindScrollListeners = function() {
+ItemDrag.prototype._bindScrollListeners = function () {
   var gridContainer = this._getGrid()._element;
   var dragContainer = this._container;
   var scrollers = this._scrollers;
@@ -623,7 +636,7 @@ ItemDrag.prototype._bindScrollListeners = function() {
  *
  * @private
  */
-ItemDrag.prototype._unbindScrollListeners = function() {
+ItemDrag.prototype._unbindScrollListeners = function () {
   var scrollers = this._scrollers;
   var i;
 
@@ -642,7 +655,7 @@ ItemDrag.prototype._unbindScrollListeners = function() {
  * @param {Object} event
  * @returns {Boolean}
  */
-ItemDrag.prototype._resolveStartPredicate = function(event) {
+ItemDrag.prototype._resolveStartPredicate = function (event) {
   var predicate = this._startPredicateData;
   if (event.distance < predicate.distance || predicate.delay) return;
   this._resetStartPredicate();
@@ -655,7 +668,7 @@ ItemDrag.prototype._resolveStartPredicate = function(event) {
  * @private
  * @param {Object} event
  */
-ItemDrag.prototype._forceResolveStartPredicate = function(event) {
+ItemDrag.prototype._forceResolveStartPredicate = function (event) {
   if (!this._isDestroyed && this._startPredicateState === START_PREDICATE_PENDING) {
     this._startPredicateState = START_PREDICATE_RESOLVED;
     this._onStart(event);
@@ -668,7 +681,7 @@ ItemDrag.prototype._forceResolveStartPredicate = function(event) {
  * @private
  * @param {Object} event
  */
-ItemDrag.prototype._finishStartPredicate = function(event) {
+ItemDrag.prototype._finishStartPredicate = function (event) {
   var element = this._item._element;
 
   // Check if this is a click (very subjective heuristics).
@@ -689,7 +702,7 @@ ItemDrag.prototype._finishStartPredicate = function(event) {
  * @param {Number} x
  * @param {Number} y
  */
-ItemDrag.prototype._resetHeuristics = function(x, y) {
+ItemDrag.prototype._resetHeuristics = function (x, y) {
   this._blockedSortIndex = null;
   this._sortX1 = this._sortX2 = x;
   this._sortY1 = this._sortY2 = y;
@@ -704,7 +717,7 @@ ItemDrag.prototype._resetHeuristics = function(x, y) {
  * @param {Number} y
  * @returns {Boolean}
  */
-ItemDrag.prototype._checkHeuristics = function(x, y) {
+ItemDrag.prototype._checkHeuristics = function (x, y) {
   var settings = this._getGrid()._settings.dragSortHeuristics;
   var minDist = settings.minDragDistance;
 
@@ -753,7 +766,7 @@ ItemDrag.prototype._checkHeuristics = function(x, y) {
  *
  * @private
  */
-ItemDrag.prototype._resetStartPredicate = function() {
+ItemDrag.prototype._resetStartPredicate = function () {
   var predicate = this._startPredicateData;
   if (predicate) {
     if (predicate.delayTimer) {
@@ -769,7 +782,7 @@ ItemDrag.prototype._resetStartPredicate = function() {
  *
  * @private
  */
-ItemDrag.prototype._handleSort = function() {
+ItemDrag.prototype._handleSort = function () {
   var settings = this._getGrid()._settings;
 
   // No sorting when drag sort is disabled. Also, account for the scenario where
@@ -777,7 +790,7 @@ ItemDrag.prototype._handleSort = function() {
   // sort timer heuristics state too.
   if (
     !settings.dragSort ||
-    (!settings.dragAutoScroll.sortDuringScroll && AUTO_SCROLLER.isItemScrolling(this._item))
+    (!settings.dragAutoScroll.sortDuringScroll && ItemDrag.autoScroller.isItemScrolling(this._item))
   ) {
     this._sortX1 = this._sortX2 = this._gridX;
     this._sortY1 = this._sortY2 = this._gridY;
@@ -816,7 +829,7 @@ ItemDrag.prototype._handleSort = function() {
  *
  * @private
  */
-ItemDrag.prototype._handleSortDelayed = function() {
+ItemDrag.prototype._handleSortDelayed = function () {
   this._isSortNeeded = true;
   this._sortTimer = undefined;
   addDragSortTick(this._item._id, this._handleSort);
@@ -827,7 +840,7 @@ ItemDrag.prototype._handleSortDelayed = function() {
  *
  * @private
  */
-ItemDrag.prototype._cancelSort = function() {
+ItemDrag.prototype._cancelSort = function () {
   this._isSortNeeded = false;
   if (this._sortTimer !== undefined) {
     this._sortTimer = window.clearTimeout(this._sortTimer);
@@ -840,7 +853,7 @@ ItemDrag.prototype._cancelSort = function() {
  *
  * @private
  */
-ItemDrag.prototype._finishSort = function() {
+ItemDrag.prototype._finishSort = function () {
   var isSortEnabled = this._getGrid()._settings.dragSort;
   var needsFinalCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
   this._cancelSort();
@@ -853,7 +866,7 @@ ItemDrag.prototype._finishSort = function() {
  *
  * @private
  */
-ItemDrag.prototype._checkOverlap = function() {
+ItemDrag.prototype._checkOverlap = function () {
   if (!this._isActive) return;
 
   var item = this._item;
@@ -912,7 +925,7 @@ ItemDrag.prototype._checkOverlap = function() {
           item: item,
           fromIndex: currentIndex,
           toIndex: targetIndex,
-          action: sortAction
+          action: sortAction,
         });
       }
 
@@ -935,7 +948,7 @@ ItemDrag.prototype._checkOverlap = function() {
         fromGrid: currentGrid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
@@ -946,7 +959,7 @@ ItemDrag.prototype._checkOverlap = function() {
         fromGrid: currentGrid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
@@ -970,7 +983,7 @@ ItemDrag.prototype._checkOverlap = function() {
         fromGrid: currentGrid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
@@ -981,7 +994,7 @@ ItemDrag.prototype._checkOverlap = function() {
         fromGrid: currentGrid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
@@ -997,7 +1010,7 @@ ItemDrag.prototype._checkOverlap = function() {
         targetGrid.send(targetItem, currentGrid, currentIndex, {
           appendTo: this._container || document.body,
           layoutSender: false,
-          layoutReceiver: false
+          layoutReceiver: false,
         });
       }
     }
@@ -1014,7 +1027,7 @@ ItemDrag.prototype._checkOverlap = function() {
  *
  * @private
  */
-ItemDrag.prototype._finishMigration = function() {
+ItemDrag.prototype._finishMigration = function () {
   var item = this._item;
   var release = item._dragRelease;
   var element = item._element;
@@ -1085,7 +1098,7 @@ ItemDrag.prototype._finishMigration = function() {
  * @private
  * @param {Object} event
  */
-ItemDrag.prototype._preStartCheck = function(event) {
+ItemDrag.prototype._preStartCheck = function (event) {
   // Let's activate drag start predicate state.
   if (this._startPredicateState === START_PREDICATE_INACTIVE) {
     this._startPredicateState = START_PREDICATE_PENDING;
@@ -1116,7 +1129,7 @@ ItemDrag.prototype._preStartCheck = function(event) {
  * @private
  * @param {Object} event
  */
-ItemDrag.prototype._preEndCheck = function(event) {
+ItemDrag.prototype._preEndCheck = function (event) {
   var isResolved = this._startPredicateState === START_PREDICATE_RESOLVED;
 
   // Do final predicate check to allow user to unbind stuff for the current
@@ -1141,13 +1154,13 @@ ItemDrag.prototype._preEndCheck = function(event) {
  * @private
  * @param {Object} event
  */
-ItemDrag.prototype._onStart = function(event) {
+ItemDrag.prototype._onStart = function (event) {
   var item = this._item;
   if (!item._isActive) return;
 
   this._isActive = true;
   this._dragStartEvent = event;
-  AUTO_SCROLLER.addItem(item);
+  ItemDrag.autoScroller.addItem(item);
 
   addDragStartTick(item._id, this._prepareStart, this._applyStart);
 };
@@ -1158,7 +1171,7 @@ ItemDrag.prototype._onStart = function(event) {
  * @private
  *  ItemDrag.prototype
  */
-ItemDrag.prototype._prepareStart = function() {
+ItemDrag.prototype._prepareStart = function () {
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1197,7 +1210,7 @@ ItemDrag.prototype._prepareStart = function() {
  *
  * @private
  */
-ItemDrag.prototype._applyStart = function() {
+ItemDrag.prototype._applyStart = function () {
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1262,7 +1275,7 @@ ItemDrag.prototype._applyStart = function() {
  * @private
  * @param {Object} event
  */
-ItemDrag.prototype._onMove = function(event) {
+ItemDrag.prototype._onMove = function (event) {
   var item = this._item;
 
   if (!item._isActive) {
@@ -1280,7 +1293,7 @@ ItemDrag.prototype._onMove = function(event) {
  *
  * @private
  */
-ItemDrag.prototype._prepareMove = function() {
+ItemDrag.prototype._prepareMove = function () {
   var item = this._item;
 
   if (!item._isActive) return;
@@ -1316,14 +1329,14 @@ ItemDrag.prototype._prepareMove = function() {
  *
  * @private
  */
-ItemDrag.prototype._applyMove = function() {
+ItemDrag.prototype._applyMove = function () {
   var item = this._item;
   if (!item._isActive) return;
 
   this._moveDiffX = this._moveDiffY = 0;
   item._element.style[transformProp] = getTranslateString(this._left, this._top);
   this._getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
-  AUTO_SCROLLER.updateItem(item);
+  ItemDrag.autoScroller.updateItem(item);
 };
 
 /**
@@ -1332,7 +1345,7 @@ ItemDrag.prototype._applyMove = function() {
  * @private
  * @param {Object} event
  */
-ItemDrag.prototype._onScroll = function(event) {
+ItemDrag.prototype._onScroll = function (event) {
   var item = this._item;
 
   if (!item._isActive) {
@@ -1350,7 +1363,7 @@ ItemDrag.prototype._onScroll = function(event) {
  *
  * @private
  */
-ItemDrag.prototype._prepareScroll = function() {
+ItemDrag.prototype._prepareScroll = function () {
   var item = this._item;
 
   // If item is not active do nothing.
@@ -1390,7 +1403,7 @@ ItemDrag.prototype._prepareScroll = function() {
  *
  * @private
  */
-ItemDrag.prototype._applyScroll = function() {
+ItemDrag.prototype._applyScroll = function () {
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1405,7 +1418,7 @@ ItemDrag.prototype._applyScroll = function() {
  * @private
  * @param {Object} event
  */
-ItemDrag.prototype._onEnd = function(event) {
+ItemDrag.prototype._onEnd = function (event) {
   var item = this._item;
   var element = item._element;
   var grid = this._getGrid();
@@ -1440,7 +1453,7 @@ ItemDrag.prototype._onEnd = function(event) {
   removeClass(element, settings.itemDraggingClass);
 
   // Stop auto-scroll.
-  AUTO_SCROLLER.removeItem(item);
+  ItemDrag.autoScroller.removeItem(item);
 
   // Emit dragEnd event.
   grid._emit(EVENT_DRAG_END, item, event);

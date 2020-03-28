@@ -30,7 +30,7 @@ function Emitter() {
  * @param {Function} listener
  * @returns {Emitter}
  */
-Emitter.prototype.on = function(event, listener) {
+Emitter.prototype.on = function (event, listener) {
   if (!this._events || !event || !listener) return this;
 
   // Get listeners queue and create it if it does not exist.
@@ -51,7 +51,7 @@ Emitter.prototype.on = function(event, listener) {
  * @param {Function} listener
  * @returns {Emitter}
  */
-Emitter.prototype.off = function(event, listener) {
+Emitter.prototype.off = function (event, listener) {
   if (!this._events || !event || !listener) return this;
 
   // Get listeners and return immediately if none is found.
@@ -74,7 +74,7 @@ Emitter.prototype.off = function(event, listener) {
  * @param {String} event
  * @returns {Emitter}
  */
-Emitter.prototype.clear = function(event) {
+Emitter.prototype.clear = function (event) {
   if (!this._events || !event) return this;
 
   var listeners = this._events[event];
@@ -94,7 +94,7 @@ Emitter.prototype.clear = function(event) {
  * @param {...*} [args]
  * @returns {Emitter}
  */
-Emitter.prototype.emit = function(event) {
+Emitter.prototype.emit = function (event) {
   if (!this._events || !event) {
     this._flush = false;
     return this;
@@ -172,7 +172,7 @@ Emitter.prototype.emit = function(event) {
  * @param {...*} [args]
  * @returns {Emitter}
  */
-Emitter.prototype.flush = function() {
+Emitter.prototype.flush = function () {
   if (!this._events) return this;
   this._flush = true;
   this.emit.apply(this, arguments);
@@ -186,7 +186,7 @@ Emitter.prototype.flush = function() {
  * @param {String} event
  * @returns {Boolean}
  */
-Emitter.prototype.countListeners = function(event) {
+Emitter.prototype.countListeners = function (event) {
   if (!this._events) return 0;
   var listeners = this._events[event];
   return listeners ? listeners.length : 0;
@@ -198,7 +198,7 @@ Emitter.prototype.countListeners = function(event) {
  * @public
  * @returns {Emitter}
  */
-Emitter.prototype.destroy = function() {
+Emitter.prototype.destroy = function () {
   if (!this._events) return this;
   this._queue.length = this._counter = 0;
   this._events = null;

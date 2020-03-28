@@ -48,7 +48,7 @@ function Animator(element) {
  * @param {String} [options.easing='ease']
  * @param {Function} [options.onFinish]
  */
-Animator.prototype.start = function(propsFrom, propsTo, options) {
+Animator.prototype.start = function (propsFrom, propsTo, options) {
   if (this._isDestroyed) return;
 
   var element = this._element;
@@ -127,11 +127,11 @@ Animator.prototype.start = function(propsFrom, propsTo, options) {
   this._animation = element.animate(
     [
       createFrame(propsFrom, !HAS_NATIVE_WEB_ANIMATIONS),
-      createFrame(propsTo, !HAS_NATIVE_WEB_ANIMATIONS)
+      createFrame(propsTo, !HAS_NATIVE_WEB_ANIMATIONS),
     ],
     {
       duration: duration,
-      easing: easing
+      easing: easing,
     }
   );
   this._animation.onfinish = this._onFinish;
@@ -147,7 +147,7 @@ Animator.prototype.start = function(propsFrom, propsTo, options) {
  * @public
  * @param {Boolean} [applyCurrentStyles=true]
  */
-Animator.prototype.stop = function(applyCurrentStyles) {
+Animator.prototype.stop = function (applyCurrentStyles) {
   if (this._isDestroyed || !this._animation) return;
 
   var element = this._element;
@@ -169,7 +169,7 @@ Animator.prototype.stop = function(applyCurrentStyles) {
  * @public
  * @return {Boolean}
  */
-Animator.prototype.isAnimating = function() {
+Animator.prototype.isAnimating = function () {
   return !!this._animation;
 };
 
@@ -178,7 +178,7 @@ Animator.prototype.isAnimating = function() {
  *
  * @public
  */
-Animator.prototype.destroy = function() {
+Animator.prototype.destroy = function () {
   if (this._isDestroyed) return;
   this.stop();
   this._element = null;
@@ -195,7 +195,7 @@ Animator.prototype.destroy = function() {
  *
  * @private
  */
-Animator.prototype._onFinish = function() {
+Animator.prototype._onFinish = function () {
   var callback = this._callback;
   this._animation = this._callback = null;
   this._props.length = this._values.length = 0;

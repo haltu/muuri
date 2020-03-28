@@ -7,7 +7,7 @@ var stylesCache = typeof Map === 'function' ? new Map() : null;
 var cacheCleanInterval = 3000;
 var cacheCleanTimer;
 var canCleanCache = true;
-var cacheCleanCheck = function() {
+var cacheCleanCheck = function () {
   if (canCleanCache) {
     cacheCleanTimer = window.clearInterval(cacheCleanTimer);
     stylesCache.clear();

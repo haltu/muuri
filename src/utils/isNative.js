@@ -21,8 +21,6 @@ export default function isNative(feat) {
     feat &&
     isFunction(S) &&
     isFunction(S.toString) &&
-    S(feat)
-      .toString()
-      .indexOf(nativeCode) > -1
+    S(feat).toString().indexOf(nativeCode) > -1
   );
 }

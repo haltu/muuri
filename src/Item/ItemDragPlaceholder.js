@@ -8,14 +8,14 @@ import {
   addPlaceholderLayoutTick,
   cancelPlaceholderLayoutTick,
   addPlaceholderResizeTick,
-  cancelPlaceholderResizeTick
+  cancelPlaceholderResizeTick,
 } from '../ticker';
 
 import {
   EVENT_BEFORE_SEND,
   EVENT_DRAG_RELEASE_END,
   EVENT_LAYOUT_START,
-  EVENT_HIDE_START
+  EVENT_HIDE_START,
 } from '../constants';
 
 import Animator from '../Animator/Animator';
@@ -71,11 +71,11 @@ function ItemDragPlaceholder(item) {
  *
  * @private
  */
-ItemDragPlaceholder.prototype._updateDimensions = function() {
+ItemDragPlaceholder.prototype._updateDimensions = function () {
   if (!this.isActive()) return;
   setStyles(this._element, {
     width: this._item._width + 'px',
-    height: this._item._height + 'px'
+    height: this._item._height + 'px',
   });
 };
 
@@ -86,7 +86,7 @@ ItemDragPlaceholder.prototype._updateDimensions = function() {
  * @param {Item[]} items
  * @param {Boolean} isInstant
  */
-ItemDragPlaceholder.prototype._onLayoutStart = function(items, isInstant) {
+ItemDragPlaceholder.prototype._onLayoutStart = function (items, isInstant) {
   var item = this._item;
 
   // If the item is not part of the layout anymore reset placeholder.
@@ -151,7 +151,7 @@ ItemDragPlaceholder.prototype._onLayoutStart = function(items, isInstant) {
  *
  * @private
  */
-ItemDragPlaceholder.prototype._setupAnimation = function() {
+ItemDragPlaceholder.prototype._setupAnimation = function () {
   if (!this.isActive()) return;
 
   var translate = getTranslate(this._element);
@@ -164,7 +164,7 @@ ItemDragPlaceholder.prototype._setupAnimation = function() {
  *
  * @private
  */
-ItemDragPlaceholder.prototype._startAnimation = function() {
+ItemDragPlaceholder.prototype._startAnimation = function () {
   if (!this.isActive()) return;
 
   var animation = this._animation;
@@ -193,7 +193,7 @@ ItemDragPlaceholder.prototype._startAnimation = function() {
   animation.start(currentStyles, targetStyles, {
     duration: settings.layoutDuration,
     easing: settings.layoutEasing,
-    onFinish: this._onLayoutEnd
+    onFinish: this._onLayoutEnd,
   });
 };
 
@@ -202,7 +202,7 @@ ItemDragPlaceholder.prototype._startAnimation = function() {
  *
  * @private
  */
-ItemDragPlaceholder.prototype._onLayoutEnd = function() {
+ItemDragPlaceholder.prototype._onLayoutEnd = function () {
   if (this._resetAfterLayout) {
     this.reset();
   }
@@ -215,7 +215,7 @@ ItemDragPlaceholder.prototype._onLayoutEnd = function() {
  * @private
  * @param {Item} item
  */
-ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
+ItemDragPlaceholder.prototype._onReleaseEnd = function (item) {
   if (item._id === this._item._id) {
     // If the placeholder is not animating anymore we can safely reset it.
     if (!this._animation.isAnimating()) {
@@ -241,7 +241,7 @@ ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
  * @param {Grid} data.toGrid
  * @param {Number} data.toIndex
  */
-ItemDragPlaceholder.prototype._onMigrate = function(data) {
+ItemDragPlaceholder.prototype._onMigrate = function (data) {
   // Make sure we have a matching item.
   if (data.item !== this._item) return;
 
@@ -270,7 +270,7 @@ ItemDragPlaceholder.prototype._onMigrate = function(data) {
  * @private
  * @param {Item[]} items
  */
-ItemDragPlaceholder.prototype._onHide = function(items) {
+ItemDragPlaceholder.prototype._onHide = function (items) {
   if (items.indexOf(this._item) > -1) this.reset();
 };
 
@@ -286,7 +286,7 @@ ItemDragPlaceholder.prototype._onHide = function(items) {
  *
  * @public
  */
-ItemDragPlaceholder.prototype.create = function() {
+ItemDragPlaceholder.prototype.create = function () {
   // If we already have placeholder set up we can skip the initiation logic.
   if (this.isActive()) {
     this._resetAfterLayout = false;
@@ -327,7 +327,7 @@ ItemDragPlaceholder.prototype.create = function() {
     left: '0px',
     top: '0px',
     width: item._width + 'px',
-    height: item._height + 'px'
+    height: item._height + 'px',
   });
 
   // Set initial position.
@@ -355,7 +355,7 @@ ItemDragPlaceholder.prototype.create = function() {
  *
  * @public
  */
-ItemDragPlaceholder.prototype.reset = function() {
+ItemDragPlaceholder.prototype.reset = function () {
   if (!this.isActive()) return;
 
   var element = this._element;
@@ -405,7 +405,7 @@ ItemDragPlaceholder.prototype.reset = function() {
  * @public
  * @returns {Boolean}
  */
-ItemDragPlaceholder.prototype.isActive = function() {
+ItemDragPlaceholder.prototype.isActive = function () {
   return !!this._element;
 };
 
@@ -415,7 +415,7 @@ ItemDragPlaceholder.prototype.isActive = function() {
  * @public
  * @returns {?HTMLElement}
  */
-ItemDragPlaceholder.prototype.getElement = function() {
+ItemDragPlaceholder.prototype.getElement = function () {
   return this._element;
 };
 
@@ -426,7 +426,7 @@ ItemDragPlaceholder.prototype.getElement = function() {
  *
  * @public
  */
-ItemDragPlaceholder.prototype.updateDimensions = function() {
+ItemDragPlaceholder.prototype.updateDimensions = function () {
   if (!this.isActive()) return;
   addPlaceholderResizeTick(this._item._id, this._updateDimensions);
 };
@@ -436,7 +436,7 @@ ItemDragPlaceholder.prototype.updateDimensions = function() {
  *
  * @public
  */
-ItemDragPlaceholder.prototype.destroy = function() {
+ItemDragPlaceholder.prototype.destroy = function () {
   this.reset();
   this._animation.destroy();
   this._item = this._animation = null;

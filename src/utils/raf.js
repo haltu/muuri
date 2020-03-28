@@ -11,8 +11,8 @@ var raf = (
   window.webkitRequestAnimationFrame ||
   window.mozRequestAnimationFrame ||
   window.msRequestAnimationFrame ||
-  function(callback) {
-    return this.setTimeout(function() {
+  function (callback) {
+    return this.setTimeout(function () {
       callback(Date.now());
     }, dt);
   }

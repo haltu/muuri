@@ -86,7 +86,7 @@
    * @param {Function} listener
    * @returns {Emitter}
    */
-  Emitter.prototype.on = function(event, listener) {
+  Emitter.prototype.on = function (event, listener) {
     if (!this._events || !event || !listener) return this;
 
     // Get listeners queue and create it if it does not exist.
@@ -107,7 +107,7 @@
    * @param {Function} listener
    * @returns {Emitter}
    */
-  Emitter.prototype.off = function(event, listener) {
+  Emitter.prototype.off = function (event, listener) {
     if (!this._events || !event || !listener) return this;
 
     // Get listeners and return immediately if none is found.
@@ -130,7 +130,7 @@
    * @param {String} event
    * @returns {Emitter}
    */
-  Emitter.prototype.clear = function(event) {
+  Emitter.prototype.clear = function (event) {
     if (!this._events || !event) return this;
 
     var listeners = this._events[event];
@@ -150,7 +150,7 @@
    * @param {...*} [args]
    * @returns {Emitter}
    */
-  Emitter.prototype.emit = function(event) {
+  Emitter.prototype.emit = function (event) {
     if (!this._events || !event) {
       this._flush = false;
       return this;
@@ -228,7 +228,7 @@
    * @param {...*} [args]
    * @returns {Emitter}
    */
-  Emitter.prototype.flush = function() {
+  Emitter.prototype.flush = function () {
     if (!this._events) return this;
     this._flush = true;
     this.emit.apply(this, arguments);
@@ -242,7 +242,7 @@
    * @param {String} event
    * @returns {Boolean}
    */
-  Emitter.prototype.countListeners = function(event) {
+  Emitter.prototype.countListeners = function (event) {
     if (!this._events) return 0;
     var listeners = this._events[event];
     return listeners ? listeners.length : 0;
@@ -254,7 +254,7 @@
    * @public
    * @returns {Emitter}
    */
-  Emitter.prototype.destroy = function() {
+  Emitter.prototype.destroy = function () {
     if (!this._events) return this;
     this._queue.length = this._counter = 0;
     this._events = null;
@@ -301,7 +301,7 @@
   /**
    * @private
    */
-  EdgeHack.prototype._addBehaviour = function() {
+  EdgeHack.prototype._addBehaviour = function () {
     if (this._isActive) return;
     this._isActive = true;
     this._dragger.on('move', this._resetData);
@@ -313,7 +313,7 @@
   /**
    * @private
    */
-  EdgeHack.prototype._removeBehaviour = function() {
+  EdgeHack.prototype._removeBehaviour = function () {
     if (!this._isActive) return;
     this._dragger.off('move', this._resetData);
     this._dragger.off('cancel', this._removeBehaviour);
@@ -326,7 +326,7 @@
   /**
    * @private
    */
-  EdgeHack.prototype._resetData = function() {
+  EdgeHack.prototype._resetData = function () {
     window.clearTimeout(this._timeout);
     this._timeout = null;
     this._outEvent = null;
@@ -336,7 +336,7 @@
    * @private
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
-  EdgeHack.prototype._onStart = function(e) {
+  EdgeHack.prototype._onStart = function (e) {
     if (e.pointerType === 'mouse') return;
     this._addBehaviour();
   };
@@ -345,7 +345,7 @@
    * @private
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
-  EdgeHack.prototype._onOut = function(e) {
+  EdgeHack.prototype._onOut = function (e) {
     if (!this._dragger._getTrackedTouch(e)) return;
     this._resetData();
     this._outEvent = e;
@@ -355,7 +355,7 @@
   /**
    * @private
    */
-  EdgeHack.prototype._onTimeout = function() {
+  EdgeHack.prototype._onTimeout = function () {
     var e = this._outEvent;
     this._resetData();
     if (this._dragger.isActive()) this._dragger._onCancel(e);
@@ -364,7 +364,7 @@
   /**
    * @public
    */
-  EdgeHack.prototype.destroy = function() {
+  EdgeHack.prototype.destroy = function () {
     if (!pointerout) return;
     this._dragger.off('start', this._onStart);
     this._removeBehaviour();
@@ -411,9 +411,9 @@
 
     try {
       var passiveOpts = Object.defineProperty({}, 'passive', {
-        get: function() {
+        get: function () {
           isPassiveEventsSupported = true;
-        }
+        },
       });
       window.addEventListener('testPassive', null, passiveOpts);
       window.removeEventListener('testPassive', null, passiveOpts);
@@ -493,31 +493,31 @@
     start: 'pointerdown',
     move: 'pointermove',
     cancel: 'pointercancel',
-    end: 'pointerup'
+    end: 'pointerup',
   };
 
   Dragger._msPointerEvents = {
     start: 'MSPointerDown',
     move: 'MSPointerMove',
     cancel: 'MSPointerCancel',
-    end: 'MSPointerUp'
+    end: 'MSPointerUp',
   };
 
   Dragger._touchEvents = {
     start: 'touchstart',
     move: 'touchmove',
     cancel: 'touchcancel',
-    end: 'touchend'
+    end: 'touchend',
   };
 
   Dragger._mouseEvents = {
     start: 'mousedown',
     move: 'mousemove',
     cancel: '',
-    end: 'mouseup'
+    end: 'mouseup',
   };
 
-  Dragger._inputEvents = (function() {
+  Dragger._inputEvents = (function () {
     if (HAS_TOUCH_EVENTS) return Dragger._touchEvents;
     if (HAS_POINTER_EVENTS) return Dragger._pointerEvents;
     if (HAS_MS_POINTER_EVENTS) return Dragger._msPointerEvents;
@@ -530,7 +530,7 @@
     start: 'start',
     move: 'move',
     end: 'end',
-    cancel: 'cancel'
+    cancel: 'cancel',
   };
 
   Dragger._activeInstances = [];
@@ -540,11 +540,11 @@
    * ************************
    */
 
-  Dragger._preventDefault = function(e) {
+  Dragger._preventDefault = function (e) {
     if (e.preventDefault && e.cancelable !== false) e.preventDefault();
   };
 
-  Dragger._activateInstance = function(instance) {
+  Dragger._activateInstance = function (instance) {
     var index = Dragger._activeInstances.indexOf(instance);
     if (index > -1) return;
 
@@ -558,7 +558,7 @@
     }
   };
 
-  Dragger._deactivateInstance = function(instance) {
+  Dragger._deactivateInstance = function (instance) {
     var index = Dragger._activeInstances.indexOf(instance);
     if (index === -1) return;
 
@@ -572,7 +572,7 @@
     }
   };
 
-  Dragger._bindListeners = function() {
+  Dragger._bindListeners = function () {
     window.addEventListener(Dragger._inputEvents.move, Dragger._onMove, listenerOptions);
     window.addEventListener(Dragger._inputEvents.end, Dragger._onEnd, listenerOptions);
     if (Dragger._inputEvents.cancel) {
@@ -580,7 +580,7 @@
     }
   };
 
-  Dragger._unbindListeners = function() {
+  Dragger._unbindListeners = function () {
     window.removeEventListener(Dragger._inputEvents.move, Dragger._onMove, listenerOptions);
     window.removeEventListener(Dragger._inputEvents.end, Dragger._onEnd, listenerOptions);
     if (Dragger._inputEvents.cancel) {
@@ -588,7 +588,7 @@
     }
   };
 
-  Dragger._getEventPointerId = function(event) {
+  Dragger._getEventPointerId = function (event) {
     // If we have pointer id available let's use it.
     if (typeof event.pointerId === 'number') {
       return event.pointerId;
@@ -603,7 +603,7 @@
     return 1;
   };
 
-  Dragger._getTouchById = function(event, id) {
+  Dragger._getTouchById = function (event, id) {
     // If we have a pointer event return the whole event if there's a match, and
     // null otherwise.
     if (typeof event.pointerId === 'number') {
@@ -626,15 +626,15 @@
     return event;
   };
 
-  Dragger._onMove = function(e) {
+  Dragger._onMove = function (e) {
     Dragger._emitter.emit(Dragger._emitterEvents.move, e);
   };
 
-  Dragger._onCancel = function(e) {
+  Dragger._onCancel = function (e) {
     Dragger._emitter.emit(Dragger._emitterEvents.cancel, e);
   };
 
-  Dragger._onEnd = function(e) {
+  Dragger._onEnd = function (e) {
     Dragger._emitter.emit(Dragger._emitterEvents.end, e);
   };
 
@@ -648,7 +648,7 @@
    *
    * @private
    */
-  Dragger.prototype._reset = function() {
+  Dragger.prototype._reset = function () {
     this._pointerId = null;
     this._startTime = 0;
     this._startX = 0;
@@ -667,7 +667,7 @@
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    * @returns {Object}
    */
-  Dragger.prototype._createEvent = function(type, e) {
+  Dragger.prototype._createEvent = function (type, e) {
     var touch = this._getTrackedTouch(e);
     return {
       // Hammer.js compatibility interface.
@@ -688,7 +688,7 @@
       clientY: touch.clientY,
       pageX: touch.pageX,
       pageY: touch.pageY,
-      target: touch.target
+      target: touch.target,
     };
   };
 
@@ -699,7 +699,7 @@
    * @param {String} type
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
-  Dragger.prototype._emit = function(type, e) {
+  Dragger.prototype._emit = function (type, e) {
     this._emitter.emit(type, this._createEvent(type, e));
   };
 
@@ -715,7 +715,7 @@
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    * @returns {?(Touch|PointerEvent|MouseEvent)}
    */
-  Dragger.prototype._getTrackedTouch = function(e) {
+  Dragger.prototype._getTrackedTouch = function (e) {
     if (this._pointerId === null) return null;
     return Dragger._getTouchById(e, this._pointerId);
   };
@@ -726,7 +726,7 @@
    * @private
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
-  Dragger.prototype._onStart = function(e) {
+  Dragger.prototype._onStart = function (e) {
     if (this._isDestroyed) return;
 
     // If pointer id is already assigned let's return early.
@@ -757,7 +757,7 @@
    * @private
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
-  Dragger.prototype._onMove = function(e) {
+  Dragger.prototype._onMove = function (e) {
     var touch = this._getTrackedTouch(e);
     if (!touch) return;
     this._currentX = touch.clientX;
@@ -771,7 +771,7 @@
    * @private
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
-  Dragger.prototype._onCancel = function(e) {
+  Dragger.prototype._onCancel = function (e) {
     if (!this._getTrackedTouch(e)) return;
     this._emit(Dragger._emitterEvents.cancel, e);
     this._reset();
@@ -783,7 +783,7 @@
    * @private
    * @param {(PointerEvent|TouchEvent|MouseEvent)} e
    */
-  Dragger.prototype._onEnd = function(e) {
+  Dragger.prototype._onEnd = function (e) {
     if (!this._getTrackedTouch(e)) return;
     this._emit(Dragger._emitterEvents.end, e);
     this._reset();
@@ -800,7 +800,7 @@
    * @public
    * @returns {Boolean}
    */
-  Dragger.prototype.isActive = function() {
+  Dragger.prototype.isActive = function () {
     return this._isActive;
   };
 
@@ -810,7 +810,7 @@
    * @public
    * @param {String} value
    */
-  Dragger.prototype.setTouchAction = function(value) {
+  Dragger.prototype.setTouchAction = function (value) {
     // Store unmodified touch action value (we trust user input here).
     this._touchAction = value;
 
@@ -842,7 +842,7 @@
    * @public
    * @param {Object} [newProps]
    */
-  Dragger.prototype.setCssProps = function(newProps) {
+  Dragger.prototype.setCssProps = function (newProps) {
     if (!newProps) return;
 
     var currentProps = this._cssProps;
@@ -884,7 +884,7 @@
    * @public
    * @returns {Number}
    */
-  Dragger.prototype.getDeltaX = function() {
+  Dragger.prototype.getDeltaX = function () {
     return this._currentX - this._startX;
   };
 
@@ -895,7 +895,7 @@
    * @public
    * @returns {Number}
    */
-  Dragger.prototype.getDeltaY = function() {
+  Dragger.prototype.getDeltaY = function () {
     return this._currentY - this._startY;
   };
 
@@ -905,7 +905,7 @@
    * @public
    * @returns {Number}
    */
-  Dragger.prototype.getDistance = function() {
+  Dragger.prototype.getDistance = function () {
     var x = this.getDeltaX();
     var y = this.getDeltaY();
     return Math.sqrt(x * x + y * y);
@@ -917,7 +917,7 @@
    * @public
    * @returns {Number}
    */
-  Dragger.prototype.getDeltaTime = function() {
+  Dragger.prototype.getDeltaTime = function () {
     return this._startTime ? Date.now() - this._startTime : 0;
   };
 
@@ -929,7 +929,7 @@
    *   - 'start', 'move', 'cancel' or 'end'.
    * @param {Function} listener
    */
-  Dragger.prototype.on = function(eventName, listener) {
+  Dragger.prototype.on = function (eventName, listener) {
     this._emitter.on(eventName, listener);
   };
 
@@ -941,7 +941,7 @@
    *   - 'start', 'move', 'cancel' or 'end'.
    * @param {Function} listener
    */
-  Dragger.prototype.off = function(eventName, listener) {
+  Dragger.prototype.off = function (eventName, listener) {
     this._emitter.off(eventName, listener);
   };
 
@@ -950,7 +950,7 @@
    *
    * @public
    */
-  Dragger.prototype.destroy = function() {
+  Dragger.prototype.destroy = function () {
     if (this._isDestroyed) return;
 
     var element = this._element;
@@ -988,8 +988,8 @@
     window.webkitRequestAnimationFrame ||
     window.mozRequestAnimationFrame ||
     window.msRequestAnimationFrame ||
-    function(callback) {
-      return this.setTimeout(function() {
+    function (callback) {
+      return this.setTimeout(function () {
         callback(Date.now());
       }, dt);
     }
@@ -1011,7 +1011,7 @@
     }
   }
 
-  Ticker.prototype._step = function(time) {
+  Ticker.prototype._step = function (time) {
     var lanes = this._lanes;
     var stepQueue = this._stepQueue;
     var stepCallbacks = this._stepCallbacks;
@@ -1043,12 +1043,12 @@
     stepQueue.length = 0;
   };
 
-  Ticker.prototype.add = function(laneIndex, id, callback) {
+  Ticker.prototype.add = function (laneIndex, id, callback) {
     this._lanes[laneIndex].add(id, callback);
     if (!this._nextStep) this._nextStep = raf(this._step);
   };
 
-  Ticker.prototype.remove = function(laneIndex, id) {
+  Ticker.prototype.remove = function (laneIndex, id) {
     this._lanes[laneIndex].remove(id);
   };
 
@@ -1063,7 +1063,7 @@
     this.callbacks = {};
   }
 
-  TickerLane.prototype.add = function(id, callback) {
+  TickerLane.prototype.add = function (id, callback) {
     var index = this.indices[id];
     if (index !== undefined) this.queue[index] = undefined;
     this.queue.push(id);
@@ -1071,7 +1071,7 @@
     this.indices[id] = this.queue.length - 1;
   };
 
-  TickerLane.prototype.remove = function(id) {
+  TickerLane.prototype.remove = function (id) {
     var index = this.indices[id];
     if (index === undefined) return;
     this.queue[index] = undefined;
@@ -1222,7 +1222,7 @@
   var cacheCleanInterval = 3000;
   var cacheCleanTimer;
   var canCleanCache = true;
-  var cacheCleanCheck = function() {
+  var cacheCleanCheck = function () {
     if (canCleanCache) {
       cacheCleanTimer = window.clearInterval(cacheCleanTimer);
       stylesCache.clear();
@@ -1503,7 +1503,7 @@
     this.reset();
   }
 
-  ScrollRequest.prototype.reset = function() {
+  ScrollRequest.prototype.reset = function () {
     if (this.isActive) this.onStop();
     this.item = null;
     this.element = null;
@@ -1519,24 +1519,24 @@
     this.action = null;
   };
 
-  ScrollRequest.prototype.hasReachedEnd = function() {
+  ScrollRequest.prototype.hasReachedEnd = function () {
     return FORWARD & this.direction ? this.value >= this.maxValue : this.value <= 0;
   };
 
-  ScrollRequest.prototype.computeCurrentScrollValue = function() {
+  ScrollRequest.prototype.computeCurrentScrollValue = function () {
     if (this.value === null) {
       return AXIS_X & this.direction ? getScrollLeft(this.element) : getScrollTop(this.element);
     }
     return Math.max(0, Math.min(this.value, this.maxValue));
   };
 
-  ScrollRequest.prototype.computeNextScrollValue = function(deltaTime) {
+  ScrollRequest.prototype.computeNextScrollValue = function (deltaTime) {
     var delta = this.speed * (deltaTime / 1000);
     var nextValue = FORWARD & this.direction ? this.value + delta : this.value - delta;
     return Math.max(0, Math.min(nextValue, this.maxValue));
   };
 
-  ScrollRequest.prototype.computeSpeed = (function() {
+  ScrollRequest.prototype.computeSpeed = (function () {
     var data = {
       direction: null,
       threshold: 0,
@@ -1545,10 +1545,10 @@
       maxValue: 0,
       deltaTime: 0,
       duration: 0,
-      isEnding: false
+      isEnding: false,
     };
 
-    return function(deltaTime) {
+    return function (deltaTime) {
       var item = this.item;
       var speed = getItemAutoScrollSettings(item).speed;
 
@@ -1569,7 +1569,7 @@
     };
   })();
 
-  ScrollRequest.prototype.tick = function(deltaTime) {
+  ScrollRequest.prototype.tick = function (deltaTime) {
     if (!this.isActive) {
       this.isActive = true;
       this.onStart();
@@ -1581,13 +1581,13 @@
     return this.value;
   };
 
-  ScrollRequest.prototype.onStart = function() {
+  ScrollRequest.prototype.onStart = function () {
     var item = this.item;
     var onStart = getItemAutoScrollSettings(item).onStart;
     if (isFunction(onStart)) onStart(item, this.element, this.direction);
   };
 
-  ScrollRequest.prototype.onStop = function() {
+  ScrollRequest.prototype.onStop = function () {
     var item = this.item;
     var onStop = getItemAutoScrollSettings(item).onStop;
     if (isFunction(onStop)) onStop(item, this.element, this.direction);
@@ -1605,7 +1605,7 @@
     this.scrollTop = 0;
   }
 
-  ScrollAction.prototype.reset = function() {
+  ScrollAction.prototype.reset = function () {
     if (this.requestX) this.requestX.action = null;
     if (this.requestY) this.requestY.action = null;
     this.element = null;
@@ -1615,7 +1615,7 @@
     this.scrollTop = 0;
   };
 
-  ScrollAction.prototype.addRequest = function(request) {
+  ScrollAction.prototype.addRequest = function (request) {
     if (AXIS_X & request.direction) {
       this.removeRequest(this.requestX);
       this.requestX = request;
@@ -1626,7 +1626,7 @@
     request.action = this;
   };
 
-  ScrollAction.prototype.removeRequest = function(request) {
+  ScrollAction.prototype.removeRequest = function (request) {
     if (!request) return;
     if (this.requestX === request) {
       this.requestX = null;
@@ -1637,12 +1637,12 @@
     }
   };
 
-  ScrollAction.prototype.computeScrollValues = function() {
+  ScrollAction.prototype.computeScrollValues = function () {
     this.scrollLeft = this.requestX ? this.requestX.value : getScrollLeft(this.element);
     this.scrollTop = this.requestY ? this.requestY.value : getScrollTop(this.element);
   };
 
-  ScrollAction.prototype.scroll = function() {
+  ScrollAction.prototype.scroll = function () {
     var element = this.element;
     if (!element) return;
 
@@ -1660,17 +1660,17 @@
     this.releaseItem = releaseItem;
   }
 
-  Pool.prototype.pick = function() {
+  Pool.prototype.pick = function () {
     return this.pool.pop() || this.createItem();
   };
 
-  Pool.prototype.release = function(item) {
+  Pool.prototype.release = function (item) {
     this.releaseItem(item);
     if (this.pool.indexOf(item) !== -1) return;
     this.pool.push(item);
   };
 
-  Pool.prototype.reset = function() {
+  Pool.prototype.reset = function () {
     this.pool.length = 0;
   };
 
@@ -1719,31 +1719,13 @@
     return (area / maxArea) * 100;
   }
 
-  var REQUEST_POOL = new Pool(
-    function() {
-      return new ScrollRequest();
-    },
-    function(request) {
-      request.reset();
-    }
-  );
-
-  var ACTION_POOL = new Pool(
-    function() {
-      return new ScrollAction();
-    },
-    function(action) {
-      action.reset();
-    }
-  );
-
   var RECT_1 = {
     width: 0,
     height: 0,
     left: 0,
     right: 0,
     top: 0,
-    bottom: 0
+    bottom: 0,
   };
 
   var RECT_2 = {
@@ -1752,12 +1734,11 @@
     left: 0,
     right: 0,
     top: 0,
-    bottom: 0
+    bottom: 0,
   };
 
-  var OVERLAP_CHECK_INTERVAL = 150;
-
   function AutoScroller() {
+    this._isDestroyed = false;
     this._isTicking = false;
     this._tickTime = 0;
     this._tickDeltaTime = 0;
@@ -1769,6 +1750,26 @@
     this._requests[AXIS_Y] = {};
     this._requestOverlapCheck = {};
     this._dragPositions = {};
+    this._overlapCheckInterval = 150;
+
+    this._requestPool = new Pool(
+      function () {
+        return new ScrollRequest();
+      },
+      function (request) {
+        request.reset();
+      }
+    );
+
+    this._actionPool = new Pool(
+      function () {
+        return new ScrollAction();
+      },
+      function (action) {
+        action.reset();
+      }
+    );
+
     this._readTick = this._readTick.bind(this);
     this._writeTick = this._writeTick.bind(this);
   }
@@ -1782,8 +1783,8 @@
   AutoScroller.UP = UP;
   AutoScroller.DOWN = DOWN;
 
-  AutoScroller.smoothSpeed = function(maxSpeed, acceleration, deceleration) {
-    return function(item, element, data) {
+  AutoScroller.smoothSpeed = function (maxSpeed, acceleration, deceleration) {
+    return function (item, element, data) {
       var targetSpeed = 0;
       if (!data.isEnding) {
         if (data.threshold > 0) {
@@ -1811,10 +1812,10 @@
     };
   };
 
-  AutoScroller.pointerHandle = function(pointerSize) {
+  AutoScroller.pointerHandle = function (pointerSize) {
     var rect = { left: 0, top: 0, width: 0, height: 0 };
     var size = pointerSize || 1;
-    return function(item, x, y, w, h, pX, pY) {
+    return function (item, x, y, w, h, pX, pY) {
       rect.left = pX - size * 0.5;
       rect.top = pY - size * 0.5;
       rect.width = size;
@@ -1823,7 +1824,8 @@
     };
   };
 
-  AutoScroller.prototype._readTick = function(time) {
+  AutoScroller.prototype._readTick = function (time) {
+    if (this._isDestroyed) return;
     if (time && this._tickTime) {
       this._tickDeltaTime = time - this._tickTime;
       this._tickTime = time;
@@ -1835,24 +1837,25 @@
     }
   };
 
-  AutoScroller.prototype._writeTick = function() {
+  AutoScroller.prototype._writeTick = function () {
+    if (this._isDestroyed) return;
     this._applyActions();
     addAutoScrollTick(this._readTick, this._writeTick);
   };
 
-  AutoScroller.prototype._startTicking = function() {
+  AutoScroller.prototype._startTicking = function () {
     this._isTicking = true;
     addAutoScrollTick(this._readTick, this._writeTick);
   };
 
-  AutoScroller.prototype._stopTicking = function() {
+  AutoScroller.prototype._stopTicking = function () {
     this._isTicking = false;
     this._tickTime = 0;
     this._tickDeltaTime = 0;
     cancelAutoScrollTick();
   };
 
-  AutoScroller.prototype._getItemDragDirection = function(item, axis) {
+  AutoScroller.prototype._getItemDragDirection = function (item, axis) {
     var positions = this._dragPositions[item._id];
     if (!positions || positions.length < 4) return 0;
 
@@ -1869,7 +1872,7 @@
     }
   };
 
-  AutoScroller.prototype._getItemHandleRect = function(item, handle, rect) {
+  AutoScroller.prototype._getItemHandleRect = function (item, handle, rect) {
     var itemDrag = item._drag;
 
     if (handle) {
@@ -1900,7 +1903,7 @@
     return rect;
   };
 
-  AutoScroller.prototype._requestItemScroll = function(
+  AutoScroller.prototype._requestItemScroll = function (
     item,
     axis,
     element,
@@ -1917,7 +1920,7 @@
         request.reset();
       }
     } else {
-      request = REQUEST_POOL.pick();
+      request = this._requestPool.pick();
     }
 
     request.item = item;
@@ -1929,16 +1932,16 @@
     reqMap[item._id] = request;
   };
 
-  AutoScroller.prototype._cancelItemScroll = function(item, axis) {
+  AutoScroller.prototype._cancelItemScroll = function (item, axis) {
     var reqMap = this._requests[axis];
     var request = reqMap[item._id];
     if (!request) return;
     if (request.action) request.action.removeRequest(request);
-    REQUEST_POOL.release(request);
+    this._requestPool.release(request);
     delete reqMap[item._id];
   };
 
-  AutoScroller.prototype._checkItemOverlap = function(item, checkX, checkY) {
+  AutoScroller.prototype._checkItemOverlap = function (item, checkX, checkY) {
     var settings = getItemAutoScrollSettings(item);
     var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
     var threshold = settings.threshold;
@@ -2127,7 +2130,7 @@
     }
   };
 
-  AutoScroller.prototype._updateScrollRequest = function(scrollRequest) {
+  AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
     var item = scrollRequest.item;
     var settings = getItemAutoScrollSettings(item);
     var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
@@ -2252,7 +2255,7 @@
     return hasReachedEnd ? false : true;
   };
 
-  AutoScroller.prototype._updateRequests = function() {
+  AutoScroller.prototype._updateRequests = function () {
     var items = this._items;
     var requestsX = this._requests[AXIS_X];
     var requestsY = this._requests[AXIS_Y];
@@ -2261,7 +2264,7 @@
     for (var i = 0; i < items.length; i++) {
       item = items[i];
       checkTime = this._requestOverlapCheck[item._id];
-      needsCheck = checkTime > 0 && this._tickTime - checkTime > OVERLAP_CHECK_INTERVAL;
+      needsCheck = checkTime > 0 && this._tickTime - checkTime > this._overlapCheckInterval;
 
       checkX = true;
       reqX = requestsX[item._id];
@@ -2290,7 +2293,7 @@
     }
   };
 
-  AutoScroller.prototype._requestAction = function(request, axis) {
+  AutoScroller.prototype._requestAction = function (request, axis) {
     var isAxisX = axis === AXIS_X;
     var action = null;
 
@@ -2315,7 +2318,7 @@
       break;
     }
 
-    if (!action) action = ACTION_POOL.pick();
+    if (!action) action = this._actionPool.pick();
     action.element = request.element;
     action.addRequest(request);
 
@@ -2323,7 +2326,7 @@
     this._actions.push(action);
   };
 
-  AutoScroller.prototype._updateActions = function() {
+  AutoScroller.prototype._updateActions = function () {
     var items = this._items;
     var syncItems = this._syncItems;
     var requests = this._requests;
@@ -2361,7 +2364,7 @@
     }
   };
 
-  AutoScroller.prototype._applyActions = function() {
+  AutoScroller.prototype._applyActions = function () {
     var actions = this._actions;
     var syncItems = this._syncItems;
     var i;
@@ -2369,7 +2372,7 @@
     if (actions.length) {
       for (i = 0; i < actions.length; i++) {
         actions[i].scroll();
-        ACTION_POOL.release(actions[i]);
+        this._actionPool.release(actions[i]);
       }
       actions.length = 0;
     }
@@ -2381,7 +2384,8 @@
     }
   };
 
-  AutoScroller.prototype.addItem = function(item) {
+  AutoScroller.prototype.addItem = function (item) {
+    if (this._isDestroyed) return;
     var index = this._items.indexOf(item);
     if (index === -1) {
       this._items.push(item);
@@ -2391,7 +2395,9 @@
     }
   };
 
-  AutoScroller.prototype.updateItem = function(item) {
+  AutoScroller.prototype.updateItem = function (item) {
+    if (this._isDestroyed) return;
+
     this._dragPositions[item._id].unshift(item._drag._left, item._drag._top);
     if (this._dragPositions.length > 4) {
       this._dragPositions.length = 4;
@@ -2402,7 +2408,9 @@
     }
   };
 
-  AutoScroller.prototype.removeItem = function(item) {
+  AutoScroller.prototype.removeItem = function (item) {
+    if (this._isDestroyed) return;
+
     var index = this._items.indexOf(item);
     if (index === -1) return;
 
@@ -2432,18 +2440,33 @@
     }
   };
 
-  AutoScroller.prototype.isItemScrollingX = function(item) {
+  AutoScroller.prototype.isItemScrollingX = function (item) {
     var reqX = this._requests[AXIS_X][item._id];
     return !!(reqX && reqX.isActive);
   };
 
-  AutoScroller.prototype.isItemScrollingY = function(item) {
+  AutoScroller.prototype.isItemScrollingY = function (item) {
     var reqY = this._requests[AXIS_Y][item._id];
     return !!(reqY && reqY.isActive);
   };
 
-  AutoScroller.prototype.isItemScrolling = function(item) {
+  AutoScroller.prototype.isItemScrolling = function (item) {
     return this.isItemScrollingX(item) || this.isItemScrollingY(item);
+  };
+
+  AutoScroller.prototype.destroy = function () {
+    if (this._isDestroyed) return;
+
+    var items = this._items.slice(0);
+    for (var i = 0; i < items.length; i++) {
+      this.removeItem(items[i]);
+    }
+
+    this._actions.length = 0;
+    this._requestPool.reset();
+    this._actionPool.reset();
+
+    this._isDestroyed = true;
   };
 
   var ElProto = window.Element.prototype;
@@ -2454,7 +2477,7 @@
     ElProto.mozMatchesSelector ||
     ElProto.msMatchesSelector ||
     ElProto.oMatchesSelector ||
-    function() {
+    function () {
       return false;
     };
 
@@ -2804,7 +2827,6 @@
   var START_PREDICATE_INACTIVE = 0;
   var START_PREDICATE_PENDING = 1;
   var START_PREDICATE_RESOLVED = 2;
-  var AUTO_SCROLLER = new AutoScroller();
   var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { passive: true } : false;
 
   /**
@@ -2867,6 +2889,18 @@
   }
 
   /**
+   * Public properties
+   * *****************
+   */
+
+  /**
+   * @public
+   * @static
+   * @type {AutoScroller}
+   */
+  ItemDrag.autoScroller = new AutoScroller();
+
+  /**
    * Public static methods
    * *********************
    */
@@ -2879,6 +2913,7 @@
    * the predicate will be called again on the next drag movement.
    *
    * @public
+   * @static
    * @param {Item} item
    * @param {Object} event
    * @param {Object} [options]
@@ -2887,7 +2922,7 @@
    *     from the grid's settings.
    * @returns {Boolean}
    */
-  ItemDrag.defaultStartPredicate = function(item, event, options) {
+  ItemDrag.defaultStartPredicate = function (item, event, options) {
     var drag = item._drag;
 
     // Make sure left button is pressed on mouse.
@@ -2923,7 +2958,7 @@
       var config = options || drag._getGrid()._settings.dragStartPredicate || {};
       drag._startPredicateData = predicate = {
         distance: Math.max(config.distance, 0) || 0,
-        delay: Math.max(config.delay, 0) || 0
+        delay: Math.max(config.delay, 0) || 0,
       };
     }
 
@@ -2932,7 +2967,7 @@
     if (predicate.delay) {
       predicate.event = event;
       if (!predicate.delayTimer) {
-        predicate.delayTimer = window.setTimeout(function() {
+        predicate.delayTimer = window.setTimeout(function () {
           predicate.delay = 0;
           if (drag._resolveStartPredicate(predicate.event)) {
             drag._forceResolveStartPredicate(predicate.event);
@@ -2949,6 +2984,7 @@
    * Default drag sort predicate.
    *
    * @public
+   * @static
    * @param {Item} item
    * @param {Object} [options]
    * @param {Number} [options.threshold=50]
@@ -2957,7 +2993,7 @@
    *   - Returns `null` if no valid index was found. Otherwise returns drag sort
    *     command.
    */
-  ItemDrag.defaultSortPredicate = (function() {
+  ItemDrag.defaultSortPredicate = (function () {
     var itemRect = {};
     var targetRect = {};
     var returnData = {};
@@ -3061,7 +3097,7 @@
       return target;
     }
 
-    return function(item, options) {
+    return function (item, options) {
       var drag = item._drag;
       var rootGrid = drag._getGrid();
 
@@ -3175,7 +3211,7 @@
    *
    * @public
    */
-  ItemDrag.prototype.stop = function() {
+  ItemDrag.prototype.stop = function () {
     if (!this._isActive) return;
 
     // If the item is being dropped into another grid, finish it up and return
@@ -3223,7 +3259,7 @@
    * @private
    * @param {Boolean} [force=false]
    */
-  ItemDrag.prototype.sort = function(force) {
+  ItemDrag.prototype.sort = function (force) {
     var item = this._item;
     if (item._isActive && this._dragMoveEvent) {
       if (force === true) {
@@ -3239,11 +3275,11 @@
    *
    * @public
    */
-  ItemDrag.prototype.destroy = function() {
+  ItemDrag.prototype.destroy = function () {
     if (this._isDestroyed) return;
     this.stop();
     this._dragger.destroy();
-    AUTO_SCROLLER.removeItem(this._item);
+    ItemDrag.autoScroller.removeItem(this._item);
     this._isDestroyed = true;
   };
 
@@ -3258,7 +3294,7 @@
    * @private
    * @returns {?Grid}
    */
-  ItemDrag.prototype._getGrid = function() {
+  ItemDrag.prototype._getGrid = function () {
     return GRID_INSTANCES[this._gridId] || null;
   };
 
@@ -3267,7 +3303,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._reset = function() {
+  ItemDrag.prototype._reset = function () {
     this._isActive = false;
     this._isStarted = false;
 
@@ -3320,7 +3356,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._bindScrollListeners = function() {
+  ItemDrag.prototype._bindScrollListeners = function () {
     var gridContainer = this._getGrid()._element;
     var dragContainer = this._container;
     var scrollers = this._scrollers;
@@ -3356,7 +3392,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._unbindScrollListeners = function() {
+  ItemDrag.prototype._unbindScrollListeners = function () {
     var scrollers = this._scrollers;
     var i;
 
@@ -3375,7 +3411,7 @@
    * @param {Object} event
    * @returns {Boolean}
    */
-  ItemDrag.prototype._resolveStartPredicate = function(event) {
+  ItemDrag.prototype._resolveStartPredicate = function (event) {
     var predicate = this._startPredicateData;
     if (event.distance < predicate.distance || predicate.delay) return;
     this._resetStartPredicate();
@@ -3388,7 +3424,7 @@
    * @private
    * @param {Object} event
    */
-  ItemDrag.prototype._forceResolveStartPredicate = function(event) {
+  ItemDrag.prototype._forceResolveStartPredicate = function (event) {
     if (!this._isDestroyed && this._startPredicateState === START_PREDICATE_PENDING) {
       this._startPredicateState = START_PREDICATE_RESOLVED;
       this._onStart(event);
@@ -3401,7 +3437,7 @@
    * @private
    * @param {Object} event
    */
-  ItemDrag.prototype._finishStartPredicate = function(event) {
+  ItemDrag.prototype._finishStartPredicate = function (event) {
     var element = this._item._element;
 
     // Check if this is a click (very subjective heuristics).
@@ -3422,7 +3458,7 @@
    * @param {Number} x
    * @param {Number} y
    */
-  ItemDrag.prototype._resetHeuristics = function(x, y) {
+  ItemDrag.prototype._resetHeuristics = function (x, y) {
     this._blockedSortIndex = null;
     this._sortX1 = this._sortX2 = x;
     this._sortY1 = this._sortY2 = y;
@@ -3437,7 +3473,7 @@
    * @param {Number} y
    * @returns {Boolean}
    */
-  ItemDrag.prototype._checkHeuristics = function(x, y) {
+  ItemDrag.prototype._checkHeuristics = function (x, y) {
     var settings = this._getGrid()._settings.dragSortHeuristics;
     var minDist = settings.minDragDistance;
 
@@ -3486,7 +3522,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._resetStartPredicate = function() {
+  ItemDrag.prototype._resetStartPredicate = function () {
     var predicate = this._startPredicateData;
     if (predicate) {
       if (predicate.delayTimer) {
@@ -3502,7 +3538,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._handleSort = function() {
+  ItemDrag.prototype._handleSort = function () {
     var settings = this._getGrid()._settings;
 
     // No sorting when drag sort is disabled. Also, account for the scenario where
@@ -3510,7 +3546,7 @@
     // sort timer heuristics state too.
     if (
       !settings.dragSort ||
-      (!settings.dragAutoScroll.sortDuringScroll && AUTO_SCROLLER.isItemScrolling(this._item))
+      (!settings.dragAutoScroll.sortDuringScroll && ItemDrag.autoScroller.isItemScrolling(this._item))
     ) {
       this._sortX1 = this._sortX2 = this._gridX;
       this._sortY1 = this._sortY2 = this._gridY;
@@ -3549,7 +3585,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._handleSortDelayed = function() {
+  ItemDrag.prototype._handleSortDelayed = function () {
     this._isSortNeeded = true;
     this._sortTimer = undefined;
     addDragSortTick(this._item._id, this._handleSort);
@@ -3560,7 +3596,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._cancelSort = function() {
+  ItemDrag.prototype._cancelSort = function () {
     this._isSortNeeded = false;
     if (this._sortTimer !== undefined) {
       this._sortTimer = window.clearTimeout(this._sortTimer);
@@ -3573,7 +3609,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._finishSort = function() {
+  ItemDrag.prototype._finishSort = function () {
     var isSortEnabled = this._getGrid()._settings.dragSort;
     var needsFinalCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
     this._cancelSort();
@@ -3586,7 +3622,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._checkOverlap = function() {
+  ItemDrag.prototype._checkOverlap = function () {
     if (!this._isActive) return;
 
     var item = this._item;
@@ -3645,7 +3681,7 @@
             item: item,
             fromIndex: currentIndex,
             toIndex: targetIndex,
-            action: sortAction
+            action: sortAction,
           });
         }
 
@@ -3668,7 +3704,7 @@
           fromGrid: currentGrid,
           fromIndex: currentIndex,
           toGrid: targetGrid,
-          toIndex: targetIndex
+          toIndex: targetIndex,
         });
       }
 
@@ -3679,7 +3715,7 @@
           fromGrid: currentGrid,
           fromIndex: currentIndex,
           toGrid: targetGrid,
-          toIndex: targetIndex
+          toIndex: targetIndex,
         });
       }
 
@@ -3703,7 +3739,7 @@
           fromGrid: currentGrid,
           fromIndex: currentIndex,
           toGrid: targetGrid,
-          toIndex: targetIndex
+          toIndex: targetIndex,
         });
       }
 
@@ -3714,7 +3750,7 @@
           fromGrid: currentGrid,
           fromIndex: currentIndex,
           toGrid: targetGrid,
-          toIndex: targetIndex
+          toIndex: targetIndex,
         });
       }
 
@@ -3730,7 +3766,7 @@
           targetGrid.send(targetItem, currentGrid, currentIndex, {
             appendTo: this._container || document.body,
             layoutSender: false,
-            layoutReceiver: false
+            layoutReceiver: false,
           });
         }
       }
@@ -3747,7 +3783,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._finishMigration = function() {
+  ItemDrag.prototype._finishMigration = function () {
     var item = this._item;
     var release = item._dragRelease;
     var element = item._element;
@@ -3818,7 +3854,7 @@
    * @private
    * @param {Object} event
    */
-  ItemDrag.prototype._preStartCheck = function(event) {
+  ItemDrag.prototype._preStartCheck = function (event) {
     // Let's activate drag start predicate state.
     if (this._startPredicateState === START_PREDICATE_INACTIVE) {
       this._startPredicateState = START_PREDICATE_PENDING;
@@ -3849,7 +3885,7 @@
    * @private
    * @param {Object} event
    */
-  ItemDrag.prototype._preEndCheck = function(event) {
+  ItemDrag.prototype._preEndCheck = function (event) {
     var isResolved = this._startPredicateState === START_PREDICATE_RESOLVED;
 
     // Do final predicate check to allow user to unbind stuff for the current
@@ -3874,13 +3910,13 @@
    * @private
    * @param {Object} event
    */
-  ItemDrag.prototype._onStart = function(event) {
+  ItemDrag.prototype._onStart = function (event) {
     var item = this._item;
     if (!item._isActive) return;
 
     this._isActive = true;
     this._dragStartEvent = event;
-    AUTO_SCROLLER.addItem(item);
+    ItemDrag.autoScroller.addItem(item);
 
     addDragStartTick(item._id, this._prepareStart, this._applyStart);
   };
@@ -3891,7 +3927,7 @@
    * @private
    *  ItemDrag.prototype
    */
-  ItemDrag.prototype._prepareStart = function() {
+  ItemDrag.prototype._prepareStart = function () {
     var item = this._item;
     if (!item._isActive) return;
 
@@ -3930,7 +3966,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._applyStart = function() {
+  ItemDrag.prototype._applyStart = function () {
     var item = this._item;
     if (!item._isActive) return;
 
@@ -3995,7 +4031,7 @@
    * @private
    * @param {Object} event
    */
-  ItemDrag.prototype._onMove = function(event) {
+  ItemDrag.prototype._onMove = function (event) {
     var item = this._item;
 
     if (!item._isActive) {
@@ -4013,7 +4049,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._prepareMove = function() {
+  ItemDrag.prototype._prepareMove = function () {
     var item = this._item;
 
     if (!item._isActive) return;
@@ -4049,14 +4085,14 @@
    *
    * @private
    */
-  ItemDrag.prototype._applyMove = function() {
+  ItemDrag.prototype._applyMove = function () {
     var item = this._item;
     if (!item._isActive) return;
 
     this._moveDiffX = this._moveDiffY = 0;
     item._element.style[transformProp] = getTranslateString(this._left, this._top);
     this._getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
-    AUTO_SCROLLER.updateItem(item);
+    ItemDrag.autoScroller.updateItem(item);
   };
 
   /**
@@ -4065,7 +4101,7 @@
    * @private
    * @param {Object} event
    */
-  ItemDrag.prototype._onScroll = function(event) {
+  ItemDrag.prototype._onScroll = function (event) {
     var item = this._item;
 
     if (!item._isActive) {
@@ -4083,7 +4119,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._prepareScroll = function() {
+  ItemDrag.prototype._prepareScroll = function () {
     var item = this._item;
 
     // If item is not active do nothing.
@@ -4123,7 +4159,7 @@
    *
    * @private
    */
-  ItemDrag.prototype._applyScroll = function() {
+  ItemDrag.prototype._applyScroll = function () {
     var item = this._item;
     if (!item._isActive) return;
 
@@ -4138,7 +4174,7 @@
    * @private
    * @param {Object} event
    */
-  ItemDrag.prototype._onEnd = function(event) {
+  ItemDrag.prototype._onEnd = function (event) {
     var item = this._item;
     var element = item._element;
     var grid = this._getGrid();
@@ -4173,7 +4209,7 @@
     removeClass(element, settings.itemDraggingClass);
 
     // Stop auto-scroll.
-    AUTO_SCROLLER.removeItem(item);
+    ItemDrag.autoScroller.removeItem(item);
 
     // Emit dragEnd event.
     grid._emit(EVENT_DRAG_END, item, event);
@@ -4273,9 +4309,7 @@
       feat &&
       isFunction(S) &&
       isFunction(S.toString) &&
-      S(feat)
-        .toString()
-        .indexOf(nativeCode) > -1
+      S(feat).toString().indexOf(nativeCode) > -1
     );
   }
 
@@ -4329,7 +4363,7 @@
    * @param {String} [options.easing='ease']
    * @param {Function} [options.onFinish]
    */
-  Animator.prototype.start = function(propsFrom, propsTo, options) {
+  Animator.prototype.start = function (propsFrom, propsTo, options) {
     if (this._isDestroyed) return;
 
     var element = this._element;
@@ -4408,11 +4442,11 @@
     this._animation = element.animate(
       [
         createFrame(propsFrom, !HAS_NATIVE_WEB_ANIMATIONS),
-        createFrame(propsTo, !HAS_NATIVE_WEB_ANIMATIONS)
+        createFrame(propsTo, !HAS_NATIVE_WEB_ANIMATIONS),
       ],
       {
         duration: duration,
-        easing: easing
+        easing: easing,
       }
     );
     this._animation.onfinish = this._onFinish;
@@ -4428,7 +4462,7 @@
    * @public
    * @param {Boolean} [applyCurrentStyles=true]
    */
-  Animator.prototype.stop = function(applyCurrentStyles) {
+  Animator.prototype.stop = function (applyCurrentStyles) {
     if (this._isDestroyed || !this._animation) return;
 
     var element = this._element;
@@ -4450,7 +4484,7 @@
    * @public
    * @return {Boolean}
    */
-  Animator.prototype.isAnimating = function() {
+  Animator.prototype.isAnimating = function () {
     return !!this._animation;
   };
 
@@ -4459,7 +4493,7 @@
    *
    * @public
    */
-  Animator.prototype.destroy = function() {
+  Animator.prototype.destroy = function () {
     if (this._isDestroyed) return;
     this.stop();
     this._element = null;
@@ -4476,7 +4510,7 @@
    *
    * @private
    */
-  Animator.prototype._onFinish = function() {
+  Animator.prototype._onFinish = function () {
     var callback = this._callback;
     this._animation = this._callback = null;
     this._props.length = this._values.length = 0;
@@ -4539,11 +4573,11 @@
    *
    * @private
    */
-  ItemDragPlaceholder.prototype._updateDimensions = function() {
+  ItemDragPlaceholder.prototype._updateDimensions = function () {
     if (!this.isActive()) return;
     setStyles(this._element, {
       width: this._item._width + 'px',
-      height: this._item._height + 'px'
+      height: this._item._height + 'px',
     });
   };
 
@@ -4554,7 +4588,7 @@
    * @param {Item[]} items
    * @param {Boolean} isInstant
    */
-  ItemDragPlaceholder.prototype._onLayoutStart = function(items, isInstant) {
+  ItemDragPlaceholder.prototype._onLayoutStart = function (items, isInstant) {
     var item = this._item;
 
     // If the item is not part of the layout anymore reset placeholder.
@@ -4619,7 +4653,7 @@
    *
    * @private
    */
-  ItemDragPlaceholder.prototype._setupAnimation = function() {
+  ItemDragPlaceholder.prototype._setupAnimation = function () {
     if (!this.isActive()) return;
 
     var translate = getTranslate(this._element);
@@ -4632,7 +4666,7 @@
    *
    * @private
    */
-  ItemDragPlaceholder.prototype._startAnimation = function() {
+  ItemDragPlaceholder.prototype._startAnimation = function () {
     if (!this.isActive()) return;
 
     var animation = this._animation;
@@ -4661,7 +4695,7 @@
     animation.start(currentStyles, targetStyles, {
       duration: settings.layoutDuration,
       easing: settings.layoutEasing,
-      onFinish: this._onLayoutEnd
+      onFinish: this._onLayoutEnd,
     });
   };
 
@@ -4670,7 +4704,7 @@
    *
    * @private
    */
-  ItemDragPlaceholder.prototype._onLayoutEnd = function() {
+  ItemDragPlaceholder.prototype._onLayoutEnd = function () {
     if (this._resetAfterLayout) {
       this.reset();
     }
@@ -4683,7 +4717,7 @@
    * @private
    * @param {Item} item
    */
-  ItemDragPlaceholder.prototype._onReleaseEnd = function(item) {
+  ItemDragPlaceholder.prototype._onReleaseEnd = function (item) {
     if (item._id === this._item._id) {
       // If the placeholder is not animating anymore we can safely reset it.
       if (!this._animation.isAnimating()) {
@@ -4709,7 +4743,7 @@
    * @param {Grid} data.toGrid
    * @param {Number} data.toIndex
    */
-  ItemDragPlaceholder.prototype._onMigrate = function(data) {
+  ItemDragPlaceholder.prototype._onMigrate = function (data) {
     // Make sure we have a matching item.
     if (data.item !== this._item) return;
 
@@ -4738,7 +4772,7 @@
    * @private
    * @param {Item[]} items
    */
-  ItemDragPlaceholder.prototype._onHide = function(items) {
+  ItemDragPlaceholder.prototype._onHide = function (items) {
     if (items.indexOf(this._item) > -1) this.reset();
   };
 
@@ -4754,7 +4788,7 @@
    *
    * @public
    */
-  ItemDragPlaceholder.prototype.create = function() {
+  ItemDragPlaceholder.prototype.create = function () {
     // If we already have placeholder set up we can skip the initiation logic.
     if (this.isActive()) {
       this._resetAfterLayout = false;
@@ -4795,7 +4829,7 @@
       left: '0px',
       top: '0px',
       width: item._width + 'px',
-      height: item._height + 'px'
+      height: item._height + 'px',
     });
 
     // Set initial position.
@@ -4823,7 +4857,7 @@
    *
    * @public
    */
-  ItemDragPlaceholder.prototype.reset = function() {
+  ItemDragPlaceholder.prototype.reset = function () {
     if (!this.isActive()) return;
 
     var element = this._element;
@@ -4873,7 +4907,7 @@
    * @public
    * @returns {Boolean}
    */
-  ItemDragPlaceholder.prototype.isActive = function() {
+  ItemDragPlaceholder.prototype.isActive = function () {
     return !!this._element;
   };
 
@@ -4883,7 +4917,7 @@
    * @public
    * @returns {?HTMLElement}
    */
-  ItemDragPlaceholder.prototype.getElement = function() {
+  ItemDragPlaceholder.prototype.getElement = function () {
     return this._element;
   };
 
@@ -4894,7 +4928,7 @@
    *
    * @public
    */
-  ItemDragPlaceholder.prototype.updateDimensions = function() {
+  ItemDragPlaceholder.prototype.updateDimensions = function () {
     if (!this.isActive()) return;
     addPlaceholderResizeTick(this._item._id, this._updateDimensions);
   };
@@ -4904,7 +4938,7 @@
    *
    * @public
    */
-  ItemDragPlaceholder.prototype.destroy = function() {
+  ItemDragPlaceholder.prototype.destroy = function () {
     this.reset();
     this._animation.destroy();
     this._item = this._animation = null;
@@ -4938,7 +4972,7 @@
    *
    * @public
    */
-  ItemDragRelease.prototype.start = function() {
+  ItemDragRelease.prototype.start = function () {
     if (this._isDestroyed || this._isActive) return;
 
     var item = this._item;
@@ -4971,7 +5005,7 @@
    * @param {Number} [top]
    *  - The element's current translateY value (optional).
    */
-  ItemDragRelease.prototype.stop = function(abort, left, top) {
+  ItemDragRelease.prototype.stop = function (abort, left, top) {
     if (this._isDestroyed || !this._isActive) return;
 
     var item = this._item;
@@ -4988,7 +5022,7 @@
     if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
   };
 
-  ItemDragRelease.prototype.isJustReleased = function() {
+  ItemDragRelease.prototype.isJustReleased = function () {
     return this._isActive && this._isPositioningStarted === false;
   };
 
@@ -4997,7 +5031,7 @@
    *
    * @public
    */
-  ItemDragRelease.prototype.destroy = function() {
+  ItemDragRelease.prototype.destroy = function () {
     if (this._isDestroyed) return;
     this.stop(true);
     this._item = null;
@@ -5019,7 +5053,7 @@
    * @param {Number} [top]
    *  - The element's current translateY value (optional).
    */
-  ItemDragRelease.prototype._placeToGrid = function(left, top) {
+  ItemDragRelease.prototype._placeToGrid = function (left, top) {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5047,7 +5081,7 @@
    *
    * @private
    */
-  ItemDragRelease.prototype._reset = function() {
+  ItemDragRelease.prototype._reset = function () {
     if (this._isDestroyed) return;
     var item = this._item;
     this._isActive = false;
@@ -5083,7 +5117,7 @@
     this._animOptions = {
       onFinish: this._finish.bind(this),
       duration: 0,
-      easing: 0
+      easing: 0,
     };
 
     // Set element's initial position styles.
@@ -5111,7 +5145,7 @@
    * @param {Boolean} instant
    * @param {Function} [onFinish]
    */
-  ItemLayout.prototype.start = function(instant, onFinish) {
+  ItemLayout.prototype.start = function (instant, onFinish) {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5168,7 +5202,7 @@
    * @param {Boolean} processCallbackQueue
    * @param {Object} [targetStyles]
    */
-  ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
+  ItemLayout.prototype.stop = function (processCallbackQueue, targetStyles) {
     if (this._isDestroyed || !this._isActive) return;
 
     var item = this._item;
@@ -5197,7 +5231,7 @@
    *
    * @public
    */
-  ItemLayout.prototype.destroy = function() {
+  ItemLayout.prototype.destroy = function () {
     if (this._isDestroyed) return;
 
     var elementStyle = this._item._element.style;
@@ -5227,7 +5261,7 @@
    *
    * @private
    */
-  ItemLayout.prototype._updateOffsets = function() {
+  ItemLayout.prototype._updateOffsets = function () {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5252,7 +5286,7 @@
    *
    * @private
    */
-  ItemLayout.prototype._updateTargetStyles = function() {
+  ItemLayout.prototype._updateTargetStyles = function () {
     if (this._isDestroyed) return;
     this._targetStyles[transformProp] = getTranslateString(
       this._item._left + this._offsetLeft,
@@ -5265,7 +5299,7 @@
    *
    * @private
    */
-  ItemLayout.prototype._finish = function() {
+  ItemLayout.prototype._finish = function () {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5291,7 +5325,7 @@
    *
    * @private
    */
-  ItemLayout.prototype._setupAnimation = function() {
+  ItemLayout.prototype._setupAnimation = function () {
     // TODO: Keep track of the translate value so we only need to query the DOM
     // here if the item is animating currently.
     var translate = getTranslate(this._item._element);
@@ -5304,7 +5338,7 @@
    *
    * @private
    */
-  ItemLayout.prototype._startAnimation = function() {
+  ItemLayout.prototype._startAnimation = function () {
     var item = this._item;
     var settings = item.getGrid()._settings;
     var isInstant = this._animOptions.duration <= 0;
@@ -5370,7 +5404,7 @@
    * @param {(HTMLElement|Number|Item)} position
    * @param {HTMLElement} [container]
    */
-  ItemMigrate.prototype.start = function(targetGrid, position, container) {
+  ItemMigrate.prototype.start = function (targetGrid, position, container) {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5444,7 +5478,7 @@
         fromGrid: grid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
@@ -5455,7 +5489,7 @@
         fromGrid: grid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
@@ -5537,7 +5571,7 @@
         fromGrid: grid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
@@ -5548,7 +5582,7 @@
         fromGrid: grid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
   };
@@ -5565,7 +5599,7 @@
    * @param {Number} [top]
    *  - The element's current translateY value (optional).
    */
-  ItemMigrate.prototype.stop = function(abort, left, top) {
+  ItemMigrate.prototype.stop = function (abort, left, top) {
     if (this._isDestroyed || !this._isActive) return;
 
     var item = this._item;
@@ -5601,7 +5635,7 @@
    *
    * @public
    */
-  ItemMigrate.prototype.destroy = function() {
+  ItemMigrate.prototype.destroy = function () {
     if (this._isDestroyed) return;
     this.stop(true);
     this._item = null;
@@ -5653,7 +5687,7 @@
    * @param {Boolean} instant
    * @param {Function} [onFinish]
    */
-  ItemVisibility.prototype.show = function(instant, onFinish) {
+  ItemVisibility.prototype.show = function (instant, onFinish) {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5703,7 +5737,7 @@
    * @param {Boolean} instant
    * @param {Function} [onFinish]
    */
-  ItemVisibility.prototype.hide = function(instant, onFinish) {
+  ItemVisibility.prototype.hide = function (instant, onFinish) {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5752,7 +5786,7 @@
    * @param {Boolean} processCallbackQueue
    * @param {Boolean} [applyCurrentStyles=true]
    */
-  ItemVisibility.prototype.stop = function(processCallbackQueue, applyCurrentStyles) {
+  ItemVisibility.prototype.stop = function (processCallbackQueue, applyCurrentStyles) {
     if (this._isDestroyed) return;
     if (!this._isHiding && !this._isShowing) return;
 
@@ -5774,7 +5808,7 @@
    * @public
    * @param {Object} styles
    */
-  ItemVisibility.prototype.setStyles = function(styles) {
+  ItemVisibility.prototype.setStyles = function (styles) {
     var childElement = this._childElement;
     var currentStyleProps = this._currentStyleProps;
     this._removeCurrentStyles();
@@ -5789,7 +5823,7 @@
    *
    * @public
    */
-  ItemVisibility.prototype.destroy = function() {
+  ItemVisibility.prototype.destroy = function () {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5823,7 +5857,7 @@
    * @param {Boolean} [instant]
    * @param {Function} [onFinish]
    */
-  ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish) {
+  ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinish) {
     if (this._isDestroyed) return;
 
     var item = this._item;
@@ -5858,14 +5892,14 @@
     // Start the animation in the next tick (to avoid layout thrashing).
     addVisibilityTick(
       item._id,
-      function() {
+      function () {
         currentStyles = getCurrentStyles(childElement, targetStyles);
       },
-      function() {
+      function () {
         animation.start(currentStyles, targetStyles, {
           duration: duration,
           easing: easing,
-          onFinish: onFinish
+          onFinish: onFinish,
         });
       }
     );
@@ -5876,7 +5910,7 @@
    *
    * @private
    */
-  ItemVisibility.prototype._finishShow = function() {
+  ItemVisibility.prototype._finishShow = function () {
     if (this._isHidden) return;
     this._isShowing = false;
     this._item._emitter.flush(this._queue, false, this._item);
@@ -5887,10 +5921,10 @@
    *
    * @private
    */
-  ItemVisibility.prototype._finishHide = (function() {
+  ItemVisibility.prototype._finishHide = (function () {
     var layoutStyles = {};
     layoutStyles[transformProp] = getTranslateString(0, 0);
-    return function() {
+    return function () {
       if (!this._isHidden) return;
       var item = this._item;
       this._isHiding = false;
@@ -5905,7 +5939,7 @@
    *
    * @private
    */
-  ItemVisibility.prototype._removeCurrentStyles = function() {
+  ItemVisibility.prototype._removeCurrentStyles = function () {
     var childElement = this._childElement;
     var currentStyleProps = this._currentStyleProps;
 
@@ -6023,7 +6057,7 @@
    * @public
    * @returns {Grid}
    */
-  Item.prototype.getGrid = function() {
+  Item.prototype.getGrid = function () {
     return GRID_INSTANCES[this._gridId];
   };
 
@@ -6033,7 +6067,7 @@
    * @public
    * @returns {HTMLElement}
    */
-  Item.prototype.getElement = function() {
+  Item.prototype.getElement = function () {
     return this._element;
   };
 
@@ -6043,7 +6077,7 @@
    * @public
    * @returns {Number}
    */
-  Item.prototype.getWidth = function() {
+  Item.prototype.getWidth = function () {
     return this._width;
   };
 
@@ -6053,7 +6087,7 @@
    * @public
    * @returns {Number}
    */
-  Item.prototype.getHeight = function() {
+  Item.prototype.getHeight = function () {
     return this._height;
   };
 
@@ -6065,12 +6099,12 @@
    *   - The returned object contains left, right, top and bottom properties
    *     which indicate the item element's cached margins.
    */
-  Item.prototype.getMargin = function() {
+  Item.prototype.getMargin = function () {
     return {
       left: this._marginLeft,
       right: this._marginRight,
       top: this._marginTop,
-      bottom: this._marginBottom
+      bottom: this._marginBottom,
     };
   };
 
@@ -6082,10 +6116,10 @@
    *   - The returned object contains left and top properties which indicate the
    *     item element's cached position in the grid.
    */
-  Item.prototype.getPosition = function() {
+  Item.prototype.getPosition = function () {
     return {
       left: this._left,
-      top: this._top
+      top: this._top,
     };
   };
 
@@ -6095,7 +6129,7 @@
    * @public
    * @returns {Boolean}
    */
-  Item.prototype.isActive = function() {
+  Item.prototype.isActive = function () {
     return this._isActive;
   };
 
@@ -6105,7 +6139,7 @@
    * @public
    * @returns {Boolean}
    */
-  Item.prototype.isVisible = function() {
+  Item.prototype.isVisible = function () {
     return !!this._visibility && !this._visibility._isHidden;
   };
 
@@ -6115,7 +6149,7 @@
    * @public
    * @returns {Boolean}
    */
-  Item.prototype.isShowing = function() {
+  Item.prototype.isShowing = function () {
     return !!(this._visibility && this._visibility._isShowing);
   };
 
@@ -6125,7 +6159,7 @@
    * @public
    * @returns {Boolean}
    */
-  Item.prototype.isHiding = function() {
+  Item.prototype.isHiding = function () {
     return !!(this._visibility && this._visibility._isHiding);
   };
 
@@ -6135,7 +6169,7 @@
    * @public
    * @returns {Boolean}
    */
-  Item.prototype.isPositioning = function() {
+  Item.prototype.isPositioning = function () {
     return !!(this._layout && this._layout._isActive);
   };
 
@@ -6145,7 +6179,7 @@
    * @public
    * @returns {Boolean}
    */
-  Item.prototype.isDragging = function() {
+  Item.prototype.isDragging = function () {
     return !!(this._drag && this._drag._isActive);
   };
 
@@ -6155,7 +6189,7 @@
    * @public
    * @returns {Boolean}
    */
-  Item.prototype.isReleasing = function() {
+  Item.prototype.isReleasing = function () {
     return !!(this._dragRelease && this._dragRelease._isActive);
   };
 
@@ -6165,7 +6199,7 @@
    * @public
    * @returns {Boolean}
    */
-  Item.prototype.isDestroyed = function() {
+  Item.prototype.isDestroyed = function () {
     return this._isDestroyed;
   };
 
@@ -6180,7 +6214,7 @@
    * @private
    * @param {Boolean} [force=false]
    */
-  Item.prototype._refreshDimensions = function(force) {
+  Item.prototype._refreshDimensions = function (force) {
     if (this._isDestroyed) return;
     if (force !== true && this._visibility._isHidden) return;
 
@@ -6207,7 +6241,7 @@
    *
    * @private
    */
-  Item.prototype._refreshSortData = function() {
+  Item.prototype._refreshSortData = function () {
     if (this._isDestroyed) return;
 
     var data = (this._sortData = {});
@@ -6224,7 +6258,7 @@
    *
    * @private
    */
-  Item.prototype._addToLayout = function(left, top) {
+  Item.prototype._addToLayout = function (left, top) {
     if (this._isActive === true) return;
     this._isActive = true;
     this._left = left || 0;
@@ -6236,7 +6270,7 @@
    *
    * @private
    */
-  Item.prototype._removeFromLayout = function() {
+  Item.prototype._removeFromLayout = function () {
     if (this._isActive === false) return;
     this._isActive = false;
     this._left = 0;
@@ -6249,7 +6283,7 @@
    * @private
    * @param {Boolean} [removeElement=false]
    */
-  Item.prototype._destroy = function(removeElement) {
+  Item.prototype._destroy = function (removeElement) {
     if (this._isDestroyed) return;
 
     var element = this._element;
@@ -6325,7 +6359,7 @@
      *   - The layout's settings as bitmasks.
      * @returns {Object}
      */
-    PackerProcessor.prototype.fillLayout = function(layout) {
+    PackerProcessor.prototype.fillLayout = function (layout) {
       var items = layout.items;
       var slots = layout.slots;
       var settings = layout.settings || 0;
@@ -6421,11 +6455,11 @@
      * @param {Boolean} horizontal
      * @returns {Object}
      */
-    PackerProcessor.prototype.getNextSlot = (function() {
+    PackerProcessor.prototype.getNextSlot = (function () {
       var eps = 0.001;
       var minSize = 0.5;
       var slot = { left: 0, top: 0, width: 0, height: 0 };
-      return function(layout, slotWidth, slotHeight, fillGaps, horizontal) {
+      return function (layout, slotWidth, slotHeight, fillGaps, horizontal) {
         var freeSlots = this.freeSlots;
         var newSlots = this.newSlots;
         var rect;
@@ -6564,7 +6598,7 @@
      * @param {Number} height
      * @returns {Number}
      */
-    PackerProcessor.prototype.addRect = function(left, top, width, height) {
+    PackerProcessor.prototype.addRect = function (left, top, width, height) {
       var rectId = ++this.rectId;
       var rectStore = this.rectStore;
 
@@ -6585,7 +6619,7 @@
      * @param {Object} [target]
      * @returns {Object}
      */
-    PackerProcessor.prototype.getRect = function(id, target) {
+    PackerProcessor.prototype.getRect = function (id, target) {
       var rectItem = target ? target : this.rectItem;
       var rectStore = this.rectStore;
 
@@ -6604,9 +6638,9 @@
      * @param {Object} hole
      * @returns {Number[]}
      */
-    PackerProcessor.prototype.splitRect = (function() {
+    PackerProcessor.prototype.splitRect = (function () {
       var results = [];
-      return function(rect, hole) {
+      return function (rect, hole) {
         // Reset old results.
         results.length = 0;
 
@@ -6662,7 +6696,7 @@
      * @param {Object} b
      * @returns {Boolean}
      */
-    PackerProcessor.prototype.doRectsOverlap = function(a, b) {
+    PackerProcessor.prototype.doRectsOverlap = function (a, b) {
       return !(
         a.left + a.width <= b.left ||
         b.left + b.width <= a.left ||
@@ -6678,7 +6712,7 @@
      * @param {Object} b
      * @returns {Boolean}
      */
-    PackerProcessor.prototype.isRectWithinRect = function(a, b) {
+    PackerProcessor.prototype.isRectWithinRect = function (a, b) {
       return (
         a.left >= b.left &&
         a.top >= b.top &&
@@ -6695,10 +6729,10 @@
      * @param {Number[]} rectIds
      * @returns {Number[]}
      */
-    PackerProcessor.prototype.purgeRects = (function() {
+    PackerProcessor.prototype.purgeRects = (function () {
       var rectA = {};
       var rectB = {};
-      return function(rectIds) {
+      return function (rectIds) {
         var i = rectIds.length;
         var j;
 
@@ -6726,10 +6760,10 @@
      * @param {Number} bId
      * @returns {Number}
      */
-    PackerProcessor.prototype.sortRectsTopLeft = (function() {
+    PackerProcessor.prototype.sortRectsTopLeft = (function () {
       var rectA = {};
       var rectB = {};
-      return function(aId, bId) {
+      return function (aId, bId) {
         this.getRect(aId, rectA);
         this.getRect(bId, rectB);
         // prettier-ignore
@@ -6747,10 +6781,10 @@
      * @param {Number} bId
      * @returns {Number}
      */
-    PackerProcessor.prototype.sortRectsLeftTop = (function() {
+    PackerProcessor.prototype.sortRectsLeftTop = (function () {
       var rectA = {};
       var rectB = {};
-      return function(aId, bId) {
+      return function (aId, bId) {
         this.getRect(aId, rectA);
         this.getRect(bId, rectB);
         // prettier-ignore
@@ -6768,7 +6802,7 @@
       var PACKET_HEADER_SLOTS = 4;
       var processor = new PackerProcessor();
 
-      self.onmessage = function(msg) {
+      self.onmessage = function (msg) {
         var data = new Float32Array(msg.data);
         var items = data.subarray(PACKET_HEADER_SLOTS, data.length);
         var slots = new Float32Array(items.length);
@@ -6777,7 +6811,7 @@
           slots: slots,
           width: data[PACKET_INDEX_WIDTH],
           height: data[PACKET_INDEX_HEIGHT],
-          settings: data[PACKET_INDEX_OPTIONS]
+          settings: data[PACKET_INDEX_OPTIONS],
         };
 
         // Fill the layout (width / height / slots).
@@ -6802,7 +6836,7 @@
     var workers = [];
     var blobUrl = URL.createObjectURL(
       new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
-        type: 'application/javascript'
+        type: 'application/javascript',
       })
     );
 
@@ -6868,7 +6902,7 @@
     }
   }
 
-  Packer.prototype._sendToWorker = function() {
+  Packer.prototype._sendToWorker = function () {
     if (!this._layoutQueue.length || !this._workers.length) return;
 
     var id = this._layoutQueue.shift();
@@ -6880,7 +6914,7 @@
     worker.postMessage(data.buffer, [data.buffer]);
   };
 
-  Packer.prototype._onWorkerMessage = function(msg) {
+  Packer.prototype._onWorkerMessage = function (msg) {
     var data = new Float32Array(msg.data);
     var id = data[PACKET_INDEX_ID];
     var layout = this._layouts[id];
@@ -6913,7 +6947,7 @@
    * @param {Boolean} [options.alignBottom]
    * @param {Boolean} [options.rounding]
    */
-  Packer.prototype.setOptions = function(options) {
+  Packer.prototype.setOptions = function (options) {
     if (!options) return;
 
     var fillGaps;
@@ -6963,7 +6997,7 @@
    * @param {Function} callback
    * @returns {?Function}
    */
-  Packer.prototype.createLayout = function(id, items, width, height, callback) {
+  Packer.prototype.createLayout = function (id, items, width, height, callback) {
     if (this._layouts[id]) {
       throw new Error('A layout with the provided id is currently being processed.');
     }
@@ -6978,7 +7012,7 @@
       height: !horizontal ? 0 : height,
       setWidth: horizontal,
       setHeight: !horizontal,
-      settings: this._options
+      settings: this._options,
     };
 
     // If there are no items let's call the callback immediately.
@@ -7033,7 +7067,7 @@
    * @public
    * @param {Number} id
    */
-  Packer.prototype.cancelLayout = function(id) {
+  Packer.prototype.cancelLayout = function (id) {
     var layout = this._layouts[id];
     if (!layout) return;
 
@@ -7050,7 +7084,7 @@
   /**
    * @public
    */
-  Packer.prototype.destroy = function() {
+  Packer.prototype.destroy = function () {
     var worker, id, i;
 
     // Terminate active workers.
@@ -7094,7 +7128,7 @@
     var timer = 0;
     var lastTime = 0;
     var isCanceled = false;
-    var tick = function(time) {
+    var tick = function (time) {
       if (isCanceled) return;
 
       if (lastTime) timer -= time - lastTime;
@@ -7108,7 +7142,7 @@
       }
     };
 
-    return function(cancel) {
+    return function (cancel) {
       if (isCanceled) return;
 
       if (durationMs <= 0) {
@@ -7283,7 +7317,7 @@
       setWidth: false,
       setHeight: false,
       width: 0,
-      height: 0
+      height: 0,
     };
     this._isLayoutFinished = true;
     this._nextLayoutData = null;
@@ -7315,61 +7349,85 @@
    */
 
   /**
+   * @public
+   * @static
    * @see Item
    */
   Grid.Item = Item;
 
   /**
+   * @public
+   * @static
    * @see ItemLayout
    */
   Grid.ItemLayout = ItemLayout;
 
   /**
+   * @public
+   * @static
    * @see ItemVisibility
    */
   Grid.ItemVisibility = ItemVisibility;
 
   /**
+   * @public
+   * @static
    * @see ItemMigrate
    */
   Grid.ItemMigrate = ItemMigrate;
 
   /**
+   * @public
+   * @static
    * @see ItemDrag
    */
   Grid.ItemDrag = ItemDrag;
 
   /**
+   * @public
+   * @static
    * @see ItemDragRelease
    */
   Grid.ItemDragRelease = ItemDragRelease;
 
   /**
+   * @public
+   * @static
    * @see ItemDragPlaceholder
    */
   Grid.ItemDragPlaceholder = ItemDragPlaceholder;
 
   /**
+   * @public
+   * @static
    * @see Emitter
    */
   Grid.Emitter = Emitter;
 
   /**
+   * @public
+   * @static
    * @see Animator
    */
   Grid.Animator = Animator;
 
   /**
+   * @public
+   * @static
    * @see Dragger
    */
   Grid.Dragger = Dragger;
 
   /**
+   * @public
+   * @static
    * @see Packer
    */
   Grid.Packer = Packer;
 
   /**
+   * @public
+   * @static
    * @see AutoScroller
    */
   Grid.AutoScroller = AutoScroller;
@@ -7378,6 +7436,8 @@
    * The default Packer instance used by default for all layouts.
    *
    * @public
+   * @static
+   * @type {Packer}
    */
   Grid.defaultPacker = new Packer(2);
 
@@ -7385,6 +7445,8 @@
    * Default options for Grid instance.
    *
    * @public
+   * @static
+   * @type {Object}
    */
   Grid.defaultOptions = {
     // Item elements
@@ -7401,11 +7463,11 @@
     // Item's visible/hidden state styles
     visibleStyles: {
       opacity: '1',
-      transform: 'scale(1)'
+      transform: 'scale(1)',
     },
     hiddenStyles: {
       opacity: '0',
-      transform: 'scale(0.5)'
+      transform: 'scale(0.5)',
     },
 
     // Layout
@@ -7414,7 +7476,7 @@
       horizontal: false,
       alignRight: false,
       alignBottom: false,
-      rounding: true
+      rounding: true,
     },
     layoutOnResize: 150,
     layoutOnInit: true,
@@ -7430,24 +7492,24 @@
     dragHandle: null,
     dragStartPredicate: {
       distance: 0,
-      delay: 0
+      delay: 0,
     },
     dragAxis: null,
     dragSort: true,
     dragSortHeuristics: {
       sortInterval: 100,
       minDragDistance: 10,
-      minBounceBackAngle: 1
+      minBounceBackAngle: 1,
     },
     dragSortPredicate: {
       threshold: 50,
       action: ACTION_MOVE,
-      migrateAction: ACTION_MOVE
+      migrateAction: ACTION_MOVE,
     },
     dragRelease: {
       duration: 300,
       easing: 'ease',
-      useDragContainer: true
+      useDragContainer: true,
     },
     dragCssProps: {
       touchAction: 'none',
@@ -7455,13 +7517,13 @@
       userDrag: 'none',
       tapHighlightColor: 'rgba(0, 0, 0, 0)',
       touchCallout: 'none',
-      contentZooming: 'none'
+      contentZooming: 'none',
     },
     dragPlaceholder: {
       enabled: false,
       createElement: null,
       onCreate: null,
-      onRemove: null
+      onRemove: null,
     },
     dragAutoScroll: {
       targets: [],
@@ -7473,7 +7535,7 @@
       syncAfterScroll: true,
       smoothStop: true,
       onStart: null,
-      onStop: null
+      onStop: null,
     },
 
     // Classnames
@@ -7484,7 +7546,7 @@
     itemPositioningClass: 'muuri-item-positioning',
     itemDraggingClass: 'muuri-item-dragging',
     itemReleasingClass: 'muuri-item-releasing',
-    itemPlaceholderClass: 'muuri-item-placeholder'
+    itemPlaceholderClass: 'muuri-item-placeholder',
   };
 
   /**
@@ -7500,7 +7562,7 @@
    * @param {Function} listener
    * @returns {Grid}
    */
-  Grid.prototype.on = function(event, listener) {
+  Grid.prototype.on = function (event, listener) {
     this._emitter.on(event, listener);
     return this;
   };
@@ -7513,7 +7575,7 @@
    * @param {Function} listener
    * @returns {Grid}
    */
-  Grid.prototype.off = function(event, listener) {
+  Grid.prototype.off = function (event, listener) {
     this._emitter.off(event, listener);
     return this;
   };
@@ -7524,7 +7586,7 @@
    * @public
    * @returns {HTMLElement}
    */
-  Grid.prototype.getElement = function() {
+  Grid.prototype.getElement = function () {
     return this._element;
   };
 
@@ -7538,7 +7600,7 @@
    * @param {(HtmlElement|Number|Item)} [target]
    * @returns {?Item}
    */
-  Grid.prototype.getItem = function(target) {
+  Grid.prototype.getItem = function (target) {
     // If no target is specified or the instance is destroyed, return null.
     if (this._isDestroyed || (!target && target !== 0)) {
       return null;
@@ -7583,7 +7645,7 @@
    * @param {(HtmlElement|Number|Item|Array)} [targets]
    * @returns {Item[]}
    */
-  Grid.prototype.getItems = function(targets) {
+  Grid.prototype.getItems = function (targets) {
     // Return all items immediately if no targets were provided or if the
     // instance is destroyed.
     if (this._isDestroyed || targets === undefined) {
@@ -7621,7 +7683,7 @@
    * @param {Boolean} [force=false]
    * @returns {Grid}
    */
-  Grid.prototype.refreshItems = function(items, force) {
+  Grid.prototype.refreshItems = function (items, force) {
     if (this._isDestroyed) return this;
 
     var targets = items || this._items;
@@ -7665,7 +7727,7 @@
    * @param {Item[]} [items]
    * @returns {Grid}
    */
-  Grid.prototype.refreshSortData = function(items) {
+  Grid.prototype.refreshSortData = function (items) {
     if (this._isDestroyed) return this;
 
     var targets = items || this._items;
@@ -7686,7 +7748,7 @@
    * @public
    * @returns {Grid}
    */
-  Grid.prototype.synchronize = function() {
+  Grid.prototype.synchronize = function () {
     if (this._isDestroyed) return this;
 
     var items = this._items;
@@ -7719,7 +7781,7 @@
    * @param {Function} [onFinish]
    * @returns {Grid}
    */
-  Grid.prototype.layout = function(instant, onFinish) {
+  Grid.prototype.layout = function (instant, onFinish) {
     if (this._isDestroyed) return this;
 
     // Cancel unfinished layout algorithm if possible.
@@ -7734,7 +7796,7 @@
       id: nextLayoutId,
       instant: instant,
       onFinish: onFinish,
-      cancel: null
+      cancel: null,
     };
 
     // Collect layout items (all active grid items).
@@ -7803,7 +7865,7 @@
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Item[]}
    */
-  Grid.prototype.add = function(elements, options) {
+  Grid.prototype.add = function (elements, options) {
     if (this._isDestroyed || !elements) return [];
 
     var newItems = toArray(elements);
@@ -7885,7 +7947,7 @@
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Item[]}
    */
-  Grid.prototype.remove = function(items, options) {
+  Grid.prototype.remove = function (items, options) {
     if (this._isDestroyed || !items.length) return [];
 
     var opts = options || {};
@@ -7939,7 +8001,7 @@
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.show = function(items, options) {
+  Grid.prototype.show = function (items, options) {
     if (!this._isDestroyed && items.length) {
       this._setItemsVisibility(items, true, options);
     }
@@ -7958,7 +8020,7 @@
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.hide = function(items, options) {
+  Grid.prototype.hide = function (items, options) {
     if (!this._isDestroyed && items.length) {
       this._setItemsVisibility(items, false, options);
     }
@@ -7984,7 +8046,7 @@
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.filter = function(predicate, options) {
+  Grid.prototype.filter = function (predicate, options) {
     if (this._isDestroyed || !this._items.length) return this;
 
     var itemsToShow = [];
@@ -8003,7 +8065,7 @@
 
     // If we have onFinish callback, let's create proper tryFinish callback.
     if (onFinish) {
-      tryFinish = function() {
+      tryFinish = function () {
         ++tryFinishCounter && onFinish(itemsToShow.slice(0), itemsToHide.slice(0));
       };
     }
@@ -8026,7 +8088,7 @@
         instant: isInstant,
         syncWithLayout: syncWithLayout,
         onFinish: tryFinish,
-        layout: false
+        layout: false,
       });
     } else {
       tryFinish();
@@ -8038,7 +8100,7 @@
         instant: isInstant,
         syncWithLayout: syncWithLayout,
         onFinish: tryFinish,
-        layout: false
+        layout: false,
       });
     } else {
       tryFinish();
@@ -8077,7 +8139,7 @@
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.sort = (function() {
+  Grid.prototype.sort = (function () {
     var sortComparer;
     var isDescending;
     var origItems;
@@ -8133,7 +8195,7 @@
       return result;
     }
 
-    return function(comparer, options) {
+    return function (comparer, options) {
       if (this._isDestroyed || this._items.length < 2) return this;
 
       var items = this._items;
@@ -8156,10 +8218,10 @@
         sortComparer = comparer
           .trim()
           .split(' ')
-          .filter(function(val) {
+          .filter(function (val) {
             return val;
           })
-          .map(function(val) {
+          .map(function (val) {
             return val.split(':');
           });
         items.sort(defaultComparer);
@@ -8209,7 +8271,7 @@
    * @param {(Boolean|Function|String)} [options.layout=true]
    * @returns {Grid}
    */
-  Grid.prototype.move = function(item, position, options) {
+  Grid.prototype.move = function (item, position, options) {
     if (this._isDestroyed || this._items.length < 2) return this;
 
     var items = this._items;
@@ -8241,7 +8303,7 @@
           item: fromItem,
           fromIndex: fromIndex,
           toIndex: toIndex,
-          action: action
+          action: action,
         });
       }
 
@@ -8267,7 +8329,7 @@
    * @param {(Boolean|Function|String)} [options.layoutReceiver=true]
    * @returns {Grid}
    */
-  Grid.prototype.send = function(item, targetGrid, position, options) {
+  Grid.prototype.send = function (item, targetGrid, position, options) {
     if (this._isDestroyed || targetGrid._isDestroyed || this === targetGrid) return this;
 
     // Make sure we have a valid target item.
@@ -8311,7 +8373,7 @@
    * @param {Boolean} [removeElements=false]
    * @returns {Grid}
    */
-  Grid.prototype.destroy = function(removeElements) {
+  Grid.prototype.destroy = function (removeElements) {
     if (this._isDestroyed) return this;
 
     var container = this._element;
@@ -8357,7 +8419,7 @@
    * @param {String} event
    * @param {...*} [arg]
    */
-  Grid.prototype._emit = function() {
+  Grid.prototype._emit = function () {
     if (this._isDestroyed) return;
     this._emitter.emit.apply(this._emitter, arguments);
   };
@@ -8369,7 +8431,7 @@
    * @param {String} event
    * @returns {Boolean}
    */
-  Grid.prototype._hasListeners = function(event) {
+  Grid.prototype._hasListeners = function (event) {
     if (this._isDestroyed) return false;
     return this._emitter.countListeners(event) > 0;
   };
@@ -8379,7 +8441,7 @@
    *
    * @private
    */
-  Grid.prototype._updateBoundingRect = function() {
+  Grid.prototype._updateBoundingRect = function () {
     var element = this._element;
     var rect = element.getBoundingClientRect();
     this._width = rect.width;
@@ -8399,7 +8461,7 @@
    * @param {Boolean} top
    * @param {Boolean} bottom
    */
-  Grid.prototype._updateBorders = function(left, right, top, bottom) {
+  Grid.prototype._updateBorders = function (left, right, top, bottom) {
     var element = this._element;
     if (left) this._borderLeft = getStyleAsFloat(element, 'border-left-width');
     if (right) this._borderRight = getStyleAsFloat(element, 'border-right-width');
@@ -8412,7 +8474,7 @@
    *
    * @private
    */
-  Grid.prototype._refreshDimensions = function() {
+  Grid.prototype._refreshDimensions = function () {
     this._updateBoundingRect();
     this._updateBorders(1, 1, 1, 1);
     this._boxSizing = getStyle(this._element, 'box-sizing');
@@ -8430,7 +8492,7 @@
    * @private
    * @param {Object} layout
    */
-  Grid.prototype._updateGridElementSize = function(layout) {
+  Grid.prototype._updateGridElementSize = function (layout) {
     var element = this._element;
     var isBorderBox = this._boxSizing === 'border-box';
 
@@ -8451,9 +8513,9 @@
    * @private
    * @param {Object} layout
    */
-  Grid.prototype._onLayoutDataReceived = (function() {
+  Grid.prototype._onLayoutDataReceived = (function () {
     var itemsToLayout = [];
-    return function(layout) {
+    return function (layout) {
       if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
 
       var grid = this;
@@ -8578,7 +8640,7 @@
    * @param {Function} [options.onFinish]
    * @param {(Boolean|Function|String)} [options.layout=true]
    */
-  Grid.prototype._setItemsVisibility = function(items, toVisible, options) {
+  Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
     var grid = this;
     var targetItems = items.slice(0);
     var opts = options || {};
@@ -8656,7 +8718,7 @@
           continue;
         }
 
-        targetItems[i]._visibility[method](isInstant, function(interrupted, item) {
+        targetItems[i]._visibility[method](isInstant, function (interrupted, item) {
           // If the current item's animation was not interrupted add it to the
           // completedItems array.
           if (!interrupted) completedItems.push(item);
@@ -8823,7 +8885,7 @@
     }
 
     if (delay >= 0) {
-      grid._resizeHandler = debounce(function() {
+      grid._resizeHandler = debounce(function () {
         grid.refreshItems().layout();
       }, delay);
 

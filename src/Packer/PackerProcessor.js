@@ -49,7 +49,7 @@ function createPackerProcessor(isWorker = false) {
    *   - The layout's settings as bitmasks.
    * @returns {Object}
    */
-  PackerProcessor.prototype.fillLayout = function(layout) {
+  PackerProcessor.prototype.fillLayout = function (layout) {
     var items = layout.items;
     var slots = layout.slots;
     var settings = layout.settings || 0;
@@ -145,11 +145,11 @@ function createPackerProcessor(isWorker = false) {
    * @param {Boolean} horizontal
    * @returns {Object}
    */
-  PackerProcessor.prototype.getNextSlot = (function() {
+  PackerProcessor.prototype.getNextSlot = (function () {
     var eps = 0.001;
     var minSize = 0.5;
     var slot = { left: 0, top: 0, width: 0, height: 0 };
-    return function(layout, slotWidth, slotHeight, fillGaps, horizontal) {
+    return function (layout, slotWidth, slotHeight, fillGaps, horizontal) {
       var freeSlots = this.freeSlots;
       var newSlots = this.newSlots;
       var rect;
@@ -288,7 +288,7 @@ function createPackerProcessor(isWorker = false) {
    * @param {Number} height
    * @returns {Number}
    */
-  PackerProcessor.prototype.addRect = function(left, top, width, height) {
+  PackerProcessor.prototype.addRect = function (left, top, width, height) {
     var rectId = ++this.rectId;
     var rectStore = this.rectStore;
 
@@ -309,7 +309,7 @@ function createPackerProcessor(isWorker = false) {
    * @param {Object} [target]
    * @returns {Object}
    */
-  PackerProcessor.prototype.getRect = function(id, target) {
+  PackerProcessor.prototype.getRect = function (id, target) {
     var rectItem = target ? target : this.rectItem;
     var rectStore = this.rectStore;
 
@@ -328,9 +328,9 @@ function createPackerProcessor(isWorker = false) {
    * @param {Object} hole
    * @returns {Number[]}
    */
-  PackerProcessor.prototype.splitRect = (function() {
+  PackerProcessor.prototype.splitRect = (function () {
     var results = [];
-    return function(rect, hole) {
+    return function (rect, hole) {
       // Reset old results.
       results.length = 0;
 
@@ -386,7 +386,7 @@ function createPackerProcessor(isWorker = false) {
    * @param {Object} b
    * @returns {Boolean}
    */
-  PackerProcessor.prototype.doRectsOverlap = function(a, b) {
+  PackerProcessor.prototype.doRectsOverlap = function (a, b) {
     return !(
       a.left + a.width <= b.left ||
       b.left + b.width <= a.left ||
@@ -402,7 +402,7 @@ function createPackerProcessor(isWorker = false) {
    * @param {Object} b
    * @returns {Boolean}
    */
-  PackerProcessor.prototype.isRectWithinRect = function(a, b) {
+  PackerProcessor.prototype.isRectWithinRect = function (a, b) {
     return (
       a.left >= b.left &&
       a.top >= b.top &&
@@ -419,10 +419,10 @@ function createPackerProcessor(isWorker = false) {
    * @param {Number[]} rectIds
    * @returns {Number[]}
    */
-  PackerProcessor.prototype.purgeRects = (function() {
+  PackerProcessor.prototype.purgeRects = (function () {
     var rectA = {};
     var rectB = {};
-    return function(rectIds) {
+    return function (rectIds) {
       var i = rectIds.length;
       var j;
 
@@ -450,10 +450,10 @@ function createPackerProcessor(isWorker = false) {
    * @param {Number} bId
    * @returns {Number}
    */
-  PackerProcessor.prototype.sortRectsTopLeft = (function() {
+  PackerProcessor.prototype.sortRectsTopLeft = (function () {
     var rectA = {};
     var rectB = {};
-    return function(aId, bId) {
+    return function (aId, bId) {
       this.getRect(aId, rectA);
       this.getRect(bId, rectB);
       // prettier-ignore
@@ -471,10 +471,10 @@ function createPackerProcessor(isWorker = false) {
    * @param {Number} bId
    * @returns {Number}
    */
-  PackerProcessor.prototype.sortRectsLeftTop = (function() {
+  PackerProcessor.prototype.sortRectsLeftTop = (function () {
     var rectA = {};
     var rectB = {};
-    return function(aId, bId) {
+    return function (aId, bId) {
       this.getRect(aId, rectA);
       this.getRect(bId, rectB);
       // prettier-ignore
@@ -492,7 +492,7 @@ function createPackerProcessor(isWorker = false) {
     var PACKET_HEADER_SLOTS = 4;
     var processor = new PackerProcessor();
 
-    self.onmessage = function(msg) {
+    self.onmessage = function (msg) {
       var data = new Float32Array(msg.data);
       var items = data.subarray(PACKET_HEADER_SLOTS, data.length);
       var slots = new Float32Array(items.length);
@@ -501,7 +501,7 @@ function createPackerProcessor(isWorker = false) {
         slots: slots,
         width: data[PACKET_INDEX_WIDTH],
         height: data[PACKET_INDEX_HEIGHT],
-        settings: data[PACKET_INDEX_OPTIONS]
+        settings: data[PACKET_INDEX_OPTIONS],
       };
 
       // Fill the layout (width / height / slots).
@@ -528,7 +528,7 @@ export function createWorkers(amount, onmessage) {
   var workers = [];
   var blobUrl = URL.createObjectURL(
     new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
-      type: 'application/javascript'
+      type: 'application/javascript',
     })
   );
 

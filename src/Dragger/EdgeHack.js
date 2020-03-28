@@ -47,7 +47,7 @@ function EdgeHack(dragger) {
 /**
  * @private
  */
-EdgeHack.prototype._addBehaviour = function() {
+EdgeHack.prototype._addBehaviour = function () {
   if (this._isActive) return;
   this._isActive = true;
   this._dragger.on('move', this._resetData);
@@ -59,7 +59,7 @@ EdgeHack.prototype._addBehaviour = function() {
 /**
  * @private
  */
-EdgeHack.prototype._removeBehaviour = function() {
+EdgeHack.prototype._removeBehaviour = function () {
   if (!this._isActive) return;
   this._dragger.off('move', this._resetData);
   this._dragger.off('cancel', this._removeBehaviour);
@@ -72,7 +72,7 @@ EdgeHack.prototype._removeBehaviour = function() {
 /**
  * @private
  */
-EdgeHack.prototype._resetData = function() {
+EdgeHack.prototype._resetData = function () {
   window.clearTimeout(this._timeout);
   this._timeout = null;
   this._outEvent = null;
@@ -82,7 +82,7 @@ EdgeHack.prototype._resetData = function() {
  * @private
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
-EdgeHack.prototype._onStart = function(e) {
+EdgeHack.prototype._onStart = function (e) {
   if (e.pointerType === 'mouse') return;
   this._addBehaviour();
 };
@@ -91,7 +91,7 @@ EdgeHack.prototype._onStart = function(e) {
  * @private
  * @param {(PointerEvent|TouchEvent|MouseEvent)} e
  */
-EdgeHack.prototype._onOut = function(e) {
+EdgeHack.prototype._onOut = function (e) {
   if (!this._dragger._getTrackedTouch(e)) return;
   this._resetData();
   this._outEvent = e;
@@ -101,7 +101,7 @@ EdgeHack.prototype._onOut = function(e) {
 /**
  * @private
  */
-EdgeHack.prototype._onTimeout = function() {
+EdgeHack.prototype._onTimeout = function () {
   var e = this._outEvent;
   this._resetData();
   if (this._dragger.isActive()) this._dragger._onCancel(e);
@@ -110,7 +110,7 @@ EdgeHack.prototype._onTimeout = function() {
 /**
  * @public
  */
-EdgeHack.prototype.destroy = function() {
+EdgeHack.prototype.destroy = function () {
   if (!pointerout) return;
   this._dragger.off('start', this._onStart);
   this._removeBehaviour();

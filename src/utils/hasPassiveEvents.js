@@ -15,9 +15,9 @@ export default function hasPassiveEvents() {
 
   try {
     var passiveOpts = Object.defineProperty({}, 'passive', {
-      get: function() {
+      get: function () {
         isPassiveEventsSupported = true;
-      }
+      },
     });
     window.addEventListener('testPassive', null, passiveOpts);
     window.removeEventListener('testPassive', null, passiveOpts);

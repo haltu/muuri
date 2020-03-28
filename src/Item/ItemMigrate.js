@@ -48,7 +48,7 @@ function ItemMigrate(item) {
  * @param {(HTMLElement|Number|Item)} position
  * @param {HTMLElement} [container]
  */
-ItemMigrate.prototype.start = function(targetGrid, position, container) {
+ItemMigrate.prototype.start = function (targetGrid, position, container) {
   if (this._isDestroyed) return;
 
   var item = this._item;
@@ -122,7 +122,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
       fromGrid: grid,
       fromIndex: currentIndex,
       toGrid: targetGrid,
-      toIndex: targetIndex
+      toIndex: targetIndex,
     });
   }
 
@@ -133,7 +133,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
       fromGrid: grid,
       fromIndex: currentIndex,
       toGrid: targetGrid,
-      toIndex: targetIndex
+      toIndex: targetIndex,
     });
   }
 
@@ -215,7 +215,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
       fromGrid: grid,
       fromIndex: currentIndex,
       toGrid: targetGrid,
-      toIndex: targetIndex
+      toIndex: targetIndex,
     });
   }
 
@@ -226,7 +226,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
       fromGrid: grid,
       fromIndex: currentIndex,
       toGrid: targetGrid,
-      toIndex: targetIndex
+      toIndex: targetIndex,
     });
   }
 };
@@ -243,7 +243,7 @@ ItemMigrate.prototype.start = function(targetGrid, position, container) {
  * @param {Number} [top]
  *  - The element's current translateY value (optional).
  */
-ItemMigrate.prototype.stop = function(abort, left, top) {
+ItemMigrate.prototype.stop = function (abort, left, top) {
   if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
@@ -279,7 +279,7 @@ ItemMigrate.prototype.stop = function(abort, left, top) {
  *
  * @public
  */
-ItemMigrate.prototype.destroy = function() {
+ItemMigrate.prototype.destroy = function () {
   if (this._isDestroyed) return;
   this.stop(true);
   this._item = null;

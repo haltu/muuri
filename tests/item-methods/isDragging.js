@@ -1,16 +1,16 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Item methods');
 
-  QUnit.test('isDragging: should return true if the item is being dragged', function(assert) {
+  QUnit.test('isDragging: should return true if the item is being dragged', function (assert) {
     assert.expect(4);
 
     var done = assert.async();
     var container = utils.createGridElements();
     var grid = new Muuri(container, { dragEnabled: true });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
@@ -43,10 +43,7 @@
       );
     }
 
-    grid
-      .on('dragStart', onDragStart)
-      .on('dragMove', onDragMove)
-      .on('dragEnd', onDragEnd);
+    grid.on('dragStart', onDragStart).on('dragMove', onDragMove).on('dragEnd', onDragEnd);
 
     assert.strictEqual(
       item.isDragging(),
@@ -58,7 +55,7 @@
       element: item.getElement(),
       x: 100,
       y: 100,
-      onFinished: teardown
+      onFinished: teardown,
     });
   });
 })(this);

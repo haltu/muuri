@@ -1,17 +1,17 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
   var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('getItems: should return the instance`s items', function(assert) {
+  QUnit.test('getItems: should return the instance`s items', function (assert) {
     assert.expect(6);
 
     var done = assert.async();
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();

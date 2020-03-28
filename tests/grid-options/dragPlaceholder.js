@@ -1,22 +1,22 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
-  QUnit.test('dragPlaceholder: should not be enabled by default', function(assert) {
+  QUnit.test('dragPlaceholder: should not be enabled by default', function (assert) {
     assert.expect(1);
 
     var done = assert.async();
     var container = utils.createGridElements();
     var grid = new Muuri(container, { dragEnabled: true });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('dragStart', function() {
+    grid.on('dragStart', function () {
       assert.strictEqual(item._dragPlaceholder.isActive(), false, '');
     });
 
@@ -24,11 +24,11 @@
       element: item.getElement(),
       x: 70,
       y: 70,
-      onFinished: teardown
+      onFinished: teardown,
     });
   });
 
-  QUnit.test('dragPlaceholder: should be enabled when `enabled` is set to true', function(assert) {
+  QUnit.test('dragPlaceholder: should be enabled when `enabled` is set to true', function (assert) {
     assert.expect(12);
 
     var done = assert.async();
@@ -40,7 +40,7 @@
       dragEnabled: true,
       dragPlaceholder: {
         enabled: true,
-        createElement: function(draggedItem) {
+        createElement: function (draggedItem) {
           assert.strictEqual(arguments.length, 1, 'createElement should receive one argument');
           assert.strictEqual(
             draggedItem,
@@ -49,7 +49,7 @@
           );
           return phElem;
         },
-        onCreate: function(draggedItem, placeholderElem) {
+        onCreate: function (draggedItem, placeholderElem) {
           assert.strictEqual(arguments.length, 2, 'onCreate: should receive two arguments');
           assert.strictEqual(
             draggedItem,
@@ -67,7 +67,7 @@
             'onCreate: placeholder element should have itemPlaceholderClass applied'
           );
         },
-        onRemove: function(draggedItem, placeholderElem) {
+        onRemove: function (draggedItem, placeholderElem) {
           assert.strictEqual(arguments.length, 2, 'onRemove: should receive two arguments');
           assert.strictEqual(
             draggedItem,
@@ -85,17 +85,17 @@
             'onRemove: placeholder element should have itemPlaceholderClass removed'
           );
           teardown();
-        }
-      }
+        },
+      },
     });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('dragStart', function() {
+    grid.on('dragStart', function () {
       var ph = item._dragPlaceholder;
       assert.strictEqual(ph.isActive(), true, 'placeholder should be active');
       assert.strictEqual(
@@ -108,26 +108,26 @@
     utils.dragElement({
       element: item.getElement(),
       x: 0,
-      y: 70
+      y: 70,
     });
   });
 
   QUnit.test(
     'dragPlaceholder: placeholder element dimensions should be kept in sync with item element dimensions',
-    function(assert) {
+    function (assert) {
       assert.expect(4);
 
       var done = assert.async();
       var container = utils.createGridElements();
       var grid = new Muuri(container, { dragEnabled: true, dragPlaceholder: { enabled: true } });
       var item = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
-      grid.on('dragStart', function() {
+      grid.on('dragStart', function () {
         var phElem = item._dragPlaceholder.getElement();
         var itemElem = item.getElement();
         var phRect = phElem.getBoundingClientRect();
@@ -149,7 +149,7 @@
         grid.refreshItems();
       });
 
-      grid.on('dragEnd', function() {
+      grid.on('dragEnd', function () {
         var phElem = item._dragPlaceholder.getElement();
         var itemElem = item.getElement();
         var phRect = phElem.getBoundingClientRect();
@@ -171,7 +171,7 @@
         element: item.getElement(),
         x: 0,
         y: 70,
-        onFinished: teardown
+        onFinished: teardown,
       });
     }
   );

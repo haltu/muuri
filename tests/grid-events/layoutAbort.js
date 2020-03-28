@@ -1,11 +1,11 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
   QUnit.test(
     'layoutAbort: should be emitted before layoutStart if current layout process is aborted',
-    function(assert) {
+    function (assert) {
       assert.expect(8);
 
       var done = assert.async();
@@ -13,13 +13,13 @@
       var grid = new Muuri(container);
       var expectedItems = [];
       var firstItem = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
-      grid.on('layoutAbort', function(items) {
+      grid.on('layoutAbort', function (items) {
         assert.strictEqual(arguments.length, 1, 'callback: should have a single argument');
         assert.deepEqual(
           utils.idList(items),

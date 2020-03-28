@@ -1,9 +1,9 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('dragEnd: should be triggered when item is dragged', function(assert) {
+  QUnit.test('dragEnd: should be triggered when item is dragged', function (assert) {
     assert.expect(9);
 
     var done = assert.async();
@@ -13,21 +13,21 @@
     var calls = 0;
     var isStartCalled = false;
     var isMoveCalled = false;
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('dragStart', function() {
+    grid.on('dragStart', function () {
       isStartCalled = true;
     });
 
-    grid.on('dragMove', function() {
+    grid.on('dragMove', function () {
       isMoveCalled = true;
     });
 
-    grid.on('dragEnd', function(draggedItem, ev) {
+    grid.on('dragEnd', function (draggedItem, ev) {
       assert.strictEqual(arguments.length, 2, 'callback: should receive two arguments');
       assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
       assert.strictEqual(isStartCalled, true, 'callback: should be called after dragStart');
@@ -45,7 +45,7 @@
       ++calls;
     });
 
-    grid.on('dragReleaseEnd', function() {
+    grid.on('dragReleaseEnd', function () {
       assert.strictEqual(calls, 1, 'should be called only once during drag process');
       teardown();
     });
@@ -53,7 +53,7 @@
     utils.dragElement({
       element: item.getElement(),
       x: 100,
-      y: 100
+      y: 100,
     });
   });
 })(this);

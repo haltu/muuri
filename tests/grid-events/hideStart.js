@@ -1,22 +1,22 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
   QUnit.test(
     'hideStart: should be triggered after grid.hide() (before the showing starts)',
-    function(assert) {
+    function (assert) {
       assert.expect(2);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
 
       grid.hide(grid.getItems(0), { layout: false, instant: true, syncWithLayout: false });
-      grid.on('hideStart', function(items) {
+      grid.on('hideStart', function (items) {
         assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
         assert.deepEqual(
           utils.sortedIdList(items),

@@ -1,18 +1,18 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
-  QUnit.test('itemVisibleClass: should define the classname for visible item elements', function(
+  QUnit.test('itemVisibleClass: should define the classname for visible item elements', function (
     assert
   ) {
     assert.expect(2);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container, {
-      itemVisibleClass: 'foo'
+      itemVisibleClass: 'foo',
     });
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };

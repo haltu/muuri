@@ -1,9 +1,9 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('draggerEvent interface', function(assert) {
+  QUnit.test('draggerEvent interface', function (assert) {
     assert.expect(35);
 
     var done = assert.async();
@@ -12,7 +12,7 @@
     var item = grid.getItems()[0];
     var evStart, evMove1, evMove2, evEnd;
     var startClientX, startClientY;
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
@@ -61,14 +61,14 @@
       }
     }
 
-    grid.on('dragStart', function(item, ev) {
+    grid.on('dragStart', function (item, ev) {
       startClientX = ev.clientX;
       startClientY = ev.clientY;
       evStart = ev;
       assertDraggerEvent(ev);
     });
 
-    grid.on('dragMove', function(item, ev) {
+    grid.on('dragMove', function (item, ev) {
       if (!evMove1) {
         evMove1 = ev;
         assertDraggerEvent(ev);
@@ -77,12 +77,12 @@
       }
     });
 
-    grid.on('dragEnd', function(item, ev) {
+    grid.on('dragEnd', function (item, ev) {
       evEnd = ev;
       assertDraggerEvent(ev);
     });
 
-    grid.on('dragReleaseEnd', function() {
+    grid.on('dragReleaseEnd', function () {
       var hasUniqueEvents =
         evStart !== evMove1 &&
         evStart !== evMove2 &&
@@ -106,7 +106,7 @@
     utils.dragElement({
       element: item.getElement(),
       x: 100,
-      y: 100
+      y: 100,
     });
   });
 })(this);

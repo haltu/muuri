@@ -1,16 +1,16 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
   var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('remove: should return the removed items', function(assert) {
+  QUnit.test('remove: should return the removed items', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var removedItems = grid.getItems([0, 1]);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -19,12 +19,12 @@
     teardown();
   });
 
-  QUnit.test('remove: should accept an array of items as the first argument', function(assert) {
+  QUnit.test('remove: should accept an array of items as the first argument', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -39,12 +39,12 @@
     teardown();
   });
 
-  QUnit.test('remove: should not remove the item elements by default', function(assert) {
+  QUnit.test('remove: should not remove the item elements by default', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -56,12 +56,12 @@
 
   QUnit.test(
     'remove: should remove the item elements when removeElements option is set to true',
-    function(assert) {
+    function (assert) {
       assert.expect(1);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
@@ -72,17 +72,17 @@
     }
   );
 
-  QUnit.test('remove: should automatically layout the grid after remove', function(assert) {
+  QUnit.test('remove: should automatically layout the grid after remove', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    grid.on('layoutStart', function() {
+    grid.on('layoutStart', function () {
       assert.strictEqual(true, true);
       teardown();
     });
@@ -91,17 +91,17 @@
 
   QUnit.test(
     'remove: should not trigger layout after remove when layout option is set to false',
-    function(assert) {
+    function (assert) {
       assert.expect(0);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
 
-      grid.on('layoutStart', function() {
+      grid.on('layoutStart', function () {
         assert.strictEqual(true, false);
       });
       grid.remove(grid.getItems(0), { layout: false });
@@ -111,17 +111,17 @@
 
   QUnit.test(
     'remove: should trigger unanimated layout after add when layout option is set to "instant"',
-    function(assert) {
+    function (assert) {
       assert.expect(1);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
 
-      grid.on('layoutEnd', function() {
+      grid.on('layoutEnd', function () {
         assert.strictEqual(true, true);
         teardown();
       });
@@ -131,20 +131,20 @@
 
   QUnit.test(
     'remove: should trigger layout and call callback function after add when a callback function is provided to the layout option',
-    function(assert) {
+    function (assert) {
       assert.expect(2);
 
       var done = assert.async();
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
       var args;
 
-      grid.on('layoutEnd', function(items) {
+      grid.on('layoutEnd', function (items) {
         assert.notStrictEqual(
           args,
           items,
@@ -159,9 +159,9 @@
       });
 
       grid.remove(grid.getItems(0), {
-        layout: function(items) {
+        layout: function (items) {
           args = items;
-        }
+        },
       });
     }
   );

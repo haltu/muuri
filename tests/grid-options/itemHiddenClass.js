@@ -1,18 +1,18 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
-  QUnit.test('itemHiddenClass: should define the classname for hidden item elements', function(
+  QUnit.test('itemHiddenClass: should define the classname for hidden item elements', function (
     assert
   ) {
     assert.expect(2);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container, {
-      itemHiddenClass: 'foo'
+      itemHiddenClass: 'foo',
     });
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };

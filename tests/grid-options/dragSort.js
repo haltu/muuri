@@ -1,29 +1,29 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
-  QUnit.test('dragSort: should be enabled by default', function(assert) {
+  QUnit.test('dragSort: should be enabled by default', function (assert) {
     assert.expect(1);
 
     var done = assert.async();
     var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
-        width: '70px'
-      }
+        width: '70px',
+      },
     });
     var grid = new Muuri(container, {
-      dragEnabled: true
+      dragEnabled: true,
     });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('move', function() {
+    grid.on('move', function () {
       assert.strictEqual(true, true);
     });
 
@@ -31,32 +31,32 @@
       element: item.getElement(),
       x: 0,
       y: 70,
-      onFinished: teardown
+      onFinished: teardown,
     });
   });
 
-  QUnit.test('dragSort: should be disabled if false is provided', function(assert) {
+  QUnit.test('dragSort: should be disabled if false is provided', function (assert) {
     assert.expect(0);
 
     var done = assert.async();
     var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
-        width: '70px'
-      }
+        width: '70px',
+      },
     });
     var grid = new Muuri(container, {
       dragEnabled: true,
-      dragSort: false
+      dragSort: false,
     });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('move', function() {
+    grid.on('move', function () {
       assert.strictEqual(true, false, 'items should not be moved');
     });
 
@@ -64,11 +64,11 @@
       element: item.getElement(),
       x: 0,
       y: 70,
-      onFinished: teardown
+      onFinished: teardown,
     });
   });
 
-  QUnit.test('dragSort: by default items should not be draggable between grids', function(assert) {
+  QUnit.test('dragSort: by default items should not be draggable between grids', function (assert) {
     assert.expect(0);
 
     var done = assert.async();
@@ -77,49 +77,49 @@
         position: 'absolute',
         left: '0px',
         top: '0px',
-        width: '50px'
+        width: '50px',
       },
       itemStyles: {
         position: 'absolute',
         height: '50px',
         width: '100%',
         margin: '10px',
-        background: '#000'
-      }
+        background: '#000',
+      },
     });
     var containerB = utils.createGridElements({
       containerStyles: {
         position: 'absolute',
         left: '70px',
         top: '0px',
-        width: '50px'
+        width: '50px',
       },
       itemStyles: {
         position: 'absolute',
         height: '50px',
         width: '100%',
         margin: '10px',
-        background: '#000'
-      }
+        background: '#000',
+      },
     });
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
       dragSortInterval: 100,
       dragSortPredicate: {
         threshold: 50,
-        action: 'move'
-      }
+        action: 'move',
+      },
     });
     var gridB = new Muuri(containerB, {
       dragEnabled: true,
       dragSortInterval: 100,
       dragSortPredicate: {
         threshold: 50,
-        action: 'move'
-      }
+        action: 'move',
+      },
     });
     var item = gridA.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       gridA.destroy();
       gridB.destroy();
       containerA.parentNode.removeChild(containerA);
@@ -127,7 +127,7 @@
       done();
     };
 
-    gridB.on('receive', function() {
+    gridB.on('receive', function () {
       assert.strictEqual(true, false);
     });
 
@@ -135,89 +135,90 @@
       element: item.getElement(),
       x: 70,
       y: 0,
-      onFinished: teardown
+      onFinished: teardown,
     });
   });
 
-  QUnit.test('dragSort: should accept a function that returns an array of grid instances', function(
-    assert
-  ) {
-    assert.expect(1);
+  QUnit.test(
+    'dragSort: should accept a function that returns an array of grid instances',
+    function (assert) {
+      assert.expect(1);
 
-    var done = assert.async();
-    var containerA = utils.createGridElements({
-      containerStyles: {
-        position: 'absolute',
-        left: '0px',
-        top: '0px',
-        width: '50px'
-      },
-      itemStyles: {
-        position: 'absolute',
-        height: '50px',
-        width: '100%',
-        margin: '10px',
-        background: '#000'
-      }
-    });
-    var containerB = utils.createGridElements({
-      containerStyles: {
-        position: 'absolute',
-        left: '70px',
-        top: '0px',
-        width: '50px'
-      },
-      itemStyles: {
-        position: 'absolute',
-        height: '50px',
-        width: '100%',
-        margin: '10px',
-        background: '#000'
-      }
-    });
-    var grids = [];
-    var gridA = new Muuri(containerA, {
-      dragEnabled: true,
-      dragSort: function() {
-        return grids;
-      },
-      dragSortInterval: 100,
-      dragSortPredicate: {
-        threshold: 50,
-        action: 'move'
-      }
-    });
-    var gridB = new Muuri(containerB, {
-      dragEnabled: true,
-      dragSort: function() {
-        return grids;
-      },
-      dragSortInterval: 100,
-      dragSortPredicate: {
-        threshold: 50,
-        action: 'move'
-      }
-    });
-    var item = gridA.getItems()[0];
-    var teardown = function() {
-      gridA.destroy();
-      gridB.destroy();
-      containerA.parentNode.removeChild(containerA);
-      containerB.parentNode.removeChild(containerB);
-      done();
-    };
+      var done = assert.async();
+      var containerA = utils.createGridElements({
+        containerStyles: {
+          position: 'absolute',
+          left: '0px',
+          top: '0px',
+          width: '50px',
+        },
+        itemStyles: {
+          position: 'absolute',
+          height: '50px',
+          width: '100%',
+          margin: '10px',
+          background: '#000',
+        },
+      });
+      var containerB = utils.createGridElements({
+        containerStyles: {
+          position: 'absolute',
+          left: '70px',
+          top: '0px',
+          width: '50px',
+        },
+        itemStyles: {
+          position: 'absolute',
+          height: '50px',
+          width: '100%',
+          margin: '10px',
+          background: '#000',
+        },
+      });
+      var grids = [];
+      var gridA = new Muuri(containerA, {
+        dragEnabled: true,
+        dragSort: function () {
+          return grids;
+        },
+        dragSortInterval: 100,
+        dragSortPredicate: {
+          threshold: 50,
+          action: 'move',
+        },
+      });
+      var gridB = new Muuri(containerB, {
+        dragEnabled: true,
+        dragSort: function () {
+          return grids;
+        },
+        dragSortInterval: 100,
+        dragSortPredicate: {
+          threshold: 50,
+          action: 'move',
+        },
+      });
+      var item = gridA.getItems()[0];
+      var teardown = function () {
+        gridA.destroy();
+        gridB.destroy();
+        containerA.parentNode.removeChild(containerA);
+        containerB.parentNode.removeChild(containerB);
+        done();
+      };
 
-    grids.push(gridA, gridB);
+      grids.push(gridA, gridB);
 
-    gridB.on('receive', function() {
-      assert.strictEqual(true, true);
-    });
+      gridB.on('receive', function () {
+        assert.strictEqual(true, true);
+      });
 
-    utils.dragElement({
-      element: item.getElement(),
-      x: 70,
-      y: 0,
-      onFinished: teardown
-    });
-  });
+      utils.dragElement({
+        element: item.getElement(),
+        x: 70,
+        y: 0,
+        onFinished: teardown,
+      });
+    }
+  );
 })(this);

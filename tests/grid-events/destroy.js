@@ -1,27 +1,24 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('destroy: should be triggered after grid.destroy()', function(assert) {
+  QUnit.test('destroy: should be triggered after grid.destroy()', function (assert) {
     assert.expect(2);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var calls = 0;
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    grid.on('destroy', function() {
+    grid.on('destroy', function () {
       assert.strictEqual(arguments.length, 0, 'callback: should have no arguments');
       ++calls;
     });
-    grid
-      .destroy()
-      .destroy()
-      .destroy();
+    grid.destroy().destroy().destroy();
     assert.strictEqual(
       calls,
       1,

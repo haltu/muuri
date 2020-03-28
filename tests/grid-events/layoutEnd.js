@@ -1,11 +1,11 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
   QUnit.test(
     'layoutEnd: should be triggered after grid.layout() (after the items have positioned)',
-    function(assert) {
+    function (assert) {
       assert.expect(3);
 
       var done = assert.async();
@@ -13,14 +13,14 @@
       var grid = new Muuri(container);
       var isAnyItemPositioning = false;
       var expectedItems = [];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
-      grid.on('layoutEnd', function(items) {
-        items.forEach(function(item) {
+      grid.on('layoutEnd', function (items) {
+        items.forEach(function (item) {
           if (item.isPositioning()) {
             isAnyItemPositioning = true;
           }

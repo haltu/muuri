@@ -1,11 +1,11 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
   QUnit.test(
     'beforeReceive: should be triggered in the beginning of the send procedure (for the receiving grid)',
-    function(assert) {
+    function (assert) {
       assert.expect(11);
 
       var containerA = utils.createGridElements();
@@ -13,14 +13,14 @@
       var gridA = new Muuri(containerA);
       var gridB = new Muuri(containerB);
       var item = gridA.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         gridA.destroy();
         gridB.destroy();
         containerA.parentNode.removeChild(containerA);
         containerB.parentNode.removeChild(containerB);
       };
 
-      gridB.on('beforeReceive', function(data) {
+      gridB.on('beforeReceive', function (data) {
         assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
         assert.strictEqual(
           Object.prototype.toString.call(data),
@@ -73,7 +73,7 @@
           'callback: the item element should not be appended to the send container'
         );
       });
-      gridA.on('beforeReceive', function() {
+      gridA.on('beforeReceive', function () {
         assert.ok(false, 'should not be triggered for the sending grid');
       });
       gridA.send(item, gridB, 1, { layout: false });
@@ -83,7 +83,7 @@
 
   QUnit.test(
     'beforeSend: should be triggered when an item is dragged into another grid (for the receiving grid)',
-    function(assert) {
+    function (assert) {
       assert.expect(11);
 
       var done = assert.async();
@@ -92,56 +92,56 @@
           position: 'absolute',
           left: '0px',
           top: '0px',
-          width: '50px'
+          width: '50px',
         },
         itemStyles: {
           position: 'absolute',
           height: '50px',
           width: '100%',
           margin: '10px',
-          background: '#000'
-        }
+          background: '#000',
+        },
       });
       var containerB = utils.createGridElements({
         containerStyles: {
           position: 'absolute',
           left: '70px',
           top: '0px',
-          width: '50px'
+          width: '50px',
         },
         itemStyles: {
           position: 'absolute',
           height: '50px',
           width: '100%',
           margin: '10px',
-          background: '#000'
-        }
+          background: '#000',
+        },
       });
       var grids = [];
       var gridA = new Muuri(containerA, {
         dragEnabled: true,
-        dragSort: function() {
+        dragSort: function () {
           return grids;
         },
         dragSortInterval: 100,
         dragSortPredicate: {
           threshold: 50,
-          action: 'move'
-        }
+          action: 'move',
+        },
       });
       var gridB = new Muuri(containerB, {
         dragEnabled: true,
-        dragSort: function() {
+        dragSort: function () {
           return grids;
         },
         dragSortInterval: 100,
         dragSortPredicate: {
           threshold: 50,
-          action: 'move'
-        }
+          action: 'move',
+        },
       });
       var item = gridA.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         gridA.destroy();
         gridB.destroy();
         containerA.parentNode.removeChild(containerA);
@@ -151,7 +151,7 @@
 
       grids.push(gridA, gridB);
 
-      gridB.on('beforeReceive', function(data) {
+      gridB.on('beforeReceive', function (data) {
         assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
         assert.strictEqual(
           Object.prototype.toString.call(data),
@@ -209,7 +209,7 @@
         element: item.getElement(),
         x: 70,
         y: 0,
-        onFinished: teardown
+        onFinished: teardown,
       });
     }
   );

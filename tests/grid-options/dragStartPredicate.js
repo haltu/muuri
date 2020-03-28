@@ -1,11 +1,11 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
   QUnit.test(
     'dragStartPredicate: should receive the dragged item and current Dragger event as it`s arguments',
-    function(assert) {
+    function (assert) {
       assert.expect(3);
 
       var done = assert.async();
@@ -13,7 +13,7 @@
       var isChecked = false;
       var grid = new Muuri(container, {
         dragEnabled: true,
-        dragStartPredicate: function(draggedItem, ev) {
+        dragStartPredicate: function (draggedItem, ev) {
           if (!isChecked) {
             assert.strictEqual(arguments.length, 2, 'predicate should receive two aguments');
             assert.strictEqual(
@@ -29,10 +29,10 @@
             isChecked = true;
           }
           return true;
-        }
+        },
       });
       var item = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
@@ -42,12 +42,12 @@
         element: item.getElement(),
         x: 0,
         y: 70,
-        onFinished: teardown
+        onFinished: teardown,
       });
     }
   );
 
-  QUnit.test('dragStartPredicate: returning true should resolve the predicate', function(assert) {
+  QUnit.test('dragStartPredicate: returning true should resolve the predicate', function (assert) {
     assert.expect(4);
 
     var done = assert.async();
@@ -55,13 +55,13 @@
     var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
-      dragStartPredicate: function() {
+      dragStartPredicate: function () {
         ++counter;
         return true;
-      }
+      },
     });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
@@ -109,11 +109,11 @@
       element: item.getElement(),
       x: 0,
       y: 70,
-      onFinished: teardown
+      onFinished: teardown,
     });
   });
 
-  QUnit.test('dragStartPredicate: returning false should reject the predicate', function(assert) {
+  QUnit.test('dragStartPredicate: returning false should reject the predicate', function (assert) {
     assert.expect(1);
 
     var done = assert.async();
@@ -121,27 +121,27 @@
     var counter = 0;
     var grid = new Muuri(container, {
       dragEnabled: true,
-      dragStartPredicate: function() {
+      dragStartPredicate: function () {
         ++counter;
         return false;
-      }
+      },
     });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
     grid
-      .on('dragStart', function() {
+      .on('dragStart', function () {
         assert.strictEqual(
           true,
           false,
           'a rejected predicate should not start the dragging procedure'
         );
       })
-      .on('dragMove', function() {
+      .on('dragMove', function () {
         assert.strictEqual(
           true,
           false,
@@ -153,16 +153,16 @@
       element: item.getElement(),
       x: 0,
       y: 70,
-      onFinished: function() {
+      onFinished: function () {
         assert.strictEqual(counter, 1, 'predicate should be called once');
         teardown();
-      }
+      },
     });
   });
 
   QUnit.test(
     'dragStartPredicate: returning nothing (undefined) should keep calling the predicate and not start the drag procedure',
-    function(assert) {
+    function (assert) {
       assert.expect(1);
 
       var done = assert.async();
@@ -170,26 +170,26 @@
       var counter = 0;
       var grid = new Muuri(container, {
         dragEnabled: true,
-        dragStartPredicate: function() {
+        dragStartPredicate: function () {
           ++counter;
-        }
+        },
       });
       var item = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
       grid
-        .on('dragStart', function() {
+        .on('dragStart', function () {
           assert.strictEqual(
             true,
             false,
             'a rejected predicate should not start the dragging procedure'
           );
         })
-        .on('dragMove', function() {
+        .on('dragMove', function () {
           assert.strictEqual(
             true,
             false,
@@ -201,17 +201,17 @@
         element: item.getElement(),
         x: 0,
         y: 70,
-        onFinished: function() {
+        onFinished: function () {
           assert.strictEqual(counter > 2, true, 'predicate should be called more than twice');
           teardown();
-        }
+        },
       });
     }
   );
 
   QUnit.test(
     'dragStartPredicate: delay - drag should start after a delay if delay is defined',
-    function(assert) {
+    function (assert) {
       assert.expect(3);
 
       var done = assert.async();
@@ -219,31 +219,31 @@
       var grid = new Muuri(container, {
         dragEnabled: true,
         dragStartPredicate: {
-          delay: 100
-        }
+          delay: 100,
+        },
       });
       var item = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
       grid
-        .on('dragStart', function() {
+        .on('dragStart', function () {
           assert.ok(
             true,
             'dragStart event should be emitted after the delay even if there was no movement'
           );
         })
-        .on('dragMove', function() {
+        .on('dragMove', function () {
           assert.ok(false, 'dragMove event should not be emitted if there was no movement');
         })
-        .on('dragEnd', function() {
+        .on('dragEnd', function () {
           assert.ok(true, 'dragEnd event should be emitted even if there was no movement');
         });
 
-      window.setTimeout(function() {
+      window.setTimeout(function () {
         assert.strictEqual(
           item.isDragging(),
           false,
@@ -255,14 +255,14 @@
         element: item.getElement(),
         x: 0,
         y: 0,
-        onFinished: teardown
+        onFinished: teardown,
       });
     }
   );
 
   QUnit.test(
     'dragStartPredicate: distance - drag should start after a distance if distance is defined',
-    function(assert) {
+    function (assert) {
       assert.expect(1);
 
       var done = assert.async();
@@ -270,17 +270,17 @@
       var grid = new Muuri(container, {
         dragEnabled: true,
         dragStartPredicate: {
-          distance: 10
-        }
+          distance: 10,
+        },
       });
       var item = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
-      grid.on('dragStart', function(item, e) {
+      grid.on('dragStart', function (item, e) {
         assert.ok(
           e.distance >= 10,
           'dragStart event should be emitted after the specified distance is dragged'
@@ -291,7 +291,7 @@
         element: item.getElement(),
         x: 15,
         y: 15,
-        onFinished: teardown
+        onFinished: teardown,
       });
     }
   );

@@ -1,16 +1,16 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Item methods');
 
-  QUnit.test('isReleasing: should return true if the item is being released', function(assert) {
+  QUnit.test('isReleasing: should return true if the item is being released', function (assert) {
     assert.expect(6);
 
     var done = assert.async();
     var container = utils.createGridElements();
     var grid = new Muuri(container, { dragEnabled: true });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
@@ -78,7 +78,7 @@
     utils.dragElement({
       element: item.getElement(),
       x: 100,
-      y: 100
+      y: 100,
     });
   });
 })(this);

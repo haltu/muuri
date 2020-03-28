@@ -1,18 +1,18 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Item methods');
 
   QUnit.test(
     'isHiding: should return true if the item is animating to hidden and otherwise false',
-    function(assert) {
+    function (assert) {
       assert.expect(4);
 
       var done = assert.async();
       var container = utils.createGridElements();
       var grid = new Muuri(container);
       var item = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
@@ -24,7 +24,7 @@
         'An item should not be in hiding state when the it`s visible'
       );
       grid.hide([item], {
-        onFinish: function() {
+        onFinish: function () {
           assert.strictEqual(
             item.isHiding(),
             false,
@@ -37,7 +37,7 @@
             'An item should not be in hiding state when it`s being animated to visible'
           );
           teardown();
-        }
+        },
       });
       assert.strictEqual(
         item.isHiding(),

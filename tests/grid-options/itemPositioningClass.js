@@ -1,26 +1,26 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
   QUnit.test(
     'itemPositioningClass: should define the classname for positioning item elements',
-    function(assert) {
+    function (assert) {
       assert.expect(3);
 
       var done = assert.async();
       var container = utils.createGridElements({ itemCount: 3 });
       var grid = new Muuri(container, {
-        itemPositioningClass: 'foo'
+        itemPositioningClass: 'foo',
       });
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
       grid.move(0, -1, { action: 'swap' });
-      utils.raf(function() {
+      utils.raf(function () {
         assert.strictEqual(
           utils.matches(grid.getItems()[0].getElement(), '.foo'),
           true,

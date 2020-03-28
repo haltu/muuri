@@ -1,16 +1,16 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('send: should return the instance', function(assert) {
+  QUnit.test('send: should return the instance', function (assert) {
     assert.expect(1);
 
     var containerA = utils.createGridElements();
     var containerB = utils.createGridElements();
     var gridA = new Muuri(containerA);
     var gridB = new Muuri(containerB);
-    var teardown = function() {
+    var teardown = function () {
       gridA.destroy();
       gridB.destroy();
       containerA.parentNode.removeChild(containerA);
@@ -21,7 +21,7 @@
     teardown();
   });
 
-  QUnit.test('send: should move an item from a grid to another to the specified index', function(
+  QUnit.test('send: should move an item from a grid to another to the specified index', function (
     assert
   ) {
     assert.expect(3);
@@ -31,7 +31,7 @@
     var gridA = new Muuri(containerA);
     var gridB = new Muuri(containerB);
     var item = gridA.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       gridA.destroy();
       gridB.destroy();
       containerA.parentNode.removeChild(containerA);
@@ -50,7 +50,7 @@
     teardown();
   });
 
-  QUnit.test('send: appendTo option', function(assert) {
+  QUnit.test('send: appendTo option', function (assert) {
     assert.expect(2);
 
     var containerA = utils.createGridElements();
@@ -58,7 +58,7 @@
     var gridA = new Muuri(containerA);
     var gridB = new Muuri(containerB);
     var item = gridA.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       gridA.destroy();
       gridB.destroy();
       containerA.parentNode.removeChild(containerA);
@@ -82,7 +82,7 @@
     teardown();
   });
 
-  QUnit.test('send: layoutSender/layoutReceiver options', function(assert) {
+  QUnit.test('send: layoutSender/layoutReceiver options', function (assert) {
     assert.expect(8);
 
     var containerA = utils.createGridElements();
@@ -91,7 +91,7 @@
     var gridB = new Muuri(containerB);
     var gridALayoutId;
     var gridBLayoutId;
-    var teardown = function() {
+    var teardown = function () {
       gridA.destroy();
       gridB.destroy();
       containerA.parentNode.removeChild(containerA);
@@ -116,7 +116,7 @@
     gridBLayoutId = gridB._layout.id;
     gridA.send(0, gridB, 0, {
       layoutSender: false,
-      layoutReceiver: false
+      layoutReceiver: false,
     });
     assert.strictEqual(
       gridA._layout.id,
@@ -133,7 +133,7 @@
     gridBLayoutId = gridB._layout.id;
     gridA.send(0, gridB, 0, {
       layoutSender: 'instant',
-      layoutReceiver: 'instant'
+      layoutReceiver: 'instant',
     });
     assert.notStrictEqual(
       gridA._layout.id,
@@ -149,8 +149,8 @@
     gridALayoutId = gridA._layout.id;
     gridBLayoutId = gridB._layout.id;
     gridA.send(0, gridB, 0, {
-      layoutSender: function() {},
-      layoutReceiver: function() {}
+      layoutSender: function () {},
+      layoutReceiver: function () {},
     });
     assert.notStrictEqual(
       gridA._layout.id,

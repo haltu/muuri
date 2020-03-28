@@ -1,17 +1,17 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Item methods');
 
   QUnit.test(
     'getHeight: should return the instance element`s cached height that includes paddings and borders',
-    function(assert) {
+    function (assert) {
       assert.expect(2);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
       var item = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };

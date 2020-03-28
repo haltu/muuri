@@ -1,15 +1,15 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
   var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('show: should return the instance', function(assert) {
+  QUnit.test('show: should return the instance', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -18,13 +18,13 @@
     teardown();
   });
 
-  QUnit.test('show: should accept an array of items as the first argument', function(assert) {
+  QUnit.test('show: should accept an array of items as the first argument', function (assert) {
     assert.expect(2);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -46,13 +46,13 @@
     teardown();
   });
 
-  QUnit.test('show: should not show instantly by default', function(assert) {
+  QUnit.test('show: should not show instantly by default', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -63,13 +63,13 @@
     teardown();
   });
 
-  QUnit.test('show: should show instantly if instant option is true', function(assert) {
+  QUnit.test('show: should show instantly if instant option is true', function (assert) {
     assert.expect(2);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -81,7 +81,7 @@
     teardown();
   });
 
-  QUnit.test('show: should call the onFinish callback once the animation is finished', function(
+  QUnit.test('show: should call the onFinish callback once the animation is finished', function (
     assert
   ) {
     assert.expect(5);
@@ -91,14 +91,14 @@
     var grid = new Muuri(container);
     var items = grid.getItems();
     var argItems = null;
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
     grid
-      .on('showEnd', function(completedItems) {
+      .on('showEnd', function (completedItems) {
         assert.deepEqual(
           idList(completedItems),
           idList(argItems),
@@ -108,7 +108,7 @@
       })
       .hide(items, { instant: true })
       .show(grid.getItems(0), {
-        onFinish: function(completedItems) {
+        onFinish: function (completedItems) {
           assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
           assert.deepEqual(
             idList(completedItems),
@@ -126,7 +126,7 @@
             'callback: the received items should not be in "showing" state'
           );
           argItems = completedItems;
-        }
+        },
       });
   });
 })(this);

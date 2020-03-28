@@ -1,24 +1,24 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
   QUnit.test(
     'layoutStart: should be triggered after grid.layout() (before the items are positioned)',
-    function(assert) {
+    function (assert) {
       assert.expect(6);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
       var layoutId = grid._layout.id;
       var numEvents = 0;
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
 
       utils.setStyles(container, { height: '' });
-      grid.on('layoutStart', function(items, isInstant) {
+      grid.on('layoutStart', function (items, isInstant) {
         ++numEvents;
         if (numEvents === 1) {
           assert.strictEqual(arguments.length, 2, 'should have two arguments');

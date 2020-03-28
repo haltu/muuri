@@ -1,18 +1,18 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Item methods');
 
   QUnit.test(
     'getPosition: should return the instance element`s cached position in the grid',
-    function(assert) {
+    function (assert) {
       assert.expect(4);
 
       var container = utils.createGridElements({
         containerStyles: {
           position: 'relative',
-          width: '140px'
-        }
+          width: '140px',
+        },
       });
       var grid = new Muuri(container);
       var items = grid.getItems();
@@ -20,7 +20,7 @@
       var itemB = items[1];
       var itemC = items[2];
       var itemD = items[3];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };

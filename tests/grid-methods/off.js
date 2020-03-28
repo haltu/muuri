@@ -1,38 +1,38 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('off: should return the instance', function(assert) {
+  QUnit.test('off: should return the instance', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
     assert.strictEqual(
-      grid.off('foo', function() {}),
+      grid.off('foo', function () {}),
       grid
     );
     teardown();
   });
 
-  QUnit.test('off: should unbind an event listener', function(assert) {
+  QUnit.test('off: should unbind an event listener', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var calls = 0;
-    var callback1 = function() {
+    var callback1 = function () {
       ++calls;
     };
-    var callback2 = function() {
+    var callback2 = function () {
       ++calls;
     };
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };

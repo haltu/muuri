@@ -1,21 +1,21 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
   var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('sort: should return the instance', function(assert) {
+  QUnit.test('sort: should return the instance', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
     assert.strictEqual(
-      grid.sort(function() {
+      grid.sort(function () {
         return 0;
       }),
       grid
@@ -23,7 +23,7 @@
     teardown();
   });
 
-  QUnit.test('sort: should accept a function as the first argument', function(assert) {
+  QUnit.test('sort: should accept a function as the first argument', function (assert) {
     assert.expect(2);
 
     var container = utils.createGridElements();
@@ -31,18 +31,18 @@
     var items = grid.getItems();
     var newIndices = [1, 0, 3, 2, 5, 4, 7, 6, 9, 8];
     var newItems = [];
-    var sortByFoo = function(itemA, itemB) {
+    var sortByFoo = function (itemA, itemB) {
       var a = parseInt(itemA.getElement().getAttribute('data-foo'));
       var b = parseInt(itemB.getElement().getAttribute('data-foo'));
       return a - b;
     };
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
     // Add new indices to item elements.
-    items.forEach(function(item, i) {
+    items.forEach(function (item, i) {
       item.getElement().setAttribute('data-foo', newIndices[i]);
       newItems[newIndices[i]] = item;
     });
@@ -66,7 +66,7 @@
     teardown();
   });
 
-  QUnit.test('sort: should accept a single sort property (string) as the first argument', function(
+  QUnit.test('sort: should accept a single sort property (string) as the first argument', function (
     assert
   ) {
     assert.expect(3);
@@ -74,21 +74,21 @@
     var container = utils.createGridElements();
     var grid = new Muuri(container, {
       sortData: {
-        foo: function(item, element) {
+        foo: function (item, element) {
           return parseFloat(element.getAttribute('data-foo'));
-        }
-      }
+        },
+      },
     });
     var items = grid.getItems();
     var newIndices = [1, 0, 3, 2, 5, 4, 7, 6, 9, 8];
     var newItems = [];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
     // Add foo data to elements and refresh sort data.
-    items.forEach(function(item, i) {
+    items.forEach(function (item, i) {
       item.getElement().setAttribute('data-foo', newIndices[i]);
       newItems[newIndices[i]] = item;
     });
@@ -123,19 +123,19 @@
 
   QUnit.test(
     'sort: should accept multiple sort properties (string) as the first argument',
-    function(assert) {
+    function (assert) {
       assert.expect(5);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container, {
         sortData: {
-          foo: function(item, element) {
+          foo: function (item, element) {
             return parseFloat(element.getAttribute('data-foo'));
           },
-          bar: function(item, element) {
+          bar: function (item, element) {
             return parseFloat(element.getAttribute('data-bar'));
-          }
-        }
+          },
+        },
       });
       var items = grid.getItems();
       var fooData = [2, 1, 4, 3, 6, 5, 8, 7, 10, 9];
@@ -150,13 +150,13 @@
       var itemsBarFoo = [];
       var itemsBarFooDesc = [];
       var itemsBarFooSpecial = [];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
 
       // Add foo and bar data to elements and refresh sort data.
-      items.forEach(function(item, i) {
+      items.forEach(function (item, i) {
         item.getElement().setAttribute('data-foo', fooData[i]);
         item.getElement().setAttribute('data-bar', barData[i]);
         itemsFooBar[orderFooBar[i]] = item;
@@ -186,14 +186,14 @@
     }
   );
 
-  QUnit.test('sort: should accept an array of items as the first argument', function(assert) {
+  QUnit.test('sort: should accept an array of items as the first argument', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var newItems = items.concat().reverse();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };

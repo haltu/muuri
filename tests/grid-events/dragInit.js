@@ -1,28 +1,28 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
   QUnit.test(
     'dragInit: should be triggered when dragging starts (in the beginning of the drag start process)',
-    function(assert) {
+    function (assert) {
       assert.expect(9);
 
       var done = assert.async();
       var container = utils.createGridElements();
       var grid = new Muuri(container, {
         dragEnabled: true,
-        dragContainer: document.body
+        dragContainer: document.body,
       });
       var item = grid.getItems()[0];
       var calls = 0;
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
-      grid.on('dragInit', function(draggedItem, ev) {
+      grid.on('dragInit', function (draggedItem, ev) {
         assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
         assert.strictEqual(
           draggedItem,
@@ -56,10 +56,10 @@
         element: item.getElement(),
         x: 100,
         y: 100,
-        onFinished: function() {
+        onFinished: function () {
           assert.strictEqual(calls, 1, 'should be called only once during drag process');
           teardown();
-        }
+        },
       });
     }
   );

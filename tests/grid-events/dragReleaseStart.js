@@ -1,9 +1,9 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('dragReleaseStart: should be triggered when item is released after drag', function(
+  QUnit.test('dragReleaseStart: should be triggered when item is released after drag', function (
     assert
   ) {
     assert.expect(2);
@@ -12,25 +12,25 @@
     var container = utils.createGridElements();
     var grid = new Muuri(container, { dragEnabled: true });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('dragReleaseStart', function(draggedItem) {
+    grid.on('dragReleaseStart', function (draggedItem) {
       assert.strictEqual(arguments.length, 1, 'callback: should have receive one argument');
       assert.strictEqual(draggedItem, item, 'callback: first argument should be the released item');
     });
 
-    grid.on('dragReleaseEnd', function() {
+    grid.on('dragReleaseEnd', function () {
       teardown();
     });
 
     utils.dragElement({
       element: item.getElement(),
       x: 100,
-      y: 100
+      y: 100,
     });
   });
 })(this);

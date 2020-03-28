@@ -1,9 +1,9 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
-  QUnit.test('layout: vertical - left/top', function(assert) {
+  QUnit.test('layout: vertical - left/top', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -18,11 +18,11 @@
         horizontal: false,
         fillGaps: false,
         alignRight: false,
-        alignBottom: false
-      }
+        alignBottom: false,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -35,7 +35,7 @@
     teardown();
   });
 
-  QUnit.test('layout: vertical - left/top - fill gaps', function(assert) {
+  QUnit.test('layout: vertical - left/top - fill gaps', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -50,11 +50,11 @@
         horizontal: false,
         fillGaps: true,
         alignRight: false,
-        alignBottom: false
-      }
+        alignBottom: false,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -67,7 +67,7 @@
     teardown();
   });
 
-  QUnit.test('layout: vertical - right/top', function(assert) {
+  QUnit.test('layout: vertical - right/top', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -82,11 +82,11 @@
         horizontal: false,
         fillGaps: false,
         alignRight: true,
-        alignBottom: false
-      }
+        alignBottom: false,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -99,7 +99,7 @@
     teardown();
   });
 
-  QUnit.test('layout: vertical - right/top - fill gaps', function(assert) {
+  QUnit.test('layout: vertical - right/top - fill gaps', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -114,11 +114,11 @@
         horizontal: false,
         fillGaps: true,
         alignRight: true,
-        alignBottom: false
-      }
+        alignBottom: false,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -131,7 +131,7 @@
     teardown();
   });
 
-  QUnit.test('layout: vertical - left/bottom', function(assert) {
+  QUnit.test('layout: vertical - left/bottom', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -146,11 +146,11 @@
         horizontal: false,
         fillGaps: false,
         alignRight: false,
-        alignBottom: true
-      }
+        alignBottom: true,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -163,7 +163,7 @@
     teardown();
   });
 
-  QUnit.test('layout: vertical - left/bottom - fill gaps', function(assert) {
+  QUnit.test('layout: vertical - left/bottom - fill gaps', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -178,11 +178,11 @@
         horizontal: false,
         fillGaps: true,
         alignRight: false,
-        alignBottom: true
-      }
+        alignBottom: true,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -195,7 +195,7 @@
     teardown();
   });
 
-  QUnit.test('layout: vertical - right/bottom', function(assert) {
+  QUnit.test('layout: vertical - right/bottom', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -210,11 +210,11 @@
         horizontal: false,
         fillGaps: false,
         alignRight: true,
-        alignBottom: true
-      }
+        alignBottom: true,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -227,7 +227,7 @@
     teardown();
   });
 
-  QUnit.test('layout: vertical - right/bottom - fill gaps', function(assert) {
+  QUnit.test('layout: vertical - right/bottom - fill gaps', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -242,11 +242,11 @@
         horizontal: false,
         fillGaps: true,
         alignRight: true,
-        alignBottom: true
-      }
+        alignBottom: true,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -259,7 +259,7 @@
     teardown();
   });
 
-  QUnit.test('layout: horizontal - left/top', function(assert) {
+  QUnit.test('layout: horizontal - left/top', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -274,11 +274,11 @@
         horizontal: true,
         fillGaps: false,
         alignRight: false,
-        alignBottom: false
-      }
+        alignBottom: false,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -291,7 +291,7 @@
     teardown();
   });
 
-  QUnit.test('layout: horizontal - left/top - fill gaps', function(assert) {
+  QUnit.test('layout: horizontal - left/top - fill gaps', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -306,11 +306,11 @@
         horizontal: true,
         fillGaps: true,
         alignRight: false,
-        alignBottom: false
-      }
+        alignBottom: false,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -323,7 +323,7 @@
     teardown();
   });
 
-  QUnit.test('layout: horizontal - right/top', function(assert) {
+  QUnit.test('layout: horizontal - right/top', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -338,11 +338,11 @@
         horizontal: true,
         fillGaps: false,
         alignRight: true,
-        alignBottom: false
-      }
+        alignBottom: false,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -355,7 +355,7 @@
     teardown();
   });
 
-  QUnit.test('layout: horizontal - right/top - fill gaps', function(assert) {
+  QUnit.test('layout: horizontal - right/top - fill gaps', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -370,11 +370,11 @@
         horizontal: true,
         fillGaps: true,
         alignRight: true,
-        alignBottom: false
-      }
+        alignBottom: false,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -387,7 +387,7 @@
     teardown();
   });
 
-  QUnit.test('layout: horizontal - left/bottom', function(assert) {
+  QUnit.test('layout: horizontal - left/bottom', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -402,11 +402,11 @@
         horizontal: true,
         fillGaps: false,
         alignRight: false,
-        alignBottom: true
-      }
+        alignBottom: true,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -419,7 +419,7 @@
     teardown();
   });
 
-  QUnit.test('layout: horizontal - left/bottom - fill gaps', function(assert) {
+  QUnit.test('layout: horizontal - left/bottom - fill gaps', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -434,11 +434,11 @@
         horizontal: true,
         fillGaps: true,
         alignRight: false,
-        alignBottom: true
-      }
+        alignBottom: true,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -451,7 +451,7 @@
     teardown();
   });
 
-  QUnit.test('layout: horizontal - right/bottom', function(assert) {
+  QUnit.test('layout: horizontal - right/bottom', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -466,11 +466,11 @@
         horizontal: true,
         fillGaps: false,
         alignRight: true,
-        alignBottom: true
-      }
+        alignBottom: true,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -483,7 +483,7 @@
     teardown();
   });
 
-  QUnit.test('layout: horizontal - right/bottom - fill gaps', function(assert) {
+  QUnit.test('layout: horizontal - right/bottom - fill gaps', function (assert) {
     assert.expect(4);
 
     var container = utils.createGridElements({ itemCount: 4 });
@@ -498,11 +498,11 @@
         horizontal: true,
         fillGaps: true,
         alignRight: true,
-        alignBottom: true
-      }
+        alignBottom: true,
+      },
     });
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -515,7 +515,7 @@
     teardown();
   });
 
-  QUnit.test('layout: percentage widths with no rounding', function(assert) {
+  QUnit.test('layout: percentage widths with no rounding', function (assert) {
     assert.expect(33);
 
     for (var i = 1; i < 34; i++) {
@@ -527,14 +527,14 @@
           height: '50px',
           background: '#000',
           border: '1px solid #ff0000',
-          boxSizing: 'border-box'
-        }
+          boxSizing: 'border-box',
+        },
       });
       var grid = new Muuri(container, { layout: { rounding: false } });
-      var hasIncorrectPosition = grid.getItems().some(function(item) {
+      var hasIncorrectPosition = grid.getItems().some(function (item) {
         return item.getPosition().top !== 0;
       });
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };

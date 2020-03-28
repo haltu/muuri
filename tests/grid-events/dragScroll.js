@@ -1,9 +1,9 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('dragScroll: should be triggered when scroll occurs during drag process', function(
+  QUnit.test('dragScroll: should be triggered when scroll occurs during drag process', function (
     assert
   ) {
     assert.expect(4);
@@ -17,12 +17,12 @@
       dragSortInterval: 100,
       dragSortPredicate: {
         threshold: 50,
-        action: 'move'
-      }
+        action: 'move',
+      },
     });
     var item = grid.getItems()[0];
     var calls = 0;
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       utils.setStyles(docElem, { height: '' });
@@ -32,12 +32,12 @@
 
     utils.setStyles(docElem, { height: '1000%' });
 
-    grid.on('dragStart', function() {
+    grid.on('dragStart', function () {
       body.scrollTop = 100;
       docElem.scrollTop = 100;
     });
 
-    grid.on('dragScroll', function(draggedItem, ev) {
+    grid.on('dragScroll', function (draggedItem, ev) {
       assert.strictEqual(arguments.length, 2, 'callback: should have receive two arguments');
       assert.strictEqual(draggedItem, item, 'callback: first argument should be the dragged item');
       assert.strictEqual(
@@ -52,10 +52,10 @@
       element: item.getElement(),
       x: 0,
       y: 100,
-      onFinished: function() {
+      onFinished: function () {
         assert.strictEqual(calls, 1, 'should be called only once');
         teardown();
-      }
+      },
     });
   });
 })(this);

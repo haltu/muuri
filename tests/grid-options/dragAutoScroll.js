@@ -1,9 +1,9 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid options');
 
-  QUnit.test('dragAutoScroll: should scroll window vertically and horizontally', function(assert) {
+  QUnit.test('dragAutoScroll: should scroll window vertically and horizontally', function (assert) {
     assert.expect(4 + 4 * 6);
 
     var done = assert.async();
@@ -13,8 +13,8 @@
         position: 'absolute',
         left: '0px',
         top: '0px',
-        width: '140px'
-      }
+        width: '140px',
+      },
     });
 
     // Create fixed drag container.
@@ -34,7 +34,7 @@
       dragContainer: dragContainer,
       dragAutoScroll: {
         targets: [window],
-        onStart: function(item, element, direction) {
+        onStart: function (item, element, direction) {
           assert.ok(grid.getItems().indexOf(item) > -1, 'onStart item argument is grid item');
           assert.strictEqual(element, window, 'onStart element argument is window');
           assert.ok(
@@ -42,12 +42,12 @@
               Muuri.AutoScroller.LEFT,
               Muuri.AutoScroller.RIGHT,
               Muuri.AutoScroller.UP,
-              Muuri.AutoScroller.DOWN
+              Muuri.AutoScroller.DOWN,
             ].indexOf(direction) > -1,
             'onStart direction argument is valid direction'
           );
         },
-        onStop: function(item, element, direction) {
+        onStop: function (item, element, direction) {
           assert.ok(grid.getItems().indexOf(item) > -1, 'onStop item argument is grid item');
           assert.strictEqual(element, window, 'onStop element argument is window');
           assert.ok(
@@ -55,12 +55,12 @@
               Muuri.AutoScroller.LEFT,
               Muuri.AutoScroller.RIGHT,
               Muuri.AutoScroller.UP,
-              Muuri.AutoScroller.DOWN
+              Muuri.AutoScroller.DOWN,
             ].indexOf(direction) > -1,
             'onStop direction argument is valid direction'
           );
-        }
-      }
+        },
+      },
     });
 
     // Make sure window is not scrolled on init.
@@ -81,7 +81,7 @@
     assert.ok(leftOffset > 0 && topOffset > 0, 'item can scroll the window');
 
     // Define teardown procedure.
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       dragContainer.parentNode.removeChild(dragContainer);
@@ -98,7 +98,7 @@
       x: leftOffset,
       y: topOffset,
       holdDuration: 300,
-      onFinished: function() {
+      onFinished: function () {
         assert.ok(
           window.pageXOffset > scrollX && window.pageYOffset > scrollY,
           'window should be scrolled down and right'
@@ -127,15 +127,15 @@
           x: leftOffset,
           y: topOffset,
           holdDuration: 300,
-          onFinished: function() {
+          onFinished: function () {
             assert.ok(
               window.pageXOffset < scrollX && window.pageYOffset < scrollY,
               'window should be scrolled up and left'
             );
             teardown();
-          }
+          },
         });
-      }
+      },
     });
   });
 })(this);

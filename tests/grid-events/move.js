@@ -1,20 +1,20 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('move: should be triggered after grid.move()', function(assert) {
+  QUnit.test('move: should be triggered after grid.move()', function (assert) {
     assert.expect(7);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    grid.on('move', function(data) {
+    grid.on('move', function (data) {
       assert.strictEqual(arguments.length, 1, 'callback: should have one argument');
       assert.strictEqual(
         Object.prototype.toString.call(data),
@@ -51,32 +51,32 @@
     teardown();
   });
 
-  QUnit.test('move: should be triggered when sorting occurs during drag', function(assert) {
+  QUnit.test('move: should be triggered when sorting occurs during drag', function (assert) {
     assert.expect(7);
 
     var done = assert.async();
     var container = utils.createGridElements({
       containerStyles: {
         position: 'relative',
-        width: '70px'
-      }
+        width: '70px',
+      },
     });
     var grid = new Muuri(container, {
       dragEnabled: true,
       dragSortInterval: 100,
       dragSortPredicate: {
         threshold: 50,
-        action: 'move'
-      }
+        action: 'move',
+      },
     });
     var item = grid.getItems()[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
       done();
     };
 
-    grid.on('move', function(data) {
+    grid.on('move', function (data) {
       assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
       assert.strictEqual(
         Object.prototype.toString.call(data),
@@ -114,7 +114,7 @@
       element: item.getElement(),
       x: 0,
       y: 70,
-      onFinished: teardown
+      onFinished: teardown,
     });
   });
 })(this);

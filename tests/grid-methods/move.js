@@ -1,15 +1,15 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
   var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('move: should return the instance', function(assert) {
+  QUnit.test('move: should return the instance', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -20,16 +20,16 @@
 
   QUnit.test(
     'move: should accept elements, items and indices as the first and second arguments',
-    function(assert) {
+    function (assert) {
       assert.expect(3);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
       var items = grid.getItems();
-      var move = function(array, fromIndex, toIndex) {
+      var move = function (array, fromIndex, toIndex) {
         array.splice(toIndex, 0, array.splice(fromIndex, 1)[0]);
       };
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
@@ -50,16 +50,16 @@
     }
   );
 
-  QUnit.test('move: should normalize negative indices to positive indices', function(assert) {
+  QUnit.test('move: should normalize negative indices to positive indices', function (assert) {
     assert.expect(3);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var move = function(array, fromIndex, toIndex) {
+    var move = function (array, fromIndex, toIndex) {
       array.splice(toIndex, 0, array.splice(fromIndex, 1)[0]);
     };
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -86,16 +86,16 @@
     teardown();
   });
 
-  QUnit.test('move: should not swap items by default', function(assert) {
+  QUnit.test('move: should not swap items by default', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var move = function(array, fromIndex, toIndex) {
+    var move = function (array, fromIndex, toIndex) {
       array.splice(toIndex, 0, array.splice(fromIndex, 1)[0]);
     };
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -107,13 +107,13 @@
     teardown();
   });
 
-  QUnit.test('move: should swap items when action option is set to "swap"', function(assert) {
+  QUnit.test('move: should swap items when action option is set to "swap"', function (assert) {
     assert.expect(2);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };

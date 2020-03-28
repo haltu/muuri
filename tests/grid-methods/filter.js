@@ -1,21 +1,21 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
   var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('filter: should return the instance', function(assert) {
+  QUnit.test('filter: should return the instance', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
     assert.strictEqual(
-      grid.filter(function() {
+      grid.filter(function () {
         return 0;
       }),
       grid
@@ -24,7 +24,7 @@
     teardown();
   });
 
-  QUnit.test('filter: should accept a function as the first argument', function(assert) {
+  QUnit.test('filter: should accept a function as the first argument', function (assert) {
     assert.expect(12);
 
     var container = utils.createGridElements();
@@ -32,12 +32,12 @@
     var items = grid.getItems();
     var firstItem = items[0];
     var i = 0;
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    grid.filter(function(item) {
+    grid.filter(function (item) {
       assert.strictEqual(
         item._id,
         items[i]._id,
@@ -57,14 +57,14 @@
     teardown();
   });
 
-  QUnit.test('filter: should accept a selector as the first argument', function(assert) {
+  QUnit.test('filter: should accept a selector as the first argument', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
     var firstItem = items[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -77,18 +77,18 @@
     teardown();
   });
 
-  QUnit.test('filter: should not show/hide items instantly by default', function(assert) {
+  QUnit.test('filter: should not show/hide items instantly by default', function (assert) {
     assert.expect(2);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    grid.hide(grid.getItems(0), { instant: true }).filter(function(item) {
+    grid.hide(grid.getItems(0), { instant: true }).filter(function (item) {
       return item === items[0];
     });
 
@@ -98,7 +98,7 @@
     teardown();
   });
 
-  QUnit.test('filter: should show/hide items instantly if instant option is true', function(
+  QUnit.test('filter: should show/hide items instantly if instant option is true', function (
     assert
   ) {
     assert.expect(4);
@@ -106,13 +106,13 @@
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
     grid.hide(grid.getItems(0), { instant: true }).filter(
-      function(item) {
+      function (item) {
         return item === items[0];
       },
       { instant: true }
@@ -126,51 +126,52 @@
     teardown();
   });
 
-  QUnit.test('filter: should call the onFinish callback once the animations are finished', function(
-    assert
-  ) {
-    assert.expect(5);
+  QUnit.test(
+    'filter: should call the onFinish callback once the animations are finished',
+    function (assert) {
+      assert.expect(5);
 
-    var done = assert.async();
-    var container = utils.createGridElements();
-    var grid = new Muuri(container);
-    var items = grid.getItems();
-    var teardown = function() {
-      grid.destroy();
-      container.parentNode.removeChild(container);
-      done();
-    };
+      var done = assert.async();
+      var container = utils.createGridElements();
+      var grid = new Muuri(container);
+      var items = grid.getItems();
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+        done();
+      };
 
-    grid.hide(grid.getItems(0), { instant: true }).filter(
-      function(item) {
-        return item === items[0];
-      },
-      {
-        onFinish: function(itemsToShow, itemsToHide) {
-          assert.strictEqual(arguments.length, 2, 'callback: should receive two arguments');
-          assert.deepEqual(
-            idList(itemsToShow),
-            idList(items.slice(0, 1)),
-            'callback: should receive the shown items as it`s first argument'
-          );
-          assert.deepEqual(
-            idList(itemsToHide),
-            idList(items.slice(1)),
-            'callback: should receive the hidden items as it`s second argument'
-          );
-          assert.strictEqual(
-            items[0].isVisible(),
-            true,
-            'callback: the first argument items should be visible'
-          );
-          assert.strictEqual(
-            items[1].isVisible(),
-            false,
-            'callback: the second argument items should be hidden'
-          );
-          teardown();
+      grid.hide(grid.getItems(0), { instant: true }).filter(
+        function (item) {
+          return item === items[0];
+        },
+        {
+          onFinish: function (itemsToShow, itemsToHide) {
+            assert.strictEqual(arguments.length, 2, 'callback: should receive two arguments');
+            assert.deepEqual(
+              idList(itemsToShow),
+              idList(items.slice(0, 1)),
+              'callback: should receive the shown items as it`s first argument'
+            );
+            assert.deepEqual(
+              idList(itemsToHide),
+              idList(items.slice(1)),
+              'callback: should receive the hidden items as it`s second argument'
+            );
+            assert.strictEqual(
+              items[0].isVisible(),
+              true,
+              'callback: the first argument items should be visible'
+            );
+            assert.strictEqual(
+              items[1].isVisible(),
+              false,
+              'callback: the second argument items should be hidden'
+            );
+            teardown();
+          },
         }
-      }
-    );
-  });
+      );
+    }
+  );
 })(this);

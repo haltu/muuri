@@ -1,17 +1,17 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
 
   QUnit.module('Item methods');
 
   QUnit.test(
     'isDestroyed: should return true if the item is destroyed and otherwise false',
-    function(assert) {
+    function (assert) {
       assert.expect(2);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
       var item = grid.getItems()[0];
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };

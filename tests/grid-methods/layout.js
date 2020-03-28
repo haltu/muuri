@@ -1,15 +1,15 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
   var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('layout: should return the instance', function(assert) {
+  QUnit.test('layout: should return the instance', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -18,13 +18,13 @@
     teardown();
   });
 
-  QUnit.test('layout: should not layout the items instantly by default', function(assert) {
+  QUnit.test('layout: should not layout the items instantly by default', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -35,7 +35,7 @@
     teardown();
   });
 
-  QUnit.test('layout: should layout the items instantly if the first argument is true', function(
+  QUnit.test('layout: should layout the items instantly if the first argument is true', function (
     assert
   ) {
     assert.expect(1);
@@ -43,7 +43,7 @@
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var items = grid.getItems();
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -56,19 +56,19 @@
 
   QUnit.test(
     'layout: should call the provided callback function after layout is finished',
-    function(assert) {
+    function (assert) {
       assert.expect(4);
 
       var done = assert.async();
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
 
-      grid.move(0, -1, { layout: false }).layout(function(items, isInterrupted) {
+      grid.move(0, -1, { layout: false }).layout(function (items, isInterrupted) {
         assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
         assert.deepEqual(
           idList(items),

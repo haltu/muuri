@@ -1,16 +1,16 @@
-(function(window) {
+(function (window) {
   var Muuri = window.Muuri;
   var idList = utils.idList;
 
   QUnit.module('Grid methods');
 
-  QUnit.test('add: should return the added items', function(assert) {
+  QUnit.test('add: should return the added items', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -21,7 +21,7 @@
 
   QUnit.test(
     'add: should accept an element or an array of elements as the first argument',
-    function(assert) {
+    function (assert) {
       assert.expect(2);
 
       var container = utils.createGridElements();
@@ -32,7 +32,7 @@
         .parentNode;
       var elemC = document.createElement('div').appendChild(document.createElement('div'))
         .parentNode;
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
@@ -43,14 +43,14 @@
     }
   );
 
-  QUnit.test('add: should add the item to the last index by default', function(assert) {
+  QUnit.test('add: should add the item to the last index by default', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var item = grid.add(elem)[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -59,7 +59,7 @@
     teardown();
   });
 
-  QUnit.test('add: should allow defining the index where the items are inserted to', function(
+  QUnit.test('add: should allow defining the index where the items are inserted to', function (
     assert
   ) {
     assert.expect(1);
@@ -68,7 +68,7 @@
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
     var item = grid.add(elem, { index: 1 })[0];
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
@@ -77,18 +77,18 @@
     teardown();
   });
 
-  QUnit.test('add: should automatically layout the grid after add', function(assert) {
+  QUnit.test('add: should automatically layout the grid after add', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
     var grid = new Muuri(container);
     var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
-    var teardown = function() {
+    var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    grid.on('layoutStart', function() {
+    grid.on('layoutStart', function () {
       assert.strictEqual(true, true);
       teardown();
     });
@@ -97,19 +97,19 @@
 
   QUnit.test(
     'add: should not trigger layout after add when layout option is set to false',
-    function(assert) {
+    function (assert) {
       assert.expect(0);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
       var elem = document.createElement('div').appendChild(document.createElement('div'))
         .parentNode;
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
 
-      grid.on('layoutStart', function() {
+      grid.on('layoutStart', function () {
         assert.strictEqual(true, false);
       });
       grid.add(elem, { layout: false });
@@ -119,19 +119,19 @@
 
   QUnit.test(
     'add: should trigger unanimated layout after add when layout option is set to "instant"',
-    function(assert) {
+    function (assert) {
       assert.expect(1);
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
       var elem = document.createElement('div').appendChild(document.createElement('div'))
         .parentNode;
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
       };
 
-      grid.on('layoutEnd', function() {
+      grid.on('layoutEnd', function () {
         assert.strictEqual(true, true);
         teardown();
       });
@@ -141,7 +141,7 @@
 
   QUnit.test(
     'add: should trigger layout and call callback function after add when a callback function is provided to the layout option',
-    function(assert) {
+    function (assert) {
       assert.expect(2);
 
       var done = assert.async();
@@ -149,14 +149,14 @@
       var grid = new Muuri(container);
       var elem = document.createElement('div').appendChild(document.createElement('div'))
         .parentNode;
-      var teardown = function() {
+      var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
         done();
       };
       var args;
 
-      grid.on('layoutEnd', function(items) {
+      grid.on('layoutEnd', function (items) {
         assert.notStrictEqual(
           args,
           items,
@@ -171,9 +171,9 @@
       });
 
       grid.add(elem, {
-        layout: function(items) {
+        layout: function (items) {
           args = items;
-        }
+        },
       });
     }
   );

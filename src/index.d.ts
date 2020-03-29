@@ -122,10 +122,7 @@ export interface LayoutData {
   id: number;
   items: Item[];
   slots: number[];
-  width: number;
-  height: number;
-  setWidth: boolean;
-  setHeight: boolean;
+  styles?: StyleDeclaration | null;
   [key: string]: any;
 }
 
@@ -144,7 +141,7 @@ export type LayoutFunctionCallback = (layout: LayoutData) => any;
 export type LayoutFunctionCancel = (...args: any[]) => any;
 
 export type LayoutFunction = (
-  this: Grid,
+  grid: Grid,
   id: number,
   items: Item[],
   gridWidth: number,
@@ -458,6 +455,7 @@ export class Packer {
   constructor(numWorkers?: number, options?: LayoutOptions);
   setOptions(options?: LayoutOptions): void;
   createLayout(
+    grid: Grid,
     id: number,
     items: Item[],
     width: number,

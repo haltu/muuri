@@ -67,8 +67,9 @@ Add Muuri on your site and make sure to include the Web Animations Polyfill befo
 
 ### 4. Add the markup
 
-* Every grid must have a container element.
+* Every grid must have a container element (referred as the _grid element_ from now on).
 * Grid items must always consist of at least two elements. The outer element is used for positioning the item and the inner element (first direct child) is used for animating the item's visibility (show/hide methods). You can insert any markup you wish inside the inner item element.
+* Note that the class names in the below example are not required by Muuri at all, they're just there for example's sake.
 
 ```html
 <div class="grid">
@@ -96,11 +97,11 @@ Add Muuri on your site and make sure to include the Web Animations Polyfill befo
 
 ### 5. Add the styles
 
-* The container element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the container element's width/height depending on the area the items cover and the layout algorithm configuration.
+* The grid element must be "positioned" meaning that it's CSS position property must be set to *relative*, *absolute* or *fixed*. Also note that Muuri automatically resizes the grid element's width/height depending on the area the items cover and the layout algorithm configuration.
 * The item elements must have their CSS position set to *absolute* and their display property set to *block*. Muuri actually enforces the `display:block;` rule and adds it as an inline style to all item elements, just in case.
-* The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Muuri's internal animation engine. However, the container element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
+* The item elements must not have any CSS transitions or animations applied to them, because they might conflict with Muuri's internal animation engine. However, the grid element can have transitions applied to it if you want it to animate when it's size changes after the layout operation.
 * You can control the gaps between the items by giving some margin to the item elements.
-* One last thing: never ever set `overflow: auto;` or `overflow: scroll;` to the container element. Muuri's calculation logic does not account for that and you _will_ see some item jumps when dragging starts. Always use a wrapper element for the container where you set the `auto`/`scroll` overflow values.
+* One last thing: never ever set `overflow: auto;` or `overflow: scroll;` to the grid element. Muuri's calculation logic does not account for that and you _will_ see some item jumps when dragging starts. Always use a wrapper element for the grid element where you set the `auto`/`scroll` overflow values.
 
 ```css
 .grid {
@@ -134,7 +135,7 @@ Add Muuri on your site and make sure to include the Web Animations Polyfill befo
 
 ### 6. Fire it up
 
-The bare minimum configuration is demonstrated below. You must always provide the container element (or a selector so Muuri can fetch the element for you), everything else is optional.
+The bare minimum configuration is demonstrated below. You must always provide the grid element (or a selector so Muuri can fetch the element for you), everything else is optional.
 
 ```javascript
 var grid = new Muuri('.grid');
@@ -324,7 +325,7 @@ var gridB = new Muuri('.grid-b', {
 
 ### items &nbsp;
 
-The initial item elements, which should be children of the container element. All elements that are not children of the container will be appended to the container. You can provide an array of elements, [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), [HTMLCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided container element are used as initial items.
+The initial item elements, which should be children of the grid element. All elements that are not children of the grid element (e.g. if they are not in the DOM yet) will be appended to the grid element. You can provide an array of elements, [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), [HTMLCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided grid element are used as initial items.
 
 * Default value: `'*'`.
 * Accepted types: array (of elements), [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), [HTMLCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection), string, null.
@@ -480,18 +481,20 @@ var grid = new Muuri(elem, {
 
 **Provide a _function_ to use a custom layout algorithm**
 
-When you provide a custom layout function Muuri calls it whenever calculation of layout is necessary. Before calling the layout function Muuri always calculates the current width and height of the grid's container element and also creates an array of all the items that are part of the layout currently (all _active_ items).
+When you provide a custom layout function Muuri calls it whenever calculation of layout is necessary. Before calling the layout function Muuri always calculates the current width and height of the grid element and also creates an array of all the items that are part of the layout currently (all _active_ items).
 
 The layout function always receives the following arguments:
 
+  * **grid** &nbsp;&mdash;&nbsp; *Muuri*
+    * The grid instance that requested the layout.
   * **layoutId** &nbsp;&mdash;&nbsp; *number*
     * Automatically generated unique id for the layout which is used to keep track of the layout requests and to make sure that the correct layout gets applied at correct time.
   * **items** &nbsp;&mdash;&nbsp; *array*
-    * Array of `Muuri.Item` instances. A new array instance is created for each layout so there's no harm in manipulating this if you need to.
-  * **containerWidth** &nbsp;&mdash;&nbsp; *number*
-    * Current width (in pixels) of the grid's container element.
-  * **containerHeight** &nbsp;&mdash;&nbsp; *number*
-    * Current height (in pixels) of the grid's container element.
+    * Array of `Muuri.Item` instances. A new array instance is created for each layout so there's no harm in manipulating this if you need to (or using it as is for the layout data object).
+  * **width** &nbsp;&mdash;&nbsp; *number*
+    * Current width (in pixels) of the grid element.
+  * **height** &nbsp;&mdash;&nbsp; *number*
+    * Current height (in pixels) of the grid element.
   * **callback** &nbsp;&mdash;&nbsp; *function*
     * When the layout is calculated and ready to be applied you need to call this callback function and provide a _layout object_ as it's argument. Note that if another layout is requesteded while the current layout is still being calculated (asynchronously) this layout will be ignored.
 
@@ -505,27 +508,20 @@ The layout object, which needs to be provided to the callback, must include the 
   * Array of the active item instances that are part of the layout. You can pass the same `items` array here which is provided by Muuri (in case you haven't mutated it). This array items must be identical to the array of items provided by Muuri.
 * **slots** &nbsp;&mdash;&nbsp; *array*
   * Array of the item positions (numbers). E.g. if the items were `[a, b]` this should be `[aLeft, aTop, bLeft, bTop]`. You have to calculate the `left` and `top` position for each item in the provided _items_ array in the same order the items are provided.
-* **width** &nbsp;&mdash;&nbsp; *number*
-  * The width of the layout (in pixels).
-* **height** &nbsp;&mdash;&nbsp; *number*
-  * The height of the layout (in pixels).
-* **setWidth** &nbsp;&mdash;&nbsp; *boolean*
-  * Should Muuri set the layout's width as the grid element's width?
-* **setHeight** &nbsp;&mdash;&nbsp; *boolean*
-  * Should Muuri set the layout's height as the grid element's height?
+* **styles** &nbsp;&mdash;&nbsp; *object / null*
+  * Here you can optionally define all the layout related CSS styles that should be applied to the grid element _just_ before the `layoutStart` event is emitted. E.g. `{width: '100%', height: '200px', minWidth: '200px'}`.
+
+Note that you can add additional properties to the layout object if you wish, e.g. the default layout algorithm also stores the layout's width and height (in pixels) to the layout object.
 
 ```javascript
 // Build your own layout algorithm.
 var grid = new Muuri(elem, {
-  layout: function (layoutId, items, containerWidth, containerHeight, callback) {
+  layout: function (grid, layoutId, items, width, height, callback) {
     var layout = {
       id: layoutId,
       items: items,
       slots: [],
-      width: 0,
-      height: 0,
-      setWidth: true,
-      setHeight: true
+      styles: {}
     };
 
     // Calculate the slots asynchronously. Note that the timeout is here only
@@ -546,9 +542,13 @@ var grid = new Muuri(elem, {
         layout.slots.push(x, y);
       }
 
-      // Calculate the layout's total width and height. 
-      layout.width = x + w;
-      layout.height = y + h;
+      w += x;
+      h += y;
+
+      // Set the CSS styles that should be applied to the grid element.
+      // TODO: Add note about border-box!
+      layout.styles.width = w + 'px';
+      layout.styles.height = h + 'px';
 
       // When the layout is fully computed let's call the callback function and
       // provide the layout object as it's argument.
@@ -671,7 +671,7 @@ var grid = new Muuri(elem, {
 
 ### dragContainer &nbsp;
 
-The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid's container element will be used.
+The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid element will be used.
 
 * Default value: `null`.
 * Accepted types: element, null.
@@ -1216,7 +1216,7 @@ var grid = new Muuri(elem, {
 
 ### containerClass &nbsp;
 
-Container element's class name.
+Grid element's class name.
 
 * Default value: `'muuri'`.
 * Accepted types: string.
@@ -1458,7 +1458,7 @@ grid.refreshSortData([0, someElem, someItem]);
 
 ### grid.synchronize()
 
-Synchronize the item elements in the DOM to match the order of the items in the grid. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the container element (if it is dragged for example) it is ignored and left untouched. The reason why item elements are not kept in sync automatically is that there's rarely a need for that as they are absolutely positioned elements.
+Synchronize the item elements in the DOM to match the order of the items in the grid. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the grid element (if it is dragged for example) it is ignored and left untouched. The reason why item elements are not kept in sync automatically is that there's rarely a need for that as they are absolutely positioned elements.
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 
@@ -1513,7 +1513,7 @@ grid.layout(function (items, hasLayoutChanged) {
 
 ### grid.add( elements, [options] )
 
-Add new items by providing the elements you wish to add to the grid and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the container element will be automatically appended to the container element. If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method. This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
+Add new items by providing the elements you wish to add to the grid and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the grid element will be automatically appended to the grid element. If an element has it's CSS display property set to none it will be marked as *inactive* during the initiation process. As long as the item is *inactive* it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method. This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
 
 **Parameters**
 
@@ -1524,7 +1524,7 @@ Add new items by providing the elements you wish to add to the grid and optional
   * Default value: `undefined`.
   * Optional.
 * **options.index** &nbsp;&mdash;&nbsp; *number*
-  * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the instance container regardless of the index value. You can use the `grid.synchronize()` method to arrange the DOM elements to the same order as the items.
+  * The index where you want the items to be inserted in. A value of `-1` will insert the items to the end of the list while `0` will insert the items to the beginning. Note that the DOM elements are always just appended to the grid element regardless of the index value. You can use the `grid.synchronize()` method to arrange the DOM elements to the same order as the items.
   * Default value: `-1`.
   * Optional.
 * **options.layout** &nbsp;&mdash;&nbsp; *boolean / function / string*
@@ -2443,7 +2443,7 @@ var margin = item.getMargin();
 
 ### item.getPosition()
 
-Get item element's cached position (relative to the container element).
+Get item element's cached position (relative to the grid element).
 
 **Returns** &nbsp;&mdash;&nbsp; *object*
 

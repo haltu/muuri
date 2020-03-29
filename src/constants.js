@@ -39,3 +39,5 @@ export var EVENT_DESTROY = 'destroy';
 export var HAS_TOUCH_EVENTS = 'ontouchstart' in window;
 export var HAS_POINTER_EVENTS = !!window.PointerEvent;
 export var HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
+
+export var MAX_SAFE_FLOAT32_INTEGER = 16777216;

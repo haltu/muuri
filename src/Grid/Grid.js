@@ -23,6 +23,7 @@ import {
   EVENT_DESTROY,
   GRID_INSTANCES,
   ITEM_ELEMENT_MAP,
+  MAX_SAFE_FLOAT32_INTEGER,
 } from '../constants';
 
 import Item from '../Item/Item';
@@ -53,6 +54,7 @@ import isNodeList from '../utils/isNodeList';
 import isPlainObject from '../utils/isPlainObject';
 import noop from '../utils/noop';
 import removeClass from '../utils/removeClass';
+import setStyles from '../utils/setStyles';
 import toArray from '../utils/toArray';
 
 var NUMBER_TYPE = 'number';
@@ -162,10 +164,6 @@ function Grid(element, options) {
     id: 0,
     items: [],
     slots: [],
-    setWidth: false,
-    setHeight: false,
-    width: 0,
-    height: 0,
   };
   this._isLayoutFinished = true;
   this._nextLayoutData = null;
@@ -638,8 +636,11 @@ Grid.prototype.layout = function (instant, onFinish) {
     unfinishedLayout.cancel();
   }
 
+  // Compute layout id (let's stay in Float32 range).
+  layoutId = (layoutId % MAX_SAFE_FLOAT32_INTEGER) + 1;
+  var nextLayoutId = layoutId;
+
   // Store data for next layout.
-  var nextLayoutId = ++layoutId;
   this._nextLayoutData = {
     id: nextLayoutId,
     instant: instant,
@@ -661,7 +662,7 @@ Grid.prototype.layout = function (instant, onFinish) {
   var layoutSettings = this._settings.layout;
   var cancelLayout;
   if (isFunction(layoutSettings)) {
-    cancelLayout = layoutSettings.call(
+    cancelLayout = layoutSettings(
       this,
       nextLayoutId,
       layoutItems,
@@ -672,6 +673,7 @@ Grid.prototype.layout = function (instant, onFinish) {
   } else {
     Grid.defaultPacker.setOptions(layoutSettings);
     cancelLayout = Grid.defaultPacker.createLayout(
+      this,
       nextLayoutId,
       layoutItems,
       gridWidth,
@@ -1226,21 +1228,19 @@ Grid.prototype.destroy = function (removeElements) {
 
   var container = this._element;
   var items = this._items.slice(0);
-  var i;
+  var layoutStyles = (this._layout && this._layout.styles) || {};
+  var i, prop;
 
   // Unbind window resize event listener.
   unbindLayoutOnResize(this);
 
   // Destroy items.
-  for (i = 0; i < items.length; i++) {
-    items[i]._destroy(removeElements);
-  }
+  for (i = 0; i < items.length; i++) items[i]._destroy(removeElements);
   this._items.length = 0;
 
   // Restore container.
   removeClass(container, this._settings.containerClass);
-  container.style.height = '';
-  container.style.width = '';
+  for (prop in layoutStyles) container.style[prop] = '';
 
   // Emit destroy event and unbind all events.
   this._emit(EVENT_DESTROY);
@@ -1329,33 +1329,6 @@ Grid.prototype._refreshDimensions = function () {
 };
 
 /**
- * If grid's width or height was modified, we need to update it's cached
- * dimensions. Also keep in mind that grid's cached width/height should
- * always equal to what elem.getBoundingClientRect() would return, so
- * therefore we need to add the grid element's borders to the dimensions if
- * it's box-sizing is border-box. Note that we support providing the
- * dimensions as a string here too so that one can define the unit of the
- * dimensions, in which case we don't do the border-box check.
- *
- * @private
- * @param {Object} layout
- */
-Grid.prototype._updateGridElementSize = function (layout) {
-  var element = this._element;
-  var isBorderBox = this._boxSizing === 'border-box';
-
-  if (layout.setHeight) {
-    element.style.height =
-      (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
-  }
-
-  if (layout.setWidth) {
-    element.style.width =
-      (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
-  }
-};
-
-/**
  * Calculate and apply item positions.
  *
  * @private
@@ -1428,7 +1401,10 @@ Grid.prototype._onLayoutDataReceived = (function () {
       }
     }
 
-    this._updateGridElementSize(layout);
+    // Set layout styles to the grid element.
+    if (layout.styles) {
+      setStyles(this._element, layout.styles);
+    }
 
     // layoutStart event is intentionally emitted after the container element's
     // dimensions are set, because otherwise there would be no hook for reacting

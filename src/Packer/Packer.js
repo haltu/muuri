@@ -58,30 +58,31 @@ function Packer(numWorkers, options) {
 Packer.prototype._sendToWorker = function () {
   if (!this._layoutQueue.length || !this._workers.length) return;
 
-  var id = this._layoutQueue.shift();
+  var layoutId = this._layoutQueue.shift();
   var worker = this._workers.pop();
-  var data = this._layoutWorkerData[id];
+  var data = this._layoutWorkerData[layoutId];
 
-  delete this._layoutWorkerData[id];
-  this._layoutWorkers[id] = worker;
+  delete this._layoutWorkerData[layoutId];
+  this._layoutWorkers[layoutId] = worker;
   worker.postMessage(data.buffer, [data.buffer]);
 };
 
 Packer.prototype._onWorkerMessage = function (msg) {
   var data = new Float32Array(msg.data);
-  var id = data[PACKET_INDEX_ID];
-  var layout = this._layouts[id];
-  var callback = this._layoutCallbacks[id];
-  var worker = this._layoutWorkers[id];
+  var layoutId = data[PACKET_INDEX_ID];
+  var layout = this._layouts[layoutId];
+  var callback = this._layoutCallbacks[layoutId];
+  var worker = this._layoutWorkers[layoutId];
 
-  if (layout) delete this._layoutCallbacks[id];
-  if (callback) delete this._layoutCallbacks[id];
-  if (worker) delete this._layoutWorkers[id];
+  if (layout) delete this._layoutCallbacks[layoutId];
+  if (callback) delete this._layoutCallbacks[layoutId];
+  if (worker) delete this._layoutWorkers[layoutId];
 
   if (layout && callback) {
     layout.width = data[PACKET_INDEX_WIDTH];
     layout.height = data[PACKET_INDEX_HEIGHT];
     layout.slots = data.subarray(PACKET_HEADER_SLOTS, data.length);
+    this._finalizeLayout(layout);
     callback(layout);
   }
 
@@ -89,6 +90,26 @@ Packer.prototype._onWorkerMessage = function (msg) {
     this._workers.push(worker);
     this._sendToWorker();
   }
+};
+
+Packer.prototype._finalizeLayout = function (layout) {
+  var grid = layout.grid;
+  var isHorizontal = layout._settings & HORIZONTAL;
+  var isBorderBox = grid._boxSizing === 'border-box';
+
+  delete layout.grid;
+
+  layout.styles = {};
+
+  if (isHorizontal) {
+    layout.styles.width =
+      (isBorderBox ? layout.width + grid._borderLeft + grid._borderRight : layout.width) + 'px';
+  } else {
+    layout.styles.height =
+      (isBorderBox ? layout.height + grid._borderTop + grid._borderBottom : layout.height) + 'px';
+  }
+
+  return layout;
 };
 
 /**
@@ -143,28 +164,28 @@ Packer.prototype.setOptions = function (options) {
 
 /**
  * @public
- * @param {Number} id
+ * @param {Grid} grid
+ * @param {Number} layoutId
  * @param {Item[]} items
  * @param {Number} width
  * @param {Number} height
  * @param {Function} callback
  * @returns {?Function}
  */
-Packer.prototype.createLayout = function (id, items, width, height, callback) {
-  if (this._layouts[id]) {
+Packer.prototype.createLayout = function (grid, layoutId, items, width, height, callback) {
+  if (this._layouts[layoutId]) {
     throw new Error('A layout with the provided id is currently being processed.');
   }
 
   var rounding = this._options & ROUNDING;
   var horizontal = this._options & HORIZONTAL;
   var layout = {
-    id: id,
+    id: layoutId,
+    grid: grid,
     items: items,
     slots: null,
     width: horizontal ? 0 : width,
     height: !horizontal ? 0 : height,
-    setWidth: horizontal,
-    setHeight: !horizontal,
     settings: this._options,
   };
 
@@ -175,6 +196,7 @@ Packer.prototype.createLayout = function (id, items, width, height, callback) {
       layout.width = Math.round(layout.width);
       layout.height = Math.round(layout.height);
     }
+    this._finalizeLayout(layout);
     callback(layout);
     return;
   }
@@ -185,6 +207,7 @@ Packer.prototype.createLayout = function (id, items, width, height, callback) {
       ? new Float32Array(items.length * 2)
       : new Array(items.length * 2);
     this._processor.fillLayout(layout);
+    this._finalizeLayout(layout);
     callback(layout);
     return;
   }
@@ -193,7 +216,7 @@ Packer.prototype.createLayout = function (id, items, width, height, callback) {
   var data = new Float32Array(PACKET_HEADER_SLOTS + items.length * 2);
 
   // Worker data header.
-  data[PACKET_INDEX_ID] = id;
+  data[PACKET_INDEX_ID] = layoutId;
   data[PACKET_INDEX_WIDTH] = layout.width;
   data[PACKET_INDEX_HEIGHT] = layout.height;
   data[PACKET_INDEX_OPTIONS] = layout.settings;
@@ -206,30 +229,30 @@ Packer.prototype.createLayout = function (id, items, width, height, callback) {
     data[++j] = item._height + item._marginTop + item._marginBottom;
   }
 
-  this._layoutQueue.push(id);
-  this._layouts[id] = layout;
-  this._layoutCallbacks[id] = callback;
-  this._layoutWorkerData[id] = data;
+  this._layoutQueue.push(layoutId);
+  this._layouts[layoutId] = layout;
+  this._layoutCallbacks[layoutId] = callback;
+  this._layoutWorkerData[layoutId] = data;
 
   this._sendToWorker();
 
-  return this.cancelLayout.bind(this, id);
+  return this.cancelLayout.bind(this, layoutId);
 };
 
 /**
  * @public
- * @param {Number} id
+ * @param {Number} layoutId
  */
-Packer.prototype.cancelLayout = function (id) {
-  var layout = this._layouts[id];
+Packer.prototype.cancelLayout = function (layoutId) {
+  var layout = this._layouts[layoutId];
   if (!layout) return;
 
-  delete this._layouts[id];
-  delete this._layoutCallbacks[id];
+  delete this._layouts[layoutId];
+  delete this._layoutCallbacks[layoutId];
 
-  if (this._layoutWorkerData[id]) {
-    delete this._layoutWorkerData[id];
-    var queueIndex = this._layoutQueue.indexOf(id);
+  if (this._layoutWorkerData[layoutId]) {
+    delete this._layoutWorkerData[layoutId];
+    var queueIndex = this._layoutQueue.indexOf(layoutId);
     if (queueIndex > -1) this._layoutQueue.splice(queueIndex, 1);
   }
 };
@@ -238,11 +261,11 @@ Packer.prototype.cancelLayout = function (id) {
  * @public
  */
 Packer.prototype.destroy = function () {
-  var worker, id, i;
+  var worker, layoutId, i;
 
   // Terminate active workers.
-  for (id in this._layoutWorkers) {
-    worker = this._layoutWorkers[id];
+  for (layoutId in this._layoutWorkers) {
+    worker = this._layoutWorkers[layoutId];
     worker.onmessage = null;
     worker.terminate();
   }

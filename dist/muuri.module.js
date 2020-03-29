@@ -55,6 +55,8 @@ var HAS_TOUCH_EVENTS = 'ontouchstart' in window;
 var HAS_POINTER_EVENTS = !!window.PointerEvent;
 var HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
 
+var MAX_SAFE_FLOAT32_INTEGER = 16777216;
+
 /**
  * Event emitter constructor.
  *
@@ -6899,30 +6901,31 @@ function Packer(numWorkers, options) {
 Packer.prototype._sendToWorker = function () {
   if (!this._layoutQueue.length || !this._workers.length) return;
 
-  var id = this._layoutQueue.shift();
+  var layoutId = this._layoutQueue.shift();
   var worker = this._workers.pop();
-  var data = this._layoutWorkerData[id];
+  var data = this._layoutWorkerData[layoutId];
 
-  delete this._layoutWorkerData[id];
-  this._layoutWorkers[id] = worker;
+  delete this._layoutWorkerData[layoutId];
+  this._layoutWorkers[layoutId] = worker;
   worker.postMessage(data.buffer, [data.buffer]);
 };
 
 Packer.prototype._onWorkerMessage = function (msg) {
   var data = new Float32Array(msg.data);
-  var id = data[PACKET_INDEX_ID];
-  var layout = this._layouts[id];
-  var callback = this._layoutCallbacks[id];
-  var worker = this._layoutWorkers[id];
+  var layoutId = data[PACKET_INDEX_ID];
+  var layout = this._layouts[layoutId];
+  var callback = this._layoutCallbacks[layoutId];
+  var worker = this._layoutWorkers[layoutId];
 
-  if (layout) delete this._layoutCallbacks[id];
-  if (callback) delete this._layoutCallbacks[id];
-  if (worker) delete this._layoutWorkers[id];
+  if (layout) delete this._layoutCallbacks[layoutId];
+  if (callback) delete this._layoutCallbacks[layoutId];
+  if (worker) delete this._layoutWorkers[layoutId];
 
   if (layout && callback) {
     layout.width = data[PACKET_INDEX_WIDTH];
     layout.height = data[PACKET_INDEX_HEIGHT];
     layout.slots = data.subarray(PACKET_HEADER_SLOTS, data.length);
+    this._finalizeLayout(layout);
     callback(layout);
   }
 
@@ -6930,6 +6933,26 @@ Packer.prototype._onWorkerMessage = function (msg) {
     this._workers.push(worker);
     this._sendToWorker();
   }
+};
+
+Packer.prototype._finalizeLayout = function (layout) {
+  var grid = layout.grid;
+  var isHorizontal = layout._settings & HORIZONTAL;
+  var isBorderBox = grid._boxSizing === 'border-box';
+
+  delete layout.grid;
+
+  layout.styles = {};
+
+  if (isHorizontal) {
+    layout.styles.width =
+      (isBorderBox ? layout.width + grid._borderLeft + grid._borderRight : layout.width) + 'px';
+  } else {
+    layout.styles.height =
+      (isBorderBox ? layout.height + grid._borderTop + grid._borderBottom : layout.height) + 'px';
+  }
+
+  return layout;
 };
 
 /**
@@ -6984,28 +7007,28 @@ Packer.prototype.setOptions = function (options) {
 
 /**
  * @public
- * @param {Number} id
+ * @param {Grid} grid
+ * @param {Number} layoutId
  * @param {Item[]} items
  * @param {Number} width
  * @param {Number} height
  * @param {Function} callback
  * @returns {?Function}
  */
-Packer.prototype.createLayout = function (id, items, width, height, callback) {
-  if (this._layouts[id]) {
+Packer.prototype.createLayout = function (grid, layoutId, items, width, height, callback) {
+  if (this._layouts[layoutId]) {
     throw new Error('A layout with the provided id is currently being processed.');
   }
 
   var rounding = this._options & ROUNDING;
   var horizontal = this._options & HORIZONTAL;
   var layout = {
-    id: id,
+    id: layoutId,
+    grid: grid,
     items: items,
     slots: null,
     width: horizontal ? 0 : width,
     height: !horizontal ? 0 : height,
-    setWidth: horizontal,
-    setHeight: !horizontal,
     settings: this._options,
   };
 
@@ -7016,6 +7039,7 @@ Packer.prototype.createLayout = function (id, items, width, height, callback) {
       layout.width = Math.round(layout.width);
       layout.height = Math.round(layout.height);
     }
+    this._finalizeLayout(layout);
     callback(layout);
     return;
   }
@@ -7026,6 +7050,7 @@ Packer.prototype.createLayout = function (id, items, width, height, callback) {
       ? new Float32Array(items.length * 2)
       : new Array(items.length * 2);
     this._processor.fillLayout(layout);
+    this._finalizeLayout(layout);
     callback(layout);
     return;
   }
@@ -7034,7 +7059,7 @@ Packer.prototype.createLayout = function (id, items, width, height, callback) {
   var data = new Float32Array(PACKET_HEADER_SLOTS + items.length * 2);
 
   // Worker data header.
-  data[PACKET_INDEX_ID] = id;
+  data[PACKET_INDEX_ID] = layoutId;
   data[PACKET_INDEX_WIDTH] = layout.width;
   data[PACKET_INDEX_HEIGHT] = layout.height;
   data[PACKET_INDEX_OPTIONS] = layout.settings;
@@ -7047,30 +7072,30 @@ Packer.prototype.createLayout = function (id, items, width, height, callback) {
     data[++j] = item._height + item._marginTop + item._marginBottom;
   }
 
-  this._layoutQueue.push(id);
-  this._layouts[id] = layout;
-  this._layoutCallbacks[id] = callback;
-  this._layoutWorkerData[id] = data;
+  this._layoutQueue.push(layoutId);
+  this._layouts[layoutId] = layout;
+  this._layoutCallbacks[layoutId] = callback;
+  this._layoutWorkerData[layoutId] = data;
 
   this._sendToWorker();
 
-  return this.cancelLayout.bind(this, id);
+  return this.cancelLayout.bind(this, layoutId);
 };
 
 /**
  * @public
- * @param {Number} id
+ * @param {Number} layoutId
  */
-Packer.prototype.cancelLayout = function (id) {
-  var layout = this._layouts[id];
+Packer.prototype.cancelLayout = function (layoutId) {
+  var layout = this._layouts[layoutId];
   if (!layout) return;
 
-  delete this._layouts[id];
-  delete this._layoutCallbacks[id];
+  delete this._layouts[layoutId];
+  delete this._layoutCallbacks[layoutId];
 
-  if (this._layoutWorkerData[id]) {
-    delete this._layoutWorkerData[id];
-    var queueIndex = this._layoutQueue.indexOf(id);
+  if (this._layoutWorkerData[layoutId]) {
+    delete this._layoutWorkerData[layoutId];
+    var queueIndex = this._layoutQueue.indexOf(layoutId);
     if (queueIndex > -1) this._layoutQueue.splice(queueIndex, 1);
   }
 };
@@ -7079,11 +7104,11 @@ Packer.prototype.cancelLayout = function (id) {
  * @public
  */
 Packer.prototype.destroy = function () {
-  var worker, id, i;
+  var worker, layoutId, i;
 
   // Terminate active workers.
-  for (id in this._layoutWorkers) {
-    worker = this._layoutWorkers[id];
+  for (layoutId in this._layoutWorkers) {
+    worker = this._layoutWorkers[layoutId];
     worker.onmessage = null;
     worker.terminate();
   }
@@ -7308,10 +7333,6 @@ function Grid(element, options) {
     id: 0,
     items: [],
     slots: [],
-    setWidth: false,
-    setHeight: false,
-    width: 0,
-    height: 0,
   };
   this._isLayoutFinished = true;
   this._nextLayoutData = null;
@@ -7784,8 +7805,11 @@ Grid.prototype.layout = function (instant, onFinish) {
     unfinishedLayout.cancel();
   }
 
+  // Compute layout id (let's stay in Float32 range).
+  layoutId = (layoutId % MAX_SAFE_FLOAT32_INTEGER) + 1;
+  var nextLayoutId = layoutId;
+
   // Store data for next layout.
-  var nextLayoutId = ++layoutId;
   this._nextLayoutData = {
     id: nextLayoutId,
     instant: instant,
@@ -7807,7 +7831,7 @@ Grid.prototype.layout = function (instant, onFinish) {
   var layoutSettings = this._settings.layout;
   var cancelLayout;
   if (isFunction(layoutSettings)) {
-    cancelLayout = layoutSettings.call(
+    cancelLayout = layoutSettings(
       this,
       nextLayoutId,
       layoutItems,
@@ -7818,6 +7842,7 @@ Grid.prototype.layout = function (instant, onFinish) {
   } else {
     Grid.defaultPacker.setOptions(layoutSettings);
     cancelLayout = Grid.defaultPacker.createLayout(
+      this,
       nextLayoutId,
       layoutItems,
       gridWidth,
@@ -8372,21 +8397,19 @@ Grid.prototype.destroy = function (removeElements) {
 
   var container = this._element;
   var items = this._items.slice(0);
-  var i;
+  var layoutStyles = (this._layout && this._layout.styles) || {};
+  var i, prop;
 
   // Unbind window resize event listener.
   unbindLayoutOnResize(this);
 
   // Destroy items.
-  for (i = 0; i < items.length; i++) {
-    items[i]._destroy(removeElements);
-  }
+  for (i = 0; i < items.length; i++) items[i]._destroy(removeElements);
   this._items.length = 0;
 
   // Restore container.
   removeClass(container, this._settings.containerClass);
-  container.style.height = '';
-  container.style.width = '';
+  for (prop in layoutStyles) container.style[prop] = '';
 
   // Emit destroy event and unbind all events.
   this._emit(EVENT_DESTROY);
@@ -8475,33 +8498,6 @@ Grid.prototype._refreshDimensions = function () {
 };
 
 /**
- * If grid's width or height was modified, we need to update it's cached
- * dimensions. Also keep in mind that grid's cached width/height should
- * always equal to what elem.getBoundingClientRect() would return, so
- * therefore we need to add the grid element's borders to the dimensions if
- * it's box-sizing is border-box. Note that we support providing the
- * dimensions as a string here too so that one can define the unit of the
- * dimensions, in which case we don't do the border-box check.
- *
- * @private
- * @param {Object} layout
- */
-Grid.prototype._updateGridElementSize = function (layout) {
-  var element = this._element;
-  var isBorderBox = this._boxSizing === 'border-box';
-
-  if (layout.setHeight) {
-    element.style.height =
-      (isBorderBox ? layout.height + this._borderTop + this._borderBottom : layout.height) + 'px';
-  }
-
-  if (layout.setWidth) {
-    element.style.width =
-      (isBorderBox ? layout.width + this._borderLeft + this._borderRight : layout.width) + 'px';
-  }
-};
-
-/**
  * Calculate and apply item positions.
  *
  * @private
@@ -8574,7 +8570,10 @@ Grid.prototype._onLayoutDataReceived = (function () {
       }
     }
 
-    this._updateGridElementSize(layout);
+    // Set layout styles to the grid element.
+    if (layout.styles) {
+      setStyles(this._element, layout.styles);
+    }
 
     // layoutStart event is intentionally emitted after the container element's
     // dimensions are set, because otherwise there would be no hook for reacting

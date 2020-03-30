@@ -14,7 +14,7 @@ function Emitter() {
   this._events = {};
   this._queue = [];
   this._counter = 0;
-  this._flush = false;
+  this._clearOnEmit = false;
 }
 
 /**
@@ -96,14 +96,14 @@ Emitter.prototype.clear = function (event) {
  */
 Emitter.prototype.emit = function (event) {
   if (!this._events || !event) {
-    this._flush = false;
+    this._clearOnEmit = false;
     return this;
   }
 
   // Get event listeners and quit early if there's no listeners.
   var listeners = this._events[event];
   if (!listeners || !listeners.length) {
-    this._flush = false;
+    this._clearOnEmit = false;
     return this;
   }
 
@@ -126,10 +126,10 @@ Emitter.prototype.emit = function (event) {
   // processing and/or events are emitted during processing.
   queue.push.apply(queue, listeners);
 
-  // Reset the event's listeners if flushing is active.
-  if (this._flush) {
+  // Reset the event's listeners if need be.
+  if (this._clearOnEmit) {
     listeners.length = 0;
-    this._flush = false;
+    this._clearOnEmit = false;
   }
 
   // Increment queue counter. This is needed for the scenarios where emit is
@@ -165,16 +165,16 @@ Emitter.prototype.emit = function (event) {
 /**
  * Emit all listeners in a specified event with the provided arguments and
  * remove the event's listeners just before calling the them. This method allows
- * the emitter to serve as a queue too.
+ * the emitter to serve as a queue where all listeners are called only once.
  *
  * @public
  * @param {String} event
  * @param {...*} [args]
  * @returns {Emitter}
  */
-Emitter.prototype.flush = function () {
+Emitter.prototype.burst = function () {
   if (!this._events) return this;
-  this._flush = true;
+  this._clearOnEmit = true;
   this.emit.apply(this, arguments);
   return this;
 };

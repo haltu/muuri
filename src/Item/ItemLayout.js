@@ -88,7 +88,7 @@ ItemLayout.prototype.start = function (instant, onFinish) {
   // and process current layout callback queue with interrupted flag on.
   if (isPositioning) {
     cancelLayoutTick(item._id);
-    item._emitter.flush(this._queue, true, item);
+    item._emitter.burst(this._queue, true, item);
   }
 
   // Mark release positioning as started.
@@ -147,7 +147,7 @@ ItemLayout.prototype.stop = function (processCallbackQueue, targetStyles) {
 
   // Process callback queue if needed.
   if (processCallbackQueue) {
-    item._emitter.flush(this._queue, true, item);
+    item._emitter.burst(this._queue, true, item);
   }
 };
 
@@ -242,7 +242,7 @@ ItemLayout.prototype._finish = function () {
   if (migrate._isActive) migrate.stop();
 
   // Process the callback queue.
-  item._emitter.flush(this._queue, false, item);
+  item._emitter.burst(this._queue, false, item);
 };
 
 /**

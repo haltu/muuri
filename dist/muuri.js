@@ -72,7 +72,7 @@
     this._events = {};
     this._queue = [];
     this._counter = 0;
-    this._flush = false;
+    this._clearOnEmit = false;
   }
 
   /**
@@ -154,14 +154,14 @@
    */
   Emitter.prototype.emit = function (event) {
     if (!this._events || !event) {
-      this._flush = false;
+      this._clearOnEmit = false;
       return this;
     }
 
     // Get event listeners and quit early if there's no listeners.
     var listeners = this._events[event];
     if (!listeners || !listeners.length) {
-      this._flush = false;
+      this._clearOnEmit = false;
       return this;
     }
 
@@ -184,10 +184,10 @@
     // processing and/or events are emitted during processing.
     queue.push.apply(queue, listeners);
 
-    // Reset the event's listeners if flushing is active.
-    if (this._flush) {
+    // Reset the event's listeners if need be.
+    if (this._clearOnEmit) {
       listeners.length = 0;
-      this._flush = false;
+      this._clearOnEmit = false;
     }
 
     // Increment queue counter. This is needed for the scenarios where emit is
@@ -223,16 +223,16 @@
   /**
    * Emit all listeners in a specified event with the provided arguments and
    * remove the event's listeners just before calling the them. This method allows
-   * the emitter to serve as a queue too.
+   * the emitter to serve as a queue where all listeners are called only once.
    *
    * @public
    * @param {String} event
    * @param {...*} [args]
    * @returns {Emitter}
    */
-  Emitter.prototype.flush = function () {
+  Emitter.prototype.burst = function () {
     if (!this._events) return this;
-    this._flush = true;
+    this._clearOnEmit = true;
     this.emit.apply(this, arguments);
     return this;
   };
@@ -5165,7 +5165,7 @@
     // and process current layout callback queue with interrupted flag on.
     if (isPositioning) {
       cancelLayoutTick(item._id);
-      item._emitter.flush(this._queue, true, item);
+      item._emitter.burst(this._queue, true, item);
     }
 
     // Mark release positioning as started.
@@ -5224,7 +5224,7 @@
 
     // Process callback queue if needed.
     if (processCallbackQueue) {
-      item._emitter.flush(this._queue, true, item);
+      item._emitter.burst(this._queue, true, item);
     }
   };
 
@@ -5319,7 +5319,7 @@
     if (migrate._isActive) migrate.stop();
 
     // Process the callback queue.
-    item._emitter.flush(this._queue, false, item);
+    item._emitter.burst(this._queue, false, item);
   };
 
   /**
@@ -5715,7 +5715,7 @@
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isShowing) {
-      item._emitter.flush(this._queue, true, item);
+      item._emitter.burst(this._queue, true, item);
       removeClass(element, settings.itemHiddenClass);
       addClass(element, settings.itemVisibleClass);
       if (!this._isHiding) element.style.display = 'block';
@@ -5765,7 +5765,7 @@
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isHiding) {
-      item._emitter.flush(this._queue, true, item);
+      item._emitter.burst(this._queue, true, item);
       addClass(element, settings.itemHiddenClass);
       removeClass(element, settings.itemVisibleClass);
     }
@@ -5797,7 +5797,7 @@
     cancelVisibilityTick(item._id);
     this._animation.stop(applyCurrentStyles !== false);
     if (processCallbackQueue) {
-      item._emitter.flush(this._queue, true, item);
+      item._emitter.burst(this._queue, true, item);
     }
   };
 
@@ -5915,7 +5915,7 @@
   ItemVisibility.prototype._finishShow = function () {
     if (this._isHidden) return;
     this._isShowing = false;
-    this._item._emitter.flush(this._queue, false, this._item);
+    this._item._emitter.burst(this._queue, false, this._item);
   };
 
   /**
@@ -5932,7 +5932,7 @@
       this._isHiding = false;
       item._layout.stop(true, layoutStyles);
       item._element.style.display = 'none';
-      item._emitter.flush(this._queue, false, item);
+      item._emitter.burst(this._queue, false, item);
     };
   })();
 

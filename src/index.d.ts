@@ -391,7 +391,7 @@ export class Emitter {
   off(event: string, listener: EventListener): this;
   clear(event: string): this;
   emit(event: string, ...args: any[]): this;
-  flush(event: string, ...args: any[]): this;
+  burst(event: string, ...args: any[]): this;
   countListeners(event: string): number;
   destroy(): this;
 }

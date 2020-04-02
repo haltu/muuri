@@ -6316,7 +6316,6 @@ function createPackerProcessor(isWorker = false) {
   var HORIZONTAL = 2;
   var ALIGN_RIGHT = 4;
   var ALIGN_BOTTOM = 8;
-  var ROUNDING = 16;
 
   /**
    * @class
@@ -6363,14 +6362,8 @@ function createPackerProcessor(isWorker = false) {
     var horizontal = !!(settings & HORIZONTAL);
     var alignRight = !!(settings & ALIGN_RIGHT);
     var alignBottom = !!(settings & ALIGN_BOTTOM);
-    var rounding = !!(settings & ROUNDING);
     var isItemsPreProcessed = typeof items[0] === 'number';
     var i, bump, item, slotWidth, slotHeight, slot;
-
-    if (rounding) {
-      layout.width = Math.round(layout.width);
-      layout.height = Math.round(layout.height);
-    }
 
     // No need to go further if items do not exist.
     if (!items.length) return layout;
@@ -6388,12 +6381,6 @@ function createPackerProcessor(isWorker = false) {
         item = items[i];
         slotWidth = item._width + item._marginLeft + item._marginRight;
         slotHeight = item._height + item._marginTop + item._marginBottom;
-      }
-
-      // Round slot size if needed.
-      if (rounding) {
-        slotWidth = Math.round(slotWidth);
-        slotHeight = Math.round(slotHeight);
       }
 
       // Get slot data.
@@ -6854,7 +6841,6 @@ var FILL_GAPS = 1;
 var HORIZONTAL = 2;
 var ALIGN_RIGHT = 4;
 var ALIGN_BOTTOM = 8;
-var ROUNDING = 16;
 var PACKET_INDEX_ID = 0;
 var PACKET_INDEX_WIDTH = 1;
 var PACKET_INDEX_HEIGHT = 2;
@@ -6869,7 +6855,6 @@ var PACKET_HEADER_SLOTS = 4;
  * @param {Boolean} [options.horizontal=false]
  * @param {Boolean} [options.alignRight=false]
  * @param {Boolean} [options.alignBottom=false]
- * @param {Boolean} [options.rounding=false]
  */
 function Packer(numWorkers, options) {
   this._options = 0;
@@ -6962,7 +6947,6 @@ Packer.prototype._finalizeLayout = function (layout) {
  * @param {Boolean} [options.horizontal]
  * @param {Boolean} [options.alignRight]
  * @param {Boolean} [options.alignBottom]
- * @param {Boolean} [options.rounding]
  */
 Packer.prototype.setOptions = function (options) {
   if (!options) return;
@@ -6995,14 +6979,7 @@ Packer.prototype.setOptions = function (options) {
     alignBottom = this._options & ALIGN_BOTTOM;
   }
 
-  var rounding;
-  if (typeof options.rounding === 'boolean') {
-    rounding = options.rounding ? ROUNDING : 0;
-  } else {
-    rounding = this._options & ROUNDING;
-  }
-
-  this._options = fillGaps | horizontal | alignRight | alignBottom | rounding;
+  this._options = fillGaps | horizontal | alignRight | alignBottom;
 };
 
 /**
@@ -7020,7 +6997,6 @@ Packer.prototype.createLayout = function (grid, layoutId, items, width, height, 
     throw new Error('A layout with the provided id is currently being processed.');
   }
 
-  var rounding = this._options & ROUNDING;
   var horizontal = this._options & HORIZONTAL;
   var layout = {
     id: layoutId,
@@ -7035,10 +7011,6 @@ Packer.prototype.createLayout = function (grid, layoutId, items, width, height, 
   // If there are no items let's call the callback immediately.
   if (!items.length) {
     layout.slots = [];
-    if (rounding) {
-      layout.width = Math.round(layout.width);
-      layout.height = Math.round(layout.height);
-    }
     this._finalizeLayout(layout);
     callback(layout);
     return;
@@ -7249,7 +7221,6 @@ var layoutId = 0;
  * @param {Boolean} [options.layout.horizontal=false]
  * @param {Boolean} [options.layout.alignRight=false]
  * @param {Boolean} [options.layout.alignBottom=false]
- * @param {Boolean} [options.layout.rounding=true]
  * @param {(Boolean|Number)} [options.layoutOnResize=150]
  * @param {Boolean} [options.layoutOnInit=true]
  * @param {Number} [options.layoutDuration=300]
@@ -7491,7 +7462,6 @@ Grid.defaultOptions = {
     horizontal: false,
     alignRight: false,
     alignBottom: false,
-    rounding: true,
   },
   layoutOnResize: 150,
   layoutOnInit: true,

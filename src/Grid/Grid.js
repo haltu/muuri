@@ -80,7 +80,6 @@ var layoutId = 0;
  * @param {Boolean} [options.layout.horizontal=false]
  * @param {Boolean} [options.layout.alignRight=false]
  * @param {Boolean} [options.layout.alignBottom=false]
- * @param {Boolean} [options.layout.rounding=true]
  * @param {(Boolean|Number)} [options.layoutOnResize=150]
  * @param {Boolean} [options.layoutOnInit=true]
  * @param {Number} [options.layoutDuration=300]
@@ -322,7 +321,6 @@ Grid.defaultOptions = {
     horizontal: false,
     alignRight: false,
     alignBottom: false,
-    rounding: true,
   },
   layoutOnResize: 150,
   layoutOnInit: true,

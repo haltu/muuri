@@ -10,7 +10,6 @@ function createPackerProcessor(isWorker = false) {
   var HORIZONTAL = 2;
   var ALIGN_RIGHT = 4;
   var ALIGN_BOTTOM = 8;
-  var ROUNDING = 16;
 
   /**
    * @class
@@ -57,14 +56,8 @@ function createPackerProcessor(isWorker = false) {
     var horizontal = !!(settings & HORIZONTAL);
     var alignRight = !!(settings & ALIGN_RIGHT);
     var alignBottom = !!(settings & ALIGN_BOTTOM);
-    var rounding = !!(settings & ROUNDING);
     var isItemsPreProcessed = typeof items[0] === 'number';
     var i, bump, item, slotWidth, slotHeight, slot;
-
-    if (rounding) {
-      layout.width = Math.round(layout.width);
-      layout.height = Math.round(layout.height);
-    }
 
     // No need to go further if items do not exist.
     if (!items.length) return layout;
@@ -82,12 +75,6 @@ function createPackerProcessor(isWorker = false) {
         item = items[i];
         slotWidth = item._width + item._marginLeft + item._marginRight;
         slotHeight = item._height + item._marginTop + item._marginBottom;
-      }
-
-      // Round slot size if needed.
-      if (rounding) {
-        slotWidth = Math.round(slotWidth);
-        slotHeight = Math.round(slotHeight);
       }
 
       // Get slot data.

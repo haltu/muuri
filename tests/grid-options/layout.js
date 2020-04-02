@@ -515,7 +515,7 @@
     teardown();
   });
 
-  QUnit.test('layout: percentage widths with no rounding', function (assert) {
+  QUnit.test('layout: percentage widths', function (assert) {
     assert.expect(33);
 
     for (var i = 1; i < 34; i++) {
@@ -530,7 +530,7 @@
           boxSizing: 'border-box',
         },
       });
-      var grid = new Muuri(container, { layout: { rounding: false } });
+      var grid = new Muuri(container);
       var hasIncorrectPosition = grid.getItems().some(function (item) {
         return item.getPosition().top !== 0;
       });

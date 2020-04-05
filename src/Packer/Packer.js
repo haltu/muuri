@@ -11,6 +11,7 @@ export var FILL_GAPS = 1;
 export var HORIZONTAL = 2;
 export var ALIGN_RIGHT = 4;
 export var ALIGN_BOTTOM = 8;
+export var ROUNDING = 16;
 export var PACKET_INDEX_ID = 0;
 export var PACKET_INDEX_WIDTH = 1;
 export var PACKET_INDEX_HEIGHT = 2;
@@ -25,6 +26,7 @@ export var PACKET_HEADER_SLOTS = 4;
  * @param {Boolean} [options.horizontal=false]
  * @param {Boolean} [options.alignRight=false]
  * @param {Boolean} [options.alignBottom=false]
+ * @param {Boolean} [options.rounding=false]
  */
 function Packer(numWorkers, options) {
   this._options = 0;
@@ -117,6 +119,7 @@ Packer.prototype._finalizeLayout = function (layout) {
  * @param {Boolean} [options.horizontal]
  * @param {Boolean} [options.alignRight]
  * @param {Boolean} [options.alignBottom]
+ * @param {Boolean} [options.rounding]
  */
 Packer.prototype.setOptions = function (options) {
   if (!options) return;
@@ -149,7 +152,14 @@ Packer.prototype.setOptions = function (options) {
     alignBottom = this._options & ALIGN_BOTTOM;
   }
 
-  this._options = fillGaps | horizontal | alignRight | alignBottom;
+  var rounding;
+  if (typeof options.rounding === 'boolean') {
+    rounding = options.rounding ? ROUNDING : 0;
+  } else {
+    rounding = this._options & ROUNDING;
+  }
+
+  this._options = fillGaps | horizontal | alignRight | alignBottom | rounding;
 };
 
 /**

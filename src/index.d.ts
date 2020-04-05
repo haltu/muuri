@@ -131,6 +131,7 @@ export interface LayoutOptions {
   horizontal?: boolean;
   alignRight?: boolean;
   alignBottom?: boolean;
+  rounding?: boolean;
 }
 
 export type LayoutOnFinish = (items: Item[], isAborted: boolean) => any;

@@ -194,7 +194,8 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     fillGaps: false,
     horizontal: false,
     alignRight: false,
-    alignBottom: false
+    alignBottom: false,
+    rounding: false
   },
   layoutOnResize: 150,
   layoutOnInit: true,
@@ -445,7 +446,7 @@ Define how the items will be positioned. Muuri ships with a configurable layout 
 
 Muuri supports calculating the layout both synchronously and asynchronously. By default (if you use the default layout algorithm) Muuri will use two shared web workers to compute the layouts asynchronously. In browsers that do not support web workers Muuri will fallback to synchronous layout calculations.
 
-- Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false}`.
+- Default value: `{fillGaps: false, horizontal: false, alignRight: false, alignBottom: false, rounding: false}`.
 - Accepted types: function, object.
 
 **Provide an _object_ to configure the default layout algorithm with the following properties**
@@ -462,6 +463,9 @@ Muuri supports calculating the layout both synchronously and asynchronously. By 
 - **alignBottom** &nbsp;&mdash;&nbsp; _boolean_
   - Default value: `false`.
   - When `true` the items are aligned from the bottom up.
+- **rounding** &nbsp;&mdash;&nbsp; _boolean_
+  - Default value: `false`.
+  - When `true` the item dimensions are rounded to a precision of two decimals for the duration of layout calculations. This procedure stabilizes the layout calculations quite a lot, but also causes a hit on performance. Use only if you see your layout behaving badly, which might happen sometimes (hopefully never) when using relative dimension values.
 
 ```javascript
 // Customize the default layout algorithm.
@@ -471,6 +475,7 @@ var grid = new Muuri(elem, {
     horizontal: true,
     alignRight: true,
     alignBottom: true,
+    rounding: true,
   },
 });
 ```

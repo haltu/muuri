@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Muuri Demo</title>
+    <style>
+      .grid {
+        position: relative;
+        /* Control the height manually */
+        /* In this case we limit it to two rows */
+        height: 420px;
+        max-width: 1000px;
+        margin: auto;
+      }
+      .item {
+        position: absolute;
+        width: calc(100% / 3 - 4%);
+        height: 100px;
+        line-height: 100px;
+        margin: 2%;
+        z-index: 1;
+      }
+      .item.muuri-item-hidden {
+        z-index: 0;
+      }
+      .item.muuri-item-releasing {
+        z-index: 2;
+      }
+      .item.muuri-item-dragging {
+        z-index: 3;
+      }
+      .item-content {
+        position: relative;
+        bottom: 0;
+        height: 100%;
+        width: 100%;
+        text-align: center;
+        background: red;
+        border: 2px solid red;
+        font-size: 50px;
+        color: white;
+        cursor: pointer;
+      }
+      .item.muuri-item-dragging .item-content {
+        background: blue;
+      }
+      .item.muuri-item-releasing .item-content {
+        background: blueViolet;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid">
+      <div class="item">
+        <div class="item-content">1</div>
+      </div>
+      <div class="item">
+        <div class="item-content">2</div>
+      </div>
+      <div class="item">
+        <div class="item-content">3</div>
+      </div>
+      <div class="item">
+        <div class="item-content">4</div>
+      </div>
+      <div class="item">
+        <div class="item-content">5</div>
+      </div>
+      <div class="item">
+        <div class="item-content">6</div>
+      </div>
+      <div class="item">
+        <div class="item-content">7</div>
+      </div>
+      <div class="item">
+        <div class="item-content">8</div>
+      </div>
+      <div class="item">
+        <div class="item-content">9</div>
+      </div>
+      <div class="item">
+        <div class="item-content">10</div>
+      </div>
+      <div class="item">
+        <div class="item-content">11</div>
+      </div>
+      <div class="item">
+        <div class="item-content">12</div>
+      </div>
+      <div class="item">
+        <div class="item-content">13</div>
+      </div>
+      <div class="item">
+        <div class="item-content">14</div>
+      </div>
+      <div class="item">
+        <div class="item-content">15</div>
+      </div>
+      <div class="item">
+        <div class="item-content">16</div>
+      </div>
+      <div class="item">
+        <div class="item-content">17</div>
+      </div>
+      <div class="item">
+        <div class="item-content">18</div>
+      </div>
+      <div class="item">
+        <div class="item-content">19</div>
+      </div>
+      <div class="item">
+        <div class="item-content">20</div>
+      </div>
+    </div>
+
+    <script src="../node_modules/web-animations-js/web-animations.min.js"></script>
+    <script src="../dist/muuri.js"></script>
+    <script>
+      var grid = new Muuri('.grid', {
+        dragEnabled: true,
+        layoutOnResize: 0,
+      });
+    </script>
+  </body>
+</html>

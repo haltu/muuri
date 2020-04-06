@@ -93,11 +93,12 @@ Packer.prototype._onWorkerMessage = function (msg) {
 };
 
 Packer.prototype._finalizeLayout = function (layout) {
-  var grid = layout.grid;
+  var grid = layout._grid;
   var isHorizontal = layout._settings & HORIZONTAL;
   var isBorderBox = grid._boxSizing === 'border-box';
 
-  delete layout.grid;
+  delete layout._grid;
+  delete layout._settings;
 
   layout.styles = {};
 
@@ -180,12 +181,14 @@ Packer.prototype.createLayout = function (grid, layoutId, items, width, height, 
   var horizontal = this._options & HORIZONTAL;
   var layout = {
     id: layoutId,
-    grid: grid,
     items: items,
     slots: null,
     width: horizontal ? 0 : width,
     height: !horizontal ? 0 : height,
-    settings: this._options,
+    // Temporary data, which will be removed before sending the layout data
+    // outside of Packer's context.
+    _grid: grid,
+    _settings: this._options,
   };
 
   // If there are no items let's call the callback immediately.
@@ -201,7 +204,7 @@ Packer.prototype.createLayout = function (grid, layoutId, items, width, height, 
     layout.slots = window.Float32Array
       ? new Float32Array(items.length * 2)
       : new Array(items.length * 2);
-    this._processor.fillLayout(layout);
+    this._processor.computeLayout(layout, layout._settings);
     this._finalizeLayout(layout);
     callback(layout);
     return;
@@ -214,7 +217,7 @@ Packer.prototype.createLayout = function (grid, layoutId, items, width, height, 
   data[PACKET_INDEX_ID] = layoutId;
   data[PACKET_INDEX_WIDTH] = layout.width;
   data[PACKET_INDEX_HEIGHT] = layout.height;
-  data[PACKET_INDEX_OPTIONS] = layout.settings;
+  data[PACKET_INDEX_OPTIONS] = layout._settings;
 
   // Worker data items.
   var i, j, item;

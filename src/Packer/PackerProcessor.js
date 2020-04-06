@@ -15,6 +15,9 @@ function createPackerProcessor(isWorker = false) {
   var EPS = 0.001;
   var MIN_SLOT_SIZE = 0.5;
 
+  // Rounds number first to three decimal precision and then floors the result
+  // to two decimal precision.
+  // Math.floor(Math.round(number * 1000) / 10) / 100
   function roundNumber(number) {
     return ((((number * 1000 + 0.5) << 0) / 10) << 0) / 100;
   }
@@ -23,11 +26,11 @@ function createPackerProcessor(isWorker = false) {
    * @class
    */
   function PackerProcessor() {
-    this.slotSizes = [];
-    this.freeSlots = [];
-    this.newSlots = [];
-    this.rectItem = {};
+    this.currentRects = [];
+    this.nextRects = [];
+    this.rectTarget = {};
     this.rectStore = [];
+    this.slotSizes = [];
     this.rectId = 0;
     this.slotIndex = -1;
     this.slotData = { left: 0, top: 0, width: 0, height: 0 };
@@ -53,32 +56,31 @@ function createPackerProcessor(isWorker = false) {
    *   - An Array/Float32Array instance which's length should equal to
    *     the amount of items times two. The position (width and height) of each
    *     item will be written into this array.
-   * @param {Number} layout.settings
+   * @param {Number} settings
    *   - The layout's settings as bitmasks.
    * @returns {Object}
    */
-  PackerProcessor.prototype.fillLayout = function (layout) {
+  PackerProcessor.prototype.computeLayout = function (layout, settings) {
     var items = layout.items;
     var slots = layout.slots;
-    var settings = layout.settings || 0;
     var fillGaps = !!(settings & FILL_GAPS);
     var horizontal = !!(settings & HORIZONTAL);
     var alignRight = !!(settings & ALIGN_RIGHT);
     var alignBottom = !!(settings & ALIGN_BOTTOM);
     var rounding = !!(settings & ROUNDING);
-    var isItemsPreProcessed = typeof items[0] === 'number';
+    var isPreProcessed = typeof items[0] === 'number';
     var i, bump, item, slotWidth, slotHeight, slot;
 
     // No need to go further if items do not exist.
     if (!items.length) return layout;
 
     // Compute slots for the items.
-    bump = isItemsPreProcessed ? 2 : 1;
+    bump = isPreProcessed ? 2 : 1;
     for (i = 0; i < items.length; i += bump) {
       // If items are pre-processed it means that items array contains only
       // the raw dimensions of the items. Otherwise we assume it is an array
       // of normal Muuri items.
-      if (isItemsPreProcessed) {
+      if (isPreProcessed) {
         slotWidth = items[i];
         slotHeight = items[i + 1];
       } else {
@@ -100,9 +102,13 @@ function createPackerProcessor(isWorker = false) {
 
       // Update layout width/height.
       if (horizontal) {
-        layout.width = Math.max(layout.width, slot.left + slot.width);
+        if (slot.left + slot.width > layout.width) {
+          layout.width = slot.left + slot.width;
+        }
       } else {
-        layout.height = Math.max(layout.height, slot.top + slot.height);
+        if (slot.top + slot.height > layout.height) {
+          layout.height = slot.top + slot.height;
+        }
       }
 
       // Add item slot data to layout slots.
@@ -131,8 +137,8 @@ function createPackerProcessor(isWorker = false) {
 
     // Reset stuff.
     this.slotSizes.length = 0;
-    this.freeSlots.length = 0;
-    this.newSlots.length = 0;
+    this.currentRects.length = 0;
+    this.nextRects.length = 0;
     this.rectId = 0;
     this.slotIndex = -1;
 
@@ -141,7 +147,7 @@ function createPackerProcessor(isWorker = false) {
 
   /**
    * Calculate next slot in the layout. Returns a slot object with position and
-   * dimensions data.
+   * dimensions data. The returned object is reused between calls.
    *
    * @param {Object} layout
    * @param {Number} slotWidth
@@ -158,17 +164,17 @@ function createPackerProcessor(isWorker = false) {
     horizontal
   ) {
     var slot = this.slotData;
-    var freeSlots = this.freeSlots;
-    var newSlots = this.newSlots;
-    var ignoreCurrentSlots = false;
+    var currentRects = this.currentRects;
+    var nextRects = this.nextRects;
+    var ignoreCurrentRects = false;
     var rect;
     var rectId;
-    var potentialSlots;
+    var shards;
     var i;
     var j;
 
     // Reset new slots.
-    newSlots.length = 0;
+    nextRects.length = 0;
 
     // Set item slot initial data.
     slot.left = null;
@@ -176,9 +182,10 @@ function createPackerProcessor(isWorker = false) {
     slot.width = slotWidth;
     slot.height = slotHeight;
 
-    // Try to find a slot for the item.
-    for (i = 0; i < freeSlots.length; i++) {
-      rectId = freeSlots[i];
+    // Try to find position for the slot from the existing free spaces in the
+    // layout.
+    for (i = 0; i < currentRects.length; i++) {
+      rectId = currentRects[i];
       if (!rectId) continue;
       rect = this.getRect(rectId);
       if (slot.width <= rect.width + EPS && slot.height <= rect.height + EPS) {
@@ -188,8 +195,9 @@ function createPackerProcessor(isWorker = false) {
       }
     }
 
-    // If no slot was found for the item position the item in to the bottom left
-    // (in vertical mode) or top right (in horizontal mode) of the grid.
+    // If no position was found for the slot let's position the slot to
+    // the bottom left (in vertical mode) or top right (in horizontal mode) of
+    // the layout.
     if (slot.left === null) {
       if (horizontal) {
         slot.left = layout.width;
@@ -199,24 +207,25 @@ function createPackerProcessor(isWorker = false) {
         slot.top = layout.height;
       }
 
-      // If gaps don't need filling do not add any current slots to the new
-      // slots array.
+      // If gaps don't need filling let's throw away all the current free spaces
+      // (currentRects).
       if (!fillGaps) {
-        ignoreCurrentSlots = true;
+        ignoreCurrentRects = true;
       }
     }
 
-    // In vertical mode, if the item's bottom overlaps the grid's bottom. This
-    // is where we create the all the completely new slots if necessary.
+    // In vertical mode, if the slot's bottom overlaps the layout's bottom.
     if (!horizontal && slot.top + slot.height > layout.height + EPS) {
-      // If item is not aligned to the left edge, create a new slot.
+      // If slot is not aligned to the left edge, create a new free space to the
+      // left of the slot.
       if (slot.left > MIN_SLOT_SIZE) {
-        newSlots.push(this.addRect(0, layout.height, slot.left, Infinity));
+        nextRects.push(this.addRect(0, layout.height, slot.left, Infinity));
       }
 
-      // If item is not aligned to the right edge, create a new slot.
+      // If slot is not aligned to the right edge, create a new free space to
+      // the right of the slot.
       if (slot.left + slot.width < layout.width - MIN_SLOT_SIZE) {
-        newSlots.push(
+        nextRects.push(
           this.addRect(
             slot.left + slot.width,
             layout.height,
@@ -226,21 +235,22 @@ function createPackerProcessor(isWorker = false) {
         );
       }
 
-      // Update grid height.
+      // Update layout height.
       layout.height = slot.top + slot.height;
     }
 
-    // In horizontal mode, if the item's right overlaps the grid's right edge.
-    // This is where we create the all the completely new slots if necessary.
+    // In horizontal mode, if the slot's right overlaps the layout's right edge.
     if (horizontal && slot.left + slot.width > layout.width + EPS) {
-      // If item is not aligned to the top, create a new slot.
+      // If slot is not aligned to the top, create a new free space above the
+      // slot.
       if (slot.top > MIN_SLOT_SIZE) {
-        newSlots.push(this.addRect(layout.width, 0, Infinity, slot.top));
+        nextRects.push(this.addRect(layout.width, 0, Infinity, slot.top));
       }
 
-      // If item is not aligned to the bottom, create a new slot.
+      // If slot is not aligned to the bottom, create a new free space below
+      // the slot.
       if (slot.top + slot.height < layout.height - MIN_SLOT_SIZE) {
-        newSlots.push(
+        nextRects.push(
           this.addRect(
             layout.width,
             slot.top + slot.height,
@@ -250,47 +260,51 @@ function createPackerProcessor(isWorker = false) {
         );
       }
 
-      // Update grid width.
+      // Update layout width.
       layout.width = slot.left + slot.width;
     }
 
-    // Clean up the current slots making sure there are no old slots that
-    // overlap with the item. If an old slot overlaps with the item, split it
-    // into smaller slots if necessary.
-    if (!ignoreCurrentSlots) {
+    // Clean up the current free spaces making sure none of them overlap with
+    // the slot. Split all overlapping free spaces into smaller shards that do
+    // not overlap with the slot.
+    if (!ignoreCurrentRects) {
       if (fillGaps) i = 0;
-      for (; i < freeSlots.length; i++) {
-        rectId = freeSlots[i];
+      for (; i < currentRects.length; i++) {
+        rectId = currentRects[i];
         if (!rectId) continue;
         rect = this.getRect(rectId);
-        potentialSlots = this.splitSlot(rect, slot);
-        for (j = 0; j < potentialSlots.length; j++) {
-          rectId = potentialSlots[j];
+        shards = this.splitRect(rect, slot);
+        for (j = 0; j < shards.length; j++) {
+          rectId = shards[j];
           rect = this.getRect(rectId);
-          // Make sure that the slot is within the boundaries of the grid. This
-          // routine is critical to the algorithm as it makes sure that there
-          // are no leftover slots with infinite height. It's also essential
-          // that we don't compare values absolutely to each other but leave a
-          // little headroom (EPSILON) to get rid of false positives (especially
-          // using relative values in DOM has a tendency to cause a little
-          // variation in the dimensions where they should be equal in reality).
+          // Make sure that the free space is within the boundaries of the
+          // layout. This routine is critical to the algorithm as it makes sure
+          // that there are no leftover spaces with infinite height/width.
+          // It's also essential that we don't compare values absolutely to each
+          // other but leave a little headroom (EPSILON) to get rid of false
+          // positives.
           if (
             horizontal ? rect.left + EPS < layout.width - EPS : rect.top + EPS < layout.height - EPS
           ) {
-            newSlots.push(rectId);
+            nextRects.push(rectId);
           }
         }
       }
     }
 
-    // Sanitize new slots.
-    if (newSlots.length > 1) {
-      this.purgeSlots(newSlots).sort(horizontal ? this.sortRectsLeftTop : this.sortRectsTopLeft);
+    // Sanitize and sort all the new free spaces that will be used in the next
+    // iteration. This procedure is critical to make the bin-packing algorithm
+    // work. The free spaces have to be in correct order in the beginning of the
+    // next iteration.
+    if (nextRects.length > 1) {
+      this.purgeRects(nextRects).sort(horizontal ? this.sortRectsLeftTop : this.sortRectsTopLeft);
     }
 
-    // Free/new slots switcheroo!
-    this.freeSlots = newSlots;
-    this.newSlots = freeSlots;
+    // Finally we need to make sure that `this.currentRects` points to
+    // `nextRects` array as that is used in the next iteration's beginning when
+    // we try to find a space for the next slot.
+    this.currentRects = nextRects;
+    this.nextRects = currentRects;
 
     return slot;
   };
@@ -307,13 +321,10 @@ function createPackerProcessor(isWorker = false) {
    */
   PackerProcessor.prototype.addRect = function (left, top, width, height) {
     var rectId = ++this.rectId;
-    var rectStore = this.rectStore;
-
-    rectStore[rectId] = left || 0;
-    rectStore[++this.rectId] = top || 0;
-    rectStore[++this.rectId] = width || 0;
-    rectStore[++this.rectId] = height || 0;
-
+    this.rectStore[rectId] = left || 0;
+    this.rectStore[++this.rectId] = top || 0;
+    this.rectStore[++this.rectId] = width || 0;
+    this.rectStore[++this.rectId] = height || 0;
     return rectId;
   };
 
@@ -327,31 +338,28 @@ function createPackerProcessor(isWorker = false) {
    * @returns {Object}
    */
   PackerProcessor.prototype.getRect = function (id, target) {
-    var rectItem = target ? target : this.rectItem;
-    var rectStore = this.rectStore;
-
-    rectItem.left = rectStore[id] || 0;
-    rectItem.top = rectStore[++id] || 0;
-    rectItem.width = rectStore[++id] || 0;
-    rectItem.height = rectStore[++id] || 0;
-
-    return rectItem;
+    if (!target) target = this.rectTarget;
+    target.left = this.rectStore[id] || 0;
+    target.top = this.rectStore[++id] || 0;
+    target.width = this.rectStore[++id] || 0;
+    target.height = this.rectStore[++id] || 0;
+    return target;
   };
 
   /**
-   * Punch a hole into a slot and split the remaining area into smaller
-   * slots (4 at max).
+   * Punch a hole into a rectangle and return the shards (1-4).
+   *
    * @param {Object} slot
    * @param {Object} hole
    * @returns {Number[]}
    */
-  PackerProcessor.prototype.splitSlot = (function () {
-    var results = [];
+  PackerProcessor.prototype.splitRect = (function () {
+    var shards = [];
     var width = 0;
     var height = 0;
     return function (slot, hole) {
-      // Reset old results.
-      results.length = 0;
+      // Reset old shards.
+      shards.length = 0;
 
       // If the slot does not overlap with the hole add slot to the return data
       // as is. Note that in this case we are eager to keep the slot as is if
@@ -362,35 +370,35 @@ function createPackerProcessor(isWorker = false) {
         slot.top + slot.height <= hole.top + EPS ||
         hole.top + hole.height <= slot.top + EPS
       ) {
-        results.push(this.addRect(slot.left, slot.top, slot.width, slot.height));
-        return results;
+        shards.push(this.addRect(slot.left, slot.top, slot.width, slot.height));
+        return shards;
       }
 
       // Left split.
       width = hole.left - slot.left;
       if (width >= MIN_SLOT_SIZE) {
-        results.push(this.addRect(slot.left, slot.top, width, slot.height));
+        shards.push(this.addRect(slot.left, slot.top, width, slot.height));
       }
 
       // Right split.
       width = slot.left + slot.width - (hole.left + hole.width);
       if (width >= MIN_SLOT_SIZE) {
-        results.push(this.addRect(hole.left + hole.width, slot.top, width, slot.height));
+        shards.push(this.addRect(hole.left + hole.width, slot.top, width, slot.height));
       }
 
       // Top split.
       height = hole.top - slot.top;
       if (height >= MIN_SLOT_SIZE) {
-        results.push(this.addRect(slot.left, slot.top, slot.width, height));
+        shards.push(this.addRect(slot.left, slot.top, slot.width, height));
       }
 
       // Bottom split.
       height = slot.top + slot.height - (hole.top + hole.height);
       if (height >= MIN_SLOT_SIZE) {
-        results.push(this.addRect(slot.left, hole.top + hole.height, slot.width, height));
+        shards.push(this.addRect(slot.left, hole.top + hole.height, slot.width, height));
       }
 
-      return results;
+      return shards;
     };
   })();
 
@@ -418,7 +426,7 @@ function createPackerProcessor(isWorker = false) {
    * @param {Number[]} rectIds
    * @returns {Number[]}
    */
-  PackerProcessor.prototype.purgeSlots = (function () {
+  PackerProcessor.prototype.purgeRects = (function () {
     var rectA = {};
     var rectB = {};
     return function (rectIds) {
@@ -505,16 +513,16 @@ function createPackerProcessor(isWorker = false) {
       var data = new Float32Array(msg.data);
       var items = data.subarray(PACKET_HEADER_SLOTS, data.length);
       var slots = new Float32Array(items.length);
+      var settings = data[PACKET_INDEX_OPTIONS];
       var layout = {
         items: items,
         slots: slots,
         width: data[PACKET_INDEX_WIDTH],
         height: data[PACKET_INDEX_HEIGHT],
-        settings: data[PACKET_INDEX_OPTIONS],
       };
 
-      // Fill the layout (width / height / slots).
-      processor.fillLayout(layout);
+      // Compute the layout (width / height / slots).
+      processor.computeLayout(layout, settings);
 
       // Copy layout data to the return data.
       data[PACKET_INDEX_WIDTH] = layout.width;

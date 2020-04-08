@@ -41,7 +41,7 @@
   });
 
   QUnit.test(
-    'dragAxis: when set to "xy" items should be only moved on x-axis and y-axis',
+    'dragAxis: when set to "xy" items should be moved on x-axis and y-axis',
     function (assert) {
       assert.expect(2);
 

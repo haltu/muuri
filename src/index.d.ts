@@ -287,7 +287,7 @@ export interface GridOptions {
   dragHandle?: string | null;
   dragContainer?: HTMLElement | null;
   dragStartPredicate?: DragStartPredicateOptions | DragStartPredicate;
-  dragAxis?: 'x' | 'y' | null;
+  dragAxis?: 'x' | 'y' | 'xy';
   dragSort?: boolean | DragSortGetter;
   dragSortHeuristics?: DragSortHeuristics;
   dragSortPredicate?: DragSortPredicateOptions | DragSortPredicate;

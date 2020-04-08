@@ -7276,7 +7276,7 @@ var layoutId = 0;
  * @param {?Function} [options.dragStartPredicate]
  * @param {Number} [options.dragStartPredicate.distance=0]
  * @param {Number} [options.dragStartPredicate.delay=0]
- * @param {?String} [options.dragAxis]
+ * @param {String} [options.dragAxis="xy"]
  * @param {(Boolean|Function)} [options.dragSort=true]
  * @param {Object} [options.dragSortHeuristics]
  * @param {Number} [options.dragSortHeuristics.sortInterval=100]
@@ -7524,7 +7524,7 @@ Grid.defaultOptions = {
     distance: 0,
     delay: 0,
   },
-  dragAxis: null,
+  dragAxis: 'xy',
   dragSort: true,
   dragSortHeuristics: {
     sortInterval: 100,

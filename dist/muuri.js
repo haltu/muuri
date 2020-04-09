@@ -6661,7 +6661,7 @@
     /**
      * Punch a hole into a rectangle and return the shards (1-4).
      *
-     * @param {Object} slot
+     * @param {Object} rect
      * @param {Object} hole
      * @returns {Number[]}
      */
@@ -6669,7 +6669,7 @@
       var shards = [];
       var width = 0;
       var height = 0;
-      return function (slot, hole) {
+      return function (rect, hole) {
         // Reset old shards.
         shards.length = 0;
 
@@ -6677,37 +6677,37 @@
         // as is. Note that in this case we are eager to keep the slot as is if
         // possible so we use the EPSILON in favour of that logic.
         if (
-          slot.left + slot.width <= hole.left + EPS ||
-          hole.left + hole.width <= slot.left + EPS ||
-          slot.top + slot.height <= hole.top + EPS ||
-          hole.top + hole.height <= slot.top + EPS
+          rect.left + rect.width <= hole.left + EPS ||
+          hole.left + hole.width <= rect.left + EPS ||
+          rect.top + rect.height <= hole.top + EPS ||
+          hole.top + hole.height <= rect.top + EPS
         ) {
-          shards.push(this.addRect(slot.left, slot.top, slot.width, slot.height));
+          shards.push(this.addRect(rect.left, rect.top, rect.width, rect.height));
           return shards;
         }
 
         // Left split.
-        width = hole.left - slot.left;
+        width = hole.left - rect.left;
         if (width >= MIN_SLOT_SIZE) {
-          shards.push(this.addRect(slot.left, slot.top, width, slot.height));
+          shards.push(this.addRect(rect.left, rect.top, width, rect.height));
         }
 
         // Right split.
-        width = slot.left + slot.width - (hole.left + hole.width);
+        width = rect.left + rect.width - (hole.left + hole.width);
         if (width >= MIN_SLOT_SIZE) {
-          shards.push(this.addRect(hole.left + hole.width, slot.top, width, slot.height));
+          shards.push(this.addRect(hole.left + hole.width, rect.top, width, rect.height));
         }
 
         // Top split.
-        height = hole.top - slot.top;
+        height = hole.top - rect.top;
         if (height >= MIN_SLOT_SIZE) {
-          shards.push(this.addRect(slot.left, slot.top, slot.width, height));
+          shards.push(this.addRect(rect.left, rect.top, rect.width, height));
         }
 
         // Bottom split.
-        height = slot.top + slot.height - (hole.top + hole.height);
+        height = rect.top + rect.height - (hole.top + hole.height);
         if (height >= MIN_SLOT_SIZE) {
-          shards.push(this.addRect(slot.left, hole.top + hole.height, slot.width, height));
+          shards.push(this.addRect(rect.left, hole.top + hole.height, rect.width, height));
         }
 
         return shards;

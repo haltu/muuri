@@ -517,9 +517,9 @@ The layout function always receives the following arguments:
 - **items** &nbsp;&mdash;&nbsp; _array_
   - Array of `Muuri.Item` instances. A new array instance is created for each layout so there's no harm in manipulating this if you need to (or using it as is for the layout data object).
 - **width** &nbsp;&mdash;&nbsp; _number_
-  - Current width (in pixels) of the grid element.
+  - Current width (in pixels) of the grid element (excluding borders, but including padding).
 - **height** &nbsp;&mdash;&nbsp; _number_
-  - Current height (in pixels) of the grid element.
+  - Current height (in pixels) of the grid element (excluding borders, but including padding).
 - **callback** &nbsp;&mdash;&nbsp; _function_
   - When the layout is calculated and ready to be applied you need to call this callback function and provide a _layout object_ as it's argument. Note that if another layout is requesteded while the current layout is still being calculated (asynchronously) this layout will be ignored.
 
@@ -535,6 +535,7 @@ The layout object, which needs to be provided to the callback, must include the 
   - Array of the item positions (numbers). E.g. if the items were `[a, b]` this should be `[aLeft, aTop, bLeft, bTop]`. You have to calculate the `left` and `top` position for each item in the provided _items_ array in the same order the items are provided.
 - **styles** &nbsp;&mdash;&nbsp; _object / null_
   - Here you can optionally define all the layout related CSS styles that should be applied to the grid element _just_ before the `layoutStart` event is emitted. E.g. `{width: '100%', height: '200px', minWidth: '200px'}`.
+  - It's important to keep in mind here that if the grid element's `box-sizing` CSS property is set to `border-box` the element's borders are included in the dimensions. E.g. if you set `{width: '100px', width: '100px'}` here and the element has a `5px` border and `box-sizing` is set to `border-box`, then the _layout's_ effective `width` and `height` (as perceived by Muuri) will be `90px`. So remember to take that into account and add the borders to the dimensions when necessary. If this sounds complicated then just don't set borders directly to the grid element or make sure that grid element's `box-sizing` is set to `content-box` (which is the default value).
 
 Note that you can add additional properties to the layout object if you wish, e.g. the default layout algorithm also stores the layout's width and height (in pixels) to the layout object.
 
@@ -591,7 +592,6 @@ var grid = new Muuri(elem, {
       h += y;
 
       // Set the CSS styles that should be applied to the grid element.
-      // TODO: Add note about border-box!
       layout.styles.width = w + 'px';
       layout.styles.height = h + 'px';
 

@@ -2922,7 +2922,7 @@
    *   - An optional options object which can be used to pass the predicate
    *     it's options manually. By default the predicate retrieves the options
    *     from the grid's settings.
-   * @returns {Boolean}
+   * @returns {(Boolean|undefined)}
    */
   ItemDrag.defaultStartPredicate = function (item, event, options) {
     var drag = item._drag;

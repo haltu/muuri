@@ -154,7 +154,7 @@ export type SortDataGetter = (item: Item, element: HTMLElement) => any;
 export type DragStartPredicate = (
   item: Item,
   event: DraggerStartEvent | DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent
-) => boolean;
+) => boolean | undefined;
 
 export interface DragStartPredicateOptions {
   distance?: number;
@@ -203,25 +203,25 @@ export interface DragPlaceholderOptions {
 }
 
 export interface DragAutoScrollTarget {
-  element: HTMLElement;
+  element: Window | HTMLElement;
   axis?: number;
   priority?: number;
   threshold?: number;
 }
 
-export type DragAutoScrollTargets = Array<HTMLElement | DragAutoScrollTarget>;
+export type DragAutoScrollTargets = Array<Window | HTMLElement | DragAutoScrollTarget>;
 
 export type DragAutoScrollTargetsGetter = (item: Item) => DragAutoScrollTargets;
 
 export type DragAutoScrollOnStart = (
   item: Item,
-  scrollElement: HTMLElement,
+  scrollElement: Window | HTMLElement,
   scrollDirection: number
 ) => any;
 
 export type DragAutoScrollOnStop = (
   item: Item,
-  scrollElement: HTMLElement,
+  scrollElement: Window | HTMLElement,
   scrollDirection: number
 ) => any;
 
@@ -242,7 +242,7 @@ export type DragAutoScrollHandle = (
 
 export type DragAutoScrollSpeed = (
   item: Item,
-  scrollElement: HTMLElement,
+  scrollElement: Window | HTMLElement,
   scrollData: {
     direction: number;
     threshold: number;
@@ -357,7 +357,7 @@ export class ItemDrag {
     item: Item,
     event: DraggerEvent,
     options?: DragStartPredicateOptions
-  ): boolean;
+  ): boolean | undefined;
   static defaultSortPredicate(
     item: Item,
     options?: DragSortPredicateOptions

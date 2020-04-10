@@ -22,6 +22,7 @@ Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web
 
 <h2><a id="table-of-contents" href="#table-of-contents" aria-hidden="true">#</a> Table of contents</h2>
 
+- [Motivation](#motivation)
 - [Getting started](#getting-started)
 - [API](#api)
   - [Grid constructor](#grid-constructor)
@@ -31,6 +32,14 @@ Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web
   - [Item methods](#item-methods)
 - [Credits](#credits)
 - [License](#license)
+
+<h2><a id="motivation" href="#motivation" aria-hidden="true">#</a> Motivation</h2>
+
+You can build pretty amazing layouts without a single line of JavaScript these days. However, sometimes (rarely though) CSS just isn't enough, and that's where Muuri comes along. At it's very core Muuri is a _layout engine_ which is limited only by your imagination. You can seriously build _any_ kind of layout, asynchronously in web workers if you wish.
+
+Custom layouts aside, you might need to sprinkle some flare (animation) and/or interactivity (filtering / sorting / drag & drop) on your layout (be it CSS or JS based). Stuff gets complex pretty fast and most of us probably reach for existing libraries to handle the complexity at that point. This is why most of these extra features are built into Muuri's core, so you don't have to go hunting for additional libraries or re-inventing the wheel for the nth time.
+
+The long-term goal of Muuri is to provide a simple (and as low-level as possible) API for building amazing layouts with unmatched performance and _most_ of the complexity abstracted away.
 
 <h2><a id="getting-started" href="#getting-started" aria-hidden="true">#</a> Getting started</h2>
 

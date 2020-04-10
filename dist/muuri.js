@@ -7485,7 +7485,7 @@
    * @type {Object}
    */
   Grid.defaultOptions = {
-    // Item elements
+    // Initial item elements
     items: '*',
 
     // Default show animation

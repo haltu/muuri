@@ -234,7 +234,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   dragSortPredicate: {
     threshold: 50,
     action: 'move',
-    migrateAction: 'swap'
+    migrateAction: 'move'
   },
   dragRelease: {
     duration: 300,
@@ -767,35 +767,34 @@ var grid = new Muuri(elem, {
 
 <h3><a id="grid-option-dragstartpredicate" href="#grid-option-dragstartpredicate" aria-hidden="true">#</a> <i>option</i>: dragStartPredicate</h3>
 
-A function that determines when the item should start to move when the item is being dragged. By default uses the built-in predicate which has some configurable options.
+A function that determines when the item should start moving when the item is being dragged. By default uses the built-in start predicate which has some configurable options.
 
 - Default value:
   ```javascript
   {
     distance: 0,
-    delay: 0,
-    handle: false
+    delay: 0
   }
   ```
 - Accepted types: function, object.
 
-If an object is provided the default sort predicate handler will be used. You can define the following properties:
+If an object is provided the default start predicate handler will be used. You can define the following properties:
 
 - **distance** &nbsp;&mdash;&nbsp; _number_
   - Default value: `0`.
-  - How many pixels must be dragged before the dragging starts.
+  - How many pixels the user must drag before the drag procedure starts and the item starts moving.
 - **delay** &nbsp;&mdash;&nbsp; _number_
   - Default value: `0`.
   - How long (in milliseconds) the user must drag before the dragging starts.
 
-If you provide a function you can totally customize the drag start logic. When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
+If you provide a function you can customize the drag start logic as you please. When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
 
 The predicate function receives two arguments:
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The item that's being dragged.
 - **event** &nbsp;&mdash;&nbsp; _object_
-  - The drag event (Muuri.Dragger event).
+  - Muuri.Dragger event data.
 
 **Examples**
 
@@ -836,7 +835,7 @@ var grid = new Muuri(elem, {
     }
 
     // Prevent first item from being dragged.
-    if (grid.getItems().indexOf(item) === 0) {
+    if (grid.getItems()[0] === item) {
       return false;
     }
 
@@ -956,15 +955,19 @@ Defines the logic for the sort procedure during dragging an item.
 - Default value:
   ```javascript
   {
+    threshold: 50,
     action: 'move',
-    migrateAction: 'move',
-    threshold: 50
+    migrateAction: 'move'
   }
   ```
 - Accepted types: function, object.
 
 If an object is provided the default sort predicate handler will be used. You can define the following properties:
 
+- **threshold** &nbsp;&mdash;&nbsp; _number_
+  - Default value: `50`.
+  - Allowed values: `1` - `100`.
+  - How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the items before sorting is triggered.
 - **action** &nbsp;&mdash;&nbsp; _string_
   - Default value: `'move'`.
   - Allowed values: `'move'`, `'swap'`.
@@ -973,17 +976,13 @@ If an object is provided the default sort predicate handler will be used. You ca
   - Default value: `'move'`.
   - Allowed values: `'move'`, `'swap'`.
   - Should the dragged item be _moved_ to the new position or should it _swap_ places with the item it overlaps when the dragged item is moved to another grid?
-- **threshold** &nbsp;&mdash;&nbsp; _number_
-  - Default value: `50`.
-  - Allowed values: `1` - `100`.
-  - How many percent the intersection area between the dragged item and the compared item should be from the maximum potential intersection area between the items before sorting is triggered.
 
 Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback function receives two arguments:
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The item that's being dragged.
 - **event** &nbsp;&mdash;&nbsp; _object_
-  - The drag event (Muuri.Dragger event).
+  - Muuri.Dragger event data.
 
 The callback should return a _falsy_ value if sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties:
 

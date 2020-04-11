@@ -1218,7 +1218,7 @@ You can define the following properties:
   - Default value: `[]`.
   - Define the DOM elements that should be scrolled during drag. As long as this array is empty there will be no scrolling during drag. To keep it simple you can just provide an array of elements here, in which case Muuri attempts to scroll the elements both vertically and horizontally when possible. If you want more fine-grained control, e.g. scroll an element only on specific axis or prioritize some element over another (handy for cases when there are overlapping elements), you can provide an array of scroll targets (objects). Finally, you can also provide a function which receives the dragged `item` instance as it's argument and which should return an array of scroll targets (elements and/or objects). This way you can provide different configurations for different items.
   - **scrollTarget** &nbsp;&mdash;&nbsp; _object_
-    - **element** &nbsp;&mdash;&nbsp; _element_
+    - **element** &nbsp;&mdash;&nbsp; _element_ / _window_
       - The DOM element to scroll.
       - Required.
     - **axis** &nbsp;&mdash;&nbsp; _number_
@@ -1255,7 +1255,7 @@ You can define the following properties:
   - Defines the scrolling speed in pixels per second. You can provide either static speed with a `number` or dynamic speed with a `function`. The function is called before every scroll operation and should return the speed (`number`, pixels per second) for the next scroll operation. The function receives three arguments:
     - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
       - The dragged `Muuri.Item` instance.
-    - **scrollElement** &nbsp;&mdash;&nbsp; _element_
+    - **scrollElement** &nbsp;&mdash;&nbsp; _element_ / _window_
       - The scrolled element.
     - **data** &nbsp;&mdash;&nbsp; _object_
       - **data.direction** &nbsp;&mdash;&nbsp; _number_
@@ -1291,13 +1291,13 @@ You can define the following properties:
   - Should Muuri automatically update the positions of the dragged items that were affected by scrolling? If you disable this option and the dragged item's parent is scrolled, the dragged item will visually shake during scroll. Unless all of your dragged items are inside a `fixed` positioned container element (which is the recommeded pattern), you should leave this enabled.
 - **smoothStop** &nbsp;&mdash;&nbsp; _boolean_
   - Default value: `true`.
-  - When a dragged item is moved out of the threshold area the scroll process is set to _ending_ state. However, it's up to you to decide if the actual scrolling motion is stopped gradually or instantly. By default, when this is `true`, scrolling will continue until speed reaches `0`. If you set this to `false` scrolling will stop immediately. _Always_ set this to `false` is you use static speed. When this option is `enabled` you _must_ handle decelerating the speed to `0` yourself within speed `function`. The default `speed` fuction handles the deceleration automatically.
+  - When a dragged item is moved out of the threshold area the scroll process is set to _ending_ state. However, it's up to you to decide if the actual scrolling motion is stopped gradually or instantly. By default, when this is `true`, scrolling will continue until speed reaches `0`. If you set this to `false` scrolling will stop immediately. _Always_ set this to `false` if you use static speed. When this option is `enabled` you _must_ handle decelerating the speed to `0` yourself within speed `function`. The default `speed` fuction handles the deceleration automatically.
 - **onStart** &nbsp;&mdash;&nbsp; _null / function_
   - Default value: `null`.
   - Optionally, you can provide a callback that will be called when an item starts auto-scrolling a scroll target. The callback function will receive the following arguments:
     - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
       - The dragged `Muuri.Item` instance.
-    - **scrollElement** &nbsp;&mdash;&nbsp; _element_
+    - **scrollElement** &nbsp;&mdash;&nbsp; _element_ / _window_
       - The scrolled element.
     - **direction** &nbsp;&mdash;&nbsp; _number_
       - The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
@@ -1306,7 +1306,7 @@ You can define the following properties:
   - Optionally, you can provide a callback that will be called when an item stops auto-scrolling a scroll target. The callback function will receive the following arguments:
     - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
       - The dragged `Muuri.Item` instance.
-    - **scrollElement** &nbsp;&mdash;&nbsp; _element_
+    - **scrollElement** &nbsp;&mdash;&nbsp; _element_ / _window_
       - The scrolled element.
     - **direction** &nbsp;&mdash;&nbsp; _number_
       - The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.

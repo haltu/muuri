@@ -5,13 +5,12 @@
  * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
-// TODO: One little UX nag. If you scroll down and then quickly drag the
-// element up to start the scroll to opposite direction, there's a really good
-// chance that the scroll won't start.. until you nudge the element at least 1px
-// up. This happens when the vertical direction is not up, which effectively
-// blocks the scroll from starting to up direction. We _should_ start checking
-// the normal overlap checking as soon as isEnding flag is activated, but just
-// act on it after the previous scroll request has fully stopped.
+// TODO: One little UX nag. When using smooth stop feature there's a good
+// chance that the scroll won't start when user expects it to start after the
+// element has stopped scrolling smoothly. The issue is that the normal overlap
+// checking routine starts only after the previous scroll has fully stopped and
+// there's a good chance that the drag direction is not correct when the
+// routine starts again.
 
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
 import { LEFT, RIGHT, UP, DOWN, AXIS_X, AXIS_Y, FORWARD, BACKWARD } from './constants';
@@ -501,23 +500,13 @@ AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
     }
 
     // Compute threshold and edge offset.
-    if (testIsAxisX) {
-      testThreshold = computeThreshold(
-        threshold,
-        target.threshold,
-        safeZone,
-        itemRect.width,
-        testRect.width
-      );
-    } else {
-      testThreshold = computeThreshold(
-        threshold,
-        target.threshold,
-        safeZone,
-        itemRect.height,
-        testRect.height
-      );
-    }
+    testThreshold = computeThreshold(
+      threshold,
+      target.threshold,
+      safeZone,
+      testIsAxisX ? itemRect.width : itemRect.height,
+      testIsAxisX ? testRect.width : testRect.height
+    );
 
     // Compute distance (based on current direction).
     if (scrollRequest.direction === LEFT) {
@@ -551,23 +540,16 @@ AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
     return true;
   }
 
-  // Let's start the end procedure. The request has now "officially" stopped,
-  // but we don't want to make the scroll stop instantly. Let's smoothly reduce
-  // the speed to zero.
-  scrollRequest.isEnding = true;
+  // Before we end the request, let's see if we need to stop the scrolling
+  // smoothly or immediately.
+  if (settings.smoothStop === true && scrollRequest.speed > 0) {
+    if (hasReachedEnd === null) hasReachedEnd = scrollRequest.hasReachedEnd();
+    scrollRequest.isEnding = hasReachedEnd ? false : true;
+  } else {
+    scrollRequest.isEnding = false;
+  }
 
-  // If smooth stop is not supported we can immediately stop scrolling.
-  if (!settings.smoothStop) return false;
-
-  // We stop scrolling immediately when speed is zero.
-  if (scrollRequest.speed <= 0) return false;
-
-  // We can also stop scrolling immediately when scroll has reached the end.
-  // Note that we intentionally do not update the scroll request's data when
-  // it is in ending mode, as there really is no need to. We just want the
-  // scroll to slow down and stop with the values it has.
-  if (hasReachedEnd === null) hasReachedEnd = scrollRequest.hasReachedEnd();
-  return hasReachedEnd ? false : true;
+  return scrollRequest.isEnding;
 };
 
 AutoScroller.prototype._updateRequests = function () {

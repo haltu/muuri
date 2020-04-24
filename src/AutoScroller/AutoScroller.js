@@ -5,13 +5,6 @@
  * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
-// TODO: One little UX nag. When using smooth stop feature there's a good
-// chance that the scroll won't start when user expects it to start after the
-// element has stopped scrolling smoothly. The issue is that the normal overlap
-// checking routine starts only after the previous scroll has fully stopped and
-// there's a good chance that the drag direction is not correct when the
-// routine starts again.
-
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
 import { LEFT, RIGHT, UP, DOWN, AXIS_X, AXIS_Y, FORWARD, BACKWARD } from './constants';
 import ScrollRequest from './ScrollRequest';

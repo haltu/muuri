@@ -3,16 +3,17 @@
  * Released under the MIT license
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
-var stylesCache = typeof Map === 'function' ? new Map() : null;
-var cacheCleanInterval = 3000;
-var cacheCleanTimer;
-var canCleanCache = true;
-var cacheCleanCheck = function () {
-  if (canCleanCache) {
-    cacheCleanTimer = window.clearInterval(cacheCleanTimer);
-    stylesCache.clear();
+var isWeakMapSupported = typeof WeakMap === 'function';
+var cache = isWeakMapSupported ? new WeakMap() : null;
+var cacheInterval = 3000;
+var cacheTimer;
+var canClearCache = true;
+var clearCache = function () {
+  if (canClearCache) {
+    cacheTimer = window.clearInterval(cacheTimer);
+    cache = isWeakMapSupported ? new WeakMap() : null;
   } else {
-    canCleanCache = true;
+    canClearCache = true;
   }
 };
 
@@ -24,18 +25,18 @@ var cacheCleanCheck = function () {
  * @returns {String}
  */
 export default function getStyle(element, style) {
-  var styles = stylesCache && stylesCache.get(element);
+  var styles = cache && cache.get(element);
 
   if (!styles) {
     styles = window.getComputedStyle(element, null);
-    if (stylesCache) stylesCache.set(element, styles);
+    if (cache) cache.set(element, styles);
   }
 
-  if (stylesCache) {
-    if (!cacheCleanTimer) {
-      cacheCleanTimer = window.setInterval(cacheCleanCheck, cacheCleanInterval);
+  if (cache) {
+    if (!cacheTimer) {
+      cacheTimer = window.setInterval(clearCache, cacheInterval);
     } else {
-      canCleanCache = false;
+      canClearCache = false;
     }
   }
 

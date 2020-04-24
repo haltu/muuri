@@ -1220,16 +1220,17 @@
     return typeof val === functionType;
   }
 
-  var stylesCache = typeof Map === 'function' ? new Map() : null;
-  var cacheCleanInterval = 3000;
-  var cacheCleanTimer;
-  var canCleanCache = true;
-  var cacheCleanCheck = function () {
-    if (canCleanCache) {
-      cacheCleanTimer = window.clearInterval(cacheCleanTimer);
-      stylesCache.clear();
+  var isWeakMapSupported = typeof WeakMap === 'function';
+  var cache$1 = isWeakMapSupported ? new WeakMap() : null;
+  var cacheInterval = 3000;
+  var cacheTimer;
+  var canClearCache = true;
+  var clearCache = function () {
+    if (canClearCache) {
+      cacheTimer = window.clearInterval(cacheTimer);
+      cache$1 = isWeakMapSupported ? new WeakMap() : null;
     } else {
-      canCleanCache = true;
+      canClearCache = true;
     }
   };
 
@@ -1241,18 +1242,18 @@
    * @returns {String}
    */
   function getStyle(element, style) {
-    var styles = stylesCache && stylesCache.get(element);
+    var styles = cache$1 && cache$1.get(element);
 
     if (!styles) {
       styles = window.getComputedStyle(element, null);
-      if (stylesCache) stylesCache.set(element, styles);
+      if (cache$1) cache$1.set(element, styles);
     }
 
-    if (stylesCache) {
-      if (!cacheCleanTimer) {
-        cacheCleanTimer = window.setInterval(cacheCleanCheck, cacheCleanInterval);
+    if (cache$1) {
+      if (!cacheTimer) {
+        cacheTimer = window.setInterval(clearCache, cacheInterval);
       } else {
-        canCleanCache = false;
+        canClearCache = false;
       }
     }
 
@@ -4256,7 +4257,7 @@
   }
 
   var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
-  var cache$1 = {};
+  var cache$2 = {};
 
   /**
    * Remove any potential vendor prefixes from a property name.
@@ -4265,7 +4266,7 @@
    * @returns {String}
    */
   function getUnprefixedPropName(prop) {
-    var result = cache$1[prop];
+    var result = cache$2[prop];
     if (result) return result;
 
     result = prop.replace(unprefixRegEx, '');
@@ -4274,7 +4275,7 @@
       result = result[0].toLowerCase() + result.slice(1);
     }
 
-    cache$1[prop] = result;
+    cache$2[prop] = result;
 
     return result;
   }

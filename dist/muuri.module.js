@@ -4804,7 +4804,6 @@ ItemDragPlaceholder.prototype.create = function () {
 
   // Set initial styles.
   setStyles(element, {
-    display: 'block',
     position: 'absolute',
     left: '0px',
     top: '0px',
@@ -5650,7 +5649,7 @@ function ItemVisibility(item) {
   this._finishShow = this._finishShow.bind(this);
   this._finishHide = this._finishHide.bind(this);
 
-  element.style.display = isActive ? 'block' : 'none';
+  element.style.display = isActive ? '' : 'none';
   addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
   this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
 }
@@ -5696,7 +5695,7 @@ ItemVisibility.prototype.show = function (instant, onFinish) {
     item._emitter.burst(this._queue, true, item);
     removeClass(element, settings.itemHiddenClass);
     addClass(element, settings.itemVisibleClass);
-    if (!this._isHiding) element.style.display = 'block';
+    if (!this._isHiding) element.style.display = '';
   }
 
   // Push callback to the callback queue.
@@ -7710,7 +7709,7 @@ Grid.prototype.refreshItems = function (items, force) {
       if (!item.isVisible() && !item.isHiding()) {
         style = item.getElement().style;
         style.visibility = 'hidden';
-        style.display = 'block';
+        style.display = '';
         hiddenItemStyles.push(style);
       }
     }

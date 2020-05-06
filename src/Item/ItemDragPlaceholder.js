@@ -322,7 +322,6 @@ ItemDragPlaceholder.prototype.create = function () {
 
   // Set initial styles.
   setStyles(element, {
-    display: 'block',
     position: 'absolute',
     left: '0px',
     top: '0px',

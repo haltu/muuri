@@ -542,7 +542,7 @@ Grid.prototype.refreshItems = function (items, force) {
       if (!item.isVisible() && !item.isHiding()) {
         style = item.getElement().style;
         style.visibility = 'hidden';
-        style.display = 'block';
+        style.display = '';
         hiddenItemStyles.push(style);
       }
     }

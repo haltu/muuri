@@ -4108,11 +4108,10 @@ ItemDrag.prototype._prepareScroll = function () {
   var element = item._element;
   var grid = this._getGrid();
   var gridContainer = grid._element;
-
-  // Calculate element's rect and x/y diff.
+  var axis = grid._settings.dragAxis;
+  var moveX = axis !== 'y';
+  var moveY = axis !== 'x';
   var rect = element.getBoundingClientRect();
-  var scrollDiffX = this._clientX - this._moveDiffX - this._scrollDiffX - rect.left;
-  var scrollDiffY = this._clientY - this._moveDiffY - this._scrollDiffY - rect.top;
 
   // Update container diff.
   if (this._container !== gridContainer) {
@@ -4122,16 +4121,22 @@ ItemDrag.prototype._prepareScroll = function () {
   }
 
   // Update horizontal position data.
-  this._left = this._left - this._scrollDiffX + scrollDiffX;
-  this._gridX = this._left - this._containerDiffX;
+  if (moveX) {
+    var scrollDiffX = this._clientX - this._moveDiffX - this._scrollDiffX - rect.left;
+    this._left = this._left - this._scrollDiffX + scrollDiffX;
+    this._scrollDiffX = scrollDiffX;
+  }
 
   // Update vertical position data.
-  this._top = this._top - this._scrollDiffY + scrollDiffY;
-  this._gridY = this._top - this._containerDiffY;
+  if (moveY) {
+    var scrollDiffY = this._clientY - this._moveDiffY - this._scrollDiffY - rect.top;
+    this._top = this._top - this._scrollDiffY + scrollDiffY;
+    this._scrollDiffY = scrollDiffY;
+  }
 
-  // Update scroll diff.
-  this._scrollDiffX = scrollDiffX;
-  this._scrollDiffY = scrollDiffY;
+  // Update grid position in grid.
+  this._gridX = this._left - this._containerDiffX;
+  this._gridY = this._top - this._containerDiffY;
 };
 
 /**

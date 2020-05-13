@@ -84,8 +84,8 @@ ItemDragRelease.prototype.stop = function (abort, left, top) {
     top = item._top;
   }
 
-  this._placeToGrid(left, top);
-  this._reset();
+  var didReparent = this._placeToGrid(left, top);
+  this._reset(didReparent);
 
   if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
 };
@@ -120,14 +120,16 @@ ItemDragRelease.prototype.destroy = function () {
  *  - The element's current translateX value (optional).
  * @param {Number} [top]
  *  - The element's current translateY value (optional).
+ * @returns {Boolean}
+ *   - Returns `true` if the element was reparented.
  */
 ItemDragRelease.prototype._placeToGrid = function (left, top) {
   if (this._isDestroyed) return;
 
   var item = this._item;
   var element = item._element;
-  var grid = item.getGrid();
-  var container = grid._element;
+  var container = item.getGrid()._element;
+  var didReparent = false;
 
   if (element.parentNode !== container) {
     if (left === undefined || top === undefined) {
@@ -138,25 +140,39 @@ ItemDragRelease.prototype._placeToGrid = function (left, top) {
 
     container.appendChild(element);
     element.style[transformProp] = getTranslateString(left, top);
+    didReparent = true;
   }
 
   this._containerDiffX = 0;
   this._containerDiffY = 0;
+
+  return didReparent;
 };
 
 /**
- * Reset public data and remove releasing class.
+ * Reset data and remove releasing class.
  *
  * @private
+ * @param {Boolean} [needsReflow]
  */
-ItemDragRelease.prototype._reset = function () {
+ItemDragRelease.prototype._reset = function (needsReflow) {
   if (this._isDestroyed) return;
+
   var item = this._item;
+  var releasingClass = item.getGrid()._settings.itemReleasingClass;
+
   this._isActive = false;
   this._isPositioningStarted = false;
   this._containerDiffX = 0;
   this._containerDiffY = 0;
-  removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
+
+  // If the element was just reparented we need to do a forced reflow to remove
+  // the class gracefully.
+  if (releasingClass) {
+    // eslint-disable-next-line
+    if (needsReflow) item._element.clientWidth;
+    removeClass(item._element, releasingClass);
+  }
 };
 
 export default ItemDragRelease;

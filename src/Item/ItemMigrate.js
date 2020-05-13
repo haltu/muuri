@@ -71,6 +71,8 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
   var translateX;
   var translateY;
   var layoutStyles;
+  var currentVisClass;
+  var nextVisClass;
 
   // Get target index.
   if (typeof position === 'number') {
@@ -137,13 +139,19 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
     });
   }
 
-  // Remove current classnames.
-  removeClass(element, settings.itemClass);
-  removeClass(element, isVisible ? settings.itemVisibleClass : settings.itemHiddenClass);
+  // Update item class.
+  if (settings.itemClass !== targetSettings.itemClass) {
+    removeClass(element, settings.itemClass);
+    addClass(element, targetSettings.itemClass);
+  }
 
-  // Add new classnames.
-  addClass(element, targetSettings.itemClass);
-  addClass(element, isVisible ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass);
+  // Update visibility class.
+  currentVisClass = isVisible ? settings.itemVisibleClass : settings.itemHiddenClass;
+  nextVisClass = isVisible ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass;
+  if (currentVisClass !== nextVisClass) {
+    removeClass(element, currentVisClass);
+    addClass(element, nextVisClass);
+  }
 
   // Move item instance from current grid to target grid.
   grid._items.splice(currentIndex, 1);

@@ -478,17 +478,24 @@ ItemDrag.prototype.stop = function () {
     // Remove scroll listeners.
     this._unbindScrollListeners();
 
-    // Append item element to the container if it's not it's child. Also make
-    // sure the translate values are adjusted to account for the DOM shift.
     var element = item._element;
     var grid = this._getGrid();
+    var draggingClass = grid._settings.itemDraggingClass;
+
+    // Append item element to the container if it's not it's child. Also make
+    // sure the translate values are adjusted to account for the DOM shift.
     if (element.parentNode !== grid._element) {
       grid._element.appendChild(element);
       element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+
+      // We need to do forced reflow to make sure the dragging class is removed
+      // gracefully.
+      // eslint-disable-next-line
+      if (draggingClass) element.clientWidth;
     }
 
     // Remove dragging class.
-    removeClass(element, grid._settings.itemDraggingClass);
+    removeClass(element, draggingClass);
   }
 
   // Reset drag data.
@@ -1038,6 +1045,10 @@ ItemDrag.prototype._finishMigration = function () {
   var targetContainer = targetSettings.dragContainer || targetGridElement;
   var currentSettings = this._getGrid()._settings;
   var currentContainer = element.parentNode;
+  var currentVisClass = isActive
+    ? currentSettings.itemVisibleClass
+    : currentSettings.itemHiddenClass;
+  var nextVisClass = isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass;
   var translate;
   var offsetDiff;
 
@@ -1047,14 +1058,17 @@ ItemDrag.prototype._finishMigration = function () {
   this._isMigrating = false;
   this.destroy();
 
-  // Remove current classnames.
-  removeClass(element, currentSettings.itemClass);
-  removeClass(element, currentSettings.itemVisibleClass);
-  removeClass(element, currentSettings.itemHiddenClass);
+  // Update item class.
+  if (currentSettings.itemClass !== targetSettings.itemClass) {
+    removeClass(element, currentSettings.itemClass);
+    addClass(element, targetSettings.itemClass);
+  }
 
-  // Add new classnames.
-  addClass(element, targetSettings.itemClass);
-  addClass(element, isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass);
+  // Update visibility class.
+  if (currentVisClass !== nextVisClass) {
+    removeClass(element, currentVisClass);
+    addClass(element, nextVisClass);
+  }
 
   // Move the item inside the target container if it's different than the
   // current container.

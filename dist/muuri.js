@@ -3220,17 +3220,24 @@
       // Remove scroll listeners.
       this._unbindScrollListeners();
 
-      // Append item element to the container if it's not it's child. Also make
-      // sure the translate values are adjusted to account for the DOM shift.
       var element = item._element;
       var grid = this._getGrid();
+      var draggingClass = grid._settings.itemDraggingClass;
+
+      // Append item element to the container if it's not it's child. Also make
+      // sure the translate values are adjusted to account for the DOM shift.
       if (element.parentNode !== grid._element) {
         grid._element.appendChild(element);
         element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+
+        // We need to do forced reflow to make sure the dragging class is removed
+        // gracefully.
+        // eslint-disable-next-line
+        if (draggingClass) element.clientWidth;
       }
 
       // Remove dragging class.
-      removeClass(element, grid._settings.itemDraggingClass);
+      removeClass(element, draggingClass);
     }
 
     // Reset drag data.
@@ -3780,6 +3787,10 @@
     var targetContainer = targetSettings.dragContainer || targetGridElement;
     var currentSettings = this._getGrid()._settings;
     var currentContainer = element.parentNode;
+    var currentVisClass = isActive
+      ? currentSettings.itemVisibleClass
+      : currentSettings.itemHiddenClass;
+    var nextVisClass = isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass;
     var translate;
     var offsetDiff;
 
@@ -3789,14 +3800,17 @@
     this._isMigrating = false;
     this.destroy();
 
-    // Remove current classnames.
-    removeClass(element, currentSettings.itemClass);
-    removeClass(element, currentSettings.itemVisibleClass);
-    removeClass(element, currentSettings.itemHiddenClass);
+    // Update item class.
+    if (currentSettings.itemClass !== targetSettings.itemClass) {
+      removeClass(element, currentSettings.itemClass);
+      addClass(element, targetSettings.itemClass);
+    }
 
-    // Add new classnames.
-    addClass(element, targetSettings.itemClass);
-    addClass(element, isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass);
+    // Update visibility class.
+    if (currentVisClass !== nextVisClass) {
+      removeClass(element, currentVisClass);
+      addClass(element, nextVisClass);
+    }
 
     // Move the item inside the target container if it's different than the
     // current container.
@@ -5006,8 +5020,8 @@
       top = item._top;
     }
 
-    this._placeToGrid(left, top);
-    this._reset();
+    var didReparent = this._placeToGrid(left, top);
+    this._reset(didReparent);
 
     if (!abort) grid._emit(EVENT_DRAG_RELEASE_END, item);
   };
@@ -5042,14 +5056,16 @@
    *  - The element's current translateX value (optional).
    * @param {Number} [top]
    *  - The element's current translateY value (optional).
+   * @returns {Boolean}
+   *   - Returns `true` if the element was reparented.
    */
   ItemDragRelease.prototype._placeToGrid = function (left, top) {
     if (this._isDestroyed) return;
 
     var item = this._item;
     var element = item._element;
-    var grid = item.getGrid();
-    var container = grid._element;
+    var container = item.getGrid()._element;
+    var didReparent = false;
 
     if (element.parentNode !== container) {
       if (left === undefined || top === undefined) {
@@ -5060,25 +5076,39 @@
 
       container.appendChild(element);
       element.style[transformProp] = getTranslateString(left, top);
+      didReparent = true;
     }
 
     this._containerDiffX = 0;
     this._containerDiffY = 0;
+
+    return didReparent;
   };
 
   /**
-   * Reset public data and remove releasing class.
+   * Reset data and remove releasing class.
    *
    * @private
+   * @param {Boolean} [needsReflow]
    */
-  ItemDragRelease.prototype._reset = function () {
+  ItemDragRelease.prototype._reset = function (needsReflow) {
     if (this._isDestroyed) return;
+
     var item = this._item;
+    var releasingClass = item.getGrid()._settings.itemReleasingClass;
+
     this._isActive = false;
     this._isPositioningStarted = false;
     this._containerDiffX = 0;
     this._containerDiffY = 0;
-    removeClass(item._element, item.getGrid()._settings.itemReleasingClass);
+
+    // If the element was just reparented we need to do a forced reflow to remove
+    // the class gracefully.
+    if (releasingClass) {
+      // eslint-disable-next-line
+      if (needsReflow) item._element.clientWidth;
+      removeClass(item._element, releasingClass);
+    }
   };
 
   var MIN_ANIMATION_DISTANCE = 2;
@@ -5417,6 +5447,8 @@
     var translateX;
     var translateY;
     var layoutStyles;
+    var currentVisClass;
+    var nextVisClass;
 
     // Get target index.
     if (typeof position === 'number') {
@@ -5483,13 +5515,19 @@
       });
     }
 
-    // Remove current classnames.
-    removeClass(element, settings.itemClass);
-    removeClass(element, isVisible ? settings.itemVisibleClass : settings.itemHiddenClass);
+    // Update item class.
+    if (settings.itemClass !== targetSettings.itemClass) {
+      removeClass(element, settings.itemClass);
+      addClass(element, targetSettings.itemClass);
+    }
 
-    // Add new classnames.
-    addClass(element, targetSettings.itemClass);
-    addClass(element, isVisible ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass);
+    // Update visibility class.
+    currentVisClass = isVisible ? settings.itemVisibleClass : settings.itemHiddenClass;
+    nextVisClass = isVisible ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass;
+    if (currentVisClass !== nextVisClass) {
+      removeClass(element, currentVisClass);
+      addClass(element, nextVisClass);
+    }
 
     // Move item instance from current grid to target grid.
     grid._items.splice(currentIndex, 1);

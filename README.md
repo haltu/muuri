@@ -53,33 +53,36 @@ npm install muuri
 
 Or download:
 
-- [muuri.js](https://unpkg.com/muuri@0.9.0/dist/muuri.js) - for development (not minified, with comments).
-- [muuri.min.js](https://unpkg.com/muuri@0.9.0/dist/muuri.min.js) - for production (minified, no comments).
+- [muuri.js](https://cdn.jsdelivr.net/npm/muuri@0.9.0/dist/muuri.js) - for development (not minified, with comments).
+- [muuri.min.js](https://cdn.jsdelivr.net/npm/muuri@0.9.0/dist/muuri.min.js) - for production (minified, no comments).
 
 Or link directly:
 
 ```html
-<script src="https://unpkg.com/muuri@0.9.0/dist/muuri.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/muuri@0.9.0/dist/muuri.min.js"></script>
 ```
 
 <h3><a id="getting-started-2" href="#getting-started-2" aria-hidden="true">#</a> 2. Get Web Animations Polyfill (if needed)</h3>
 
 Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations you need to use a [polyfill](https://github.com/web-animations/web-animations-js).
 
+Install via [npm](https://www.npmjs.com/):
+
 ```bash
 npm install web-animations-js
 ```
 
-<h3><a id="getting-started-3" href="#getting-started-3" aria-hidden="true">#</a> 3. Add the script tags</h3>
+Or download:
 
-Add Muuri on your site and make sure to include the Web Animations Polyfill before Muuri (if needed).
+- [web-animations.min.js](https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js)
+
+Or link directly:
 
 ```html
-<script src="https://unpkg.com/web-animations-js@2.3.2/web-animations.min.js"></script>
-<script src="https://unpkg.com/muuri@0.9.0/dist/muuri.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js"></script>
 ```
 
-<h3><a id="getting-started-4" href="#getting-started-4" aria-hidden="true">#</a> 4. Add the markup</h3>
+<h3><a id="getting-started-3" href="#getting-started-3" aria-hidden="true">#</a> 3. Add the markup</h3>
 
 - Every grid must have a container element (referred as the _grid element_ from now on).
 - Grid items must always consist of at least two elements. The outer element is used for positioning the item and the inner element (first direct child) is used for animating the item's visibility (show/hide methods). You can insert any markup you wish inside the inner item element.
@@ -107,7 +110,7 @@ Add Muuri on your site and make sure to include the Web Animations Polyfill befo
 </div>
 ```
 
-<h3><a id="getting-started-5" href="#getting-started-5" aria-hidden="true">#</a> 5. Add the styles</h3>
+<h3><a id="getting-started-4" href="#getting-started-4" aria-hidden="true">#</a> 4. Add the styles</h3>
 
 - The grid element must be "positioned" meaning that it's CSS position property must be set to _relative_, _absolute_ or _fixed_. Also note that Muuri automatically resizes the grid element's width/height depending on the area the items cover and the layout algorithm configuration.
 - The item elements must have their CSS position set to _absolute_.
@@ -145,7 +148,7 @@ Add Muuri on your site and make sure to include the Web Animations Polyfill befo
 }
 ```
 
-<h3><a id="getting-started-6" href="#getting-started-6" aria-hidden="true">#</a> 6. Fire it up</h3>
+<h3><a id="getting-started-5" href="#getting-started-5" aria-hidden="true">#</a> 5. Fire it up</h3>
 
 The bare minimum configuration is demonstrated below. You must always provide the grid element (or a selector so Muuri can fetch the element for you), everything else is optional.
 

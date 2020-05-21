@@ -120,7 +120,7 @@ var layoutId = 0;
  * @param {(Function|Number)} [options.dragAutoScroll.speed]
  * @param {Boolean} [options.dragAutoScroll.sortDuringScroll=true]
  * @param {Boolean} [options.dragAutoScroll.syncAfterScroll=true]
- * @param {Boolean} [options.dragAutoScroll.smoothStop=true]
+ * @param {Boolean} [options.dragAutoScroll.smoothStop=false]
  * @param {?Function} [options.dragAutoScroll.onStart=null]
  * @param {?Function} [options.dragAutoScroll.onStop=null]
  * @param {String} [options.containerClass="muuri"]
@@ -379,7 +379,7 @@ Grid.defaultOptions = {
     speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     syncAfterScroll: true,
-    smoothStop: true,
+    smoothStop: false,
     onStart: null,
     onStop: null,
   },

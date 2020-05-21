@@ -266,7 +266,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     syncAfterScroll: true,
-    smoothStop: true,
+    smoothStop: false,
     onStart: null,
     onStop: null
   },
@@ -1206,7 +1206,7 @@ If you want to trigger scrolling on any element during dragging you can enable a
     speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     syncAfterScroll: true,
-    smoothStop: true,
+    smoothStop: false,
     onStart: null,
     onStop: null
   }
@@ -1291,8 +1291,8 @@ You can define the following properties:
   - Default value: `true`.
   - Should Muuri automatically update the positions of the dragged items that were affected by scrolling? If you disable this option and the dragged item's parent is scrolled, the dragged item will visually shake during scroll. Unless all of your dragged items are inside a `fixed` positioned container element (which is the recommeded pattern), you should leave this enabled.
 - **smoothStop** &nbsp;&mdash;&nbsp; _boolean_
-  - Default value: `true`.
-  - When a dragged item is moved out of the threshold area the scroll process is set to _ending_ state. However, it's up to you to decide if the actual scrolling motion is stopped gradually or instantly. By default, when this is `true`, scrolling will continue until speed reaches `0`. If you set this to `false` scrolling will stop immediately. _Always_ set this to `false` if you use static speed. When this option is `enabled` you _must_ handle decelerating the speed to `0` yourself within speed `function`. The default `speed` fuction handles the deceleration automatically.
+  - Default value: `false`.
+  - When a dragged item is moved out of the threshold area the scroll process is set to _ending_ state. However, it's up to you to decide if the actual scrolling motion is stopped gradually or instantly. By default, when this is `false`, scrolling will stop immediately. If you set this to `true` scrolling will continue until speed drops to `0`. When this option is `enabled` you _must_ handle decelerating the speed to `0` manually within `speed` function, so do not enable this option if you use a static speed value. The default `speed` function handles the deceleration automatically.
 - **onStart** &nbsp;&mdash;&nbsp; _null / function_
   - Default value: `null`.
   - Optionally, you can provide a callback that will be called when an item starts auto-scrolling a scroll target. The callback function will receive the following arguments:
@@ -1353,6 +1353,8 @@ var grid = new Muuri(elem, {
     // No need to sync dragged item positions after scroll since we place all
     // the dragged items within a fixed element which does not scroll.
     syncAfterScroll: false,
+    // Enable smooth stop.
+    smoothStop: true,
     // Finally let's log some data when auto-scroll starts and stops.
     onStart: function (item, scrollElement, direction) {
       console.log('AUTOSCROLL STARTED', item, scrollElement, direction);

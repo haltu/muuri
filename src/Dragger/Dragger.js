@@ -59,10 +59,10 @@ function Dragger(element, cssProps) {
     this._edgeHack = new EdgeHack(this);
   }
 
-  // Apply initial css props.
+  // Apply initial CSS props.
   this.setCssProps(cssProps);
 
-  // If touch action was not provided with initial css props let's assume it's
+  // If touch action was not provided with initial CSS props let's assume it's
   // auto.
   if (!this._touchAction) {
     this.setTouchAction(taDefaultValue);

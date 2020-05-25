@@ -119,7 +119,6 @@ var layoutId = 0;
  * @param {Number} [options.dragAutoScroll.safeZone=0.2]
  * @param {(Function|Number)} [options.dragAutoScroll.speed]
  * @param {Boolean} [options.dragAutoScroll.sortDuringScroll=true]
- * @param {Boolean} [options.dragAutoScroll.syncAfterScroll=true]
  * @param {Boolean} [options.dragAutoScroll.smoothStop=false]
  * @param {?Function} [options.dragAutoScroll.onStart=null]
  * @param {?Function} [options.dragAutoScroll.onStop=null]
@@ -378,7 +377,6 @@ Grid.defaultOptions = {
     safeZone: 0.2,
     speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
-    syncAfterScroll: true,
     smoothStop: false,
     onStart: null,
     onStop: null,

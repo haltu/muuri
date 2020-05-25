@@ -20,9 +20,8 @@ import {
   getScrollTopMax,
   getContentRect,
   getItemAutoScrollSettings,
-  isAffectedByScroll,
-  prepareItemDragScroll,
-  applyItemDragScroll,
+  prepareItemScrollSync,
+  applyItemScrollSync,
   computeThreshold,
 } from './utils';
 
@@ -50,13 +49,13 @@ export default function AutoScroller() {
   this._tickTime = 0;
   this._tickDeltaTime = 0;
   this._items = [];
-  this._syncItems = [];
   this._actions = [];
   this._requests = {};
   this._requests[AXIS_X] = {};
   this._requests[AXIS_Y] = {};
   this._requestOverlapCheck = {};
   this._dragPositions = {};
+  this._dragDirections = {};
   this._overlapCheckInterval = 150;
 
   this._requestPool = new Pool(
@@ -162,23 +161,6 @@ AutoScroller.prototype._stopTicking = function () {
   cancelAutoScrollTick();
 };
 
-AutoScroller.prototype._getItemDragDirection = function (item, axis) {
-  var positions = this._dragPositions[item._id];
-  if (!positions || positions.length < 4) return 0;
-
-  var isAxisX = axis === AXIS_X;
-  var curr = positions[isAxisX ? 0 : 1];
-  var prev = positions[isAxisX ? 2 : 3];
-
-  if (curr > prev) {
-    return isAxisX ? RIGHT : DOWN;
-  } else if (curr < prev) {
-    return isAxisX ? LEFT : UP;
-  } else {
-    return 0;
-  }
-};
-
 AutoScroller.prototype._getItemHandleRect = function (item, handle, rect) {
   var itemDrag = item._drag;
 
@@ -260,8 +242,9 @@ AutoScroller.prototype._checkItemOverlap = function (item, checkX, checkY) {
     return;
   }
 
-  var dragDirectionX = this._getItemDragDirection(item, AXIS_X);
-  var dragDirectionY = this._getItemDragDirection(item, AXIS_Y);
+  var dragDirections = this._dragDirections[item._id];
+  var dragDirectionX = dragDirections[0];
+  var dragDirectionY = dragDirections[1];
 
   if (!dragDirectionX && !dragDirectionY) {
     checkX && this._cancelItemScroll(item, AXIS_X);
@@ -334,8 +317,7 @@ AutoScroller.prototype._checkItemOverlap = function (item, checkX, checkY) {
     ) {
       testDirection = null;
       testThreshold = computeThreshold(
-        threshold,
-        target.threshold,
+        typeof target.threshold === 'number' ? target.threshold : threshold,
         safeZone,
         itemRect.width,
         testRect.width
@@ -372,8 +354,7 @@ AutoScroller.prototype._checkItemOverlap = function (item, checkX, checkY) {
     ) {
       testDirection = null;
       testThreshold = computeThreshold(
-        threshold,
-        target.threshold,
+        typeof target.threshold === 'number' ? target.threshold : threshold,
         safeZone,
         itemRect.height,
         testRect.height
@@ -441,17 +422,11 @@ AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
   var item = scrollRequest.item;
   var settings = getItemAutoScrollSettings(item);
   var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
+  var targetCount = (targets && targets.length) || 0;
   var threshold = settings.threshold;
   var safeZone = settings.safeZone;
-
-  // Quick exit if no scroll items are found.
-  if (!targets || !targets.length) {
-    return false;
-  }
-
   var itemRect = this._getItemHandleRect(item, settings.handle, RECT_1);
   var testRect = RECT_2;
-
   var target = null;
   var testElement = null;
   var testIsAxisX = false;
@@ -462,7 +437,7 @@ AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
   var testMaxScroll = null;
   var hasReachedEnd = null;
 
-  for (var i = 0; i < targets.length; i++) {
+  for (var i = 0; i < targetCount; i++) {
     target = targets[i];
 
     // Make sure we have a matching element.
@@ -494,8 +469,7 @@ AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
 
     // Compute threshold and edge offset.
     testThreshold = computeThreshold(
-      threshold,
-      target.threshold,
+      typeof target.threshold === 'number' ? target.threshold : threshold,
       safeZone,
       testIsAxisX ? itemRect.width : itemRect.height,
       testIsAxisX ? testRect.width : testRect.height
@@ -584,11 +558,12 @@ AutoScroller.prototype._updateRequests = function () {
 };
 
 AutoScroller.prototype._requestAction = function (request, axis) {
+  var actions = this._actions;
   var isAxisX = axis === AXIS_X;
   var action = null;
 
-  for (var i = 0; i < this._actions.length; i++) {
-    action = this._actions[i];
+  for (var i = 0; i < actions.length; i++) {
+    action = actions[i];
 
     // If the action's request does not match the request's -> skip.
     if (request.element !== action.element) {
@@ -613,21 +588,17 @@ AutoScroller.prototype._requestAction = function (request, axis) {
   action.addRequest(request);
 
   request.tick(this._tickDeltaTime);
-  this._actions.push(action);
+  actions.push(action);
 };
 
 AutoScroller.prototype._updateActions = function () {
   var items = this._items;
-  var syncItems = this._syncItems;
   var requests = this._requests;
   var actions = this._actions;
-  var item;
-  var action;
   var itemId;
   var reqX;
   var reqY;
   var i;
-  var j;
 
   // Generate actions.
   for (i = 0; i < items.length; i++) {
@@ -638,40 +609,51 @@ AutoScroller.prototype._updateActions = function () {
     if (reqY) this._requestAction(reqY, AXIS_Y);
   }
 
-  // Compute actions' scroll values. Also check which items need to be
-  // synchronously synced after scroll.
-  syncItems.length = 0;
+  // Compute actions' scroll values.
   for (i = 0; i < actions.length; i++) {
-    action = actions[i];
-    action.computeScrollValues();
-    for (j = 0; j < items.length; j++) {
-      item = items[j];
-      if (getItemAutoScrollSettings(item).syncAfterScroll === false) continue;
-      if (syncItems.indexOf(item) > -1) continue;
-      if (!isAffectedByScroll(item.getElement(), action.element)) continue;
-      syncItems.push(item);
-    }
+    actions[i].computeScrollValues();
   }
 };
 
 AutoScroller.prototype._applyActions = function () {
   var actions = this._actions;
-  var syncItems = this._syncItems;
+  var items = this._items;
   var i;
 
-  if (actions.length) {
-    for (i = 0; i < actions.length; i++) {
-      actions[i].scroll();
-      this._actionPool.release(actions[i]);
-    }
-    actions.length = 0;
+  // No actions -> no scrolling.
+  if (!actions.length) return;
+
+  // Scroll all the required elements.
+  for (i = 0; i < actions.length; i++) {
+    actions[i].scroll();
+    this._actionPool.release(actions[i]);
   }
 
-  if (syncItems.length) {
-    for (i = 0; i < syncItems.length; i++) prepareItemDragScroll(syncItems[i]);
-    for (i = 0; i < syncItems.length; i++) applyItemDragScroll(syncItems[i]);
-    syncItems.length = 0;
+  // Reset actions.
+  actions.length = 0;
+
+  // Sync the item position immediately after all the auto-scrolling business is
+  // finished. Without this procedure the items will jitter during auto-scroll
+  // (in some cases at least) since the drag scroll handler is async (bound to
+  // raf tick). Note that this procedure should not emit any dragScroll events,
+  // because otherwise they would be emitted twice for the same event.
+  for (i = 0; i < items.length; i++) prepareItemScrollSync(items[i]);
+  for (i = 0; i < items.length; i++) applyItemScrollSync(items[i]);
+};
+
+AutoScroller.prototype._updateDragDirection = function (item) {
+  var dragPositions = this._dragPositions[item._id];
+  var dragDirections = this._dragDirections[item._id];
+  var x1 = item._drag._left;
+  var y1 = item._drag._top;
+  if (dragPositions.length) {
+    var x2 = dragPositions[0];
+    var y2 = dragPositions[1];
+    dragDirections[0] = x1 > x2 ? RIGHT : x1 < x2 ? LEFT : dragDirections[0] || 0;
+    dragDirections[1] = y1 > y2 ? DOWN : y1 < y2 ? UP : dragDirections[1] || 0;
   }
+  dragPositions[0] = x1;
+  dragPositions[1] = y1;
 };
 
 AutoScroller.prototype.addItem = function (item) {
@@ -680,6 +662,7 @@ AutoScroller.prototype.addItem = function (item) {
   if (index === -1) {
     this._items.push(item);
     this._requestOverlapCheck[item._id] = this._tickTime;
+    this._dragDirections[item._id] = [0, 0];
     this._dragPositions[item._id] = [];
     if (!this._isTicking) this._startTicking();
   }
@@ -687,12 +670,7 @@ AutoScroller.prototype.addItem = function (item) {
 
 AutoScroller.prototype.updateItem = function (item) {
   if (this._isDestroyed) return;
-
-  this._dragPositions[item._id].unshift(item._drag._left, item._drag._top);
-  if (this._dragPositions.length > 4) {
-    this._dragPositions.length = 4;
-  }
-
+  this._updateDragDirection(item);
   if (!this._requestOverlapCheck[item._id]) {
     this._requestOverlapCheck[item._id] = this._tickTime;
   }
@@ -718,11 +696,9 @@ AutoScroller.prototype.removeItem = function (item) {
     delete this._requests[AXIS_Y][itemId];
   }
 
-  var syncIndex = this._syncItems.indexOf(item);
-  if (syncIndex > -1) this._syncItems.splice(syncIndex, 1);
-
   delete this._requestOverlapCheck[itemId];
   delete this._dragPositions[itemId];
+  delete this._dragDirections[itemId];
   this._items.splice(index, 1);
 
   if (this._isTicking && !this._items.length) {

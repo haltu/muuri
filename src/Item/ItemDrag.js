@@ -1412,7 +1412,7 @@ ItemDrag.prototype._prepareScroll = function () {
     this._scrollDiffY = scrollDiffY;
   }
 
-  // Update grid position in grid.
+  // Update grid position.
   this._gridX = this._left - this._containerDiffX;
   this._gridY = this._top - this._containerDiffY;
 };
@@ -1427,6 +1427,9 @@ ItemDrag.prototype._applyScroll = function () {
   if (!item._isActive) return;
 
   this._scrollDiffX = this._scrollDiffY = 0;
+  // TODO: Maybe we should have a method for writing the translate value which
+  // could compare the provided values to current values and ignore the DOM
+  // write if it's the same value.
   item._element.style[transformProp] = getTranslateString(this._left, this._top);
   this._getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
 };

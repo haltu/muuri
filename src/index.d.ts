@@ -263,7 +263,6 @@ export interface DragAutoScrollOptions {
   safeZone?: number;
   speed?: number | DragAutoScrollSpeed;
   sortDuringScroll?: boolean;
-  syncAfterScroll?: boolean;
   smoothStop?: boolean;
   onStart?: DragAutoScrollOnStart | null;
   onStop?: DragAutoScrollOnStop | null;

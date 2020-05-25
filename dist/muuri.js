@@ -470,10 +470,10 @@
       this._edgeHack = new EdgeHack(this);
     }
 
-    // Apply initial css props.
+    // Apply initial CSS props.
     this.setCssProps(cssProps);
 
-    // If touch action was not provided with initial css props let's assume it's
+    // If touch action was not provided with initial CSS props let's assume it's
     // auto.
     if (!this._touchAction) {
       this.setTouchAction(taDefaultValue);
@@ -1272,63 +1272,19 @@
     return parseFloat(getStyle(el, style)) || 0;
   }
 
-  var transformProp = getPrefixedPropName(document.documentElement.style, 'transform') || 'transform';
-
-  var styleNameRegEx = /([A-Z])/g;
-  var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
-  var msPrefixRegex = /^(-m-s-)/;
-
   /**
-   * Transforms a camel case style property to kebab case style property. Handles
-   * vendor prefixed properties elegantly as well, e.g. "WebkitTransform" and
-   * "webkitTransform" are both transformed into "-webkit-transform".
+   * Transform translateX and translateY value into CSS transform style
+   * property's value.
    *
-   * @param {String} property
+   * @param {Number} x
+   * @param {Number} y
    * @returns {String}
    */
-  function getStyleName(property) {
-    // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
-    var styleName = property.replace(styleNameRegEx, '-$1').toLowerCase();
-
-    // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
-    // need to add an extra '-' to the beginnig).
-    styleName = styleName.replace(prefixRegex, '-$1');
-
-    // Handle properties that start with "MS" prefix (we need to transform the
-    // "-m-s-" into "-ms-").
-    styleName = styleName.replace(msPrefixRegex, '-ms-');
-
-    return styleName;
+  function getTranslateString(x, y) {
+    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
   }
 
-  var transformStyle = getStyleName(transformProp);
-
-  var transformNone = 'none';
-  var displayInline = 'inline';
-  var displayNone = 'none';
-  var displayStyle = 'display';
-
-  /**
-   * Returns true if element is transformed, false if not. In practice the
-   * element's display value must be anything else than "none" or "inline" as
-   * well as have a valid transform value applied in order to be counted as a
-   * transformed element.
-   *
-   * Borrowed from Mezr (v0.6.1):
-   * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L661
-   *
-   * @param {HTMLElement} element
-   * @returns {Boolean}
-   */
-  function isTransformed(element) {
-    var transform = getStyle(element, transformStyle);
-    if (!transform || transform === transformNone) return false;
-
-    var display = getStyle(element, displayStyle);
-    if (display === displayInline || display === displayNone) return false;
-
-    return true;
-  }
+  var transformProp = getPrefixedPropName(document.documentElement.style, 'transform') || 'transform';
 
   var DOC_ELEM = document.documentElement;
   var BODY = document.body;
@@ -1430,73 +1386,32 @@
   /**
    * @param {Item} item
    */
-  function prepareItemDragScroll(item) {
-    if (item._drag) item._drag._prepareScroll();
+  function prepareItemScrollSync(item) {
+    if (!item._drag) return;
+    item._drag._prepareScroll();
   }
 
   /**
    * @param {Item} item
    */
-  function applyItemDragScroll(item) {
-    if (item._drag) item._drag._applyScroll();
-  }
-
-  /**
-   * Check if the target element's position is affected by the scrolling of the
-   * scroll element.
-   *
-   * @param {HTMLElement} targetElement
-   * @param {HTMLElement|Window} scrollElement
-   * @returns {Boolean}
-   */
-  function isAffectedByScroll(targetElement, scrollElement) {
-    if (
-      // If scroll element is target element -> not affected.
-      targetElement === scrollElement ||
-      // If scroll element does not contain the item element -> not affected.
-      (scrollElement !== window && !scrollElement.contains(targetElement))
-    ) {
-      return false;
-    }
-
-    var el = targetElement;
-    var isAffected = true;
-
-    // There are many cases where the target element might not be affected by the
-    // scroll, but here we just check the most common one -> if there is a fixed
-    // element between the target element and scroll element and there are no
-    // transformed elements between the fixed element and scroll element.
-    while (el !== scrollElement) {
-      el = el.parentElement || scrollElement;
-      if (el === window) break;
-
-      if (!isAffected && isTransformed(el)) {
-        isAffected = true;
-      }
-
-      if (isAffected && el !== scrollElement && getStyle(el, 'position') === 'fixed') {
-        isAffected = false;
-      }
-    }
-
-    return isAffected;
+  function applyItemScrollSync(item) {
+    if (!item._drag || !item._isActive) return;
+    var drag = item._drag;
+    drag._scrollDiffX = drag._scrollDiffY = 0;
+    item._element.style[transformProp] = getTranslateString(drag._left, drag._top);
   }
 
   /**
    * Compute threshold value and edge offset.
    *
    * @param {Number} threshold
-   * @param {(Number|undefined)} scrollElement
    * @param {Number} safeZone
    * @param {Number} itemSize
    * @param {Number} targetSize
    * @returns {Object}
    */
-  function computeThreshold(threshold, targetThreshold, safeZone, itemSize, targetSize) {
-    THRESHOLD_DATA.value = Math.min(
-      targetSize / 2,
-      typeof targetThreshold === 'number' ? targetThreshold : threshold
-    );
+  function computeThreshold(threshold, safeZone, itemSize, targetSize) {
+    THRESHOLD_DATA.value = Math.min(targetSize / 2, threshold);
     THRESHOLD_DATA.offset =
       Math.max(0, itemSize + THRESHOLD_DATA.value * 2 + targetSize * safeZone - targetSize) / 2;
     return THRESHOLD_DATA;
@@ -1746,13 +1661,13 @@
     this._tickTime = 0;
     this._tickDeltaTime = 0;
     this._items = [];
-    this._syncItems = [];
     this._actions = [];
     this._requests = {};
     this._requests[AXIS_X] = {};
     this._requests[AXIS_Y] = {};
     this._requestOverlapCheck = {};
     this._dragPositions = {};
+    this._dragDirections = {};
     this._overlapCheckInterval = 150;
 
     this._requestPool = new Pool(
@@ -1858,23 +1773,6 @@
     cancelAutoScrollTick();
   };
 
-  AutoScroller.prototype._getItemDragDirection = function (item, axis) {
-    var positions = this._dragPositions[item._id];
-    if (!positions || positions.length < 4) return 0;
-
-    var isAxisX = axis === AXIS_X;
-    var curr = positions[isAxisX ? 0 : 1];
-    var prev = positions[isAxisX ? 2 : 3];
-
-    if (curr > prev) {
-      return isAxisX ? RIGHT : DOWN;
-    } else if (curr < prev) {
-      return isAxisX ? LEFT : UP;
-    } else {
-      return 0;
-    }
-  };
-
   AutoScroller.prototype._getItemHandleRect = function (item, handle, rect) {
     var itemDrag = item._drag;
 
@@ -1956,8 +1854,9 @@
       return;
     }
 
-    var dragDirectionX = this._getItemDragDirection(item, AXIS_X);
-    var dragDirectionY = this._getItemDragDirection(item, AXIS_Y);
+    var dragDirections = this._dragDirections[item._id];
+    var dragDirectionX = dragDirections[0];
+    var dragDirectionY = dragDirections[1];
 
     if (!dragDirectionX && !dragDirectionY) {
       checkX && this._cancelItemScroll(item, AXIS_X);
@@ -2030,8 +1929,7 @@
       ) {
         testDirection = null;
         testThreshold = computeThreshold(
-          threshold,
-          target.threshold,
+          typeof target.threshold === 'number' ? target.threshold : threshold,
           safeZone,
           itemRect.width,
           testRect.width
@@ -2068,8 +1966,7 @@
       ) {
         testDirection = null;
         testThreshold = computeThreshold(
-          threshold,
-          target.threshold,
+          typeof target.threshold === 'number' ? target.threshold : threshold,
           safeZone,
           itemRect.height,
           testRect.height
@@ -2137,17 +2034,11 @@
     var item = scrollRequest.item;
     var settings = getItemAutoScrollSettings(item);
     var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
+    var targetCount = (targets && targets.length) || 0;
     var threshold = settings.threshold;
     var safeZone = settings.safeZone;
-
-    // Quick exit if no scroll items are found.
-    if (!targets || !targets.length) {
-      return false;
-    }
-
     var itemRect = this._getItemHandleRect(item, settings.handle, RECT_1);
     var testRect = RECT_2;
-
     var target = null;
     var testElement = null;
     var testIsAxisX = false;
@@ -2158,7 +2049,7 @@
     var testMaxScroll = null;
     var hasReachedEnd = null;
 
-    for (var i = 0; i < targets.length; i++) {
+    for (var i = 0; i < targetCount; i++) {
       target = targets[i];
 
       // Make sure we have a matching element.
@@ -2190,8 +2081,7 @@
 
       // Compute threshold and edge offset.
       testThreshold = computeThreshold(
-        threshold,
-        target.threshold,
+        typeof target.threshold === 'number' ? target.threshold : threshold,
         safeZone,
         testIsAxisX ? itemRect.width : itemRect.height,
         testIsAxisX ? testRect.width : testRect.height
@@ -2280,11 +2170,12 @@
   };
 
   AutoScroller.prototype._requestAction = function (request, axis) {
+    var actions = this._actions;
     var isAxisX = axis === AXIS_X;
     var action = null;
 
-    for (var i = 0; i < this._actions.length; i++) {
-      action = this._actions[i];
+    for (var i = 0; i < actions.length; i++) {
+      action = actions[i];
 
       // If the action's request does not match the request's -> skip.
       if (request.element !== action.element) {
@@ -2309,21 +2200,17 @@
     action.addRequest(request);
 
     request.tick(this._tickDeltaTime);
-    this._actions.push(action);
+    actions.push(action);
   };
 
   AutoScroller.prototype._updateActions = function () {
     var items = this._items;
-    var syncItems = this._syncItems;
     var requests = this._requests;
     var actions = this._actions;
-    var item;
-    var action;
     var itemId;
     var reqX;
     var reqY;
     var i;
-    var j;
 
     // Generate actions.
     for (i = 0; i < items.length; i++) {
@@ -2334,40 +2221,51 @@
       if (reqY) this._requestAction(reqY, AXIS_Y);
     }
 
-    // Compute actions' scroll values. Also check which items need to be
-    // synchronously synced after scroll.
-    syncItems.length = 0;
+    // Compute actions' scroll values.
     for (i = 0; i < actions.length; i++) {
-      action = actions[i];
-      action.computeScrollValues();
-      for (j = 0; j < items.length; j++) {
-        item = items[j];
-        if (getItemAutoScrollSettings(item).syncAfterScroll === false) continue;
-        if (syncItems.indexOf(item) > -1) continue;
-        if (!isAffectedByScroll(item.getElement(), action.element)) continue;
-        syncItems.push(item);
-      }
+      actions[i].computeScrollValues();
     }
   };
 
   AutoScroller.prototype._applyActions = function () {
     var actions = this._actions;
-    var syncItems = this._syncItems;
+    var items = this._items;
     var i;
 
-    if (actions.length) {
-      for (i = 0; i < actions.length; i++) {
-        actions[i].scroll();
-        this._actionPool.release(actions[i]);
-      }
-      actions.length = 0;
+    // No actions -> no scrolling.
+    if (!actions.length) return;
+
+    // Scroll all the required elements.
+    for (i = 0; i < actions.length; i++) {
+      actions[i].scroll();
+      this._actionPool.release(actions[i]);
     }
 
-    if (syncItems.length) {
-      for (i = 0; i < syncItems.length; i++) prepareItemDragScroll(syncItems[i]);
-      for (i = 0; i < syncItems.length; i++) applyItemDragScroll(syncItems[i]);
-      syncItems.length = 0;
+    // Reset actions.
+    actions.length = 0;
+
+    // Sync the item position immediately after all the auto-scrolling business is
+    // finished. Without this procedure the items will jitter during auto-scroll
+    // (in some cases at least) since the drag scroll handler is async (bound to
+    // raf tick). Note that this procedure should not emit any dragScroll events,
+    // because otherwise they would be emitted twice for the same event.
+    for (i = 0; i < items.length; i++) prepareItemScrollSync(items[i]);
+    for (i = 0; i < items.length; i++) applyItemScrollSync(items[i]);
+  };
+
+  AutoScroller.prototype._updateDragDirection = function (item) {
+    var dragPositions = this._dragPositions[item._id];
+    var dragDirections = this._dragDirections[item._id];
+    var x1 = item._drag._left;
+    var y1 = item._drag._top;
+    if (dragPositions.length) {
+      var x2 = dragPositions[0];
+      var y2 = dragPositions[1];
+      dragDirections[0] = x1 > x2 ? RIGHT : x1 < x2 ? LEFT : dragDirections[0] || 0;
+      dragDirections[1] = y1 > y2 ? DOWN : y1 < y2 ? UP : dragDirections[1] || 0;
     }
+    dragPositions[0] = x1;
+    dragPositions[1] = y1;
   };
 
   AutoScroller.prototype.addItem = function (item) {
@@ -2376,6 +2274,7 @@
     if (index === -1) {
       this._items.push(item);
       this._requestOverlapCheck[item._id] = this._tickTime;
+      this._dragDirections[item._id] = [0, 0];
       this._dragPositions[item._id] = [];
       if (!this._isTicking) this._startTicking();
     }
@@ -2383,12 +2282,7 @@
 
   AutoScroller.prototype.updateItem = function (item) {
     if (this._isDestroyed) return;
-
-    this._dragPositions[item._id].unshift(item._drag._left, item._drag._top);
-    if (this._dragPositions.length > 4) {
-      this._dragPositions.length = 4;
-    }
-
+    this._updateDragDirection(item);
     if (!this._requestOverlapCheck[item._id]) {
       this._requestOverlapCheck[item._id] = this._tickTime;
     }
@@ -2414,11 +2308,9 @@
       delete this._requests[AXIS_Y][itemId];
     }
 
-    var syncIndex = this._syncItems.indexOf(item);
-    if (syncIndex > -1) this._syncItems.splice(syncIndex, 1);
-
     delete this._requestOverlapCheck[itemId];
     delete this._dragPositions[itemId];
+    delete this._dragDirections[itemId];
     this._items.splice(index, 1);
 
     if (this._isTicking && !this._items.length) {
@@ -2579,6 +2471,62 @@
       array[indexA] = array[indexB];
       array[indexB] = temp;
     }
+  }
+
+  var styleNameRegEx = /([A-Z])/g;
+  var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
+  var msPrefixRegex = /^(-m-s-)/;
+
+  /**
+   * Transforms a camel case style property to kebab case style property. Handles
+   * vendor prefixed properties elegantly as well, e.g. "WebkitTransform" and
+   * "webkitTransform" are both transformed into "-webkit-transform".
+   *
+   * @param {String} property
+   * @returns {String}
+   */
+  function getStyleName(property) {
+    // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
+    var styleName = property.replace(styleNameRegEx, '-$1').toLowerCase();
+
+    // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
+    // need to add an extra '-' to the beginnig).
+    styleName = styleName.replace(prefixRegex, '-$1');
+
+    // Handle properties that start with "MS" prefix (we need to transform the
+    // "-m-s-" into "-ms-").
+    styleName = styleName.replace(msPrefixRegex, '-ms-');
+
+    return styleName;
+  }
+
+  var transformStyle = getStyleName(transformProp);
+
+  var transformNone = 'none';
+  var displayInline = 'inline';
+  var displayNone = 'none';
+  var displayStyle = 'display';
+
+  /**
+   * Returns true if element is transformed, false if not. In practice the
+   * element's display value must be anything else than "none" or "inline" as
+   * well as have a valid transform value applied in order to be counted as a
+   * transformed element.
+   *
+   * Borrowed from Mezr (v0.6.1):
+   * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L661
+   *
+   * @param {HTMLElement} element
+   * @returns {Boolean}
+   */
+  function isTransformed(element) {
+    var transform = getStyle(element, transformStyle);
+    if (!transform || transform === transformNone) return false;
+
+    var display = getStyle(element, displayStyle);
+    if (display === displayInline || display === displayNone) return false;
+
+    return true;
   }
 
   /**
@@ -2776,18 +2724,6 @@
     translateValue.y = parseFloat(tY) || 0;
 
     return translateValue;
-  }
-
-  /**
-   * Transform translateX and translateY value into CSS transform style
-   * property's value.
-   *
-   * @param {Number} x
-   * @param {Number} y
-   * @returns {String}
-   */
-  function getTranslateString(x, y) {
-    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
   }
 
   /**
@@ -4154,7 +4090,7 @@
       this._scrollDiffY = scrollDiffY;
     }
 
-    // Update grid position in grid.
+    // Update grid position.
     this._gridX = this._left - this._containerDiffX;
     this._gridY = this._top - this._containerDiffY;
   };
@@ -4169,6 +4105,9 @@
     if (!item._isActive) return;
 
     this._scrollDiffX = this._scrollDiffY = 0;
+    // TODO: Maybe we should have a method for writing the translate value which
+    // could compare the provided values to current values and ignore the DOM
+    // write if it's the same value.
     item._element.style[transformProp] = getTranslateString(this._left, this._top);
     this._getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
   };
@@ -7335,7 +7274,6 @@
    * @param {Number} [options.dragAutoScroll.safeZone=0.2]
    * @param {(Function|Number)} [options.dragAutoScroll.speed]
    * @param {Boolean} [options.dragAutoScroll.sortDuringScroll=true]
-   * @param {Boolean} [options.dragAutoScroll.syncAfterScroll=true]
    * @param {Boolean} [options.dragAutoScroll.smoothStop=false]
    * @param {?Function} [options.dragAutoScroll.onStart=null]
    * @param {?Function} [options.dragAutoScroll.onStop=null]
@@ -7594,7 +7532,6 @@
       safeZone: 0.2,
       speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
       sortDuringScroll: true,
-      syncAfterScroll: true,
       smoothStop: false,
       onStart: null,
       onStop: null,

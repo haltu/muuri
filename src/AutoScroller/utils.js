@@ -5,9 +5,9 @@
  * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
-import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
-import isTransformed from '../utils/isTransformed';
+import getTranslateString from '../utils/getTranslateString';
+import transformProp from '../utils/transformProp';
 
 var DOC_ELEM = document.documentElement;
 var BODY = document.body;
@@ -109,73 +109,32 @@ export function getItemAutoScrollSettings(item) {
 /**
  * @param {Item} item
  */
-export function prepareItemDragScroll(item) {
-  if (item._drag) item._drag._prepareScroll();
+export function prepareItemScrollSync(item) {
+  if (!item._drag) return;
+  item._drag._prepareScroll();
 }
 
 /**
  * @param {Item} item
  */
-export function applyItemDragScroll(item) {
-  if (item._drag) item._drag._applyScroll();
-}
-
-/**
- * Check if the target element's position is affected by the scrolling of the
- * scroll element.
- *
- * @param {HTMLElement} targetElement
- * @param {HTMLElement|Window} scrollElement
- * @returns {Boolean}
- */
-export function isAffectedByScroll(targetElement, scrollElement) {
-  if (
-    // If scroll element is target element -> not affected.
-    targetElement === scrollElement ||
-    // If scroll element does not contain the item element -> not affected.
-    (scrollElement !== window && !scrollElement.contains(targetElement))
-  ) {
-    return false;
-  }
-
-  var el = targetElement;
-  var isAffected = true;
-
-  // There are many cases where the target element might not be affected by the
-  // scroll, but here we just check the most common one -> if there is a fixed
-  // element between the target element and scroll element and there are no
-  // transformed elements between the fixed element and scroll element.
-  while (el !== scrollElement) {
-    el = el.parentElement || scrollElement;
-    if (el === window) break;
-
-    if (!isAffected && isTransformed(el)) {
-      isAffected = true;
-    }
-
-    if (isAffected && el !== scrollElement && getStyle(el, 'position') === 'fixed') {
-      isAffected = false;
-    }
-  }
-
-  return isAffected;
+export function applyItemScrollSync(item) {
+  if (!item._drag || !item._isActive) return;
+  var drag = item._drag;
+  drag._scrollDiffX = drag._scrollDiffY = 0;
+  item._element.style[transformProp] = getTranslateString(drag._left, drag._top);
 }
 
 /**
  * Compute threshold value and edge offset.
  *
  * @param {Number} threshold
- * @param {(Number|undefined)} scrollElement
  * @param {Number} safeZone
  * @param {Number} itemSize
  * @param {Number} targetSize
  * @returns {Object}
  */
-export function computeThreshold(threshold, targetThreshold, safeZone, itemSize, targetSize) {
-  THRESHOLD_DATA.value = Math.min(
-    targetSize / 2,
-    typeof targetThreshold === 'number' ? targetThreshold : threshold
-  );
+export function computeThreshold(threshold, safeZone, itemSize, targetSize) {
+  THRESHOLD_DATA.value = Math.min(targetSize / 2, threshold);
   THRESHOLD_DATA.offset =
     Math.max(0, itemSize + THRESHOLD_DATA.value * 2 + targetSize * safeZone - targetSize) / 2;
   return THRESHOLD_DATA;

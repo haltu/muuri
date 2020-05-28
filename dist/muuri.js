@@ -6816,25 +6816,58 @@
 
   var PackerProcessor = createPackerProcessor();
 
-  function createWorkers(amount, onmessage) {
-    var workers = [];
-    var blobUrl = URL.createObjectURL(
-      new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
-        type: 'application/javascript',
-      })
-    );
+  //
+  // WORKER UTILS
+  //
 
-    for (var i = 0, worker; i < amount; i++) {
-      worker = new Worker(blobUrl);
-      if (onmessage) worker.onmessage = onmessage;
-      workers.push(worker);
+  var blobUrl = null;
+  var activeWorkers = [];
+
+  function createWorkerProcessors(amount, onmessage) {
+    var workers = [];
+
+    if (amount > 0) {
+      if (!blobUrl) {
+        blobUrl = URL.createObjectURL(
+          new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
+            type: 'application/javascript',
+          })
+        );
+      }
+
+      for (var i = 0, worker; i < amount; i++) {
+        worker = new Worker(blobUrl);
+        if (onmessage) worker.onmessage = onmessage;
+        workers.push(worker);
+        activeWorkers.push(worker);
+      }
     }
 
-    URL.revokeObjectURL(blobUrl);
     return workers;
   }
 
-  function isWorkerSupported() {
+  function destroyWorkerProcessors(workers) {
+    var worker;
+    var index;
+
+    for (var i = 0; i < workers.length; i++) {
+      worker = workers[i];
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.onmessageerror = null;
+      worker.terminate();
+
+      index = activeWorkers.indexOf(worker);
+      if (index > -1) activeWorkers.splice(index, 1);
+    }
+
+    if (blobUrl && !activeWorkers.length) {
+      URL.revokeObjectURL(blobUrl);
+      blobUrl = null;
+    }
+  }
+
+  function isWorkerProcessorsSupported() {
     return !!(window.Worker && window.URL && window.Blob);
   }
 
@@ -6875,9 +6908,9 @@
 
     // Init the worker(s) or the processor if workers can't be used.
     numWorkers = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
-    if (numWorkers && isWorkerSupported()) {
+    if (numWorkers && isWorkerProcessorsSupported()) {
       try {
-        this._workers = createWorkers(numWorkers, this._onWorkerMessage);
+        this._workers = createWorkerProcessors(numWorkers, this._onWorkerMessage);
       } catch (e) {
         this._processor = new PackerProcessor();
       }
@@ -7090,21 +7123,13 @@
    * @public
    */
   Packer.prototype.destroy = function () {
-    var worker, layoutId, i;
-
-    // Terminate active workers.
-    for (layoutId in this._layoutWorkers) {
-      worker = this._layoutWorkers[layoutId];
-      worker.onmessage = null;
-      worker.terminate();
+    // Move all currently used workers back in the workers array.
+    for (var key in this._layoutWorkers) {
+      this._workers.push(this._layoutWorkers[key]);
     }
 
-    // Terminate idle workers.
-    for (i = 0; i < this._workers.length; i++) {
-      worker = this._workers[i];
-      worker.onmessage = null;
-      worker.terminate();
-    }
+    // Destroy all instance's workers.
+    destroyWorkerProcessors(this._workers);
 
     // Reset data.
     this._workers.length = 0;

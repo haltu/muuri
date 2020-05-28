@@ -538,27 +538,59 @@ function createPackerProcessor(isWorker = false) {
 }
 
 var PackerProcessor = createPackerProcessor();
-
 export default PackerProcessor;
 
-export function createWorkers(amount, onmessage) {
-  var workers = [];
-  var blobUrl = URL.createObjectURL(
-    new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
-      type: 'application/javascript',
-    })
-  );
+//
+// WORKER UTILS
+//
 
-  for (var i = 0, worker; i < amount; i++) {
-    worker = new Worker(blobUrl);
-    if (onmessage) worker.onmessage = onmessage;
-    workers.push(worker);
+var blobUrl = null;
+var activeWorkers = [];
+
+export function createWorkerProcessors(amount, onmessage) {
+  var workers = [];
+
+  if (amount > 0) {
+    if (!blobUrl) {
+      blobUrl = URL.createObjectURL(
+        new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
+          type: 'application/javascript',
+        })
+      );
+    }
+
+    for (var i = 0, worker; i < amount; i++) {
+      worker = new Worker(blobUrl);
+      if (onmessage) worker.onmessage = onmessage;
+      workers.push(worker);
+      activeWorkers.push(worker);
+    }
   }
 
-  URL.revokeObjectURL(blobUrl);
   return workers;
 }
 
-export function isWorkerSupported() {
+export function destroyWorkerProcessors(workers) {
+  var worker;
+  var index;
+
+  for (var i = 0; i < workers.length; i++) {
+    worker = workers[i];
+    worker.onmessage = null;
+    worker.onerror = null;
+    worker.onmessageerror = null;
+    worker.terminate();
+
+    index = activeWorkers.indexOf(worker);
+    if (index > -1) activeWorkers.splice(index, 1);
+  }
+
+  if (blobUrl && !activeWorkers.length) {
+    URL.revokeObjectURL(blobUrl);
+    blobUrl = null;
+  }
+}
+
+export function isWorkerProcessorsSupported() {
   return !!(window.Worker && window.URL && window.Blob);
 }

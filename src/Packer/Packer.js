@@ -5,7 +5,11 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-import PackerProcessor, { createWorkers, isWorkerSupported } from './PackerProcessor';
+import PackerProcessor, {
+  createWorkerProcessors,
+  destroyWorkerProcessors,
+  isWorkerProcessorsSupported,
+} from './PackerProcessor';
 
 export var FILL_GAPS = 1;
 export var HORIZONTAL = 2;
@@ -44,9 +48,9 @@ function Packer(numWorkers, options) {
 
   // Init the worker(s) or the processor if workers can't be used.
   numWorkers = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
-  if (numWorkers && isWorkerSupported()) {
+  if (numWorkers && isWorkerProcessorsSupported()) {
     try {
-      this._workers = createWorkers(numWorkers, this._onWorkerMessage);
+      this._workers = createWorkerProcessors(numWorkers, this._onWorkerMessage);
     } catch (e) {
       this._processor = new PackerProcessor();
     }
@@ -259,21 +263,13 @@ Packer.prototype.cancelLayout = function (layoutId) {
  * @public
  */
 Packer.prototype.destroy = function () {
-  var worker, layoutId, i;
-
-  // Terminate active workers.
-  for (layoutId in this._layoutWorkers) {
-    worker = this._layoutWorkers[layoutId];
-    worker.onmessage = null;
-    worker.terminate();
+  // Move all currently used workers back in the workers array.
+  for (var key in this._layoutWorkers) {
+    this._workers.push(this._layoutWorkers[key]);
   }
 
-  // Terminate idle workers.
-  for (i = 0; i < this._workers.length; i++) {
-    worker = this._workers[i];
-    worker.onmessage = null;
-    worker.terminate();
-  }
+  // Destroy all instance's workers.
+  destroyWorkerProcessors(this._workers);
 
   // Reset data.
   this._workers.length = 0;

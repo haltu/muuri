@@ -13,8 +13,6 @@ import getCurrentStyles from '../utils/getCurrentStyles';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
-import transformProp from '../utils/transformProp';
-import getTranslateString from '../utils/getTranslateString';
 
 /**
  * Visibility manager for Item instance, handles visibility of an item.
@@ -158,16 +156,15 @@ ItemVisibility.prototype.hide = function (instant, onFinish) {
  *
  * @public
  * @param {Boolean} processCallbackQueue
- * @param {Boolean} [applyCurrentStyles=true]
  */
-ItemVisibility.prototype.stop = function (processCallbackQueue, applyCurrentStyles) {
+ItemVisibility.prototype.stop = function (processCallbackQueue) {
   if (this._isDestroyed) return;
   if (!this._isHiding && !this._isShowing) return;
 
   var item = this._item;
 
   cancelVisibilityTick(item._id);
-  this._animation.stop(applyCurrentStyles !== false);
+  this._animation.stop();
   if (processCallbackQueue) {
     item._emitter.burst(this._queue, true, item);
   }
@@ -205,7 +202,7 @@ ItemVisibility.prototype.destroy = function () {
   var grid = item.getGrid();
   var settings = grid._settings;
 
-  this.stop(true, false);
+  this.stop(true);
   item._emitter.clear(this._queue);
   this._animation.destroy();
   this._removeCurrentStyles();
@@ -256,9 +253,7 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
   // If we need to apply the styles instantly without animation.
   if (isInstant) {
     setStyles(childElement, targetStyles);
-    if (animation.isAnimating()) {
-      animation.stop(false);
-    }
+    animation.stop();
     onFinish && onFinish();
     return;
   }
@@ -295,18 +290,14 @@ ItemVisibility.prototype._finishShow = function () {
  *
  * @private
  */
-ItemVisibility.prototype._finishHide = (function () {
-  var layoutStyles = {};
-  layoutStyles[transformProp] = getTranslateString(0, 0);
-  return function () {
-    if (!this._isHidden) return;
-    var item = this._item;
-    this._isHiding = false;
-    item._layout.stop(true, layoutStyles);
-    item._element.style.display = 'none';
-    item._emitter.burst(this._queue, false, item);
-  };
-})();
+ItemVisibility.prototype._finishHide = function () {
+  if (!this._isHidden) return;
+  var item = this._item;
+  this._isHiding = false;
+  item._layout.stop(true, 0, 0);
+  item._element.style.display = 'none';
+  item._emitter.burst(this._queue, false, item);
+};
 
 /**
  * Remove currently applied visibility related inline style properties.

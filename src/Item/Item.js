@@ -18,7 +18,9 @@ import addClass from '../utils/addClass';
 import createUid from '../utils/createUid';
 import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
+import getTranslateString from '../utils/getTranslateString';
 import removeClass from '../utils/removeClass';
+import transformProp from '../utils/transformProp';
 
 /**
  * Creates a new Item instance for a Grid instance.
@@ -52,6 +54,8 @@ function Item(grid, element, isActive) {
   this._marginRight = 0;
   this._marginTop = 0;
   this._marginBottom = 0;
+  this._tX = undefined;
+  this._tY = undefined;
   this._sortData = null;
   this._emitter = new Emitter();
 
@@ -335,6 +339,44 @@ Item.prototype._removeFromLayout = function () {
   this._isActive = false;
   this._left = 0;
   this._top = 0;
+};
+
+/**
+ * Check if the layout procedure can be skipped for the item.
+ *
+ * @private
+ * @param {Number} left
+ * @param {Number} top
+ * @returns {Boolean}
+ */
+Item.prototype._canSkipLayout = function (left, top) {
+  return (
+    this._left === left &&
+    this._top === top &&
+    !this._migrate._isActive &&
+    !this._layout._skipNextAnimation &&
+    !this._dragRelease.isJustReleased()
+  );
+};
+
+/**
+ * Set the provided left and top arguments as the item element's translate
+ * values in the DOM. This method keeps track of the currently applied
+ * translate values and skips the update operation if the provided values are
+ * identical to the currently applied values. Returns `false` if there was no
+ * need for update and `true` if the translate value was updated.
+ *
+ * @private
+ * @param {Number} left
+ * @param {Number} top
+ * @returns {Boolean}
+ */
+Item.prototype._setTranslate = function (left, top) {
+  if (this._tX === left && this._tY === top) return false;
+  this._tX = left;
+  this._tY = top;
+  this._element.style[transformProp] = getTranslateString(left, top);
+  return true;
 };
 
 /**

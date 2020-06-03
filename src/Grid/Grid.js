@@ -1374,26 +1374,18 @@ Grid.prototype._onLayoutDataReceived = (function () {
       left = layout.slots[i * 2];
       top = layout.slots[i * 2 + 1];
 
-      // If the left and top values have not changed since the last layout and
-      // if some other conditions are met, we can skip the item's layout process
-      // and save some CPU time.
-      // TODO: Might make more sense to have a single item._layout.isDirty flag
-      // for example which we would set to true whenever this optimization can
-      // not be used for the next layout.
-      if (
-        left === item._left &&
-        top === item._top &&
-        !item._migrate._isActive &&
-        !item._layout._skipNextAnimation &&
-        !item._dragRelease.isJustReleased()
-      ) {
+      // Let's skip the layout process if we can. Possibly avoids a lot of DOM
+      // operations which saves us some CPU cycles.
+      if (item._canSkipLayout(left, top)) {
         --counter;
         continue;
       }
 
+      // Update the item's position.
       item._left = left;
       item._top = top;
 
+      // Only active non-dragged items need to be moved.
       if (item.isActive() && !item.isDragging()) {
         itemsToLayout.push(item);
       }

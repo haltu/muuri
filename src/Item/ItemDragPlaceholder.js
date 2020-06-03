@@ -125,10 +125,8 @@ ItemDragPlaceholder.prototype._onLayoutStart = function (items, isInstant) {
     cancelPlaceholderLayoutTick(item._id);
 
     // Snap placeholder to correct position.
-    var targetStyles = {};
-    targetStyles[transformProp] = getTranslateString(nextX, nextY);
-    setStyles(this._element, targetStyles);
-    this._animation.stop(false);
+    this._element.style[transformProp] = getTranslateString(nextX, nextY);
+    this._animation.stop();
 
     // Move placeholder inside correct container after migration.
     if (this._didMigrate) {
@@ -172,16 +170,13 @@ ItemDragPlaceholder.prototype._startAnimation = function () {
   var currentY = this._transY;
   var nextX = this._nextTransX;
   var nextY = this._nextTransY;
-  var targetStyles = {};
-
-  targetStyles[transformProp] = getTranslateString(nextX, nextY);
 
   // If placeholder is already in correct position let's just stop animation
   // and be done with it.
   if (currentX === nextX && currentY === nextY) {
     if (animation.isAnimating()) {
-      setStyles(this._element, targetStyles);
-      animation.stop(false);
+      this._element.style[transformProp] = getTranslateString(nextX, nextY);
+      animation.stop();
     }
     return;
   }
@@ -189,7 +184,9 @@ ItemDragPlaceholder.prototype._startAnimation = function () {
   // Otherwise let's start the animation.
   var settings = this._item.getGrid()._settings;
   var currentStyles = {};
+  var targetStyles = {};
   currentStyles[transformProp] = getTranslateString(currentX, currentY);
+  targetStyles[transformProp] = getTranslateString(nextX, nextY);
   animation.start(currentStyles, targetStyles, {
     duration: settings.layoutDuration,
     easing: settings.layoutEasing,
@@ -330,9 +327,10 @@ ItemDragPlaceholder.prototype.create = function () {
   });
 
   // Set initial position.
-  var left = item._left + item._marginLeft;
-  var top = item._top + item._marginTop;
-  element.style[transformProp] = getTranslateString(left, top);
+  element.style[transformProp] = getTranslateString(
+    item._left + item._marginLeft,
+    item._top + item._marginTop
+  );
 
   // Bind event listeners.
   grid.on(EVENT_LAYOUT_START, this._onLayoutStart);
@@ -371,6 +369,7 @@ ItemDragPlaceholder.prototype.reset = function () {
   cancelPlaceholderResizeTick(item._id);
 
   // Reset animation instance.
+  // TODO: Here we need to apply current styles.
   animation.stop();
   animation._element = null;
 

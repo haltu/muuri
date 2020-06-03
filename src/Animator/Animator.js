@@ -145,22 +145,22 @@ Animator.prototype.start = function (propsFrom, propsTo, options) {
  * Stop instance's current animation if running.
  *
  * @public
- * @param {Boolean} [applyCurrentStyles=true]
  */
-Animator.prototype.stop = function (applyCurrentStyles) {
+Animator.prototype.stop = function () {
   if (this._isDestroyed || !this._animation) return;
-
-  var element = this._element;
-  var currentProps = this._props;
-  var currentValues = this._values;
-
-  if (applyCurrentStyles !== false) {
-    setStyles(element, getCurrentStyles(element, currentProps));
-  }
-
   this._animation.cancel();
   this._animation = this._callback = null;
-  currentProps.length = currentValues.length = 0;
+  this._props.length = this._values.length = 0;
+};
+
+/**
+ * Read the current values of the element's animated styles from the DOM.
+ *
+ * @public
+ * @return {Object}
+ */
+Animator.prototype.getCurrentStyles = function () {
+  return getCurrentStyles(element, currentProps);
 };
 
 /**

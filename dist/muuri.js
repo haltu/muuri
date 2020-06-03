@@ -1272,20 +1272,6 @@
     return parseFloat(getStyle(el, style)) || 0;
   }
 
-  /**
-   * Transform translateX and translateY value into CSS transform style
-   * property's value.
-   *
-   * @param {Number} x
-   * @param {Number} y
-   * @returns {String}
-   */
-  function getTranslateString(x, y) {
-    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
-  }
-
-  var transformProp = getPrefixedPropName(document.documentElement.style, 'transform') || 'transform';
-
   var DOC_ELEM = document.documentElement;
   var BODY = document.body;
   var THRESHOLD_DATA = { value: 0, offset: 0 };
@@ -1398,7 +1384,7 @@
     if (!item._drag || !item._isActive) return;
     var drag = item._drag;
     drag._scrollDiffX = drag._scrollDiffY = 0;
-    item._element.style[transformProp] = getTranslateString(drag._left, drag._top);
+    item._setTranslate(drag._left, drag._top);
   }
 
   /**
@@ -2473,6 +2459,8 @@
     }
   }
 
+  var transformProp = getPrefixedPropName(document.documentElement.style, 'transform') || 'transform';
+
   var styleNameRegEx = /([A-Z])/g;
   var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
   var msPrefixRegex = /^(-m-s-)/;
@@ -3164,7 +3152,7 @@
       // sure the translate values are adjusted to account for the DOM shift.
       if (element.parentNode !== grid._element) {
         grid._element.appendChild(element);
-        element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+        item._setTranslate(this._gridX, this._gridY);
 
         // We need to do forced reflow to make sure the dragging class is removed
         // gracefully.
@@ -3774,7 +3762,7 @@
     // Adjust the position of the item element if it was moved from a container
     // to another.
     if (targetContainer !== currentContainer) {
-      element.style[transformProp] = getTranslateString(translate.x, translate.y);
+      item._setTranslate(translate.x, translate.y);
     }
 
     // Update child element's styles to reflect the current visibility state.
@@ -3913,9 +3901,7 @@
     var hasDragContainer = this._container !== grid._element;
 
     if (item.isPositioning()) {
-      var layoutStyles = {};
-      layoutStyles[transformProp] = getTranslateString(this._left, this._top);
-      item._layout.stop(true, layoutStyles);
+      item._layout.stop(true, this._left, this._top);
     }
 
     if (migrate._isActive) {
@@ -3952,7 +3938,7 @@
         this._left += this._containerDiffX;
         this._top += this._containerDiffY;
         this._container.appendChild(element);
-        element.style[transformProp] = getTranslateString(this._left, this._top);
+        item._setTranslate(this._left, this._top);
       }
     }
 
@@ -4026,7 +4012,7 @@
     if (!item._isActive) return;
 
     this._moveDiffX = this._moveDiffY = 0;
-    item._element.style[transformProp] = getTranslateString(this._left, this._top);
+    item._setTranslate(this._left, this._top);
     this._getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
     ItemDrag.autoScroller.updateItem(item);
   };
@@ -4105,10 +4091,7 @@
     if (!item._isActive) return;
 
     this._scrollDiffX = this._scrollDiffY = 0;
-    // TODO: Maybe we should have a method for writing the translate value which
-    // could compare the provided values to current values and ignore the DOM
-    // write if it's the same value.
-    item._element.style[transformProp] = getTranslateString(this._left, this._top);
+    item._setTranslate(this._left, this._top);
     this._getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
   };
 
@@ -4404,22 +4387,22 @@
    * Stop instance's current animation if running.
    *
    * @public
-   * @param {Boolean} [applyCurrentStyles=true]
    */
-  Animator.prototype.stop = function (applyCurrentStyles) {
+  Animator.prototype.stop = function () {
     if (this._isDestroyed || !this._animation) return;
-
-    var element = this._element;
-    var currentProps = this._props;
-    var currentValues = this._values;
-
-    if (applyCurrentStyles !== false) {
-      setStyles(element, getCurrentStyles(element, currentProps));
-    }
-
     this._animation.cancel();
     this._animation = this._callback = null;
-    currentProps.length = currentValues.length = 0;
+    this._props.length = this._values.length = 0;
+  };
+
+  /**
+   * Read the current values of the element's animated styles from the DOM.
+   *
+   * @public
+   * @return {Object}
+   */
+  Animator.prototype.getCurrentStyles = function () {
+    return getCurrentStyles(element, currentProps);
   };
 
   /**
@@ -4472,6 +4455,18 @@
       frame[unprefix ? getUnprefixedPropName(prop) : prop] = props[prop];
     }
     return frame;
+  }
+
+  /**
+   * Transform translateX and translateY value into CSS transform style
+   * property's value.
+   *
+   * @param {Number} x
+   * @param {Number} y
+   * @returns {String}
+   */
+  function getTranslateString(x, y) {
+    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
   }
 
   /**
@@ -4571,10 +4566,8 @@
       cancelPlaceholderLayoutTick(item._id);
 
       // Snap placeholder to correct position.
-      var targetStyles = {};
-      targetStyles[transformProp] = getTranslateString(nextX, nextY);
-      setStyles(this._element, targetStyles);
-      this._animation.stop(false);
+      this._element.style[transformProp] = getTranslateString(nextX, nextY);
+      this._animation.stop();
 
       // Move placeholder inside correct container after migration.
       if (this._didMigrate) {
@@ -4618,16 +4611,13 @@
     var currentY = this._transY;
     var nextX = this._nextTransX;
     var nextY = this._nextTransY;
-    var targetStyles = {};
-
-    targetStyles[transformProp] = getTranslateString(nextX, nextY);
 
     // If placeholder is already in correct position let's just stop animation
     // and be done with it.
     if (currentX === nextX && currentY === nextY) {
       if (animation.isAnimating()) {
-        setStyles(this._element, targetStyles);
-        animation.stop(false);
+        this._element.style[transformProp] = getTranslateString(nextX, nextY);
+        animation.stop();
       }
       return;
     }
@@ -4635,7 +4625,9 @@
     // Otherwise let's start the animation.
     var settings = this._item.getGrid()._settings;
     var currentStyles = {};
+    var targetStyles = {};
     currentStyles[transformProp] = getTranslateString(currentX, currentY);
+    targetStyles[transformProp] = getTranslateString(nextX, nextY);
     animation.start(currentStyles, targetStyles, {
       duration: settings.layoutDuration,
       easing: settings.layoutEasing,
@@ -4776,9 +4768,10 @@
     });
 
     // Set initial position.
-    var left = item._left + item._marginLeft;
-    var top = item._top + item._marginTop;
-    element.style[transformProp] = getTranslateString(left, top);
+    element.style[transformProp] = getTranslateString(
+      item._left + item._marginLeft,
+      item._top + item._marginTop
+    );
 
     // Bind event listeners.
     grid.on(EVENT_LAYOUT_START, this._onLayoutStart);
@@ -4817,6 +4810,7 @@
     cancelPlaceholderResizeTick(item._id);
 
     // Reset animation instance.
+    // TODO: Here we need to apply current styles.
     animation.stop();
     animation._element = null;
 
@@ -5014,7 +5008,7 @@
       }
 
       container.appendChild(element);
-      element.style[transformProp] = getTranslateString(left, top);
+      item._setTranslate(left, top);
       didReparent = true;
     }
 
@@ -5068,8 +5062,8 @@
     this._isInterrupted = false;
     this._currentStyles = {};
     this._targetStyles = {};
-    this._currentLeft = 0;
-    this._currentTop = 0;
+    this._nextLeft = 0;
+    this._nextTop = 0;
     this._offsetLeft = 0;
     this._offsetTop = 0;
     this._skipNextAnimation = false;
@@ -5082,7 +5076,7 @@
     // Set element's initial position styles.
     elementStyle.left = '0px';
     elementStyle.top = '0px';
-    elementStyle[transformProp] = getTranslateString(0, 0);
+    item._setTranslate(0, 0);
 
     this._animation = new Animator(element);
     this._queue = 'layout-' + item._id;
@@ -5139,9 +5133,8 @@
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
       this._updateOffsets();
-      this._updateTargetStyles();
-      setStyles(item._element, this._targetStyles);
-      this._animation.stop(false);
+      item._setTranslate(this._nextLeft, this._nextTop);
+      this._animation.stop();
       this._finish();
       return;
     }
@@ -5159,9 +5152,10 @@
    *
    * @public
    * @param {Boolean} processCallbackQueue
-   * @param {Object} [targetStyles]
+   * @param {Number} [left]
+   * @param {Number} [top]
    */
-  ItemLayout.prototype.stop = function (processCallbackQueue, targetStyles) {
+  ItemLayout.prototype.stop = function (processCallbackQueue, left, top) {
     if (this._isDestroyed || !this._isActive) return;
 
     var item = this._item;
@@ -5170,8 +5164,15 @@
     cancelLayoutTick(item._id);
 
     // Stop animation.
-    if (targetStyles) setStyles(item._element, targetStyles);
-    this._animation.stop(!targetStyles);
+    if (this._animation.isAnimating()) {
+      if (left === undefined || top === undefined) {
+        var translate = getTranslate(item._element);
+        left = translate.x;
+        top = translate.y;
+      }
+      item._setTranslate(left, top);
+      this._animation.stop();
+    }
 
     // Remove positioning class.
     removeClass(item._element, item.getGrid()._settings.itemPositioningClass);
@@ -5195,7 +5196,7 @@
 
     var elementStyle = this._item._element.style;
 
-    this.stop(true, {});
+    this.stop(true, 0, 0);
     this._item._emitter.clear(this._queue);
     this._animation.destroy();
 
@@ -5238,19 +5239,9 @@
       : migrate._isActive
       ? migrate._containerDiffY
       : 0;
-  };
 
-  /**
-   * Calculate and update item's layout target styles.
-   *
-   * @private
-   */
-  ItemLayout.prototype._updateTargetStyles = function () {
-    if (this._isDestroyed) return;
-    this._targetStyles[transformProp] = getTranslateString(
-      this._item._left + this._offsetLeft,
-      this._item._top + this._offsetTop
-    );
+    this._nextLeft = this._item._left + this._offsetLeft;
+    this._nextTop = this._item._top + this._offsetTop;
   };
 
   /**
@@ -5264,6 +5255,10 @@
     var item = this._item;
     var migrate = item._migrate;
     var release = item._dragRelease;
+
+    // Update internal translate values.
+    item._tX = this._nextLeft;
+    item._tY = this._nextTop;
 
     // Mark the item as inactive and remove positioning classes.
     if (this._isActive) {
@@ -5285,11 +5280,12 @@
    * @private
    */
   ItemLayout.prototype._setupAnimation = function () {
-    // TODO: Keep track of the translate value so we only need to query the DOM
-    // here if the item is animating currently.
-    var translate = getTranslate(this._item._element);
-    this._currentLeft = translate.x;
-    this._currentTop = translate.y;
+    var item = this._item;
+    if (item._tX === undefined || item._tY === undefined) {
+      var translate = getTranslate(item._element);
+      item._tX = translate.x;
+      item._tY = translate.y;
+    }
   };
 
   /**
@@ -5304,18 +5300,17 @@
 
     // Let's update the offset data and target styles.
     this._updateOffsets();
-    this._updateTargetStyles();
 
-    var xDiff = Math.abs(item._left - (this._currentLeft - this._offsetLeft));
-    var yDiff = Math.abs(item._top - (this._currentTop - this._offsetTop));
+    var xDiff = Math.abs(item._left - (item._tX - this._offsetLeft));
+    var yDiff = Math.abs(item._top - (item._tY - this._offsetTop));
 
     // If there is no need for animation or if the item is already in correct
     // position (or near it) let's finish the process early.
     if (isInstant || (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE)) {
       if (xDiff || yDiff || this._isInterrupted) {
-        setStyles(item._element, this._targetStyles);
+        item._setTranslate(this._nextLeft, this._nextTop);
       }
-      this._animation.stop(false);
+      this._animation.stop();
       this._finish();
       return;
     }
@@ -5325,10 +5320,17 @@
       addClass(item._element, settings.itemPositioningClass);
     }
 
-    // Get current styles for animation.
-    this._currentStyles[transformProp] = getTranslateString(this._currentLeft, this._currentTop);
+    // Get current/next styles for animation.
+    this._currentStyles[transformProp] = getTranslateString(item._tX, item._tY);
+    this._targetStyles[transformProp] = getTranslateString(this._nextLeft, this._nextTop);
 
-    // Animate.
+    // Set internal translation values to undefined for the duration of the
+    // animation since they will be changing on each animation frame for the
+    // duration of the animation and tracking them would mean reading the DOM on
+    // each frame, which is pretty darn expensive.
+    item._tX = item._tY = undefined;
+
+    // Start animation.
     this._animation.start(this._currentStyles, this._targetStyles, this._animOptions);
   };
 
@@ -5385,7 +5387,6 @@
     var translate;
     var translateX;
     var translateY;
-    var layoutStyles;
     var currentVisClass;
     var nextVisClass;
 
@@ -5407,9 +5408,7 @@
 
     // Abort current positioning.
     if (item.isPositioning()) {
-      layoutStyles = {};
-      layoutStyles[transformProp] = getTranslateString(translateX, translateY);
-      item._layout.stop(true, layoutStyles);
+      item._layout.stop(true, translateX, translateY);
     }
 
     // Abort current migration.
@@ -5426,8 +5425,8 @@
       item._dragRelease.stop(true, translateX, translateY);
     }
 
-    // Stop current visibility animations.
-    item._visibility.stop(true, true);
+    // Stop current visibility animation.
+    item._visibility.stop(true);
 
     // Destroy current drag.
     if (item._drag) item._drag.destroy();
@@ -5488,10 +5487,7 @@
           translateX = translate.x;
           translateY = translate.y;
         }
-        element.style[transformProp] = getTranslateString(
-          translateX + offsetDiff.left,
-          translateY + offsetDiff.top
-        );
+        item._setTranslate(translateX + offsetDiff.left, translateY + offsetDiff.top);
       }
     }
     // If item is not active let's just append it to the target grid's element.
@@ -5588,7 +5584,7 @@
       }
 
       gridElement.appendChild(element);
-      element.style[transformProp] = getTranslateString(left, top);
+      item._setTranslate(left, top);
     }
 
     this._isActive = false;
@@ -5751,16 +5747,15 @@
    *
    * @public
    * @param {Boolean} processCallbackQueue
-   * @param {Boolean} [applyCurrentStyles=true]
    */
-  ItemVisibility.prototype.stop = function (processCallbackQueue, applyCurrentStyles) {
+  ItemVisibility.prototype.stop = function (processCallbackQueue) {
     if (this._isDestroyed) return;
     if (!this._isHiding && !this._isShowing) return;
 
     var item = this._item;
 
     cancelVisibilityTick(item._id);
-    this._animation.stop(applyCurrentStyles !== false);
+    this._animation.stop();
     if (processCallbackQueue) {
       item._emitter.burst(this._queue, true, item);
     }
@@ -5798,7 +5793,7 @@
     var grid = item.getGrid();
     var settings = grid._settings;
 
-    this.stop(true, false);
+    this.stop(true);
     item._emitter.clear(this._queue);
     this._animation.destroy();
     this._removeCurrentStyles();
@@ -5849,9 +5844,7 @@
     // If we need to apply the styles instantly without animation.
     if (isInstant) {
       setStyles(childElement, targetStyles);
-      if (animation.isAnimating()) {
-        animation.stop(false);
-      }
+      animation.stop();
       onFinish && onFinish();
       return;
     }
@@ -5888,18 +5881,14 @@
    *
    * @private
    */
-  ItemVisibility.prototype._finishHide = (function () {
-    var layoutStyles = {};
-    layoutStyles[transformProp] = getTranslateString(0, 0);
-    return function () {
-      if (!this._isHidden) return;
-      var item = this._item;
-      this._isHiding = false;
-      item._layout.stop(true, layoutStyles);
-      item._element.style.display = 'none';
-      item._emitter.burst(this._queue, false, item);
-    };
-  })();
+  ItemVisibility.prototype._finishHide = function () {
+    if (!this._isHidden) return;
+    var item = this._item;
+    this._isHiding = false;
+    item._layout.stop(true, 0, 0);
+    item._element.style.display = 'none';
+    item._emitter.burst(this._queue, false, item);
+  };
 
   /**
    * Remove currently applied visibility related inline style properties.
@@ -5959,6 +5948,8 @@
     this._marginRight = 0;
     this._marginTop = 0;
     this._marginBottom = 0;
+    this._tX = undefined;
+    this._tY = undefined;
     this._sortData = null;
     this._emitter = new Emitter();
 
@@ -6242,6 +6233,44 @@
     this._isActive = false;
     this._left = 0;
     this._top = 0;
+  };
+
+  /**
+   * Check if the layout procedure can be skipped for the item.
+   *
+   * @private
+   * @param {Number} left
+   * @param {Number} top
+   * @returns {Boolean}
+   */
+  Item.prototype._canSkipLayout = function (left, top) {
+    return (
+      this._left === left &&
+      this._top === top &&
+      !this._migrate._isActive &&
+      !this._layout._skipNextAnimation &&
+      !this._dragRelease.isJustReleased()
+    );
+  };
+
+  /**
+   * Set the provided left and top arguments as the item element's translate
+   * values in the DOM. This method keeps track of the currently applied
+   * translate values and skips the update operation if the provided values are
+   * identical to the currently applied values. Returns `false` if there was no
+   * need for update and `true` if the translate value was updated.
+   *
+   * @private
+   * @param {Number} left
+   * @param {Number} top
+   * @returns {Boolean}
+   */
+  Item.prototype._setTranslate = function (left, top) {
+    if (this._tX === left && this._tY === top) return false;
+    this._tX = left;
+    this._tY = top;
+    this._element.style[transformProp] = getTranslateString(left, top);
+    return true;
   };
 
   /**
@@ -8554,26 +8583,18 @@
         left = layout.slots[i * 2];
         top = layout.slots[i * 2 + 1];
 
-        // If the left and top values have not changed since the last layout and
-        // if some other conditions are met, we can skip the item's layout process
-        // and save some CPU time.
-        // TODO: Might make more sense to have a single item._layout.isDirty flag
-        // for example which we would set to true whenever this optimization can
-        // not be used for the next layout.
-        if (
-          left === item._left &&
-          top === item._top &&
-          !item._migrate._isActive &&
-          !item._layout._skipNextAnimation &&
-          !item._dragRelease.isJustReleased()
-        ) {
+        // Let's skip the layout process if we can. Possibly avoids a lot of DOM
+        // operations which saves us some CPU cycles.
+        if (item._canSkipLayout(left, top)) {
           --counter;
           continue;
         }
 
+        // Update the item's position.
         item._left = left;
         item._top = top;
 
+        // Only active non-dragged items need to be moved.
         if (item.isActive() && !item.isDragging()) {
           itemsToLayout.push(item);
         }

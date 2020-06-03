@@ -13,7 +13,6 @@ import getTranslate from '../utils/getTranslate';
 import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
-import setStyles from '../utils/setStyles';
 import transformProp from '../utils/transformProp';
 
 var MIN_ANIMATION_DISTANCE = 2;
@@ -34,8 +33,8 @@ function ItemLayout(item) {
   this._isInterrupted = false;
   this._currentStyles = {};
   this._targetStyles = {};
-  this._currentLeft = 0;
-  this._currentTop = 0;
+  this._nextLeft = 0;
+  this._nextTop = 0;
   this._offsetLeft = 0;
   this._offsetTop = 0;
   this._skipNextAnimation = false;
@@ -48,7 +47,7 @@ function ItemLayout(item) {
   // Set element's initial position styles.
   elementStyle.left = '0px';
   elementStyle.top = '0px';
-  elementStyle[transformProp] = getTranslateString(0, 0);
+  item._setTranslate(0, 0);
 
   this._animation = new Animator(element);
   this._queue = 'layout-' + item._id;
@@ -105,9 +104,8 @@ ItemLayout.prototype.start = function (instant, onFinish) {
   // If no animations are needed, easy peasy!
   if (!animEnabled) {
     this._updateOffsets();
-    this._updateTargetStyles();
-    setStyles(item._element, this._targetStyles);
-    this._animation.stop(false);
+    item._setTranslate(this._nextLeft, this._nextTop);
+    this._animation.stop();
     this._finish();
     return;
   }
@@ -125,9 +123,10 @@ ItemLayout.prototype.start = function (instant, onFinish) {
  *
  * @public
  * @param {Boolean} processCallbackQueue
- * @param {Object} [targetStyles]
+ * @param {Number} [left]
+ * @param {Number} [top]
  */
-ItemLayout.prototype.stop = function (processCallbackQueue, targetStyles) {
+ItemLayout.prototype.stop = function (processCallbackQueue, left, top) {
   if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
@@ -136,8 +135,15 @@ ItemLayout.prototype.stop = function (processCallbackQueue, targetStyles) {
   cancelLayoutTick(item._id);
 
   // Stop animation.
-  if (targetStyles) setStyles(item._element, targetStyles);
-  this._animation.stop(!targetStyles);
+  if (this._animation.isAnimating()) {
+    if (left === undefined || top === undefined) {
+      var translate = getTranslate(item._element);
+      left = translate.x;
+      top = translate.y;
+    }
+    item._setTranslate(left, top);
+    this._animation.stop();
+  }
 
   // Remove positioning class.
   removeClass(item._element, item.getGrid()._settings.itemPositioningClass);
@@ -161,7 +167,7 @@ ItemLayout.prototype.destroy = function () {
 
   var elementStyle = this._item._element.style;
 
-  this.stop(true, {});
+  this.stop(true, 0, 0);
   this._item._emitter.clear(this._queue);
   this._animation.destroy();
 
@@ -204,19 +210,9 @@ ItemLayout.prototype._updateOffsets = function () {
     : migrate._isActive
     ? migrate._containerDiffY
     : 0;
-};
 
-/**
- * Calculate and update item's layout target styles.
- *
- * @private
- */
-ItemLayout.prototype._updateTargetStyles = function () {
-  if (this._isDestroyed) return;
-  this._targetStyles[transformProp] = getTranslateString(
-    this._item._left + this._offsetLeft,
-    this._item._top + this._offsetTop
-  );
+  this._nextLeft = this._item._left + this._offsetLeft;
+  this._nextTop = this._item._top + this._offsetTop;
 };
 
 /**
@@ -230,6 +226,10 @@ ItemLayout.prototype._finish = function () {
   var item = this._item;
   var migrate = item._migrate;
   var release = item._dragRelease;
+
+  // Update internal translate values.
+  item._tX = this._nextLeft;
+  item._tY = this._nextTop;
 
   // Mark the item as inactive and remove positioning classes.
   if (this._isActive) {
@@ -251,11 +251,12 @@ ItemLayout.prototype._finish = function () {
  * @private
  */
 ItemLayout.prototype._setupAnimation = function () {
-  // TODO: Keep track of the translate value so we only need to query the DOM
-  // here if the item is animating currently.
-  var translate = getTranslate(this._item._element);
-  this._currentLeft = translate.x;
-  this._currentTop = translate.y;
+  var item = this._item;
+  if (item._tX === undefined || item._tY === undefined) {
+    var translate = getTranslate(item._element);
+    item._tX = translate.x;
+    item._tY = translate.y;
+  }
 };
 
 /**
@@ -270,18 +271,17 @@ ItemLayout.prototype._startAnimation = function () {
 
   // Let's update the offset data and target styles.
   this._updateOffsets();
-  this._updateTargetStyles();
 
-  var xDiff = Math.abs(item._left - (this._currentLeft - this._offsetLeft));
-  var yDiff = Math.abs(item._top - (this._currentTop - this._offsetTop));
+  var xDiff = Math.abs(item._left - (item._tX - this._offsetLeft));
+  var yDiff = Math.abs(item._top - (item._tY - this._offsetTop));
 
   // If there is no need for animation or if the item is already in correct
   // position (or near it) let's finish the process early.
   if (isInstant || (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE)) {
     if (xDiff || yDiff || this._isInterrupted) {
-      setStyles(item._element, this._targetStyles);
+      item._setTranslate(this._nextLeft, this._nextTop);
     }
-    this._animation.stop(false);
+    this._animation.stop();
     this._finish();
     return;
   }
@@ -291,10 +291,17 @@ ItemLayout.prototype._startAnimation = function () {
     addClass(item._element, settings.itemPositioningClass);
   }
 
-  // Get current styles for animation.
-  this._currentStyles[transformProp] = getTranslateString(this._currentLeft, this._currentTop);
+  // Get current/next styles for animation.
+  this._currentStyles[transformProp] = getTranslateString(item._tX, item._tY);
+  this._targetStyles[transformProp] = getTranslateString(this._nextLeft, this._nextTop);
 
-  // Animate.
+  // Set internal translation values to undefined for the duration of the
+  // animation since they will be changing on each animation frame for the
+  // duration of the animation and tracking them would mean reading the DOM on
+  // each frame, which is pretty darn expensive.
+  item._tX = item._tY = undefined;
+
+  // Start animation.
   this._animation.start(this._currentStyles, this._targetStyles, this._animOptions);
 };
 

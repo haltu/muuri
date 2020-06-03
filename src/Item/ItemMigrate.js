@@ -11,11 +11,9 @@ import ItemDrag from './ItemDrag';
 import addClass from '../utils/addClass';
 import getOffsetDiff from '../utils/getOffsetDiff';
 import getTranslate from '../utils/getTranslate';
-import getTranslateString from '../utils/getTranslateString';
 import arrayInsert from '../utils/arrayInsert';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
-import transformProp from '../utils/transformProp';
 
 /**
  * The migrate process handler constructor.
@@ -70,7 +68,6 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
   var translate;
   var translateX;
   var translateY;
-  var layoutStyles;
   var currentVisClass;
   var nextVisClass;
 
@@ -92,9 +89,7 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
 
   // Abort current positioning.
   if (item.isPositioning()) {
-    layoutStyles = {};
-    layoutStyles[transformProp] = getTranslateString(translateX, translateY);
-    item._layout.stop(true, layoutStyles);
+    item._layout.stop(true, translateX, translateY);
   }
 
   // Abort current migration.
@@ -111,8 +106,8 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
     item._dragRelease.stop(true, translateX, translateY);
   }
 
-  // Stop current visibility animations.
-  item._visibility.stop(true, true);
+  // Stop current visibility animation.
+  item._visibility.stop(true);
 
   // Destroy current drag.
   if (item._drag) item._drag.destroy();
@@ -173,10 +168,7 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
         translateX = translate.x;
         translateY = translate.y;
       }
-      element.style[transformProp] = getTranslateString(
-        translateX + offsetDiff.left,
-        translateY + offsetDiff.top
-      );
+      item._setTranslate(translateX + offsetDiff.left, translateY + offsetDiff.top);
     }
   }
   // If item is not active let's just append it to the target grid's element.
@@ -273,7 +265,7 @@ ItemMigrate.prototype.stop = function (abort, left, top) {
     }
 
     gridElement.appendChild(element);
-    element.style[transformProp] = getTranslateString(left, top);
+    item._setTranslate(left, top);
   }
 
   this._isActive = false;

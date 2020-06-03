@@ -8,9 +8,7 @@ import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END } from '../constants';
 
 import addClass from '../utils/addClass';
 import getTranslate from '../utils/getTranslate';
-import getTranslateString from '../utils/getTranslateString';
 import removeClass from '../utils/removeClass';
-import transformProp from '../utils/transformProp';
 
 /**
  * The release process handler constructor. Although this might seem as proper
@@ -139,7 +137,7 @@ ItemDragRelease.prototype._placeToGrid = function (left, top) {
     }
 
     container.appendChild(element);
-    element.style[transformProp] = getTranslateString(left, top);
+    item._setTranslate(left, top);
     didReparent = true;
   }
 

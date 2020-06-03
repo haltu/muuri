@@ -61,12 +61,10 @@ import getOffsetDiff from '../utils/getOffsetDiff';
 import getScrollableAncestors from '../utils/getScrollableAncestors';
 import getStyle from '../utils/getStyle';
 import getTranslate from '../utils/getTranslate';
-import getTranslateString from '../utils/getTranslateString';
 import hasPassiveEvents from '../utils/hasPassiveEvents';
 import isFunction from '../utils/isFunction';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
-import transformProp from '../utils/transformProp';
 
 var START_PREDICATE_INACTIVE = 0;
 var START_PREDICATE_PENDING = 1;
@@ -486,7 +484,7 @@ ItemDrag.prototype.stop = function () {
     // sure the translate values are adjusted to account for the DOM shift.
     if (element.parentNode !== grid._element) {
       grid._element.appendChild(element);
-      element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+      item._setTranslate(this._gridX, this._gridY);
 
       // We need to do forced reflow to make sure the dragging class is removed
       // gracefully.
@@ -1096,7 +1094,7 @@ ItemDrag.prototype._finishMigration = function () {
   // Adjust the position of the item element if it was moved from a container
   // to another.
   if (targetContainer !== currentContainer) {
-    element.style[transformProp] = getTranslateString(translate.x, translate.y);
+    item._setTranslate(translate.x, translate.y);
   }
 
   // Update child element's styles to reflect the current visibility state.
@@ -1235,9 +1233,7 @@ ItemDrag.prototype._applyStart = function () {
   var hasDragContainer = this._container !== grid._element;
 
   if (item.isPositioning()) {
-    var layoutStyles = {};
-    layoutStyles[transformProp] = getTranslateString(this._left, this._top);
-    item._layout.stop(true, layoutStyles);
+    item._layout.stop(true, this._left, this._top);
   }
 
   if (migrate._isActive) {
@@ -1274,7 +1270,7 @@ ItemDrag.prototype._applyStart = function () {
       this._left += this._containerDiffX;
       this._top += this._containerDiffY;
       this._container.appendChild(element);
-      element.style[transformProp] = getTranslateString(this._left, this._top);
+      item._setTranslate(this._left, this._top);
     }
   }
 
@@ -1348,7 +1344,7 @@ ItemDrag.prototype._applyMove = function () {
   if (!item._isActive) return;
 
   this._moveDiffX = this._moveDiffY = 0;
-  item._element.style[transformProp] = getTranslateString(this._left, this._top);
+  item._setTranslate(this._left, this._top);
   this._getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
   ItemDrag.autoScroller.updateItem(item);
 };
@@ -1427,10 +1423,7 @@ ItemDrag.prototype._applyScroll = function () {
   if (!item._isActive) return;
 
   this._scrollDiffX = this._scrollDiffY = 0;
-  // TODO: Maybe we should have a method for writing the translate value which
-  // could compare the provided values to current values and ignore the DOM
-  // write if it's the same value.
-  item._element.style[transformProp] = getTranslateString(this._left, this._top);
+  item._setTranslate(this._left, this._top);
   this._getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
 };
 

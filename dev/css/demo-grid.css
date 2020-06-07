@@ -17,7 +17,7 @@
   background: linear-gradient(360deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 100%);
   z-index: 10;
 }
-@media (max-width: 600px) {
+@media (max-width: 60rem) {
   .grid-controls {
     flex-direction: column;
   }
@@ -51,7 +51,7 @@
 .grid-control:first-child:after {
   display: none;
 }
-@media (max-width: 600px) {
+@media (max-width: 60rem) {
   .grid-control {
     width: 100%;
   }
@@ -79,7 +79,7 @@
   -o-appearance: none;
   appearance: none;
 }
-@media (max-width: 600px) {
+@media (max-width: 60rem) {
   .grid-control-field {
     height: 5rem;
     line-height: 3rem;
@@ -120,7 +120,7 @@ select.grid-control-field::-ms-expand {
   color: rgb(101, 255, 195);
 }
 */
-@media (max-width: 600px) {
+@media (max-width: 60rem) {
   .grid-control-icon,
   .grid-select-arrow {
     height: 5rem;
@@ -146,7 +146,7 @@ select.grid-control-field::-ms-expand {
   height: calc(80vh - 7rem);
   padding-bottom: 3rem;
 }
-@media (max-width: 600px) {
+@media (max-width: 60rem) {
   .grid-container {
     position: relative;
     overflow: auto;

@@ -116,6 +116,11 @@ header {
   min-height: 100vh;
   width: 100%;
 }
+@media (hover: none) {
+  header {
+    min-height: calc(100vh - 60px);
+  }
+}
 
 /* Header - Content */
 
@@ -347,7 +352,7 @@ section h4 {
 .feature-list-text p {
   margin: 1.5rem 0 0 0;
 }
-@media (max-width: 600px) {
+@media (max-width: 60rem) {
   .feature-list-item {
     padding-left: 0;
   }

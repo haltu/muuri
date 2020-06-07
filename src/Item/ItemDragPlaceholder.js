@@ -369,7 +369,6 @@ ItemDragPlaceholder.prototype.reset = function () {
   cancelPlaceholderResizeTick(item._id);
 
   // Reset animation instance.
-  // TODO: Here we need to apply current styles.
   animation.stop();
   animation._element = null;
 

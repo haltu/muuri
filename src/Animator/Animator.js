@@ -126,8 +126,8 @@ Animator.prototype.start = function (propsFrom, propsTo, options) {
   this._easing = easing;
   this._animation = element.animate(
     [
-      createFrame(propsFrom, !HAS_NATIVE_WEB_ANIMATIONS),
-      createFrame(propsTo, !HAS_NATIVE_WEB_ANIMATIONS),
+      createFrame(propsFrom, HAS_NATIVE_WEB_ANIMATIONS),
+      createFrame(propsTo, HAS_NATIVE_WEB_ANIMATIONS),
     ],
     {
       duration: duration,
@@ -207,10 +207,10 @@ Animator.prototype._onFinish = function () {
  * ***************
  */
 
-function createFrame(props, unprefix) {
+function createFrame(props, prefix) {
   var frame = {};
   for (var prop in props) {
-    frame[unprefix ? getUnprefixedPropName(prop) : prop] = props[prop];
+    frame[prefix ? prop : getUnprefixedPropName(prop)] = props[prop];
   }
   return frame;
 }

@@ -1,0 +1,290 @@
+/* Board */
+
+.board-container {
+  position: relative;
+  overflow: auto;
+  height: 80vh;
+}
+
+.board {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-width: 100%;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.board-column {
+  display: flex;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(100% / 3);
+  min-width: 25rem;
+  min-height: 100%;
+  z-index: 1;
+}
+.board-column.muuri-item-releasing {
+  z-index: 2;
+}
+.board-column.muuri-item-dragging {
+  z-index: 3;
+  cursor: move;
+}
+
+.board-column-content {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  padding: 1rem;
+}
+
+.board-column-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 5rem;
+  min-height: 5rem;
+  font-size: 2rem;
+  line-height: 5rem;
+  overflow: hidden;
+  padding: 0 2rem;
+  text-align: center;
+  font-weight: 700;
+  font-style: italic;
+  text-transform: lowercase;
+  background: #333;
+  color: #fff;
+  border-radius: 0.5rem;
+}
+.board-column.todo .board-column-header {
+  background: #ff69ea;
+  color: #ffe67b;
+}
+.board-column.working .board-column-header {
+  background: #8b98ff;
+  color: #aaffdc;
+}
+.board-column.done .board-column-header {
+  background: #aaffdc;
+  color: #55f;
+}
+
+.board-column-title {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  outline: none;
+  flex-grow: 1;
+  text-align: left;
+  margin-left: -2rem;
+  padding-left: 2rem;
+}
+
+.board-column-action {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  margin: 0;
+  border: 0;
+  width: 4rem;
+  height: 4rem;
+  min-width: 4rem;
+  min-height: 4rem;
+  border: 0.7rem double transparent;
+  padding: 0.3rem;
+  margin-right: -1rem;
+  border-radius: 2rem;
+  white-space: nowrap;
+  cursor: pointer;
+  -ms-touch-action: manipulation;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  transform: rotateZ(0deg);
+  transition: transform 0.2s ease-in-out;
+}
+.board-column-action:hover {
+  transform: rotateZ(180deg);
+}
+.board-column-action:focus {
+  outline: 0;
+}
+.board-column.todo .board-column-action {
+  background: #ff69ea;
+  color: #ffe67a;
+}
+.board-column.todo .board-column-action:focus {
+  border-color: #ffe67a;
+}
+.board-column.working .board-column-action {
+  background: #8b98ff;
+  color: #aaffdc;
+}
+.board-column.working .board-column-action:focus {
+  border-color: #aaffdc;
+}
+.board-column.done .board-column-action {
+  background: #aaffdc;
+  color: #55f;
+}
+.board-column.done .board-column-action:focus {
+  border-color: #55f;
+}
+
+.board-column-action svg {
+  flex-grow: 1;
+  pointer-events: none;
+}
+
+.board-column-items-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
+  overflow-y: auto;
+}
+.board-column-items {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  min-height: 100%;
+  border-bottom: 1.5rem solid transparent;
+}
+
+.board-item {
+  position: absolute;
+  width: calc(100% - 2rem);
+  margin: 1.5rem 1rem 0 1rem;
+  z-index: 10;
+}
+.board-item.muuri-item-releasing {
+  z-index: 11;
+}
+.board-item.muuri-item-dragging {
+  z-index: 12;
+  cursor: move;
+}
+.board-item.muuri-item-hidden {
+  z-index: 8;
+}
+.board-item.muuri-item-placeholder {
+  z-index: 9;
+  margin: 0;
+  opacity: 0.7;
+}
+
+.board-item-content {
+  position: relative;
+  padding: 1.5rem;
+  background: #fff;
+  border: 0.5rem solid #ffe884;
+  color: #3e3e3e;
+  border-radius: 1rem;
+  font-size: 1.8rem;
+  font-weight: 500;
+}
+.board-item.muuri-item-placeholder .board-item-content {
+  border-style: dashed;
+  border-color: #8b98ff;
+}
+.board-item.editing .board-item-content {
+  border-color: #ff69ea;
+}
+.board-item:focus-within .board-item-content {
+  border: 0.7rem double #ff69ea;
+  padding: 1.3rem;
+}
+.board-item-title {
+  font-size: 1.8rem;
+  line-height: 1.5;
+  word-break: break-word;
+  caret-color: #ff69ea;
+  outline: none;
+  outline-offset: 0.5rem;
+  min-height: calc(1.8rem * 1.5);
+}
+.board-item-handle {
+  position: absolute;
+  left: -0.5rem;
+  right: -0.5rem;
+  top: -0.5rem;
+  bottom: -0.5rem;
+  border-radius: 1rem;
+  cursor: move;
+}
+.board-item.editing .board-item-handle {
+  display: none;
+}
+.board-item-action {
+  position: absolute;
+  display: flex;
+  width: 3rem;
+  height: 3rem;
+  padding: 0.5rem;
+  border-radius: 1rem;
+  opacity: 0;
+  transform: scale(0, 0);
+  transition: transform 0.3s 0s ease-out, opacity 0.3s 0s linear;
+}
+.board-item-action.edit {
+  right: -1rem;
+  top: -1rem;
+  background: #ffe884;
+  color: #ff69ea;
+}
+.board-item:focus-within .board-item-action.edit {
+  right: -1.2rem;
+  top: -1.2rem;
+}
+.board-item-action.delete {
+  right: -1rem;
+  bottom: -1rem;
+  background: #ff6262;
+  color: #ffe67a;
+}
+.board-item:focus-within .board-item-action.delete {
+  right: -1.2rem;
+  bottom: -1.2rem;
+}
+.board-item.editing .board-item-action.delete {
+  display: none;
+}
+.board-item.editing .board-item-action,
+.board-item:hover .board-item-action,
+.board-item:focus .board-item-action,
+.board-item.muuri-item-dragging .board-item-action,
+.board-item.muuri-item-releasing .board-item-action {
+  opacity: 1;
+  transform: scale(1, 1);
+  transition: transform 0.2s 0.1s ease, opacity 0.2s 0.1s linear;
+}
+.board-item.editing .board-item-action:hover,
+.board-item:hover .board-item-action:hover,
+.board-item:focus .board-item-action:hover,
+.board-item.muuri-item-dragging .board-item-action:hover,
+.board-item.muuri-item-releasing .board-item-action:hover {
+  transform: scale(1.2, 1.2);
+}
+.board-item-action-icon {
+  flex-grow: 1;
+  pointer-events: none;
+}
+.board-item.editing .board-item-action-icon.icon-edit,
+.board-item-action-icon.icon-save {
+  display: none;
+}
+.board-item.editing .board-item-action-icon.icon-save {
+  display: block;
+}

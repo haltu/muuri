@@ -1,0 +1,353 @@
+/* Controls */
+
+.grid-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.grid-controls:before {
+  content: '';
+  display: block;
+  height: 1rem;
+  position: absolute;
+  left: 0;
+  bottom: -1rem;
+  right: 0;
+  background: linear-gradient(360deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 100%);
+  z-index: 10;
+}
+@media (max-width: 600px) {
+  .grid-controls {
+    flex-direction: column;
+  }
+}
+.grid-control {
+  display: flex;
+  position: relative;
+  width: 25%;
+}
+.grid-control:before {
+  content: '';
+  display: block;
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0;
+  border-bottom: 0.4rem dotted #65ffc3;
+}
+.grid-control:focus-within:before {
+  border-bottom: 0.7rem double #ff69ea;
+}
+.grid-control:after {
+  content: '';
+  display: block;
+  position: absolute;
+  left: -0.2rem;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  border-left: 0.4rem dotted #65ffc3;
+}
+.grid-control:first-child:after {
+  display: none;
+}
+@media (max-width: 600px) {
+  .grid-control {
+    width: 100%;
+  }
+  .grid-control:after {
+    display: none;
+  }
+}
+
+.grid-control-field {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 6rem;
+  padding: 1rem 1.5rem 1rem 5rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 4rem;
+  color: #5455ff;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  z-index: 1;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  -o-appearance: none;
+  appearance: none;
+}
+@media (max-width: 600px) {
+  .grid-control-field {
+    height: 5rem;
+    line-height: 3rem;
+  }
+}
+.grid-control-field::placeholder {
+  opacity: 1;
+  color: #ff69ea;
+  font-style: italic;
+}
+select.grid-control-field {
+  padding-right: 5rem;
+  cursor: pointer;
+}
+select.grid-control-field::-ms-expand {
+  display: none;
+}
+.grid-control-field:focus {
+  outline: 0;
+}
+.grid-control-icon,
+.grid-select-arrow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 0;
+  width: 5rem;
+  height: 6rem;
+  padding: 1.5rem;
+  z-index: 2;
+  pointer-events: none;
+  color: #ff69ea;
+}
+/*
+.grid-control:focus-within .grid-control-icon,
+.grid-control:focus-within .grid-select-arrow {
+  color: rgb(101, 255, 195);
+}
+*/
+@media (max-width: 600px) {
+  .grid-control-icon,
+  .grid-select-arrow {
+    height: 5rem;
+  }
+}
+.grid-control-icon {
+  left: 0;
+}
+.grid-select-arrow {
+  right: 0;
+  padding: 1.7rem;
+}
+.grid-control-icon svg,
+.grid-select-arrow svg {
+  flex-grow: 1;
+}
+
+/* Grid */
+
+.grid-container {
+  position: relative;
+  overflow: auto;
+  height: calc(80vh - 7rem);
+  padding-bottom: 3rem;
+}
+@media (max-width: 600px) {
+  .grid-container {
+    position: relative;
+    overflow: auto;
+    height: 80vh;
+    padding-bottom: 3rem;
+  }
+}
+.grid {
+  position: relative;
+  max-width: 96rem;
+  box-sizing: content-box;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+.grid-item {
+  position: absolute;
+  width: 10rem;
+  height: 10rem;
+  line-height: 1rem;
+  margin: 1rem;
+  z-index: 1;
+}
+.grid-item.muuri-item-positioning {
+  z-index: 2;
+}
+.grid-item.muuri-item-placeholder {
+  z-index: 2;
+  margin: 0;
+  opacity: 0.5;
+}
+.grid-item.muuri-item-dragging,
+.grid-item.muuri-item-releasing {
+  z-index: 9999;
+}
+.grid-item.muuri-item-dragging {
+  cursor: move;
+}
+.grid-item.muuri-item-hidden {
+  z-index: 0;
+}
+.grid-item.h2 {
+  height: 22rem;
+}
+.grid-item.w2 {
+  width: 22rem;
+}
+.grid-item-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.grid-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  font-size: 2.4rem;
+  font-weight: 700;
+  border: 0.5rem solid #fff;
+  border-radius: 2rem;
+  -webkit-transition: all 0.2s ease-out;
+  -moz-transition: all 0.2s ease-out;
+  -ms-transition: all 0.2s ease-out;
+  -o-transition: all 0.2s ease-out;
+  transition: all 0.2s ease-out;
+}
+.grid-item.red .grid-card {
+  color: #ffe67a;
+  background: #ff69ea;
+}
+.grid-item.green .grid-card {
+  color: #5455ff;
+  background: #aaffdc;
+}
+.grid-item.blue .grid-card {
+  color: #aaffdc;
+  background-color: rgb(139, 152, 255);
+}
+.grid-card-handle {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  cursor: move;
+}
+.grid.drag-enabled .grid-card-handle {
+  display: block;
+}
+.grid-card-title {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 2rem;
+}
+.grid-card-remove {
+  display: flex;
+  position: absolute;
+  right: -1rem;
+  top: -1rem;
+  width: 3rem;
+  height: 3rem;
+  padding: 0.5rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  background: #ff6262;
+  color: #ffe67a;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0, 0);
+  transition: transform 0.3s 0s ease-out, opacity 0.3s 0s linear;
+}
+.grid-card:hover > .grid-card-remove,
+.grid-card:focus > .grid-card-remove,
+.grid-item.muuri-item-dragging .grid-card-remove,
+.grid-item.muuri-item-releasing .grid-card-remove {
+  opacity: 1;
+  transform: scale(1, 1);
+  pointer-events: auto;
+  transition: transform 0.15s 0.1s ease, opacity 0.15s 0.1s linear;
+}
+.grid-card-remove svg {
+  flex-grow: 1;
+  pointer-events: none;
+}
+
+/* Grid Footer */
+
+.grid-footer {
+  display: flex;
+  justify-content: center;
+  position: absolute;
+  left: 50%;
+  bottom: -3.5rem;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+/* Button */
+
+@keyframes gridButton {
+  0% {
+    transform: scale(1, 1) rotateZ(0deg);
+  }
+  50% {
+    transform: scale(1.1, 1.1) rotateZ(90deg);
+  }
+  100% {
+    transform: scale(1, 1) rotateZ(180deg);
+  }
+}
+
+.grid-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  margin: 0;
+  border: 0;
+  padding: 1.2rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  width: 6rem;
+  height: 6rem;
+  white-space: nowrap;
+  background: #fff;
+  border: 0.5rem solid #65ffc3;
+  color: #ff4bd8;
+  -ms-touch-action: manipulation;
+  touch-action: manipulation;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  border-radius: 3rem;
+}
+.grid-button.processing {
+  animation-name: gridButton;
+  animation-duration: 0.2s;
+  animation-iteration-count: 1;
+  animation-direction: normal;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-delay: 0s;
+}
+.grid-button:focus {
+  outline: 0;
+  border: 0.7rem double #ff4bd8;
+  padding: 1rem;
+}
+.grid-button svg {
+  flex-grow: 1;
+}

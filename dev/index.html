@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>Muuri - Infinite layouts with batteries included</title>
+    <meta
+      name="description"
+      content="Muuri is a JavaScript library that creates responsive, sortable, filterable and draggable grid layouts."
+    />
+    <meta
+      name="viewport"
+      content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1"
+    />
+    <meta name="author" content="Niklas Rämö" />
+    <link rel="icon" type="image/svg+xml" href="muuri-icon.svg" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Fira+Sans:400,300,300italic,400italic,500,500italic,700,700italic"
+    />
+    <link rel="stylesheet" href="css/main.css" />
+    <link rel="stylesheet" href="css/demo-grid.css" />
+    <link rel="stylesheet" href="css/demo-kanban.css" />
+  </head>
+  <body>
+    <div class="drag-container"></div>
+    <header>
+      <article>
+        <div class="logo">
+          <!-- TODO: https://speckyboy.com/css-retro-type-effects/ -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
+            viewBox="0 0 620 620"
+            version="1.0"
+          >
+            <path
+              fill="none"
+              stroke="#ff69ea"
+              stroke-width="20"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              paint-order="fill stroke markers"
+              transform="translate(60 30)"
+              d="M0,0 v330 l20,20 h80 v-325 z M400,25 v325 h80 l20,-20 v-330 z M100,50 v200 h100 v-175 z M300,75 v175 h100 v-200 z M200,100 v200 h100 v-200 z"
+            />
+            <path
+              fill="#ff69ea"
+              d="m 334,436 h 3 c 6.66667,-0.66667 12.33333,2.33333 17,9 l 1,3 c 0.66667,3.33333 -3,14.33333 -11,33 -8,20 -11.33333,38 -10,54 v 2 c 10.66667,-8 18.66667,-17.66667 24,-29 14.66667,-22 23,-37.66667 25,-47 l 3,-8 c 1.33333,0 2,-0.66667 2,-2 l 1,-1 h 1 v 2 h 1 l 2,-11 h 1 v 3 -5 h 1 l 1,1 c 1.33333,-0.66667 2.66667,-4 4,-10 h 1 c 4.66667,4 7.33333,10 8,18 2.66667,28 -12.66667,61.33333 -46,100 -6.66667,5.33333 -14.33333,8.33333 -23,9 -16,1.33333 -27.33333,-3.66667 -34,-15 l -2,-8 v -3 c -1.33333,-16.66667 0.66667,-31.66667 6,-45 l 13,-41 c 3.33333,-5.33333 7,-8.33333 11,-9 z m -274,23 3,-1 c 5.333333,0 10,3 14,9 l 1,26 c 0.666667,8 2.333333,14 5,18 l 12,-14 24,-28 c 5.33333,-9.33333 11,-14 17,-14 l 5,-1 c 4,0 6.33333,1 7,3 1.33333,0 3.66667,1.66667 7,5 v 1 c 0.66667,4.66667 -4.33333,21.33333 -15,50 -3.33333,11.33333 -5.66667,17 -7,17 h 1 v 1 l -7,18 -9,23 -4,6 h -5 v -1 l -2,1 -5,-2 -1,2 c -1.333333,0 -2.333333,-1 -3,-3 l -3,-1 v -5 c -0.666667,-8.66667 4.333333,-25.66667 15,-51 -6,6.66667 -12,15 -18,25 -1.333333,0 -3,1.66667 -5,5 h -1 c -4.666667,-2.66667 -9,-4.33333 -13,-5 -5.333333,-2.66667 -10.333333,-11.33333 -15,-26 -15.333333,46 -24,69.66667 -26,71 h -1 l -4,-1 -2,1 v -1 l -1,1 -1,-3 -2,2 v -1 l -6,2 c -1.333333,-2.66667 -2.666667,-4 -4,-4 l -1,-2 c -0.6666667,-10.66667 9.333333,-41.66667 30,-93 4,-18.66667 8,-28 12,-28 z m 142,-12 h 3 c 6.66667,-0.66667 12.33333,2.33333 17,9 l 1,3 c 0.66667,3.33333 -3,14.33333 -11,33 -8,20 -11.33333,38 -10,54 v 2 c 10.66667,-8 18.66667,-17.66667 24,-29 14.66667,-22 23,-37.66667 25,-47 l 3,-8 c 1.33333,0 2,-0.66667 2,-2 l 1,-1 h 1 v 2 h 1 l 2,-11 h 1 v 3 -5 h 1 l 1,1 c 1.33333,-0.66667 2.66667,-4 4,-10 h 1 c 4.66667,4 7.33333,10 8,18 2.66667,28 -12.66667,61.33333 -46,100 -6.66667,5.33333 -14.33333,8.33333 -23,9 -16,1.33333 -27.33333,-3.66667 -34,-15 l -2,-8 v -3 c -1.33333,-16.66667 0.66667,-31.66667 6,-45 l 13,-41 c 3.33333,-5.33333 7,-8.33333 11,-9 z m 286,-27 h 5 c 28.66667,-2.66667 46.33333,5 53,23 l 1,4 v 2 c 0.66667,5.33333 -11.33333,15.66667 -36,31 9.33333,26.66667 14.33333,45.33333 15,56 h 1 v 1 l -1,2 1,6 -1,1 -2,-3 -1,2 h -3 l -1,2 h -4 l -1,1 c 0,-2 -1,-3 -3,-3 -8,-14.66667 -15.66667,-32.33333 -23,-53 l -27,12 -17,29 -3,9 -5,13 h -1 c 0,-2 -2,-3.33333 -6,-4 l -1,1 -3,-1 -1,1 -4,-4 -1,-2 c -0.66667,-10 8.66667,-39.33333 28,-88 -9.33333,-5.33333 -14.33333,-9.66667 -15,-13 v -3 c 0,-2.66667 7.33333,-7.33333 22,-14 2,-3.33333 13.33333,-6 34,-8 z m -16,52 h 1 c 24.66667,-13.33333 39.33333,-23.33333 44,-30 v -1 l -13,1 h -1 c -16,1.33333 -24,4 -24,8 z m 110,-54 4,-1 c 8,-0.66667 14.66667,2.66667 20,10 v 2 l -11,24 -24,64 -5.87415,14.97024 c -2.23579,-1.49566 -1.68573,-1.89603 -2.06219,0.57391 l -3.71635,7.38533 C 555.60684,537.59904 556.16126,538.48325 555,541 c -0.12001,1.66234 -2.62942,2.05169 -4,3 -2.6688,3.06957 -2.52399,-1.22547 -4.68635,3.66145 l -3.03439,-2.61217 -2.75975,1.27926 L 539,545 l -2,2 -1,-1 c -0.66667,-6 12,-45.66667 38,-119 1.33333,-6 4,-9 8,-9 z"
+            />
+          </svg>
+        </div>
+        <h1>infinite layouts with batteries included</h1>
+      </article>
+      <nav>
+        <div class="nav-item">
+          <a
+            class="nav-item-link"
+            href="https://raw.githubusercontent.com/haltu/muuri/master/dist/muuri.js"
+          >
+            <span class="nav-item-text">Fetch</span>
+            <span class="nav-item-icon">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 448 512"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <path
+                  fill="currentColor"
+                  d="M433.941 129.941l-83.882-83.882A48 48 0 0 0 316.118 32H48C21.49 32 0 53.49 0 80v352c0 26.51 21.49 48 48 48h352c26.51 0 48-21.49 48-48V163.882a48 48 0 0 0-14.059-33.941zM272 80v80H144V80h128zm122 352H54a6 6 0 0 1-6-6V86a6 6 0 0 1 6-6h42v104c0 13.255 10.745 24 24 24h176c13.255 0 24-10.745 24-24V83.882l78.243 78.243a6 6 0 0 1 1.757 4.243V426a6 6 0 0 1-6 6zM224 232c-48.523 0-88 39.477-88 88s39.477 88 88 88 88-39.477 88-88-39.477-88-88-88zm0 128c-22.056 0-40-17.944-40-40s17.944-40 40-40 40 17.944 40 40-17.944 40-40 40z"
+                ></path>
+              </svg>
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 448 512"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <path
+                  fill="currentColor"
+                  d="M433.941 129.941l-83.882-83.882A48 48 0 0 0 316.118 32H48C21.49 32 0 53.49 0 80v352c0 26.51 21.49 48 48 48h352c26.51 0 48-21.49 48-48V163.882a48 48 0 0 0-14.059-33.941zM272 80v80H144V80h128zm122 352H54a6 6 0 0 1-6-6V86a6 6 0 0 1 6-6h42v104c0 13.255 10.745 24 24 24h176c13.255 0 24-10.745 24-24V83.882l78.243 78.243a6 6 0 0 1 1.757 4.243V426a6 6 0 0 1-6 6zM224 232c-48.523 0-88 39.477-88 88s39.477 88 88 88 88-39.477 88-88-39.477-88-88-88zm0 128c-22.056 0-40-17.944-40-40s17.944-40 40-40 40 17.944 40 40-17.944 40-40 40z"
+                ></path>
+              </svg>
+            </span>
+          </a>
+        </div>
+        <div class="nav-item">
+          <a class="nav-item-link" href="https://github.com/haltu/muuri#table-of-contents">
+            <span class="nav-item-text">Docs</span>
+            <span class="nav-item-icon">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 448 512"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <path
+                  fill="currentColor"
+                  d="M448 384V16c0-8.8-7.2-16-16-16H80C35.8 0 0 35.8 0 80v352c0 44.2 35.8 80 80 80h352c8.8 0 16-7.2 16-16v-16c0-7.8-5.6-14.3-12.9-15.7-4.2-13-4.2-51.6 0-64.6 7.4-1.5 12.9-7.9 12.9-15.7zm-54 80H80c-17.7 0-32-14.3-32-32 0-17.6 14.4-32 32-32h314c-2.7 17.3-2.7 46.7 0 64zm6-112H80c-11.4 0-22.2 2.4-32 6.7V80c0-17.7 14.3-32 32-32h320v304zm-154.66-85.33L272 320l26.66-53.33L352 240l-53.34-26.67L272 160l-26.66 53.33L192 240l53.34 26.67zM160 200l18.66-37.33L216 144l-37.34-18.67L160 88l-18.67 37.33L104 144l37.33 18.67L160 200z"
+                ></path>
+              </svg>
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 448 512"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <path
+                  fill="currentColor"
+                  d="M448 384V16c0-8.8-7.2-16-16-16H80C35.8 0 0 35.8 0 80v352c0 44.2 35.8 80 80 80h352c8.8 0 16-7.2 16-16v-16c0-7.8-5.6-14.3-12.9-15.7-4.2-13-4.2-51.6 0-64.6 7.4-1.5 12.9-7.9 12.9-15.7zm-54 80H80c-17.7 0-32-14.3-32-32 0-17.6 14.4-32 32-32h314c-2.7 17.3-2.7 46.7 0 64zm6-112H80c-11.4 0-22.2 2.4-32 6.7V80c0-17.7 14.3-32 32-32h320v304zm-154.66-85.33L272 320l26.66-53.33L352 240l-53.34-26.67L272 160l-26.66 53.33L192 240l53.34 26.67zM160 200l18.66-37.33L216 144l-37.34-18.67L160 88l-18.67 37.33L104 144l37.33 18.67L160 200z"
+                ></path>
+              </svg>
+            </span>
+          </a>
+        </div>
+        <div class="nav-item">
+          <a class="nav-item-link" href="https://github.com/haltu/muuri">
+            <span class="nav-item-text">Repo</span>
+            <span class="nav-item-icon">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 496 512"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <path
+                  fill="currentColor"
+                  d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"
+                ></path>
+              </svg>
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 496 512"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <path
+                  fill="currentColor"
+                  d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"
+                ></path>
+              </svg>
+            </span>
+          </a>
+        </div>
+        <div class="nav-item">
+          <a class="nav-item-link" href="https://github.com/sponsors/niklasramo">
+            <span class="nav-item-text">Fund</span>
+            <span class="nav-item-icon">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M326 115.91l55.4-81.18A24 24 0 0 0 360 0H152a24 24 0 0 0-21.47 34.73L186 115.92C-9.82 235.66.08 392.05.08 412c0 55.23 49.11 100 109.69 100h292.49c60.57 0 109.68-44.77 109.68-100 0-19.59 8.8-177-185.94-296.09zM314.28 48l-38.22 56h-40.12l-38.22-56zm149.66 364c0 28.67-27.67 52-61.68 52H109.77c-34 0-61.68-23.33-61.68-52-.82-81 32.63-175.45 170.91-260h74.08c137.58 84.18 171.53 178.93 170.86 260zM285.61 310.74l-49-14.54c-5.65-1.62-9.57-7.22-9.57-13.68 0-7.86 5.77-14.21 12.84-14.21h30.59a26.81 26.81 0 0 1 13.93 4 8.92 8.92 0 0 0 11-.75l12.74-12.17a8.54 8.54 0 0 0-.66-13 63.12 63.12 0 0 0-34.17-12.17v-17.6a8.69 8.69 0 0 0-8.71-8.62h-17.42a8.68 8.68 0 0 0-8.7 8.62v17.44c-25.8.75-46.48 22.19-46.48 48.57 0 21.54 14.15 40.71 34.39 46.74l49 14.54c5.65 1.61 9.57 7.21 9.57 13.67 0 7.87-5.77 14.22-12.84 14.22h-30.6a26.72 26.72 0 0 1-13.93-4 8.92 8.92 0 0 0-11 .76l-12.85 12.06a8.54 8.54 0 0 0 .66 13 63.2 63.2 0 0 0 34.18 12.17v17.55a8.68 8.68 0 0 0 8.7 8.62h17.42a8.68 8.68 0 0 0 8.7-8.62V406c25.69-.64 46.48-22.18 46.59-48.56.01-21.5-14.14-40.67-34.38-46.7z"
+                ></path>
+              </svg>
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M326 115.91l55.4-81.18A24 24 0 0 0 360 0H152a24 24 0 0 0-21.47 34.73L186 115.92C-9.82 235.66.08 392.05.08 412c0 55.23 49.11 100 109.69 100h292.49c60.57 0 109.68-44.77 109.68-100 0-19.59 8.8-177-185.94-296.09zM314.28 48l-38.22 56h-40.12l-38.22-56zm149.66 364c0 28.67-27.67 52-61.68 52H109.77c-34 0-61.68-23.33-61.68-52-.82-81 32.63-175.45 170.91-260h74.08c137.58 84.18 171.53 178.93 170.86 260zM285.61 310.74l-49-14.54c-5.65-1.62-9.57-7.22-9.57-13.68 0-7.86 5.77-14.21 12.84-14.21h30.59a26.81 26.81 0 0 1 13.93 4 8.92 8.92 0 0 0 11-.75l12.74-12.17a8.54 8.54 0 0 0-.66-13 63.12 63.12 0 0 0-34.17-12.17v-17.6a8.69 8.69 0 0 0-8.71-8.62h-17.42a8.68 8.68 0 0 0-8.7 8.62v17.44c-25.8.75-46.48 22.19-46.48 48.57 0 21.54 14.15 40.71 34.39 46.74l49 14.54c5.65 1.61 9.57 7.21 9.57 13.67 0 7.87-5.77 14.22-12.84 14.22h-30.6a26.72 26.72 0 0 1-13.93-4 8.92 8.92 0 0 0-11 .76l-12.85 12.06a8.54 8.54 0 0 0 .66 13 63.2 63.2 0 0 0 34.18 12.17v17.55a8.68 8.68 0 0 0 8.7 8.62h17.42a8.68 8.68 0 0 0 8.7-8.62V406c25.69-.64 46.48-22.18 46.59-48.56.01-21.5-14.14-40.67-34.38-46.7z"
+                ></path>
+              </svg>
+            </span>
+          </a>
+        </div>
+      </nav>
+    </header>
+
+    <section class="grid-demo">
+      <h2 class="section-title"><span>Grid Demo</span></h2>
+
+      <div class="demo">
+        <div class="grid-controls">
+          <div class="grid-control search">
+            <input
+              class="grid-control-field search-field form-control"
+              type="text"
+              name="search"
+              placeholder="Search..."
+            />
+            <div class="grid-control-icon">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M505 442.7L405.3 343c-4.5-4.5-10.6-7-17-7H372c27.6-35.3 44-79.7 44-128C416 93.1 322.9 0 208 0S0 93.1 0 208s93.1 208 208 208c48.3 0 92.7-16.4 128-44v16.3c0 6.4 2.5 12.5 7 17l99.7 99.7c9.4 9.4 24.6 9.4 33.9 0l28.3-28.3c9.4-9.4 9.4-24.6.1-34zM208 336c-70.7 0-128-57.2-128-128 0-70.7 57.2-128 128-128 70.7 0 128 57.2 128 128 0 70.7-57.2 128-128 128z"
+                ></path>
+              </svg>
+            </div>
+          </div>
+          <div class="grid-control filter">
+            <select class="grid-control-field filter-field form-control">
+              <option value="" selected>All</option>
+              <option value="red">Red</option>
+              <option value="blue">Blue</option>
+              <option value="green">Green</option>
+            </select>
+            <div class="grid-control-icon">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M463.952 0H48.057C5.419 0-16.094 51.731 14.116 81.941L176 243.882V416c0 15.108 7.113 29.335 19.2 40l64 47.066c31.273 21.855 76.8 1.538 76.8-38.4V243.882L497.893 81.941C528.042 51.792 506.675 0 463.952 0zM288 224v240l-64-48V224L48 48h416L288 224z"
+                ></path>
+              </svg>
+            </div>
+            <div class="grid-select-arrow">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 256 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M119.5 326.9L3.5 209.1c-4.7-4.7-4.7-12.3 0-17l7.1-7.1c4.7-4.7 12.3-4.7 17 0L128 287.3l100.4-102.2c4.7-4.7 12.3-4.7 17 0l7.1 7.1c4.7 4.7 4.7 12.3 0 17L136.5 327c-4.7 4.6-12.3 4.6-17-.1z"
+                ></path>
+              </svg>
+            </div>
+          </div>
+          <div class="grid-control sort">
+            <select class="grid-control-field sort-field form-control">
+              <option value="order" selected>Drag</option>
+              <option value="title">Title (drag disabled)</option>
+              <option value="color">Color (drag disabled)</option>
+            </select>
+            <div class="grid-control-icon">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M244 192h184a20 20 0 0 0 20-20V52a20 20 0 0 0-20-20H244a20 20 0 0 0-20 20v120a20 20 0 0 0 20 20zm28-112h128v64H272zm212 176H252a28 28 0 0 0-28 28v168a28 28 0 0 0 28 28h232a28 28 0 0 0 28-28V284a28 28 0 0 0-28-28zm-20 176H272V304h192zm-300-48h-44V48a16 16 0 0 0-16-16H88a16 16 0 0 0-16 16v336H28a12 12 0 0 0-8.73 20.24l68 72a12 12 0 0 0 17.44 0l68-72A12 12 0 0 0 164 384z"
+                ></path>
+              </svg>
+            </div>
+            <div class="grid-select-arrow">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 256 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M119.5 326.9L3.5 209.1c-4.7-4.7-4.7-12.3 0-17l7.1-7.1c4.7-4.7 12.3-4.7 17 0L128 287.3l100.4-102.2c4.7-4.7 12.3-4.7 17 0l7.1 7.1c4.7 4.7 4.7 12.3 0 17L136.5 327c-4.7 4.6-12.3 4.6-17-.1z"
+                ></path>
+              </svg>
+            </div>
+          </div>
+          <div class="grid-control layout">
+            <select class="grid-control-field layout-field form-control">
+              <option value="left-top" selected>Left Top</option>
+              <option value="left-top-fillgaps">Left Top (fill gaps)</option>
+              <option value="right-top">Right Top</option>
+              <option value="right-top-fillgaps">Right Top (fill gaps)</option>
+              <option value="left-bottom">Left Bottom</option>
+              <option value="left-bottom-fillgaps">Left Bottom (fill gaps)</option>
+              <option value="right-bottom">Right Bottom</option>
+              <option value="right-bottom-fillgaps">Right Bottom (fill gaps)</option>
+            </select>
+            <div class="grid-control-icon">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M480 0H32A32 32 0 0 0 0 32v448a32 32 0 0 0 32 32h448a32 32 0 0 0 32-32V32a32 32 0 0 0-32-32zm-16 464H48V48h416zm-48-48V256H256v160zM256 96H96v160h160z"
+                ></path>
+              </svg>
+            </div>
+            <div class="grid-select-arrow">
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                role="img"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 256 512"
+              >
+                <path
+                  fill="currentColor"
+                  d="M119.5 326.9L3.5 209.1c-4.7-4.7-4.7-12.3 0-17l7.1-7.1c4.7-4.7 12.3-4.7 17 0L128 287.3l100.4-102.2c4.7-4.7 12.3-4.7 17 0l7.1 7.1c4.7 4.7 4.7 12.3 0 17L136.5 327c-4.7 4.6-12.3 4.6-17-.1z"
+                ></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-container">
+          <div class="grid"></div>
+        </div>
+
+        <template class="grid-item-template">
+          <div class="grid-item">
+            <div class="grid-item-content">
+              <div class="grid-card">
+                <div class="grid-card-title"></div>
+                <div class="grid-card-handle"></div>
+                <div class="grid-card-remove">
+                  <svg
+                    class="board-item-action-icon icon-delete"
+                    aria-hidden="true"
+                    focusable="false"
+                    role="img"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 448 512"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M439.15 453.06L297.17 384l141.99-69.06c7.9-3.95 11.11-13.56 7.15-21.46L432 264.85c-3.95-7.9-13.56-11.11-21.47-7.16L224 348.41 37.47 257.69c-7.9-3.95-17.51-.75-21.47 7.16L1.69 293.48c-3.95 7.9-.75 17.51 7.15 21.46L150.83 384 8.85 453.06c-7.9 3.95-11.11 13.56-7.15 21.47l14.31 28.63c3.95 7.9 13.56 11.11 21.47 7.15L224 419.59l186.53 90.72c7.9 3.95 17.51.75 21.47-7.15l14.31-28.63c3.95-7.91.74-17.52-7.16-21.47zM150 237.28l-5.48 25.87c-2.67 12.62 5.42 24.85 16.45 24.85h126.08c11.03 0 19.12-12.23 16.45-24.85l-5.5-25.87c41.78-22.41 70-62.75 70-109.28C368 57.31 303.53 0 224 0S80 57.31 80 128c0 46.53 28.22 86.87 70 109.28zM280 112c17.65 0 32 14.35 32 32s-14.35 32-32 32-32-14.35-32-32 14.35-32 32-32zm-112 0c17.65 0 32 14.35 32 32s-14.35 32-32 32-32-14.35-32-32 14.35-32 32-32z"
+                    ></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <div class="grid-footer">
+          <button class="grid-button add-more-items">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 448 512"
+            >
+              <path
+                fill="currentColor"
+                d="M416 208H272V64c0-17.67-14.33-32-32-32h-32c-17.67 0-32 14.33-32 32v144H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h144v144c0 17.67 14.33 32 32 32h32c17.67 0 32-14.33 32-32V304h144c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="kanban-demo">
+      <h2 class="section-title"><span>Kanban Demo</span></h2>
+
+      <div class="demo">
+        <template class="board-item-template">
+          <div class="board-item">
+            <div class="board-item-content">
+              <div class="board-item-title"></div>
+              <div class="board-item-handle"></div>
+              <div class="board-item-action edit">
+                <svg
+                  class="board-item-action-icon icon-edit"
+                  aria-hidden="true"
+                  focusable="false"
+                  role="img"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 576 512"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M402.6 83.2l90.2 90.2c3.8 3.8 3.8 10 0 13.8L274.4 405.6l-92.8 10.3c-12.4 1.4-22.9-9.1-21.5-21.5l10.3-92.8L388.8 83.2c3.8-3.8 10-3.8 13.8 0zm162-22.9l-48.8-48.8c-15.2-15.2-39.9-15.2-55.2 0l-35.4 35.4c-3.8 3.8-3.8 10 0 13.8l90.2 90.2c3.8 3.8 10 3.8 13.8 0l35.4-35.4c15.2-15.3 15.2-40 0-55.2zM384 346.2V448H64V128h229.8c3.2 0 6.2-1.3 8.5-3.5l40-40c7.6-7.6 2.2-20.5-8.5-20.5H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V306.2c0-10.7-12.9-16-20.5-8.5l-40 40c-2.2 2.3-3.5 5.3-3.5 8.5z"
+                  ></path>
+                </svg>
+                <svg
+                  class="board-item-action-icon icon-save"
+                  aria-hidden="true"
+                  focusable="false"
+                  role="img"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 512 512"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="board-item-action delete">
+                <svg
+                  class="board-item-action-icon icon-delete"
+                  aria-hidden="true"
+                  focusable="false"
+                  role="img"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 448 512"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M439.15 453.06L297.17 384l141.99-69.06c7.9-3.95 11.11-13.56 7.15-21.46L432 264.85c-3.95-7.9-13.56-11.11-21.47-7.16L224 348.41 37.47 257.69c-7.9-3.95-17.51-.75-21.47 7.16L1.69 293.48c-3.95 7.9-.75 17.51 7.15 21.46L150.83 384 8.85 453.06c-7.9 3.95-11.11 13.56-7.15 21.47l14.31 28.63c3.95 7.9 13.56 11.11 21.47 7.15L224 419.59l186.53 90.72c7.9 3.95 17.51.75 21.47-7.15l14.31-28.63c3.95-7.91.74-17.52-7.16-21.47zM150 237.28l-5.48 25.87c-2.67 12.62 5.42 24.85 16.45 24.85h126.08c11.03 0 19.12-12.23 16.45-24.85l-5.5-25.87c41.78-22.41 70-62.75 70-109.28C368 57.31 303.53 0 224 0S80 57.31 80 128c0 46.53 28.22 86.87 70 109.28zM280 112c17.65 0 32 14.35 32 32s-14.35 32-32 32-32-14.35-32-32 14.35-32 32-32zm-112 0c17.65 0 32 14.35 32 32s-14.35 32-32 32-32-14.35-32-32 14.35-32 32-32z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <template class="board-column-template">
+          <div class="board-column">
+            <div class="board-column-content">
+              <div class="board-column-header">
+                <div class="board-column-title"></div>
+                <button class="board-column-action add">
+                  <svg
+                    aria-hidden="true"
+                    focusable="false"
+                    role="img"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 448 512"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M416 208H272V64c0-17.67-14.33-32-32-32h-32c-17.67 0-32 14.33-32 32v144H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h144v144c0 17.67 14.33 32 32 32h32c17.67 0 32-14.33 32-32V304h144c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="board-column-items-container">
+                <div class="board-column-items"></div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <div class="board-container">
+          <div class="board"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span>what & why?</span></h2>
+
+      <p>
+        Muuri creates responsive, sortable, filterable and draggable layouts. Comparing to what's
+        out there Muuri is a combination of
+        <a class="fancy-link" href="http://packery.metafizzy.co/">Packery</a>,
+        <a class="fancy-link" href="http://masonry.desandro.com/">Masonry</a>,
+        <a class="fancy-link" href="http://isotope.metafizzy.co/">Isotope</a> and
+        <a class="fancy-link" href="https://github.com/RubaXa/Sortable">Sortable</a>.
+      </p>
+
+      <p>
+        You can build pretty amazing layouts without a single line of JavaScript these days.
+        However, sometimes (rarely though) CSS just isn't enough, and that's where Muuri comes
+        along. At it's very core Muuri is a <i>layout engine</i> which is limited only by your
+        imagination. You can seriously build <i>any</i> kind of layout, asynchronously in web
+        workers if you wish.
+      </p>
+
+      <p>
+        Custom layouts aside, you might need to sprinkle some animations and/or interactivity
+        (filtering / sorting / drag & drop) on your layout (be it CSS or JS based). Stuff gets
+        complex pretty fast and most of us probably reach for existing libraries to handle the
+        complexity at that point. This is why most of these extra features are built into Muuri's
+        core, so you don't have to go hunting for additional libraries or re-inventing the wheel for
+        the nth time.
+      </p>
+
+      <p>
+        The long-term goal of Muuri is to provide a simple (and as low-level as possible) API for
+        building amazing layouts with unmatched performance and most of the complexity abstracted
+        away.
+      </p>
+    </section>
+
+    <section class="info">
+      <h2 class="section-title"><span>Features</span></h2>
+
+      <ul class="feature-list">
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 640 512"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path
+                fill="currentColor"
+                d="M592 224H480V48c0-26.5-21.5-48-48-48H208c-26.5 0-48 21.5-48 48v176H48c-26.5 0-48 21.5-48 48v192c0 26.5 21.5 48 48 48h544c26.5 0 48-21.5 48-48V272c0-26.5-21.5-48-48-48zM208 48h64v90.7l48-21.3 48 21.3V48h64v176H208V48zm88 416H48V272h80v90.7l48-21.3 48 21.3V272h72v192zm296 0H344V272h72v90.7l48-21.3 48 21.3V272h80v192z"
+              ></path>
+            </svg>
+          </div>
+          <div class="feature-list-text">
+            <h4>Infinite layouts</h4>
+            <p>
+              Muuri's layout system allows positioning the grid items within the container in pretty
+              much any way imaginable. Essentially, a layout in Muuri is just a <i>function</i> -
+              feed it dimensions (via grid items) and it returns positions. Provide your own layout
+              function and you can build any layout you want.
+            </p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 640 512"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path
+                fill="currentColor"
+                d="M471.38,467.5l-1-.43-1-.49a37.63,37.63,0,0,1-6.06-4.23,31.74,31.74,0,0,1-9.47,1.65H273.14a32.29,32.29,0,0,1-26.69-14.3L132.34,277.8c-18-25.71,20.7-54.1,39.3-27.5l37.81,54.4c4.5,6.5,14.59,3.21,14.59-4.61V104c0-31.8,48-31.7,48,0V248a8,8,0,0,0,8,8h16a8,8,0,0,0,8-8V72c0-31.8,48-31.7,48,0V248a8,8,0,0,0,8,8h16a8,8,0,0,0,8-8V104c0-31.8,48-31.7,48,0V248a8,8,0,0,0,8,8h16a8,8,0,0,0,8-8V184c0-31.8,48-31.7,48,0v88.3a321.9,321.9,0,0,1-6.2,62.79L495.6,386.4l13.27-5.53,15.63-37.49.41-1,.47-.95c5.83-11.74,18-19.6,31-20.92A371.21,371.21,0,0,0,560,272.3V184A71.94,71.94,0,0,0,488,112c-2.7,0-5.4.2-8,.41V104a72.08,72.08,0,0,0-72-72,70.77,70.77,0,0,0-18.59,2.41,72,72,0,0,0-122.81,0A70.79,70.79,0,0,0,248,32a72.08,72.08,0,0,0-72,72v92.09c-10.5-3.68-38.09-10.18-65.29,8.91A72.13,72.13,0,0,0,93,305.3l113.5,171a79.81,79.81,0,0,0,66.6,35.7H453.75a79.85,79.85,0,0,0,57-24.3l-1.9-4.57ZM86,156.3l20.69-49.63h0l.09,0L156.3,86A7.29,7.29,0,0,0,160,80h0A7.28,7.28,0,0,0,156.3,74L106.73,53.37l-.07,0L86,3.7A6.65,6.65,0,0,0,74,3.7L53.34,53.33l-.05,0L3.7,74A7.28,7.28,0,0,0,0,80H0A7.29,7.29,0,0,0,3.7,86l49.57,20.67.07,0L74,156.3a6.65,6.65,0,0,0,11.92,0ZM307.58,288a4,4,0,0,0-7.15,0L288,317.79l-29.79,12.42a4,4,0,0,0,0,7.15L288,349.78l12.42,29.78a4,4,0,0,0,7.15,0L320,349.78l29.79-12.42a4,4,0,0,0,0-7.15L320,317.79ZM640,432A7.28,7.28,0,0,0,636.3,426l-49.57-20.67-.07,0L566,355.7a6.65,6.65,0,0,0-11.92,0l-20.7,49.63-.05,0L483.7,426A7.28,7.28,0,0,0,480,432h0A7.29,7.29,0,0,0,483.7,438l49.57,20.67.07,0L554,508.3a6.65,6.65,0,0,0,11.92,0l20.69-49.63h0l.09-.05L636.3,438A7.29,7.29,0,0,0,640,432h0Z"
+              ></path>
+            </svg>
+          </div>
+          <div class="feature-list-text">
+            <h4>Drag & drop</h4>
+            <p>
+              Built-in support for sorting the grid items by dragging and dropping, even between
+              grids. Works beautifully also on touch devices and with as many fingers as you have at
+              hand. Additionally, Muuri can handle all the scrolling business for you automatically
+              while you are busy dragging the items around ;)
+            </p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 512 512"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path
+                fill="currentColor"
+                d="M463.952 0H48.057C5.419 0-16.094 51.731 14.116 81.941L176 243.882V416c0 15.108 7.113 29.335 19.2 40l64 47.066c31.273 21.855 76.8 1.538 76.8-38.4V243.882L497.893 81.941C528.042 51.792 506.675 0 463.952 0zM288 224v240l-64-48V224L48 48h416L288 224z"
+              ></path>
+            </svg>
+          </div>
+          <div class="feature-list-text">
+            <h4>Filtering</h4>
+            <p>
+              Showing and/or hiding hundreds of DOM elements simultaneously can quickly become a
+              performance issue due to layout thrashing, which is why Muuri provides simple utility
+              methods for controlling the visibility of items, performantly.
+            </p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 512 512"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path
+                fill="currentColor"
+                d="M484 32H251a28 28 0 0 0-28 28v168a28 28 0 0 0 28 28h233a28 28 0 0 0 28-28V60a28 28 0 0 0-28-28zm-20 176H271V80h193zm-35 112H244a20 20 0 0 0-20 20v120a20 20 0 0 0 20 20h185a20 20 0 0 0 20-20V340a20 20 0 0 0-20-20zm-28 112H272v-64h129zm-237-48h-44V48a16 16 0 0 0-16-16H88a16 16 0 0 0-16 16v336H28a12 12 0 0 0-8.73 20.24l68 72a12 12 0 0 0 17.44 0l68-72A12 12 0 0 0 164 384z"
+              ></path>
+            </svg>
+          </div>
+          <div class="feature-list-text">
+            <h4>Sorting</h4>
+            <p>
+              Nothing fancy, just a good 'ol sorting functionality. Since there's nothing else to
+              tell about this I'll write some filler text here to make this section a bit longer, I
+              hope you don't mind reading it.
+            </p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 640 512"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path
+                fill="currentColor"
+                d="M598.33 189.44c-1.98-1.4.26.02-41.42-25.23-1.44-8.79-3.37-17.75-5.76-26.67C542.64 105.8 516.85 32 461.17 32c-5.01 0-9.99.65-14.8 1.95-18.5 4.96-31.84 17.01-39.68 34.91-8.84-3.03-17.89-4.86-26.88-4.86-16.51 0-31.68 6.07-42.71 17.1-5.7 5.7-14.96 17.64-16.74 36.22C292.78 103.85 266.77 96 239.89 96c-40.75 0-77.54 18.47-112.37 55.99-13.71-10.22-30.11-16-47.53-16-44.19 0-80 35.75-80 79.99 0 44.19 35.76 79.99 80 79.99 10.98 0 21.54-2.34 31.33-6.55 7.3 11.89 8.74 12.68 51.15 59.01l-9.54 5.16c-15.62 10.4-24.94 27.82-24.94 46.59v23.73c0 20.19 10.44 38.29 27.88 48.42 8.78 5.11 18.44 7.66 28.12 7.66 9.53 0 19.06-2.48 27.78-7.45l42.21-24.12 14.6 15.95a48.01 48.01 0 0 0 35.41 15.59h160c26.51 0 48-21.49 48-48 0-26.14-12.6-49.39-32.05-64h61.07c54.58 0 98.98-44.12 98.98-98.35.01-31.78-15.57-61.76-41.66-80.17zM95.87 243.1c-19.31 11.27-34.01.01-38.5-4.48-12.5-12.5-12.5-32.76 0-45.25 6.69-6.7 26.57-16.99 44.22-.69-5.94 16.23-7.56 33.47-5.72 50.42zm92.1 187.76c-3.5 2.02-6.5.81-8-.02-1.47-.88-3.97-2.92-3.97-6.92v-23.73c0-2.69 1.34-5.17 1.62-5.5l18.2-9.81 24.94 27.24-32.79 18.74zm353.05-110.88H448l-48.06 20.03c-.35-48.13-31.81-90.94-76.81-104.27l-36.31-10.77c-12.81-3.75-26.06 3.5-29.81 16.19-3.78 12.72 3.47 26.08 16.19 29.84l36.31 10.76c25.03 7.41 42.5 31.69 42.5 59.03v59.18h80c17.66 0 32 14.36 32 32H304L159.86 274.5c-22.36-24.22-22.66-61.37-.81-86.05C186.71 157.21 212.34 144 239.9 144c52.91 0 112.95 48.69 208.11 111.99 0-18.85-.38-22.24 3.75-33.12-13.16-6.88-28.53-18.32-43.38-33.17-30.93-30.92-47.64-64.35-37.33-74.65 10.74-10.74 45.13 7.8 74.66 37.32 2.58 2.58 4.9 5.18 7.28 7.78-10.27-40.77-7.88-76.17 5.81-79.84 14.11-3.8 34.71 27.54 45.99 69.65 4.37 16.3 6.67 31.8 7.1 44.98 2.6.84 5.2 1.56 7.79 2.82l50.98 30.89c13.4 9.45 21.35 24.71 21.35 40.97-.01 27.82-22.84 50.36-50.99 50.36zM512 239.99c-8.84 0-16 7.16-16 16s7.16 16 16 16 16-7.16 16-16-7.16-16-16-16z"
+              ></path>
+            </svg>
+          </div>
+          <div class="feature-list-text">
+            <h4>Speedy performance</h4>
+            <p>
+              Designed to be fast in every aspect. DOM operations are batched and queued to make
+              sure there is minimal amount of layout thrashing, all animations use
+              <a
+                class="fancy-link"
+                href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API"
+                >Web Animations API</a
+              >
+              (and run outside the main thread), web workers are utilized where needed, and then
+              some.
+            </p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 384 512"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path
+                fill="currentColor"
+                d="M312,24a24,24,0,0,0-48,0v88h48ZM120,24a24,24,0,0,0-48,0v88h48ZM368,144H16A16,16,0,0,0,0,160v16a16,16,0,0,0,16,16H32v64c0,80.14,59.11,145.92,136,157.58V512h48V413.58C292.89,401.92,352,336.14,352,256V192h16a16,16,0,0,0,16-16V160A16,16,0,0,0,368,144ZM304,256a112,112,0,0,1-224,0V192H304Z"
+              ></path>
+            </svg>
+          </div>
+          <div class="feature-list-text">
+            <h4>Delightful API</h4>
+            <p>
+              Extensive and quite straightforward API with enough options, methods, events and
+              escape hatches to gain full control over the library's behaviour. One of the key
+              design goals is to provide smart defaults, which can be easily overriden when needed.
+            </p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 512 512"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path
+                fill="currentColor"
+                d="M464 32H48C21.5 32 0 53.5 0 80v352c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V80c0-26.5-21.5-48-48-48zM48 92c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v24c0 6.6-5.4 12-12 12H60c-6.6 0-12-5.4-12-12V92zm416 334c0 3.3-2.7 6-6 6H54c-3.3 0-6-2.7-6-6V168h416v258zm0-310c0 6.6-5.4 12-12 12H172c-6.6 0-12-5.4-12-12V92c0-6.6 5.4-12 12-12h280c6.6 0 12 5.4 12 12v24z"
+              ></path>
+            </svg>
+          </div>
+          <div class="feature-list-text">
+            <h4>Awesome browser support</h4>
+            <p>
+              Works in all modern browsers and IE9+. All the utilized Web APIs and language features
+              (except Web Animations API) are automatically "ponyfilled" all the way down to IE9.
+            </p>
+          </div>
+        </li>
+        <li class="feature-list-item">
+          <div class="feature-list-icon">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 576 512"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <path
+                fill="currentColor"
+                d="M432.3 0C352.8-.2 288 64.5 288 144v48H48c-26.5 0-48 21.5-48 48v224c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V240c0-26.5-21.5-48-48-48h-64v-46.8c0-52.8 42.1-96.7 95-97.2 53.4-.6 97 42.7 97 96v56c0 13.3 10.7 24 24 24s24-10.7 24-24v-54.6C576 65.8 512 .2 432.3 0zM400 240v224H48V240h352zM225 412c-15.5 0-28-12.5-28-28v-64c0-15.5 12.5-28 28-28s28 12.5 28 28v64c0 15.5-12.5 28-28 28z"
+              ></path>
+            </svg>
+          </div>
+          <div class="feature-list-text">
+            <h4>Free and open source</h4>
+            <p>
+              Muuri is
+              <a class="fancy-link" href="https://github.com/haltu/muuri/blob/master/LICENSE.md"
+                >MIT licensed</a
+              >, which means you're free to use it in commercial projects also. That being said,
+              <mark
+                >please <i>do</i> consider
+                <a class="fancy-link" href="https://github.com/sponsors/niklasramo">sponsoring</a>
+                or
+                <a
+                  class="fancy-link"
+                  href="https://github.com/haltu/muuri/blob/master/CONTRIBUTING.md"
+                  >contributing</a
+                >
+                to the project to make sure the fairy dust doesn't fade away.</mark
+              >
+            </p>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="credits">
+      <h2 class="section-title"><span>Credits</span></h2>
+
+      <p>
+        This project owes much to
+        <a class="fancy-link" href="http://desandro.com/">David DeSandro's</a>
+        <a class="fancy-link" href="http://masonry.desandro.com/">Masonry</a>,
+        <a class="fancy-link" href="http://packery.metafizzy.co/">Packery</a> and
+        <a class="fancy-link" href="http://isotope.metafizzy.co/">Isotope</a> libraries. You should
+        go ahead and check them out right now if you haven't yet. Thanks Dave!
+      </p>
+
+      <p>
+        Jukka Jylänki's
+        <a class="fancy-link" href="https://github.com/juj/RectangleBinPack">survey</a>
+        "A Thousand Ways to Pack the Bin - A Practical Approach to Two-Dimensional Rectangle Bin
+        Packing" came in handy when building Muuri's layout algorithms. Thanks Jukka!
+      </p>
+
+      <p>
+        Big thanks to the people behind
+        <a class="fancy-link" href="https://github.com/web-animations/web-animations-js"
+          >Web Animations polyfill</a
+        >
+        for making it possible to use Web Animations API reliably across browsers today.
+      </p>
+
+      <p>
+        <a class="fancy-link" href="http://www.haltu.fi/">Haltu Oy</a> was responsible for
+        initiating this project in the first place and funded the intial development. Thanks Haltu!
+      </p>
+
+      <p class="author">
+        Created and maintained by
+        <a class="fancy-link" href="https://github.com/niklasramo">Niklas</a>
+      </p>
+    </section>
+
+    <footer>
+      <p class="copyright">
+        Copyright <span class="copyright-symbol">&copy;</span> 2020
+        <a class="fancy-link" href="https://github.com/niklasramo">Niklas Rämö</a>
+      </p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/haltu/muuri@dev/dist/muuri.min.js"></script>
+    <script src="js/demo-grid.js"></script>
+    <script src="js/demo-kanban.js"></script>
+  </body>
+</html>

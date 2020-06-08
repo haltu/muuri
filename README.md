@@ -1,15 +1,8 @@
-# Muuri
+<h1 align="center">
+  <img src="https://muuri.dev/muuri-logo.svg" alt="Muuri" width="400" />
+</h1>
 
-![Muuri](https://muuri.dev/muuri-logo.svg?sanitize=true)
-
-[![gzip size](https://img.badgesize.io/https://unpkg.com/muuri@0.9.0/dist/muuri.min.js?compression=gzip)](https://unpkg.com/muuri@0.9.0/dist/muuri.min.js)
-[![npm](https://img.shields.io/npm/v/muuri.svg)](http://npm.im/muuri)
-
-Muuri is a JavaScript layout engine that allows you to build all kinds of layouts and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](http://haltu.github.io/muuri/) on the website.
-
-Muuri's default "First Fit" bin packing layout algorithm generates layouts similar to [Packery](https://github.com/metafizzy/packery) and [Masonry](http://masonry.desandro.com/). The implementation is heavily based on the "maxrects" approach as described by Jukka Jylänki in his [survey](https://github.com/juj/RectangleBinPack) "A Thousand Ways to Pack the Bin - A Practical Approach to Two-Dimensional Rectangle Bin Packing". If that's not your cup of tea you can always provide your own layout algorithm to position the items as you wish.
-
-Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) for animations and has an internal mechanism to handle dragging. And if you're wondering about the name of the library "muuri" is Finnish meaning a wall.
+Muuri is a JavaScript layout engine that allows you to build all kinds of layouts (no kidding!) and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](https://muuri.dev/) on the website.
 
 **Features**
 

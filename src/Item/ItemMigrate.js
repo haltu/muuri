@@ -18,8 +18,6 @@ import removeClass from '../utils/removeClass';
 /**
  * The migrate process handler constructor.
  *
- * @todo This method does way too much layout thrashing! Let's see if we can
- * optimize it a bit.
  * @class
  * @param {Item} item
  */

@@ -4,23 +4,6 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-// TODO:ENHANCEMENT
-// Moving items between grids needs more intuitive logic for the cases where the
-// dragged item does not overlap any of the items in the new grid. The better
-// approaches are to ignore sorting until the item overlaps another item or to
-// find the nearest as the target item. Also it makes sense to give users of the
-// lib the possibility to define the action dynamically as it might make sense
-// to change the overlap action in specific cases. A good UX benchmark for this
-// is Android's home screen with the icon grids. It should be easy to configure
-// that kind of logic with Muuri.
-
-// TODO:ENHANCEMENT
-// Firefox Focus has a smooth hiding/showing mechanism for the address
-// bar, but it also messes up the clientX/clientY calculations for Muuri. What
-// happens is that the dragged element moves more than it should while the
-// address bar is showing/hiding. It's not so bad an issue, but would be really
-// nice if we could offset the clientY with the address bar size somehow.
-
 import {
   ACTION_MOVE,
   ACTION_SWAP,

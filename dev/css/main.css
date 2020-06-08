@@ -28,6 +28,20 @@ body {
   margin: 0 5vw;
   color: #5e5e5e;
 }
+
+/* Hack to make 100vh work as intended */
+/* https://css-tricks.com/css-fix-for-100vh-in-mobile-webkit/ */
+
+html {
+  height: -webkit-fill-available;
+}
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* Disable focus outline by default (we manually set focus styles to all focusable elements) */
+
 :focus {
   outline: none;
 }
@@ -115,11 +129,6 @@ header {
   max-width: 94rem;
   min-height: 100vh;
   width: 100%;
-}
-@media (hover: none) {
-  header {
-    min-height: calc(100vh - 60px);
-  }
 }
 
 /* Header - Content */

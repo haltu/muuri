@@ -1,9 +1,9 @@
 /* Base */
 
 @font-face {
-  font-family: 'Lazer84';
+  font-family: "Lazer84";
   font-weight: 400;
-  src: url('../fonts/Lazer84/Lazer84.ttf') format('truetype');
+  src: url("../fonts/Lazer84/Lazer84.ttf") format("truetype");
 }
 
 * {
@@ -22,22 +22,11 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  font-family: 'Fira Sans', Helvetica, Arial, sans-serif;
+  font-family: "Fira Sans", Helvetica, Arial, sans-serif;
   font-size: 1.8rem;
   line-height: 1.5;
   margin: 0 5vw;
   color: #5e5e5e;
-}
-
-/* Hack to make 100vh work as intended */
-/* https://css-tricks.com/css-fix-for-100vh-in-mobile-webkit/ */
-
-html {
-  height: -webkit-fill-available;
-}
-body {
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
 }
 
 /* Disable focus outline by default (we manually set focus styles to all focusable elements) */
@@ -81,7 +70,7 @@ a:hover {
   transition: color 0.1s linear;
 }
 .fancy-link:after {
-  content: '';
+  content: "";
   display: block;
   position: absolute;
   left: -0.9rem;
@@ -128,6 +117,7 @@ header {
   margin: 0 auto;
   max-width: 94rem;
   min-height: 100vh;
+  min-height: calc(var(--vh) * 100);
   width: 100%;
 }
 
@@ -143,6 +133,7 @@ header .logo {
   display: flex;
   margin: auto;
   height: 50vh;
+  height: calc(var(--vh) * 50);
   width: 70vw;
 }
 header .logo svg {
@@ -151,6 +142,7 @@ header .logo svg {
 header h1 {
   text-align: center;
   font-size: calc(50% + 3vh);
+  font-size: calc(50% + (var(--vh) * 3));
   font-style: italic;
   line-height: 1.5;
   font-weight: 500;
@@ -165,6 +157,7 @@ header nav {
   justify-content: space-evenly;
   align-items: center;
   margin: 2vh 0;
+  margin: calc(var(--vh) * 2) 0;
   border-top: 0.7rem dotted #65ffc3;
   border-bottom: 0.7rem dotted #65ffc3;
 }
@@ -177,16 +170,21 @@ header .nav-item-link {
   display: block;
   position: relative;
   margin: auto;
-  padding: 2vh 0 3vh 0;
+  padding-top: 2vh;
+  padding-top: calc(var(--vh) * 2);
+  padding-bottom: 3vh;
+  padding-bottom: calc(var(--vh) * 3);
 }
 header .nav-item-link:after {
-  content: '';
+  content: "";
   display: block;
   position: absolute;
   left: -2rem;
   right: -2rem;
   top: 2vh;
+  top: calc(var(--vh) * 2);
   bottom: 2vh;
+  bottom: calc(var(--vh) * 2);
   border-left: 0.7rem double #ff4bd8;
   border-right: 0.7rem double #ff4bd8;
   opacity: 0;
@@ -203,8 +201,10 @@ header .nav-item-text {
   text-align: center;
   text-transform: lowercase;
   font-size: calc(50% + 1.5vh);
+  font-size: calc(50% + (var(--vh) * 1.5));
   line-height: 1.2;
   margin-bottom: 2vh;
+  margin-bottom: calc(var(--vh) * 2);
   font-weight: 500;
   color: #6464ff;
   pointer-events: none;
@@ -213,7 +213,9 @@ header .nav-item-icon {
   display: flex;
   position: relative;
   height: 7vh;
+  height: calc(var(--vh) * 7);
   width: 7vh;
+  width: calc(var(--vh) * 7);
   margin: 0 auto;
   pointer-events: none;
 }
@@ -293,7 +295,7 @@ section h4 {
 
 .section-title {
   color: #ff69ea;
-  font-family: 'Lazer84', 'Fira Sans', Helvetica, Arial, sans-serif;
+  font-family: "Lazer84", "Fira Sans", Helvetica, Arial, sans-serif;
   font-size: 2.6rem;
   font-weight: 400;
   margin: 8rem 0 4rem 0;
@@ -307,7 +309,7 @@ section h4 {
   vertical-align: top;
 }
 .section-title > span:after {
-  content: '';
+  content: "";
   display: block;
   position: absolute;
   left: -2rem;

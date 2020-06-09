@@ -144,6 +144,7 @@ select.grid-control-field::-ms-expand {
   position: relative;
   overflow: auto;
   height: calc(80vh - 7rem);
+  height: calc(var(--vh) * 80 - 7rem);
   padding-bottom: 3rem;
 }
 @media (max-width: 60rem) {
@@ -151,6 +152,7 @@ select.grid-control-field::-ms-expand {
     position: relative;
     overflow: auto;
     height: 80vh;
+    height: calc(var(--vh) * 80);
     padding-bottom: 3rem;
   }
 }

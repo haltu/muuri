@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="https://muuri.dev/muuri-logo.svg" alt="Muuri" width="400" />
+  <a id="muuri" href="#muuri" aria-hidden="true"><img src="https://muuri.dev/muuri-logo.svg" alt="Muuri" width="400" /></a>
 </h1>
 
 Muuri is a JavaScript layout engine that allows you to build all kinds of layouts (no kidding!) and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](https://muuri.dev/) on the website.
@@ -40,7 +40,7 @@ The long-term goal of Muuri is to provide a simple (and as low-level as possible
 
 <h3><a id="getting-started-1" href="#getting-started-1" aria-hidden="true">#</a> 1. Get Muuri</h3>
 
-Install via [npm](https://www.npmjs.com/):
+Install via [npm](https://www.npmjs.com/package/muuri):
 
 ```bash
 npm install muuri
@@ -61,7 +61,7 @@ Or link directly:
 
 Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations you need to use a [polyfill](https://github.com/web-animations/web-animations-js).
 
-Install via [npm](https://www.npmjs.com/):
+Install via [npm](https://www.npmjs.com/package/web-animations-js):
 
 ```bash
 npm install web-animations-js

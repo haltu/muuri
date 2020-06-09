@@ -1,7 +1,7 @@
 {
   "name": "muuri",
   "version": "0.9.0",
-  "description": "Responsive, sortable, filterable and draggable grid layouts.",
+  "description": "Responsive, sortable, filterable and draggable layouts",
   "keywords": [
     "grid",
     "layout",
@@ -10,7 +10,7 @@
     "sort",
     "drag"
   ],
-  "homepage": "https://github.com/haltu/muuri",
+  "homepage": "https://muuri.dev/",
   "license": "MIT",
   "author": {
     "name": "Niklas Rämö",
@@ -73,7 +73,7 @@
     "prosthetic-hand": "^1.3.1",
     "qunit": "^2.10.0",
     "rimraf": "^3.0.2",
-    "rollup": "^2.13.1",
+    "rollup": "^2.15.0",
     "terser": "^4.7.0",
     "web-animations-js": "^2.3.2"
   }

@@ -18,27 +18,15 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css?family=Fira+Sans:400,300,300italic,400italic,500,500italic,700,700italic"
     />
-    <script>
-      (function () {
-        function vh() {
-          document.documentElement.style.setProperty(
-            "--vh",
-            `${window.innerHeight * 0.01}px`
-          );
-        }
-        vh();
-        window.addEventListener("resize", vh);
-      })();
-    </script>
-    <link rel="stylesheet" href="css/main.css?v100" />
-    <link rel="stylesheet" href="css/demo-grid.css?v100" />
-    <link rel="stylesheet" href="css/demo-kanban.css?v100" />
+    <link rel="stylesheet" href="css/main.css?v101" />
+    <link rel="stylesheet" href="css/demo-grid.css?v101" />
+    <link rel="stylesheet" href="css/demo-kanban.css?v101" />
   </head>
   <body>
     <div class="drag-container"></div>
     <header>
-      <article>
-        <div class="logo">
+      <div class="logo">
+        <div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             preserveAspectRatio="xMidYMid meet"
@@ -54,15 +42,15 @@
               paint-order="fill stroke markers"
               transform="translate(60 30)"
               d="M0,0 v330 l20,20 h80 v-325 z M400,25 v325 h80 l20,-20 v-330 z M100,50 v200 h100 v-175 z M300,75 v175 h100 v-200 z M200,100 v200 h100 v-200 z"
-            />
+            ></path>
             <path
               fill="#ff69ea"
               d="m 334,436 h 3 c 6.66667,-0.66667 12.33333,2.33333 17,9 l 1,3 c 0.66667,3.33333 -3,14.33333 -11,33 -8,20 -11.33333,38 -10,54 v 2 c 10.66667,-8 18.66667,-17.66667 24,-29 14.66667,-22 23,-37.66667 25,-47 l 3,-8 c 1.33333,0 2,-0.66667 2,-2 l 1,-1 h 1 v 2 h 1 l 2,-11 h 1 v 3 -5 h 1 l 1,1 c 1.33333,-0.66667 2.66667,-4 4,-10 h 1 c 4.66667,4 7.33333,10 8,18 2.66667,28 -12.66667,61.33333 -46,100 -6.66667,5.33333 -14.33333,8.33333 -23,9 -16,1.33333 -27.33333,-3.66667 -34,-15 l -2,-8 v -3 c -1.33333,-16.66667 0.66667,-31.66667 6,-45 l 13,-41 c 3.33333,-5.33333 7,-8.33333 11,-9 z m -274,23 3,-1 c 5.333333,0 10,3 14,9 l 1,26 c 0.666667,8 2.333333,14 5,18 l 12,-14 24,-28 c 5.33333,-9.33333 11,-14 17,-14 l 5,-1 c 4,0 6.33333,1 7,3 1.33333,0 3.66667,1.66667 7,5 v 1 c 0.66667,4.66667 -4.33333,21.33333 -15,50 -3.33333,11.33333 -5.66667,17 -7,17 h 1 v 1 l -7,18 -9,23 -4,6 h -5 v -1 l -2,1 -5,-2 -1,2 c -1.333333,0 -2.333333,-1 -3,-3 l -3,-1 v -5 c -0.666667,-8.66667 4.333333,-25.66667 15,-51 -6,6.66667 -12,15 -18,25 -1.333333,0 -3,1.66667 -5,5 h -1 c -4.666667,-2.66667 -9,-4.33333 -13,-5 -5.333333,-2.66667 -10.333333,-11.33333 -15,-26 -15.333333,46 -24,69.66667 -26,71 h -1 l -4,-1 -2,1 v -1 l -1,1 -1,-3 -2,2 v -1 l -6,2 c -1.333333,-2.66667 -2.666667,-4 -4,-4 l -1,-2 c -0.6666667,-10.66667 9.333333,-41.66667 30,-93 4,-18.66667 8,-28 12,-28 z m 142,-12 h 3 c 6.66667,-0.66667 12.33333,2.33333 17,9 l 1,3 c 0.66667,3.33333 -3,14.33333 -11,33 -8,20 -11.33333,38 -10,54 v 2 c 10.66667,-8 18.66667,-17.66667 24,-29 14.66667,-22 23,-37.66667 25,-47 l 3,-8 c 1.33333,0 2,-0.66667 2,-2 l 1,-1 h 1 v 2 h 1 l 2,-11 h 1 v 3 -5 h 1 l 1,1 c 1.33333,-0.66667 2.66667,-4 4,-10 h 1 c 4.66667,4 7.33333,10 8,18 2.66667,28 -12.66667,61.33333 -46,100 -6.66667,5.33333 -14.33333,8.33333 -23,9 -16,1.33333 -27.33333,-3.66667 -34,-15 l -2,-8 v -3 c -1.33333,-16.66667 0.66667,-31.66667 6,-45 l 13,-41 c 3.33333,-5.33333 7,-8.33333 11,-9 z m 286,-27 h 5 c 28.66667,-2.66667 46.33333,5 53,23 l 1,4 v 2 c 0.66667,5.33333 -11.33333,15.66667 -36,31 9.33333,26.66667 14.33333,45.33333 15,56 h 1 v 1 l -1,2 1,6 -1,1 -2,-3 -1,2 h -3 l -1,2 h -4 l -1,1 c 0,-2 -1,-3 -3,-3 -8,-14.66667 -15.66667,-32.33333 -23,-53 l -27,12 -17,29 -3,9 -5,13 h -1 c 0,-2 -2,-3.33333 -6,-4 l -1,1 -3,-1 -1,1 -4,-4 -1,-2 c -0.66667,-10 8.66667,-39.33333 28,-88 -9.33333,-5.33333 -14.33333,-9.66667 -15,-13 v -3 c 0,-2.66667 7.33333,-7.33333 22,-14 2,-3.33333 13.33333,-6 34,-8 z m -16,52 h 1 c 24.66667,-13.33333 39.33333,-23.33333 44,-30 v -1 l -13,1 h -1 c -16,1.33333 -24,4 -24,8 z m 110,-54 4,-1 c 8,-0.66667 14.66667,2.66667 20,10 v 2 l -11,24 -24,64 -5.87415,14.97024 c -2.23579,-1.49566 -1.68573,-1.89603 -2.06219,0.57391 l -3.71635,7.38533 C 555.60684,537.59904 556.16126,538.48325 555,541 c -0.12001,1.66234 -2.62942,2.05169 -4,3 -2.6688,3.06957 -2.52399,-1.22547 -4.68635,3.66145 l -3.03439,-2.61217 -2.75975,1.27926 L 539,545 l -2,2 -1,-1 c -0.66667,-6 12,-45.66667 38,-119 1.33333,-6 4,-9 8,-9 z"
-            />
+            ></path>
           </svg>
         </div>
-        <h1>infinite layouts with batteries included</h1>
-      </article>
+      </div>
+      <h1>infinite layouts with batteries included</h1>
       <nav>
         <div class="nav-item">
           <a
@@ -101,10 +89,7 @@
           </a>
         </div>
         <div class="nav-item">
-          <a
-            class="nav-item-link"
-            href="https://github.com/haltu/muuri#table-of-contents"
-          >
+          <a class="nav-item-link" href="https://github.com/haltu/muuri#table-of-contents">
             <span class="nav-item-text">Docs</span>
             <span class="nav-item-icon">
               <svg
@@ -170,10 +155,7 @@
           </a>
         </div>
         <div class="nav-item">
-          <a
-            class="nav-item-link"
-            href="https://github.com/sponsors/niklasramo"
-          >
+          <a class="nav-item-link" href="https://github.com/sponsors/niklasramo">
             <span class="nav-item-text">Fund</span>
             <span class="nav-item-icon">
               <svg
@@ -311,13 +293,9 @@
               <option value="right-top">Right Top</option>
               <option value="right-top-fillgaps">Right Top (fill gaps)</option>
               <option value="left-bottom">Left Bottom</option>
-              <option value="left-bottom-fillgaps"
-                >Left Bottom (fill gaps)</option
-              >
+              <option value="left-bottom-fillgaps">Left Bottom (fill gaps)</option>
               <option value="right-bottom">Right Bottom</option>
-              <option value="right-bottom-fillgaps"
-                >Right Bottom (fill gaps)</option
-              >
+              <option value="right-bottom-fillgaps">Right Bottom (fill gaps)</option>
             </select>
             <div class="grid-control-icon">
               <svg
@@ -350,9 +328,7 @@
           </div>
         </div>
 
-        <div class="grid-container">
-          <div class="grid"></div>
-        </div>
+        <div class="grid"></div>
 
         <template class="grid-item-template">
           <div class="grid-item">
@@ -492,40 +468,36 @@
       <h2 class="section-title"><span>what & why?</span></h2>
 
       <p>
-        Muuri creates responsive, sortable, filterable and draggable layouts.
-        Comparing to what's out there Muuri is a combination of
+        Muuri creates responsive, sortable, filterable and draggable layouts. Comparing to what's
+        out there Muuri is a combination of
         <a class="fancy-link" href="http://packery.metafizzy.co/">Packery</a>,
         <a class="fancy-link" href="http://masonry.desandro.com/">Masonry</a>,
         <a class="fancy-link" href="http://isotope.metafizzy.co/">Isotope</a>
         and
-        <a class="fancy-link" href="https://github.com/RubaXa/Sortable"
-          >Sortable</a
-        >.
+        <a class="fancy-link" href="https://github.com/RubaXa/Sortable">Sortable</a>.
       </p>
 
       <p>
-        You can build pretty amazing layouts without a single line of JavaScript
-        these days. However, sometimes (rarely though) CSS just isn't enough,
-        and that's where Muuri comes along. At it's very core Muuri is a
-        <i>layout engine</i> which is limited only by your imagination. You can
-        seriously build <i>any</i> kind of layout, asynchronously in web workers
-        if you wish.
+        You can build pretty amazing layouts without a single line of JavaScript these days.
+        However, sometimes (rarely though) CSS just isn't enough, and that's where Muuri comes
+        along. At it's very core Muuri is a
+        <i>layout engine</i> which is limited only by your imagination. You can seriously build
+        <i>any</i> kind of layout, asynchronously in web workers if you wish.
       </p>
 
       <p>
-        Custom layouts aside, you might need to sprinkle some animations and/or
-        interactivity (filtering / sorting / drag & drop) on your layout (be it
-        CSS or JS based). Stuff gets complex pretty fast and most of us probably
-        reach for existing libraries to handle the complexity at that point.
-        This is why most of these extra features are built into Muuri's core, so
-        you don't have to go hunting for additional libraries or re-inventing
-        the wheel for the nth time.
+        Custom layouts aside, you might need to sprinkle some animations and/or interactivity
+        (filtering / sorting / drag & drop) on your layout (be it CSS or JS based). Stuff gets
+        complex pretty fast and most of us probably reach for existing libraries to handle the
+        complexity at that point. This is why most of these extra features are built into Muuri's
+        core, so you don't have to go hunting for additional libraries or re-inventing the wheel for
+        the nth time.
       </p>
 
       <p>
-        The long-term goal of Muuri is to provide a simple (and as low-level as
-        possible) API for building amazing layouts with unmatched performance
-        and most of the complexity abstracted away.
+        The long-term goal of Muuri is to provide a simple (and as low-level as possible) API for
+        building amazing layouts with unmatched performance and most of the complexity abstracted
+        away.
       </p>
     </section>
 
@@ -552,11 +524,10 @@
           <div class="feature-list-text">
             <h4>Infinite layouts</h4>
             <p>
-              Muuri's layout system allows positioning the grid items within the
-              container in pretty much any way imaginable. Essentially, a layout
-              in Muuri is just a <i>function</i> - feed it dimensions (via grid
-              items) and it returns positions. Provide your own layout function
-              and you can build any layout you want.
+              Muuri's layout system allows positioning the grid items within the container in pretty
+              much any way imaginable. Essentially, a layout in Muuri is just a <i>function</i> -
+              feed it dimensions (via grid items) and it returns positions. Provide your own layout
+              function and you can build any layout you want.
             </p>
           </div>
         </li>
@@ -579,11 +550,10 @@
           <div class="feature-list-text">
             <h4>Drag & drop</h4>
             <p>
-              Built-in support for sorting the grid items by dragging and
-              dropping, even between grids. Works beautifully also on touch
-              devices and with as many fingers as you have at hand.
-              Additionally, Muuri can handle all the scrolling business for you
-              automatically while you are busy dragging the items around ;)
+              Built-in support for sorting the grid items by dragging and dropping, even between
+              grids. Works beautifully also on touch devices and with as many fingers as you have at
+              hand. Additionally, Muuri can handle all the scrolling business for you automatically
+              while you are busy dragging the items around ;)
             </p>
           </div>
         </li>
@@ -606,10 +576,9 @@
           <div class="feature-list-text">
             <h4>Filtering</h4>
             <p>
-              Showing and/or hiding hundreds of DOM elements simultaneously can
-              quickly become a performance issue due to layout thrashing, which
-              is why Muuri provides simple utility methods for controlling the
-              visibility of items, performantly.
+              Showing and/or hiding hundreds of DOM elements simultaneously can quickly become a
+              performance issue due to layout thrashing, which is why Muuri provides simple utility
+              methods for controlling the visibility of items, performantly.
             </p>
           </div>
         </li>
@@ -632,10 +601,9 @@
           <div class="feature-list-text">
             <h4>Sorting</h4>
             <p>
-              In addition to sorting items by dragging them around you can also
-              sort them directly via the API. Muuri provides methods for sorting
-              all the grid items, moving an item within a grid and sending an
-              item to another grid.
+              In addition to sorting items by dragging them around you can also sort them directly
+              via the API. Muuri provides methods for sorting all the grid items, moving an item
+              within a grid and sending an item to another grid.
             </p>
           </div>
         </li>
@@ -658,16 +626,15 @@
           <div class="feature-list-text">
             <h4>Speedy performance</h4>
             <p>
-              Designed to be fast in every aspect. DOM operations are batched
-              and queued to make sure there is minimal amount of layout
-              thrashing, all animations use
+              Designed to be fast in every aspect. DOM operations are batched and queued to make
+              sure there is minimal amount of layout thrashing, all animations use
               <a
                 class="fancy-link"
                 href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API"
                 >Web Animations API</a
               >
-              (and run outside the main thread), web workers are utilized where
-              needed, and then some.
+              (and run outside the main thread), web workers are utilized where needed, and then
+              some.
             </p>
           </div>
         </li>
@@ -690,10 +657,9 @@
           <div class="feature-list-text">
             <h4>Delightful API</h4>
             <p>
-              Extensive and quite straightforward API with enough options,
-              methods, events and escape hatches to gain full control over the
-              library's behaviour. One of the key design goals is to provide
-              smart defaults, which can be easily overriden when needed.
+              Extensive and quite straightforward API with enough options, methods, events and
+              escape hatches to gain full control over the library's behaviour. One of the key
+              design goals is to provide smart defaults, which can be easily overriden when needed.
             </p>
           </div>
         </li>
@@ -716,9 +682,8 @@
           <div class="feature-list-text">
             <h4>Awesome browser support</h4>
             <p>
-              Works in all modern browsers and IE9+. All the utilized Web APIs
-              and language features (except Web Animations API) are
-              automatically "ponyfilled" all the way down to IE9.
+              Works in all modern browsers and IE9+. All the utilized Web APIs and language features
+              (except Web Animations API) are automatically "ponyfilled" all the way down to IE9.
             </p>
           </div>
         </li>
@@ -742,27 +707,19 @@
             <h4>Free and open source</h4>
             <p>
               Muuri is
-              <a
-                class="fancy-link"
-                href="https://github.com/haltu/muuri/blob/master/LICENSE.md"
+              <a class="fancy-link" href="https://github.com/haltu/muuri/blob/master/LICENSE.md"
                 >MIT licensed</a
-              >, which means you're free to use it in commercial projects also.
-              That being said,
+              >, which means you're free to use it in commercial projects also. That being said,
               <mark
                 >please <i>do</i> consider
-                <a
-                  class="fancy-link"
-                  href="https://github.com/sponsors/niklasramo"
-                  >sponsoring</a
-                >
+                <a class="fancy-link" href="https://github.com/sponsors/niklasramo">sponsoring</a>
                 or
                 <a
                   class="fancy-link"
                   href="https://github.com/haltu/muuri/blob/master/CONTRIBUTING.md"
                   >contributing</a
                 >
-                to the project to make sure the fairy dust doesn't fade
-                away.</mark
+                to the project to make sure the fairy dust doesn't fade away.</mark
               >
             </p>
           </div>
@@ -780,35 +737,27 @@
         <a class="fancy-link" href="http://packery.metafizzy.co/">Packery</a>
         and
         <a class="fancy-link" href="http://isotope.metafizzy.co/">Isotope</a>
-        libraries. You should go ahead and check them out right now if you
-        haven't yet. Thanks Dave!
+        libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
       </p>
 
       <p>
         Jukka Jylänki's
-        <a class="fancy-link" href="https://github.com/juj/RectangleBinPack"
-          >survey</a
-        >
-        "A Thousand Ways to Pack the Bin - A Practical Approach to
-        Two-Dimensional Rectangle Bin Packing" came in handy when building
-        Muuri's layout algorithms. Thanks Jukka!
+        <a class="fancy-link" href="https://github.com/juj/RectangleBinPack">survey</a>
+        "A Thousand Ways to Pack the Bin - A Practical Approach to Two-Dimensional Rectangle Bin
+        Packing" came in handy when building Muuri's layout algorithms. Thanks Jukka!
       </p>
 
       <p>
         Big thanks to the people behind
-        <a
-          class="fancy-link"
-          href="https://github.com/web-animations/web-animations-js"
+        <a class="fancy-link" href="https://github.com/web-animations/web-animations-js"
           >Web Animations polyfill</a
         >
-        for making it possible to use Web Animations API reliably across
-        browsers today.
+        for making it possible to use Web Animations API reliably across browsers today.
       </p>
 
       <p>
-        <a class="fancy-link" href="http://www.haltu.fi/">Haltu Oy</a> was
-        responsible for initiating this project in the first place and funded
-        the intial development. Thanks Haltu!
+        <a class="fancy-link" href="http://www.haltu.fi/">Haltu Oy</a> was responsible for
+        initiating this project in the first place and funded the intial development. Thanks Haltu!
       </p>
 
       <p class="author">
@@ -820,15 +769,13 @@
     <footer>
       <p class="copyright">
         Copyright <span class="copyright-symbol">&copy;</span> 2020
-        <a class="fancy-link" href="https://github.com/niklasramo"
-          >Niklas Rämö</a
-        >
+        <a class="fancy-link" href="https://github.com/niklasramo">Niklas Rämö</a>
       </p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/haltu/muuri@dev/dist/muuri.min.js"></script>
-    <script src="js/demo-grid.js?v100"></script>
-    <script src="js/demo-kanban.js?v100"></script>
+    <script src="js/demo-grid.js?v101"></script>
+    <script src="js/demo-kanban.js?v101"></script>
   </body>
 </html>

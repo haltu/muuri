@@ -1,17 +1,4 @@
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  version="1.0"
-  viewBox="0 0 550 400"
-  preserveAspectRatio="xMidYMid meet"
->
-  <path
-    transform="translate(25 25)"
-    paint-order="fill stroke markers"
-    stroke-linejoin="round"
-    stroke-linecap="round"
-    stroke-width="20"
-    stroke="#ff69ea"
-    fill="none"
-    d="M0,0 v330 l20,20 h80 v-325 z M400,25 v325 h80 l20,-20 v-330 z M100,50 v200 h100 v-175 z M300,75 v175 h100 v-200 z M200,100 v200 h100 v-200 z"
-  ></path>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.0" viewBox="0 0 550 400" preserveAspectRatio="xMidYMid meet">
+  <path transform="translate(25 25)" paint-order="fill stroke markers" stroke-linejoin="round" stroke-linecap="round" stroke-width="20" stroke="#ff69ea" fill="none" d="M0,0 v330 l20,20 h80 v-325 z M400,25 v325 h80 l20,-20 v-330 z M100,50 v200 h100 v-175 z M300,75 v175 h100 v-200 z M200,100 v200 h100 v-200 z"></path>
 </svg>

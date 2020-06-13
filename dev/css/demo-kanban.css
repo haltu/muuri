@@ -4,7 +4,6 @@
   position: relative;
   overflow: auto;
   height: 80vh;
-  height: calc(var(--vh) * 80);
 }
 
 .board {

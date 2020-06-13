@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
   const dragContainer = document.querySelector('.drag-container');
-  const gridContainerElement = document.querySelector('.grid-container');
   const gridElement = document.querySelector('.grid');
   const filterField = document.querySelector('.grid-control-field.filter-field');
   const searchField = document.querySelector('.grid-control-field.search-field');
@@ -21,11 +20,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const grid = new Muuri(gridElement, {
     items: createItemElements(20),
-    showDuration: 300,
+    showDuration: 400,
     showEasing: 'ease',
-    hideDuration: 300,
+    hideDuration: 400,
     hideEasing: 'ease',
-    layoutDuration: 300,
+    layoutDuration: 400,
     layoutEasing: 'cubic-bezier(0.625, 0.225, 0.100, 0.890)',
     sortData: {
       title(item, element) {
@@ -39,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function () {
     dragHandle: '.grid-card-handle',
     dragContainer: dragContainer,
     dragRelease: {
-      duration: 300,
+      duration: 400,
       easing: 'cubic-bezier(0.625, 0.225, 0.100, 0.890)',
       useDragContainer: true,
     },
@@ -50,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
       },
     },
     dragAutoScroll: {
-      targets: [window, { element: gridContainerElement, priority: 1 }],
+      targets: [window],
       sortDuringScroll: false,
       syncAfterScroll: false,
     },
@@ -139,7 +138,10 @@ document.addEventListener('DOMContentLoaded', function () {
   function addItems() {
     addButton.classList.add('processing');
 
-    const items = grid.add(createItemElements(5), { layout: false, active: false });
+    const items = grid.add(createItemElements(5), {
+      layout: false,
+      active: false,
+    });
 
     if (sortFieldValue !== 'order') {
       grid.sort(sortFieldValue === 'title' ? 'title' : 'color title', {

@@ -18,11 +18,26 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css?family=Fira+Sans:400,300,300italic,400italic,500,500italic,700,700italic"
     />
-    <link rel="stylesheet" href="css/main.css?v101" />
-    <link rel="stylesheet" href="css/demo-grid.css?v101" />
-    <link rel="stylesheet" href="css/demo-kanban.css?v101" />
+    <link rel="stylesheet" href="css/main.css?v102" />
+    <link rel="stylesheet" href="css/demo-grid.css?v102" />
+    <link rel="stylesheet" href="css/demo-kanban.css?v102" />
   </head>
   <body>
+    <script>
+      (function () {
+        let addressBarHeight = computeAddressBarHeight();
+        document.documentElement.style.setProperty('--addressBarHeight', `${addressBarHeight}px`);
+
+        function computeAddressBarHeight() {
+          const div = document.createElement('div');
+          Object.assign(div.style, { height: '100vh', position: 'fixed' });
+          document.body.appendChild(div);
+          const size = Math.max(div.getBoundingClientRect().height - window.innerHeight, 0);
+          document.body.removeChild(div);
+          return size;
+        }
+      })();
+    </script>
     <div class="drag-container"></div>
     <header>
       <div class="logo">
@@ -775,7 +790,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/haltu/muuri@dev/dist/muuri.min.js"></script>
-    <script src="js/demo-grid.js?v101"></script>
-    <script src="js/demo-kanban.js?v101"></script>
+    <script src="js/demo-grid.js?v102"></script>
+    <script src="js/demo-kanban.js?v102"></script>
   </body>
 </html>

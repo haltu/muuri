@@ -1,5 +1,9 @@
 /* Base */
 
+:root {
+  --vh: calc((100vh - var(--addressBarHeight, 0)) / 100);
+}
+
 @font-face {
   font-family: 'Lazer84';
   font-weight: 400;
@@ -115,11 +119,11 @@ header {
   position: relative;
   display: flex;
   flex-direction: column;
-  margin: 0 auto;
-  padding: 5rem 0;
-  max-width: 94rem;
-  min-height: 100vh;
+  height: calc(100 * var(--vh));
   width: 100%;
+  max-width: 94rem;
+  margin: 0 auto;
+  padding: calc(3 * var(--vh)) 0;
 }
 
 header .logo {
@@ -138,21 +142,20 @@ header .logo div {
   right: 0;
 }
 header .logo svg {
-  height: 50vh;
+  height: calc(50 * var(--vh));
   width: 70vw;
   max-width: 100%;
   max-height: 100%;
   margin: auto;
-  margin-top: 0;
 }
 
 header h1 {
   text-align: center;
-  font-size: calc(50% + 3vh);
+  font-size: calc(50% + calc(3 * var(--vh)));
   font-style: italic;
   line-height: 1.5;
   font-weight: 500;
-  margin: 3vh auto;
+  margin: calc(3 * var(--vh)) auto;
   color: #ff69ea;
 }
 
@@ -173,8 +176,8 @@ header .nav-item-link {
   display: block;
   position: relative;
   margin: auto;
-  padding-top: 2vh;
-  padding-bottom: 3vh;
+  padding-top: calc(2 * var(--vh));
+  padding-bottom: calc(3 * var(--vh));
 }
 header .nav-item-link:after {
   content: '';
@@ -182,8 +185,8 @@ header .nav-item-link:after {
   position: absolute;
   left: -2rem;
   right: -2rem;
-  top: 2vh;
-  bottom: 2vh;
+  top: calc(2 * var(--vh));
+  bottom: calc(2 * var(--vh));
   border-left: 0.7rem double #ff4bd8;
   border-right: 0.7rem double #ff4bd8;
   opacity: 0;
@@ -199,9 +202,9 @@ header .nav-item-text {
   margin: 0 auto;
   text-align: center;
   text-transform: lowercase;
-  font-size: calc(50% + 1.5vh);
+  font-size: calc(50% + calc(1.5 * var(--vh)));
   line-height: 1.2;
-  margin-bottom: 2vh;
+  margin-bottom: calc(2 * var(--vh));
   font-weight: 500;
   color: #6464ff;
   pointer-events: none;
@@ -209,8 +212,8 @@ header .nav-item-text {
 header .nav-item-icon {
   display: flex;
   position: relative;
-  height: 7vh;
-  width: 7vh;
+  height: calc(7 * var(--vh));
+  width: calc(7 * var(--vh));
   margin: 0 auto;
   pointer-events: none;
 }
@@ -245,13 +248,10 @@ header .nav-item-link:hover .nav-item-icon svg:last-child {
     flex-grow: 0;
     width: 50vw;
   }
-  header .logo svg {
-    margin-top: auto;
-  }
   header h1 {
     position: absolute;
     margin: 0;
-    bottom: 5rem;
+    bottom: calc(3 * var(--vh));
     left: 0;
     right: 0;
   }
@@ -276,15 +276,15 @@ header .nav-item-link:hover .nav-item-icon svg:last-child {
     transform: translate(100%, 70%);
   }
   header .nav-item-link {
-    padding: 1vh 1vw;
+    padding: calc(1 * var(--vh)) 1vw;
   }
   header .nav-item-link:after {
     top: 0;
     bottom: 0;
   }
   header .nav-item-icon {
-    height: 10vh;
-    width: 10vh;
+    height: calc(10 * var(--vh));
+    width: calc(10 * var(--vh));
   }
 }
 

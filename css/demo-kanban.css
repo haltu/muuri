@@ -3,7 +3,7 @@
 .board-container {
   position: relative;
   overflow: auto;
-  height: 80vh;
+  height: calc(80 * var(--vh));
 }
 
 .board {

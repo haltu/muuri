@@ -6,11 +6,15 @@
 
 import getStyle from './getStyle';
 
-var styleOverflow = 'overflow';
-var styleOverflowX = 'overflow-x';
-var styleOverflowY = 'overflow-y';
-var overflowAuto = 'auto';
-var overflowScroll = 'scroll';
+/**
+ * Check if overflow style value is scrollable.
+ *
+ * @param {String} value
+ * @returns {Boolean}
+ */
+function isScrollableOverflow(value) {
+  return value === 'auto' || value === 'scroll' || value === 'overlay';
+}
 
 /**
  * Check if an element is scrollable.
@@ -19,14 +23,9 @@ var overflowScroll = 'scroll';
  * @returns {Boolean}
  */
 export default function isScrollable(element) {
-  var overflow = getStyle(element, styleOverflow);
-  if (overflow === overflowAuto || overflow === overflowScroll) return true;
-
-  overflow = getStyle(element, styleOverflowX);
-  if (overflow === overflowAuto || overflow === overflowScroll) return true;
-
-  overflow = getStyle(element, styleOverflowY);
-  if (overflow === overflowAuto || overflow === overflowScroll) return true;
-
-  return false;
+  return (
+    isScrollableOverflow(getStyle(element, 'overflow')) ||
+    isScrollableOverflow(getStyle(element, 'overflow-x')) ||
+    isScrollableOverflow(getStyle(element, 'overflow-y'))
+  );
 }

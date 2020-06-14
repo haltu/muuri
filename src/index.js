@@ -4,5 +4,4 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import Grid from './Grid/Grid';
-export default Grid;
+export { default } from './Grid/Grid';

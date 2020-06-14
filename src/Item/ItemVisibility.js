@@ -6,17 +6,16 @@
 
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
 
-import Queue from '../Queue/Queue';
+import Animator from '../Animator/Animator';
 
 import addClass from '../utils/addClass';
 import getCurrentStyles from '../utils/getCurrentStyles';
-import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 
 /**
- * Visibility manager for Item instance.
+ * Visibility manager for Item instance, handles visibility of an item.
  *
  * @class
  * @param {Item} item
@@ -24,31 +23,28 @@ import setStyles from '../utils/setStyles';
 function ItemVisibility(item) {
   var isActive = item._isActive;
   var element = item._element;
+  var childElement = element.children[0];
   var settings = item.getGrid()._settings;
+
+  if (!childElement) {
+    throw new Error('No valid child element found within item element.');
+  }
 
   this._item = item;
   this._isDestroyed = false;
-
-  // Set up visibility states.
   this._isHidden = !isActive;
   this._isHiding = false;
   this._isShowing = false;
-
-  // Callback queue.
-  this._queue = new Queue();
-
-  // Bind show/hide finishers.
+  this._childElement = childElement;
+  this._currentStyleProps = [];
+  this._animation = new Animator(childElement);
+  this._queue = 'visibility-' + item._id;
   this._finishShow = this._finishShow.bind(this);
   this._finishHide = this._finishHide.bind(this);
 
-  // Force item to be either visible or hidden on init.
-  element.style.display = isActive ? 'block' : 'none';
-
-  // Set visible/hidden class.
+  element.style.display = isActive ? '' : 'none';
   addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
-
-  // Set initial styles for the child element.
-  setStyles(item._child, isActive ? settings.visibleStyles : settings.hiddenStyles);
+  this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
 }
 
 /**
@@ -60,17 +56,14 @@ function ItemVisibility(item) {
  * Show item.
  *
  * @public
- * @memberof ItemVisibility.prototype
  * @param {Boolean} instant
  * @param {Function} [onFinish]
- * @returns {ItemVisibility}
  */
-ItemVisibility.prototype.show = function(instant, onFinish) {
-  if (this._isDestroyed) return this;
+ItemVisibility.prototype.show = function (instant, onFinish) {
+  if (this._isDestroyed) return;
 
   var item = this._item;
   var element = item._element;
-  var queue = this._queue;
   var callback = isFunction(onFinish) ? onFinish : null;
   var grid = item.getGrid();
   var settings = grid._settings;
@@ -78,54 +71,49 @@ ItemVisibility.prototype.show = function(instant, onFinish) {
   // If item is visible call the callback and be done with it.
   if (!this._isShowing && !this._isHidden) {
     callback && callback(false, item);
-    return this;
+    return;
   }
 
   // If item is showing and does not need to be shown instantly, let's just
   // push callback to the callback queue and be done with it.
   if (this._isShowing && !instant) {
-    callback && queue.add(callback);
-    return this;
+    callback && item._emitter.on(this._queue, callback);
+    return;
   }
 
   // If the item is hiding or hidden process the current visibility callback
   // queue with the interrupted flag active, update classes and set display
   // to block if necessary.
   if (!this._isShowing) {
-    queue.flush(true, item);
+    item._emitter.burst(this._queue, true, item);
     removeClass(element, settings.itemHiddenClass);
     addClass(element, settings.itemVisibleClass);
-    if (!this._isHiding) element.style.display = 'block';
+    if (!this._isHiding) element.style.display = '';
   }
 
   // Push callback to the callback queue.
-  callback && queue.add(callback);
+  callback && item._emitter.on(this._queue, callback);
 
   // Update visibility states.
-  item._isActive = this._isShowing = true;
+  this._isShowing = true;
   this._isHiding = this._isHidden = false;
 
   // Finally let's start show animation.
   this._startAnimation(true, instant, this._finishShow);
-
-  return this;
 };
 
 /**
  * Hide item.
  *
  * @public
- * @memberof ItemVisibility.prototype
  * @param {Boolean} instant
  * @param {Function} [onFinish]
- * @returns {ItemVisibility}
  */
-ItemVisibility.prototype.hide = function(instant, onFinish) {
-  if (this._isDestroyed) return this;
+ItemVisibility.prototype.hide = function (instant, onFinish) {
+  if (this._isDestroyed) return;
 
   var item = this._item;
   var element = item._element;
-  var queue = this._queue;
   var callback = isFunction(onFinish) ? onFinish : null;
   var grid = item.getGrid();
   var settings = grid._settings;
@@ -133,70 +121,98 @@ ItemVisibility.prototype.hide = function(instant, onFinish) {
   // If item is already hidden call the callback and be done with it.
   if (!this._isHiding && this._isHidden) {
     callback && callback(false, item);
-    return this;
+    return;
   }
 
   // If item is hiding and does not need to be hidden instantly, let's just
   // push callback to the callback queue and be done with it.
   if (this._isHiding && !instant) {
-    callback && queue.add(callback);
-    return this;
+    callback && item._emitter.on(this._queue, callback);
+    return;
   }
 
   // If the item is showing or visible process the current visibility callback
   // queue with the interrupted flag active, update classes and set display
   // to block if necessary.
   if (!this._isHiding) {
-    queue.flush(true, item);
+    item._emitter.burst(this._queue, true, item);
     addClass(element, settings.itemHiddenClass);
     removeClass(element, settings.itemVisibleClass);
   }
 
   // Push callback to the callback queue.
-  callback && queue.add(callback);
+  callback && item._emitter.on(this._queue, callback);
 
   // Update visibility states.
   this._isHidden = this._isHiding = true;
-  item._isActive = this._isShowing = false;
+  this._isShowing = false;
 
   // Finally let's start hide animation.
   this._startAnimation(false, instant, this._finishHide);
+};
 
-  return this;
+/**
+ * Stop current hiding/showing process.
+ *
+ * @public
+ * @param {Boolean} processCallbackQueue
+ */
+ItemVisibility.prototype.stop = function (processCallbackQueue) {
+  if (this._isDestroyed) return;
+  if (!this._isHiding && !this._isShowing) return;
+
+  var item = this._item;
+
+  cancelVisibilityTick(item._id);
+  this._animation.stop();
+  if (processCallbackQueue) {
+    item._emitter.burst(this._queue, true, item);
+  }
+};
+
+/**
+ * Reset all existing visibility styles and apply new visibility styles to the
+ * visibility element. This method should be used to set styles when there is a
+ * chance that the current style properties differ from the new ones (basically
+ * on init and on migrations).
+ *
+ * @public
+ * @param {Object} styles
+ */
+ItemVisibility.prototype.setStyles = function (styles) {
+  var childElement = this._childElement;
+  var currentStyleProps = this._currentStyleProps;
+  this._removeCurrentStyles();
+  for (var prop in styles) {
+    currentStyleProps.push(prop);
+    childElement.style[prop] = styles[prop];
+  }
 };
 
 /**
  * Destroy the instance and stop current animation if it is running.
  *
  * @public
- * @memberof ItemVisibility.prototype
- * @returns {ItemVisibility}
  */
-ItemVisibility.prototype.destroy = function() {
-  if (this._isDestroyed) return this;
+ItemVisibility.prototype.destroy = function () {
+  if (this._isDestroyed) return;
 
   var item = this._item;
   var element = item._element;
   var grid = item.getGrid();
-  var queue = this._queue;
   var settings = grid._settings;
 
-  // Stop visibility animation.
-  this._stopAnimation({});
-
-  // Fire all uncompleted callbacks with interrupted flag and destroy the queue.
-  queue.flush(true, item).destroy();
-
-  // Remove visible/hidden classes.
+  this.stop(true);
+  item._emitter.clear(this._queue);
+  this._animation.destroy();
+  this._removeCurrentStyles();
   removeClass(element, settings.itemVisibleClass);
   removeClass(element, settings.itemHiddenClass);
+  element.style.display = '';
 
   // Reset state.
-  this._item = null;
   this._isHiding = this._isShowing = false;
   this._isDestroyed = this._isHidden = true;
-
-  return this;
 };
 
 /**
@@ -208,19 +224,20 @@ ItemVisibility.prototype.destroy = function() {
  * Start visibility animation.
  *
  * @private
- * @memberof ItemVisibility.prototype
  * @param {Boolean} toVisible
  * @param {Boolean} [instant]
  * @param {Function} [onFinish]
  */
-ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish) {
+ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinish) {
   if (this._isDestroyed) return;
 
   var item = this._item;
+  var animation = this._animation;
+  var childElement = this._childElement;
   var settings = item.getGrid()._settings;
   var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
-  var duration = parseInt(toVisible ? settings.showDuration : settings.hideDuration) || 0;
-  var easing = (toVisible ? settings.showEasing : settings.hideEasing) || 'ease';
+  var duration = toVisible ? settings.showDuration : settings.hideDuration;
+  var easing = toVisible ? settings.showEasing : settings.hideEasing;
   var isInstant = instant || duration <= 0;
   var currentStyles;
 
@@ -235,11 +252,8 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
 
   // If we need to apply the styles instantly without animation.
   if (isInstant) {
-    if (item._animateChild.isAnimating()) {
-      item._animateChild.stop(targetStyles);
-    } else {
-      setStyles(item._child, targetStyles);
-    }
+    setStyles(childElement, targetStyles);
+    animation.stop();
     onFinish && onFinish();
     return;
   }
@@ -247,60 +261,58 @@ ItemVisibility.prototype._startAnimation = function(toVisible, instant, onFinish
   // Start the animation in the next tick (to avoid layout thrashing).
   addVisibilityTick(
     item._id,
-    function() {
-      currentStyles = getCurrentStyles(item._child, targetStyles);
+    function () {
+      currentStyles = getCurrentStyles(childElement, targetStyles);
     },
-    function() {
-      item._animateChild.start(currentStyles, targetStyles, {
+    function () {
+      animation.start(currentStyles, targetStyles, {
         duration: duration,
         easing: easing,
-        onFinish: onFinish
+        onFinish: onFinish,
       });
     }
   );
 };
 
 /**
- * Stop visibility animation.
- *
- * @private
- * @memberof ItemVisibility.prototype
- * @param {Object} [targetStyles]
- */
-ItemVisibility.prototype._stopAnimation = function(targetStyles) {
-  if (this._isDestroyed) return;
-  var item = this._item;
-  cancelVisibilityTick(item._id);
-  item._animateChild.stop(targetStyles);
-};
-
-/**
  * Finish show procedure.
  *
  * @private
- * @memberof ItemVisibility.prototype
  */
-ItemVisibility.prototype._finishShow = function() {
+ItemVisibility.prototype._finishShow = function () {
   if (this._isHidden) return;
   this._isShowing = false;
-  this._queue.flush(false, this._item);
+  this._item._emitter.burst(this._queue, false, this._item);
 };
 
 /**
  * Finish hide procedure.
  *
  * @private
- * @memberof ItemVisibility.prototype
  */
-var finishStyles = {};
-ItemVisibility.prototype._finishHide = function() {
+ItemVisibility.prototype._finishHide = function () {
   if (!this._isHidden) return;
   var item = this._item;
   this._isHiding = false;
-  finishStyles.transform = getTranslateString(0, 0);
-  item._layout.stop(true, finishStyles);
+  item._layout.stop(true, 0, 0);
   item._element.style.display = 'none';
-  this._queue.flush(false, item);
+  item._emitter.burst(this._queue, false, item);
+};
+
+/**
+ * Remove currently applied visibility related inline style properties.
+ *
+ * @private
+ */
+ItemVisibility.prototype._removeCurrentStyles = function () {
+  var childElement = this._childElement;
+  var currentStyleProps = this._currentStyleProps;
+
+  for (var i = 0; i < currentStyleProps.length; i++) {
+    childElement.style[currentStyleProps[i]] = '';
+  }
+
+  currentStyleProps.length = 0;
 };
 
 export default ItemVisibility;

@@ -5,47 +5,54 @@
  */
 
 import {
-  actionMove,
-  actionSwap,
-  eventMove,
-  eventSend,
-  eventBeforeSend,
-  eventReceive,
-  eventBeforeReceive,
-  eventDragInit,
-  eventDragStart,
-  eventDragMove,
-  eventDragScroll,
-  eventDragEnd,
-  gridInstances
-} from '../shared';
+  ACTION_MOVE,
+  ACTION_SWAP,
+  EVENT_MOVE,
+  EVENT_SEND,
+  EVENT_BEFORE_SEND,
+  EVENT_RECEIVE,
+  EVENT_BEFORE_RECEIVE,
+  EVENT_DRAG_INIT,
+  EVENT_DRAG_START,
+  EVENT_DRAG_MOVE,
+  EVENT_DRAG_SCROLL,
+  EVENT_DRAG_END,
+  GRID_INSTANCES,
+} from '../constants';
 
 import Dragger from '../Dragger/Dragger';
+import AutoScroller from '../AutoScroller/AutoScroller';
 
-import { addMoveTick, cancelMoveTick, addScrollTick, cancelScrollTick } from '../ticker';
+import {
+  addDragStartTick,
+  cancelDragStartTick,
+  addDragMoveTick,
+  cancelDragMoveTick,
+  addDragScrollTick,
+  cancelDragScrollTick,
+  addDragSortTick,
+  cancelDragSortTick,
+} from '../ticker';
 
 import addClass from '../utils/addClass';
 import arrayInsert from '../utils/arrayInsert';
 import arrayMove from '../utils/arrayMove';
 import arraySwap from '../utils/arraySwap';
-import debounce from '../utils/debounce';
-import elementMatches from '../utils/elementMatches';
 import getContainingBlock from '../utils/getContainingBlock';
+import getIntersectionScore from '../utils/getIntersectionScore';
 import getOffsetDiff from '../utils/getOffsetDiff';
 import getScrollableAncestors from '../utils/getScrollableAncestors';
+import getStyle from '../utils/getStyle';
 import getTranslate from '../utils/getTranslate';
-import getTranslateString from '../utils/getTranslateString';
+import hasPassiveEvents from '../utils/hasPassiveEvents';
 import isFunction from '../utils/isFunction';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
-import setStyles from '../utils/setStyles';
-import { transformProp } from '../utils/supportedTransform';
 
-// Drag start predicate states.
-var startPredicateInactive = 0;
-var startPredicatePending = 1;
-var startPredicateResolved = 2;
-var startPredicateRejected = 3;
+var START_PREDICATE_INACTIVE = 0;
+var START_PREDICATE_PENDING = 1;
+var START_PREDICATE_RESOLVED = 2;
+var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { passive: true } : false;
 
 /**
  * Bind touch interaction to an item.
@@ -67,15 +74,17 @@ function ItemDrag(item) {
   this._startPredicate = isFunction(settings.dragStartPredicate)
     ? settings.dragStartPredicate
     : ItemDrag.defaultStartPredicate;
-  this._startPredicateState = startPredicateInactive;
+  this._startPredicateState = START_PREDICATE_INACTIVE;
   this._startPredicateResult = undefined;
 
   // Data for drag sort predicate heuristics.
-  this._hBlockedIndex = null;
-  this._hX1 = 0;
-  this._hX2 = 0;
-  this._hY1 = 0;
-  this._hY2 = 0;
+  this._isSortNeeded = false;
+  this._sortTimer = undefined;
+  this._blockedSortIndex = null;
+  this._sortX1 = 0;
+  this._sortX2 = 0;
+  this._sortY1 = 0;
+  this._sortY2 = 0;
 
   // Setup item's initial drag data.
   this._reset();
@@ -84,23 +93,37 @@ function ItemDrag(item) {
   this._preStartCheck = this._preStartCheck.bind(this);
   this._preEndCheck = this._preEndCheck.bind(this);
   this._onScroll = this._onScroll.bind(this);
+  this._prepareStart = this._prepareStart.bind(this);
+  this._applyStart = this._applyStart.bind(this);
   this._prepareMove = this._prepareMove.bind(this);
   this._applyMove = this._applyMove.bind(this);
   this._prepareScroll = this._prepareScroll.bind(this);
   this._applyScroll = this._applyScroll.bind(this);
-  this._checkOverlap = this._checkOverlap.bind(this);
+  this._handleSort = this._handleSort.bind(this);
+  this._handleSortDelayed = this._handleSortDelayed.bind(this);
 
-  // Create debounce overlap checker function.
-  var sortInterval = settings.dragSortHeuristics.sortInterval;
-  this._checkOverlapDebounce = debounce(this._checkOverlap, sortInterval);
+  // Get drag handle element.
+  this._handle = (settings.dragHandle && element.querySelector(settings.dragHandle)) || element;
 
   // Init dragger.
-  this._dragger = new Dragger(element, settings.dragCssProps);
+  this._dragger = new Dragger(this._handle, settings.dragCssProps);
   this._dragger.on('start', this._preStartCheck);
   this._dragger.on('move', this._preStartCheck);
   this._dragger.on('cancel', this._preEndCheck);
   this._dragger.on('end', this._preEndCheck);
 }
+
+/**
+ * Public properties
+ * *****************
+ */
+
+/**
+ * @public
+ * @static
+ * @type {AutoScroller}
+ */
+ItemDrag.autoScroller = new AutoScroller();
 
 /**
  * Public static methods
@@ -115,18 +138,35 @@ function ItemDrag(item) {
  * the predicate will be called again on the next drag movement.
  *
  * @public
- * @memberof ItemDrag
+ * @static
  * @param {Item} item
- * @param {DraggerEvent} event
+ * @param {Object} event
  * @param {Object} [options]
  *   - An optional options object which can be used to pass the predicate
  *     it's options manually. By default the predicate retrieves the options
  *     from the grid's settings.
- * @returns {Boolean}
+ * @returns {(Boolean|undefined)}
  */
-ItemDrag.defaultStartPredicate = function(item, event, options) {
+ItemDrag.defaultStartPredicate = function (item, event, options) {
   var drag = item._drag;
-  var predicate = drag._startPredicateData || drag._setupStartPredicate(options);
+
+  // Make sure left button is pressed on mouse.
+  if (event.isFirst && event.srcEvent.button) {
+    return false;
+  }
+
+  // If the start event is trusted, non-cancelable and it's default action has
+  // not been prevented it is in most cases a sign that the gesture would be
+  // cancelled anyways right after it has started (e.g. starting drag while
+  // the page is scrolling).
+  if (
+    event.isFirst &&
+    event.srcEvent.isTrusted === true &&
+    event.srcEvent.defaultPrevented === false &&
+    event.srcEvent.cancelable === false
+  ) {
+    return false;
+  }
 
   // Final event logic. At this stage return value does not matter anymore,
   // the predicate is either resolved or it's not and there's nothing to do
@@ -137,13 +177,14 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
     return;
   }
 
-  // Find and store the handle element so we can check later on if the
-  // cursor is within the handle. If we have a handle selector let's find
-  // the corresponding element. Otherwise let's use the item element as the
-  // handle.
-  if (!predicate.handleElement) {
-    predicate.handleElement = drag._getStartPredicateHandle(event);
-    if (!predicate.handleElement) return false;
+  // Setup predicate data from options if not already set.
+  var predicate = drag._startPredicateData;
+  if (!predicate) {
+    var config = options || drag._getGrid()._settings.dragStartPredicate || {};
+    drag._startPredicateData = predicate = {
+      distance: Math.max(config.distance, 0) || 0,
+      delay: Math.max(config.delay, 0) || 0,
+    };
   }
 
   // If delay is defined let's keep track of the latest event and initiate
@@ -151,7 +192,7 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
   if (predicate.delay) {
     predicate.event = event;
     if (!predicate.delayTimer) {
-      predicate.delayTimer = window.setTimeout(function() {
+      predicate.delayTimer = window.setTimeout(function () {
         predicate.delay = 0;
         if (drag._resolveStartPredicate(predicate.event)) {
           drag._forceResolveStartPredicate(predicate.event);
@@ -168,20 +209,22 @@ ItemDrag.defaultStartPredicate = function(item, event, options) {
  * Default drag sort predicate.
  *
  * @public
- * @memberof ItemDrag
+ * @static
  * @param {Item} item
  * @param {Object} [options]
  * @param {Number} [options.threshold=50]
  * @param {String} [options.action='move']
- * @returns {(Boolean|DragSortCommand)}
- *   - Returns false if no valid index was found. Otherwise returns drag sort
+ * @returns {?Object}
+ *   - Returns `null` if no valid index was found. Otherwise returns drag sort
  *     command.
  */
-ItemDrag.defaultSortPredicate = (function() {
+ItemDrag.defaultSortPredicate = (function () {
   var itemRect = {};
   var targetRect = {};
   var returnData = {};
-  var rootGridArray = [];
+  var gridsArray = [];
+  var minThreshold = 1;
+  var maxThreshold = 100;
 
   function getTargetGrid(item, rootGrid, threshold) {
     var target = null;
@@ -190,18 +233,26 @@ ItemDrag.defaultSortPredicate = (function() {
     var gridScore;
     var grids;
     var grid;
+    var container;
+    var containerRect;
+    var left;
+    var top;
+    var right;
+    var bottom;
     var i;
 
     // Get potential target grids.
     if (dragSort === true) {
-      rootGridArray[0] = rootGrid;
-      grids = rootGridArray;
-    } else {
+      gridsArray[0] = rootGrid;
+      grids = gridsArray;
+    } else if (isFunction(dragSort)) {
       grids = dragSort.call(rootGrid, item);
     }
 
     // Return immediately if there are no grids.
-    if (!Array.isArray(grids)) return target;
+    if (!grids || !Array.isArray(grids) || !grids.length) {
+      return target;
+    }
 
     // Loop through the grids and get the best match.
     for (i = 0; i < grids.length; i++) {
@@ -210,16 +261,53 @@ ItemDrag.defaultSortPredicate = (function() {
       // Filter out all destroyed grids.
       if (grid._isDestroyed) continue;
 
-      // We need to update the grid's offsets and dimensions since they might
-      // have changed (e.g during scrolling).
+      // Compute the grid's client rect an clamp the initial boundaries to
+      // viewport dimensions.
       grid._updateBoundingRect();
+      left = Math.max(0, grid._left);
+      top = Math.max(0, grid._top);
+      right = Math.min(window.innerWidth, grid._right);
+      bottom = Math.min(window.innerHeight, grid._bottom);
+
+      // The grid might be inside one or more elements that clip it's visibility
+      // (e.g overflow scroll/hidden) so we want to find out the visible portion
+      // of the grid in the viewport and use that in our calculations.
+      container = grid._element.parentNode;
+      while (
+        container &&
+        container !== document &&
+        container !== document.documentElement &&
+        container !== document.body
+      ) {
+        if (container.getRootNode && container instanceof DocumentFragment) {
+          container = container.getRootNode().host;
+          continue;
+        }
+
+        if (getStyle(container, 'overflow') !== 'visible') {
+          containerRect = container.getBoundingClientRect();
+          left = Math.max(left, containerRect.left);
+          top = Math.max(top, containerRect.top);
+          right = Math.min(right, containerRect.right);
+          bottom = Math.min(bottom, containerRect.bottom);
+        }
+
+        if (getStyle(container, 'position') === 'fixed') {
+          break;
+        }
+
+        container = container.parentNode;
+      }
+
+      // No need to go further if target rect does not have visible area.
+      if (left >= right || top >= bottom) continue;
 
       // Check how much dragged element overlaps the container element.
-      targetRect.width = grid._width;
-      targetRect.height = grid._height;
-      targetRect.left = grid._left;
-      targetRect.top = grid._top;
-      gridScore = getRectOverlapScore(itemRect, targetRect);
+      targetRect.left = left;
+      targetRect.top = top;
+      targetRect.width = right - left;
+      targetRect.height = bottom - top;
+      gridScore = getIntersectionScore(itemRect, targetRect);
 
       // Check if this grid is the best match so far.
       if (gridScore > threshold && gridScore > bestScore) {
@@ -228,38 +316,46 @@ ItemDrag.defaultSortPredicate = (function() {
       }
     }
 
-    // Always reset root grid array.
-    rootGridArray.length = 0;
+    // Always reset grids array.
+    gridsArray.length = 0;
 
     return target;
   }
 
-  return function(item, options) {
+  return function (item, options) {
     var drag = item._drag;
     var rootGrid = drag._getGrid();
 
     // Get drag sort predicate settings.
     var sortThreshold = options && typeof options.threshold === 'number' ? options.threshold : 50;
-    var sortAction = options && options.action === actionSwap ? actionSwap : actionMove;
+    var sortAction = options && options.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
+    var migrateAction =
+      options && options.migrateAction === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
+
+    // Sort threshold must be a positive number capped to a max value of 100. If
+    // that's not the case this function will not work correctly. So let's clamp
+    // the threshold just in case.
+    sortThreshold = Math.min(Math.max(sortThreshold, minThreshold), maxThreshold);
 
     // Populate item rect data.
     itemRect.width = item._width;
     itemRect.height = item._height;
-    itemRect.left = drag._elementClientX;
-    itemRect.top = drag._elementClientY;
+    itemRect.left = drag._clientX;
+    itemRect.top = drag._clientY;
 
     // Calculate the target grid.
     var grid = getTargetGrid(item, rootGrid, sortThreshold);
 
     // Return early if we found no grid container element that overlaps the
     // dragged item enough.
-    if (!grid) return false;
+    if (!grid) return null;
 
+    var isMigration = item.getGrid() !== grid;
     var gridOffsetLeft = 0;
     var gridOffsetTop = 0;
-    var matchScore = -1;
-    var matchIndex;
-    var hasValidTargets;
+    var matchScore = 0;
+    var matchIndex = -1;
+    var hasValidTargets = false;
     var target;
     var score;
     var i;
@@ -294,7 +390,7 @@ ItemDrag.defaultSortPredicate = (function() {
       targetRect.height = target._height;
       targetRect.left = target._left + target._marginLeft + gridOffsetLeft;
       targetRect.top = target._top + target._marginTop + gridOffsetTop;
-      score = getRectOverlapScore(itemRect, targetRect);
+      score = getIntersectionScore(itemRect, targetRect);
 
       // Update best match index and score if the target's overlap score with
       // the dragged item is higher than the current best match score.
@@ -304,22 +400,29 @@ ItemDrag.defaultSortPredicate = (function() {
       }
     }
 
-    // If there is no valid match and the item is being moved into another
-    // grid.
-    if (matchScore < sortThreshold && item.getGrid() !== grid) {
-      matchIndex = hasValidTargets ? -1 : 0;
-      matchScore = Infinity;
+    // If there is no valid match and the dragged item is being moved into
+    // another grid we need to do some guess work here. If there simply are no
+    // valid targets (which means that the dragged item will be the only active
+    // item in the new grid) we can just add it as the first item. If we have
+    // valid items in the new grid and the dragged item is overlapping one or
+    // more of the items in the new grid let's make an exception with the
+    // threshold and just pick the item which the dragged item is overlapping
+    // most. However, if the dragged item is not overlapping any of the valid
+    // items in the new grid let's position it as the last item in the grid.
+    if (isMigration && matchScore < sortThreshold) {
+      matchIndex = hasValidTargets ? matchIndex : 0;
+      matchScore = sortThreshold;
     }
 
     // Check if the best match overlaps enough to justify a placement switch.
     if (matchScore >= sortThreshold) {
       returnData.grid = grid;
       returnData.index = matchIndex;
-      returnData.action = sortAction;
+      returnData.action = isMigration ? migrateAction : sortAction;
       return returnData;
     }
 
-    return false;
+    return null;
   };
 })();
 
@@ -332,62 +435,84 @@ ItemDrag.defaultSortPredicate = (function() {
  * Abort dragging and reset drag data.
  *
  * @public
- * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
-ItemDrag.prototype.stop = function() {
-  var item = this._item;
-  var element = item._element;
-  var grid = this._getGrid();
-
-  if (!this._isActive) return this;
+ItemDrag.prototype.stop = function () {
+  if (!this._isActive) return;
 
   // If the item is being dropped into another grid, finish it up and return
   // immediately.
   if (this._isMigrating) {
     this._finishMigration();
-    return this;
+    return;
   }
 
-  // Cancel queued move and scroll ticks.
-  cancelMoveTick(item._id);
-  cancelScrollTick(item._id);
+  // Cancel queued ticks.
+  var itemId = this._item._id;
+  cancelDragStartTick(itemId);
+  cancelDragMoveTick(itemId);
+  cancelDragScrollTick(itemId);
 
-  // Remove scroll listeners.
-  this._unbindScrollListeners();
+  // Cancel sort procedure.
+  this._cancelSort();
 
-  // Cancel overlap check.
-  this._checkOverlapDebounce('cancel');
+  if (this._isStarted) {
+    // Remove scroll listeners.
+    this._unbindScrollListeners();
 
-  // Append item element to the container if it's not it's child. Also make
-  // sure the translate values are adjusted to account for the DOM shift.
-  if (element.parentNode !== grid._element) {
-    grid._element.appendChild(element);
-    element.style[transformProp] = getTranslateString(this._gridX, this._gridY);
+    var element = item._element;
+    var grid = this._getGrid();
+    var draggingClass = grid._settings.itemDraggingClass;
+
+    // Append item element to the container if it's not it's child. Also make
+    // sure the translate values are adjusted to account for the DOM shift.
+    if (element.parentNode !== grid._element) {
+      grid._element.appendChild(element);
+      item._setTranslate(this._gridX, this._gridY);
+
+      // We need to do forced reflow to make sure the dragging class is removed
+      // gracefully.
+      // eslint-disable-next-line
+      if (draggingClass) element.clientWidth;
+    }
+
+    // Remove dragging class.
+    removeClass(element, draggingClass);
   }
-
-  // Remove dragging class.
-  removeClass(element, grid._settings.itemDraggingClass);
 
   // Reset drag data.
   this._reset();
+};
 
-  return this;
+/**
+ * Manually trigger drag sort. This is only needed for special edge cases where
+ * e.g. you have disabled sort and want to trigger a sort right after enabling
+ * it (and don't want to wait for the next move/scroll event).
+ *
+ * @private
+ * @param {Boolean} [force=false]
+ */
+ItemDrag.prototype.sort = function (force) {
+  var item = this._item;
+  if (item._isActive && this._dragMoveEvent) {
+    if (force === true) {
+      this._handleSort();
+    } else {
+      addDragSortTick(item._id, this._handleSort);
+    }
+  }
 };
 
 /**
  * Destroy instance.
  *
  * @public
- * @memberof ItemDrag.prototype
- * @returns {ItemDrag}
  */
-ItemDrag.prototype.destroy = function() {
-  if (this._isDestroyed) return this;
+ItemDrag.prototype.destroy = function () {
+  if (this._isDestroyed) return;
   this.stop();
   this._dragger.destroy();
+  ItemDrag.autoScroller.removeItem(this._item);
   this._isDestroyed = true;
-  return this;
 };
 
 /**
@@ -399,22 +524,20 @@ ItemDrag.prototype.destroy = function() {
  * Get Grid instance.
  *
  * @private
- * @memberof ItemDrag.prototype
  * @returns {?Grid}
  */
-ItemDrag.prototype._getGrid = function() {
-  return gridInstances[this._gridId] || null;
+ItemDrag.prototype._getGrid = function () {
+  return GRID_INSTANCES[this._gridId] || null;
 };
 
 /**
  * Setup/reset drag data.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._reset = function() {
-  // Is item being dragged?
+ItemDrag.prototype._reset = function () {
   this._isActive = false;
+  this._isStarted = false;
 
   // The dragged item's container element.
   this._container = null;
@@ -423,7 +546,9 @@ ItemDrag.prototype._reset = function() {
   this._containingBlock = null;
 
   // Drag/scroll event data.
-  this._dragEvent = null;
+  this._dragStartEvent = null;
+  this._dragMoveEvent = null;
+  this._dragPrevMoveEvent = null;
   this._scrollEvent = null;
 
   // All the elements which need to be listened for scroll events during
@@ -440,8 +565,16 @@ ItemDrag.prototype._reset = function() {
 
   // Dragged element's current offset from window's northwest corner. Does
   // not account for element's margins.
-  this._elementClientX = 0;
-  this._elementClientY = 0;
+  this._clientX = 0;
+  this._clientY = 0;
+
+  // Keep track of the clientX/Y diff for scrolling.
+  this._scrollDiffX = 0;
+  this._scrollDiffY = 0;
+
+  // Keep track of the clientX/Y diff for moving.
+  this._moveDiffX = 0;
+  this._moveDiffY = 0;
 
   // Offset difference between the dragged element's temporary drag
   // container and it's original container.
@@ -454,9 +587,8 @@ ItemDrag.prototype._reset = function() {
  * dragged element and the drag container element.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._bindScrollListeners = function() {
+ItemDrag.prototype._bindScrollListeners = function () {
   var gridContainer = this._getGrid()._element;
   var dragContainer = this._container;
   var scrollers = this._scrollers;
@@ -465,14 +597,14 @@ ItemDrag.prototype._bindScrollListeners = function() {
 
   // Get dragged element's scrolling parents.
   scrollers.length = 0;
-  getScrollableAncestors(this._item._element, false, scrollers);
+  getScrollableAncestors(this._item._element.parentNode, scrollers);
 
   // If drag container is defined and it's not the same element as grid
   // container then we need to add the grid container and it's scroll parents
   // to the elements which are going to be listener for scroll events.
   if (dragContainer !== gridContainer) {
     gridScrollers = [];
-    getScrollableAncestors(gridContainer, true, gridScrollers);
+    getScrollableAncestors(gridContainer, gridScrollers);
     for (i = 0; i < gridScrollers.length; i++) {
       if (scrollers.indexOf(gridScrollers[i]) < 0) {
         scrollers.push(gridScrollers[i]);
@@ -482,7 +614,7 @@ ItemDrag.prototype._bindScrollListeners = function() {
 
   // Bind scroll listeners.
   for (i = 0; i < scrollers.length; i++) {
-    scrollers[i].addEventListener('scroll', this._onScroll);
+    scrollers[i].addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
   }
 };
 
@@ -491,107 +623,42 @@ ItemDrag.prototype._bindScrollListeners = function() {
  * elements of the dragged element and the drag container element.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._unbindScrollListeners = function() {
+ItemDrag.prototype._unbindScrollListeners = function () {
   var scrollers = this._scrollers;
   var i;
 
   for (i = 0; i < scrollers.length; i++) {
-    scrollers[i].removeEventListener('scroll', this._onScroll);
+    scrollers[i].removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
   }
 
   scrollers.length = 0;
 };
 
 /**
- * Setup default start predicate.
- *
- * @private
- * @memberof ItemDrag.prototype
- * @param {Object} [options]
- * @returns {Object}
- */
-ItemDrag.prototype._setupStartPredicate = function(options) {
-  var config = options || this._getGrid()._settings.dragStartPredicate || 0;
-  return (this._startPredicateData = {
-    distance: Math.abs(config.distance) || 0,
-    delay: Math.max(config.delay, 0) || 0,
-    handle: typeof config.handle === 'string' ? config.handle : false
-  });
-};
-
-/**
- * Setup default start predicate handle.
- *
- * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
- * @returns {?HTMLElement}
- */
-ItemDrag.prototype._getStartPredicateHandle = function(event) {
-  var predicate = this._startPredicateData;
-  var element = this._item._element;
-  var handleElement = element;
-
-  // No handle, no hassle -> let's use the item element as the handle.
-  if (!predicate.handle) return handleElement;
-
-  // If there is a specific predicate handle defined, let's try to get it.
-  handleElement = event.target;
-  while (handleElement && !elementMatches(handleElement, predicate.handle)) {
-    handleElement = handleElement !== element ? handleElement.parentElement : null;
-  }
-  return handleElement || null;
-};
-
-/**
  * Unbind currently bound drag scroll handlers from all scrollable ancestor
  * elements of the dragged element and the drag container element.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  * @returns {Boolean}
  */
-ItemDrag.prototype._resolveStartPredicate = function(event) {
+ItemDrag.prototype._resolveStartPredicate = function (event) {
   var predicate = this._startPredicateData;
-
-  // If the moved distance is smaller than the threshold distance or there is
-  // some delay left, ignore this predicate cycle.
   if (event.distance < predicate.distance || predicate.delay) return;
-
-  // Get handle rect data.
-  var handleRect = predicate.handleElement.getBoundingClientRect();
-  var handleLeft = handleRect.left + (window.pageXOffset || 0);
-  var handleTop = handleRect.top + (window.pageYOffset || 0);
-  var handleWidth = handleRect.width;
-  var handleHeight = handleRect.height;
-
-  // Reset predicate data.
   this._resetStartPredicate();
-
-  // If the cursor is still within the handle let's start the drag.
-  return (
-    handleWidth &&
-    handleHeight &&
-    event.pageX >= handleLeft &&
-    event.pageX < handleLeft + handleWidth &&
-    event.pageY >= handleTop &&
-    event.pageY < handleTop + handleHeight
-  );
+  return true;
 };
 
 /**
  * Forcefully resolve drag start predicate.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
-ItemDrag.prototype._forceResolveStartPredicate = function(event) {
-  if (!this._isDestroyed && this._startPredicateState === startPredicatePending) {
-    this._startPredicateState = startPredicateResolved;
+ItemDrag.prototype._forceResolveStartPredicate = function (event) {
+  if (!this._isDestroyed && this._startPredicateState === START_PREDICATE_PENDING) {
+    this._startPredicateState = START_PREDICATE_RESOLVED;
     this._onStart(event);
   }
 };
@@ -600,10 +667,9 @@ ItemDrag.prototype._forceResolveStartPredicate = function(event) {
  * Finalize start predicate.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
-ItemDrag.prototype._finishStartPredicate = function(event) {
+ItemDrag.prototype._finishStartPredicate = function (event) {
   var element = this._item._element;
 
   // Check if this is a click (very subjective heuristics).
@@ -621,13 +687,13 @@ ItemDrag.prototype._finishStartPredicate = function(event) {
  * Reset drag sort heuristics.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Number} x
+ * @param {Number} y
  */
-ItemDrag.prototype._resetHeuristics = function(event) {
-  this._hBlockedIndex = null;
-  this._hX1 = this._hX2 = event.clientX;
-  this._hY1 = this._hY2 = event.clientY;
+ItemDrag.prototype._resetHeuristics = function (x, y) {
+  this._blockedSortIndex = null;
+  this._sortX1 = this._sortX2 = x;
+  this._sortY1 = this._sortY2 = y;
 };
 
 /**
@@ -635,30 +701,28 @@ ItemDrag.prototype._resetHeuristics = function(event) {
  * if it can not.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Number} x
+ * @param {Number} y
  * @returns {Boolean}
  */
-ItemDrag.prototype._checkHeuristics = function(event) {
+ItemDrag.prototype._checkHeuristics = function (x, y) {
   var settings = this._getGrid()._settings.dragSortHeuristics;
   var minDist = settings.minDragDistance;
 
   // Skip heuristics if not needed.
   if (minDist <= 0) {
-    this._hBlockedIndex = null;
+    this._blockedSortIndex = null;
     return true;
   }
 
-  var x = event.clientX;
-  var y = event.clientY;
-  var diffX = x - this._hX2;
-  var diffY = y - this._hY2;
+  var diffX = x - this._sortX2;
+  var diffY = y - this._sortY2;
 
   // If we can't do proper bounce back check make sure that the blocked index
   // is not set.
   var canCheckBounceBack = minDist > 3 && settings.minBounceBackAngle > 0;
   if (!canCheckBounceBack) {
-    this._hBlockedIndex = null;
+    this._blockedSortIndex = null;
   }
 
   if (Math.abs(diffX) > minDist || Math.abs(diffY) > minDist) {
@@ -666,18 +730,18 @@ ItemDrag.prototype._checkHeuristics = function(event) {
     // minimum value of 3 for minDragDistance to function properly.
     if (canCheckBounceBack) {
       var angle = Math.atan2(diffX, diffY);
-      var prevAngle = Math.atan2(this._hX2 - this._hX1, this._hY2 - this._hY1);
+      var prevAngle = Math.atan2(this._sortX2 - this._sortX1, this._sortY2 - this._sortY1);
       var deltaAngle = Math.atan2(Math.sin(angle - prevAngle), Math.cos(angle - prevAngle));
       if (Math.abs(deltaAngle) > settings.minBounceBackAngle) {
-        this._hBlockedIndex = null;
+        this._blockedSortIndex = null;
       }
     }
 
     // Update points.
-    this._hX1 = this._hX2;
-    this._hY1 = this._hY2;
-    this._hX2 = x;
-    this._hY2 = y;
+    this._sortX1 = this._sortX2;
+    this._sortY1 = this._sortY2;
+    this._sortX2 = x;
+    this._sortY2 = y;
 
     return true;
   }
@@ -689,9 +753,8 @@ ItemDrag.prototype._checkHeuristics = function(event) {
  * Reset for default drag start predicate function.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._resetStartPredicate = function() {
+ItemDrag.prototype._resetStartPredicate = function () {
   var predicate = this._startPredicateData;
   if (predicate) {
     if (predicate.delayTimer) {
@@ -702,13 +765,96 @@ ItemDrag.prototype._resetStartPredicate = function() {
 };
 
 /**
+ * Handle the sorting procedure. Manage drag sort heuristics/interval and
+ * check overlap when necessary.
+ *
+ * @private
+ */
+ItemDrag.prototype._handleSort = function () {
+  var settings = this._getGrid()._settings;
+
+  // No sorting when drag sort is disabled. Also, account for the scenario where
+  // dragSort is temporarily disabled during drag procedure so we need to reset
+  // sort timer heuristics state too.
+  if (
+    !settings.dragSort ||
+    (!settings.dragAutoScroll.sortDuringScroll && ItemDrag.autoScroller.isItemScrolling(this._item))
+  ) {
+    this._sortX1 = this._sortX2 = this._gridX;
+    this._sortY1 = this._sortY2 = this._gridY;
+    // We set this to true intentionally so that overlap check would be
+    // triggered as soon as possible after sort becomes enabled again.
+    this._isSortNeeded = true;
+    if (this._sortTimer !== undefined) {
+      this._sortTimer = window.clearTimeout(this._sortTimer);
+    }
+    return;
+  }
+
+  // If sorting is enabled we always need to run the heuristics check to keep
+  // the tracked coordinates updated. We also allow an exception when the sort
+  // timer is finished because the heuristics are intended to prevent overlap
+  // checks based on the dragged element's immediate movement and a delayed
+  // overlap check is valid if it comes through, because it was valid when it
+  // was invoked.
+  var shouldSort = this._checkHeuristics(this._gridX, this._gridY);
+  if (!this._isSortNeeded && !shouldSort) return;
+
+  var sortInterval = settings.dragSortHeuristics.sortInterval;
+  if (sortInterval <= 0 || this._isSortNeeded) {
+    this._isSortNeeded = false;
+    if (this._sortTimer !== undefined) {
+      this._sortTimer = window.clearTimeout(this._sortTimer);
+    }
+    this._checkOverlap();
+  } else if (this._sortTimer === undefined) {
+    this._sortTimer = window.setTimeout(this._handleSortDelayed, sortInterval);
+  }
+};
+
+/**
+ * Delayed sort handler.
+ *
+ * @private
+ */
+ItemDrag.prototype._handleSortDelayed = function () {
+  this._isSortNeeded = true;
+  this._sortTimer = undefined;
+  addDragSortTick(this._item._id, this._handleSort);
+};
+
+/**
+ * Cancel and reset sort procedure.
+ *
+ * @private
+ */
+ItemDrag.prototype._cancelSort = function () {
+  this._isSortNeeded = false;
+  if (this._sortTimer !== undefined) {
+    this._sortTimer = window.clearTimeout(this._sortTimer);
+  }
+  cancelDragSortTick(this._item._id);
+};
+
+/**
+ * Handle the ending of the drag procedure for sorting.
+ *
+ * @private
+ */
+ItemDrag.prototype._finishSort = function () {
+  var isSortEnabled = this._getGrid()._settings.dragSort;
+  var needsFinalCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
+  this._cancelSort();
+  if (needsFinalCheck) this._checkOverlap();
+};
+
+/**
  * Check (during drag) if an item is overlapping other items and based on
  * the configuration layout the items.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._checkOverlap = function() {
+ItemDrag.prototype._checkOverlap = function () {
   if (!this._isActive) return;
 
   var item = this._item;
@@ -718,12 +864,13 @@ ItemDrag.prototype._checkOverlap = function() {
   var currentIndex;
   var targetGrid;
   var targetIndex;
+  var targetItem;
   var sortAction;
   var isMigration;
 
   // Get overlap check result.
   if (isFunction(settings.dragSortPredicate)) {
-    result = settings.dragSortPredicate(item, this._dragEvent);
+    result = settings.dragSortPredicate(item, this._dragMoveEvent);
   } else {
     result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);
   }
@@ -731,15 +878,19 @@ ItemDrag.prototype._checkOverlap = function() {
   // Let's make sure the result object has a valid index before going further.
   if (!result || typeof result.index !== 'number') return;
 
+  sortAction = result.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
   currentGrid = item.getGrid();
   targetGrid = result.grid || currentGrid;
   isMigration = currentGrid !== targetGrid;
   currentIndex = currentGrid._items.indexOf(item);
-  targetIndex = normalizeArrayIndex(targetGrid._items, result.index, isMigration);
-  sortAction = result.action === actionSwap ? actionSwap : actionMove;
+  targetIndex = normalizeArrayIndex(
+    targetGrid._items,
+    result.index,
+    isMigration && sortAction === ACTION_MOVE ? 1 : 0
+  );
 
   // Prevent position bounce.
-  if (!isMigration && targetIndex === this._hBlockedIndex) {
+  if (!isMigration && targetIndex === this._blockedSortIndex) {
     return;
   }
 
@@ -747,22 +898,22 @@ ItemDrag.prototype._checkOverlap = function() {
   if (!isMigration) {
     // Make sure the target index is not the current index.
     if (currentIndex !== targetIndex) {
-      this._hBlockedIndex = currentIndex;
+      this._blockedSortIndex = currentIndex;
 
       // Do the sort.
-      (sortAction === actionSwap ? arraySwap : arrayMove)(
+      (sortAction === ACTION_SWAP ? arraySwap : arrayMove)(
         currentGrid._items,
         currentIndex,
         targetIndex
       );
 
       // Emit move event.
-      if (currentGrid._hasListeners(eventMove)) {
-        currentGrid._emit(eventMove, {
+      if (currentGrid._hasListeners(EVENT_MOVE)) {
+        currentGrid._emit(EVENT_MOVE, {
           item: item,
           fromIndex: currentIndex,
           toIndex: targetIndex,
-          action: sortAction
+          action: sortAction,
         });
       }
 
@@ -773,27 +924,30 @@ ItemDrag.prototype._checkOverlap = function() {
 
   // If the item was moved to another grid.
   else {
-    this._hBlockedIndex = null;
+    this._blockedSortIndex = null;
+
+    // Let's fetch the target item when it's still in it's original index.
+    targetItem = targetGrid._items[targetIndex];
 
     // Emit beforeSend event.
-    if (currentGrid._hasListeners(eventBeforeSend)) {
-      currentGrid._emit(eventBeforeSend, {
+    if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {
+      currentGrid._emit(EVENT_BEFORE_SEND, {
         item: item,
         fromGrid: currentGrid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
     // Emit beforeReceive event.
-    if (targetGrid._hasListeners(eventBeforeReceive)) {
-      targetGrid._emit(eventBeforeReceive, {
+    if (targetGrid._hasListeners(EVENT_BEFORE_RECEIVE)) {
+      targetGrid._emit(EVENT_BEFORE_RECEIVE, {
         item: item,
         fromGrid: currentGrid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
@@ -807,31 +961,46 @@ ItemDrag.prototype._checkOverlap = function() {
     currentGrid._items.splice(currentIndex, 1);
     arrayInsert(targetGrid._items, item, targetIndex);
 
-    // Set sort data as null, which is an indicator for the item comparison
-    // function that the sort data of this specific item should be fetched
-    // lazily.
+    // Reset sort data.
     item._sortData = null;
 
     // Emit send event.
-    if (currentGrid._hasListeners(eventSend)) {
-      currentGrid._emit(eventSend, {
+    if (currentGrid._hasListeners(EVENT_SEND)) {
+      currentGrid._emit(EVENT_SEND, {
         item: item,
         fromGrid: currentGrid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
     }
 
     // Emit receive event.
-    if (targetGrid._hasListeners(eventReceive)) {
-      targetGrid._emit(eventReceive, {
+    if (targetGrid._hasListeners(EVENT_RECEIVE)) {
+      targetGrid._emit(EVENT_RECEIVE, {
         item: item,
         fromGrid: currentGrid,
         fromIndex: currentIndex,
         toGrid: targetGrid,
-        toIndex: targetIndex
+        toIndex: targetIndex,
       });
+    }
+
+    // If the sort action is "swap" let's respect it and send the target item
+    // (if it exists) from the target grid to the originating grid. This process
+    // is done on purpose after the dragged item placed within the target grid
+    // so that we can keep this implementation as simple as possible utilizing
+    // the existing API.
+    if (sortAction === ACTION_SWAP && targetItem && targetItem.isActive()) {
+      // Sanity check to make sure that the target item is still part of the
+      // target grid. It could have been manipulated in the event handlers.
+      if (targetGrid._items.indexOf(targetItem) > -1) {
+        targetGrid.send(targetItem, currentGrid, currentIndex, {
+          appendTo: this._container || document.body,
+          layoutSender: false,
+          layoutReceiver: false,
+        });
+      }
     }
 
     // Layout both grids.
@@ -845,11 +1014,10 @@ ItemDrag.prototype._checkOverlap = function() {
  * gracefully.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._finishMigration = function() {
+ItemDrag.prototype._finishMigration = function () {
   var item = this._item;
-  var release = item._release;
+  var release = item._dragRelease;
   var element = item._element;
   var isActive = item._isActive;
   var targetGrid = item.getGrid();
@@ -858,6 +1026,10 @@ ItemDrag.prototype._finishMigration = function() {
   var targetContainer = targetSettings.dragContainer || targetGridElement;
   var currentSettings = this._getGrid()._settings;
   var currentContainer = element.parentNode;
+  var currentVisClass = isActive
+    ? currentSettings.itemVisibleClass
+    : currentSettings.itemHiddenClass;
+  var nextVisClass = isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass;
   var translate;
   var offsetDiff;
 
@@ -867,14 +1039,17 @@ ItemDrag.prototype._finishMigration = function() {
   this._isMigrating = false;
   this.destroy();
 
-  // Remove current classnames.
-  removeClass(element, currentSettings.itemClass);
-  removeClass(element, currentSettings.itemVisibleClass);
-  removeClass(element, currentSettings.itemHiddenClass);
+  // Update item class.
+  if (currentSettings.itemClass !== targetSettings.itemClass) {
+    removeClass(element, currentSettings.itemClass);
+    addClass(element, targetSettings.itemClass);
+  }
 
-  // Add new classnames.
-  addClass(element, targetSettings.itemClass);
-  addClass(element, isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass);
+  // Update visibility class.
+  if (currentVisClass !== nextVisClass) {
+    removeClass(element, currentVisClass);
+    addClass(element, nextVisClass);
+  }
 
   // Move the item inside the target container if it's different than the
   // current container.
@@ -886,9 +1061,8 @@ ItemDrag.prototype._finishMigration = function() {
     translate.y -= offsetDiff.top;
   }
 
-  // Update item's cached dimensions and sort data.
+  // Update item's cached dimensions.
   item._refreshDimensions();
-  item._refreshSortData();
 
   // Calculate the offset difference between target's drag container (if any)
   // and actual grid container element. We save it later for the release
@@ -903,12 +1077,11 @@ ItemDrag.prototype._finishMigration = function() {
   // Adjust the position of the item element if it was moved from a container
   // to another.
   if (targetContainer !== currentContainer) {
-    element.style[transformProp] = getTranslateString(translate.x, translate.y);
+    item._setTranslate(translate.x, translate.y);
   }
 
   // Update child element's styles to reflect the current visibility state.
-  item._child.removeAttribute('style');
-  setStyles(item._child, isActive ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
+  item._visibility.setStyles(isActive ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
 
   // Start the release.
   release.start();
@@ -918,28 +1091,29 @@ ItemDrag.prototype._finishMigration = function() {
  * Drag pre-start handler.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
-ItemDrag.prototype._preStartCheck = function(event) {
+ItemDrag.prototype._preStartCheck = function (event) {
   // Let's activate drag start predicate state.
-  if (this._startPredicateState === startPredicateInactive) {
-    this._startPredicateState = startPredicatePending;
+  if (this._startPredicateState === START_PREDICATE_INACTIVE) {
+    this._startPredicateState = START_PREDICATE_PENDING;
   }
 
   // If predicate is pending try to resolve it.
-  if (this._startPredicateState === startPredicatePending) {
+  if (this._startPredicateState === START_PREDICATE_PENDING) {
     this._startPredicateResult = this._startPredicate(this._item, event);
     if (this._startPredicateResult === true) {
-      this._startPredicateState = startPredicateResolved;
+      this._startPredicateState = START_PREDICATE_RESOLVED;
       this._onStart(event);
     } else if (this._startPredicateResult === false) {
-      this._startPredicateState = startPredicateRejected;
+      this._resetStartPredicate(event);
+      this._dragger._reset();
+      this._startPredicateState = START_PREDICATE_INACTIVE;
     }
   }
 
   // Otherwise if predicate is resolved and drag is active, move the item.
-  else if (this._startPredicateState === startPredicateResolved && this._isActive) {
+  else if (this._startPredicateState === START_PREDICATE_RESOLVED && this._isActive) {
     this._onMove(event);
   }
 };
@@ -948,238 +1122,241 @@ ItemDrag.prototype._preStartCheck = function(event) {
  * Drag pre-end handler.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
-ItemDrag.prototype._preEndCheck = function(event) {
-  // Check if the start predicate was resolved during drag.
-  var isResolved = this._startPredicateState === startPredicateResolved;
+ItemDrag.prototype._preEndCheck = function (event) {
+  var isResolved = this._startPredicateState === START_PREDICATE_RESOLVED;
 
   // Do final predicate check to allow user to unbind stuff for the current
   // drag procedure within the predicate callback. The return value of this
   // check will have no effect to the state of the predicate.
   this._startPredicate(this._item, event);
 
-  // Reset start predicate state.
-  this._startPredicateState = startPredicateInactive;
+  this._startPredicateState = START_PREDICATE_INACTIVE;
 
-  // If predicate is resolved and dragging is active, call the end handler.
-  if (isResolved && this._isActive) this._onEnd(event);
+  if (!isResolved || !this._isActive) return;
+
+  if (this._isStarted) {
+    this._onEnd(event);
+  } else {
+    this.stop();
+  }
 };
 
 /**
  * Drag start handler.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
-ItemDrag.prototype._onStart = function(event) {
+ItemDrag.prototype._onStart = function (event) {
   var item = this._item;
+  if (!item._isActive) return;
 
-  // If item is not active, don't start the drag.
+  this._isActive = true;
+  this._dragStartEvent = event;
+  ItemDrag.autoScroller.addItem(item);
+
+  addDragStartTick(item._id, this._prepareStart, this._applyStart);
+};
+
+/**
+ * Prepare item to be dragged.
+ *
+ * @private
+ *  ItemDrag.prototype
+ */
+ItemDrag.prototype._prepareStart = function () {
+  var item = this._item;
   if (!item._isActive) return;
 
   var element = item._element;
   var grid = this._getGrid();
   var settings = grid._settings;
-  var release = item._release;
-  var migrate = item._migrate;
   var gridContainer = grid._element;
   var dragContainer = settings.dragContainer || gridContainer;
-  var containingBlock = getContainingBlock(dragContainer, true);
+  var containingBlock = getContainingBlock(dragContainer);
   var translate = getTranslate(element);
-  var currentLeft = translate.x;
-  var currentTop = translate.y;
   var elementRect = element.getBoundingClientRect();
   var hasDragContainer = dragContainer !== gridContainer;
-  var offsetDiff;
 
-  // Reset heuristics data.
-  this._resetHeuristics(event);
-
-  // If grid container is not the drag container, we need to calculate the
-  // offset difference between grid container and drag container's containing
-  // element.
-  if (hasDragContainer) {
-    offsetDiff = getOffsetDiff(containingBlock, gridContainer);
-  }
-
-  // Stop current positioning animation.
-  if (item.isPositioning()) {
-    item._layout.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
-  }
-
-  // Stop current migration animation.
-  if (migrate._isActive) {
-    currentLeft -= migrate._containerDiffX;
-    currentTop -= migrate._containerDiffY;
-    migrate.stop(true, { transform: getTranslateString(currentLeft, currentTop) });
-  }
-
-  // If item is being released reset release data.
-  if (item.isReleasing()) release._reset();
-
-  // Setup drag data.
-  this._isActive = true;
-  this._dragEvent = event;
   this._container = dragContainer;
   this._containingBlock = containingBlock;
-  this._elementClientX = elementRect.left;
-  this._elementClientY = elementRect.top;
-  this._left = this._gridX = currentLeft;
-  this._top = this._gridY = currentTop;
+  this._clientX = elementRect.left;
+  this._clientY = elementRect.top;
+  this._left = this._gridX = translate.x;
+  this._top = this._gridY = translate.y;
+  this._scrollDiffX = this._scrollDiffY = 0;
+  this._moveDiffX = this._moveDiffY = 0;
 
-  // Create placeholder (if necessary).
-  if (settings.dragPlaceholder.enabled) {
+  this._resetHeuristics(this._gridX, this._gridY);
+
+  // If a specific drag container is set and it is different from the
+  // grid's container element we store the offset between containers.
+  if (hasDragContainer) {
+    var offsetDiff = getOffsetDiff(containingBlock, gridContainer);
+    this._containerDiffX = offsetDiff.left;
+    this._containerDiffY = offsetDiff.top;
+  }
+};
+
+/**
+ * Start drag for the item.
+ *
+ * @private
+ */
+ItemDrag.prototype._applyStart = function () {
+  var item = this._item;
+  if (!item._isActive) return;
+
+  var grid = this._getGrid();
+  var element = item._element;
+  var release = item._dragRelease;
+  var migrate = item._migrate;
+  var hasDragContainer = this._container !== grid._element;
+
+  if (item.isPositioning()) {
+    item._layout.stop(true, this._left, this._top);
+  }
+
+  if (migrate._isActive) {
+    this._left -= migrate._containerDiffX;
+    this._top -= migrate._containerDiffY;
+    this._gridX -= migrate._containerDiffX;
+    this._gridY -= migrate._containerDiffY;
+    migrate.stop(true, this._left, this._top);
+  }
+
+  if (item.isReleasing()) {
+    release._reset();
+  }
+
+  if (grid._settings.dragPlaceholder.enabled) {
     item._dragPlaceholder.create();
   }
 
-  // Emit dragInit event.
-  grid._emit(eventDragInit, item, event);
+  this._isStarted = true;
 
-  // If a specific drag container is set and it is different from the
-  // grid's container element we need to cast some extra spells.
+  grid._emit(EVENT_DRAG_INIT, item, this._dragStartEvent);
+
   if (hasDragContainer) {
-    // Store the container offset diffs to drag data.
-    this._containerDiffX = offsetDiff.left;
-    this._containerDiffY = offsetDiff.top;
-
     // If the dragged element is a child of the drag container all we need to
     // do is setup the relative drag position data.
-    if (element.parentNode === dragContainer) {
-      this._gridX = currentLeft - this._containerDiffX;
-      this._gridY = currentTop - this._containerDiffY;
+    if (element.parentNode === this._container) {
+      this._gridX -= this._containerDiffX;
+      this._gridY -= this._containerDiffY;
     }
-
     // Otherwise we need to append the element inside the correct container,
     // setup the actual drag position data and adjust the element's translate
     // values to account for the DOM position shift.
     else {
-      this._left = currentLeft + this._containerDiffX;
-      this._top = currentTop + this._containerDiffY;
-      dragContainer.appendChild(element);
-      element.style[transformProp] = getTranslateString(this._left, this._top);
+      this._left += this._containerDiffX;
+      this._top += this._containerDiffY;
+      this._container.appendChild(element);
+      item._setTranslate(this._left, this._top);
     }
   }
 
-  // Set drag class and bind scrollers.
-  addClass(element, settings.itemDraggingClass);
+  addClass(element, grid._settings.itemDraggingClass);
   this._bindScrollListeners();
-
-  // Emit dragStart event.
-  grid._emit(eventDragStart, item, event);
+  grid._emit(EVENT_DRAG_START, item, this._dragStartEvent);
 };
 
 /**
  * Drag move handler.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
-ItemDrag.prototype._onMove = function(event) {
+ItemDrag.prototype._onMove = function (event) {
   var item = this._item;
 
-  // If item is not active, reset drag.
   if (!item._isActive) {
     this.stop();
     return;
   }
 
-  var settings = this._getGrid()._settings;
-  var axis = settings.dragAxis;
-
-  // Update horizontal position data.
-  if (axis !== 'y') {
-    var xDiff = event.clientX - this._dragEvent.clientX;
-    this._left += xDiff;
-    this._gridX += xDiff;
-    this._elementClientX += xDiff;
-  }
-
-  // Update vertical position data.
-  if (axis !== 'x') {
-    var yDiff = event.clientY - this._dragEvent.clientY;
-    this._top += yDiff;
-    this._gridY += yDiff;
-    this._elementClientY += yDiff;
-  }
-
-  // Update event data.
-  this._dragEvent = event;
-
-  // Do move prepare/apply handling in the next tick.
-  addMoveTick(item._id, this._prepareMove, this._applyMove);
+  this._dragMoveEvent = event;
+  addDragMoveTick(item._id, this._prepareMove, this._applyMove);
+  addDragSortTick(item._id, this._handleSort);
 };
 
 /**
  * Prepare dragged item for moving.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._prepareMove = function() {
-  // Do nothing if item is not active.
-  if (!this._item._isActive) return;
+ItemDrag.prototype._prepareMove = function () {
+  var item = this._item;
 
-  // If drag sort is enabled -> check overlap.
-  if (this._getGrid()._settings.dragSort) {
-    if (this._checkHeuristics(this._dragEvent)) {
-      this._checkOverlapDebounce();
-    }
+  if (!item._isActive) return;
+
+  var settings = this._getGrid()._settings;
+  var axis = settings.dragAxis;
+  var nextEvent = this._dragMoveEvent;
+  var prevEvent = this._dragPrevMoveEvent || this._dragStartEvent || nextEvent;
+
+  // Update horizontal position data.
+  if (axis !== 'y') {
+    var moveDiffX = nextEvent.clientX - prevEvent.clientX;
+    this._left = this._left - this._moveDiffX + moveDiffX;
+    this._gridX = this._gridX - this._moveDiffX + moveDiffX;
+    this._clientX = this._clientX - this._moveDiffX + moveDiffX;
+    this._moveDiffX = moveDiffX;
   }
+
+  // Update vertical position data.
+  if (axis !== 'x') {
+    var moveDiffY = nextEvent.clientY - prevEvent.clientY;
+    this._top = this._top - this._moveDiffY + moveDiffY;
+    this._gridY = this._gridY - this._moveDiffY + moveDiffY;
+    this._clientY = this._clientY - this._moveDiffY + moveDiffY;
+    this._moveDiffY = moveDiffY;
+  }
+
+  this._dragPrevMoveEvent = nextEvent;
 };
 
 /**
  * Apply movement to dragged item.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._applyMove = function() {
+ItemDrag.prototype._applyMove = function () {
   var item = this._item;
-
-  // Do nothing if item is not active.
   if (!item._isActive) return;
 
-  // Update element's translateX/Y values.
-  item._element.style[transformProp] = getTranslateString(this._left, this._top);
-
-  // Emit dragMove event.
-  this._getGrid()._emit(eventDragMove, item, this._dragEvent);
+  this._moveDiffX = this._moveDiffY = 0;
+  item._setTranslate(this._left, this._top);
+  this._getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
+  ItemDrag.autoScroller.updateItem(item);
 };
 
 /**
  * Drag scroll handler.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {Event} event
+ * @param {Object} event
  */
-ItemDrag.prototype._onScroll = function(event) {
+ItemDrag.prototype._onScroll = function (event) {
   var item = this._item;
 
-  // If item is not active, reset drag.
   if (!item._isActive) {
     this.stop();
     return;
   }
 
-  // Update last scroll event.
   this._scrollEvent = event;
-
-  // Do scroll prepare/apply handling in the next tick.
-  addScrollTick(item._id, this._prepareScroll, this._applyScroll);
+  addDragScrollTick(item._id, this._prepareScroll, this._applyScroll);
+  addDragSortTick(item._id, this._handleSort);
 };
 
 /**
  * Prepare dragged item for scrolling.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._prepareScroll = function() {
+ItemDrag.prototype._prepareScroll = function () {
   var item = this._item;
 
   // If item is not active do nothing.
@@ -1187,71 +1364,64 @@ ItemDrag.prototype._prepareScroll = function() {
 
   var element = item._element;
   var grid = this._getGrid();
-  var settings = grid._settings;
-  var axis = settings.dragAxis;
   var gridContainer = grid._element;
-  var offsetDiff;
-
-  // Calculate element's rect and x/y diff.
+  var axis = grid._settings.dragAxis;
+  var moveX = axis !== 'y';
+  var moveY = axis !== 'x';
   var rect = element.getBoundingClientRect();
-  var xDiff = this._elementClientX - rect.left;
-  var yDiff = this._elementClientY - rect.top;
 
   // Update container diff.
   if (this._container !== gridContainer) {
-    offsetDiff = getOffsetDiff(this._containingBlock, gridContainer);
+    var offsetDiff = getOffsetDiff(this._containingBlock, gridContainer);
     this._containerDiffX = offsetDiff.left;
     this._containerDiffY = offsetDiff.top;
   }
 
   // Update horizontal position data.
-  if (axis !== 'y') {
-    this._left += xDiff;
-    this._gridX = this._left - this._containerDiffX;
+  if (moveX) {
+    var scrollDiffX = this._clientX - this._moveDiffX - this._scrollDiffX - rect.left;
+    this._left = this._left - this._scrollDiffX + scrollDiffX;
+    this._scrollDiffX = scrollDiffX;
   }
 
   // Update vertical position data.
-  if (axis !== 'x') {
-    this._top += yDiff;
-    this._gridY = this._top - this._containerDiffY;
+  if (moveY) {
+    var scrollDiffY = this._clientY - this._moveDiffY - this._scrollDiffY - rect.top;
+    this._top = this._top - this._scrollDiffY + scrollDiffY;
+    this._scrollDiffY = scrollDiffY;
   }
 
-  // Overlap handling.
-  if (settings.dragSort) this._checkOverlapDebounce();
+  // Update grid position.
+  this._gridX = this._left - this._containerDiffX;
+  this._gridY = this._top - this._containerDiffY;
 };
 
 /**
  * Apply scroll to dragged item.
  *
  * @private
- * @memberof ItemDrag.prototype
  */
-ItemDrag.prototype._applyScroll = function() {
+ItemDrag.prototype._applyScroll = function () {
   var item = this._item;
-
-  // If item is not active do nothing.
   if (!item._isActive) return;
 
-  // Update element's translateX/Y values.
-  item._element.style[transformProp] = getTranslateString(this._left, this._top);
-
-  // Emit dragScroll event.
-  this._getGrid()._emit(eventDragScroll, item, this._scrollEvent);
+  this._scrollDiffX = this._scrollDiffY = 0;
+  item._setTranslate(this._left, this._top);
+  this._getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
 };
 
 /**
  * Drag end handler.
  *
  * @private
- * @memberof ItemDrag.prototype
- * @param {DraggerEvent} event
+ * @param {Object} event
  */
-ItemDrag.prototype._onEnd = function(event) {
+ItemDrag.prototype._onEnd = function (event) {
   var item = this._item;
   var element = item._element;
   var grid = this._getGrid();
   var settings = grid._settings;
-  var release = item._release;
+  var release = item._dragRelease;
 
   // If item is not active, reset drag.
   if (!item._isActive) {
@@ -1259,12 +1429,13 @@ ItemDrag.prototype._onEnd = function(event) {
     return;
   }
 
-  // Cancel queued move and scroll ticks.
-  cancelMoveTick(item._id);
-  cancelScrollTick(item._id);
+  // Cancel queued ticks.
+  cancelDragStartTick(item._id);
+  cancelDragMoveTick(item._id);
+  cancelDragScrollTick(item._id);
 
-  // Finish currently queued overlap check.
-  settings.dragSort && this._checkOverlapDebounce('finish');
+  // Finish sort procedure (does final overlap check if needed).
+  this._finishSort();
 
   // Remove scroll listeners.
   this._unbindScrollListeners();
@@ -1279,8 +1450,11 @@ ItemDrag.prototype._onEnd = function(event) {
   // Remove drag class name from element.
   removeClass(element, settings.itemDraggingClass);
 
+  // Stop auto-scroll.
+  ItemDrag.autoScroller.removeItem(item);
+
   // Emit dragEnd event.
-  grid._emit(eventDragEnd, item, event);
+  grid._emit(EVENT_DRAG_END, item, event);
 
   // Finish up the migration process or start the release process.
   this._isMigrating ? this._finishMigration() : release.start();
@@ -1290,35 +1464,6 @@ ItemDrag.prototype._onEnd = function(event) {
  * Private helpers
  * ***************
  */
-
-/**
- * Calculate how many percent the intersection area of two rectangles is from
- * the maximum potential intersection area between the rectangles.
- *
- * @param {Rectangle} a
- * @param {Rectangle} b
- * @returns {Number}
- *   - A number between 0-100.
- */
-function getRectOverlapScore(a, b) {
-  // Return 0 immediately if the rectangles do not overlap.
-  if (
-    a.left + a.width <= b.left ||
-    b.left + b.width <= a.left ||
-    a.top + a.height <= b.top ||
-    b.top + b.height <= a.top
-  ) {
-    return 0;
-  }
-
-  // Calculate intersection area's width, height, max height and max width.
-  var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
-  var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-  var maxWidth = Math.min(a.width, b.width);
-  var maxHeight = Math.min(a.height, b.height);
-
-  return ((width * height) / (maxWidth * maxHeight)) * 100;
-}
 
 /**
  * Check if an element is an anchor element and open the href url if possible.

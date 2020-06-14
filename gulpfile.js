@@ -4,12 +4,16 @@ const eslint = require('gulp-eslint');
 const karma = require('karma');
 const size = require('gulp-size');
 const rimraf = require('rimraf');
-const argv = require('yargs').argv;
 const dotenv = require('dotenv');
 const exec = require('child_process').exec;
 
 const pkg = require('./package.json');
 const karmaDefaults = require('./karma.defaults.js');
+
+function hasArg(arg) {
+  const args = JSON.parse(process.env.npm_config_argv).original;
+  return args.indexOf(arg) > -1;
+}
 
 if (fs.existsSync('./.env')) dotenv.config();
 
@@ -50,10 +54,10 @@ gulp.task('clean', cb => {
 gulp.task('test-local', done => {
   // Setup browsers.
   const browsers = [];
-  argv.chrome && browsers.push('Chrome');
-  argv.firefox && browsers.push('Firefox');
-  argv.safari && browsers.push('Safari');
-  argv.edge && browsers.push('Edge');
+  hasArg('--chrome') && browsers.push('Chrome');
+  hasArg('--firefox') && browsers.push('Firefox');
+  hasArg('--safari') && browsers.push('Safari');
+  hasArg('--edge') && browsers.push('Edge');
   if (!browsers.length) browsers.push('Chrome');
 
   new karma.Server(
@@ -71,10 +75,10 @@ gulp.task('test-local', done => {
 gulp.task('test-local-min', done => {
   // Setup browsers.
   const browsers = [];
-  argv.chrome && browsers.push('Chrome');
-  argv.firefox && browsers.push('Firefox');
-  argv.safari && browsers.push('Safari');
-  argv.edge && browsers.push('Edge');
+  hasArg('--chrome') && browsers.push('Chrome');
+  hasArg('--firefox') && browsers.push('Firefox');
+  hasArg('--safari') && browsers.push('Safari');
+  hasArg('--edge') && browsers.push('Edge');
   if (!browsers.length) browsers.push('Chrome');
 
   // Replace main file with minified version.
@@ -101,10 +105,10 @@ gulp.task('test-local-min', done => {
 gulp.task('test-sauce', done => {
   // Setup browsers.
   const browsers = [];
-  argv.chrome && browsers.push('slChrome');
-  argv.firefox && browsers.push('slFirefox');
-  argv.safari && browsers.push('slSafari');
-  argv.edge && browsers.push('slEdge');
+  hasArg('--chrome') && browsers.push('slChrome');
+  hasArg('--firefox') && browsers.push('slFirefox');
+  hasArg('--safari') && browsers.push('slSafari');
+  hasArg('--edge') && browsers.push('slEdge');
   if (!browsers.length) browsers.push('slChrome', 'slFirefox', 'slSafari');
 
   new karma.Server(
@@ -122,10 +126,10 @@ gulp.task('test-sauce', done => {
 gulp.task('test-sauce-min', done => {
   // Setup browsers.
   const browsers = [];
-  argv.chrome && browsers.push('slChrome');
-  argv.firefox && browsers.push('slFirefox');
-  argv.safari && browsers.push('slSafari');
-  argv.edge && browsers.push('slEdge');
+  hasArg('--chrome') && browsers.push('slChrome');
+  hasArg('--firefox') && browsers.push('slFirefox');
+  hasArg('--safari') && browsers.push('slSafari');
+  hasArg('--edge') && browsers.push('slEdge');
   if (!browsers.length) browsers.push('slChrome', 'slFirefox', 'slSafari');
 
   // Replace main file with minified version.
@@ -149,8 +153,8 @@ gulp.task('test-sauce-min', done => {
   ).start();
 });
 
-gulp.task('format-test', cb => {
-  exec('npm run format-test', (err, stdout, stderr) => {
+gulp.task('validate-formatting', cb => {
+  exec('npm run validate-formatting', (err, stdout, stderr) => {
     console.log(stdout);
     console.log(stderr);
     cb(err);
@@ -182,14 +186,14 @@ gulp.task(
 
 gulp.task(
   'pre-commit',
-  gulp.series('lint', 'format-test', done => {
+  gulp.series('lint', 'validate-formatting', done => {
     done();
   })
 );
 
 gulp.task(
   'test',
-  gulp.series('lint', 'format-test', 'test-sauce', 'test-sauce-min', 'clean', done => {
+  gulp.series('lint', 'validate-formatting', 'test-sauce', 'test-sauce-min', 'clean', done => {
     done();
   })
 );

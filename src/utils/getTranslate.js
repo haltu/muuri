@@ -5,9 +5,9 @@
  */
 
 import getStyle from './getStyle';
+import transformStyle from './transformStyle';
 
 var translateValue = {};
-var transformStyle = 'transform';
 var transformNone = 'none';
 var rxMat3d = /^matrix3d/;
 var rxMatTx = /([^,]*,){4}/;

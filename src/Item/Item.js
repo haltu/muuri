@@ -4,15 +4,15 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { gridInstances } from '../shared';
+import { GRID_INSTANCES, ITEM_ELEMENT_MAP } from '../constants';
 
-import ItemAnimate from './ItemAnimate';
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';
+import ItemDragRelease from './ItemDragRelease';
 import ItemLayout from './ItemLayout';
 import ItemMigrate from './ItemMigrate';
-import ItemRelease from './ItemRelease';
 import ItemVisibility from './ItemVisibility';
+import Emitter from '../Emitter/Emitter';
 
 import addClass from '../utils/addClass';
 import createUid from '../utils/createUid';
@@ -20,7 +20,7 @@ import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
 import getTranslateString from '../utils/getTranslateString';
 import removeClass from '../utils/removeClass';
-import { transformProp } from '../utils/supportedTransform';
+import transformProp from '../utils/transformProp';
 
 /**
  * Creates a new Item instance for a Grid instance.
@@ -33,25 +33,35 @@ import { transformProp } from '../utils/supportedTransform';
 function Item(grid, element, isActive) {
   var settings = grid._settings;
 
-  // Create instance id.
+  // Store item/element pair to a map (for faster item querying by element).
+  if (ITEM_ELEMENT_MAP) {
+    if (ITEM_ELEMENT_MAP.has(element)) {
+      throw new Error('You can only create one Muuri Item per element!');
+    } else {
+      ITEM_ELEMENT_MAP.set(element, this);
+    }
+  }
+
   this._id = createUid();
-
-  // Reference to connected Grid instance's id.
   this._gridId = grid._id;
-
-  // Destroyed flag.
+  this._element = element;
   this._isDestroyed = false;
-
-  // Set up initial positions.
   this._left = 0;
   this._top = 0;
-
-  // The elements.
-  this._element = element;
-  this._child = element.children[0];
+  this._width = 0;
+  this._height = 0;
+  this._marginLeft = 0;
+  this._marginRight = 0;
+  this._marginTop = 0;
+  this._marginBottom = 0;
+  this._tX = undefined;
+  this._tY = undefined;
+  this._sortData = null;
+  this._emitter = new Emitter();
 
   // If the provided item element is not a direct child of the grid container
-  // element, append it to the grid container.
+  // element, append it to the grid container. Note, we are indeed reading the
+  // DOM here but it's a property that does not cause reflowing.
   if (element.parentNode !== grid._element) {
     grid._element.appendChild(element);
   }
@@ -59,7 +69,9 @@ function Item(grid, element, isActive) {
   // Set item class.
   addClass(element, settings.itemClass);
 
-  // If isActive is not defined, let's try to auto-detect it.
+  // If isActive is not defined, let's try to auto-detect it. Note, we are
+  // indeed reading the DOM here but it's a property that does not cause
+  // reflowing.
   if (typeof isActive !== 'boolean') {
     isActive = getStyle(element, 'display') !== 'none';
   }
@@ -67,15 +79,6 @@ function Item(grid, element, isActive) {
   // Set up active state (defines if the item is considered part of the layout
   // or not).
   this._isActive = isActive;
-
-  // Set element's initial position styles.
-  element.style.left = '0';
-  element.style.top = '0';
-  element.style[transformProp] = getTranslateString(0, 0);
-
-  // Initiate item's animation controllers.
-  this._animate = new ItemAnimate(element);
-  this._animateChild = new ItemAnimate(this._child);
 
   // Setup visibility handler.
   this._visibility = new ItemVisibility(this);
@@ -86,22 +89,25 @@ function Item(grid, element, isActive) {
   // Set up migration handler data.
   this._migrate = new ItemMigrate(this);
 
+  // Set up drag handler.
+  this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
+
   // Set up release handler. Note that although this is fully linked to dragging
   // this still needs to be always instantiated to handle migration scenarios
   // correctly.
-  this._release = new ItemRelease(this);
+  this._dragRelease = new ItemDragRelease(this);
 
   // Set up drag placeholder handler. Note that although this is fully linked to
   // dragging this still needs to be always instantiated to handle migration
   // scenarios correctly.
   this._dragPlaceholder = new ItemDragPlaceholder(this);
 
-  // Set up drag handler.
-  this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
-
-  // Set up the initial dimensions and sort data.
-  this._refreshDimensions();
-  this._refreshSortData();
+  // Note! You must call the following methods before you start using the
+  // instance. They are deliberately not called in the end as it would cause
+  // potentially a massive amount of reflows if multiple items were instantiated
+  // in a loop.
+  // this._refreshDimensions();
+  // this._refreshSortData();
 }
 
 /**
@@ -113,21 +119,19 @@ function Item(grid, element, isActive) {
  * Get the instance grid reference.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Grid}
  */
-Item.prototype.getGrid = function() {
-  return gridInstances[this._gridId];
+Item.prototype.getGrid = function () {
+  return GRID_INSTANCES[this._gridId];
 };
 
 /**
  * Get the instance element.
  *
  * @public
- * @memberof Item.prototype
  * @returns {HTMLElement}
  */
-Item.prototype.getElement = function() {
+Item.prototype.getElement = function () {
   return this._element;
 };
 
@@ -135,10 +139,9 @@ Item.prototype.getElement = function() {
  * Get instance element's cached width.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Number}
  */
-Item.prototype.getWidth = function() {
+Item.prototype.getWidth = function () {
   return this._width;
 };
 
@@ -146,10 +149,9 @@ Item.prototype.getWidth = function() {
  * Get instance element's cached height.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Number}
  */
-Item.prototype.getHeight = function() {
+Item.prototype.getHeight = function () {
   return this._height;
 };
 
@@ -157,17 +159,16 @@ Item.prototype.getHeight = function() {
  * Get instance element's cached margins.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Object}
  *   - The returned object contains left, right, top and bottom properties
  *     which indicate the item element's cached margins.
  */
-Item.prototype.getMargin = function() {
+Item.prototype.getMargin = function () {
   return {
     left: this._marginLeft,
     right: this._marginRight,
     top: this._marginTop,
-    bottom: this._marginBottom
+    bottom: this._marginBottom,
   };
 };
 
@@ -175,15 +176,14 @@ Item.prototype.getMargin = function() {
  * Get instance element's cached position.
  *
  * @public
- * @memberof Item.prototype
  * @returns {Object}
  *   - The returned object contains left and top properties which indicate the
  *     item element's cached position in the grid.
  */
-Item.prototype.getPosition = function() {
+Item.prototype.getPosition = function () {
   return {
     left: this._left,
-    top: this._top
+    top: this._top,
   };
 };
 
@@ -191,10 +191,9 @@ Item.prototype.getPosition = function() {
  * Is the item active?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
-Item.prototype.isActive = function() {
+Item.prototype.isActive = function () {
   return this._isActive;
 };
 
@@ -202,10 +201,9 @@ Item.prototype.isActive = function() {
  * Is the item visible?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
-Item.prototype.isVisible = function() {
+Item.prototype.isVisible = function () {
   return !!this._visibility && !this._visibility._isHidden;
 };
 
@@ -213,10 +211,9 @@ Item.prototype.isVisible = function() {
  * Is the item being animated to visible?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
-Item.prototype.isShowing = function() {
+Item.prototype.isShowing = function () {
   return !!(this._visibility && this._visibility._isShowing);
 };
 
@@ -224,10 +221,9 @@ Item.prototype.isShowing = function() {
  * Is the item being animated to hidden?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
-Item.prototype.isHiding = function() {
+Item.prototype.isHiding = function () {
   return !!(this._visibility && this._visibility._isHiding);
 };
 
@@ -235,21 +231,19 @@ Item.prototype.isHiding = function() {
  * Is the item positioning?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
-Item.prototype.isPositioning = function() {
+Item.prototype.isPositioning = function () {
   return !!(this._layout && this._layout._isActive);
 };
 
 /**
- * Is the item being dragged?
+ * Is the item being dragged (or queued for dragging)?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
-Item.prototype.isDragging = function() {
+Item.prototype.isDragging = function () {
   return !!(this._drag && this._drag._isActive);
 };
 
@@ -257,21 +251,19 @@ Item.prototype.isDragging = function() {
  * Is the item being released?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
-Item.prototype.isReleasing = function() {
-  return !!(this._release && this._release._isActive);
+Item.prototype.isReleasing = function () {
+  return !!(this._dragRelease && this._dragRelease._isActive);
 };
 
 /**
  * Is the item destroyed?
  *
  * @public
- * @memberof Item.prototype
  * @returns {Boolean}
  */
-Item.prototype.isDestroyed = function() {
+Item.prototype.isDestroyed = function () {
   return this._isDestroyed;
 };
 
@@ -284,10 +276,11 @@ Item.prototype.isDestroyed = function() {
  * Recalculate item's dimensions.
  *
  * @private
- * @memberof Item.prototype
+ * @param {Boolean} [force=false]
  */
-Item.prototype._refreshDimensions = function() {
-  if (this._isDestroyed || this._visibility._isHidden) return;
+Item.prototype._refreshDimensions = function (force) {
+  if (this._isDestroyed) return;
+  if (force !== true && this._visibility._isHidden) return;
 
   var element = this._element;
   var dragPlaceholder = this._dragPlaceholder;
@@ -304,18 +297,15 @@ Item.prototype._refreshDimensions = function() {
   this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
 
   // Keep drag placeholder's dimensions synced with the item's.
-  if (dragPlaceholder) {
-    dragPlaceholder.updateDimensions(this._width, this._height);
-  }
+  if (dragPlaceholder) dragPlaceholder.updateDimensions();
 };
 
 /**
  * Fetch and store item's sort data.
  *
  * @private
- * @memberof Item.prototype
  */
-Item.prototype._refreshSortData = function() {
+Item.prototype._refreshSortData = function () {
   if (this._isDestroyed) return;
 
   var data = (this._sortData = {});
@@ -328,42 +318,99 @@ Item.prototype._refreshSortData = function() {
 };
 
 /**
+ * Add item to layout.
+ *
+ * @private
+ */
+Item.prototype._addToLayout = function (left, top) {
+  if (this._isActive === true) return;
+  this._isActive = true;
+  this._left = left || 0;
+  this._top = top || 0;
+};
+
+/**
+ * Remove item from layout.
+ *
+ * @private
+ */
+Item.prototype._removeFromLayout = function () {
+  if (this._isActive === false) return;
+  this._isActive = false;
+  this._left = 0;
+  this._top = 0;
+};
+
+/**
+ * Check if the layout procedure can be skipped for the item.
+ *
+ * @private
+ * @param {Number} left
+ * @param {Number} top
+ * @returns {Boolean}
+ */
+Item.prototype._canSkipLayout = function (left, top) {
+  return (
+    this._left === left &&
+    this._top === top &&
+    !this._migrate._isActive &&
+    !this._layout._skipNextAnimation &&
+    !this._dragRelease.isJustReleased()
+  );
+};
+
+/**
+ * Set the provided left and top arguments as the item element's translate
+ * values in the DOM. This method keeps track of the currently applied
+ * translate values and skips the update operation if the provided values are
+ * identical to the currently applied values. Returns `false` if there was no
+ * need for update and `true` if the translate value was updated.
+ *
+ * @private
+ * @param {Number} left
+ * @param {Number} top
+ * @returns {Boolean}
+ */
+Item.prototype._setTranslate = function (left, top) {
+  if (this._tX === left && this._tY === top) return false;
+  this._tX = left;
+  this._tY = top;
+  this._element.style[transformProp] = getTranslateString(left, top);
+  return true;
+};
+
+/**
  * Destroy item instance.
  *
  * @private
- * @memberof Item.prototype
  * @param {Boolean} [removeElement=false]
  */
-Item.prototype._destroy = function(removeElement) {
+Item.prototype._destroy = function (removeElement) {
   if (this._isDestroyed) return;
 
   var element = this._element;
   var grid = this.getGrid();
   var settings = grid._settings;
-  var index = grid._items.indexOf(this);
 
   // Destroy handlers.
-  this._release.destroy();
+  this._dragPlaceholder.destroy();
+  this._dragRelease.destroy();
   this._migrate.destroy();
   this._layout.destroy();
   this._visibility.destroy();
-  this._animate.destroy();
-  this._animateChild.destroy();
-  this._dragPlaceholder.destroy();
-  this._drag && this._drag.destroy();
+  if (this._drag) this._drag.destroy();
 
-  // Remove all inline styles.
-  element.removeAttribute('style');
-  this._child.removeAttribute('style');
+  // Destroy emitter.
+  this._emitter.destroy();
 
   // Remove item class.
   removeClass(element, settings.itemClass);
 
-  // Remove item from Grid instance if it still exists there.
-  index > -1 && grid._items.splice(index, 1);
-
   // Remove element from DOM.
-  removeElement && element.parentNode.removeChild(element);
+  if (removeElement) element.parentNode.removeChild(element);
+
+  // Remove item/element pair from map.
+  if (ITEM_ELEMENT_MAP) ITEM_ELEMENT_MAP.delete(element);
 
   // Reset state.
   this._isActive = false;

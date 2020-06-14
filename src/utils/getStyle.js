@@ -3,10 +3,19 @@
  * Released under the MIT license
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
-
-import { transformStyle } from './supportedTransform';
-
-var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+var isWeakMapSupported = typeof WeakMap === 'function';
+var cache = isWeakMapSupported ? new WeakMap() : null;
+var cacheInterval = 3000;
+var cacheTimer;
+var canClearCache = true;
+var clearCache = function () {
+  if (canClearCache) {
+    cacheTimer = window.clearInterval(cacheTimer);
+    cache = isWeakMapSupported ? new WeakMap() : null;
+  } else {
+    canClearCache = true;
+  }
+};
 
 /**
  * Returns the computed value of an element's style property as a string.
@@ -16,10 +25,20 @@ var stylesCache = typeof WeakMap === 'function' ? new WeakMap() : null;
  * @returns {String}
  */
 export default function getStyle(element, style) {
-  var styles = stylesCache && stylesCache.get(element);
+  var styles = cache && cache.get(element);
+
   if (!styles) {
     styles = window.getComputedStyle(element, null);
-    if (stylesCache) stylesCache.set(element, styles);
+    if (cache) cache.set(element, styles);
   }
-  return styles.getPropertyValue(style === 'transform' ? transformStyle : style);
+
+  if (cache) {
+    if (!cacheTimer) {
+      cacheTimer = window.setInterval(clearCache, cacheInterval);
+    } else {
+      canClearCache = false;
+    }
+  }
+
+  return styles.getPropertyValue(style);
 }

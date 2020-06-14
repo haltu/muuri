@@ -1,18 +1,17 @@
 (function (window) {
-
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
-  QUnit.test('dragReleaseEnd: should be triggered when item has positioned after drag', function (assert) {
-
+  QUnit.test('dragReleaseEnd: should be triggered when item has positioned after drag', function (
+    assert
+  ) {
     assert.expect(2);
 
     var done = assert.async();
     var container = utils.createGridElements();
-    var grid = new Muuri(container, {dragEnabled: true});
+    var grid = new Muuri(container, { dragEnabled: true });
     var item = grid.getItems()[0];
-    var calls = 0;
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -25,8 +24,10 @@
       teardown();
     });
 
-    utils.dragElement(item.getElement(), 100, 100);
-
+    utils.dragElement({
+      element: item.getElement(),
+      x: 100,
+      y: 100,
+    });
   });
-
 })(this);

@@ -1,7 +1,7 @@
 {
   "name": "muuri",
-  "version": "0.8.0",
-  "description": "Responsive, sortable, filterable and draggable grid layouts.",
+  "version": "0.9.0",
+  "description": "Responsive, sortable, filterable and draggable layouts",
   "keywords": [
     "grid",
     "layout",
@@ -10,7 +10,7 @@
     "sort",
     "drag"
   ],
-  "homepage": "https://github.com/haltu/muuri",
+  "homepage": "https://muuri.dev/",
   "license": "MIT",
   "author": {
     "name": "Niklas Rämö",
@@ -22,6 +22,17 @@
     "url": "git@github.com:haltu/muuri.git"
   },
   "main": "dist/muuri.js",
+  "module": "dist/muuri.module.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "package.json",
+    "src",
+    "dist",
+    "README.md",
+    "LICENSE.md",
+    "AUTHORS.txt",
+    "CONTRIBUTING.md"
+  ],
   "scripts": {
     "test": "./node_modules/.bin/gulp test",
     "test-sauce": "./node_modules/.bin/gulp test-sauce",
@@ -33,7 +44,8 @@
     "build": "./node_modules/.bin/gulp build",
     "lint": "./node_modules/.bin/gulp lint",
     "format": "./node_modules/.bin/prettier --write ./src/**/*.js",
-    "format-test": "./node_modules/.bin/prettier --list-different ./src/**/*.js",
+    "format-tests": "./node_modules/.bin/prettier --write ./tests/**/*.js",
+    "validate-formatting": "./node_modules/.bin/prettier --list-different ./src/**/*.js",
     "size": "./node_modules/.bin/gulp size",
     "pre-commit-hook": "./node_modules/.bin/gulp pre-commit"
   },
@@ -43,27 +55,26 @@
     }
   },
   "devDependencies": {
-    "dotenv": "^8.0.0",
+    "dotenv": "^8.2.0",
     "gulp": "^4.0.2",
     "gulp-eslint": "^6.0.0",
     "gulp-size": "^3.0.0",
-    "husky": "^1.3.1",
-    "karma": "^4.1.0",
-    "karma-chrome-launcher": "^2.2.0",
+    "husky": "^4.2.5",
+    "karma": "^5.0.9",
+    "karma-chrome-launcher": "^3.1.0",
     "karma-edge-launcher": "^0.4.2",
-    "karma-firefox-launcher": "^1.1.0",
-    "karma-qunit": "^3.1.2",
+    "karma-firefox-launcher": "^1.3.0",
+    "karma-qunit": "^4.1.1",
     "karma-safari-launcher": "^1.0.0",
-    "karma-sauce-launcher": "^2.0.2",
+    "karma-sauce-launcher": "^4.1.5",
     "karma-story-reporter": "^0.3.1",
     "mezr": "^0.6.2",
-    "prettier": "^1.18.2",
+    "prettier": "^2.0.5",
     "prosthetic-hand": "^1.3.1",
-    "qunit": "^2.9.2",
-    "rimraf": "^2.6.3",
-    "rollup": "^1.16.7",
-    "terser": "^4.1.2",
-    "web-animations-js": "^2.3.2",
-    "yargs": "^13.2.4"
+    "qunit": "^2.10.0",
+    "rimraf": "^3.0.2",
+    "rollup": "^2.15.0",
+    "terser": "^4.7.0",
+    "web-animations-js": "^2.3.2"
   }
 }

@@ -1,11 +1,9 @@
 (function (window) {
-
   var Muuri = window.Muuri;
 
   QUnit.module('Grid methods');
 
   QUnit.test('getElement: should return the container element', function (assert) {
-
     assert.expect(1);
 
     var container = utils.createGridElements();
@@ -17,7 +15,5 @@
 
     assert.strictEqual(grid.getElement(), container);
     teardown();
-
   });
-
 })(this);

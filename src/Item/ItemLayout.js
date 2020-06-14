@@ -6,37 +6,51 @@
 
 import { addLayoutTick, cancelLayoutTick } from '../ticker';
 
-import Queue from '../Queue/Queue';
+import Animator from '../Animator/Animator';
 
 import addClass from '../utils/addClass';
 import getTranslate from '../utils/getTranslate';
 import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
-import setStyles from '../utils/setStyles';
+import transformProp from '../utils/transformProp';
+
+var MIN_ANIMATION_DISTANCE = 2;
 
 /**
- * Layout manager for Item instance.
+ * Layout manager for Item instance, handles the positioning of an item.
  *
  * @class
  * @param {Item} item
  */
 function ItemLayout(item) {
+  var element = item._element;
+  var elementStyle = element.style;
+
   this._item = item;
   this._isActive = false;
   this._isDestroyed = false;
   this._isInterrupted = false;
   this._currentStyles = {};
   this._targetStyles = {};
-  this._currentLeft = 0;
-  this._currentTop = 0;
+  this._nextLeft = 0;
+  this._nextTop = 0;
   this._offsetLeft = 0;
   this._offsetTop = 0;
   this._skipNextAnimation = false;
-  this._animateOptions = {
-    onFinish: this._finish.bind(this)
+  this._animOptions = {
+    onFinish: this._finish.bind(this),
+    duration: 0,
+    easing: 0,
   };
-  this._queue = new Queue();
+
+  // Set element's initial position styles.
+  elementStyle.left = '0px';
+  elementStyle.top = '0px';
+  item._setTranslate(0, 0);
+
+  this._animation = new Animator(element);
+  this._queue = 'layout-' + item._id;
 
   // Bind animation handlers and finish method.
   this._setupAnimation = this._setupAnimation.bind(this);
@@ -52,72 +66,68 @@ function ItemLayout(item) {
  * Start item layout based on it's current data.
  *
  * @public
- * @memberof ItemLayout.prototype
- * @param {Boolean} [instant=false]
+ * @param {Boolean} instant
  * @param {Function} [onFinish]
- * @returns {ItemLayout}
  */
-ItemLayout.prototype.start = function(instant, onFinish) {
+ItemLayout.prototype.start = function (instant, onFinish) {
   if (this._isDestroyed) return;
 
   var item = this._item;
-  var element = item._element;
-  var release = item._release;
+  var release = item._dragRelease;
   var gridSettings = item.getGrid()._settings;
   var isPositioning = this._isActive;
-  var isJustReleased = release._isActive && release._isPositioningStarted === false;
+  var isJustReleased = release.isJustReleased();
   var animDuration = isJustReleased
-    ? gridSettings.dragReleaseDuration
+    ? gridSettings.dragRelease.duration
     : gridSettings.layoutDuration;
-  var animEasing = isJustReleased ? gridSettings.dragReleaseEasing : gridSettings.layoutEasing;
+  var animEasing = isJustReleased ? gridSettings.dragRelease.easing : gridSettings.layoutEasing;
   var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
-  var isAnimating;
 
-  // If the item is currently positioning process current layout callback
-  // queue with interrupted flag on.
-  if (isPositioning) this._queue.flush(true, item);
+  // If the item is currently positioning cancel potential queued layout tick
+  // and process current layout callback queue with interrupted flag on.
+  if (isPositioning) {
+    cancelLayoutTick(item._id);
+    item._emitter.burst(this._queue, true, item);
+  }
 
   // Mark release positioning as started.
   if (isJustReleased) release._isPositioningStarted = true;
 
   // Push the callback to the callback queue.
-  if (isFunction(onFinish)) this._queue.add(onFinish);
+  if (isFunction(onFinish)) {
+    item._emitter.on(this._queue, onFinish);
+  }
+
+  // Reset animation skipping flag.
+  this._skipNextAnimation = false;
 
   // If no animations are needed, easy peasy!
   if (!animEnabled) {
     this._updateOffsets();
-    this._updateTargetStyles();
-    isAnimating = item._animate.isAnimating();
-    this.stop(false, this._targetStyles);
-    !isAnimating && setStyles(element, this._targetStyles);
-    this._skipNextAnimation = false;
-    return this._finish();
+    item._setTranslate(this._nextLeft, this._nextTop);
+    this._animation.stop();
+    this._finish();
+    return;
   }
 
-  // Set item active and store some data for the animation that is about to be
-  // triggered.
+  // Kick off animation to be started in the next tick.
   this._isActive = true;
-  this._animateOptions.easing = animEasing;
-  this._animateOptions.duration = animDuration;
+  this._animOptions.easing = animEasing;
+  this._animOptions.duration = animDuration;
   this._isInterrupted = isPositioning;
-
-  // Start the item's layout animation in the next tick.
   addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
-
-  return this;
 };
 
 /**
  * Stop item's position animation if it is currently animating.
  *
  * @public
- * @memberof ItemLayout.prototype
- * @param {Boolean} [processCallbackQueue=false]
- * @param {Object} [targetStyles]
- * @returns {ItemLayout}
+ * @param {Boolean} processCallbackQueue
+ * @param {Number} [left]
+ * @param {Number} [top]
  */
-ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
-  if (this._isDestroyed || !this._isActive) return this;
+ItemLayout.prototype.stop = function (processCallbackQueue, left, top) {
+  if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
 
@@ -125,7 +135,15 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
   cancelLayoutTick(item._id);
 
   // Stop animation.
-  item._animate.stop(targetStyles);
+  if (this._animation.isAnimating()) {
+    if (left === undefined || top === undefined) {
+      var translate = getTranslate(item._element);
+      left = translate.x;
+      top = translate.y;
+    }
+    item._setTranslate(left, top);
+    this._animation.stop();
+  }
 
   // Remove positioning class.
   removeClass(item._element, item.getGrid()._settings.itemPositioningClass);
@@ -134,25 +152,34 @@ ItemLayout.prototype.stop = function(processCallbackQueue, targetStyles) {
   this._isActive = false;
 
   // Process callback queue if needed.
-  if (processCallbackQueue) this._queue.flush(true, item);
-
-  return this;
+  if (processCallbackQueue) {
+    item._emitter.burst(this._queue, true, item);
+  }
 };
 
 /**
  * Destroy the instance and stop current animation if it is running.
  *
  * @public
- * @memberof ItemLayout.prototype
- * @returns {ItemLayout}
  */
-ItemLayout.prototype.destroy = function() {
-  if (this._isDestroyed) return this;
-  this.stop(true, {});
-  this._queue.destroy();
-  this._item = this._currentStyles = this._targetStyles = this._animateOptions = null;
+ItemLayout.prototype.destroy = function () {
+  if (this._isDestroyed) return;
+
+  var elementStyle = this._item._element.style;
+
+  this.stop(true, 0, 0);
+  this._item._emitter.clear(this._queue);
+  this._animation.destroy();
+
+  elementStyle[transformProp] = '';
+  elementStyle.left = '';
+  elementStyle.top = '';
+
+  this._item = null;
+  this._currentStyles = null;
+  this._targetStyles = null;
+  this._animOptions = null;
   this._isDestroyed = true;
-  return this;
 };
 
 /**
@@ -164,14 +191,13 @@ ItemLayout.prototype.destroy = function() {
  * Calculate and update item's current layout offset data.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
-ItemLayout.prototype._updateOffsets = function() {
+ItemLayout.prototype._updateOffsets = function () {
   if (this._isDestroyed) return;
 
   var item = this._item;
   var migrate = item._migrate;
-  var release = item._release;
+  var release = item._dragRelease;
 
   this._offsetLeft = release._isActive
     ? release._containerDiffX
@@ -184,34 +210,26 @@ ItemLayout.prototype._updateOffsets = function() {
     : migrate._isActive
     ? migrate._containerDiffY
     : 0;
-};
 
-/**
- * Calculate and update item's layout target styles.
- *
- * @private
- * @memberof ItemLayout.prototype
- */
-ItemLayout.prototype._updateTargetStyles = function() {
-  if (this._isDestroyed) return;
-  this._targetStyles.transform = getTranslateString(
-    this._item._left + this._offsetLeft,
-    this._item._top + this._offsetTop
-  );
+  this._nextLeft = this._item._left + this._offsetLeft;
+  this._nextTop = this._item._top + this._offsetTop;
 };
 
 /**
  * Finish item layout procedure.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
-ItemLayout.prototype._finish = function() {
+ItemLayout.prototype._finish = function () {
   if (this._isDestroyed) return;
 
   var item = this._item;
   var migrate = item._migrate;
-  var release = item._release;
+  var release = item._dragRelease;
+
+  // Update internal translate values.
+  item._tX = this._nextLeft;
+  item._tY = this._nextTop;
 
   // Mark the item as inactive and remove positioning classes.
   if (this._isActive) {
@@ -224,42 +242,46 @@ ItemLayout.prototype._finish = function() {
   if (migrate._isActive) migrate.stop();
 
   // Process the callback queue.
-  this._queue.flush(false, item);
+  item._emitter.burst(this._queue, false, item);
 };
 
 /**
  * Prepare item for layout animation.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
-ItemLayout.prototype._setupAnimation = function() {
-  var translate = getTranslate(this._item._element);
-  this._currentLeft = translate.x;
-  this._currentTop = translate.y;
+ItemLayout.prototype._setupAnimation = function () {
+  var item = this._item;
+  if (item._tX === undefined || item._tY === undefined) {
+    var translate = getTranslate(item._element);
+    item._tX = translate.x;
+    item._tY = translate.y;
+  }
 };
 
 /**
  * Start layout animation.
  *
  * @private
- * @memberof ItemLayout.prototype
  */
-ItemLayout.prototype._startAnimation = function() {
+ItemLayout.prototype._startAnimation = function () {
   var item = this._item;
   var settings = item.getGrid()._settings;
+  var isInstant = this._animOptions.duration <= 0;
 
   // Let's update the offset data and target styles.
   this._updateOffsets();
-  this._updateTargetStyles();
 
-  // If the item is already in correct position let's quit early.
-  if (
-    item._left === this._currentLeft - this._offsetLeft &&
-    item._top === this._currentTop - this._offsetTop
-  ) {
-    if (this._isInterrupted) this.stop(false, this._targetStyles);
-    this._isActive = false;
+  var xDiff = Math.abs(item._left - (item._tX - this._offsetLeft));
+  var yDiff = Math.abs(item._top - (item._tY - this._offsetTop));
+
+  // If there is no need for animation or if the item is already in correct
+  // position (or near it) let's finish the process early.
+  if (isInstant || (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE)) {
+    if (xDiff || yDiff || this._isInterrupted) {
+      item._setTranslate(this._nextLeft, this._nextTop);
+    }
+    this._animation.stop();
     this._finish();
     return;
   }
@@ -269,11 +291,18 @@ ItemLayout.prototype._startAnimation = function() {
     addClass(item._element, settings.itemPositioningClass);
   }
 
-  // Get current styles for animation.
-  this._currentStyles.transform = getTranslateString(this._currentLeft, this._currentTop);
+  // Get current/next styles for animation.
+  this._currentStyles[transformProp] = getTranslateString(item._tX, item._tY);
+  this._targetStyles[transformProp] = getTranslateString(this._nextLeft, this._nextTop);
 
-  // Animate.
-  item._animate.start(this._currentStyles, this._targetStyles, this._animateOptions);
+  // Set internal translation values to undefined for the duration of the
+  // animation since they will be changing on each animation frame for the
+  // duration of the animation and tracking them would mean reading the DOM on
+  // each frame, which is pretty darn expensive.
+  item._tX = item._tY = undefined;
+
+  // Start animation.
+  this._animation.start(this._currentStyles, this._targetStyles, this._animOptions);
 };
 
 export default ItemLayout;

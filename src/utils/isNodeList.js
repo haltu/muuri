@@ -8,7 +8,7 @@ var htmlCollectionType = '[object HTMLCollection]';
 var nodeListType = '[object NodeList]';
 
 /**
- * Check if a value is a node list
+ * Check if a value is a node list or a html collection.
  *
  * @param {*} val
  * @returns {Boolean}

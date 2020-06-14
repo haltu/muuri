@@ -6,52 +6,121 @@
 
 import Ticker from './Ticker/Ticker';
 
-var ticker = new Ticker();
+var LAYOUT_READ = 'layoutRead';
+var LAYOUT_WRITE = 'layoutWrite';
+var VISIBILITY_READ = 'visibilityRead';
+var VISIBILITY_WRITE = 'visibilityWrite';
+var DRAG_START_READ = 'dragStartRead';
+var DRAG_START_WRITE = 'dragStartWrite';
+var DRAG_MOVE_READ = 'dragMoveRead';
+var DRAG_MOVE_WRITE = 'dragMoveWrite';
+var DRAG_SCROLL_READ = 'dragScrollRead';
+var DRAG_SCROLL_WRITE = 'dragScrollWrite';
+var DRAG_SORT_READ = 'dragSortRead';
+var PLACEHOLDER_LAYOUT_READ = 'placeholderLayoutRead';
+var PLACEHOLDER_LAYOUT_WRITE = 'placeholderLayoutWrite';
+var PLACEHOLDER_RESIZE_WRITE = 'placeholderResizeWrite';
+var AUTO_SCROLL_READ = 'autoScrollRead';
+var AUTO_SCROLL_WRITE = 'autoScrollWrite';
+var DEBOUNCE_READ = 'debounceRead';
 
-var layoutTick = 'layout';
-var visibilityTick = 'visibility';
-var moveTick = 'move';
-var scrollTick = 'scroll';
-var placeholderTick = 'placeholder';
+var LANE_READ = 0;
+var LANE_READ_TAIL = 1;
+var LANE_WRITE = 2;
 
+var ticker = new Ticker(3);
 export default ticker;
 
-export function addLayoutTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + layoutTick, readCallback, writeCallback);
+export function addLayoutTick(itemId, read, write) {
+  ticker.add(LANE_READ, LAYOUT_READ + itemId, read);
+  ticker.add(LANE_WRITE, LAYOUT_WRITE + itemId, write);
 }
 
 export function cancelLayoutTick(itemId) {
-  return ticker.cancel(itemId + layoutTick);
+  ticker.remove(LANE_READ, LAYOUT_READ + itemId);
+  ticker.remove(LANE_WRITE, LAYOUT_WRITE + itemId);
 }
 
-export function addVisibilityTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + visibilityTick, readCallback, writeCallback);
+export function addVisibilityTick(itemId, read, write) {
+  ticker.add(LANE_READ, VISIBILITY_READ + itemId, read);
+  ticker.add(LANE_WRITE, VISIBILITY_WRITE + itemId, write);
 }
 
 export function cancelVisibilityTick(itemId) {
-  return ticker.cancel(itemId + visibilityTick);
+  ticker.remove(LANE_READ, VISIBILITY_READ + itemId);
+  ticker.remove(LANE_WRITE, VISIBILITY_WRITE + itemId);
 }
 
-export function addMoveTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + moveTick, readCallback, writeCallback, true);
+export function addDragStartTick(itemId, read, write) {
+  ticker.add(LANE_READ, DRAG_START_READ + itemId, read);
+  ticker.add(LANE_WRITE, DRAG_START_WRITE + itemId, write);
 }
 
-export function cancelMoveTick(itemId) {
-  return ticker.cancel(itemId + moveTick);
+export function cancelDragStartTick(itemId) {
+  ticker.remove(LANE_READ, DRAG_START_READ + itemId);
+  ticker.remove(LANE_WRITE, DRAG_START_WRITE + itemId);
 }
 
-export function addScrollTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + scrollTick, readCallback, writeCallback, true);
+export function addDragMoveTick(itemId, read, write) {
+  ticker.add(LANE_READ, DRAG_MOVE_READ + itemId, read);
+  ticker.add(LANE_WRITE, DRAG_MOVE_WRITE + itemId, write);
 }
 
-export function cancelScrollTick(itemId) {
-  return ticker.cancel(itemId + scrollTick);
+export function cancelDragMoveTick(itemId) {
+  ticker.remove(LANE_READ, DRAG_MOVE_READ + itemId);
+  ticker.remove(LANE_WRITE, DRAG_MOVE_WRITE + itemId);
 }
 
-export function addPlaceholderTick(itemId, readCallback, writeCallback) {
-  return ticker.add(itemId + placeholderTick, readCallback, writeCallback);
+export function addDragScrollTick(itemId, read, write) {
+  ticker.add(LANE_READ, DRAG_SCROLL_READ + itemId, read);
+  ticker.add(LANE_WRITE, DRAG_SCROLL_WRITE + itemId, write);
 }
 
-export function cancelPlaceholderTick(itemId) {
-  return ticker.cancel(itemId + placeholderTick);
+export function cancelDragScrollTick(itemId) {
+  ticker.remove(LANE_READ, DRAG_SCROLL_READ + itemId);
+  ticker.remove(LANE_WRITE, DRAG_SCROLL_WRITE + itemId);
+}
+
+export function addDragSortTick(itemId, read) {
+  ticker.add(LANE_READ_TAIL, DRAG_SORT_READ + itemId, read);
+}
+
+export function cancelDragSortTick(itemId) {
+  ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
+}
+
+export function addPlaceholderLayoutTick(itemId, read, write) {
+  ticker.add(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId, read);
+  ticker.add(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId, write);
+}
+
+export function cancelPlaceholderLayoutTick(itemId) {
+  ticker.remove(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId);
+  ticker.remove(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId);
+}
+
+export function addPlaceholderResizeTick(itemId, write) {
+  ticker.add(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId, write);
+}
+
+export function cancelPlaceholderResizeTick(itemId) {
+  ticker.remove(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId);
+}
+
+export function addAutoScrollTick(read, write) {
+  ticker.add(LANE_READ, AUTO_SCROLL_READ, read);
+  ticker.add(LANE_WRITE, AUTO_SCROLL_WRITE, write);
+}
+
+export function cancelAutoScrollTick() {
+  ticker.remove(LANE_READ, AUTO_SCROLL_READ);
+  ticker.remove(LANE_WRITE, AUTO_SCROLL_WRITE);
+}
+
+export function addDebounceTick(debounceId, read) {
+  ticker.add(LANE_READ, DEBOUNCE_READ + debounceId, read);
+}
+
+export function cancelDebounceTick(debounceId) {
+  ticker.remove(LANE_READ, DEBOUNCE_READ + debounceId);
 }

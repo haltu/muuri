@@ -13,6 +13,8 @@ import elementMatches from './elementMatches';
  * @param {String} className
  */
 export default function addClass(element, className) {
+  if (!className) return;
+
   if (element.classList) {
     element.classList.add(className);
   } else {

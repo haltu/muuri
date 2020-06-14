@@ -1,11 +1,9 @@
 (function (window) {
-
   var Muuri = window.Muuri;
 
   QUnit.module('Grid events');
 
   QUnit.test('synchronize: should be triggered after grid.synchronize()', function (assert) {
-
     assert.expect(1);
 
     var container = utils.createGridElements();
@@ -20,7 +18,5 @@
     });
     grid.synchronize();
     teardown();
-
   });
-
 })(this);

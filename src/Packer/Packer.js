@@ -5,487 +5,279 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
+import PackerProcessor, {
+  createWorkerProcessors,
+  destroyWorkerProcessors,
+  isWorkerProcessorsSupported,
+} from './PackerProcessor';
+
+export var FILL_GAPS = 1;
+export var HORIZONTAL = 2;
+export var ALIGN_RIGHT = 4;
+export var ALIGN_BOTTOM = 8;
+export var ROUNDING = 16;
+export var PACKET_INDEX_ID = 0;
+export var PACKET_INDEX_WIDTH = 1;
+export var PACKET_INDEX_HEIGHT = 2;
+export var PACKET_INDEX_OPTIONS = 3;
+export var PACKET_HEADER_SLOTS = 4;
+
 /**
- * This is the default layout algorithm for Muuri. Based on MAXRECTS approach
- * as described by Jukka Jylänki in his survey: "A Thousand Ways to Pack the
- * Bin - A Practical Approach to Two-Dimensional Rectangle Bin Packing.".
- *
  * @class
- */
-function Packer() {
-  this._slots = [];
-  this._slotSizes = [];
-  this._freeSlots = [];
-  this._newSlots = [];
-  this._rectItem = {};
-  this._rectStore = [];
-  this._rectId = 0;
-
-  // The layout return data, which will be populated in getLayout.
-  this._layout = {
-    slots: null,
-    setWidth: false,
-    setHeight: false,
-    width: false,
-    height: false
-  };
-
-  // Bind sort handlers.
-  this._sortRectsLeftTop = this._sortRectsLeftTop.bind(this);
-  this._sortRectsTopLeft = this._sortRectsTopLeft.bind(this);
-}
-
-/**
- * @public
- * @memberof Packer.prototype
- * @param {Item[]} items
- * @param {Number} width
- * @param {Number} height
- * @param {Number[]} [slots]
+ * @param {Number} [numWorkers=0]
  * @param {Object} [options]
  * @param {Boolean} [options.fillGaps=false]
  * @param {Boolean} [options.horizontal=false]
  * @param {Boolean} [options.alignRight=false]
  * @param {Boolean} [options.alignBottom=false]
- * @returns {LayoutData}
+ * @param {Boolean} [options.rounding=false]
  */
-Packer.prototype.getLayout = function(items, width, height, slots, options) {
-  var layout = this._layout;
-  var fillGaps = !!(options && options.fillGaps);
-  var isHorizontal = !!(options && options.horizontal);
-  var alignRight = !!(options && options.alignRight);
-  var alignBottom = !!(options && options.alignBottom);
-  var rounding = !!(options && options.rounding);
-  var slotSizes = this._slotSizes;
-  var i;
+function Packer(numWorkers, options) {
+  this._options = 0;
+  this._processor = null;
+  this._layoutQueue = [];
+  this._layouts = {};
+  this._layoutCallbacks = {};
+  this._layoutWorkers = {};
+  this._layoutWorkerData = {};
+  this._workers = [];
+  this._onWorkerMessage = this._onWorkerMessage.bind(this);
 
-  // Reset layout data.
-  layout.slots = slots ? slots : this._slots;
-  layout.width = isHorizontal ? 0 : rounding ? Math.round(width) : width;
-  layout.height = !isHorizontal ? 0 : rounding ? Math.round(height) : height;
-  layout.setWidth = isHorizontal;
-  layout.setHeight = !isHorizontal;
+  // Set initial options.
+  this.setOptions(options);
 
-  // Make sure slots and slot size arrays are reset.
-  layout.slots.length = 0;
-  slotSizes.length = 0;
-
-  // No need to go further if items do not exist.
-  if (!items.length) return layout;
-
-  // Find slots for items.
-  for (i = 0; i < items.length; i++) {
-    this._addSlot(items[i], isHorizontal, fillGaps, rounding, alignRight || alignBottom);
-  }
-
-  // If the alignment is set to right we need to adjust the results.
-  if (alignRight) {
-    for (i = 0; i < layout.slots.length; i = i + 2) {
-      layout.slots[i] = layout.width - (layout.slots[i] + slotSizes[i]);
+  // Init the worker(s) or the processor if workers can't be used.
+  numWorkers = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
+  if (numWorkers && isWorkerProcessorsSupported()) {
+    try {
+      this._workers = createWorkerProcessors(numWorkers, this._onWorkerMessage);
+    } catch (e) {
+      this._processor = new PackerProcessor();
     }
+  } else {
+    this._processor = new PackerProcessor();
+  }
+}
+
+Packer.prototype._sendToWorker = function () {
+  if (!this._layoutQueue.length || !this._workers.length) return;
+
+  var layoutId = this._layoutQueue.shift();
+  var worker = this._workers.pop();
+  var data = this._layoutWorkerData[layoutId];
+
+  delete this._layoutWorkerData[layoutId];
+  this._layoutWorkers[layoutId] = worker;
+  worker.postMessage(data.buffer, [data.buffer]);
+};
+
+Packer.prototype._onWorkerMessage = function (msg) {
+  var data = new Float32Array(msg.data);
+  var layoutId = data[PACKET_INDEX_ID];
+  var layout = this._layouts[layoutId];
+  var callback = this._layoutCallbacks[layoutId];
+  var worker = this._layoutWorkers[layoutId];
+
+  if (layout) delete this._layoutCallbacks[layoutId];
+  if (callback) delete this._layoutCallbacks[layoutId];
+  if (worker) delete this._layoutWorkers[layoutId];
+
+  if (layout && callback) {
+    layout.width = data[PACKET_INDEX_WIDTH];
+    layout.height = data[PACKET_INDEX_HEIGHT];
+    layout.slots = data.subarray(PACKET_HEADER_SLOTS, data.length);
+    this._finalizeLayout(layout);
+    callback(layout);
   }
 
-  // If the alignment is set to bottom we need to adjust the results.
-  if (alignBottom) {
-    for (i = 1; i < layout.slots.length; i = i + 2) {
-      layout.slots[i] = layout.height - (layout.slots[i] + slotSizes[i]);
-    }
+  if (worker) {
+    this._workers.push(worker);
+    this._sendToWorker();
   }
+};
 
-  // Reset slots arrays and rect id.
-  slotSizes.length = 0;
-  this._freeSlots.length = 0;
-  this._newSlots.length = 0;
-  this._rectId = 0;
+Packer.prototype._finalizeLayout = function (layout) {
+  var grid = layout._grid;
+  var isHorizontal = layout._settings & HORIZONTAL;
+  var isBorderBox = grid._boxSizing === 'border-box';
+
+  delete layout._grid;
+  delete layout._settings;
+
+  layout.styles = {};
+
+  if (isHorizontal) {
+    layout.styles.width =
+      (isBorderBox ? layout.width + grid._borderLeft + grid._borderRight : layout.width) + 'px';
+  } else {
+    layout.styles.height =
+      (isBorderBox ? layout.height + grid._borderTop + grid._borderBottom : layout.height) + 'px';
+  }
 
   return layout;
 };
 
 /**
- * Calculate position for the layout item. Returns the left and top position
- * of the item in pixels.
- *
- * @private
- * @memberof Packer.prototype
- * @param {Item} item
- * @param {Boolean} isHorizontal
- * @param {Boolean} fillGaps
- * @param {Boolean} rounding
- * @returns {Array}
+ * @public
+ * @param {Object} [options]
+ * @param {Boolean} [options.fillGaps]
+ * @param {Boolean} [options.horizontal]
+ * @param {Boolean} [options.alignRight]
+ * @param {Boolean} [options.alignBottom]
+ * @param {Boolean} [options.rounding]
  */
-Packer.prototype._addSlot = (function() {
-  var eps = 0.001;
-  var itemSlot = {};
-  return function(item, isHorizontal, fillGaps, rounding, trackSize) {
-    var layout = this._layout;
-    var freeSlots = this._freeSlots;
-    var newSlots = this._newSlots;
-    var rect;
-    var rectId;
-    var potentialSlots;
-    var ignoreCurrentSlots;
-    var i;
-    var ii;
+Packer.prototype.setOptions = function (options) {
+  if (!options) return;
 
-    // Reset new slots.
-    newSlots.length = 0;
+  var fillGaps;
+  if (typeof options.fillGaps === 'boolean') {
+    fillGaps = options.fillGaps ? FILL_GAPS : 0;
+  } else {
+    fillGaps = this._options & FILL_GAPS;
+  }
 
-    // Set item slot initial data.
-    itemSlot.left = null;
-    itemSlot.top = null;
-    itemSlot.width = item._width + item._marginLeft + item._marginRight;
-    itemSlot.height = item._height + item._marginTop + item._marginBottom;
+  var horizontal;
+  if (typeof options.horizontal === 'boolean') {
+    horizontal = options.horizontal ? HORIZONTAL : 0;
+  } else {
+    horizontal = this._options & HORIZONTAL;
+  }
 
-    // Round item slot width and height if needed.
-    if (rounding) {
-      itemSlot.width = Math.round(itemSlot.width);
-      itemSlot.height = Math.round(itemSlot.height);
-    }
+  var alignRight;
+  if (typeof options.alignRight === 'boolean') {
+    alignRight = options.alignRight ? ALIGN_RIGHT : 0;
+  } else {
+    alignRight = this._options & ALIGN_RIGHT;
+  }
 
-    // Try to find a slot for the item.
-    for (i = 0; i < freeSlots.length; i++) {
-      rectId = freeSlots[i];
-      if (!rectId) continue;
-      rect = this._getRect(rectId);
-      if (itemSlot.width <= rect.width + eps && itemSlot.height <= rect.height + eps) {
-        itemSlot.left = rect.left;
-        itemSlot.top = rect.top;
-        break;
-      }
-    }
+  var alignBottom;
+  if (typeof options.alignBottom === 'boolean') {
+    alignBottom = options.alignBottom ? ALIGN_BOTTOM : 0;
+  } else {
+    alignBottom = this._options & ALIGN_BOTTOM;
+  }
 
-    // If no slot was found for the item.
-    if (itemSlot.left === null) {
-      // Position the item in to the bottom left (vertical mode) or top right
-      // (horizontal mode) of the grid.
-      itemSlot.left = !isHorizontal ? 0 : layout.width;
-      itemSlot.top = !isHorizontal ? layout.height : 0;
+  var rounding;
+  if (typeof options.rounding === 'boolean') {
+    rounding = options.rounding ? ROUNDING : 0;
+  } else {
+    rounding = this._options & ROUNDING;
+  }
 
-      // If gaps don't need filling do not add any current slots to the new
-      // slots array.
-      if (!fillGaps) {
-        ignoreCurrentSlots = true;
-      }
-    }
-
-    // In vertical mode, if the item's bottom overlaps the grid's bottom.
-    if (!isHorizontal && itemSlot.top + itemSlot.height > layout.height) {
-      // If item is not aligned to the left edge, create a new slot.
-      if (itemSlot.left > 0) {
-        newSlots.push(this._addRect(0, layout.height, itemSlot.left, Infinity));
-      }
-
-      // If item is not aligned to the right edge, create a new slot.
-      if (itemSlot.left + itemSlot.width < layout.width) {
-        newSlots.push(
-          this._addRect(
-            itemSlot.left + itemSlot.width,
-            layout.height,
-            layout.width - itemSlot.left - itemSlot.width,
-            Infinity
-          )
-        );
-      }
-
-      // Update grid height.
-      layout.height = itemSlot.top + itemSlot.height;
-    }
-
-    // In horizontal mode, if the item's right overlaps the grid's right edge.
-    if (isHorizontal && itemSlot.left + itemSlot.width > layout.width) {
-      // If item is not aligned to the top, create a new slot.
-      if (itemSlot.top > 0) {
-        newSlots.push(this._addRect(layout.width, 0, Infinity, itemSlot.top));
-      }
-
-      // If item is not aligned to the bottom, create a new slot.
-      if (itemSlot.top + itemSlot.height < layout.height) {
-        newSlots.push(
-          this._addRect(
-            layout.width,
-            itemSlot.top + itemSlot.height,
-            Infinity,
-            layout.height - itemSlot.top - itemSlot.height
-          )
-        );
-      }
-
-      // Update grid width.
-      layout.width = itemSlot.left + itemSlot.width;
-    }
-
-    // Clean up the current slots making sure there are no old slots that
-    // overlap with the item. If an old slot overlaps with the item, split it
-    // into smaller slots if necessary.
-    for (i = fillGaps ? 0 : ignoreCurrentSlots ? freeSlots.length : i; i < freeSlots.length; i++) {
-      rectId = freeSlots[i];
-      if (!rectId) continue;
-      rect = this._getRect(rectId);
-      potentialSlots = this._splitRect(rect, itemSlot);
-      for (ii = 0; ii < potentialSlots.length; ii++) {
-        rectId = potentialSlots[ii];
-        rect = this._getRect(rectId);
-        // Let's make sure here that we have a big enough slot
-        // (width/height > 0.49px) and also let's make sure that the slot is
-        // within the boundaries of the grid.
-        if (
-          rect.width > 0.49 &&
-          rect.height > 0.49 &&
-          ((!isHorizontal && rect.top < layout.height) ||
-            (isHorizontal && rect.left < layout.width))
-        ) {
-          newSlots.push(rectId);
-        }
-      }
-    }
-
-    // Sanitize new slots.
-    if (newSlots.length) {
-      this._purgeRects(newSlots).sort(
-        isHorizontal ? this._sortRectsLeftTop : this._sortRectsTopLeft
-      );
-    }
-
-    // Update layout width/height.
-    if (isHorizontal) {
-      layout.width = Math.max(layout.width, itemSlot.left + itemSlot.width);
-    } else {
-      layout.height = Math.max(layout.height, itemSlot.top + itemSlot.height);
-    }
-
-    // Add item slot data to layout slots (and store the slot size for later
-    // usage too if necessary).
-    layout.slots.push(itemSlot.left, itemSlot.top);
-    if (trackSize) this._slotSizes.push(itemSlot.width, itemSlot.height);
-
-    // Free/new slots switcheroo!
-    this._freeSlots = newSlots;
-    this._newSlots = freeSlots;
-  };
-})();
+  this._options = fillGaps | horizontal | alignRight | alignBottom | rounding;
+};
 
 /**
- * Add a new rectangle to the rectangle store. Returns the id of the new
- * rectangle.
- *
- * @private
- * @memberof Packer.prototype
- * @param {Number} left
- * @param {Number} top
+ * @public
+ * @param {Grid} grid
+ * @param {Number} layoutId
+ * @param {Item[]} items
  * @param {Number} width
  * @param {Number} height
- * @returns {RectId}
+ * @param {Function} callback
+ * @returns {?Function}
  */
-Packer.prototype._addRect = function(left, top, width, height) {
-  var rectId = ++this._rectId;
-  var rectStore = this._rectStore;
+Packer.prototype.createLayout = function (grid, layoutId, items, width, height, callback) {
+  if (this._layouts[layoutId]) {
+    throw new Error('A layout with the provided id is currently being processed.');
+  }
 
-  rectStore[rectId] = left || 0;
-  rectStore[++this._rectId] = top || 0;
-  rectStore[++this._rectId] = width || 0;
-  rectStore[++this._rectId] = height || 0;
+  var horizontal = this._options & HORIZONTAL;
+  var layout = {
+    id: layoutId,
+    items: items,
+    slots: null,
+    width: horizontal ? 0 : width,
+    height: !horizontal ? 0 : height,
+    // Temporary data, which will be removed before sending the layout data
+    // outside of Packer's context.
+    _grid: grid,
+    _settings: this._options,
+  };
 
-  return rectId;
+  // If there are no items let's call the callback immediately.
+  if (!items.length) {
+    layout.slots = [];
+    this._finalizeLayout(layout);
+    callback(layout);
+    return;
+  }
+
+  // Create layout synchronously if needed.
+  if (this._processor) {
+    layout.slots = window.Float32Array
+      ? new Float32Array(items.length * 2)
+      : new Array(items.length * 2);
+    this._processor.computeLayout(layout, layout._settings);
+    this._finalizeLayout(layout);
+    callback(layout);
+    return;
+  }
+
+  // Worker data.
+  var data = new Float32Array(PACKET_HEADER_SLOTS + items.length * 2);
+
+  // Worker data header.
+  data[PACKET_INDEX_ID] = layoutId;
+  data[PACKET_INDEX_WIDTH] = layout.width;
+  data[PACKET_INDEX_HEIGHT] = layout.height;
+  data[PACKET_INDEX_OPTIONS] = layout._settings;
+
+  // Worker data items.
+  var i, j, item;
+  for (i = 0, j = PACKET_HEADER_SLOTS - 1, item; i < items.length; i++) {
+    item = items[i];
+    data[++j] = item._width + item._marginLeft + item._marginRight;
+    data[++j] = item._height + item._marginTop + item._marginBottom;
+  }
+
+  this._layoutQueue.push(layoutId);
+  this._layouts[layoutId] = layout;
+  this._layoutCallbacks[layoutId] = callback;
+  this._layoutWorkerData[layoutId] = data;
+
+  this._sendToWorker();
+
+  return this.cancelLayout.bind(this, layoutId);
 };
 
 /**
- * Get rectangle data from the rectangle store by id. Optionally you can
- * provide a target object where the rectangle data will be written in. By
- * default an internal object is reused as a target object.
- *
- * @private
- * @memberof Packer.prototype
- * @param {RectId} id
- * @param {Object} [target]
- * @returns {Object}
+ * @public
+ * @param {Number} layoutId
  */
-Packer.prototype._getRect = function(id, target) {
-  var rectItem = target ? target : this._rectItem;
-  var rectStore = this._rectStore;
+Packer.prototype.cancelLayout = function (layoutId) {
+  var layout = this._layouts[layoutId];
+  if (!layout) return;
 
-  rectItem.left = rectStore[id] || 0;
-  rectItem.top = rectStore[++id] || 0;
-  rectItem.width = rectStore[++id] || 0;
-  rectItem.height = rectStore[++id] || 0;
+  delete this._layouts[layoutId];
+  delete this._layoutCallbacks[layoutId];
 
-  return rectItem;
+  if (this._layoutWorkerData[layoutId]) {
+    delete this._layoutWorkerData[layoutId];
+    var queueIndex = this._layoutQueue.indexOf(layoutId);
+    if (queueIndex > -1) this._layoutQueue.splice(queueIndex, 1);
+  }
 };
 
 /**
- * Punch a hole into a rectangle and split the remaining area into smaller
- * rectangles (4 at max).
- *
- * @private
- * @memberof Packer.prototype
- * @param {Rectangle} rect
- * @param {Rectangle} hole
- * @returns {RectId[]}
+ * @public
  */
-Packer.prototype._splitRect = (function() {
-  var results = [];
-  return function(rect, hole) {
-    // Reset old results.
-    results.length = 0;
+Packer.prototype.destroy = function () {
+  // Move all currently used workers back in the workers array.
+  for (var key in this._layoutWorkers) {
+    this._workers.push(this._layoutWorkers[key]);
+  }
 
-    // If the rect does not overlap with the hole add rect to the return data
-    // as is.
-    if (!this._doRectsOverlap(rect, hole)) {
-      results.push(this._addRect(rect.left, rect.top, rect.width, rect.height));
-      return results;
-    }
+  // Destroy all instance's workers.
+  destroyWorkerProcessors(this._workers);
 
-    // Left split.
-    if (rect.left < hole.left) {
-      results.push(this._addRect(rect.left, rect.top, hole.left - rect.left, rect.height));
-    }
-
-    // Right split.
-    if (rect.left + rect.width > hole.left + hole.width) {
-      results.push(
-        this._addRect(
-          hole.left + hole.width,
-          rect.top,
-          rect.left + rect.width - (hole.left + hole.width),
-          rect.height
-        )
-      );
-    }
-
-    // Top split.
-    if (rect.top < hole.top) {
-      results.push(this._addRect(rect.left, rect.top, rect.width, hole.top - rect.top));
-    }
-
-    // Bottom split.
-    if (rect.top + rect.height > hole.top + hole.height) {
-      results.push(
-        this._addRect(
-          rect.left,
-          hole.top + hole.height,
-          rect.width,
-          rect.top + rect.height - (hole.top + hole.height)
-        )
-      );
-    }
-
-    return results;
-  };
-})();
-
-/**
- * Check if two rectangles overlap.
- *
- * @private
- * @memberof Packer.prototype
- * @param {Rectangle} a
- * @param {Rectangle} b
- * @returns {Boolean}
- */
-Packer.prototype._doRectsOverlap = function(a, b) {
-  return !(
-    a.left + a.width <= b.left ||
-    b.left + b.width <= a.left ||
-    a.top + a.height <= b.top ||
-    b.top + b.height <= a.top
-  );
+  // Reset data.
+  this._workers.length = 0;
+  this._layoutQueue.length = 0;
+  this._layouts = {};
+  this._layoutCallbacks = {};
+  this._layoutWorkers = {};
+  this._layoutWorkerData = {};
 };
-
-/**
- * Check if a rectangle is fully within another rectangle.
- *
- * @private
- * @memberof Packer.prototype
- * @param {Rectangle} a
- * @param {Rectangle} b
- * @returns {Boolean}
- */
-Packer.prototype._isRectWithinRect = function(a, b) {
-  return (
-    a.left >= b.left &&
-    a.top >= b.top &&
-    a.left + a.width <= b.left + b.width &&
-    a.top + a.height <= b.top + b.height
-  );
-};
-
-/**
- * Loops through an array of rectangle ids and resets all that are fully
- * within another rectangle in the array. Resetting in this case means that
- * the rectangle id value is replaced with zero.
- *
- * @private
- * @memberof Packer.prototype
- * @param {RectId[]} rectIds
- * @returns {RectId[]}
- */
-Packer.prototype._purgeRects = (function() {
-  var rectA = {};
-  var rectB = {};
-  return function(rectIds) {
-    var i = rectIds.length;
-    var ii;
-
-    while (i--) {
-      ii = rectIds.length;
-      if (!rectIds[i]) continue;
-      this._getRect(rectIds[i], rectA);
-      while (ii--) {
-        if (!rectIds[ii] || i === ii) continue;
-        if (this._isRectWithinRect(rectA, this._getRect(rectIds[ii], rectB))) {
-          rectIds[i] = 0;
-          break;
-        }
-      }
-    }
-
-    return rectIds;
-  };
-})();
-
-/**
- * Sort rectangles with top-left gravity.
- *
- * @private
- * @memberof Packer.prototype
- * @param {RectId} aId
- * @param {RectId} bId
- * @returns {Number}
- */
-Packer.prototype._sortRectsTopLeft = (function() {
-  var rectA = {};
-  var rectB = {};
-  return function(aId, bId) {
-    this._getRect(aId, rectA);
-    this._getRect(bId, rectB);
-    // prettier-ignore
-    return rectA.top < rectB.top ? -1 :
-           rectA.top > rectB.top ? 1 :
-           rectA.left < rectB.left ? -1 :
-           rectA.left > rectB.left ? 1 : 0;
-  };
-})();
-
-/**
- * Sort rectangles with left-top gravity.
- *
- * @private
- * @memberof Packer.prototype
- * @param {RectId} aId
- * @param {RectId} bId
- * @returns {Number}
- */
-Packer.prototype._sortRectsLeftTop = (function() {
-  var rectA = {};
-  var rectB = {};
-  return function(aId, bId) {
-    this._getRect(aId, rectA);
-    this._getRect(bId, rectB);
-    // prettier-ignore
-    return rectA.left < rectB.left ? -1 :
-           rectA.left > rectB.left ? 1 :
-           rectA.top < rectB.top ? -1 :
-           rectA.top > rectB.top ? 1 : 0;
-  };
-})();
 
 export default Packer;

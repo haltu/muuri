@@ -12,7 +12,7 @@ var matchesFn =
   ElProto.mozMatchesSelector ||
   ElProto.msMatchesSelector ||
   ElProto.oMatchesSelector ||
-  function() {
+  function () {
     return false;
   };
 

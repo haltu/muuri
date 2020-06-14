@@ -25,10 +25,7 @@ module.exports = {
     './tests/grid-events/*.js',
     './tests/item-methods/*.js'
   ],
-  reporters: [
-    'story',
-    'saucelabs'
-  ],
+  reporters: ['story', 'saucelabs'],
   colors: true,
   autoWatch: false,
   browserDisconnectTolerance: 2,

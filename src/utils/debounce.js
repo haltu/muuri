@@ -4,47 +4,61 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import ticker from '../ticker';
+import { addDebounceTick, cancelDebounceTick } from '../ticker';
 
-var actionCancel = 'cancel';
-var actionFinish = 'finish';
-var debounceTick = 'debounce';
 var debounceId = 0;
 
 /**
  * Returns a function, that, as long as it continues to be invoked, will not
  * be triggered. The function will be called after it stops being called for
  * N milliseconds. The returned function accepts one argument which, when
- * being "finish", calls the debounce function immediately if it is currently
- * waiting to be called, and when being "cancel" cancels the currently queued
- * function call.
+ * being `true`, cancels the debounce function immediately. When the debounce
+ * function is canceled it cannot be invoked again.
  *
  * @param {Function} fn
- * @param {Number} wait
+ * @param {Number} durationMs
  * @returns {Function}
  */
-export default function debounce(fn, wait) {
-  var timeout;
-  var tickerId = ++debounceId + debounceTick;
+export default function debounce(fn, durationMs) {
+  var id = ++debounceId;
+  var timer = 0;
+  var lastTime = 0;
+  var isCanceled = false;
+  var tick = function (time) {
+    if (isCanceled) return;
 
-  if (wait > 0) {
-    return function(action) {
-      if (timeout !== undefined) {
-        timeout = window.clearTimeout(timeout);
-        ticker.cancel(tickerId);
-        if (action === actionFinish) fn();
-      }
+    if (lastTime) timer -= time - lastTime;
+    lastTime = time;
 
-      if (action !== actionCancel && action !== actionFinish) {
-        timeout = window.setTimeout(function() {
-          timeout = undefined;
-          ticker.add(tickerId, fn, null, true);
-        }, wait);
-      }
-    };
-  }
+    if (timer > 0) {
+      addDebounceTick(id, tick);
+    } else {
+      timer = lastTime = 0;
+      fn();
+    }
+  };
 
-  return function(action) {
-    if (action !== actionCancel) fn();
+  return function (cancel) {
+    if (isCanceled) return;
+
+    if (durationMs <= 0) {
+      if (cancel !== true) fn();
+      return;
+    }
+
+    if (cancel === true) {
+      isCanceled = true;
+      timer = lastTime = 0;
+      tick = undefined;
+      cancelDebounceTick(id);
+      return;
+    }
+
+    if (timer <= 0) {
+      timer = durationMs;
+      tick(0);
+    } else {
+      timer = durationMs;
+    }
   };
 }

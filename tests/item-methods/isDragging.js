@@ -1,16 +1,14 @@
 (function (window) {
-
   var Muuri = window.Muuri;
 
   QUnit.module('Item methods');
 
   QUnit.test('isDragging: should return true if the item is being dragged', function (assert) {
-
     assert.expect(4);
 
     var done = assert.async();
     var container = utils.createGridElements();
-    var grid = new Muuri(container, {dragEnabled: true});
+    var grid = new Muuri(container, { dragEnabled: true });
     var item = grid.getItems()[0];
     var teardown = function () {
       grid.destroy();
@@ -20,28 +18,44 @@
 
     function onDragStart() {
       grid.off('dragStart', onDragStart);
-      assert.strictEqual(item.isDragging(), true, 'An item should be in dragging state when dragging starts');
+      assert.strictEqual(
+        item.isDragging(),
+        true,
+        'An item should be in dragging state when dragging starts'
+      );
     }
 
     function onDragMove() {
       grid.off('dragMove', onDragMove);
-      assert.strictEqual(item.isDragging(), true, 'An item should be in dragging state when dragging');
+      assert.strictEqual(
+        item.isDragging(),
+        true,
+        'An item should be in dragging state when dragging'
+      );
     }
 
     function onDragEnd() {
       grid.off('dragEnd', onDragEnd);
-      assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state after dragging has ended');
+      assert.strictEqual(
+        item.isDragging(),
+        false,
+        'An item should not be in dragging state after dragging has ended'
+      );
     }
 
-    grid
-    .on('dragStart', onDragStart)
-    .on('dragMove', onDragMove)
-    .on('dragEnd', onDragEnd);
+    grid.on('dragStart', onDragStart).on('dragMove', onDragMove).on('dragEnd', onDragEnd);
 
-    assert.strictEqual(item.isDragging(), false, 'An item should not be in dragging state when it`s not being dragged');
+    assert.strictEqual(
+      item.isDragging(),
+      false,
+      'An item should not be in dragging state when it`s not being dragged'
+    );
 
-    utils.dragElement(item.getElement(), 100, 100, teardown);
-
+    utils.dragElement({
+      element: item.getElement(),
+      x: 100,
+      y: 100,
+      onFinished: teardown,
+    });
   });
-
 })(this);

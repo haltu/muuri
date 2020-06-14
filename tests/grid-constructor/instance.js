@@ -1,5 +1,4 @@
 (function (window) {
-
   var Muuri = window.Muuri;
 
   QUnit.module('Grid instance');
@@ -8,5 +7,4 @@
     assert.expect(1);
     assert.strictEqual(typeof Muuri, 'function');
   });
-
 })(this);

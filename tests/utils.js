@@ -1,6 +1,5 @@
-(function (window) {
-
-  var utils = window.utils = {};
+(function(window) {
+  var utils = (window.utils = {});
   var supportsTouch = !!('TouchEvent' in window);
   var supportsPointer = !!('PointerEvent' in window);
 
@@ -8,8 +7,7 @@
   // Methods
   //
 
-  utils.createGridElements = function (options) {
-
+  utils.createGridElements = function(options) {
     var opts = options || {};
     var container = opts.container || document.createElement('div');
     var itemCount = typeof opts.itemCount === 'number' && opts.itemCount >= 0 ? opts.itemCount : 10;
@@ -44,10 +42,16 @@
     }
 
     return container;
-
   };
 
-  utils.dragElement = function(element, moveLeft, moveTop, onStop) {
+  utils.dragElement = function(config) {
+    var element = config.element;
+    var moveLeft = typeof config.x === 'number' ? config.x : 0;
+    var moveTop = typeof config.y === 'number' ? config.y : 0;
+    var pressDuration = typeof config.pressDuration === 'number' ? config.pressDuration : 100;
+    var moveDuration = typeof config.moveDuration === 'number' ? config.moveDuration : 100;
+    var holdDuration = typeof config.holdDuration === 'number' ? config.holdDuration : 200;
+    var onFinished = config.onFinished;
 
     // Calculate start point.
     var from = mezr.offset(element, window);
@@ -57,9 +61,9 @@
     // Create the hand istance.
     var hand = new Hand({
       timing: 'fastFrame',
-      onStop: function () {
-        if (typeof onStop === 'function') {
-          window.setTimeout(onStop, 100);
+      onStop: function() {
+        if (typeof onFinished === 'function') {
+          window.setTimeout(onFinished, 100);
         }
       }
     });
@@ -76,104 +80,120 @@
 
     // Do the drag if movement is defined.
     if (moveTop || moveLeft) {
-      finger.down().wait(100).moveTo(from.left + moveLeft, from.top + moveTop, 100).wait(200).up();
+      finger
+        .down()
+        .wait(pressDuration)
+        .moveTo(from.left + moveLeft, from.top + moveTop, moveDuration)
+        .wait(holdDuration)
+        .up();
     }
     // Otherwise do a press.
     else {
-      finger.down().wait(400).up();
+      finger
+        .down()
+        .wait(pressDuration + holdDuration)
+        .up();
     }
-
   };
 
-  utils.idList = function (collection) {
-    return collection.map(function (item) {
+  utils.idList = function(collection) {
+    return collection.map(function(item) {
       return item._id;
     });
   };
 
-  utils.sortedIdList = function (items) {
-    return utils.idList(items.sort(function (a, b) {
-      return a._id - b._id;
-    }));
+  utils.sortedIdList = function(items) {
+    return utils.idList(
+      items.sort(function(a, b) {
+        return a._id - b._id;
+      })
+    );
   };
 
-  utils.getActiveItems = function (grid) {
-    return grid.getItems().filter(function (item) {
+  utils.getActiveItems = function(grid) {
+    return grid.getItems().filter(function(item) {
       return item.isActive();
     });
   };
 
-  utils.getInactiveItems = function (grid) {
-    return grid.getItems().filter(function (item) {
+  utils.getInactiveItems = function(grid) {
+    return grid.getItems().filter(function(item) {
       return !item.isActive();
     });
   };
 
-  utils.getVisibleItems = function (grid) {
-    return grid.getItems().filter(function (item) {
+  utils.getVisibleItems = function(grid) {
+    return grid.getItems().filter(function(item) {
       return item.isVisible();
     });
   };
 
-  utils.getHiddenItems = function (grid) {
-    return grid.getItems().filter(function (item) {
+  utils.getHiddenItems = function(grid) {
+    return grid.getItems().filter(function(item) {
       return !item.isVisible();
     });
   };
 
-  utils.getShowingItems = function (grid) {
-    return grid.getItems().filter(function (item) {
+  utils.getShowingItems = function(grid) {
+    return grid.getItems().filter(function(item) {
       return item.isShowing();
     });
   };
 
-  utils.getHidingItems = function (grid) {
-    return grid.getItems().filter(function (item) {
+  utils.getHidingItems = function(grid) {
+    return grid.getItems().filter(function(item) {
       return item.isHiding();
     });
   };
 
-  utils.getPositioningItems = function (grid) {
-    return grid.getItems().filter(function (item) {
+  utils.getPositioningItems = function(grid) {
+    return grid.getItems().filter(function(item) {
       return item.isPositioning();
     });
   };
 
-  utils.getReleasingItems = function (grid) {
-    return grid.getItems().filter(function (item) {
+  utils.getReleasingItems = function(grid) {
+    return grid.getItems().filter(function(item) {
       return item.isReleasing();
     });
   };
 
-  utils.setStyles = function (element, styles) {
+  utils.setStyles = function(element, styles) {
     var props = Object.keys(styles);
     for (var i = 0; i < props.length; i++) {
       element.style[props[i]] = styles[props[i]];
     }
   };
 
-  utils.matches = function (el, selector) {
+  utils.matches = function(el, selector) {
     var p = Element.prototype;
-    return (p.matches || p.matchesSelector || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector).call(el, selector);
+    return (
+      p.matches ||
+      p.matchesSelector ||
+      p.webkitMatchesSelector ||
+      p.mozMatchesSelector ||
+      p.msMatchesSelector ||
+      p.oMatchesSelector
+    ).call(el, selector);
   };
 
-  utils.raf = function (cb) {
-    return (window.requestAnimationFrame
-      || window.webkitRequestAnimationFrame
-      || window.mozRequestAnimationFrame
-      || window.msRequestAnimationFrame
-      || function (cb) {
+  utils.raf = function(cb) {
+    return (
+      window.requestAnimationFrame ||
+      window.webkitRequestAnimationFrame ||
+      window.mozRequestAnimationFrame ||
+      window.msRequestAnimationFrame ||
+      function(cb) {
         return window.setTimeout(cb, 16);
       }
     )(cb);
   };
 
-  utils.isScrollEvent = function (e) {
+  utils.isScrollEvent = function(e) {
     return e.type === 'scroll';
   };
 
-  utils.isDraggerEvent = function (e) {
-
+  utils.isDraggerEvent = function(e) {
     var ret = true;
     var eventKeys = Object.keys(e);
     var requiredKeys = [
@@ -195,14 +215,12 @@
       'target'
     ];
 
-    requiredKeys.forEach(function (key) {
+    requiredKeys.forEach(function(key) {
       if (eventKeys.indexOf(key) === -1) {
         ret = false;
       }
     });
 
     return ret;
-
   };
-
 })(this);

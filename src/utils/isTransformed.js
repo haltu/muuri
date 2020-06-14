@@ -5,6 +5,12 @@
  */
 
 import getStyle from './getStyle';
+import transformStyle from './transformStyle';
+
+var transformNone = 'none';
+var displayInline = 'inline';
+var displayNone = 'none';
+var displayStyle = 'display';
 
 /**
  * Returns true if element is transformed, false if not. In practice the
@@ -19,11 +25,11 @@ import getStyle from './getStyle';
  * @returns {Boolean}
  */
 export default function isTransformed(element) {
-  var transform = getStyle(element, 'transform');
-  if (!transform || transform === 'none') return false;
+  var transform = getStyle(element, transformStyle);
+  if (!transform || transform === transformNone) return false;
 
-  var display = getStyle(element, 'display');
-  if (display === 'inline' || display === 'none') return false;
+  var display = getStyle(element, displayStyle);
+  if (display === displayInline || display === displayNone) return false;
 
   return true;
 }

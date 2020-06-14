@@ -9,9 +9,9 @@ import isNodeList from './isNodeList';
 /**
  * Converts a value to an array or clones an array.
  *
- * @param {*} target
+ * @param {*} val
  * @returns {Array}
  */
-export default function toArray(target) {
-  return isNodeList(target) ? Array.prototype.slice.call(target) : Array.prototype.concat(target);
+export default function toArray(val) {
+  return isNodeList(val) ? Array.prototype.slice.call(val) : Array.prototype.concat(val);
 }

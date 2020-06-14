@@ -9,105 +9,86 @@ import raf from '../utils/raf';
 
 /**
  * A ticker system for handling DOM reads and writes in an efficient way.
- * Contains a read queue and a write queue that are processed on the next
- * animation frame when needed.
  *
  * @class
  */
-function Ticker() {
+function Ticker(numLanes) {
   this._nextStep = null;
-
-  this._queue = [];
-  this._reads = {};
-  this._writes = {};
-
-  this._batch = [];
-  this._batchReads = {};
-  this._batchWrites = {};
-
+  this._lanes = [];
+  this._stepQueue = [];
+  this._stepCallbacks = {};
   this._step = this._step.bind(this);
+  for (var i = 0; i < numLanes; i++) {
+    this._lanes.push(new TickerLane());
+  }
 }
 
-Ticker.prototype.add = function(id, readOperation, writeOperation, isPrioritized) {
-  // First, let's check if an item has been added to the queues with the same id
-  // and if so -> remove it.
-  var currentIndex = this._queue.indexOf(id);
-  if (currentIndex > -1) this._queue[currentIndex] = undefined;
+Ticker.prototype._step = function (time) {
+  var lanes = this._lanes;
+  var stepQueue = this._stepQueue;
+  var stepCallbacks = this._stepCallbacks;
+  var i, j, id, laneQueue, laneCallbacks, laneIndices;
 
-  // Add entry.
-  isPrioritized ? this._queue.unshift(id) : this._queue.push(id);
-  this._reads[id] = readOperation;
-  this._writes[id] = writeOperation;
+  this._nextStep = null;
 
-  // Finally, let's kick-start the next tick if it is not running yet.
+  for (i = 0; i < lanes.length; i++) {
+    laneQueue = lanes[i].queue;
+    laneCallbacks = lanes[i].callbacks;
+    laneIndices = lanes[i].indices;
+    for (j = 0; j < laneQueue.length; j++) {
+      id = laneQueue[j];
+      if (!id) continue;
+      stepQueue.push(id);
+      stepCallbacks[id] = laneCallbacks[id];
+      delete laneCallbacks[id];
+      delete laneIndices[id];
+    }
+    laneQueue.length = 0;
+  }
+
+  for (i = 0; i < stepQueue.length; i++) {
+    id = stepQueue[i];
+    if (stepCallbacks[id]) stepCallbacks[id](time);
+    delete stepCallbacks[id];
+  }
+
+  stepQueue.length = 0;
+};
+
+Ticker.prototype.add = function (laneIndex, id, callback) {
+  this._lanes[laneIndex].add(id, callback);
   if (!this._nextStep) this._nextStep = raf(this._step);
 };
 
-Ticker.prototype.cancel = function(id) {
-  var currentIndex = this._queue.indexOf(id);
-  if (currentIndex > -1) {
-    this._queue[currentIndex] = undefined;
-    delete this._reads[id];
-    delete this._writes[id];
-  }
+Ticker.prototype.remove = function (laneIndex, id) {
+  this._lanes[laneIndex].remove(id);
 };
 
-Ticker.prototype._step = function() {
-  var queue = this._queue;
-  var reads = this._reads;
-  var writes = this._writes;
-  var batch = this._batch;
-  var batchReads = this._batchReads;
-  var batchWrites = this._batchWrites;
-  var length = queue.length;
-  var id;
-  var i;
+/**
+ * A lane for ticker.
+ *
+ * @class
+ */
+function TickerLane() {
+  this.queue = [];
+  this.indices = {};
+  this.callbacks = {};
+}
 
-  // Reset ticker.
-  this._nextStep = null;
+TickerLane.prototype.add = function (id, callback) {
+  var index = this.indices[id];
+  if (index !== undefined) this.queue[index] = undefined;
+  this.queue.push(id);
+  this.callbacks[id] = callback;
+  this.indices[id] = this.queue.length - 1;
+};
 
-  // Setup queues and callback placeholders.
-  for (i = 0; i < length; i++) {
-    id = queue[i];
-    if (!id) continue;
-
-    batch.push(id);
-
-    batchReads[id] = reads[id];
-    delete reads[id];
-
-    batchWrites[id] = writes[id];
-    delete writes[id];
-  }
-
-  // Reset queue.
-  queue.length = 0;
-
-  // Process read callbacks.
-  for (i = 0; i < length; i++) {
-    id = batch[i];
-    if (batchReads[id]) {
-      batchReads[id]();
-      delete batchReads[id];
-    }
-  }
-
-  // Process write callbacks.
-  for (i = 0; i < length; i++) {
-    id = batch[i];
-    if (batchWrites[id]) {
-      batchWrites[id]();
-      delete batchWrites[id];
-    }
-  }
-
-  // Reset batch.
-  batch.length = 0;
-
-  // Restart the ticker if needed.
-  if (!this._nextStep && queue.length) {
-    this._nextStep = raf(this._step);
-  }
+TickerLane.prototype.remove = function (id) {
+  var index = this.indices[id];
+  if (index === undefined) return;
+  this.queue[index] = undefined;
+  delete this.callbacks[id];
+  delete this.indices[id];
 };
 
 export default Ticker;

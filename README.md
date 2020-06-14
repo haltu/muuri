@@ -1571,8 +1571,8 @@ Update the cached dimensions of the instance's items. By default all the items a
 
 **Parameters**
 
-- **items** &nbsp;&mdash;&nbsp; _array / element / Muuri.Item / number / string_
-  - To target specific items provide an array of item instances/elements/indices. By default all items are targeted.
+- **items** &nbsp;&mdash;&nbsp; _array_
+  - To target specific items provide an array of item instances. By default all items are targeted.
   - Optional.
 - **force** &nbsp;&mdash;&nbsp; _boolean_
   - Set to `true` to read dimensions of hidden items too (and make them visible for the duration of the reading).
@@ -1603,8 +1603,8 @@ Refresh the sort data of the grid's items.
 
 **Parameters**
 
-- **items** &nbsp;&mdash;&nbsp; _array / element / Muuri.Item / number_
-  - To target specific items provide an array of item instances/elements/indices. By default all items are targeted.
+- **items** &nbsp;&mdash;&nbsp; _array_
+  - To target specific items provide an array of item instances. By default all items are targeted.
   - Optional.
 
 **Returns** &nbsp;&mdash;&nbsp; _Muuri_

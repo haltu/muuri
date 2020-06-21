@@ -5043,7 +5043,58 @@
     }
   };
 
+  var windowSize = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+
+  window.addEventListener('resize', function () {
+    windowSize.width = window.innerWidth;
+    windowSize.height = window.innerHeight;
+  });
+
+  var targetRect = {
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+  };
+
+  var viewportRect = {
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+  };
+
+  /**
+   * Check if the provided rectangle is in viewport.
+   *
+   * @private
+   * @param {Number} left
+   * @param {Number} top
+   * @param {Number} width
+   * @param {Number} height
+   * @param {Number} padding
+   */
+  function isInViewport(width, height, left, top, padding) {
+    padding = padding || 0;
+
+    targetRect.left = left;
+    targetRect.top = top;
+    targetRect.width = width;
+    targetRect.height = height;
+
+    viewportRect.left = 0 - padding;
+    viewportRect.top = 0 - padding;
+    viewportRect.width = windowSize.width + padding + padding;
+    viewportRect.height = windowSize.height + padding + padding;
+
+    return isOverlapping(targetRect, viewportRect);
+  }
+
   var MIN_ANIMATION_DISTANCE = 2;
+  var VIEWPORT_THRESHOLD = 100;
 
   /**
    * Layout manager for Item instance, handles the positioning of an item.
@@ -5102,7 +5153,8 @@
 
     var item = this._item;
     var release = item._dragRelease;
-    var gridSettings = item.getGrid()._settings;
+    var grid = item.getGrid();
+    var gridSettings = grid._settings;
     var isPositioning = this._isActive;
     var isJustReleased = release.isJustReleased();
     var animDuration = isJustReleased
@@ -5139,6 +5191,7 @@
     }
 
     // Kick off animation to be started in the next tick.
+    grid._itemLayoutNeedsDimensionRefresh = true;
     this._isActive = true;
     this._animOptions.easing = animEasing;
     this._animOptions.duration = animDuration;
@@ -5285,6 +5338,13 @@
       item._tX = translate.x;
       item._tY = translate.y;
     }
+
+    var grid = item.getGrid();
+    if (grid._itemLayoutNeedsDimensionRefresh) {
+      grid._itemLayoutNeedsDimensionRefresh = false;
+      grid._updateBoundingRect();
+      grid._updateBorders(1, 0, 1, 0);
+    }
   };
 
   /**
@@ -5294,21 +5354,41 @@
    */
   ItemLayout.prototype._startAnimation = function () {
     var item = this._item;
-    var settings = item.getGrid()._settings;
+    var grid = item.getGrid();
+    var settings = grid._settings;
     var isInstant = this._animOptions.duration <= 0;
 
     // Let's update the offset data and target styles.
     this._updateOffsets();
 
-    var xDiff = Math.abs(item._left - (item._tX - this._offsetLeft));
-    var yDiff = Math.abs(item._top - (item._tY - this._offsetTop));
-
     // If there is no need for animation or if the item is already in correct
     // position (or near it) let's finish the process early.
+    var xDiff = Math.abs(item._left - (item._tX - this._offsetLeft));
+    var yDiff = Math.abs(item._top - (item._tY - this._offsetTop));
     if (isInstant || (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE)) {
       if (xDiff || yDiff || this._isInterrupted) {
         item._setTranslate(this._nextLeft, this._nextTop);
       }
+      this._animation.stop();
+      this._finish();
+      return;
+    }
+
+    // If item is not in viewport and will not be after the layout, let's skip
+    // the animation and just snap the item to it's position.
+    var containerLeft = grid._left + grid._borderLeft + item._marginLeft - this._offsetLeft;
+    var containerTop = grid._top + grid._borderTop + item._marginTop - this._offsetTop;
+    var clientX = containerLeft + item._tX;
+    var clientY = containerTop + item._tY;
+    var nextClientX = containerLeft + this._nextLeft;
+    var nextClientY = containerTop + this._nextTop;
+    var width = item._width;
+    var height = item._height;
+    if (
+      !isInViewport(width, height, clientX, clientY, VIEWPORT_THRESHOLD) &&
+      !isInViewport(width, height, nextClientX, nextClientY, VIEWPORT_THRESHOLD)
+    ) {
+      item._setTranslate(this._nextLeft, this._nextTop);
       this._animation.stop();
       this._finish();
       return;

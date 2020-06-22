@@ -6328,20 +6328,17 @@ Item.prototype._canSkipLayout = function (left, top) {
  * Set the provided left and top arguments as the item element's translate
  * values in the DOM. This method keeps track of the currently applied
  * translate values and skips the update operation if the provided values are
- * identical to the currently applied values. Returns `false` if there was no
- * need for update and `true` if the translate value was updated.
+ * identical to the currently applied values.
  *
  * @private
  * @param {Number} left
  * @param {Number} top
- * @returns {Boolean}
  */
 Item.prototype._setTranslate = function (left, top) {
-  if (this._tX === left && this._tY === top) return false;
+  if (this._tX === left && this._tY === top) return;
   this._tX = left;
   this._tY = top;
   this._element.style[transformProp] = getTranslateString(left, top);
-  return true;
 };
 
 /**

@@ -550,7 +550,7 @@ Grid.prototype.refreshItems = function (items, force) {
     targets[i]._refreshDimensions(force);
   }
 
-  if (force === true) {
+  if (hiddenItemStyles) {
     for (i = 0; i < hiddenItemStyles.length; i++) {
       style = hiddenItemStyles[i];
       style.visibility = '';
@@ -654,6 +654,9 @@ Grid.prototype.layout = function (instant, onFinish) {
   }
 
   // Compute new layout.
+  // TODO: This causes forced reflows. As we already have async layout system
+  // Maybe we could always postpone this to the next tick's read queue and then
+  // start the layout process in the write tick?
   this._refreshDimensions();
   var gridWidth = this._width - this._borderLeft - this._borderRight;
   var gridHeight = this._height - this._borderTop - this._borderBottom;
@@ -1493,7 +1496,7 @@ Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
 
     // If a hidden item is being shown we need to refresh the item's
     // dimensions.
-    if (toVisible && item._visibility._isHidden) {
+    if (toVisible && !item.isVisible() && !item.isHiding()) {
       hiddenItems.push(item);
     }
 
@@ -1506,6 +1509,12 @@ Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
   }
 
   // Force refresh the dimensions of all hidden items.
+  // TODO: How can we avoid this?
+  //       - 1. Set item visibility: 'hidden' and display: ''
+  //       - 2. Read the dimensions in the next read tick.
+  //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
+  //       - 4. Continue with the normal flow. To make this simpler we could always do this
+  //            one tick delay.
   if (hiddenItems.length) {
     this.refreshItems(hiddenItems, true);
     hiddenItems.length = 0;

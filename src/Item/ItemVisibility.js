@@ -4,6 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+import { VIEWPORT_THRESHOLD } from '../constants';
+
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
 
 import Animator from '../Animator/Animator';
@@ -231,15 +233,19 @@ ItemVisibility.prototype.destroy = function () {
 ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinish) {
   if (this._isDestroyed) return;
 
+  var inst = this;
   var item = this._item;
   var animation = this._animation;
   var childElement = this._childElement;
-  var settings = item.getGrid()._settings;
+  var grid = item.getGrid();
+  var settings = grid._settings;
   var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
   var duration = toVisible ? settings.showDuration : settings.hideDuration;
   var easing = toVisible ? settings.showEasing : settings.hideEasing;
   var isInstant = instant || duration <= 0;
   var currentStyles;
+  var tX;
+  var tY;
 
   // No target styles? Let's quit early.
   if (!targetStyles) {
@@ -259,12 +265,47 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
   }
 
   // Start the animation in the next tick (to avoid layout thrashing).
+  grid._itemVisibilityNeedsDimensionRefresh = true;
   addVisibilityTick(
     item._id,
     function () {
+      // Make sure the item is still in hiding/showing.
+      if (inst._isDestroyed || (toVisible ? !inst._isShowing : !inst._isHiding)) return;
+
       currentStyles = getCurrentStyles(childElement, targetStyles);
+
+      var translate = item._getTranslate();
+      tX = translate.x;
+      tY = translate.y;
+
+      if (grid._itemVisibilityNeedsDimensionRefresh) {
+        grid._itemVisibilityNeedsDimensionRefresh = false;
+        grid._updateBoundingRect();
+        grid._updateBorders(1, 0, 1, 0);
+      }
     },
     function () {
+      // Make sure the item is still in hiding/showing.
+      if (inst._isDestroyed || (toVisible ? !inst._isShowing : !inst._isHiding)) return;
+
+      // If item is not in the viewport let's skip the animation.
+      if (!item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
+        var containerOffset = item._getContainerOffset();
+        if (
+          !item.isActive() ||
+          !item._isInViewport(
+            item._left + containerOffset.left,
+            item._top + containerOffset.top,
+            VIEWPORT_THRESHOLD
+          )
+        ) {
+          setStyles(childElement, targetStyles);
+          animation.stop();
+          onFinish && onFinish();
+          return;
+        }
+      }
+
       animation.start(currentStyles, targetStyles, {
         duration: duration,
         easing: easing,

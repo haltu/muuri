@@ -41,3 +41,5 @@ export var HAS_POINTER_EVENTS = !!window.PointerEvent;
 export var HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
 
 export var MAX_SAFE_FLOAT32_INTEGER = 16777216;
+
+export var VIEWPORT_THRESHOLD = 100;

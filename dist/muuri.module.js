@@ -57,6 +57,8 @@ var HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
 
 var MAX_SAFE_FLOAT32_INTEGER = 16777216;
 
+var VIEWPORT_THRESHOLD = 100;
+
 /**
  * Event emitter constructor.
  *
@@ -5037,58 +5039,7 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
   }
 };
 
-var windowSize = {
-  width: window.innerWidth,
-  height: window.innerHeight,
-};
-
-window.addEventListener('resize', function () {
-  windowSize.width = window.innerWidth;
-  windowSize.height = window.innerHeight;
-});
-
-var targetRect = {
-  left: 0,
-  top: 0,
-  width: 0,
-  height: 0,
-};
-
-var viewportRect = {
-  left: 0,
-  top: 0,
-  width: 0,
-  height: 0,
-};
-
-/**
- * Check if the provided rectangle is in viewport.
- *
- * @private
- * @param {Number} left
- * @param {Number} top
- * @param {Number} width
- * @param {Number} height
- * @param {Number} padding
- */
-function isInViewport(width, height, left, top, padding) {
-  padding = padding || 0;
-
-  targetRect.left = left;
-  targetRect.top = top;
-  targetRect.width = width;
-  targetRect.height = height;
-
-  viewportRect.left = 0 - padding;
-  viewportRect.top = 0 - padding;
-  viewportRect.width = windowSize.width + padding + padding;
-  viewportRect.height = windowSize.height + padding + padding;
-
-  return isOverlapping(targetRect, viewportRect);
-}
-
 var MIN_ANIMATION_DISTANCE = 2;
-var VIEWPORT_THRESHOLD = 100;
 
 /**
  * Layout manager for Item instance, handles the positioning of an item.
@@ -5108,8 +5059,6 @@ function ItemLayout(item) {
   this._targetStyles = {};
   this._nextLeft = 0;
   this._nextTop = 0;
-  this._offsetLeft = 0;
-  this._offsetTop = 0;
   this._skipNextAnimation = false;
   this._animOptions = {
     onFinish: this._finish.bind(this),
@@ -5177,7 +5126,9 @@ ItemLayout.prototype.start = function (instant, onFinish) {
 
   // If no animations are needed, easy peasy!
   if (!animEnabled) {
-    this._updateOffsets();
+    var containerOffset = item._getContainerOffset();
+    this._nextLeft = item._left + containerOffset.left;
+    this._nextTop = item._top + containerOffset.top;
     item._setTranslate(this._nextLeft, this._nextTop);
     this._animation.stop();
     this._finish();
@@ -5213,10 +5164,10 @@ ItemLayout.prototype.stop = function (processCallbackQueue, left, top) {
   if (this._animation.isAnimating()) {
     if (left === undefined || top === undefined) {
       var translate = getTranslate(item._element);
-      left = translate.x;
-      top = translate.y;
+      item._setTranslate(translate.x, translate.y);
+    } else {
+      item._setTranslate(left, top);
     }
-    item._setTranslate(left, top);
     this._animation.stop();
   }
 
@@ -5263,34 +5214,6 @@ ItemLayout.prototype.destroy = function () {
  */
 
 /**
- * Calculate and update item's current layout offset data.
- *
- * @private
- */
-ItemLayout.prototype._updateOffsets = function () {
-  if (this._isDestroyed) return;
-
-  var item = this._item;
-  var migrate = item._migrate;
-  var release = item._dragRelease;
-
-  this._offsetLeft = release._isActive
-    ? release._containerDiffX
-    : migrate._isActive
-    ? migrate._containerDiffX
-    : 0;
-
-  this._offsetTop = release._isActive
-    ? release._containerDiffY
-    : migrate._isActive
-    ? migrate._containerDiffY
-    : 0;
-
-  this._nextLeft = this._item._left + this._offsetLeft;
-  this._nextTop = this._item._top + this._offsetTop;
-};
-
-/**
  * Finish item layout procedure.
  *
  * @private
@@ -5326,14 +5249,15 @@ ItemLayout.prototype._finish = function () {
  * @private
  */
 ItemLayout.prototype._setupAnimation = function () {
-  var item = this._item;
-  if (item._tX === undefined || item._tY === undefined) {
-    var translate = getTranslate(item._element);
-    item._tX = translate.x;
-    item._tY = translate.y;
-  }
+  if (this._isDestroyed || !this._isActive) return;
 
+  var item = this._item;
   var grid = item.getGrid();
+  var translate = item._getTranslate();
+
+  item._tX = translate.x;
+  item._tY = translate.y;
+
   if (grid._itemLayoutNeedsDimensionRefresh) {
     grid._itemLayoutNeedsDimensionRefresh = false;
     grid._updateBoundingRect();
@@ -5347,42 +5271,30 @@ ItemLayout.prototype._setupAnimation = function () {
  * @private
  */
 ItemLayout.prototype._startAnimation = function () {
+  if (this._isDestroyed || !this._isActive) return;
+
   var item = this._item;
   var grid = item.getGrid();
   var settings = grid._settings;
   var isInstant = this._animOptions.duration <= 0;
+  var containerOffset = item._getContainerOffset();
 
-  // Let's update the offset data and target styles.
-  this._updateOffsets();
+  // Calculate next translate values.
+  this._nextLeft = item._left + containerOffset.left;
+  this._nextTop = item._top + containerOffset.top;
 
-  // If there is no need for animation or if the item is already in correct
-  // position (or near it) let's finish the process early.
-  var xDiff = Math.abs(item._left - (item._tX - this._offsetLeft));
-  var yDiff = Math.abs(item._top - (item._tY - this._offsetTop));
-  if (isInstant || (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE)) {
-    if (xDiff || yDiff || this._isInterrupted) {
+  // Check if we can skip the animation and just snap the element to it's place.
+  var xDiff = Math.abs(item._left - (item._tX - containerOffset.left));
+  var yDiff = Math.abs(item._top - (item._tY - containerOffset.top));
+  if (
+    isInstant ||
+    (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE) ||
+    (!item._isInViewport(item._tX, item._tY, VIEWPORT_THRESHOLD) &&
+      !item._isInViewport(this._nextLeft, this._nextTop, VIEWPORT_THRESHOLD))
+  ) {
+    if (this._isInterrupted || xDiff || yDiff) {
       item._setTranslate(this._nextLeft, this._nextTop);
     }
-    this._animation.stop();
-    this._finish();
-    return;
-  }
-
-  // If item is not in viewport and will not be after the layout, let's skip
-  // the animation and just snap the item to it's position.
-  var containerLeft = grid._left + grid._borderLeft + item._marginLeft - this._offsetLeft;
-  var containerTop = grid._top + grid._borderTop + item._marginTop - this._offsetTop;
-  var clientX = containerLeft + item._tX;
-  var clientY = containerTop + item._tY;
-  var nextClientX = containerLeft + this._nextLeft;
-  var nextClientY = containerTop + this._nextTop;
-  var width = item._width;
-  var height = item._height;
-  if (
-    !isInViewport(width, height, clientX, clientY, VIEWPORT_THRESHOLD) &&
-    !isInViewport(width, height, nextClientX, nextClientY, VIEWPORT_THRESHOLD)
-  ) {
-    item._setTranslate(this._nextLeft, this._nextTop);
     this._animation.stop();
     this._finish();
     return;
@@ -5893,15 +5805,19 @@ ItemVisibility.prototype.destroy = function () {
 ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinish) {
   if (this._isDestroyed) return;
 
+  var inst = this;
   var item = this._item;
   var animation = this._animation;
   var childElement = this._childElement;
-  var settings = item.getGrid()._settings;
+  var grid = item.getGrid();
+  var settings = grid._settings;
   var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
   var duration = toVisible ? settings.showDuration : settings.hideDuration;
   var easing = toVisible ? settings.showEasing : settings.hideEasing;
   var isInstant = instant || duration <= 0;
   var currentStyles;
+  var tX;
+  var tY;
 
   // No target styles? Let's quit early.
   if (!targetStyles) {
@@ -5921,12 +5837,47 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
   }
 
   // Start the animation in the next tick (to avoid layout thrashing).
+  grid._itemVisibilityNeedsDimensionRefresh = true;
   addVisibilityTick(
     item._id,
     function () {
+      // Make sure the item is still in hiding/showing.
+      if (inst._isDestroyed || (toVisible ? !inst._isShowing : !inst._isHiding)) return;
+
       currentStyles = getCurrentStyles(childElement, targetStyles);
+
+      var translate = item._getTranslate();
+      tX = translate.x;
+      tY = translate.y;
+
+      if (grid._itemVisibilityNeedsDimensionRefresh) {
+        grid._itemVisibilityNeedsDimensionRefresh = false;
+        grid._updateBoundingRect();
+        grid._updateBorders(1, 0, 1, 0);
+      }
     },
     function () {
+      // Make sure the item is still in hiding/showing.
+      if (inst._isDestroyed || (toVisible ? !inst._isShowing : !inst._isHiding)) return;
+
+      // If item is not in the viewport let's skip the animation.
+      if (!item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
+        var containerOffset = item._getContainerOffset();
+        if (
+          !item.isActive() ||
+          !item._isInViewport(
+            item._left + containerOffset.left,
+            item._top + containerOffset.top,
+            VIEWPORT_THRESHOLD
+          )
+        ) {
+          setStyles(childElement, targetStyles);
+          animation.stop();
+          onFinish && onFinish();
+          return;
+        }
+      }
+
       animation.start(currentStyles, targetStyles, {
         duration: duration,
         easing: easing,
@@ -5985,6 +5936,56 @@ var id = 0;
  */
 function createUid() {
   return ++id;
+}
+
+var windowSize = {
+  width: window.innerWidth,
+  height: window.innerHeight,
+};
+
+window.addEventListener('resize', function () {
+  windowSize.width = window.innerWidth;
+  windowSize.height = window.innerHeight;
+});
+
+var targetRect = {
+  left: 0,
+  top: 0,
+  width: 0,
+  height: 0,
+};
+
+var viewportRect = {
+  left: 0,
+  top: 0,
+  width: 0,
+  height: 0,
+};
+
+/**
+ * Check if the provided rectangle is in viewport.
+ *
+ * @private
+ * @param {Number} left
+ * @param {Number} top
+ * @param {Number} width
+ * @param {Number} height
+ * @param {Number} padding
+ */
+function isInViewport(width, height, left, top, padding) {
+  padding = padding || 0;
+
+  targetRect.left = left;
+  targetRect.top = top;
+  targetRect.width = width;
+  targetRect.height = height;
+
+  viewportRect.left = 0 - padding;
+  viewportRect.top = 0 - padding;
+  viewportRect.width = windowSize.width + padding + padding;
+  viewportRect.height = windowSize.height + padding + padding;
+
+  return isOverlapping(targetRect, viewportRect);
 }
 
 /**
@@ -6245,7 +6246,7 @@ Item.prototype.isDestroyed = function () {
  */
 Item.prototype._refreshDimensions = function (force) {
   if (this._isDestroyed) return;
-  if (force !== true && this._visibility._isHidden) return;
+  if (force !== true && !this.isVisible() && !this.isHiding()) return;
 
   var element = this._element;
   var dragPlaceholder = this._dragPlaceholder;
@@ -6331,14 +6332,108 @@ Item.prototype._canSkipLayout = function (left, top) {
  * identical to the currently applied values.
  *
  * @private
- * @param {Number} left
- * @param {Number} top
+ * @param {Number} x
+ * @param {Number} y
  */
-Item.prototype._setTranslate = function (left, top) {
-  if (this._tX === left && this._tY === top) return;
-  this._tX = left;
-  this._tY = top;
-  this._element.style[transformProp] = getTranslateString(left, top);
+Item.prototype._setTranslate = function (x, y) {
+  if (this._tX === x && this._tY === y) return;
+  this._tX = x;
+  this._tY = y;
+  this._element.style[transformProp] = getTranslateString(x, y);
+};
+
+/**
+ * Get the item's current translate values. If they can't be detected from cache
+ * we will read them from the DOM (so try to use this only when it is safe
+ * to query the DOM without causing a forced reflow).
+ *
+ * @private
+ * @returns {Object}
+ */
+Item.prototype._getTranslate = (function () {
+  var result = { x: 0, y: 0 };
+  return function () {
+    if (this._tX === undefined || this._tY === undefined) {
+      var translate = getTranslate(this._element);
+      result.x = translate.x;
+      result.y = translate.y;
+    } else {
+      result.x = this._tX;
+      result.y = this._tY;
+    }
+    return result;
+  };
+})();
+
+/**
+ * Returns the item's current container offset (the diff between the item's
+ * containing grid element and the item's current container element which might
+ * be either migrate container or release container).
+ *
+ * @private
+ * @returns {Object}
+ */
+Item.prototype._getContainerOffset = (function () {
+  var offset = { left: 0, top: 0 };
+  return function () {
+    if (this.isReleasing()) {
+      offset.left = this._dragRelease._containerDiffX;
+      offset.top = this._dragRelease._containerDiffY;
+    } else if (this.isDragging()) {
+      offset.left = this._drag._containerDiffX;
+      offset.top = this._drag._containerDiffY;
+    } else if (this._migrate._isActive) {
+      offset.left = this._migrate._containerDiffX;
+      offset.top = this._migrate._containerDiffY;
+    } else {
+      offset.left = 0;
+      offset.top = 0;
+    }
+
+    return offset;
+  };
+})();
+
+/**
+ * Returns the current container's position relative to the client (viewport)
+ * with borders excluded from the container. This equals to the client position
+ * where the item will be if it is not transformed and it's left/top position at
+ * zero. Note that this method uses the cached dimensions of grid, so it is up
+ * to the user to update those when necessary before using this method.
+ *
+ * @private
+ * @returns {Object}
+ */
+Item.prototype._getClientRootPosition = (function () {
+  var position = { left: 0, top: 0 };
+  return function () {
+    var grid = this.getGrid();
+    var containerOffset = this._getContainerOffset();
+    position.left = grid._left + grid._borderLeft - containerOffset.left;
+    position.top = grid._top + grid._borderTop - containerOffset.top;
+    return position;
+  };
+})();
+
+/**
+ * Check if item will be in viewport with the provided coordinates. The third
+ * argument allows defining extra padding for the viewport.
+ *
+ * @private
+ * @param {Number} x
+ * @param {Number} y
+ * @param {Number} [viewportThreshold=0]
+ * @returns {Boolean}
+ */
+Item.prototype._isInViewport = function (x, y, viewportThreshold) {
+  var rootPosition = this._getClientRootPosition();
+  return isInViewport(
+    this._width,
+    this._height,
+    rootPosition.left + this._marginLeft + x,
+    rootPosition.top + this._marginTop + y,
+    viewportThreshold || 0
+  );
 };
 
 /**
@@ -7827,7 +7922,7 @@ Grid.prototype.refreshItems = function (items, force) {
     targets[i]._refreshDimensions(force);
   }
 
-  if (force === true) {
+  if (hiddenItemStyles) {
     for (i = 0; i < hiddenItemStyles.length; i++) {
       style = hiddenItemStyles[i];
       style.visibility = '';
@@ -7931,6 +8026,9 @@ Grid.prototype.layout = function (instant, onFinish) {
   }
 
   // Compute new layout.
+  // TODO: This causes forced reflows. As we already have async layout system
+  // Maybe we could always postpone this to the next tick's read queue and then
+  // start the layout process in the write tick?
   this._refreshDimensions();
   var gridWidth = this._width - this._borderLeft - this._borderRight;
   var gridHeight = this._height - this._borderTop - this._borderBottom;
@@ -8770,7 +8868,7 @@ Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
 
     // If a hidden item is being shown we need to refresh the item's
     // dimensions.
-    if (toVisible && item._visibility._isHidden) {
+    if (toVisible && !item.isVisible() && !item.isHiding()) {
       hiddenItems.push(item);
     }
 
@@ -8783,6 +8881,12 @@ Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
   }
 
   // Force refresh the dimensions of all hidden items.
+  // TODO: How can we avoid this?
+  //       - 1. Set item visibility: 'hidden' and display: ''
+  //       - 2. Read the dimensions in the next read tick.
+  //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
+  //       - 4. Continue with the normal flow. To make this simpler we could always do this
+  //            one tick delay.
   if (hiddenItems.length) {
     this.refreshItems(hiddenItems, true);
     hiddenItems.length = 0;

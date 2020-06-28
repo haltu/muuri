@@ -4,6 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+import { VIEWPORT_THRESHOLD } from '../constants';
+
 import { addLayoutTick, cancelLayoutTick } from '../ticker';
 
 import Animator from '../Animator/Animator';
@@ -12,12 +14,10 @@ import addClass from '../utils/addClass';
 import getTranslate from '../utils/getTranslate';
 import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
-import isInViewport from '../utils/isInViewport';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
 var MIN_ANIMATION_DISTANCE = 2;
-var VIEWPORT_THRESHOLD = 100;
 
 /**
  * Layout manager for Item instance, handles the positioning of an item.
@@ -37,8 +37,6 @@ function ItemLayout(item) {
   this._targetStyles = {};
   this._nextLeft = 0;
   this._nextTop = 0;
-  this._offsetLeft = 0;
-  this._offsetTop = 0;
   this._skipNextAnimation = false;
   this._animOptions = {
     onFinish: this._finish.bind(this),
@@ -106,7 +104,9 @@ ItemLayout.prototype.start = function (instant, onFinish) {
 
   // If no animations are needed, easy peasy!
   if (!animEnabled) {
-    this._updateOffsets();
+    var containerOffset = item._getContainerOffset();
+    this._nextLeft = item._left + containerOffset.left;
+    this._nextTop = item._top + containerOffset.top;
     item._setTranslate(this._nextLeft, this._nextTop);
     this._animation.stop();
     this._finish();
@@ -142,10 +142,10 @@ ItemLayout.prototype.stop = function (processCallbackQueue, left, top) {
   if (this._animation.isAnimating()) {
     if (left === undefined || top === undefined) {
       var translate = getTranslate(item._element);
-      left = translate.x;
-      top = translate.y;
+      item._setTranslate(translate.x, translate.y);
+    } else {
+      item._setTranslate(left, top);
     }
-    item._setTranslate(left, top);
     this._animation.stop();
   }
 
@@ -192,34 +192,6 @@ ItemLayout.prototype.destroy = function () {
  */
 
 /**
- * Calculate and update item's current layout offset data.
- *
- * @private
- */
-ItemLayout.prototype._updateOffsets = function () {
-  if (this._isDestroyed) return;
-
-  var item = this._item;
-  var migrate = item._migrate;
-  var release = item._dragRelease;
-
-  this._offsetLeft = release._isActive
-    ? release._containerDiffX
-    : migrate._isActive
-    ? migrate._containerDiffX
-    : 0;
-
-  this._offsetTop = release._isActive
-    ? release._containerDiffY
-    : migrate._isActive
-    ? migrate._containerDiffY
-    : 0;
-
-  this._nextLeft = this._item._left + this._offsetLeft;
-  this._nextTop = this._item._top + this._offsetTop;
-};
-
-/**
  * Finish item layout procedure.
  *
  * @private
@@ -255,14 +227,15 @@ ItemLayout.prototype._finish = function () {
  * @private
  */
 ItemLayout.prototype._setupAnimation = function () {
-  var item = this._item;
-  if (item._tX === undefined || item._tY === undefined) {
-    var translate = getTranslate(item._element);
-    item._tX = translate.x;
-    item._tY = translate.y;
-  }
+  if (this._isDestroyed || !this._isActive) return;
 
+  var item = this._item;
   var grid = item.getGrid();
+  var translate = item._getTranslate();
+
+  item._tX = translate.x;
+  item._tY = translate.y;
+
   if (grid._itemLayoutNeedsDimensionRefresh) {
     grid._itemLayoutNeedsDimensionRefresh = false;
     grid._updateBoundingRect();
@@ -276,42 +249,30 @@ ItemLayout.prototype._setupAnimation = function () {
  * @private
  */
 ItemLayout.prototype._startAnimation = function () {
+  if (this._isDestroyed || !this._isActive) return;
+
   var item = this._item;
   var grid = item.getGrid();
   var settings = grid._settings;
   var isInstant = this._animOptions.duration <= 0;
+  var containerOffset = item._getContainerOffset();
 
-  // Let's update the offset data and target styles.
-  this._updateOffsets();
+  // Calculate next translate values.
+  this._nextLeft = item._left + containerOffset.left;
+  this._nextTop = item._top + containerOffset.top;
 
-  // If there is no need for animation or if the item is already in correct
-  // position (or near it) let's finish the process early.
-  var xDiff = Math.abs(item._left - (item._tX - this._offsetLeft));
-  var yDiff = Math.abs(item._top - (item._tY - this._offsetTop));
-  if (isInstant || (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE)) {
-    if (xDiff || yDiff || this._isInterrupted) {
+  // Check if we can skip the animation and just snap the element to it's place.
+  var xDiff = Math.abs(item._left - (item._tX - containerOffset.left));
+  var yDiff = Math.abs(item._top - (item._tY - containerOffset.top));
+  if (
+    isInstant ||
+    (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE) ||
+    (!item._isInViewport(item._tX, item._tY, VIEWPORT_THRESHOLD) &&
+      !item._isInViewport(this._nextLeft, this._nextTop, VIEWPORT_THRESHOLD))
+  ) {
+    if (this._isInterrupted || xDiff || yDiff) {
       item._setTranslate(this._nextLeft, this._nextTop);
     }
-    this._animation.stop();
-    this._finish();
-    return;
-  }
-
-  // If item is not in viewport and will not be after the layout, let's skip
-  // the animation and just snap the item to it's position.
-  var containerLeft = grid._left + grid._borderLeft + item._marginLeft - this._offsetLeft;
-  var containerTop = grid._top + grid._borderTop + item._marginTop - this._offsetTop;
-  var clientX = containerLeft + item._tX;
-  var clientY = containerTop + item._tY;
-  var nextClientX = containerLeft + this._nextLeft;
-  var nextClientY = containerTop + this._nextTop;
-  var width = item._width;
-  var height = item._height;
-  if (
-    !isInViewport(width, height, clientX, clientY, VIEWPORT_THRESHOLD) &&
-    !isInViewport(width, height, nextClientX, nextClientY, VIEWPORT_THRESHOLD)
-  ) {
-    item._setTranslate(this._nextLeft, this._nextTop);
     this._animation.stop();
     this._finish();
     return;

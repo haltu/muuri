@@ -18,7 +18,9 @@ import addClass from '../utils/addClass';
 import createUid from '../utils/createUid';
 import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
+import getTranslate from '../utils/getTranslate';
 import getTranslateString from '../utils/getTranslateString';
+import isInViewport from '../utils/isInViewport';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
@@ -280,7 +282,7 @@ Item.prototype.isDestroyed = function () {
  */
 Item.prototype._refreshDimensions = function (force) {
   if (this._isDestroyed) return;
-  if (force !== true && this._visibility._isHidden) return;
+  if (force !== true && !this.isVisible() && !this.isHiding()) return;
 
   var element = this._element;
   var dragPlaceholder = this._dragPlaceholder;
@@ -366,14 +368,108 @@ Item.prototype._canSkipLayout = function (left, top) {
  * identical to the currently applied values.
  *
  * @private
- * @param {Number} left
- * @param {Number} top
+ * @param {Number} x
+ * @param {Number} y
  */
-Item.prototype._setTranslate = function (left, top) {
-  if (this._tX === left && this._tY === top) return;
-  this._tX = left;
-  this._tY = top;
-  this._element.style[transformProp] = getTranslateString(left, top);
+Item.prototype._setTranslate = function (x, y) {
+  if (this._tX === x && this._tY === y) return;
+  this._tX = x;
+  this._tY = y;
+  this._element.style[transformProp] = getTranslateString(x, y);
+};
+
+/**
+ * Get the item's current translate values. If they can't be detected from cache
+ * we will read them from the DOM (so try to use this only when it is safe
+ * to query the DOM without causing a forced reflow).
+ *
+ * @private
+ * @returns {Object}
+ */
+Item.prototype._getTranslate = (function () {
+  var result = { x: 0, y: 0 };
+  return function () {
+    if (this._tX === undefined || this._tY === undefined) {
+      var translate = getTranslate(this._element);
+      result.x = translate.x;
+      result.y = translate.y;
+    } else {
+      result.x = this._tX;
+      result.y = this._tY;
+    }
+    return result;
+  };
+})();
+
+/**
+ * Returns the item's current container offset (the diff between the item's
+ * containing grid element and the item's current container element which might
+ * be either migrate container or release container).
+ *
+ * @private
+ * @returns {Object}
+ */
+Item.prototype._getContainerOffset = (function () {
+  var offset = { left: 0, top: 0 };
+  return function () {
+    if (this.isReleasing()) {
+      offset.left = this._dragRelease._containerDiffX;
+      offset.top = this._dragRelease._containerDiffY;
+    } else if (this.isDragging()) {
+      offset.left = this._drag._containerDiffX;
+      offset.top = this._drag._containerDiffY;
+    } else if (this._migrate._isActive) {
+      offset.left = this._migrate._containerDiffX;
+      offset.top = this._migrate._containerDiffY;
+    } else {
+      offset.left = 0;
+      offset.top = 0;
+    }
+
+    return offset;
+  };
+})();
+
+/**
+ * Returns the current container's position relative to the client (viewport)
+ * with borders excluded from the container. This equals to the client position
+ * where the item will be if it is not transformed and it's left/top position at
+ * zero. Note that this method uses the cached dimensions of grid, so it is up
+ * to the user to update those when necessary before using this method.
+ *
+ * @private
+ * @returns {Object}
+ */
+Item.prototype._getClientRootPosition = (function () {
+  var position = { left: 0, top: 0 };
+  return function () {
+    var grid = this.getGrid();
+    var containerOffset = this._getContainerOffset();
+    position.left = grid._left + grid._borderLeft - containerOffset.left;
+    position.top = grid._top + grid._borderTop - containerOffset.top;
+    return position;
+  };
+})();
+
+/**
+ * Check if item will be in viewport with the provided coordinates. The third
+ * argument allows defining extra padding for the viewport.
+ *
+ * @private
+ * @param {Number} x
+ * @param {Number} y
+ * @param {Number} [viewportThreshold=0]
+ * @returns {Boolean}
+ */
+Item.prototype._isInViewport = function (x, y, viewportThreshold) {
+  var rootPosition = this._getClientRootPosition();
+  return isInViewport(
+    this._width,
+    this._height,
+    rootPosition.left + this._marginLeft + x,
+    rootPosition.top + this._marginTop + y,
+    viewportThreshold || 0
+  );
 };
 
 /**

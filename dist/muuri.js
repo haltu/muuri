@@ -1,5 +1,5 @@
 /**
-* Muuri v0.9.0
+* Muuri v0.9.1
 * https://muuri.dev/
 * Copyright (c) 2015-present, Haltu Oy
 * Released under the MIT license

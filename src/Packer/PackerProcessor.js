@@ -5,7 +5,7 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-function createPackerProcessor(isWorker = false) {
+function createPackerProcessor(isWorker) {
   var FILL_GAPS = 1;
   var HORIZONTAL = 2;
   var ALIGN_RIGHT = 4;

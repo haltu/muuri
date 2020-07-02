@@ -6302,7 +6302,7 @@ Item.prototype._destroy = function (removeElement) {
   this._isDestroyed = true;
 };
 
-function createPackerProcessor(isWorker = false) {
+function createPackerProcessor(isWorker) {
   var FILL_GAPS = 1;
   var HORIZONTAL = 2;
   var ALIGN_RIGHT = 4;

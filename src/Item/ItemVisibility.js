@@ -290,12 +290,11 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
 
       // If item is not in the viewport let's skip the animation.
       if (!item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
-        var containerOffset = item._getContainerOffset();
         if (
           !item.isActive() ||
           !item._isInViewport(
-            item._left + containerOffset.left,
-            item._top + containerOffset.top,
+            item._left + item._containerDiffX,
+            item._top + item._containerDiffY,
             VIEWPORT_THRESHOLD
           )
         ) {

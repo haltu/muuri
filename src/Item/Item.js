@@ -56,8 +56,10 @@ function Item(grid, element, isActive) {
   this._marginRight = 0;
   this._marginTop = 0;
   this._marginBottom = 0;
-  this._tX = undefined;
-  this._tY = undefined;
+  this._translateX = undefined;
+  this._translateY = undefined;
+  this._containerDiffX = 0;
+  this._containerDiffY = 0;
   this._sortData = null;
   this._emitter = new Emitter();
 
@@ -356,8 +358,8 @@ Item.prototype._canSkipLayout = function (left, top) {
     this._left === left &&
     this._top === top &&
     !this._migrate._isActive &&
-    !this._layout._skipNextAnimation &&
-    !this._dragRelease.isJustReleased()
+    !this._dragRelease._isActive &&
+    !this._layout._skipNextAnimation
   );
 };
 
@@ -372,9 +374,9 @@ Item.prototype._canSkipLayout = function (left, top) {
  * @param {Number} y
  */
 Item.prototype._setTranslate = function (x, y) {
-  if (this._tX === x && this._tY === y) return;
-  this._tX = x;
-  this._tY = y;
+  if (this._translateX === x && this._translateY === y) return;
+  this._translateX = x;
+  this._translateY = y;
   this._element.style[transformProp] = getTranslateString(x, y);
 };
 
@@ -389,44 +391,15 @@ Item.prototype._setTranslate = function (x, y) {
 Item.prototype._getTranslate = (function () {
   var result = { x: 0, y: 0 };
   return function () {
-    if (this._tX === undefined || this._tY === undefined) {
+    if (this._translateX === undefined || this._translateY === undefined) {
       var translate = getTranslate(this._element);
       result.x = translate.x;
       result.y = translate.y;
     } else {
-      result.x = this._tX;
-      result.y = this._tY;
+      result.x = this._translateX;
+      result.y = this._translateY;
     }
     return result;
-  };
-})();
-
-/**
- * Returns the item's current container offset (the diff between the item's
- * containing grid element and the item's current container element which might
- * be either migrate container or release container).
- *
- * @private
- * @returns {Object}
- */
-Item.prototype._getContainerOffset = (function () {
-  var offset = { left: 0, top: 0 };
-  return function () {
-    if (this.isReleasing()) {
-      offset.left = this._dragRelease._containerDiffX;
-      offset.top = this._dragRelease._containerDiffY;
-    } else if (this.isDragging()) {
-      offset.left = this._drag._containerDiffX;
-      offset.top = this._drag._containerDiffY;
-    } else if (this._migrate._isActive) {
-      offset.left = this._migrate._containerDiffX;
-      offset.top = this._migrate._containerDiffY;
-    } else {
-      offset.left = 0;
-      offset.top = 0;
-    }
-
-    return offset;
   };
 })();
 
@@ -444,9 +417,8 @@ Item.prototype._getClientRootPosition = (function () {
   var position = { left: 0, top: 0 };
   return function () {
     var grid = this.getGrid();
-    var containerOffset = this._getContainerOffset();
-    position.left = grid._left + grid._borderLeft - containerOffset.left;
-    position.top = grid._top + grid._borderTop - containerOffset.top;
+    position.left = grid._left + grid._borderLeft - this._containerDiffX;
+    position.top = grid._top + grid._borderTop - this._containerDiffY;
     return position;
   };
 })();

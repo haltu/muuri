@@ -104,9 +104,8 @@ ItemLayout.prototype.start = function (instant, onFinish) {
 
   // If no animations are needed, easy peasy!
   if (!animEnabled) {
-    var containerOffset = item._getContainerOffset();
-    this._nextLeft = item._left + containerOffset.left;
-    this._nextTop = item._top + containerOffset.top;
+    this._nextLeft = item._left + item._containerDiffX;
+    this._nextTop = item._top + item._containerDiffY;
     item._setTranslate(this._nextLeft, this._nextTop);
     this._animation.stop();
     this._finish();
@@ -204,8 +203,8 @@ ItemLayout.prototype._finish = function () {
   var release = item._dragRelease;
 
   // Update internal translate values.
-  item._tX = this._nextLeft;
-  item._tY = this._nextTop;
+  item._translateX = this._nextLeft;
+  item._translateY = this._nextTop;
 
   // Mark the item as inactive and remove positioning classes.
   if (this._isActive) {
@@ -233,8 +232,8 @@ ItemLayout.prototype._setupAnimation = function () {
   var grid = item.getGrid();
   var translate = item._getTranslate();
 
-  item._tX = translate.x;
-  item._tY = translate.y;
+  item._translateX = translate.x;
+  item._translateY = translate.y;
 
   if (grid._itemLayoutNeedsDimensionRefresh) {
     grid._itemLayoutNeedsDimensionRefresh = false;
@@ -255,19 +254,18 @@ ItemLayout.prototype._startAnimation = function () {
   var grid = item.getGrid();
   var settings = grid._settings;
   var isInstant = this._animOptions.duration <= 0;
-  var containerOffset = item._getContainerOffset();
 
   // Calculate next translate values.
-  this._nextLeft = item._left + containerOffset.left;
-  this._nextTop = item._top + containerOffset.top;
+  this._nextLeft = item._left + item._containerDiffX;
+  this._nextTop = item._top + item._containerDiffY;
 
   // Check if we can skip the animation and just snap the element to it's place.
-  var xDiff = Math.abs(item._left - (item._tX - containerOffset.left));
-  var yDiff = Math.abs(item._top - (item._tY - containerOffset.top));
+  var xDiff = Math.abs(item._left - (item._translateX - item._containerDiffX));
+  var yDiff = Math.abs(item._top - (item._translateY - item._containerDiffY));
   if (
     isInstant ||
     (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE) ||
-    (!item._isInViewport(item._tX, item._tY, VIEWPORT_THRESHOLD) &&
+    (!item._isInViewport(item._translateX, item._translateY, VIEWPORT_THRESHOLD) &&
       !item._isInViewport(this._nextLeft, this._nextTop, VIEWPORT_THRESHOLD))
   ) {
     if (this._isInterrupted || xDiff || yDiff) {
@@ -284,16 +282,22 @@ ItemLayout.prototype._startAnimation = function () {
   }
 
   // Get current/next styles for animation.
-  this._currentStyles[transformProp] = getTranslateString(item._tX, item._tY);
+  this._currentStyles[transformProp] = getTranslateString(item._translateX, item._translateY);
   this._targetStyles[transformProp] = getTranslateString(this._nextLeft, this._nextTop);
 
   // Set internal translation values to undefined for the duration of the
   // animation since they will be changing on each animation frame for the
   // duration of the animation and tracking them would mean reading the DOM on
   // each frame, which is pretty darn expensive.
-  item._tX = item._tY = undefined;
+  item._translateX = item._translateY = undefined;
 
   // Start animation.
+  // TODO: If item is being released or migrated when this is called we might
+  // want to check if the item is still positioning towards the same position as
+  // the layout skipping omits released and migrated items. If the item is
+  // indeed positioning towards the same position we should just change the
+  // finish callback and that's it. Or, we can stop and restart, but it looks
+  // a bit more clunky probably.
   this._animation.start(this._currentStyles, this._targetStyles, this._animOptions);
 };
 

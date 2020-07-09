@@ -644,8 +644,8 @@ AutoScroller.prototype._applyActions = function () {
 AutoScroller.prototype._updateDragDirection = function (item) {
   var dragPositions = this._dragPositions[item._id];
   var dragDirections = this._dragDirections[item._id];
-  var x1 = item._drag._left;
-  var y1 = item._drag._top;
+  var x1 = item._drag._translateX;
+  var y1 = item._drag._translateY;
   if (dragPositions.length) {
     var x2 = dragPositions[0];
     var y2 = dragPositions[1];

@@ -25,10 +25,10 @@ var viewportRect = {
  * Check if the provided rectangle is in viewport.
  *
  * @private
- * @param {Number} left
- * @param {Number} top
  * @param {Number} width
  * @param {Number} height
+ * @param {Number} left
+ * @param {Number} top
  * @param {Number} padding
  */
 export default function isInViewport(width, height, left, top, padding) {

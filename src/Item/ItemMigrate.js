@@ -10,7 +10,6 @@ import ItemDrag from './ItemDrag';
 
 import addClass from '../utils/addClass';
 import getOffsetDiff from '../utils/getOffsetDiff';
-import getTranslate from '../utils/getTranslate';
 import arrayInsert from '../utils/arrayInsert';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
@@ -27,8 +26,6 @@ function ItemMigrate(item) {
   this._isActive = false;
   this._isDestroyed = false;
   this._container = false;
-  this._containerDiffX = 0;
-  this._containerDiffY = 0;
 }
 
 /**
@@ -64,8 +61,6 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
   var offsetDiff;
   var containerDiff;
   var translate;
-  var translateX;
-  var translateY;
   var currentVisClass;
   var nextVisClass;
 
@@ -78,30 +73,24 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
     targetIndex = targetItems.indexOf(targetItem);
   }
 
-  // Get current translateX and translateY values if needed.
-  if (item.isPositioning() || this._isActive || item.isReleasing()) {
-    translate = getTranslate(element);
-    translateX = translate.x;
-    translateY = translate.y;
-  }
+  // Abort current positioning/migration/releasing.
+  if (this._isActive || item.isPositioning() || item.isReleasing()) {
+    translate = item._getTranslate();
+    var tX = translate.x;
+    var tY = translate.y;
 
-  // Abort current positioning.
-  if (item.isPositioning()) {
-    item._layout.stop(true, translateX, translateY);
-  }
+    if (item.isPositioning()) {
+      item._layout.stop(true, tX, tY);
+    }
 
-  // Abort current migration.
-  if (this._isActive) {
-    translateX -= this._containerDiffX;
-    translateY -= this._containerDiffY;
-    this.stop(true, translateX, translateY);
-  }
+    tX -= item._containerDiffX;
+    tY -= item._containerDiffY;
 
-  // Abort current release.
-  if (item.isReleasing()) {
-    translateX -= item._dragRelease._containerDiffX;
-    translateY -= item._dragRelease._containerDiffY;
-    item._dragRelease.stop(true, translateX, translateY);
+    if (this._isActive) {
+      this.stop(true, tX, tY);
+    } else if (item.isReleasing()) {
+      item._dragRelease.stop(true, tX, tY);
+    }
   }
 
   // Stop current visibility animation.
@@ -161,12 +150,8 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
     if (targetContainer !== currentContainer) {
       targetContainer.appendChild(element);
       offsetDiff = getOffsetDiff(targetContainer, currentContainer, true);
-      if (!translate) {
-        translate = getTranslate(element);
-        translateX = translate.x;
-        translateY = translate.y;
-      }
-      item._setTranslate(translateX + offsetDiff.left, translateY + offsetDiff.top);
+      translate = item._getTranslate();
+      item._setTranslate(translate.x + offsetDiff.left, translate.y + offsetDiff.top);
     }
   }
   // If item is not active let's just append it to the target grid's element.
@@ -182,6 +167,8 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
   // Get offset diff for the migration data, if the item is active.
   if (isActive) {
     containerDiff = getOffsetDiff(targetContainer, targetElement, true);
+    item._containerDiffX = containerDiff.left;
+    item._containerDiffY = containerDiff.top;
   }
 
   // Update item's cached dimensions.
@@ -197,13 +184,9 @@ ItemMigrate.prototype.start = function (targetGrid, position, container) {
   if (isActive) {
     this._isActive = true;
     this._container = targetContainer;
-    this._containerDiffX = containerDiff.left;
-    this._containerDiffY = containerDiff.top;
   } else {
     this._isActive = false;
     this._container = null;
-    this._containerDiffX = 0;
-    this._containerDiffY = 0;
   }
 
   // Emit send event.
@@ -245,31 +228,28 @@ ItemMigrate.prototype.stop = function (abort, left, top) {
   if (this._isDestroyed || !this._isActive) return;
 
   var item = this._item;
-  var element = item._element;
-  var grid = item.getGrid();
-  var gridElement = grid._element;
-  var translate;
+  var gridElement = item.getGrid()._element;
 
   if (this._container !== gridElement) {
     if (left === undefined || top === undefined) {
       if (abort) {
-        translate = getTranslate(element);
-        left = translate.x - this._containerDiffX;
-        top = translate.y - this._containerDiffY;
+        var translate = item._getTranslate();
+        left = translate.x - item._containerDiffX;
+        top = translate.y - item._containerDiffY;
       } else {
         left = item._left;
         top = item._top;
       }
     }
 
-    gridElement.appendChild(element);
+    gridElement.appendChild(item._element);
     item._setTranslate(left, top);
+    item._containerDiffX = 0;
+    item._containerDiffY = 0;
   }
 
   this._isActive = false;
   this._container = null;
-  this._containerDiffX = 0;
-  this._containerDiffY = 0;
 };
 
 /**

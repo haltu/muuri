@@ -119,7 +119,7 @@ export function applyItemScrollSync(item) {
   if (!item._drag || !item._isActive) return;
   var drag = item._drag;
   drag._scrollDiffX = drag._scrollDiffY = 0;
-  item._setTranslate(drag._left, drag._top);
+  item._setTranslate(drag._translateX, drag._translateY);
 }
 
 /**

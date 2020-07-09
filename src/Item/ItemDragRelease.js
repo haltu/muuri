@@ -7,7 +7,6 @@
 import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END } from '../constants';
 
 import addClass from '../utils/addClass';
-import getTranslate from '../utils/getTranslate';
 import removeClass from '../utils/removeClass';
 
 /**
@@ -24,8 +23,6 @@ function ItemDragRelease(item) {
   this._isActive = false;
   this._isDestroyed = false;
   this._isPositioningStarted = false;
-  this._containerDiffX = 0;
-  this._containerDiffY = 0;
 }
 
 /**
@@ -131,18 +128,17 @@ ItemDragRelease.prototype._placeToGrid = function (left, top) {
 
   if (element.parentNode !== container) {
     if (left === undefined || top === undefined) {
-      var translate = getTranslate(element);
-      left = translate.x - this._containerDiffX;
-      top = translate.y - this._containerDiffY;
+      var translate = item._getTranslate();
+      left = translate.x - item._containerDiffX;
+      top = translate.y - item._containerDiffY;
     }
 
     container.appendChild(element);
     item._setTranslate(left, top);
+    item._containerDiffX = 0;
+    item._containerDiffY = 0;
     didReparent = true;
   }
-
-  this._containerDiffX = 0;
-  this._containerDiffY = 0;
 
   return didReparent;
 };
@@ -161,8 +157,6 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
 
   this._isActive = false;
   this._isPositioningStarted = false;
-  this._containerDiffX = 0;
-  this._containerDiffY = 0;
 
   // If the element was just reparented we need to do a forced reflow to remove
   // the class gracefully.

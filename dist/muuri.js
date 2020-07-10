@@ -3212,9 +3212,7 @@
     // dragging.
     this._scrollers = [];
 
-    // The current translateX/translateY position.
-    // TODO: Rename as translateX/translateY and also think about getting rid of
-    // this as we do track item._translateX and item._translateY.
+    // The current translateX/translateY.
     this._translateX = 0;
     this._translateY = 0;
 
@@ -4950,8 +4948,6 @@
     this._isInterrupted = false;
     this._currentStyles = {};
     this._targetStyles = {};
-    this._nextLeft = 0;
-    this._nextTop = 0;
     this._skipNextAnimation = false;
     this._animOptions = {
       onFinish: this._finish.bind(this),
@@ -4993,6 +4989,7 @@
     var gridSettings = grid._settings;
     var isPositioning = this._isActive;
     var isJustReleased = release.isJustReleased();
+    var anim = this._animation;
     var animDuration = isJustReleased
       ? gridSettings.dragRelease.duration
       : gridSettings.layoutDuration;
@@ -5019,12 +5016,18 @@
 
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
-      this._nextLeft = item._left + item._containerDiffX;
-      this._nextTop = item._top + item._containerDiffY;
-      item._setTranslate(this._nextLeft, this._nextTop);
-      this._animation.stop();
+      item._setTranslate(item._left + item._containerDiffX, item._top + item._containerDiffY);
+      anim.stop();
       this._finish();
       return;
+    }
+
+    // Let's make sure an ongoing animation is paused. Without this there's a
+    // chance that the animation will finish before the next tick and mess up
+    // our logic.
+    if (anim.isAnimating()) {
+      anim._animation.pause();
+      anim._animation.onfinish = null;
     }
 
     // Kick off animation to be started in the next tick.
@@ -5118,8 +5121,8 @@
     var release = item._dragRelease;
 
     // Update internal translate values.
-    item._translateX = this._nextLeft;
-    item._translateY = this._nextTop;
+    item._translateX = item._left + item._containerDiffX;
+    item._translateY = item._top + item._containerDiffY;
 
     // Mark the item as inactive and remove positioning classes.
     if (this._isActive) {
@@ -5150,7 +5153,7 @@
     item._translateX = translate.x;
     item._translateY = translate.y;
 
-    if (grid._itemLayoutNeedsDimensionRefresh) {
+    if (grid._settings._animateOnlyItemsInViewport && grid._itemLayoutNeedsDimensionRefresh) {
       grid._itemLayoutNeedsDimensionRefresh = false;
       grid._updateBoundingRect();
       grid._updateBorders(1, 0, 1, 0);
@@ -5171,8 +5174,8 @@
     var isInstant = this._animOptions.duration <= 0;
 
     // Calculate next translate values.
-    this._nextLeft = item._left + item._containerDiffX;
-    this._nextTop = item._top + item._containerDiffY;
+    var nextLeft = item._left + item._containerDiffX;
+    var nextTop = item._top + item._containerDiffY;
 
     // Check if we can skip the animation and just snap the element to it's place.
     var xDiff = Math.abs(item._left - (item._translateX - item._containerDiffX));
@@ -5180,11 +5183,12 @@
     if (
       isInstant ||
       (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE) ||
-      (!item._isInViewport(item._translateX, item._translateY, VIEWPORT_THRESHOLD) &&
-        !item._isInViewport(this._nextLeft, this._nextTop, VIEWPORT_THRESHOLD))
+      (settings._animateOnlyItemsInViewport &&
+        !item._isInViewport(item._translateX, item._translateY, VIEWPORT_THRESHOLD) &&
+        !item._isInViewport(nextLeft, nextTop, VIEWPORT_THRESHOLD))
     ) {
       if (this._isInterrupted || xDiff || yDiff) {
-        item._setTranslate(this._nextLeft, this._nextTop);
+        item._setTranslate(nextLeft, nextTop);
       }
       this._animation.stop();
       this._finish();
@@ -5198,7 +5202,7 @@
 
     // Get current/next styles for animation.
     this._currentStyles[transformProp] = getTranslateString(item._translateX, item._translateY);
-    this._targetStyles[transformProp] = getTranslateString(this._nextLeft, this._nextTop);
+    this._targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
 
     // Set internal translation values to undefined for the duration of the
     // animation since they will be changing on each animation frame for the
@@ -5753,7 +5757,7 @@
         tX = translate.x;
         tY = translate.y;
 
-        if (grid._itemVisibilityNeedsDimensionRefresh) {
+        if (settings._animateOnlyItemsInViewport && grid._itemVisibilityNeedsDimensionRefresh) {
           grid._itemVisibilityNeedsDimensionRefresh = false;
           grid._updateBoundingRect();
           grid._updateBorders(1, 0, 1, 0);
@@ -5764,7 +5768,7 @@
         if (inst._isDestroyed || (toVisible ? !inst._isShowing : !inst._isHiding)) return;
 
         // If item is not in the viewport let's skip the animation.
-        if (!item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
+        if (settings._animateOnlyItemsInViewport && !item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
           if (
             !item.isActive() ||
             !item._isInViewport(
@@ -7331,6 +7335,7 @@
    * @param {Boolean} [options.layoutOnInit=true]
    * @param {Number} [options.layoutDuration=300]
    * @param {String} [options.layoutEasing="ease"]
+   * @param {Boolean} [options._animateOnlyItemsInViewport=false]
    * @param {?Object} [options.sortData=null]
    * @param {Boolean} [options.dragEnabled=false]
    * @param {?String} [options.dragHandle=null]
@@ -7573,6 +7578,9 @@
     layoutOnInit: true,
     layoutDuration: 300,
     layoutEasing: 'ease',
+
+    // Animation optimization
+    _animateOnlyItemsInViewport: false,
 
     // Sorting
     sortData: null,

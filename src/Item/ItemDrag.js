@@ -559,9 +559,7 @@ ItemDrag.prototype._reset = function () {
   // dragging.
   this._scrollers = [];
 
-  // The current translateX/translateY position.
-  // TODO: Rename as translateX/translateY and also think about getting rid of
-  // this as we do track item._translateX and item._translateY.
+  // The current translateX/translateY.
   this._translateX = 0;
   this._translateY = 0;
 

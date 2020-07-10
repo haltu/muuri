@@ -249,6 +249,7 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
 
   // No target styles? Let's quit early.
   if (!targetStyles) {
+    animation.stop();
     onFinish && onFinish();
     return;
   }
@@ -262,6 +263,14 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
     animation.stop();
     onFinish && onFinish();
     return;
+  }
+
+  // Let's make sure an ongoing animation is paused. Without this there's a
+  // chance that the animation will finish before the next tick and mess up
+  // our logic.
+  if (animation.isAnimating()) {
+    animation._animation.pause();
+    animation._animation.onfinish = null;
   }
 
   // Start the animation in the next tick (to avoid layout thrashing).

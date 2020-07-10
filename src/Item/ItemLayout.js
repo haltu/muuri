@@ -76,7 +76,7 @@ ItemLayout.prototype.start = function (instant, onFinish) {
   var gridSettings = grid._settings;
   var isPositioning = this._isActive;
   var isJustReleased = release.isJustReleased();
-  var anim = this._animation;
+  var animation = this._animation;
   var animDuration = isJustReleased
     ? gridSettings.dragRelease.duration
     : gridSettings.layoutDuration;
@@ -104,7 +104,7 @@ ItemLayout.prototype.start = function (instant, onFinish) {
   // If no animations are needed, easy peasy!
   if (!animEnabled) {
     item._setTranslate(item._left + item._containerDiffX, item._top + item._containerDiffY);
-    anim.stop();
+    animation.stop();
     this._finish();
     return;
   }
@@ -112,9 +112,9 @@ ItemLayout.prototype.start = function (instant, onFinish) {
   // Let's make sure an ongoing animation is paused. Without this there's a
   // chance that the animation will finish before the next tick and mess up
   // our logic.
-  if (anim.isAnimating()) {
-    anim._animation.pause();
-    anim._animation.onfinish = null;
+  if (animation.isAnimating()) {
+    animation._animation.pause();
+    animation._animation.onfinish = null;
   }
 
   // Kick off animation to be started in the next tick.

@@ -278,7 +278,7 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
       tX = translate.x;
       tY = translate.y;
 
-      if (settings._animateOnlyItemsInViewport && grid._itemVisibilityNeedsDimensionRefresh) {
+      if (settings._animationWindowing && grid._itemVisibilityNeedsDimensionRefresh) {
         grid._itemVisibilityNeedsDimensionRefresh = false;
         grid._updateBoundingRect();
         grid._updateBorders(1, 0, 1, 0);
@@ -289,7 +289,7 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
       if (inst._isDestroyed || (toVisible ? !inst._isShowing : !inst._isHiding)) return;
 
       // If item is not in the viewport let's skip the animation.
-      if (settings._animateOnlyItemsInViewport && !item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
+      if (settings._animationWindowing && !item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
         if (
           !item.isActive() ||
           !item._isInViewport(

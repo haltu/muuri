@@ -85,7 +85,6 @@ var layoutId = 0;
  * @param {Boolean} [options.layoutOnInit=true]
  * @param {Number} [options.layoutDuration=300]
  * @param {String} [options.layoutEasing="ease"]
- * @param {Boolean} [options._animateOnlyItemsInViewport=false]
  * @param {?Object} [options.sortData=null]
  * @param {Boolean} [options.dragEnabled=false]
  * @param {?String} [options.dragHandle=null]
@@ -131,6 +130,7 @@ var layoutId = 0;
  * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
  * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
  * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
+ * @param {Boolean} [options._animationWindowing=false]
  */
 function Grid(element, options) {
   // Allow passing element as selector string
@@ -329,9 +329,6 @@ Grid.defaultOptions = {
   layoutDuration: 300,
   layoutEasing: 'ease',
 
-  // Animation optimization
-  _animateOnlyItemsInViewport: false,
-
   // Sorting
   sortData: null,
 
@@ -395,6 +392,10 @@ Grid.defaultOptions = {
   itemDraggingClass: 'muuri-item-dragging',
   itemReleasingClass: 'muuri-item-releasing',
   itemPlaceholderClass: 'muuri-item-placeholder',
+
+  // Experimental animation optimization (animate only items that are in the
+  // viewport).
+  _animationWindowing: false,
 };
 
 /**

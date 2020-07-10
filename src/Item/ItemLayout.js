@@ -240,7 +240,7 @@ ItemLayout.prototype._setupAnimation = function () {
   item._translateX = translate.x;
   item._translateY = translate.y;
 
-  if (grid._settings._animateOnlyItemsInViewport && grid._itemLayoutNeedsDimensionRefresh) {
+  if (grid._settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
     grid._itemLayoutNeedsDimensionRefresh = false;
     grid._updateBoundingRect();
     grid._updateBorders(1, 0, 1, 0);
@@ -270,7 +270,7 @@ ItemLayout.prototype._startAnimation = function () {
   if (
     isInstant ||
     (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE) ||
-    (settings._animateOnlyItemsInViewport &&
+    (settings._animationWindowing &&
       !item._isInViewport(item._translateX, item._translateY, VIEWPORT_THRESHOLD) &&
       !item._isInViewport(nextLeft, nextTop, VIEWPORT_THRESHOLD))
   ) {

@@ -5147,7 +5147,7 @@ ItemLayout.prototype._setupAnimation = function () {
   item._translateX = translate.x;
   item._translateY = translate.y;
 
-  if (grid._settings._animateOnlyItemsInViewport && grid._itemLayoutNeedsDimensionRefresh) {
+  if (grid._settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
     grid._itemLayoutNeedsDimensionRefresh = false;
     grid._updateBoundingRect();
     grid._updateBorders(1, 0, 1, 0);
@@ -5177,7 +5177,7 @@ ItemLayout.prototype._startAnimation = function () {
   if (
     isInstant ||
     (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE) ||
-    (settings._animateOnlyItemsInViewport &&
+    (settings._animationWindowing &&
       !item._isInViewport(item._translateX, item._translateY, VIEWPORT_THRESHOLD) &&
       !item._isInViewport(nextLeft, nextTop, VIEWPORT_THRESHOLD))
   ) {
@@ -5751,7 +5751,7 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
       tX = translate.x;
       tY = translate.y;
 
-      if (settings._animateOnlyItemsInViewport && grid._itemVisibilityNeedsDimensionRefresh) {
+      if (settings._animationWindowing && grid._itemVisibilityNeedsDimensionRefresh) {
         grid._itemVisibilityNeedsDimensionRefresh = false;
         grid._updateBoundingRect();
         grid._updateBorders(1, 0, 1, 0);
@@ -5762,7 +5762,7 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
       if (inst._isDestroyed || (toVisible ? !inst._isShowing : !inst._isHiding)) return;
 
       // If item is not in the viewport let's skip the animation.
-      if (settings._animateOnlyItemsInViewport && !item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
+      if (settings._animationWindowing && !item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
         if (
           !item.isActive() ||
           !item._isInViewport(
@@ -7329,7 +7329,6 @@ var layoutId = 0;
  * @param {Boolean} [options.layoutOnInit=true]
  * @param {Number} [options.layoutDuration=300]
  * @param {String} [options.layoutEasing="ease"]
- * @param {Boolean} [options._animateOnlyItemsInViewport=false]
  * @param {?Object} [options.sortData=null]
  * @param {Boolean} [options.dragEnabled=false]
  * @param {?String} [options.dragHandle=null]
@@ -7375,6 +7374,7 @@ var layoutId = 0;
  * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
  * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
  * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
+ * @param {Boolean} [options._animationWindowing=false]
  */
 function Grid(element, options) {
   // Allow passing element as selector string
@@ -7573,9 +7573,6 @@ Grid.defaultOptions = {
   layoutDuration: 300,
   layoutEasing: 'ease',
 
-  // Animation optimization
-  _animateOnlyItemsInViewport: false,
-
   // Sorting
   sortData: null,
 
@@ -7639,6 +7636,10 @@ Grid.defaultOptions = {
   itemDraggingClass: 'muuri-item-dragging',
   itemReleasingClass: 'muuri-item-releasing',
   itemPlaceholderClass: 'muuri-item-placeholder',
+
+  // Experimental animation optimization (animate only items that are in the
+  // viewport).
+  _animationWindowing: false,
 };
 
 /**

@@ -4467,6 +4467,13 @@ ItemDragPlaceholder.prototype._onLayoutStart = function (items, isInstant) {
     return;
   }
 
+  // Let's make sure an ongoing animation's callback is cancelled before going
+  // further. Without this there's a chance that the animation will finish
+  // before the next tick and mess up our logic.
+  if (this._animation.isAnimating()) {
+    this._animation._animation.onfinish = null;
+  }
+
   // Start the placeholder's layout animation in the next tick. We do this to
   // avoid layout thrashing.
   this._nextTransX = nextX;

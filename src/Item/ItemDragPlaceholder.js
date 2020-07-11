@@ -28,6 +28,9 @@ import setStyles from '../utils/setStyles';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
+var CURRENT_STYLES = {};
+var TARGET_STYLES = {};
+
 /**
  * Drag placeholder.
  *
@@ -183,11 +186,9 @@ ItemDragPlaceholder.prototype._startAnimation = function () {
 
   // Otherwise let's start the animation.
   var settings = this._item.getGrid()._settings;
-  var currentStyles = {};
-  var targetStyles = {};
-  currentStyles[transformProp] = getTranslateString(currentX, currentY);
-  targetStyles[transformProp] = getTranslateString(nextX, nextY);
-  animation.start(currentStyles, targetStyles, {
+  CURRENT_STYLES[transformProp] = getTranslateString(currentX, currentY);
+  TARGET_STYLES[transformProp] = getTranslateString(nextX, nextY);
+  animation.start(CURRENT_STYLES, TARGET_STYLES, {
     duration: settings.layoutDuration,
     easing: settings.layoutEasing,
     onFinish: this._onLayoutEnd,

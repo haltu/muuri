@@ -4361,6 +4361,9 @@
     return translateValue;
   }
 
+  var CURRENT_STYLES = {};
+  var TARGET_STYLES = {};
+
   /**
    * Drag placeholder.
    *
@@ -4516,11 +4519,9 @@
 
     // Otherwise let's start the animation.
     var settings = this._item.getGrid()._settings;
-    var currentStyles = {};
-    var targetStyles = {};
-    currentStyles[transformProp] = getTranslateString(currentX, currentY);
-    targetStyles[transformProp] = getTranslateString(nextX, nextY);
-    animation.start(currentStyles, targetStyles, {
+    CURRENT_STYLES[transformProp] = getTranslateString(currentX, currentY);
+    TARGET_STYLES[transformProp] = getTranslateString(nextX, nextY);
+    animation.start(CURRENT_STYLES, TARGET_STYLES, {
       duration: settings.layoutDuration,
       easing: settings.layoutEasing,
       onFinish: this._onLayoutEnd,
@@ -4931,6 +4932,9 @@
   };
 
   var MIN_ANIMATION_DISTANCE = 2;
+  var CURRENT_STYLES$1 = {};
+  var TARGET_STYLES$1 = {};
+  var ANIM_OPTIONS = {};
 
   /**
    * Layout manager for Item instance, handles the positioning of an item.
@@ -4946,26 +4950,21 @@
     this._isActive = false;
     this._isDestroyed = false;
     this._isInterrupted = false;
-    this._currentStyles = {};
-    this._targetStyles = {};
     this._skipNextAnimation = false;
-    this._animOptions = {
-      onFinish: this._finish.bind(this),
-      duration: 0,
-      easing: 0,
-    };
+    this._easing = '';
+    this._duration = 0;
+    this._animation = new Animator(element);
+    this._queue = 'layout-' + item._id;
+
+    // Bind animation handlers.
+    this._setupAnimation = this._setupAnimation.bind(this);
+    this._startAnimation = this._startAnimation.bind(this);
+    this._finish = this._finish.bind(this);
 
     // Set element's initial position styles.
     elementStyle.left = '0px';
     elementStyle.top = '0px';
     item._setTranslate(0, 0);
-
-    this._animation = new Animator(element);
-    this._queue = 'layout-' + item._id;
-
-    // Bind animation handlers and finish method.
-    this._setupAnimation = this._setupAnimation.bind(this);
-    this._startAnimation = this._startAnimation.bind(this);
   }
 
   /**
@@ -5032,8 +5031,8 @@
     // Kick off animation to be started in the next tick.
     grid._itemLayoutNeedsDimensionRefresh = true;
     this._isActive = true;
-    this._animOptions.easing = animEasing;
-    this._animOptions.duration = animDuration;
+    this._easing = animEasing;
+    this._duration = animDuration;
     this._isInterrupted = isPositioning;
     addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
   };
@@ -5096,9 +5095,6 @@
     elementStyle.top = '';
 
     this._item = null;
-    this._currentStyles = null;
-    this._targetStyles = null;
-    this._animOptions = null;
     this._isDestroyed = true;
   };
 
@@ -5170,7 +5166,7 @@
     var item = this._item;
     var grid = item.getGrid();
     var settings = grid._settings;
-    var isInstant = this._animOptions.duration <= 0;
+    var isInstant = this._duration <= 0;
 
     // Calculate next translate values.
     var nextLeft = item._left + item._containerDiffX;
@@ -5199,9 +5195,12 @@
       addClass(item._element, settings.itemPositioningClass);
     }
 
-    // Get current/next styles for animation.
-    this._currentStyles[transformProp] = getTranslateString(item._translateX, item._translateY);
-    this._targetStyles[transformProp] = getTranslateString(nextLeft, nextTop);
+    // Get current/next styles for animation and provide animation options.
+    CURRENT_STYLES$1[transformProp] = getTranslateString(item._translateX, item._translateY);
+    TARGET_STYLES$1[transformProp] = getTranslateString(nextLeft, nextTop);
+    ANIM_OPTIONS.duration = this._duration;
+    ANIM_OPTIONS.easing = this._easing;
+    ANIM_OPTIONS.onFinish = this._finish;
 
     // Set internal translation values to undefined for the duration of the
     // animation since they will be changing on each animation frame for the
@@ -5216,7 +5215,10 @@
     // indeed positioning towards the same position we should just change the
     // finish callback and that's it. Or, we can stop and restart, but it looks
     // a bit more clunky probably.
-    this._animation.start(this._currentStyles, this._targetStyles, this._animOptions);
+    this._animation.start(CURRENT_STYLES$1, TARGET_STYLES$1, ANIM_OPTIONS);
+
+    // Unreference callback to avoid mem leaks.
+    ANIM_OPTIONS.onFinish = null;
   };
 
   /**

@@ -4,6 +4,11 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
+// TODO: Make this easier on the memory. Create a temporary data object when
+// drag starts that holds all the necessary data for the drag's duration. It's
+// much better that way than reserving a lot of data beforehand for potentially
+// thousands of items.
+
 import {
   ACTION_MOVE,
   ACTION_SWAP,

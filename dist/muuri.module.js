@@ -1362,7 +1362,7 @@ function getContentRect(element, result) {
  * @returns {Object}
  */
 function getItemAutoScrollSettings(item) {
-  return item._drag._getGrid()._settings.dragAutoScroll;
+  return item.getGrid()._settings.dragAutoScroll;
 }
 
 /**
@@ -2617,65 +2617,6 @@ function getOffsetDiff(elemA, elemB, compareContainingBlocks) {
 }
 
 /**
- * Check if overflow style value is scrollable.
- *
- * @param {String} value
- * @returns {Boolean}
- */
-function isScrollableOverflow(value) {
-  return value === 'auto' || value === 'scroll' || value === 'overlay';
-}
-
-/**
- * Check if an element is scrollable.
- *
- * @param {HTMLElement} element
- * @returns {Boolean}
- */
-function isScrollable(element) {
-  return (
-    isScrollableOverflow(getStyle(element, 'overflow')) ||
-    isScrollableOverflow(getStyle(element, 'overflow-x')) ||
-    isScrollableOverflow(getStyle(element, 'overflow-y'))
-  );
-}
-
-/**
- * Collect element's ancestors that are potentially scrollable elements. The
- * provided element is also also included in the check, meaning that if it is
- * scrollable it is added to the result array.
- *
- * @param {HTMLElement} element
- * @param {Array} [result]
- * @returns {Array}
- */
-function getScrollableAncestors(element, result) {
-  result = result || [];
-
-  // Find scroll parents.
-  while (element && element !== document) {
-    // If element is inside ShadowDOM let's get it's host node from the real
-    // DOM and continue looping.
-    if (element.getRootNode && element instanceof DocumentFragment) {
-      element = element.getRootNode().host;
-      continue;
-    }
-
-    // If element is scrollable let's add it to the scrollable list.
-    if (isScrollable(element)) {
-      result.push(element);
-    }
-
-    element = element.parentNode;
-  }
-
-  // Always add window to the results.
-  result.push(window);
-
-  return result;
-}
-
-/**
  * Remove class from an element.
  *
  * @param {HTMLElement} element
@@ -2698,7 +2639,7 @@ function removeClass(element, className) {
 var START_PREDICATE_INACTIVE = 0;
 var START_PREDICATE_PENDING = 1;
 var START_PREDICATE_RESOLVED = 2;
-var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { passive: true } : false;
+var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { capture: true, passive: true } : true;
 
 /**
  * Bind touch interaction to an item.
@@ -2712,9 +2653,9 @@ function ItemDrag(item) {
   var settings = grid._settings;
 
   this._item = item;
-  this._gridId = grid._id;
+  this._rootGridId = grid._id;
   this._isDestroyed = false;
-  this._isMigrating = false;
+  this._isMigrated = false;
 
   // Start predicate data.
   this._startPredicate = isFunction(settings.dragStartPredicate)
@@ -2826,7 +2767,7 @@ ItemDrag.defaultStartPredicate = function (item, event, options) {
   // Setup predicate data from options if not already set.
   var predicate = drag._startPredicateData;
   if (!predicate) {
-    var config = options || drag._getGrid()._settings.dragStartPredicate || {};
+    var config = options || item.getGrid()._settings.dragStartPredicate || {};
     drag._startPredicateData = predicate = {
       distance: Math.max(config.distance, 0) || 0,
       delay: Math.max(config.delay, 0) || 0,
@@ -2872,9 +2813,10 @@ ItemDrag.defaultSortPredicate = (function () {
   var minThreshold = 1;
   var maxThreshold = 100;
 
-  function getTargetGrid(item, rootGrid, threshold) {
+  function getTargetGrid(item, threshold) {
     var target = null;
-    var dragSort = rootGrid._settings.dragSort;
+    var itemGrid = item.getGrid();
+    var dragSort = itemGrid._settings.dragSort;
     var bestScore = -1;
     var gridScore;
     var grids;
@@ -2889,10 +2831,10 @@ ItemDrag.defaultSortPredicate = (function () {
 
     // Get potential target grids.
     if (dragSort === true) {
-      gridsArray[0] = rootGrid;
+      gridsArray[0] = itemGrid;
       grids = gridsArray;
     } else if (isFunction(dragSort)) {
-      grids = dragSort.call(rootGrid, item);
+      grids = dragSort.call(itemGrid, item);
     }
 
     // Return immediately if there are no grids.
@@ -2970,7 +2912,6 @@ ItemDrag.defaultSortPredicate = (function () {
 
   return function (item, options) {
     var drag = item._drag;
-    var rootGrid = drag._getGrid();
 
     // Get drag sort predicate settings.
     var sortThreshold = options && typeof options.threshold === 'number' ? options.threshold : 50;
@@ -2983,22 +2924,20 @@ ItemDrag.defaultSortPredicate = (function () {
     // the threshold just in case.
     sortThreshold = Math.min(Math.max(sortThreshold, minThreshold), maxThreshold);
 
-    // Populate item rect data.
+    // Set up item rect data for comparing against grids.
     itemRect.width = item._width;
     itemRect.height = item._height;
     itemRect.left = drag._clientX;
     itemRect.top = drag._clientY;
 
     // Calculate the target grid.
-    var grid = getTargetGrid(item, rootGrid, sortThreshold);
+    var grid = getTargetGrid(item, sortThreshold);
 
     // Return early if we found no grid container element that overlaps the
     // dragged item enough.
     if (!grid) return null;
 
     var isMigration = item.getGrid() !== grid;
-    var gridOffsetLeft = 0;
-    var gridOffsetTop = 0;
     var matchScore = 0;
     var matchIndex = -1;
     var hasValidTargets = false;
@@ -3006,17 +2945,9 @@ ItemDrag.defaultSortPredicate = (function () {
     var score;
     var i;
 
-    // If item is moved within it's originating grid adjust item's left and
-    // top props. Otherwise if item is moved to/within another grid get the
-    // container element's offset (from the element's content edge).
-    if (grid === rootGrid) {
-      itemRect.left = drag._translateX - drag._containerDiffX + item._marginLeft;
-      itemRect.top = drag._translateY - drag._containerDiffY + item._marginTop;
-    } else {
-      grid._updateBorders(1, 0, 1, 0);
-      gridOffsetLeft = grid._left + grid._borderLeft;
-      gridOffsetTop = grid._top + grid._borderTop;
-    }
+    // Adjust item rect position for comparing against grid items.
+    itemRect.left = drag._translateX - drag._containerDiffX + item._marginLeft;
+    itemRect.top = drag._translateY - drag._containerDiffY + item._marginTop;
 
     // Loop through the target grid items and try to find the best match.
     for (i = 0; i < grid._items.length; i++) {
@@ -3034,8 +2965,8 @@ ItemDrag.defaultSortPredicate = (function () {
       // Calculate the target's overlap score with the dragged item.
       targetRect.width = target._width;
       targetRect.height = target._height;
-      targetRect.left = target._left + target._marginLeft + gridOffsetLeft;
-      targetRect.top = target._top + target._marginTop + gridOffsetTop;
+      targetRect.left = target._left + target._marginLeft;
+      targetRect.top = target._top + target._marginTop;
       score = getIntersectionScore(itemRect, targetRect);
 
       // Update best match index and score if the target's overlap score with
@@ -3078,6 +3009,16 @@ ItemDrag.defaultSortPredicate = (function () {
  */
 
 /**
+ * Get Grid instance.
+ *
+ * @public
+ * @returns {?Grid}
+ */
+ItemDrag.prototype.getRootGrid = function () {
+  return GRID_INSTANCES[this._rootGridId] || null;
+};
+
+/**
  * Abort dragging and reset drag data.
  *
  * @public
@@ -3085,9 +3026,10 @@ ItemDrag.defaultSortPredicate = (function () {
 ItemDrag.prototype.stop = function () {
   if (!this._isActive) return;
 
-  // If the item is being dropped into another grid, finish it up and return
-  // immediately.
-  if (this._isMigrating) {
+  // If the item has been dropped into another grid, finish up the process and
+  // and don't go any further here. The _finishMigration() method will destroy
+  // this instance which in turn will
+  if (this._isMigrated) {
     this._finishMigration();
     return;
   }
@@ -3102,23 +3044,24 @@ ItemDrag.prototype.stop = function () {
   this._cancelSort();
 
   if (this._isStarted) {
-    // Remove scroll listeners.
-    this._unbindScrollListeners();
-
-    var element = item._element;
-    var grid = this._getGrid();
+    var itemElement = item._element;
+    var grid = item.getGrid();
     var draggingClass = grid._settings.itemDraggingClass;
 
-    // Append item element to the container if it's not it's child. Also make
-    // sure the translate values are adjusted to account for the DOM shift.
-    if (element.parentNode !== grid._element) {
-      grid._element.appendChild(element);
+    // Remove scroll listeners.
+    this._unbindScrollHandler();
+
+    // Append item element to it's current grid's container element if it's not
+    // there already. Also make sure the translate values are adjusted to
+    // account for the DOM shift.
+    if (itemElement.parentNode !== grid._element) {
+      grid._element.appendChild(itemElement);
       item._setTranslate(
         this._translateX - this._containerDiffX,
         this._translateY - this._containerDiffY
       );
-      item._containerDiffX = 0;
-      item._containerDiffY = 0;
+      item._containerDiffX = this._containerDiffX = 0;
+      item._containerDiffY = this._containerDiffY = 0;
 
       // We need to do forced reflow to make sure the dragging class is removed
       // gracefully.
@@ -3160,6 +3103,10 @@ ItemDrag.prototype.sort = function (force) {
  */
 ItemDrag.prototype.destroy = function () {
   if (this._isDestroyed) return;
+  // It's important to always do the destroying as if migration did not happen
+  // because otherwise the item's drag handler might be recreated when there's
+  // no need.
+  this._isMigrated = false;
   this.stop();
   this._dragger.destroy();
   ItemDrag.autoScroller.removeItem(this._item);
@@ -3172,16 +3119,6 @@ ItemDrag.prototype.destroy = function () {
  */
 
 /**
- * Get Grid instance.
- *
- * @private
- * @returns {?Grid}
- */
-ItemDrag.prototype._getGrid = function () {
-  return GRID_INSTANCES[this._gridId] || null;
-};
-
-/**
  * Setup/reset drag data.
  *
  * @private
@@ -3190,10 +3127,8 @@ ItemDrag.prototype._reset = function () {
   this._isActive = false;
   this._isStarted = false;
 
-  // The dragged item's container element.
+  // The dragged item's container element and containing block.
   this._container = null;
-
-  // The dragged item's containing block.
   this._containingBlock = null;
 
   // Drag/scroll event data.
@@ -3201,10 +3136,6 @@ ItemDrag.prototype._reset = function () {
   this._dragMoveEvent = null;
   this._dragPrevMoveEvent = null;
   this._scrollEvent = null;
-
-  // All the elements which need to be listened for scroll events during
-  // dragging.
-  this._scrollers = [];
 
   // The current translateX/translateY.
   this._translateX = 0;
@@ -3229,56 +3160,21 @@ ItemDrag.prototype._reset = function () {
 };
 
 /**
- * Bind drag scroll handlers to all scrollable ancestor elements of the
- * dragged element and the drag container element.
+ * Bind drag scroll handlers.
  *
  * @private
  */
-ItemDrag.prototype._bindScrollListeners = function () {
-  var gridContainer = this._getGrid()._element;
-  var dragContainer = this._container;
-  var scrollers = this._scrollers;
-  var gridScrollers;
-  var i;
-
-  // Get dragged element's scrolling parents.
-  scrollers.length = 0;
-  getScrollableAncestors(this._item._element.parentNode, scrollers);
-
-  // If drag container is defined and it's not the same element as grid
-  // container then we need to add the grid container and it's scroll parents
-  // to the elements which are going to be listener for scroll events.
-  if (dragContainer !== gridContainer) {
-    gridScrollers = [];
-    getScrollableAncestors(gridContainer, gridScrollers);
-    for (i = 0; i < gridScrollers.length; i++) {
-      if (scrollers.indexOf(gridScrollers[i]) < 0) {
-        scrollers.push(gridScrollers[i]);
-      }
-    }
-  }
-
-  // Bind scroll listeners.
-  for (i = 0; i < scrollers.length; i++) {
-    scrollers[i].addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
-  }
+ItemDrag.prototype._bindScrollHandler = function () {
+  window.addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
 };
 
 /**
- * Unbind currently bound drag scroll handlers from all scrollable ancestor
- * elements of the dragged element and the drag container element.
+ * Unbind currently bound drag scroll handlers.
  *
  * @private
  */
-ItemDrag.prototype._unbindScrollListeners = function () {
-  var scrollers = this._scrollers;
-  var i;
-
-  for (i = 0; i < scrollers.length; i++) {
-    scrollers[i].removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
-  }
-
-  scrollers.length = 0;
+ItemDrag.prototype._unbindScrollHandler = function () {
+  window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
 };
 
 /**
@@ -3352,7 +3248,7 @@ ItemDrag.prototype._resetHeuristics = function (x, y) {
  * @returns {Boolean}
  */
 ItemDrag.prototype._checkHeuristics = function (x, y) {
-  var settings = this._getGrid()._settings.dragSortHeuristics;
+  var settings = this._item.getGrid()._settings.dragSortHeuristics;
   var minDist = settings.minDragDistance;
 
   // Skip heuristics if not needed.
@@ -3417,14 +3313,15 @@ ItemDrag.prototype._resetStartPredicate = function () {
  * @private
  */
 ItemDrag.prototype._handleSort = function () {
-  var settings = this._getGrid()._settings;
+  var item = this._item;
+  var settings = item.getGrid()._settings;
 
   // No sorting when drag sort is disabled. Also, account for the scenario where
   // dragSort is temporarily disabled during drag procedure so we need to reset
   // sort timer heuristics state too.
   if (
     !settings.dragSort ||
-    (!settings.dragAutoScroll.sortDuringScroll && ItemDrag.autoScroller.isItemScrolling(this._item))
+    (!settings.dragAutoScroll.sortDuringScroll && ItemDrag.autoScroller.isItemScrolling(item))
   ) {
     this._sortX1 = this._sortX2 = this._translateX - this._containerDiffX;
     this._sortY1 = this._sortY2 = this._translateY - this._containerDiffY;
@@ -3491,7 +3388,7 @@ ItemDrag.prototype._cancelSort = function () {
  * @private
  */
 ItemDrag.prototype._finishSort = function () {
-  var isSortEnabled = this._getGrid()._settings.dragSort;
+  var isSortEnabled = this._item.getGrid()._settings.dragSort;
   var needsFinalCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
   this._cancelSort();
   if (needsFinalCheck) this._checkOverlap();
@@ -3507,14 +3404,18 @@ ItemDrag.prototype._checkOverlap = function () {
   if (!this._isActive) return;
 
   var item = this._item;
-  var settings = this._getGrid()._settings;
+  var element = item.element;
+  var settings = item.getGrid()._settings;
   var result;
   var currentGrid;
   var currentIndex;
   var targetGrid;
   var targetIndex;
   var targetItem;
+  var targetSettings;
   var sortAction;
+  var dragContainer;
+  var offsetDiff;
   var isMigration;
 
   // Get overlap check result.
@@ -3577,6 +3478,7 @@ ItemDrag.prototype._checkOverlap = function () {
 
     // Let's fetch the target item when it's still in it's original index.
     targetItem = targetGrid._items[targetIndex];
+    targetSettings = targetGrid._settings;
 
     // Emit beforeSend event.
     if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {
@@ -3603,8 +3505,8 @@ ItemDrag.prototype._checkOverlap = function () {
     // Update item's grid id reference.
     item._gridId = targetGrid._id;
 
-    // Update drag instance's migrating indicator.
-    this._isMigrating = item._gridId !== this._gridId;
+    // Update migrating indicator.
+    this._isMigrated = item._gridId !== this._rootGridId;
 
     // Move item instance from current grid to target grid.
     currentGrid._items.splice(currentIndex, 1);
@@ -3612,6 +3514,63 @@ ItemDrag.prototype._checkOverlap = function () {
 
     // Reset sort data.
     item._sortData = null;
+
+    // Get the next drag container.
+    dragContainer = targetSettings.dragContainer || targetGrid._element;
+
+    // Update item's container offset so we can keep computing the item's
+    // current translate position relative to it's current grid element. It's
+    // important to keep this synced so that we can feed correct data to the
+    // drag sort heuristics and easily compute the item's position within it's
+    // current grid element.
+    offsetDiff = getOffsetDiff(dragContainer, targetGrid._element, true);
+    item._containerDiffX = this._containerDiffX = offsetDiff.left;
+    item._containerDiffY = this._containerDiffY = offsetDiff.top;
+
+    // If drag container changed let's update containing block and move the
+    // element to it's new container.
+    if (dragContainer !== this._container) {
+      offsetDiff = getOffsetDiff(this._container, dragContainer, true);
+      this._containingBlock = getContainingBlock(dragContainer);
+      this._container = dragContainer;
+      this._translateX -= offsetDiff.left;
+      this._translateY -= offsetDiff.top;
+
+      dragContainer.appendChild(element);
+      item._setTranslate(this._translateX, this._translateY);
+    }
+
+    // Update item class.
+    if (settings.itemClass !== targetSettings.itemClass) {
+      removeClass(element, settings.itemClass);
+      addClass(element, targetSettings.itemClass);
+    }
+
+    // Update dragging class.
+    if (settings.itemDraggingClass !== targetSettings.itemDraggingClass) {
+      removeClass(element, settings.itemDraggingClass);
+      addClass(element, targetSettings.itemDraggingClass);
+    }
+
+    // Update visibility styles/class.
+    if (item._isActive) {
+      if (settings.itemVisibleClass !== targetSettings.itemVisibleClass) {
+        removeClass(element, settings.itemVisibleClass);
+        addClass(element, targetSettings.itemVisibleClass);
+      }
+      item._visibility.setStyles(targetSettings.visibleStyles);
+    } else {
+      if (settings.itemHiddenClass !== targetSettings.itemHiddenClass) {
+        removeClass(element, settings.itemHiddenClass);
+        addClass(element, targetSettings.itemHiddenClass);
+      }
+      item._visibility.setStyles(targetSettings.hiddenStyles);
+    }
+
+    // Update item's cached dimensions.
+    // TODO: This should be only done if there's a chance that the DOM writes
+    // have cause this to change. Maybe this is not needed?
+    item._refreshDimensions();
 
     // Emit send event.
     if (currentGrid._hasListeners(EVENT_SEND)) {
@@ -3643,6 +3602,7 @@ ItemDrag.prototype._checkOverlap = function () {
     if (sortAction === ACTION_SWAP && targetItem && targetItem.isActive()) {
       // Sanity check to make sure that the target item is still part of the
       // target grid. It could have been manipulated in the event handlers.
+      // TODO: this._container points to wrong element here as it's updated.
       if (targetGrid._items.indexOf(targetItem) > -1) {
         targetGrid.send(targetItem, currentGrid, currentIndex, {
           appendTo: this._container || document.body,
@@ -3659,83 +3619,19 @@ ItemDrag.prototype._checkOverlap = function () {
 };
 
 /**
- * If item is dragged into another grid, finish the migration process
- * gracefully.
+ * If item is dragged into another grid, finish the migration process.
  *
  * @private
  */
 ItemDrag.prototype._finishMigration = function () {
   var item = this._item;
-  var release = item._dragRelease;
-  var element = item._element;
-  var isActive = item._isActive;
-  var targetGrid = item.getGrid();
-  var targetGridElement = targetGrid._element;
-  var targetSettings = targetGrid._settings;
-  var targetContainer = targetSettings.dragContainer || targetGridElement;
-  var currentSettings = this._getGrid()._settings;
-  var currentContainer = element.parentNode;
-  var currentVisClass = isActive
-    ? currentSettings.itemVisibleClass
-    : currentSettings.itemHiddenClass;
-  var nextVisClass = isActive ? targetSettings.itemVisibleClass : targetSettings.itemHiddenClass;
-  var offsetDiff;
-  var translate;
-  var tX;
-  var tY;
 
-  // Destroy current drag. Note that we need to set the migrating flag to
-  // false first, because otherwise we create an infinite loop between this
-  // and the drag.stop() method.
-  this._isMigrating = false;
   this.destroy();
 
-  // Update item class.
-  if (currentSettings.itemClass !== targetSettings.itemClass) {
-    removeClass(element, currentSettings.itemClass);
-    addClass(element, targetSettings.itemClass);
-  }
-
-  // Update visibility class.
-  if (currentVisClass !== nextVisClass) {
-    removeClass(element, currentVisClass);
-    addClass(element, nextVisClass);
-  }
-
-  // Move the item inside the target container if it's different than the
-  // current container.
-  if (targetContainer !== currentContainer) {
-    targetContainer.appendChild(element);
-    offsetDiff = getOffsetDiff(currentContainer, targetContainer, true);
-    translate = item._getTranslate();
-    tX = translate.x - offsetDiff.left;
-    tY = translate.y - offsetDiff.top;
-  }
-
-  // Update item's cached dimensions.
-  item._refreshDimensions();
-
-  // Calculate the offset difference between target's drag container (if any)
-  // and actual grid container element. We save it later for the release
-  // process.
-  offsetDiff = getOffsetDiff(targetContainer, targetGridElement, true);
-  item._containerDiffX = offsetDiff.left;
-  item._containerDiffY = offsetDiff.top;
-
-  // Recreate item's drag handler.
-  item._drag = targetSettings.dragEnabled ? new ItemDrag(item) : null;
-
-  // Adjust the position of the item element if it was moved from a container
-  // to another.
-  if (targetContainer !== currentContainer) {
-    item._setTranslate(tX, tY);
-  }
-
-  // Update child element's styles to reflect the current visibility state.
-  item._visibility.setStyles(isActive ? targetSettings.visibleStyles : targetSettings.hiddenStyles);
-
-  // Start the release.
-  release.start();
+  // TODO: This causes a potential memory leak in the event where you destroy
+  // item while drag is ongoing.
+  item._drag = item.getGrid()._settings.dragEnabled ? new ItemDrag(item) : null;
+  item._dragRelease.start();
 };
 
 /**
@@ -3819,7 +3715,7 @@ ItemDrag.prototype._prepareStart = function () {
   if (!item._isActive) return;
 
   var element = item._element;
-  var grid = this._getGrid();
+  var grid = item.getGrid();
   var settings = grid._settings;
   var dragContainer = settings.dragContainer || grid._element;
   var containingBlock = getContainingBlock(dragContainer);
@@ -3855,7 +3751,7 @@ ItemDrag.prototype._applyStart = function () {
   var item = this._item;
   if (!item._isActive) return;
 
-  var grid = this._getGrid();
+  var grid = item.getGrid();
   var element = item._element;
   var release = item._dragRelease;
   var migrate = item._migrate;
@@ -3898,7 +3794,7 @@ ItemDrag.prototype._applyStart = function () {
   item._containerDiffY = this._containerDiffY;
 
   addClass(element, grid._settings.itemDraggingClass);
-  this._bindScrollListeners();
+  this._bindScrollHandler();
   grid._emit(EVENT_DRAG_START, item, this._dragStartEvent);
 };
 
@@ -3931,8 +3827,7 @@ ItemDrag.prototype._prepareMove = function () {
 
   if (!item._isActive) return;
 
-  var settings = this._getGrid()._settings;
-  var axis = settings.dragAxis;
+  var axis = item.getGrid()._settings.dragAxis;
   var nextEvent = this._dragMoveEvent;
   var prevEvent = this._dragPrevMoveEvent || this._dragStartEvent || nextEvent;
 
@@ -3966,7 +3861,7 @@ ItemDrag.prototype._applyMove = function () {
 
   this._moveDiffX = this._moveDiffY = 0;
   item._setTranslate(this._translateX, this._translateY);
-  this._getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
+  this.getRootGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
   ItemDrag.autoScroller.updateItem(item);
 };
 
@@ -4001,29 +3896,26 @@ ItemDrag.prototype._prepareScroll = function () {
   if (!item._isActive) return;
 
   var element = item._element;
-  var grid = this._getGrid();
-  var gridContainer = grid._element;
+  var grid = item.getGrid();
   var axis = grid._settings.dragAxis;
-  var moveX = axis !== 'y';
-  var moveY = axis !== 'x';
   var rect = element.getBoundingClientRect();
 
   // Update container diff.
-  if (this._container !== gridContainer) {
-    var offsetDiff = getOffsetDiff(this._containingBlock, gridContainer);
+  if (this._container !== grid._element) {
+    var offsetDiff = getOffsetDiff(this._containingBlock, grid._element);
     item._containerDiffX = this._containerDiffX = offsetDiff.left;
     item._containerDiffY = this._containerDiffY = offsetDiff.top;
   }
 
   // Update horizontal position data.
-  if (moveX) {
+  if (axis !== 'y') {
     var scrollDiffX = this._clientX - this._moveDiffX - this._scrollDiffX - rect.left;
     this._translateX = this._translateX - this._scrollDiffX + scrollDiffX;
     this._scrollDiffX = scrollDiffX;
   }
 
   // Update vertical position data.
-  if (moveY) {
+  if (axis !== 'x') {
     var scrollDiffY = this._clientY - this._moveDiffY - this._scrollDiffY - rect.top;
     this._translateY = this._translateY - this._scrollDiffY + scrollDiffY;
     this._scrollDiffY = scrollDiffY;
@@ -4041,7 +3933,7 @@ ItemDrag.prototype._applyScroll = function () {
 
   this._scrollDiffX = this._scrollDiffY = 0;
   item._setTranslate(this._translateX, this._translateY);
-  this._getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
+  this.getRootGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
 };
 
 /**
@@ -4052,10 +3944,6 @@ ItemDrag.prototype._applyScroll = function () {
  */
 ItemDrag.prototype._onEnd = function (event) {
   var item = this._item;
-  var element = item._element;
-  var grid = this._getGrid();
-  var settings = grid._settings;
-  var release = item._dragRelease;
 
   // If item is not active, reset drag.
   if (!item._isActive) {
@@ -4072,22 +3960,22 @@ ItemDrag.prototype._onEnd = function (event) {
   this._finishSort();
 
   // Remove scroll listeners.
-  this._unbindScrollListeners();
+  this._unbindScrollHandler();
 
   // Reset drag data.
   this._reset();
 
-  // Remove drag class name from element.
-  removeClass(element, settings.itemDraggingClass);
+  // Remove dragging class from element.
+  removeClass(item._element, item.getGrid()._settings.itemDraggingClass);
 
   // Stop auto-scroll.
   ItemDrag.autoScroller.removeItem(item);
 
   // Emit dragEnd event.
-  grid._emit(EVENT_DRAG_END, item, event);
+  this.getRootGrid()._emit(EVENT_DRAG_END, item, event);
 
   // Finish up the migration process or start the release process.
-  this._isMigrating ? this._finishMigration() : release.start();
+  this._isMigrated ? this._finishMigration() : item._dragRelease.start();
 };
 
 /**
@@ -4774,6 +4662,8 @@ ItemDragPlaceholder.prototype.destroy = function () {
   this._item = this._animation = null;
 };
 
+var SCROLL_LISTENER_OPTIONS$1 = hasPassiveEvents() ? { capture: true, passive: true } : true;
+
 /**
  * The release process handler constructor. Although this might seem as proper
  * fit for the drag process this needs to be separated into it's own logic
@@ -4788,6 +4678,7 @@ function ItemDragRelease(item) {
   this._isActive = false;
   this._isDestroyed = false;
   this._isPositioningStarted = false;
+  this._onScroll = this._onScroll.bind(this);
 }
 
 /**
@@ -4811,6 +4702,8 @@ ItemDragRelease.prototype.start = function () {
   addClass(item._element, settings.itemReleasingClass);
   if (!settings.dragRelease.useDragContainer) {
     this._placeToGrid();
+  } else if (item._element.parentNode !== grid._element) {
+    window.addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS$1);
   }
   grid._emit(EVENT_DRAG_RELEASE_START, item);
 
@@ -4923,6 +4816,8 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
   this._isActive = false;
   this._isPositioningStarted = false;
 
+  window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS$1);
+
   // If the element was just reparented we need to do a forced reflow to remove
   // the class gracefully.
   if (releasingClass) {
@@ -4930,6 +4825,20 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
     if (needsReflow) item._element.clientWidth;
     removeClass(item._element, releasingClass);
   }
+};
+
+/**
+ * @private
+ * @todo let's first check if containerDiffX/Y has changed before snapping the item to it's place.
+ * @todo atm item is always snapped when released during autoscroll because of this!
+ * @todo the snappin looks really fucking bad, try to work around it by adjusting parent offset or something. e.g. wrap the item element into a special "release container" which's translate values are updated to keep the item in correct path during scrolling.
+ */
+ItemDragRelease.prototype._onScroll = function () {
+  if (this._isDestroyed || !this._isActive) return;
+  var item = this._item;
+  if (item._dragPlaceholder) item._dragPlaceholder.reset();
+  item._layout.stop(true, item._left, item._top);
+  this.stop(false, item._left, item._top);
 };
 
 var MIN_ANIMATION_DISTANCE = 2;

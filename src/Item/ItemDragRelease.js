@@ -7,7 +7,10 @@
 import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END } from '../constants';
 
 import addClass from '../utils/addClass';
+import hasPassiveEvents from '../utils/hasPassiveEvents';
 import removeClass from '../utils/removeClass';
+
+var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { capture: true, passive: true } : true;
 
 /**
  * The release process handler constructor. Although this might seem as proper
@@ -23,6 +26,7 @@ function ItemDragRelease(item) {
   this._isActive = false;
   this._isDestroyed = false;
   this._isPositioningStarted = false;
+  this._onScroll = this._onScroll.bind(this);
 }
 
 /**
@@ -46,6 +50,8 @@ ItemDragRelease.prototype.start = function () {
   addClass(item._element, settings.itemReleasingClass);
   if (!settings.dragRelease.useDragContainer) {
     this._placeToGrid();
+  } else if (item._element.parentNode !== grid._element) {
+    window.addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
   }
   grid._emit(EVENT_DRAG_RELEASE_START, item);
 
@@ -158,6 +164,8 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
   this._isActive = false;
   this._isPositioningStarted = false;
 
+  window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
+
   // If the element was just reparented we need to do a forced reflow to remove
   // the class gracefully.
   if (releasingClass) {
@@ -165,6 +173,20 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
     if (needsReflow) item._element.clientWidth;
     removeClass(item._element, releasingClass);
   }
+};
+
+/**
+ * @private
+ * @todo let's first check if containerDiffX/Y has changed before snapping the item to it's place.
+ * @todo atm item is always snapped when released during autoscroll because of this!
+ * @todo the snappin looks really fucking bad, try to work around it by adjusting parent offset or something. e.g. wrap the item element into a special "release container" which's translate values are updated to keep the item in correct path during scrolling.
+ */
+ItemDragRelease.prototype._onScroll = function () {
+  if (this._isDestroyed || !this._isActive) return;
+  var item = this._item;
+  if (item._dragPlaceholder) item._dragPlaceholder.reset();
+  item._layout.stop(true, item._left, item._top);
+  this.stop(false, item._left, item._top);
 };
 
 export default ItemDragRelease;

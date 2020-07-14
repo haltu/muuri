@@ -101,7 +101,7 @@ export function getContentRect(element, result) {
  * @returns {Object}
  */
 export function getItemAutoScrollSettings(item) {
-  return item._drag._getGrid()._settings.dragAutoScroll;
+  return item.getGrid()._settings.dragAutoScroll;
 }
 
 /**

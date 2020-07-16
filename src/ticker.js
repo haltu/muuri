@@ -17,6 +17,8 @@ var DRAG_MOVE_WRITE = 'dragMoveWrite';
 var DRAG_SCROLL_READ = 'dragScrollRead';
 var DRAG_SCROLL_WRITE = 'dragScrollWrite';
 var DRAG_SORT_READ = 'dragSortRead';
+var RELEASE_SCROLL_READ = 'releaseScrollRead';
+var RELEASE_SCROLL_WRITE = 'releaseScrollWrite';
 var PLACEHOLDER_LAYOUT_READ = 'placeholderLayoutRead';
 var PLACEHOLDER_LAYOUT_WRITE = 'placeholderLayoutWrite';
 var PLACEHOLDER_RESIZE_WRITE = 'placeholderResizeWrite';
@@ -87,6 +89,16 @@ export function addDragSortTick(itemId, read) {
 
 export function cancelDragSortTick(itemId) {
   ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
+}
+
+export function addReleaseScrollTick(itemId, read, write) {
+  ticker.add(LANE_READ, RELEASE_SCROLL_READ + itemId, read);
+  ticker.add(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId, write);
+}
+
+export function cancelReleaseScrollTick(itemId) {
+  ticker.remove(LANE_READ, RELEASE_SCROLL_READ + itemId);
+  ticker.remove(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId);
 }
 
 export function addPlaceholderLayoutTick(itemId, read, write) {

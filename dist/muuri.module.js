@@ -1088,6 +1088,8 @@ var DRAG_MOVE_WRITE = 'dragMoveWrite';
 var DRAG_SCROLL_READ = 'dragScrollRead';
 var DRAG_SCROLL_WRITE = 'dragScrollWrite';
 var DRAG_SORT_READ = 'dragSortRead';
+var RELEASE_SCROLL_READ = 'releaseScrollRead';
+var RELEASE_SCROLL_WRITE = 'releaseScrollWrite';
 var PLACEHOLDER_LAYOUT_READ = 'placeholderLayoutRead';
 var PLACEHOLDER_LAYOUT_WRITE = 'placeholderLayoutWrite';
 var PLACEHOLDER_RESIZE_WRITE = 'placeholderResizeWrite';
@@ -1157,6 +1159,16 @@ function addDragSortTick(itemId, read) {
 
 function cancelDragSortTick(itemId) {
   ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
+}
+
+function addReleaseScrollTick(itemId, read, write) {
+  ticker.add(LANE_READ, RELEASE_SCROLL_READ + itemId, read);
+  ticker.add(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId, write);
+}
+
+function cancelReleaseScrollTick(itemId) {
+  ticker.remove(LANE_READ, RELEASE_SCROLL_READ + itemId);
+  ticker.remove(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId);
 }
 
 function addPlaceholderLayoutTick(itemId, read, write) {
@@ -2264,6 +2276,10 @@ AutoScroller.prototype.addItem = function (item) {
 
 AutoScroller.prototype.updateItem = function (item) {
   if (this._isDestroyed) return;
+
+  // Make sure the item still exists in the auto-scroller.
+  if (!this._dragDirections[item._id]) return;
+
   this._updateDragDirection(item);
   if (!this._requestOverlapCheck[item._id]) {
     this._requestOverlapCheck[item._id] = this._tickTime;
@@ -3034,6 +3050,9 @@ ItemDrag.prototype.stop = function () {
     return;
   }
 
+  // Stop auto-scroll.
+  ItemDrag.autoScroller.removeItem(this._item);
+
   // Cancel queued ticks.
   var itemId = this._item._id;
   cancelDragStartTick(itemId);
@@ -3087,7 +3106,7 @@ ItemDrag.prototype.stop = function () {
  */
 ItemDrag.prototype.sort = function (force) {
   var item = this._item;
-  if (item._isActive && this._dragMoveEvent) {
+  if (this._isActive && item._isActive && this._dragMoveEvent) {
     if (force === true) {
       this._handleSort();
     } else {
@@ -3109,7 +3128,6 @@ ItemDrag.prototype.destroy = function () {
   this._isMigrated = false;
   this.stop();
   this._dragger.destroy();
-  ItemDrag.autoScroller.removeItem(this._item);
   this._isDestroyed = true;
 };
 
@@ -3313,6 +3331,8 @@ ItemDrag.prototype._resetStartPredicate = function () {
  * @private
  */
 ItemDrag.prototype._handleSort = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   var settings = item.getGrid()._settings;
 
@@ -3711,6 +3731,8 @@ ItemDrag.prototype._onStart = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareStart = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -3748,6 +3770,8 @@ ItemDrag.prototype._prepareStart = function () {
  * @private
  */
 ItemDrag.prototype._applyStart = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -3823,8 +3847,9 @@ ItemDrag.prototype._onMove = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareMove = function () {
-  var item = this._item;
+  if (!this._isActive) return;
 
+  var item = this._item;
   if (!item._isActive) return;
 
   var axis = item.getGrid()._settings.dragAxis;
@@ -3856,6 +3881,8 @@ ItemDrag.prototype._prepareMove = function () {
  * @private
  */
 ItemDrag.prototype._applyMove = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -3890,9 +3917,10 @@ ItemDrag.prototype._onScroll = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareScroll = function () {
-  var item = this._item;
+  if (!this._isActive) return;
 
   // If item is not active do nothing.
+  var item = this._item;
   if (!item._isActive) return;
 
   var element = item._element;
@@ -3928,6 +3956,8 @@ ItemDrag.prototype._prepareScroll = function () {
  * @private
  */
 ItemDrag.prototype._applyScroll = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -4816,6 +4846,7 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
   this._isActive = false;
   this._isPositioningStarted = false;
 
+  cancelReleaseScrollTick(item._id);
   window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS$1);
 
   // If the element was just reparented we need to do a forced reflow to remove
@@ -4829,16 +4860,35 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
 
 /**
  * @private
- * @todo let's first check if containerDiffX/Y has changed before snapping the item to it's place.
- * @todo atm item is always snapped when released during autoscroll because of this!
- * @todo the snappin looks really fucking bad, try to work around it by adjusting parent offset or something. e.g. wrap the item element into a special "release container" which's translate values are updated to keep the item in correct path during scrolling.
+ * @todo Should we allow _a bit_ (e.g. 1px) leeway when checking if diff has changed?
  */
 ItemDragRelease.prototype._onScroll = function () {
   if (this._isDestroyed || !this._isActive) return;
+
+  var inst = this;
   var item = this._item;
-  if (item._dragPlaceholder) item._dragPlaceholder.reset();
-  item._layout.stop(true, item._left, item._top);
-  this.stop(false, item._left, item._top);
+  var diffX = 0;
+  var diffY = 0;
+
+  addReleaseScrollTick(
+    item._id,
+    function () {
+      if (!inst._isActive) return;
+      var offsetDiff = getOffsetDiff(item._element.parentNode, item.getGrid()._element, true);
+      diffX = offsetDiff.left;
+      diffY = offsetDiff.top;
+    },
+    function () {
+      if (!inst._isActive) return;
+      if (diffX !== item._containerDiffX || diffY !== item._containerDiffY) {
+        item._containerDiffX = diffX;
+        item._containerDiffY = diffY;
+        if (item._dragPlaceholder) item._dragPlaceholder.reset();
+        item._layout.stop(true, item._left, item._top);
+        inst.stop(false, item._left, item._top);
+      }
+    }
+  );
 };
 
 var MIN_ANIMATION_DISTANCE = 2;

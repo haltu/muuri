@@ -6,7 +6,10 @@
 
 import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END } from '../constants';
 
+import { addReleaseScrollTick, cancelReleaseScrollTick } from '../ticker';
+
 import addClass from '../utils/addClass';
+import getOffsetDiff from '../utils/getOffsetDiff';
 import hasPassiveEvents from '../utils/hasPassiveEvents';
 import removeClass from '../utils/removeClass';
 
@@ -164,6 +167,7 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
   this._isActive = false;
   this._isPositioningStarted = false;
 
+  cancelReleaseScrollTick(item._id);
   window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
 
   // If the element was just reparented we need to do a forced reflow to remove
@@ -177,16 +181,35 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
 
 /**
  * @private
- * @todo let's first check if containerDiffX/Y has changed before snapping the item to it's place.
- * @todo atm item is always snapped when released during autoscroll because of this!
- * @todo the snappin looks really fucking bad, try to work around it by adjusting parent offset or something. e.g. wrap the item element into a special "release container" which's translate values are updated to keep the item in correct path during scrolling.
+ * @todo Should we allow _a bit_ (e.g. 1px) leeway when checking if diff has changed?
  */
 ItemDragRelease.prototype._onScroll = function () {
   if (this._isDestroyed || !this._isActive) return;
+
+  var inst = this;
   var item = this._item;
-  if (item._dragPlaceholder) item._dragPlaceholder.reset();
-  item._layout.stop(true, item._left, item._top);
-  this.stop(false, item._left, item._top);
+  var diffX = 0;
+  var diffY = 0;
+
+  addReleaseScrollTick(
+    item._id,
+    function () {
+      if (!inst._isActive) return;
+      var offsetDiff = getOffsetDiff(item._element.parentNode, item.getGrid()._element, true);
+      diffX = offsetDiff.left;
+      diffY = offsetDiff.top;
+    },
+    function () {
+      if (!inst._isActive) return;
+      if (diffX !== item._containerDiffX || diffY !== item._containerDiffY) {
+        item._containerDiffX = diffX;
+        item._containerDiffY = diffY;
+        if (item._dragPlaceholder) item._dragPlaceholder.reset();
+        item._layout.stop(true, item._left, item._top);
+        inst.stop(false, item._left, item._top);
+      }
+    }
+  );
 };
 
 export default ItemDragRelease;

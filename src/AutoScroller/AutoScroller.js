@@ -670,6 +670,10 @@ AutoScroller.prototype.addItem = function (item) {
 
 AutoScroller.prototype.updateItem = function (item) {
   if (this._isDestroyed) return;
+
+  // Make sure the item still exists in the auto-scroller.
+  if (!this._dragDirections[item._id]) return;
+
   this._updateDragDirection(item);
   if (!this._requestOverlapCheck[item._id]) {
     this._requestOverlapCheck[item._id] = this._tickTime;

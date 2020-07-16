@@ -450,6 +450,9 @@ ItemDrag.prototype.stop = function () {
     return;
   }
 
+  // Stop auto-scroll.
+  ItemDrag.autoScroller.removeItem(this._item);
+
   // Cancel queued ticks.
   var itemId = this._item._id;
   cancelDragStartTick(itemId);
@@ -503,7 +506,7 @@ ItemDrag.prototype.stop = function () {
  */
 ItemDrag.prototype.sort = function (force) {
   var item = this._item;
-  if (item._isActive && this._dragMoveEvent) {
+  if (this._isActive && item._isActive && this._dragMoveEvent) {
     if (force === true) {
       this._handleSort();
     } else {
@@ -525,7 +528,6 @@ ItemDrag.prototype.destroy = function () {
   this._isMigrated = false;
   this.stop();
   this._dragger.destroy();
-  ItemDrag.autoScroller.removeItem(this._item);
   this._isDestroyed = true;
 };
 
@@ -729,6 +731,8 @@ ItemDrag.prototype._resetStartPredicate = function () {
  * @private
  */
 ItemDrag.prototype._handleSort = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   var settings = item.getGrid()._settings;
 
@@ -1127,6 +1131,8 @@ ItemDrag.prototype._onStart = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareStart = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1164,6 +1170,8 @@ ItemDrag.prototype._prepareStart = function () {
  * @private
  */
 ItemDrag.prototype._applyStart = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1239,8 +1247,9 @@ ItemDrag.prototype._onMove = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareMove = function () {
-  var item = this._item;
+  if (!this._isActive) return;
 
+  var item = this._item;
   if (!item._isActive) return;
 
   var axis = item.getGrid()._settings.dragAxis;
@@ -1272,6 +1281,8 @@ ItemDrag.prototype._prepareMove = function () {
  * @private
  */
 ItemDrag.prototype._applyMove = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1306,9 +1317,10 @@ ItemDrag.prototype._onScroll = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareScroll = function () {
-  var item = this._item;
+  if (!this._isActive) return;
 
   // If item is not active do nothing.
+  var item = this._item;
   if (!item._isActive) return;
 
   var element = item._element;
@@ -1344,6 +1356,8 @@ ItemDrag.prototype._prepareScroll = function () {
  * @private
  */
 ItemDrag.prototype._applyScroll = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 

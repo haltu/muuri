@@ -361,6 +361,7 @@ export class ItemDrag {
     item: Item,
     options?: DragSortPredicateOptions
   ): DragSortPredicateResult;
+  getRootGrid(): Grid | null;
   stop(): void;
   sort(force?: boolean): void;
   destroy(): void;

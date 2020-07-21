@@ -123,21 +123,11 @@
         dragSort: function () {
           return grids;
         },
-        dragSortInterval: 100,
-        dragSortPredicate: {
-          threshold: 50,
-          action: 'move',
-        },
       });
       var gridB = new Muuri(containerB, {
         dragEnabled: true,
         dragSort: function () {
           return grids;
-        },
-        dragSortInterval: 100,
-        dragSortPredicate: {
-          threshold: 50,
-          action: 'move',
         },
       });
       var item = gridA.getItems()[0];

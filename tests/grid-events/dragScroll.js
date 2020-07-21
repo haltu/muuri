@@ -14,11 +14,6 @@
     var container = utils.createGridElements();
     var grid = new Muuri(container, {
       dragEnabled: true,
-      dragSortInterval: 100,
-      dragSortPredicate: {
-        threshold: 50,
-        action: 'move',
-      },
     });
     var item = grid.getItems()[0];
     var calls = 0;

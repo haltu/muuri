@@ -362,8 +362,14 @@ ItemDrag.defaultSortPredicate = (function () {
     var i;
 
     // Adjust item rect position for comparing against grid items.
-    itemRect.left = drag._translateX - drag._containerDiffX + item._marginLeft;
-    itemRect.top = drag._translateY - drag._containerDiffY + item._marginTop;
+    if (isMigration) {
+      grid._updateBorders(1, 0, 1, 0);
+      itemRect.left = drag._clientX - (grid._left + grid._borderLeft);
+      itemRect.top = drag._clientY - (grid._top + grid._borderTop);
+    } else {
+      itemRect.left = drag._translateX - drag._containerDiffX + item._marginLeft;
+      itemRect.top = drag._translateY - drag._containerDiffY + item._marginTop;
+    }
 
     // Loop through the target grid items and try to find the best match.
     for (i = 0; i < grid._items.length; i++) {
@@ -379,6 +385,8 @@ ItemDrag.defaultSortPredicate = (function () {
       hasValidTargets = true;
 
       // Calculate the target's overlap score with the dragged item.
+      // TODO: Account for the scroll value when draggin an item between grids!
+      // This is a
       targetRect.width = target._width;
       targetRect.height = target._height;
       targetRect.left = target._left + target._marginLeft;
@@ -824,7 +832,7 @@ ItemDrag.prototype._checkOverlap = function () {
   if (!this._isActive) return;
 
   var item = this._item;
-  var element = item.element;
+  var element = item._element;
   var settings = item.getGrid()._settings;
   var result;
   var currentGrid;
@@ -899,6 +907,9 @@ ItemDrag.prototype._checkOverlap = function () {
     // Let's fetch the target item when it's still in it's original index.
     targetItem = targetGrid._items[targetIndex];
     targetSettings = targetGrid._settings;
+
+    // TODO: Handle the edge case scenario where item/grid gets destroyed
+    // in send/receive event.
 
     // Emit beforeSend event.
     if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {

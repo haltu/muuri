@@ -104,19 +104,9 @@
     });
     var gridA = new Muuri(containerA, {
       dragEnabled: true,
-      dragSortInterval: 100,
-      dragSortPredicate: {
-        threshold: 50,
-        action: 'move',
-      },
     });
     var gridB = new Muuri(containerB, {
       dragEnabled: true,
-      dragSortInterval: 100,
-      dragSortPredicate: {
-        threshold: 50,
-        action: 'move',
-      },
     });
     var item = gridA.getItems()[0];
     var teardown = function () {
@@ -181,21 +171,11 @@
         dragSort: function () {
           return grids;
         },
-        dragSortInterval: 100,
-        dragSortPredicate: {
-          threshold: 50,
-          action: 'move',
-        },
       });
       var gridB = new Muuri(containerB, {
         dragEnabled: true,
         dragSort: function () {
           return grids;
-        },
-        dragSortInterval: 100,
-        dragSortPredicate: {
-          threshold: 50,
-          action: 'move',
         },
       });
       var item = gridA.getItems()[0];

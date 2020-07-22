@@ -5,7 +5,15 @@
  * https://github.com/haltu/muuri/blob/master/src/Dragger/LICENSE.md
  */
 
-import { HAS_TOUCH_EVENTS, HAS_POINTER_EVENTS, HAS_MS_POINTER_EVENTS } from '../constants';
+import {
+  HAS_TOUCH_EVENTS,
+  HAS_POINTER_EVENTS,
+  HAS_MS_POINTER_EVENTS,
+  IS_EDGE,
+  IS_IE,
+  IS_FIREFOX,
+  IS_ANDROID,
+} from '../constants';
 
 import Emitter from '../Emitter/Emitter';
 import EdgeHack from './EdgeHack';
@@ -13,14 +21,7 @@ import EdgeHack from './EdgeHack';
 import getPrefixedPropName from '../utils/getPrefixedPropName';
 import hasPassiveEvents from '../utils/hasPassiveEvents';
 
-var ua = window.navigator.userAgent.toLowerCase();
-var isEdge = ua.indexOf('edge') > -1;
-var isIE = ua.indexOf('trident') > -1;
-var isFirefox = ua.indexOf('firefox') > -1;
-var isAndroid = ua.indexOf('android') > -1;
-
 var listenerOptions = hasPassiveEvents() ? { passive: true } : false;
-
 var taProp = 'touchAction';
 var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
 var taDefaultValue = 'auto';
@@ -55,7 +56,7 @@ function Dragger(element, cssProps) {
 
   // Can't believe had to build a freaking class for a hack!
   this._edgeHack = null;
-  if ((isEdge || isIE) && (HAS_POINTER_EVENTS || HAS_MS_POINTER_EVENTS)) {
+  if ((IS_EDGE || IS_IE) && (HAS_POINTER_EVENTS || HAS_MS_POINTER_EVENTS)) {
     this._edgeHack = new EdgeHack(this);
   }
 
@@ -420,7 +421,7 @@ Dragger.prototype.setTouchAction = function (value) {
   // the DOM tree on touchstart.
   if (HAS_TOUCH_EVENTS) {
     this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
-    if (this._element.style[taPropPrefixed] !== value || (isFirefox && isAndroid)) {
+    if (this._element.style[taPropPrefixed] !== value || (IS_FIREFOX && IS_ANDROID)) {
       this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
     }
   }

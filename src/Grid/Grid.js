@@ -1248,15 +1248,16 @@ Grid.prototype.destroy = function (removeElements) {
   removeClass(container, this._settings.containerClass);
   for (prop in layoutStyles) container.style[prop] = '';
 
-  // Emit destroy event and unbind all events.
-  this._emit(EVENT_DESTROY);
-  this._emitter.destroy();
-
   // Remove reference from the grid instances collection.
   delete GRID_INSTANCES[this._id];
 
-  // Flag instance as destroyed.
+  // Flag instance as destroyed. It's important to set this to `true` before
+  // emitting the destroy event to avoid potential infinite loop.
   this._isDestroyed = true;
+
+  // Emit destroy event and unbind all events.
+  this._emit(EVENT_DESTROY);
+  this._emitter.destroy();
 
   return this;
 };

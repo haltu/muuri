@@ -443,7 +443,7 @@ ItemDragPlaceholder.prototype.updateDimensions = function () {
  */
 ItemDragPlaceholder.prototype.destroy = function () {
   this.reset();
-  this._animation.destroy();
+  this._animation && this._animation.destroy();
   this._item = this._animation = null;
 };
 

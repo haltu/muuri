@@ -23,6 +23,7 @@ import {
   EVENT_DRAG_SCROLL,
   EVENT_DRAG_END,
   GRID_INSTANCES,
+  IS_IOS,
 } from '../constants';
 
 import Dragger from '../Dragger/Dragger';
@@ -163,6 +164,7 @@ ItemDrag.defaultStartPredicate = function (item, event, options) {
   // cancelled anyways right after it has started (e.g. starting drag while
   // the page is scrolling).
   if (
+    !IS_IOS &&
     event.isFirst &&
     event.srcEvent.isTrusted === true &&
     event.srcEvent.defaultPrevented === false &&
@@ -385,8 +387,6 @@ ItemDrag.defaultSortPredicate = (function () {
       hasValidTargets = true;
 
       // Calculate the target's overlap score with the dragged item.
-      // TODO: Account for the scroll value when draggin an item between grids!
-      // This is a
       targetRect.width = target._width;
       targetRect.height = target._height;
       targetRect.left = target._left + target._marginLeft;
@@ -825,6 +825,7 @@ ItemDrag.prototype._finishSort = function () {
 /**
  * Check (during drag) if an item is overlapping other items and based on
  * the configuration layout the items.
+ * @todo Handle the potential cases where item/grid is destroyed within the emitted events.
  *
  * @private
  */
@@ -842,7 +843,8 @@ ItemDrag.prototype._checkOverlap = function () {
   var targetItem;
   var targetSettings;
   var sortAction;
-  var dragContainer;
+  var currentDragContainer;
+  var targetDragContainer;
   var offsetDiff;
   var isMigration;
 
@@ -908,9 +910,6 @@ ItemDrag.prototype._checkOverlap = function () {
     targetItem = targetGrid._items[targetIndex];
     targetSettings = targetGrid._settings;
 
-    // TODO: Handle the edge case scenario where item/grid gets destroyed
-    // in send/receive event.
-
     // Emit beforeSend event.
     if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {
       currentGrid._emit(EVENT_BEFORE_SEND, {
@@ -947,27 +946,28 @@ ItemDrag.prototype._checkOverlap = function () {
     item._sortData = null;
 
     // Get the next drag container.
-    dragContainer = targetSettings.dragContainer || targetGrid._element;
+    currentDragContainer = this._container;
+    targetDragContainer = targetSettings.dragContainer || targetGrid._element;
 
     // Update item's container offset so we can keep computing the item's
     // current translate position relative to it's current grid element. It's
     // important to keep this synced so that we can feed correct data to the
     // drag sort heuristics and easily compute the item's position within it's
     // current grid element.
-    offsetDiff = getOffsetDiff(dragContainer, targetGrid._element, true);
+    offsetDiff = getOffsetDiff(targetDragContainer, targetGrid._element, true);
     item._containerDiffX = this._containerDiffX = offsetDiff.left;
     item._containerDiffY = this._containerDiffY = offsetDiff.top;
 
     // If drag container changed let's update containing block and move the
     // element to it's new container.
-    if (dragContainer !== this._container) {
-      offsetDiff = getOffsetDiff(this._container, dragContainer, true);
-      this._containingBlock = getContainingBlock(dragContainer);
-      this._container = dragContainer;
+    if (targetDragContainer !== currentDragContainer) {
+      offsetDiff = getOffsetDiff(currentDragContainer, targetDragContainer, true);
+      this._containingBlock = getContainingBlock(targetDragContainer);
+      this._container = targetDragContainer;
       this._translateX -= offsetDiff.left;
       this._translateY -= offsetDiff.top;
 
-      dragContainer.appendChild(element);
+      targetDragContainer.appendChild(element);
       item._setTranslate(this._translateX, this._translateY);
     }
 
@@ -1033,10 +1033,9 @@ ItemDrag.prototype._checkOverlap = function () {
     if (sortAction === ACTION_SWAP && targetItem && targetItem.isActive()) {
       // Sanity check to make sure that the target item is still part of the
       // target grid. It could have been manipulated in the event handlers.
-      // TODO: this._container points to wrong element here as it's updated.
       if (targetGrid._items.indexOf(targetItem) > -1) {
         targetGrid.send(targetItem, currentGrid, currentIndex, {
-          appendTo: this._container || document.body,
+          appendTo: currentDragContainer || document.body,
           layoutSender: false,
           layoutReceiver: false,
         });

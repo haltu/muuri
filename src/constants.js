@@ -40,6 +40,13 @@ export var HAS_TOUCH_EVENTS = 'ontouchstart' in window;
 export var HAS_POINTER_EVENTS = !!window.PointerEvent;
 export var HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
 
+export var UA = window.navigator.userAgent.toLowerCase();
+export var IS_EDGE = UA.indexOf('edge') > -1;
+export var IS_IE = UA.indexOf('trident') > -1;
+export var IS_FIREFOX = UA.indexOf('firefox') > -1;
+export var IS_ANDROID = UA.indexOf('android') > -1;
+export var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
+
 export var MAX_SAFE_FLOAT32_INTEGER = 16777216;
 
 export var VIEWPORT_THRESHOLD = 100;

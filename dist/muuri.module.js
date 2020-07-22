@@ -55,6 +55,13 @@ var HAS_TOUCH_EVENTS = 'ontouchstart' in window;
 var HAS_POINTER_EVENTS = !!window.PointerEvent;
 var HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
 
+var UA = window.navigator.userAgent.toLowerCase();
+var IS_EDGE = UA.indexOf('edge') > -1;
+var IS_IE = UA.indexOf('trident') > -1;
+var IS_FIREFOX = UA.indexOf('firefox') > -1;
+var IS_ANDROID = UA.indexOf('android') > -1;
+var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
+
 var MAX_SAFE_FLOAT32_INTEGER = 16777216;
 
 var VIEWPORT_THRESHOLD = 100;
@@ -420,14 +427,7 @@ function hasPassiveEvents() {
   return isPassiveEventsSupported;
 }
 
-var ua = window.navigator.userAgent.toLowerCase();
-var isEdge = ua.indexOf('edge') > -1;
-var isIE = ua.indexOf('trident') > -1;
-var isFirefox = ua.indexOf('firefox') > -1;
-var isAndroid = ua.indexOf('android') > -1;
-
 var listenerOptions = hasPassiveEvents() ? { passive: true } : false;
-
 var taProp = 'touchAction';
 var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
 var taDefaultValue = 'auto';
@@ -462,7 +462,7 @@ function Dragger(element, cssProps) {
 
   // Can't believe had to build a freaking class for a hack!
   this._edgeHack = null;
-  if ((isEdge || isIE) && (HAS_POINTER_EVENTS || HAS_MS_POINTER_EVENTS)) {
+  if ((IS_EDGE || IS_IE) && (HAS_POINTER_EVENTS || HAS_MS_POINTER_EVENTS)) {
     this._edgeHack = new EdgeHack(this);
   }
 
@@ -827,7 +827,7 @@ Dragger.prototype.setTouchAction = function (value) {
   // the DOM tree on touchstart.
   if (HAS_TOUCH_EVENTS) {
     this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
-    if (this._element.style[taPropPrefixed] !== value || (isFirefox && isAndroid)) {
+    if (this._element.style[taPropPrefixed] !== value || (IS_FIREFOX && IS_ANDROID)) {
       this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
     }
   }
@@ -2763,6 +2763,7 @@ ItemDrag.defaultStartPredicate = function (item, event, options) {
   // cancelled anyways right after it has started (e.g. starting drag while
   // the page is scrolling).
   if (
+    !IS_IOS &&
     event.isFirst &&
     event.srcEvent.isTrusted === true &&
     event.srcEvent.defaultPrevented === false &&
@@ -2985,8 +2986,6 @@ ItemDrag.defaultSortPredicate = (function () {
       hasValidTargets = true;
 
       // Calculate the target's overlap score with the dragged item.
-      // TODO: Account for the scroll value when draggin an item between grids!
-      // This is a
       targetRect.width = target._width;
       targetRect.height = target._height;
       targetRect.left = target._left + target._marginLeft;
@@ -3425,6 +3424,7 @@ ItemDrag.prototype._finishSort = function () {
 /**
  * Check (during drag) if an item is overlapping other items and based on
  * the configuration layout the items.
+ * @todo Handle the potential cases where item/grid is destroyed within the emitted events.
  *
  * @private
  */
@@ -3442,7 +3442,8 @@ ItemDrag.prototype._checkOverlap = function () {
   var targetItem;
   var targetSettings;
   var sortAction;
-  var dragContainer;
+  var currentDragContainer;
+  var targetDragContainer;
   var offsetDiff;
   var isMigration;
 
@@ -3508,9 +3509,6 @@ ItemDrag.prototype._checkOverlap = function () {
     targetItem = targetGrid._items[targetIndex];
     targetSettings = targetGrid._settings;
 
-    // TODO: Handle the edge case scenario where item/grid gets destroyed
-    // in send/receive event.
-
     // Emit beforeSend event.
     if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {
       currentGrid._emit(EVENT_BEFORE_SEND, {
@@ -3547,27 +3545,28 @@ ItemDrag.prototype._checkOverlap = function () {
     item._sortData = null;
 
     // Get the next drag container.
-    dragContainer = targetSettings.dragContainer || targetGrid._element;
+    currentDragContainer = this._container;
+    targetDragContainer = targetSettings.dragContainer || targetGrid._element;
 
     // Update item's container offset so we can keep computing the item's
     // current translate position relative to it's current grid element. It's
     // important to keep this synced so that we can feed correct data to the
     // drag sort heuristics and easily compute the item's position within it's
     // current grid element.
-    offsetDiff = getOffsetDiff(dragContainer, targetGrid._element, true);
+    offsetDiff = getOffsetDiff(targetDragContainer, targetGrid._element, true);
     item._containerDiffX = this._containerDiffX = offsetDiff.left;
     item._containerDiffY = this._containerDiffY = offsetDiff.top;
 
     // If drag container changed let's update containing block and move the
     // element to it's new container.
-    if (dragContainer !== this._container) {
-      offsetDiff = getOffsetDiff(this._container, dragContainer, true);
-      this._containingBlock = getContainingBlock(dragContainer);
-      this._container = dragContainer;
+    if (targetDragContainer !== currentDragContainer) {
+      offsetDiff = getOffsetDiff(currentDragContainer, targetDragContainer, true);
+      this._containingBlock = getContainingBlock(targetDragContainer);
+      this._container = targetDragContainer;
       this._translateX -= offsetDiff.left;
       this._translateY -= offsetDiff.top;
 
-      dragContainer.appendChild(element);
+      targetDragContainer.appendChild(element);
       item._setTranslate(this._translateX, this._translateY);
     }
 
@@ -3633,10 +3632,9 @@ ItemDrag.prototype._checkOverlap = function () {
     if (sortAction === ACTION_SWAP && targetItem && targetItem.isActive()) {
       // Sanity check to make sure that the target item is still part of the
       // target grid. It could have been manipulated in the event handlers.
-      // TODO: this._container points to wrong element here as it's updated.
       if (targetGrid._items.indexOf(targetItem) > -1) {
         targetGrid.send(targetItem, currentGrid, currentIndex, {
-          appendTo: this._container || document.body,
+          appendTo: currentDragContainer || document.body,
           layoutSender: false,
           layoutReceiver: false,
         });
@@ -4699,7 +4697,7 @@ ItemDragPlaceholder.prototype.updateDimensions = function () {
  */
 ItemDragPlaceholder.prototype.destroy = function () {
   this.reset();
-  this._animation.destroy();
+  this._animation && this._animation.destroy();
   this._item = this._animation = null;
 };
 
@@ -5213,6 +5211,7 @@ function ItemMigrate(item) {
 
 /**
  * Start the migrate process of an item.
+ * @todo Handle the potential cases where item/grid is destroyed within the emitted events.
  *
  * @public
  * @param {Grid} targetGrid
@@ -8478,15 +8477,16 @@ Grid.prototype.destroy = function (removeElements) {
   removeClass(container, this._settings.containerClass);
   for (prop in layoutStyles) container.style[prop] = '';
 
-  // Emit destroy event and unbind all events.
-  this._emit(EVENT_DESTROY);
-  this._emitter.destroy();
-
   // Remove reference from the grid instances collection.
   delete GRID_INSTANCES[this._id];
 
-  // Flag instance as destroyed.
+  // Flag instance as destroyed. It's important to set this to `true` before
+  // emitting the destroy event to avoid potential infinite loop.
   this._isDestroyed = true;
+
+  // Emit destroy event and unbind all events.
+  this._emit(EVENT_DESTROY);
+  this._emitter.destroy();
 
   return this;
 };

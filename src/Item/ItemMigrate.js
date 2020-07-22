@@ -35,6 +35,7 @@ function ItemMigrate(item) {
 
 /**
  * Start the migrate process of an item.
+ * @todo Handle the potential cases where item/grid is destroyed within the emitted events.
  *
  * @public
  * @param {Grid} targetGrid

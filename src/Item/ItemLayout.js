@@ -39,6 +39,8 @@ function ItemLayout(item) {
   this._skipNextAnimation = false;
   this._easing = '';
   this._duration = 0;
+  this._tX = 0;
+  this._tY = 0;
   this._animation = new Animator(element);
   this._queue = 'layout-' + item._id;
 
@@ -231,8 +233,8 @@ ItemLayout.prototype._setupAnimation = function () {
   var grid = item.getGrid();
   var translate = item._getTranslate();
 
-  item._translateX = translate.x;
-  item._translateY = translate.y;
+  this._tX = translate.x;
+  this._tY = translate.y;
 
   if (grid._settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
     grid._itemLayoutNeedsDimensionRefresh = false;
@@ -259,16 +261,16 @@ ItemLayout.prototype._startAnimation = function () {
   var nextTop = item._top + item._containerDiffY;
 
   // Check if we can skip the animation and just snap the element to it's place.
-  var xDiff = Math.abs(item._left - (item._translateX - item._containerDiffX));
-  var yDiff = Math.abs(item._top - (item._translateY - item._containerDiffY));
+  var xDiff = Math.abs(item._left - (this._tX - item._containerDiffX));
+  var yDiff = Math.abs(item._top - (this._tY - item._containerDiffY));
   if (
     isInstant ||
     (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE) ||
     (settings._animationWindowing &&
-      !item._isInViewport(item._translateX, item._translateY, VIEWPORT_THRESHOLD) &&
+      !item._isInViewport(this._tX, this._tY, VIEWPORT_THRESHOLD) &&
       !item._isInViewport(nextLeft, nextTop, VIEWPORT_THRESHOLD))
   ) {
-    if (this._isInterrupted || xDiff || yDiff) {
+    if (this._isInterrupted || xDiff > 0.1 || yDiff > 0.1) {
       item._setTranslate(nextLeft, nextTop);
     }
     this._animation.stop();
@@ -282,7 +284,7 @@ ItemLayout.prototype._startAnimation = function () {
   }
 
   // Get current/next styles for animation and provide animation options.
-  CURRENT_STYLES[transformProp] = getTranslateString(item._translateX, item._translateY);
+  CURRENT_STYLES[transformProp] = getTranslateString(this._tX, this._tY);
   TARGET_STYLES[transformProp] = getTranslateString(nextLeft, nextTop);
   ANIM_OPTIONS.duration = this._duration;
   ANIM_OPTIONS.easing = this._easing;

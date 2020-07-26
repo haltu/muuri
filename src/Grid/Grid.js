@@ -1255,8 +1255,10 @@ Grid.prototype.destroy = function (removeElements) {
   // emitting the destroy event to avoid potential infinite loop.
   this._isDestroyed = true;
 
-  // Emit destroy event and unbind all events.
-  this._emit(EVENT_DESTROY);
+  // Emit destroy event and unbind all events. Note that we can't use the
+  // grid's _emit method for emitting this event because it shortcircuits if
+  // _isDestroyed flag is true.
+  this._emitter.emit(EVENT_DESTROY);
   this._emitter.destroy();
 
   return this;

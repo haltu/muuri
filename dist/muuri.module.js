@@ -3424,7 +3424,6 @@ ItemDrag.prototype._finishSort = function () {
 /**
  * Check (during drag) if an item is overlapping other items and based on
  * the configuration layout the items.
- * @todo Handle the potential cases where item/grid is destroyed within the emitted events.
  *
  * @private
  */
@@ -3531,6 +3530,12 @@ ItemDrag.prototype._checkOverlap = function () {
       });
     }
 
+    // If the drag is not active anymore after the events or either of the
+    // grids got destroyed during the emitted events, let's abort the process.
+    if (!this._isActive || currentGrid._isDestroyed || targetGrid._isDestroyed) {
+      return;
+    }
+
     // Update item's grid id reference.
     item._gridId = targetGrid._id;
 
@@ -3599,7 +3604,7 @@ ItemDrag.prototype._checkOverlap = function () {
 
     // Update item's cached dimensions.
     // TODO: This should be only done if there's a chance that the DOM writes
-    // have cause this to change. Maybe this is not needed?
+    // have cause this to change. Maybe this is not needed always?
     item._refreshDimensions();
 
     // Emit send event.
@@ -3657,8 +3662,6 @@ ItemDrag.prototype._finishMigration = function () {
 
   this.destroy();
 
-  // TODO: This causes a potential memory leak in the event where you destroy
-  // item while drag is ongoing.
   item._drag = item.getGrid()._settings.dragEnabled ? new ItemDrag(item) : null;
   item._dragRelease.start();
 };
@@ -4869,7 +4872,6 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
 
 /**
  * @private
- * @todo Should we allow _a bit_ (e.g. 1px) leeway when checking if diff has changed?
  */
 ItemDragRelease.prototype._onScroll = function () {
   if (this._isDestroyed || !this._isActive) return;
@@ -4889,7 +4891,11 @@ ItemDragRelease.prototype._onScroll = function () {
     },
     function () {
       if (!inst._isActive) return;
-      if (diffX !== item._containerDiffX || diffY !== item._containerDiffY) {
+
+      if (
+        Math.abs(diffX - item._containerDiffX) > 0.1 ||
+        Math.abs(diffY - item._containerDiffY) > 0.1
+      ) {
         item._containerDiffX = diffX;
         item._containerDiffY = diffY;
         if (item._dragPlaceholder) item._dragPlaceholder.reset();

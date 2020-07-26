@@ -181,7 +181,6 @@ ItemDragRelease.prototype._reset = function (needsReflow) {
 
 /**
  * @private
- * @todo Should we allow _a bit_ (e.g. 1px) leeway when checking if diff has changed?
  */
 ItemDragRelease.prototype._onScroll = function () {
   if (this._isDestroyed || !this._isActive) return;
@@ -201,7 +200,11 @@ ItemDragRelease.prototype._onScroll = function () {
     },
     function () {
       if (!inst._isActive) return;
-      if (diffX !== item._containerDiffX || diffY !== item._containerDiffY) {
+
+      if (
+        Math.abs(diffX - item._containerDiffX) > 0.1 ||
+        Math.abs(diffY - item._containerDiffY) > 0.1
+      ) {
         item._containerDiffX = diffX;
         item._containerDiffY = diffY;
         if (item._dragPlaceholder) item._dragPlaceholder.reset();

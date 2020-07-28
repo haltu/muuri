@@ -5229,7 +5229,6 @@
 
   /**
    * Start the migrate process of an item.
-   * @todo Handle the potential cases where item/grid is destroyed within the emitted events.
    *
    * @public
    * @param {Grid} targetGrid
@@ -5255,9 +5254,11 @@
     var currentContainer;
     var offsetDiff;
     var containerDiff;
-    var translate;
     var currentVisClass;
     var nextVisClass;
+    var translate;
+    var tX;
+    var tY;
 
     // Get target index.
     if (typeof position === 'number') {
@@ -5268,11 +5269,14 @@
       targetIndex = targetItems.indexOf(targetItem);
     }
 
+    // If item is being dragged, stop it.
+    if (item._drag) item._drag.stop();
+
     // Abort current positioning/migration/releasing.
     if (this._isActive || item.isPositioning() || item.isReleasing()) {
       translate = item._getTranslate();
-      var tX = translate.x;
-      var tY = translate.y;
+      tX = translate.x;
+      tY = translate.y;
 
       if (item.isPositioning()) {
         item._layout.stop(true, tX, tY);
@@ -5290,9 +5294,6 @@
 
     // Stop current visibility animation.
     item._visibility.stop(true);
-
-    // Destroy current drag.
-    if (item._drag) item._drag.destroy();
 
     // Emit beforeSend event.
     if (grid._hasListeners(EVENT_BEFORE_SEND)) {
@@ -5314,6 +5315,18 @@
         toGrid: targetGrid,
         toIndex: targetIndex,
       });
+    }
+
+    // Let's make sure that the item and both grids are not destroyed after
+    // we have emitted the events.
+    if (item._isDestroyed || grid._isDestroyed || targetGrid._isDestroyed) {
+      return;
+    }
+
+    // Destroy current drag.
+    if (item._drag) {
+      item._drag.destroy();
+      item._drag = null;
     }
 
     // Update item class.
@@ -5373,7 +5386,9 @@
     item._sortData = null;
 
     // Create new drag handler.
-    item._drag = targetSettings.dragEnabled ? new ItemDrag(item) : null;
+    if (targetSettings.dragEnabled) {
+      item._drag = new ItemDrag(item);
+    }
 
     // Setup migration data.
     if (isActive) {

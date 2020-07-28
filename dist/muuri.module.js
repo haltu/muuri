@@ -2968,8 +2968,8 @@ ItemDrag.defaultSortPredicate = (function () {
       itemRect.left = drag._clientX - (grid._left + grid._borderLeft);
       itemRect.top = drag._clientY - (grid._top + grid._borderTop);
     } else {
-      itemRect.left = drag._translateX - drag._containerDiffX + item._marginLeft;
-      itemRect.top = drag._translateY - drag._containerDiffY + item._marginTop;
+      itemRect.left = drag._translateX - item._containerDiffX + item._marginLeft;
+      itemRect.top = drag._translateY - item._containerDiffY + item._marginTop;
     }
 
     // Loop through the target grid items and try to find the best match.
@@ -3083,8 +3083,8 @@ ItemDrag.prototype.stop = function () {
     if (itemElement.parentNode !== grid._element) {
       grid._element.appendChild(itemElement);
       item._setTranslate(
-        this._translateX - this._containerDiffX,
-        this._translateY - this._containerDiffY
+        this._translateX - item._containerDiffX,
+        this._translateY - item._containerDiffY
       );
       item._containerDiffX = this._containerDiffX = 0;
       item._containerDiffY = this._containerDiffY = 0;
@@ -3180,6 +3180,10 @@ ItemDrag.prototype._reset = function () {
   this._moveDiffY = 0;
 
   // Keep track of the container diff between grid element and drag container.
+  // Note that these are only used for the start phase to store the initial
+  // container diff between the item's grid element and drag container element.
+  // To get always get the latest applied container diff you should read it
+  // from item._containerDiffX/Y.
   this._containerDiffX = 0;
   this._containerDiffY = 0;
 };
@@ -3350,8 +3354,8 @@ ItemDrag.prototype._handleSort = function () {
     !settings.dragSort ||
     (!settings.dragAutoScroll.sortDuringScroll && ItemDrag.autoScroller.isItemScrolling(item))
   ) {
-    this._sortX1 = this._sortX2 = this._translateX - this._containerDiffX;
-    this._sortY1 = this._sortY2 = this._translateY - this._containerDiffY;
+    this._sortX1 = this._sortX2 = this._translateX - item._containerDiffX;
+    this._sortY1 = this._sortY2 = this._translateY - item._containerDiffY;
     // We set this to true intentionally so that overlap check would be
     // triggered as soon as possible after sort becomes enabled again.
     this._isSortNeeded = true;
@@ -3368,8 +3372,8 @@ ItemDrag.prototype._handleSort = function () {
   // overlap check is valid if it comes through, because it was valid when it
   // was invoked.
   var shouldSort = this._checkHeuristics(
-    this._translateX - this._containerDiffX,
-    this._translateY - this._containerDiffY
+    this._translateX - item._containerDiffX,
+    this._translateY - item._containerDiffY
   );
   if (!this._isSortNeeded && !shouldSort) return;
 

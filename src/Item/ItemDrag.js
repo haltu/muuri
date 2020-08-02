@@ -49,6 +49,7 @@ import isFunction from '../utils/isFunction';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 
+var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
 var START_PREDICATE_INACTIVE = 0;
 var START_PREDICATE_PENDING = 1;
 var START_PREDICATE_RESOLVED = 2;
@@ -160,6 +161,7 @@ ItemDrag.defaultStartPredicate = function (item, event, options) {
   // cancelled anyways right after it has started (e.g. starting drag while
   // the page is scrolling).
   if (
+    !IS_IOS &&
     event.isFirst &&
     event.srcEvent.isTrusted === true &&
     event.srcEvent.defaultPrevented === false &&
@@ -446,6 +448,9 @@ ItemDrag.prototype.stop = function () {
     return;
   }
 
+  // Stop auto-scroll.
+  ItemDrag.autoScroller.removeItem(this._item);
+
   // Cancel queued ticks.
   var itemId = this._item._id;
   cancelDragStartTick(itemId);
@@ -493,7 +498,7 @@ ItemDrag.prototype.stop = function () {
  */
 ItemDrag.prototype.sort = function (force) {
   var item = this._item;
-  if (item._isActive && this._dragMoveEvent) {
+  if (this._isActive && item._isActive && this._dragMoveEvent) {
     if (force === true) {
       this._handleSort();
     } else {
@@ -771,6 +776,8 @@ ItemDrag.prototype._resetStartPredicate = function () {
  * @private
  */
 ItemDrag.prototype._handleSort = function () {
+  if (!this._isActive) return;
+
   var settings = this._getGrid()._settings;
 
   // No sorting when drag sort is disabled. Also, account for the scenario where
@@ -1167,6 +1174,8 @@ ItemDrag.prototype._onStart = function (event) {
  *  ItemDrag.prototype
  */
 ItemDrag.prototype._prepareStart = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1206,6 +1215,8 @@ ItemDrag.prototype._prepareStart = function () {
  * @private
  */
 ItemDrag.prototype._applyStart = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1287,8 +1298,9 @@ ItemDrag.prototype._onMove = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareMove = function () {
-  var item = this._item;
+  if (!this._isActive) return;
 
+  var item = this._item;
   if (!item._isActive) return;
 
   var settings = this._getGrid()._settings;
@@ -1323,6 +1335,8 @@ ItemDrag.prototype._prepareMove = function () {
  * @private
  */
 ItemDrag.prototype._applyMove = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -1357,9 +1371,10 @@ ItemDrag.prototype._onScroll = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareScroll = function () {
-  var item = this._item;
+  if (!this._isActive) return;
 
   // If item is not active do nothing.
+  var item = this._item;
   if (!item._isActive) return;
 
   var element = item._element;
@@ -1402,6 +1417,8 @@ ItemDrag.prototype._prepareScroll = function () {
  * @private
  */
 ItemDrag.prototype._applyScroll = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 

@@ -258,6 +258,13 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
     return;
   }
 
+  // Let's make sure an ongoing animation's callback is cancelled before going
+  // further. Without this there's a chance that the animation will finish
+  // before the next tick and mess up our logic.
+  if (animation.isAnimating()) {
+    animation._animation.onfinish = null;
+  }
+
   // Start the animation in the next tick (to avoid layout thrashing).
   addVisibilityTick(
     item._id,

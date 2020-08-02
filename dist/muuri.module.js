@@ -1,5 +1,5 @@
 /**
-* Muuri v0.9.1
+* Muuri v0.9.2
 * https://muuri.dev/
 * Copyright (c) 2015-present, Haltu Oy
 * Released under the MIT license
@@ -2262,6 +2262,10 @@ AutoScroller.prototype.addItem = function (item) {
 
 AutoScroller.prototype.updateItem = function (item) {
   if (this._isDestroyed) return;
+
+  // Make sure the item still exists in the auto-scroller.
+  if (!this._dragDirections[item._id]) return;
+
   this._updateDragDirection(item);
   if (!this._requestOverlapCheck[item._id]) {
     this._requestOverlapCheck[item._id] = this._tickTime;
@@ -2728,6 +2732,7 @@ function removeClass(element, className) {
   }
 }
 
+var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
 var START_PREDICATE_INACTIVE = 0;
 var START_PREDICATE_PENDING = 1;
 var START_PREDICATE_RESOLVED = 2;
@@ -2839,6 +2844,7 @@ ItemDrag.defaultStartPredicate = function (item, event, options) {
   // cancelled anyways right after it has started (e.g. starting drag while
   // the page is scrolling).
   if (
+    !IS_IOS &&
     event.isFirst &&
     event.srcEvent.isTrusted === true &&
     event.srcEvent.defaultPrevented === false &&
@@ -3125,6 +3131,9 @@ ItemDrag.prototype.stop = function () {
     return;
   }
 
+  // Stop auto-scroll.
+  ItemDrag.autoScroller.removeItem(this._item);
+
   // Cancel queued ticks.
   var itemId = this._item._id;
   cancelDragStartTick(itemId);
@@ -3172,7 +3181,7 @@ ItemDrag.prototype.stop = function () {
  */
 ItemDrag.prototype.sort = function (force) {
   var item = this._item;
-  if (item._isActive && this._dragMoveEvent) {
+  if (this._isActive && item._isActive && this._dragMoveEvent) {
     if (force === true) {
       this._handleSort();
     } else {
@@ -3450,6 +3459,8 @@ ItemDrag.prototype._resetStartPredicate = function () {
  * @private
  */
 ItemDrag.prototype._handleSort = function () {
+  if (!this._isActive) return;
+
   var settings = this._getGrid()._settings;
 
   // No sorting when drag sort is disabled. Also, account for the scenario where
@@ -3846,6 +3857,8 @@ ItemDrag.prototype._onStart = function (event) {
  *  ItemDrag.prototype
  */
 ItemDrag.prototype._prepareStart = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -3885,6 +3898,8 @@ ItemDrag.prototype._prepareStart = function () {
  * @private
  */
 ItemDrag.prototype._applyStart = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -3966,8 +3981,9 @@ ItemDrag.prototype._onMove = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareMove = function () {
-  var item = this._item;
+  if (!this._isActive) return;
 
+  var item = this._item;
   if (!item._isActive) return;
 
   var settings = this._getGrid()._settings;
@@ -4002,6 +4018,8 @@ ItemDrag.prototype._prepareMove = function () {
  * @private
  */
 ItemDrag.prototype._applyMove = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -4036,9 +4054,10 @@ ItemDrag.prototype._onScroll = function (event) {
  * @private
  */
 ItemDrag.prototype._prepareScroll = function () {
-  var item = this._item;
+  if (!this._isActive) return;
 
   // If item is not active do nothing.
+  var item = this._item;
   if (!item._isActive) return;
 
   var element = item._element;
@@ -4081,6 +4100,8 @@ ItemDrag.prototype._prepareScroll = function () {
  * @private
  */
 ItemDrag.prototype._applyScroll = function () {
+  if (!this._isActive) return;
+
   var item = this._item;
   if (!item._isActive) return;
 
@@ -5132,6 +5153,13 @@ ItemLayout.prototype.start = function (instant, onFinish) {
     return;
   }
 
+  // Let's make sure an ongoing animation's callback is cancelled before going
+  // further. Without this there's a chance that the animation will finish
+  // before the next tick and mess up our logic.
+  if (this._animation.isAnimating()) {
+    this._animation._animation.onfinish = null;
+  }
+
   // Kick off animation to be started in the next tick.
   this._isActive = true;
   this._animOptions.easing = animEasing;
@@ -5838,6 +5866,13 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
     animation.stop();
     onFinish && onFinish();
     return;
+  }
+
+  // Let's make sure an ongoing animation's callback is cancelled before going
+  // further. Without this there's a chance that the animation will finish
+  // before the next tick and mess up our logic.
+  if (animation.isAnimating()) {
+    animation._animation.onfinish = null;
   }
 
   // Start the animation in the next tick (to avoid layout thrashing).

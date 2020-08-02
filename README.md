@@ -749,10 +749,10 @@ var grid = new Muuri(elem, {
 
 <h3><a id="grid-option-draghandle" href="#grid-option-draghandle" aria-hidden="true">#</a> <i>option</i>: dragHandle</h3>
 
-The element within the item element that should be used as the drag handle. This should be a CSS selector which will be fed to `element.querySelector()` as is to obtain the handle element when the item is instantiated. If no valid element is found or if this is `null` Muuri will use the item element as the handle.
+The element within the item element that should be used as the drag handle. This should be either an element or a CSS selector which will be fed to `element.querySelector()` (as is) to obtain the handle element when the item is instantiated. If no valid element is found or if this is `null` Muuri will use the item element as the handle.
 
 - Default value: `null`.
-- Accepted types: string, null.
+- Accepted types: element, string, null.
 
 **Examples**
 

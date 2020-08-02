@@ -283,7 +283,7 @@ export interface GridOptions {
   layoutEasing?: string;
   sortData?: { [key: string]: SortDataGetter } | null;
   dragEnabled?: boolean;
-  dragHandle?: string | null;
+  dragHandle?: HTMLElement | string | null;
   dragContainer?: HTMLElement | null;
   dragStartPredicate?: DragStartPredicateOptions | DragStartPredicate;
   dragAxis?: 'x' | 'y' | 'xy';

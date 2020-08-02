@@ -87,7 +87,7 @@ var layoutId = 0;
  * @param {String} [options.layoutEasing="ease"]
  * @param {?Object} [options.sortData=null]
  * @param {Boolean} [options.dragEnabled=false]
- * @param {?String} [options.dragHandle=null]
+ * @param {?(String|HtmlElement)} [options.dragHandle=null]
  * @param {?HtmlElement} [options.dragContainer=null]
  * @param {?Function} [options.dragStartPredicate]
  * @param {Number} [options.dragStartPredicate.distance=0]

@@ -297,12 +297,11 @@ ItemLayout.prototype._startAnimation = function () {
   item._translateX = item._translateY = undefined;
 
   // Start animation.
-  // TODO: If item is being released or migrated when this is called we might
+  // NOTE: If item is being released or migrated when this is called we might
   // want to check if the item is still positioning towards the same position as
   // the layout skipping omits released and migrated items. If the item is
-  // indeed positioning towards the same position we should just change the
-  // finish callback and that's it. Or, we can stop and restart, but it looks
-  // a bit more clunky probably.
+  // indeed positioning towards the same position we should probably just change
+  // the finish callback and that's it, or not. Food for thought...
   this._animation.start(CURRENT_STYLES, TARGET_STYLES, ANIM_OPTIONS);
 
   // Unreference callback to avoid mem leaks.

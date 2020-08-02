@@ -428,9 +428,12 @@ function hasPassiveEvents() {
 }
 
 var listenerOptions = hasPassiveEvents() ? { passive: true } : false;
-var taProp = 'touchAction';
-var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
-var taDefaultValue = 'auto';
+var touchActionPropName = 'touchAction';
+var touchActionPropNamePrefixed = getPrefixedPropName(
+  document.documentElement.style,
+  touchActionPropName
+);
+var touchActionAuto = 'auto';
 
 /**
  * Creates a new Dragger instance for an element.
@@ -472,7 +475,7 @@ function Dragger(element, cssProps) {
   // If touch action was not provided with initial CSS props let's assume it's
   // auto.
   if (!this._touchAction) {
-    this.setTouchAction(taDefaultValue);
+    this.setTouchAction(touchActionAuto);
   }
 
   // Prevent native link/image dragging for the item and it's children.
@@ -813,9 +816,9 @@ Dragger.prototype.setTouchAction = function (value) {
   this._touchAction = value;
 
   // Set touch-action style.
-  if (taPropPrefixed) {
-    this._cssProps[taPropPrefixed] = '';
-    this._element.style[taPropPrefixed] = value;
+  if (touchActionPropNamePrefixed) {
+    this._cssProps[touchActionPropNamePrefixed] = '';
+    this._element.style[touchActionPropNamePrefixed] = value;
   }
 
   // If we have an unsupported touch-action value let's add a special listener
@@ -827,7 +830,10 @@ Dragger.prototype.setTouchAction = function (value) {
   // the DOM tree on touchstart.
   if (HAS_TOUCH_EVENTS) {
     this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
-    if (this._element.style[taPropPrefixed] !== value || (IS_FIREFOX && IS_ANDROID)) {
+    if (
+      value !== touchActionAuto &&
+      (this._element.style[touchActionPropNamePrefixed] !== value || (IS_FIREFOX && IS_ANDROID))
+    ) {
       this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
     }
   }
@@ -860,7 +866,7 @@ Dragger.prototype.setCssProps = function (newProps) {
     if (!newProps[prop]) continue;
 
     // Special handling for touch-action.
-    if (prop === taProp) {
+    if (prop === touchActionPropName) {
       this.setTouchAction(newProps[prop]);
       continue;
     }
@@ -2678,7 +2684,6 @@ function ItemDrag(item) {
     ? settings.dragStartPredicate
     : ItemDrag.defaultStartPredicate;
   this._startPredicateState = START_PREDICATE_INACTIVE;
-  this._startPredicateResult = undefined;
 
   // Data for drag sort predicate heuristics.
   this._isSortNeeded = false;
@@ -2706,7 +2711,10 @@ function ItemDrag(item) {
   this._handleSortDelayed = this._handleSortDelayed.bind(this);
 
   // Get drag handle element.
-  this._handle = (settings.dragHandle && element.querySelector(settings.dragHandle)) || element;
+  this._handle =
+    (typeof settings.dragHandle === 'string'
+      ? element.querySelector(settings.dragHandle)
+      : settings.dragHandle) || element;
 
   // Init dragger.
   this._dragger = new Dragger(this._handle, settings.dragCssProps);
@@ -2751,17 +2759,21 @@ ItemDrag.autoScroller = new AutoScroller();
  * @returns {(Boolean|undefined)}
  */
 ItemDrag.defaultStartPredicate = function (item, event, options) {
+  if (event.isFinal) return;
+
   var drag = item._drag;
 
-  // Make sure left button is pressed on mouse.
+  // Reject the predicate if left button is not pressed on mouse during first
+  // event.
   if (event.isFirst && event.srcEvent.button) {
+    drag._resetDefaultStartPredicate();
     return false;
   }
 
   // If the start event is trusted, non-cancelable and it's default action has
   // not been prevented it is in most cases a sign that the gesture would be
   // cancelled anyways right after it has started (e.g. starting drag while
-  // the page is scrolling).
+  // the page is scrolling). So let's reject the predicate in this case.
   if (
     !IS_IOS &&
     event.isFirst &&
@@ -2769,23 +2781,15 @@ ItemDrag.defaultStartPredicate = function (item, event, options) {
     event.srcEvent.defaultPrevented === false &&
     event.srcEvent.cancelable === false
   ) {
+    drag._resetDefaultStartPredicate();
     return false;
-  }
-
-  // Final event logic. At this stage return value does not matter anymore,
-  // the predicate is either resolved or it's not and there's nothing to do
-  // about it. Here we just reset data and if the item element is a link
-  // we follow it (if there has only been slight movement).
-  if (event.isFinal) {
-    drag._finishStartPredicate(event);
-    return;
   }
 
   // Setup predicate data from options if not already set.
   var predicate = drag._startPredicateData;
   if (!predicate) {
     var config = options || item.getGrid()._settings.dragStartPredicate || {};
-    drag._startPredicateData = predicate = {
+    predicate = drag._startPredicateData = {
       distance: Math.max(config.distance, 0) || 0,
       delay: Math.max(config.delay, 0) || 0,
     };
@@ -2797,16 +2801,38 @@ ItemDrag.defaultStartPredicate = function (item, event, options) {
     predicate.event = event;
     if (!predicate.delayTimer) {
       predicate.delayTimer = window.setTimeout(function () {
+        // If predicate has changed there's nothing to do here.
+        if (drag._startPredicateData !== predicate) return;
+
+        // If drag has been destroyed, let's clean things up and exit.
+        if (drag._isDestroyed) {
+          drag._resetDefaultStartPredicate();
+          return;
+        }
+
+        // Reset the delay.
         predicate.delay = 0;
-        if (drag._resolveStartPredicate(predicate.event)) {
-          drag._forceResolveStartPredicate(predicate.event);
-          drag._resetStartPredicate();
+
+        // Let's try to resolve the predicate.
+        if (
+          drag._startPredicateState === START_PREDICATE_PENDING &&
+          predicate.event.distance >= predicate.distance
+        ) {
+          drag._resetDefaultStartPredicate();
+          drag._startPredicateState = START_PREDICATE_RESOLVED;
+          drag._onStart(predicate.event);
         }
       }, predicate.delay);
     }
+    return;
   }
 
-  return drag._resolveStartPredicate(event);
+  // Keep the predicate in pending state if the distance threshold is not
+  // exceeded.
+  if (event.distance < predicate.distance) return;
+
+  // Resolve the predicate.
+  return true;
 };
 
 /**
@@ -3207,54 +3233,6 @@ ItemDrag.prototype._unbindScrollHandler = function () {
 };
 
 /**
- * Unbind currently bound drag scroll handlers from all scrollable ancestor
- * elements of the dragged element and the drag container element.
- *
- * @private
- * @param {Object} event
- * @returns {Boolean}
- */
-ItemDrag.prototype._resolveStartPredicate = function (event) {
-  var predicate = this._startPredicateData;
-  if (event.distance < predicate.distance || predicate.delay) return;
-  this._resetStartPredicate();
-  return true;
-};
-
-/**
- * Forcefully resolve drag start predicate.
- *
- * @private
- * @param {Object} event
- */
-ItemDrag.prototype._forceResolveStartPredicate = function (event) {
-  if (!this._isDestroyed && this._startPredicateState === START_PREDICATE_PENDING) {
-    this._startPredicateState = START_PREDICATE_RESOLVED;
-    this._onStart(event);
-  }
-};
-
-/**
- * Finalize start predicate.
- *
- * @private
- * @param {Object} event
- */
-ItemDrag.prototype._finishStartPredicate = function (event) {
-  var element = this._item._element;
-
-  // Check if this is a click (very subjective heuristics).
-  var isClick = Math.abs(event.deltaX) < 2 && Math.abs(event.deltaY) < 2 && event.deltaTime < 200;
-
-  // Reset predicate.
-  this._resetStartPredicate();
-
-  // If the gesture can be interpreted as click let's try to open the element's
-  // href url (if it is an anchor element).
-  if (isClick) openAnchorHref(element);
-};
-
-/**
  * Reset drag sort heuristics.
  *
  * @private
@@ -3321,11 +3299,11 @@ ItemDrag.prototype._checkHeuristics = function (x, y) {
 };
 
 /**
- * Reset for default drag start predicate function.
+ * Reset default drag start predicate data.
  *
  * @private
  */
-ItemDrag.prototype._resetStartPredicate = function () {
+ItemDrag.prototype._resetDefaultStartPredicate = function () {
   var predicate = this._startPredicateData;
   if (predicate) {
     if (predicate.delayTimer) {
@@ -3607,7 +3585,7 @@ ItemDrag.prototype._checkOverlap = function () {
     }
 
     // Update item's cached dimensions.
-    // TODO: This should be only done if there's a chance that the DOM writes
+    // NOTE: This should be only done if there's a chance that the DOM writes
     // have cause this to change. Maybe this is not needed always?
     item._refreshDimensions();
 
@@ -3684,14 +3662,13 @@ ItemDrag.prototype._preStartCheck = function (event) {
 
   // If predicate is pending try to resolve it.
   if (this._startPredicateState === START_PREDICATE_PENDING) {
-    this._startPredicateResult = this._startPredicate(this._item, event);
-    if (this._startPredicateResult === true) {
+    var shouldStart = this._startPredicate(this._item, event);
+    if (shouldStart === true) {
       this._startPredicateState = START_PREDICATE_RESOLVED;
       this._onStart(event);
-    } else if (this._startPredicateResult === false) {
-      this._resetStartPredicate(event);
-      this._dragger._reset();
+    } else if (shouldStart === false) {
       this._startPredicateState = START_PREDICATE_INACTIVE;
+      this._dragger._reset();
     }
   }
 
@@ -3714,6 +3691,10 @@ ItemDrag.prototype._preEndCheck = function (event) {
   // drag procedure within the predicate callback. The return value of this
   // check will have no effect to the state of the predicate.
   this._startPredicate(this._item, event);
+
+  // Let's automatically reset the default start predicate (even if it is not
+  // used) to make sure it is ready for next round.
+  this._resetDefaultStartPredicate();
 
   this._startPredicateState = START_PREDICATE_INACTIVE;
 
@@ -4023,33 +4004,6 @@ ItemDrag.prototype._onEnd = function (event) {
   // Finish up the migration process or start the release process.
   this._isMigrated ? this._finishMigration() : item._dragRelease.start();
 };
-
-/**
- * Private helpers
- * ***************
- */
-
-/**
- * Check if an element is an anchor element and open the href url if possible.
- *
- * @param {HTMLElement} element
- */
-function openAnchorHref(element) {
-  // Make sure the element is anchor element.
-  if (element.tagName.toLowerCase() !== 'a') return;
-
-  // Get href and make sure it exists.
-  var href = element.getAttribute('href');
-  if (!href) return;
-
-  // Finally let's navigate to the link href.
-  var target = element.getAttribute('target');
-  if (target && target !== '_self') {
-    window.open(href, target);
-  } else {
-    window.location.href = href;
-  }
-}
 
 var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
 var cache$2 = {};
@@ -5190,12 +5144,11 @@ ItemLayout.prototype._startAnimation = function () {
   item._translateX = item._translateY = undefined;
 
   // Start animation.
-  // TODO: If item is being released or migrated when this is called we might
+  // NOTE: If item is being released or migrated when this is called we might
   // want to check if the item is still positioning towards the same position as
   // the layout skipping omits released and migrated items. If the item is
-  // indeed positioning towards the same position we should just change the
-  // finish callback and that's it. Or, we can stop and restart, but it looks
-  // a bit more clunky probably.
+  // indeed positioning towards the same position we should probably just change
+  // the finish callback and that's it, or not. Food for thought...
   this._animation.start(CURRENT_STYLES$1, TARGET_STYLES$1, ANIM_OPTIONS);
 
   // Unreference callback to avoid mem leaks.
@@ -7343,7 +7296,7 @@ var layoutId = 0;
  * @param {String} [options.layoutEasing="ease"]
  * @param {?Object} [options.sortData=null]
  * @param {Boolean} [options.dragEnabled=false]
- * @param {?String} [options.dragHandle=null]
+ * @param {?(String|HtmlElement)} [options.dragHandle=null]
  * @param {?HtmlElement} [options.dragContainer=null]
  * @param {?Function} [options.dragStartPredicate]
  * @param {Number} [options.dragStartPredicate.distance=0]

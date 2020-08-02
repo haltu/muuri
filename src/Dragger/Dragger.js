@@ -22,9 +22,12 @@ import getPrefixedPropName from '../utils/getPrefixedPropName';
 import hasPassiveEvents from '../utils/hasPassiveEvents';
 
 var listenerOptions = hasPassiveEvents() ? { passive: true } : false;
-var taProp = 'touchAction';
-var taPropPrefixed = getPrefixedPropName(document.documentElement.style, taProp);
-var taDefaultValue = 'auto';
+var touchActionPropName = 'touchAction';
+var touchActionPropNamePrefixed = getPrefixedPropName(
+  document.documentElement.style,
+  touchActionPropName
+);
+var touchActionAuto = 'auto';
 
 /**
  * Creates a new Dragger instance for an element.
@@ -66,7 +69,7 @@ function Dragger(element, cssProps) {
   // If touch action was not provided with initial CSS props let's assume it's
   // auto.
   if (!this._touchAction) {
-    this.setTouchAction(taDefaultValue);
+    this.setTouchAction(touchActionAuto);
   }
 
   // Prevent native link/image dragging for the item and it's children.
@@ -407,9 +410,9 @@ Dragger.prototype.setTouchAction = function (value) {
   this._touchAction = value;
 
   // Set touch-action style.
-  if (taPropPrefixed) {
-    this._cssProps[taPropPrefixed] = '';
-    this._element.style[taPropPrefixed] = value;
+  if (touchActionPropNamePrefixed) {
+    this._cssProps[touchActionPropNamePrefixed] = '';
+    this._element.style[touchActionPropNamePrefixed] = value;
   }
 
   // If we have an unsupported touch-action value let's add a special listener
@@ -421,7 +424,10 @@ Dragger.prototype.setTouchAction = function (value) {
   // the DOM tree on touchstart.
   if (HAS_TOUCH_EVENTS) {
     this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
-    if (this._element.style[taPropPrefixed] !== value || (IS_FIREFOX && IS_ANDROID)) {
+    if (
+      value !== touchActionAuto &&
+      (this._element.style[touchActionPropNamePrefixed] !== value || (IS_FIREFOX && IS_ANDROID))
+    ) {
       this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
     }
   }
@@ -454,7 +460,7 @@ Dragger.prototype.setCssProps = function (newProps) {
     if (!newProps[prop]) continue;
 
     // Special handling for touch-action.
-    if (prop === taProp) {
+    if (prop === touchActionPropName) {
       this.setTouchAction(newProps[prop]);
       continue;
     }

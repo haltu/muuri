@@ -45,7 +45,9 @@ export var IS_EDGE = UA.indexOf('edge') > -1;
 export var IS_IE = UA.indexOf('trident') > -1;
 export var IS_FIREFOX = UA.indexOf('firefox') > -1;
 export var IS_ANDROID = UA.indexOf('android') > -1;
-export var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
+export var IS_IOS =
+  /^(iPad|iPhone|iPod)/.test(window.navigator.platform) ||
+  (/^Mac/.test(window.navigator.platform) && window.navigator.maxTouchPoints > 1);
 
 export var MAX_SAFE_FLOAT32_INTEGER = 16777216;
 

@@ -60,7 +60,9 @@ var IS_EDGE = UA.indexOf('edge') > -1;
 var IS_IE = UA.indexOf('trident') > -1;
 var IS_FIREFOX = UA.indexOf('firefox') > -1;
 var IS_ANDROID = UA.indexOf('android') > -1;
-var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
+var IS_IOS =
+  /^(iPad|iPhone|iPod)/.test(window.navigator.platform) ||
+  (/^Mac/.test(window.navigator.platform) && window.navigator.maxTouchPoints > 1);
 
 var MAX_SAFE_FLOAT32_INTEGER = 16777216;
 

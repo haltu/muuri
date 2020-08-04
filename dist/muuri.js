@@ -22,7 +22,7 @@
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
   typeof define === 'function' && define.amd ? define(factory) :
-  (global = global || self, global.Muuri = factory());
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Muuri = factory());
 }(this, (function () { 'use strict';
 
   var GRID_INSTANCES = {};
@@ -66,7 +66,9 @@
   var IS_IE = UA.indexOf('trident') > -1;
   var IS_FIREFOX = UA.indexOf('firefox') > -1;
   var IS_ANDROID = UA.indexOf('android') > -1;
-  var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
+  var IS_IOS =
+    /^(iPad|iPhone|iPod)/.test(window.navigator.platform) ||
+    (/^Mac/.test(window.navigator.platform) && window.navigator.maxTouchPoints > 1);
 
   var MAX_SAFE_FLOAT32_INTEGER = 16777216;
 

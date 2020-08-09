@@ -107,6 +107,15 @@ var layoutId = 0;
  * @param {String} [options.dragRelease.easing="ease"]
  * @param {Boolean} [options.dragRelease.useDragContainer=true]
  * @param {Object} [options.dragCssProps]
+ * @param {String} [options.dragCssProps.touchAction="none"]
+ * @param {String} [options.dragCssProps.userSelect="none"]
+ * @param {String} [options.dragCssProps.userDrag="none"]
+ * @param {String} [options.dragCssProps.tapHighlightColor="rgba(0, 0, 0, 0)"]
+ * @param {String} [options.dragCssProps.touchCallout="none"]
+ * @param {String} [options.dragCssProps.contentZooming="none"]
+ * @param {Object} [options.dragEventListenerOptions]
+ * @param {Boolen} [options.dragEventListenerOptions.capture=false]
+ * @param {Boolen} [options.dragEventListenerOptions.passive=true]
  * @param {Object} [options.dragPlaceholder]
  * @param {Boolean} [options.dragPlaceholder.enabled=false]
  * @param {?Function} [options.dragPlaceholder.createElement=null]
@@ -364,6 +373,10 @@ Grid.defaultOptions = {
     tapHighlightColor: 'rgba(0, 0, 0, 0)',
     touchCallout: 'none',
     contentZooming: 'none',
+  },
+  dragEventListenerOptions: {
+    passive: true,
+    capture: false,
   },
   dragPlaceholder: {
     enabled: false,

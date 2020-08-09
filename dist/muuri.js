@@ -413,35 +413,179 @@
     return '';
   }
 
-  /**
-   * Check if passive events are supported.
-   * https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
-   *
-   * @returns {Boolean}
-   */
-  function hasPassiveEvents() {
-    var isPassiveEventsSupported = false;
+  // Check if passive events are supported.
+  // https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
 
-    try {
-      var passiveOpts = Object.defineProperty({}, 'passive', {
-        get: function () {
-          isPassiveEventsSupported = true;
-        },
-      });
-      window.addEventListener('testPassive', null, passiveOpts);
-      window.removeEventListener('testPassive', null, passiveOpts);
-    } catch (e) {}
+  var isPassiveEventsSupported = false;
 
-    return isPassiveEventsSupported;
-  }
+  try {
+    var passiveOpts = Object.defineProperty({}, 'passive', {
+      get: function () {
+        isPassiveEventsSupported = true;
+      },
+    });
+    window.addEventListener('testPassive', null, passiveOpts);
+    window.removeEventListener('testPassive', null, passiveOpts);
+  } catch (e) {}
 
-  var listenerOptions = hasPassiveEvents() ? { passive: true } : false;
+  var hasPassiveEvents = isPassiveEventsSupported;
+
+  var PASSIVE = 1;
+  var CAPTURE = 2;
+
+  var defaultListenerOptions = { passive: true, capture: true };
+
+  var touchActionAuto = 'auto';
   var touchActionPropName = 'touchAction';
   var touchActionPropNamePrefixed = getPrefixedPropName(
     document.documentElement.style,
     touchActionPropName
   );
-  var touchActionAuto = 'auto';
+
+  var pointerEvents = {
+    start: 'pointerdown',
+    move: 'pointermove',
+    cancel: 'pointercancel',
+    end: 'pointerup',
+  };
+
+  var msPointerEvents = {
+    start: 'MSPointerDown',
+    move: 'MSPointerMove',
+    cancel: 'MSPointerCancel',
+    end: 'MSPointerUp',
+  };
+
+  var touchEvents = {
+    start: 'touchstart',
+    move: 'touchmove',
+    cancel: 'touchcancel',
+    end: 'touchend',
+  };
+
+  var mouseEvents = {
+    start: 'mousedown',
+    move: 'mousemove',
+    cancel: '',
+    end: 'mouseup',
+  };
+
+  var inputEvents = HAS_TOUCH_EVENTS
+    ? touchEvents
+    : HAS_POINTER_EVENTS
+    ? pointerEvents
+    : HAS_MS_POINTER_EVENTS
+    ? msPointerEvents
+    : mouseEvents;
+
+  var emitterEvents = {
+    start: 'start',
+    move: 'move',
+    end: 'end',
+    cancel: 'cancel',
+  };
+
+  /**
+   * Generate listener options object (that can be fed to add/removeEventListener
+   * method directly) from listener type data.
+   *
+   * @private
+   * @param {Number} listenerType
+   * @returns {(Object|Boolean)}
+   */
+  function getListenerOptions(listenerType) {
+    return hasPassiveEvents
+      ? {
+          passive: !!(PASSIVE & listenerType),
+          capture: !!(CAPTURE & listenerType),
+        }
+      : !!(CAPTURE & listenerType);
+  }
+
+  /**
+   * Creates a new DragProxy instance that propagates events from window to
+   * dragger instances.
+   *
+   * @public
+   * @class
+   * @param {Number} listenerType
+   */
+  function DragProxy(listenerType) {
+    this.emitter = new Emitter();
+    this.listenerType = listenerType;
+    this.listenerOptions = getListenerOptions(listenerType);
+    this.draggers = [];
+    this.onMove = this.onMove.bind(this);
+    this.onCancel = this.onCancel.bind(this);
+    this.onEnd = this.onEnd.bind(this);
+  }
+
+  DragProxy.prototype.hasDragger = function (dragger) {
+    return this.draggers.indexOf(dragger) > -1;
+  };
+
+  DragProxy.prototype.addDragger = function (dragger) {
+    var index = this.draggers.indexOf(dragger);
+    if (index > -1) return;
+
+    this.draggers.push(dragger);
+    this.emitter.on(emitterEvents.move, dragger._onMove);
+    this.emitter.on(emitterEvents.cancel, dragger._onCancel);
+    this.emitter.on(emitterEvents.end, dragger._onEnd);
+
+    if (this.draggers.length === 1) {
+      this.activate();
+    }
+  };
+
+  DragProxy.prototype.removeDragger = function (dragger) {
+    var index = this.draggers.indexOf(dragger);
+    if (index === -1) return;
+
+    this.draggers.splice(index, 1);
+
+    this.emitter.off(emitterEvents.move, dragger._onMove);
+    this.emitter.off(emitterEvents.cancel, dragger._onCancel);
+    this.emitter.off(emitterEvents.end, dragger._onEnd);
+
+    if (this.draggers.length === 0) {
+      this.deactivate();
+    }
+  };
+
+  DragProxy.prototype.activate = function () {
+    window.addEventListener(inputEvents.move, this.onMove, this.listenerOptions);
+    window.addEventListener(inputEvents.end, this.onEnd, this.listenerOptions);
+    if (inputEvents.cancel) {
+      window.addEventListener(inputEvents.cancel, this.onCancel, this.listenerOptions);
+    }
+  };
+
+  DragProxy.prototype.deactivate = function () {
+    window.removeEventListener(inputEvents.move, this.onMove, this.listenerOptions);
+    window.removeEventListener(inputEvents.end, this.onEnd, this.listenerOptions);
+    if (inputEvents.cancel) {
+      window.removeEventListener(inputEvents.cancel, this.onCancel, this.listenerOptions);
+    }
+  };
+
+  DragProxy.prototype.onMove = function (e) {
+    this.emitter.emit(emitterEvents.move, e);
+  };
+
+  DragProxy.prototype.onCancel = function (e) {
+    this.emitter.emit(emitterEvents.cancel, e);
+  };
+
+  DragProxy.prototype.onEnd = function (e) {
+    this.emitter.emit(emitterEvents.end, e);
+  };
+
+  DragProxy.prototype.destroy = function () {
+    if (this.draggers.length) this.deactivate();
+    this.draggers.length = 0;
+    this.emitter.destroy();
+  };
 
   /**
    * Creates a new Dragger instance for an element.
@@ -450,13 +594,18 @@
    * @class
    * @param {HTMLElement} element
    * @param {Object} [cssProps]
+   * @param {Object} [listenerOptions]
    */
-  function Dragger(element, cssProps) {
+  function Dragger(element, cssProps, listenerOptions) {
+    var passive = !!(listenerOptions || defaultListenerOptions).passive ? PASSIVE : 0;
+    var capture = !!(listenerOptions || defaultListenerOptions).capture ? CAPTURE : 0;
+
     this._element = element;
     this._emitter = new Emitter();
     this._isDestroyed = false;
     this._cssProps = {};
     this._touchAction = '';
+    this._listenerType = capture | passive;
     this._isActive = false;
 
     this._pointerId = null;
@@ -490,59 +639,12 @@
     element.addEventListener('dragstart', Dragger._preventDefault, false);
 
     // Listen to start event.
-    element.addEventListener(Dragger._inputEvents.start, this._onStart, listenerOptions);
+    element.addEventListener(
+      inputEvents.start,
+      this._onStart,
+      getListenerOptions(this._listenerType)
+    );
   }
-
-  /**
-   * Protected properties
-   * ********************
-   */
-
-  Dragger._pointerEvents = {
-    start: 'pointerdown',
-    move: 'pointermove',
-    cancel: 'pointercancel',
-    end: 'pointerup',
-  };
-
-  Dragger._msPointerEvents = {
-    start: 'MSPointerDown',
-    move: 'MSPointerMove',
-    cancel: 'MSPointerCancel',
-    end: 'MSPointerUp',
-  };
-
-  Dragger._touchEvents = {
-    start: 'touchstart',
-    move: 'touchmove',
-    cancel: 'touchcancel',
-    end: 'touchend',
-  };
-
-  Dragger._mouseEvents = {
-    start: 'mousedown',
-    move: 'mousemove',
-    cancel: '',
-    end: 'mouseup',
-  };
-
-  Dragger._inputEvents = (function () {
-    if (HAS_TOUCH_EVENTS) return Dragger._touchEvents;
-    if (HAS_POINTER_EVENTS) return Dragger._pointerEvents;
-    if (HAS_MS_POINTER_EVENTS) return Dragger._msPointerEvents;
-    return Dragger._mouseEvents;
-  })();
-
-  Dragger._emitter = new Emitter();
-
-  Dragger._emitterEvents = {
-    start: 'start',
-    move: 'move',
-    end: 'end',
-    cancel: 'cancel',
-  };
-
-  Dragger._activeInstances = [];
 
   /**
    * Protected static methods
@@ -551,50 +653,6 @@
 
   Dragger._preventDefault = function (e) {
     if (e.preventDefault && e.cancelable !== false) e.preventDefault();
-  };
-
-  Dragger._activateInstance = function (instance) {
-    var index = Dragger._activeInstances.indexOf(instance);
-    if (index > -1) return;
-
-    Dragger._activeInstances.push(instance);
-    Dragger._emitter.on(Dragger._emitterEvents.move, instance._onMove);
-    Dragger._emitter.on(Dragger._emitterEvents.cancel, instance._onCancel);
-    Dragger._emitter.on(Dragger._emitterEvents.end, instance._onEnd);
-
-    if (Dragger._activeInstances.length === 1) {
-      Dragger._bindListeners();
-    }
-  };
-
-  Dragger._deactivateInstance = function (instance) {
-    var index = Dragger._activeInstances.indexOf(instance);
-    if (index === -1) return;
-
-    Dragger._activeInstances.splice(index, 1);
-    Dragger._emitter.off(Dragger._emitterEvents.move, instance._onMove);
-    Dragger._emitter.off(Dragger._emitterEvents.cancel, instance._onCancel);
-    Dragger._emitter.off(Dragger._emitterEvents.end, instance._onEnd);
-
-    if (!Dragger._activeInstances.length) {
-      Dragger._unbindListeners();
-    }
-  };
-
-  Dragger._bindListeners = function () {
-    window.addEventListener(Dragger._inputEvents.move, Dragger._onMove, listenerOptions);
-    window.addEventListener(Dragger._inputEvents.end, Dragger._onEnd, listenerOptions);
-    if (Dragger._inputEvents.cancel) {
-      window.addEventListener(Dragger._inputEvents.cancel, Dragger._onCancel, listenerOptions);
-    }
-  };
-
-  Dragger._unbindListeners = function () {
-    window.removeEventListener(Dragger._inputEvents.move, Dragger._onMove, listenerOptions);
-    window.removeEventListener(Dragger._inputEvents.end, Dragger._onEnd, listenerOptions);
-    if (Dragger._inputEvents.cancel) {
-      window.removeEventListener(Dragger._inputEvents.cancel, Dragger._onCancel, listenerOptions);
-    }
   };
 
   Dragger._getEventPointerId = function (event) {
@@ -635,17 +693,14 @@
     return event;
   };
 
-  Dragger._onMove = function (e) {
-    Dragger._emitter.emit(Dragger._emitterEvents.move, e);
-  };
+  /**
+   * Protected properties
+   * ********************
+   */
 
-  Dragger._onCancel = function (e) {
-    Dragger._emitter.emit(Dragger._emitterEvents.cancel, e);
-  };
-
-  Dragger._onEnd = function (e) {
-    Dragger._emitter.emit(Dragger._emitterEvents.end, e);
-  };
+  Dragger._inputEvents = inputEvents;
+  Dragger._emitterEvents = emitterEvents;
+  Dragger._proxies = [new DragProxy(0), new DragProxy(1), new DragProxy(2), new DragProxy(3)];
 
   /**
    * Private prototype methods
@@ -665,7 +720,9 @@
     this._currentX = 0;
     this._currentY = 0;
     this._isActive = false;
-    Dragger._deactivateInstance(this);
+
+    var proxy = Dragger._proxies[this._listenerType];
+    if (proxy) proxy.removeDragger(this);
   };
 
   /**
@@ -685,9 +742,9 @@
       distance: this.getDistance(),
       deltaX: this.getDeltaX(),
       deltaY: this.getDeltaY(),
-      deltaTime: type === Dragger._emitterEvents.start ? 0 : this.getDeltaTime(),
-      isFirst: type === Dragger._emitterEvents.start,
-      isFinal: type === Dragger._emitterEvents.end || type === Dragger._emitterEvents.cancel,
+      deltaTime: type === emitterEvents.start ? 0 : this.getDeltaTime(),
+      isFirst: type === emitterEvents.start,
+      isFinal: type === emitterEvents.end || type === emitterEvents.cancel,
       pointerType: e.pointerType || (e.touches ? 'touch' : 'mouse'),
       // Partial Touch API interface.
       identifier: this._pointerId,
@@ -751,12 +808,13 @@
     this._startY = this._currentY = touch.clientY;
     this._startTime = Date.now();
     this._isActive = true;
-    this._emit(Dragger._emitterEvents.start, e);
+    this._emit(emitterEvents.start, e);
 
     // If the drag procedure was not reset within the start procedure let's
     // activate the instance (start listening to move/cancel/end events).
     if (this._isActive) {
-      Dragger._activateInstance(this);
+      var proxy = Dragger._proxies[this._listenerType];
+      if (proxy) proxy.addDragger(this);
     }
   };
 
@@ -771,7 +829,7 @@
     if (!touch) return;
     this._currentX = touch.clientX;
     this._currentY = touch.clientY;
-    this._emit(Dragger._emitterEvents.move, e);
+    this._emit(emitterEvents.move, e);
   };
 
   /**
@@ -782,7 +840,7 @@
    */
   Dragger.prototype._onCancel = function (e) {
     if (!this._getTrackedTouch(e)) return;
-    this._emit(Dragger._emitterEvents.cancel, e);
+    this._emit(emitterEvents.cancel, e);
     this._reset();
   };
 
@@ -794,7 +852,7 @@
    */
   Dragger.prototype._onEnd = function (e) {
     if (!this._getTrackedTouch(e)) return;
-    this._emit(Dragger._emitterEvents.end, e);
+    this._emit(emitterEvents.end, e);
     this._reset();
   };
 
@@ -837,12 +895,12 @@
     // touch-action does not work properly if the dragged element is moved in the
     // the DOM tree on touchstart.
     if (HAS_TOUCH_EVENTS) {
-      this._element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
+      this._element.removeEventListener(touchEvents.start, Dragger._preventDefault, true);
       if (
         value !== touchActionAuto &&
         (this._element.style[touchActionPropNamePrefixed] !== value || (IS_FIREFOX && IS_ANDROID))
       ) {
-        this._element.addEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
+        this._element.addEventListener(touchEvents.start, Dragger._preventDefault, true);
       }
     }
   };
@@ -852,7 +910,7 @@
    * props with value pairs as it's first argument.
    *
    * @public
-   * @param {Object} [newProps]
+   * @param {Object} newProps
    */
   Dragger.prototype.setCssProps = function (newProps) {
     if (!newProps) return;
@@ -886,6 +944,55 @@
       // Store the prop and add the style.
       currentProps[prefixedProp] = '';
       element.style[prefixedProp] = newProps[prop];
+    }
+  };
+
+  /**
+   * Update the instance's event listener options.
+   *
+   * @public
+   * @param {Object} options
+   * @param {Boolean} options.capture
+   * @param {Boolean} options.passive
+   */
+  Dragger.prototype.setListenerOptions = function (options) {
+    if (!options) return;
+
+    var proxy, isActive;
+    var current = this._listenerType;
+    var capture = options.capture ? CAPTURE : 0;
+    var passive = options.passive ? PASSIVE : 0;
+    var next = capture | passive;
+
+    // If we need to update event listeners.
+    if (current !== next) {
+      // Unbind start listener.
+      this._element.removeEventListener(
+        inputEvents.start,
+        this._onStart,
+        getListenerOptions(this._listenerType)
+      );
+
+      // Deactivate instance if it's active.
+      proxy = Dragger._proxies[this._listenerType];
+      isActive = proxy ? proxy.hasDragger(this) : false;
+      if (isActive) proxy.removeDragger(this);
+
+      // Update listener type.
+      this._listenerType = next;
+
+      // Rebind start listener with new listener options.
+      this._element.addEventListener(
+        inputEvents.start,
+        this._onStart,
+        getListenerOptions(this._listenerType)
+      );
+
+      // Reactivate item with new listener options.
+      if (isActive) {
+        proxy = Dragger._proxies[this._listenerType];
+        if (proxy) proxy.addDragger(this);
+      }
     }
   };
 
@@ -976,9 +1083,13 @@
     this._emitter.destroy();
 
     // Unbind event handlers.
-    element.removeEventListener(Dragger._inputEvents.start, this._onStart, listenerOptions);
+    element.removeEventListener(
+      inputEvents.start,
+      this._onStart,
+      getListenerOptions(this._listenerType)
+    );
     element.removeEventListener('dragstart', Dragger._preventDefault, false);
-    element.removeEventListener(Dragger._touchEvents.start, Dragger._preventDefault, true);
+    element.removeEventListener(touchEvents.start, Dragger._preventDefault, true);
 
     // Reset styles.
     for (var prop in this._cssProps) {
@@ -2669,7 +2780,7 @@
   var START_PREDICATE_INACTIVE = 0;
   var START_PREDICATE_PENDING = 1;
   var START_PREDICATE_RESOLVED = 2;
-  var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { capture: true, passive: true } : true;
+  var SCROLL_LISTENER_OPTIONS = hasPassiveEvents ? { capture: true, passive: true } : true;
 
   /**
    * Bind touch interaction to an item.
@@ -2725,7 +2836,11 @@
         : settings.dragHandle) || element;
 
     // Init dragger.
-    this._dragger = new Dragger(this._handle, settings.dragCssProps);
+    this._dragger = new Dragger(
+      this._handle,
+      settings.dragCssProps,
+      settings.dragEventListenerOptions
+    );
     this._dragger.on('start', this._preStartCheck);
     this._dragger.on('move', this._preStartCheck);
     this._dragger.on('cancel', this._preEndCheck);
@@ -4670,7 +4785,7 @@
     this._item = this._animation = null;
   };
 
-  var SCROLL_LISTENER_OPTIONS$1 = hasPassiveEvents() ? { capture: true, passive: true } : true;
+  var SCROLL_LISTENER_OPTIONS$1 = hasPassiveEvents ? { capture: true, passive: true } : true;
 
   /**
    * The release process handler constructor. Although this might seem as proper
@@ -7324,6 +7439,15 @@
    * @param {String} [options.dragRelease.easing="ease"]
    * @param {Boolean} [options.dragRelease.useDragContainer=true]
    * @param {Object} [options.dragCssProps]
+   * @param {String} [options.dragCssProps.touchAction="none"]
+   * @param {String} [options.dragCssProps.userSelect="none"]
+   * @param {String} [options.dragCssProps.userDrag="none"]
+   * @param {String} [options.dragCssProps.tapHighlightColor="rgba(0, 0, 0, 0)"]
+   * @param {String} [options.dragCssProps.touchCallout="none"]
+   * @param {String} [options.dragCssProps.contentZooming="none"]
+   * @param {Object} [options.dragEventListenerOptions]
+   * @param {Boolen} [options.dragEventListenerOptions.capture=false]
+   * @param {Boolen} [options.dragEventListenerOptions.passive=true]
    * @param {Object} [options.dragPlaceholder]
    * @param {Boolean} [options.dragPlaceholder.enabled=false]
    * @param {?Function} [options.dragPlaceholder.createElement=null]
@@ -7581,6 +7705,10 @@
       tapHighlightColor: 'rgba(0, 0, 0, 0)',
       touchCallout: 'none',
       contentZooming: 'none',
+    },
+    dragEventListenerOptions: {
+      passive: true,
+      capture: false,
     },
     dragPlaceholder: {
       enabled: false,

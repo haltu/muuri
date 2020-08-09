@@ -13,7 +13,7 @@ import getOffsetDiff from '../utils/getOffsetDiff';
 import hasPassiveEvents from '../utils/hasPassiveEvents';
 import removeClass from '../utils/removeClass';
 
-var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { capture: true, passive: true } : true;
+var SCROLL_LISTENER_OPTIONS = hasPassiveEvents ? { capture: true, passive: true } : true;
 
 /**
  * The release process handler constructor. Although this might seem as proper

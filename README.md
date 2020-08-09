@@ -247,6 +247,10 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     touchCallout: 'none',
     contentZooming: 'none'
   },
+  dragEventListenerOptions: {
+    passive: true,
+    capture: false,
+  },
   dragPlaceholder: {
     enabled: false,
     createElement: null,
@@ -321,6 +325,7 @@ var gridB = new Muuri('.grid-b', {
 - [dragSortPredicate](#grid-option-dragsortpredicate)
 - [dragRelease](#grid-option-dragrelease)
 - [dragCssProps](#grid-option-dragcssprops)
+- [dragEventListenerOptions](#grid-option-drageventlisteneroptions)
 - [dragPlaceholder](#grid-option-dragplaceholder)
 - [dragAutoScroll](#grid-option-dragautoscroll)
 - [containerClass](#grid-option-containerclass)
@@ -1126,6 +1131,45 @@ var grid = new Muuri(elem, {
     tapHighlightColor: '',
     touchCallout: '',
     contentZooming: '',
+  },
+});
+```
+
+<h3><a id="grid-option-drageventlisteneroptions" href="#grid-option-drageventlisteneroptions" aria-hidden="true">#</a> <i>option</i>: dragEventListenerOptions</h3>
+
+By default Muuri listens to touch/pointer/mouse events in the bubbling phase and prefers passive event listeners for performance reasons _if_ they are supported. However, if you want to change this behavior you can do it here. Note that only the start event listener (`'touchstart'` / `'pointerdown'`/ `'mousedown'`) is added directly to the item element/handle and the other listeners (move/end/cancel variants) are added to the window dynamically after the start event has been emitted.
+
+- Default value:
+  ```javascript
+  {
+    passive: true,
+    capture: false,
+  }
+  ```
+- Accepted types: object.
+
+You can define the following properties:
+
+- **passive** &nbsp;&mdash;&nbsp; _boolean_
+  - Default value: `true`.
+  - https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
+- **capture** &nbsp;&mdash;&nbsp; _boolean_
+  - Default value: `false`.
+  - https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
+
+**Examples**
+
+```javascript
+// Here we configure the event listeners to be non-passive and use the capture
+// phase. If you want to e.g. prevent default page scrolling on touch devices by
+// calling `event.preventDefault()` within the dragStartPredicate at some point
+// then this is a must as you can't call `event.preventDefault()` on passive
+// events.
+var grid = new Muuri(elem, {
+  dragEnabled: true,
+  dragEventListenerOptions: {
+    passive: false,
+    capture: true
   },
 });
 ```

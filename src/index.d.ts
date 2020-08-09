@@ -13,6 +13,11 @@ export interface DraggerCssProps {
   contentZooming?: string;
 }
 
+export interface DraggerListenerOptions {
+  capture: boolean;
+  passive: boolean;
+}
+
 export interface DraggerEvent {
   type: 'start' | 'move' | 'end' | 'cancel';
   srcEvent: PointerEvent | TouchEvent | MouseEvent;
@@ -292,6 +297,7 @@ export interface GridOptions {
   dragSortPredicate?: DragSortPredicateOptions | DragSortPredicate;
   dragRelease?: DragReleaseOptions;
   dragCssProps?: DraggerCssProps;
+  dragEventListenerOptions?: DraggerListenerOptions;
   dragPlaceholder?: DragPlaceholderOptions;
   dragAutoScroll?: DragAutoScrollOptions;
   containerClass?: string;
@@ -413,10 +419,15 @@ export class Animator {
 }
 
 export class Dragger {
-  constructor(element: HTMLElement, cssProps?: DraggerCssProps);
+  constructor(
+    element: HTMLElement,
+    cssProps?: DraggerCssProps,
+    listenerOptions?: DraggerListenerOptions
+  );
   isActive(): boolean;
   setTouchAction(touchAction: string): void;
-  setCssProps(props?: DraggerCssProps): void;
+  setCssProps(props: DraggerCssProps): void;
+  setListenerOptions(options: DraggerListenerOptions): void;
   getDeltaX(): number;
   getDeltaY(): number;
   getDistance(): number;

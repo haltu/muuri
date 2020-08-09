@@ -51,7 +51,7 @@ import removeClass from '../utils/removeClass';
 var START_PREDICATE_INACTIVE = 0;
 var START_PREDICATE_PENDING = 1;
 var START_PREDICATE_RESOLVED = 2;
-var SCROLL_LISTENER_OPTIONS = hasPassiveEvents() ? { capture: true, passive: true } : true;
+var SCROLL_LISTENER_OPTIONS = hasPassiveEvents ? { capture: true, passive: true } : true;
 
 /**
  * Bind touch interaction to an item.
@@ -107,7 +107,11 @@ function ItemDrag(item) {
       : settings.dragHandle) || element;
 
   // Init dragger.
-  this._dragger = new Dragger(this._handle, settings.dragCssProps);
+  this._dragger = new Dragger(
+    this._handle,
+    settings.dragCssProps,
+    settings.dragEventListenerOptions
+  );
   this._dragger.on('start', this._preStartCheck);
   this._dragger.on('move', this._preStartCheck);
   this._dragger.on('cancel', this._preEndCheck);

@@ -1169,14 +1169,14 @@ var grid = new Muuri(elem, {
   dragEnabled: true,
   dragEventListenerOptions: {
     passive: false,
-    capture: true
+    capture: true,
   },
 });
 ```
 
 <h3><a id="grid-option-dragplaceholder" href="#grid-option-dragplaceholder" aria-hidden="true">#</a> <i>option</i>: dragPlaceholder</h3>
 
-If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here. The placeholder animation duration is fetched from the grid's `layoutDuration` option and easing from the grid's `layoutEasing` option. Note that a special placeholder class is given to all drag placeholders and is customizable via [itemPlaceholderClass](#itemplaceholderclass-) option.
+If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here. The placeholder animation duration is fetched from the grid's `layoutDuration` option and easing from the grid's `layoutEasing` option. Note that a special placeholder class is given to all drag placeholders and is customizable via [itemPlaceholderClass](#grid-option-itemplaceholderclass) option.
 
 - Default value:
   ```javascript
@@ -2188,7 +2188,7 @@ grid.on('synchronize', function () {
 
 <h3><a id="grid-event-layoutstart" href="#grid-event-layoutstart" aria-hidden="true">#</a> <i>event</i>: layoutStart</h3>
 
-Triggered when the the layout procedure begins. More specifically, this event is emitted right after new _layout_ has been generated, internal item positions updated and grid element's dimensions updated. After this event is emitted the items in the layout will be positioned to their new positions. So if you e.g. want to react to grid element dimension changes this is a good place to do that.
+Triggered when the the layout procedure begins. More specifically, this event is emitted right after a new layout has been generated, internal item positions updated and grid element's dimensions updated. After this event is emitted the items in the layout will be positioned to their new positions. So if you e.g. want to react to grid element dimension changes this is a good place to do that.
 
 **Arguments**
 
@@ -2207,12 +2207,12 @@ grid.on('layoutStart', function (items, isInstant) {
 
 <h3><a id="grid-event-layoutend" href="#grid-event-layoutend" aria-hidden="true">#</a> <i>event</i>: layoutEnd</h3>
 
-Triggered after the layout procedure has finished, successfully. Note that if you abort a layout procedure by calling `grid.layout()` _before_ items have finished positioning, this event will not be emitted for the aborted layout procedure. In such a case `layoutAbort` will be emitted instead.
+Triggered after the layout procedure has finished, successfully. Note that if you abort a layout procedure by calling `grid.layout()` _before_ items have finished positioning, this event will not be emitted for the aborted layout procedure. In such a case `layoutAbort` event will be emitted instead.
 
 **Arguments**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
-  - The items that were positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument.
+  - The items that were positioned. Note that these items are always identical to what the `layoutStart` event's callback receives as it's argument.
 
 **Examples**
 
@@ -2230,12 +2230,12 @@ grid.on('layoutEnd', function (items) {
 
 <h3><a id="grid-event-layoutabort" href="#grid-event-layoutabort" aria-hidden="true">#</a> <i>event</i>: layoutAbort</h3>
 
-Triggered if you start a new layout process (`grid.layout()`) while the current layout process is still busy positioning items. Note that this event is not triggered if you start a new layout process while the layout is being computed and the items have not yet started positioning.
+Triggered if a new layout process is started before the current layout process is completed. Note that this event is _not_ triggered if you start a new layout process while the current layout is still being computed and the items have not yet started the positioning phase (in such a case we can cleanly just ignore the current layout and start processing the next layout).
 
 **Arguments**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
-  - The items that were attempted to be positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument.
+  - The items that were attempted to be positioned. Note that these items are always identical to what the `layoutStart` event's callback receives as it's argument.
 
 **Examples**
 
@@ -2311,7 +2311,7 @@ Triggered after `grid.show()` is called, after the items are shown.
 **Arguments**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
-  - The items that were successfully shown without interruptions. If you, for example, call `grid.hide()` to some of the items that are currently being shown, those items will be omitted from this argument.
+  - The items that were successfully shown without interruptions. If you, for example, hide (with `grid.hide()`) some of the items that are currently being shown, those items will be omitted from this list of items.
 
 **Examples**
 
@@ -2357,7 +2357,7 @@ grid.on('hideEnd', function (items) {
 
 <h3><a id="grid-event-filter" href="#grid-event-filter" aria-hidden="true">#</a> <i>event</i>: filter</h3>
 
-Triggered after `grid.filter()` is called.
+Triggered after `grid.filter()` is called. Note that internally `grid.filter()` method uses `grid.show()` and `grid.hide()` methods so all events related to those events will be emitted _before_ this event is emitted.
 
 **Arguments**
 
@@ -2397,7 +2397,7 @@ grid.on('sort', function (currentOrder, previousOrder) {
 
 <h3><a id="grid-event-move" href="#grid-event-move" aria-hidden="true">#</a> <i>event</i>: move</h3>
 
-Triggered after `grid.move()` is called or when the grid is sorted during drag. Note that this is event not triggered when an item is dragged into another grid.
+Triggered after `grid.move()` is called or when the grid items are sorted during drag. Note that this event is not triggered when an item is dragged into another grid (see `send` / `beforeSend` / `receive` / `beforeReceive` for that).
 
 **Arguments**
 
@@ -2447,7 +2447,7 @@ grid.on('send', function (data) {
 
 <h3><a id="grid-event-beforesend" href="#grid-event-beforesend" aria-hidden="true">#</a> <i>event</i>: beforeSend</h3>
 
-Triggered for the originating grid in the beginning of the _send process_ (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the sent item (freeze it's dimensions for example) before it is appended to it's temporary layout container as defined in [send method options](#gridsend-item-grid-position-options-).
+Triggered for the originating grid in the beginning of the _send process_ (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the sent item (freeze it's dimensions for example) before it is appended to the temporary container element.
 
 **Arguments**
 
@@ -2499,7 +2499,7 @@ grid.on('receive', function (data) {
 
 <h3><a id="grid-event-beforereceive" href="#grid-event-beforereceive" aria-hidden="true">#</a> <i>event</i>: beforeReceive</h3>
 
-Triggered for the receiving grid in the beginning of the _send process_ (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the received item (freeze it's dimensions for example) before it is appended to it's temporary layout container as defined in [send method options](#gridsend-item-grid-position-options-).
+Triggered for the receiving grid in the beginning of the _send process_ (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the received item (freeze it's dimensions for example) before it is appended to the temporary container element.
 
 **Arguments**
 
@@ -2525,7 +2525,7 @@ grid.on('beforeReceive', function (data) {
 
 <h3><a id="grid-event-draginit" href="#grid-event-draginit" aria-hidden="true">#</a> <i>event</i>: dragInit</h3>
 
-Triggered in the beginning of the _drag start_ process when dragging of an item begins. This event is highly useful in situations where you need to manipulate the dragged item (freeze it's dimensions for example) before it is appended to the [dragContainer](#dragcontainer-).
+Triggered in the beginning of the _drag start_ process when dragging of an item begins. This event is highly useful in situations where you need to manipulate the dragged item (freeze it's dimensions for example) before it is appended to the [dragContainer](#grid-option-dragcontainer).
 
 **Arguments**
 
@@ -2565,7 +2565,7 @@ grid.on('dragStart', function (item, event) {
 
 <h3><a id="grid-event-dragmove" href="#grid-event-dragmove" aria-hidden="true">#</a> <i>event</i>: dragMove</h3>
 
-Triggered every time a dragged item is _moved_. Note that Muuri has an automatic throttling system which makes sure that this event is triggered at maximum once in an animation frame.
+Triggered every time when a dragged item is moved on the _screen_ (not in the layout). Try not to confuse this with the `move` event which is emitted when an item is moved in the _layout_. Note that Muuri has an automatic throttling system which makes sure that this event is triggered at maximum once in an animation frame, and which also means that stuff like `event.srcEvent.preventDefault()` won't work at this point in time.
 
 **Arguments**
 

@@ -49,7 +49,9 @@ import isFunction from '../utils/isFunction';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 
-var IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
+var IS_IOS =
+  /^(iPad|iPhone|iPod)/.test(window.navigator.platform) ||
+  (/^Mac/.test(window.navigator.platform) && window.navigator.maxTouchPoints > 1);
 var START_PREDICATE_INACTIVE = 0;
 var START_PREDICATE_PENDING = 1;
 var START_PREDICATE_RESOLVED = 2;

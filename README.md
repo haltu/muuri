@@ -1662,7 +1662,7 @@ Refresh the sort data of the grid's items.
 grid.refreshSortData();
 
 // Refresh the sort data for specific items.
-grid.refreshSortData([0, someElem, someItem]);
+grid.refreshSortData([itemA, itemB]);
 ```
 
 <h3><a id="grid-method-synchronize" href="#grid-method-synchronize" aria-hidden="true">#</a> grid.synchronize()</h3>

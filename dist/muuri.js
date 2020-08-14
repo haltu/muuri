@@ -8744,6 +8744,8 @@
         // Only active non-dragged items need to be moved.
         if (item.isActive() && !item.isDragging()) {
           itemsToLayout.push(item);
+        } else {
+          --counter;
         }
       }
 
@@ -8757,9 +8759,13 @@
       // to container dimension changes.
       if (this._hasListeners(EVENT_LAYOUT_START)) {
         this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant === true);
+        // Let's make sure that the current layout process has not been overridden
+        // in the layoutStart event, and if so, let's stop processing the aborted
+        // layout.
+        if (this._layout.id !== layout.id) return;
       }
 
-      function tryFinish() {
+      var tryFinish = function () {
         if (--counter > 0) return;
 
         var hasLayoutChanged = grid._layout.id !== layout.id;
@@ -8776,7 +8782,7 @@
         if (!hasLayoutChanged && grid._hasListeners(EVENT_LAYOUT_END)) {
           grid._emit(EVENT_LAYOUT_END, layout.items.slice(0));
         }
-      }
+      };
 
       if (!itemsToLayout.length) {
         tryFinish();

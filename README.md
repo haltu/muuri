@@ -754,10 +754,10 @@ var grid = new Muuri(elem, {
 
 <h3><a id="grid-option-draghandle" href="#grid-option-draghandle" aria-hidden="true">#</a> <i>option</i>: dragHandle</h3>
 
-The element within the item element that should be used as the drag handle. This should be either an element or a CSS selector which will be fed to `element.querySelector()` (as is) to obtain the handle element when the item is instantiated. If no valid element is found or if this is `null` Muuri will use the item element as the handle.
+The element within the item element that should be used as the drag handle. This should be either `null` or a CSS selector which will be fed to `element.querySelector()` to obtain the handle element when the item is instantiated. If no valid element is found or if this is `null` Muuri will use the item element as the handle.
 
 - Default value: `null`.
-- Accepted types: element, string, null.
+- Accepted types: string, null.
 
 **Examples**
 
@@ -1522,6 +1522,7 @@ var grid = new Muuri(elem, {
 - [getElement](#grid-method-getelement)
 - [getItem](#grid-method-getitem)
 - [getItems](#grid-method-getitems)
+- [updateSettings](#grid-method-updatesettings)
 - [refreshItems](#grid-method-refreshitems)
 - [refreshSortData](#grid-method-refreshsortdata)
 - [synchronize](#grid-method-synchronize)
@@ -1607,6 +1608,32 @@ var firstItem = grid.getItems(0)[0];
 
 // Get specific items by their elements.
 var items = grid.getItems([elemA, elemB]);
+```
+
+<h3><a id="grid-method-updatesettings" href="#grid-method-updatesettings" aria-hidden="true">#</a> grid.updateSettings( settings )</h3>
+
+Update the grid's [settings](#grid-options) dynamically. A few things to keep in mind:
+
+- It is recommended to only provide the settings you wish to change.
+- Updating some options while dragging or animating will lead to dragging aborting and/or animation fast-forwarding to the end.
+- If you update [layout](<(#grid-option-layout)>) the grid will _not_ automatically layout itself. So remember to call `grid.layout()` after this method (if needed). The reasoning for this behaviour is that you might want to do other procedures to the grid (e.g. sort or filter) after calling this method in which case automatic layout is undesirable.
+
+**Parameters**
+
+- **settings** &nbsp;&mdash;&nbsp; _object_
+  - You can provide any of the grid's [init options](#grid-options) here with two exceptions: [items](#grid-option-items) and [layoutOnInit](#grid-option-layoutoninit). Those two are only related to the grid's init procedure so updating them would have no effect after the init.
+
+**Returns** &nbsp;&mdash;&nbsp; _Muuri_
+
+- Returns the grid instance.
+
+**Examples**
+
+```javascript
+grid.updateSettings({
+  dragEnabled: false,
+  itemClass: 'muuri-item-foo',
+});
 ```
 
 <h3><a id="grid-method-refreshitems" href="#grid-method-refreshitems" aria-hidden="true">#</a> grid.refreshItems( [items], [force] )</h3>

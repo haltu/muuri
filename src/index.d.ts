@@ -274,7 +274,6 @@ export interface DragAutoScrollOptions {
 }
 
 export interface GridOptions {
-  items?: HTMLElement[] | NodeList | HTMLCollection | string;
   showDuration?: number;
   showEasing?: string;
   visibleStyles?: StyleDeclaration;
@@ -283,12 +282,11 @@ export interface GridOptions {
   hiddenStyles?: StyleDeclaration;
   layout?: LayoutOptions | LayoutFunction;
   layoutOnResize?: boolean | number;
-  layoutOnInit?: boolean;
   layoutDuration?: number;
   layoutEasing?: string;
   sortData?: { [key: string]: SortDataGetter } | null;
   dragEnabled?: boolean;
-  dragHandle?: HTMLElement | string | null;
+  dragHandle?: string | null;
   dragContainer?: HTMLElement | null;
   dragStartPredicate?: DragStartPredicateOptions | DragStartPredicate;
   dragAxis?: 'x' | 'y' | 'xy';
@@ -308,6 +306,11 @@ export interface GridOptions {
   itemDraggingClass?: string;
   itemReleasingClass?: string;
   itemPlaceholderClass?: string;
+}
+
+export interface GridInitOptions extends GridOptions {
+  items?: HTMLElement[] | NodeList | HTMLCollection | string;
+  layoutOnInit?: boolean;
 }
 
 //
@@ -478,7 +481,7 @@ export class Packer {
 }
 
 export default class Grid {
-  constructor(element: string | HTMLElement, options?: GridOptions);
+  constructor(element: string | HTMLElement, options?: GridInitOptions);
 
   static Item: typeof Item;
 
@@ -506,7 +509,7 @@ export default class Grid {
 
   static defaultPacker: Packer;
 
-  static defaultOptions: GridOptions;
+  static defaultOptions: GridInitOptions;
 
   on<T extends keyof GridEvents>(event: T, listener: GridEvents[T]): this;
 
@@ -517,6 +520,8 @@ export default class Grid {
   getItem(target: HTMLElement | number | Item): Item | null;
 
   getItems(targets?: HTMLElement | number | Item | Array<HTMLElement | number | Item>): Item[];
+
+  updateSettings(settings: GridOptions): this;
 
   refreshItems(items?: Item[], force?: boolean): this;
 

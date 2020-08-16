@@ -2791,11 +2791,6 @@ function ItemDrag(item) {
   this._rootGridId = grid._id;
   this._isDestroyed = false;
   this._isMigrated = false;
-
-  // Start predicate data.
-  this._startPredicate = isFunction(settings.dragStartPredicate)
-    ? settings.dragStartPredicate
-    : ItemDrag.defaultStartPredicate;
   this._startPredicateState = START_PREDICATE_INACTIVE;
 
   // Data for drag sort predicate heuristics.
@@ -2823,15 +2818,10 @@ function ItemDrag(item) {
   this._handleSort = this._handleSort.bind(this);
   this._handleSortDelayed = this._handleSortDelayed.bind(this);
 
-  // Get drag handle element.
-  this._handle =
-    (typeof settings.dragHandle === 'string'
-      ? element.querySelector(settings.dragHandle)
-      : settings.dragHandle) || element;
-
   // Init dragger.
   this._dragger = new Dragger(
-    this._handle,
+    (typeof settings.dragHandle === 'string' && element.querySelector(settings.dragHandle)) ||
+      element,
     settings.dragCssProps,
     settings.dragEventListenerOptions
   );
@@ -3285,6 +3275,21 @@ ItemDrag.prototype.destroy = function () {
  * Private prototype methods
  * *************************
  */
+
+/**
+ * Start predicate.
+ *
+ * @private
+ * @param {Item} item
+ * @param {Object} event
+ * @returns {(Boolean|undefined)}
+ */
+ItemDrag.prototype._startPredicate = function (item, event) {
+  var predicate = this.getRootGrid()._settings.dragStartPredicate;
+  return isFunction(predicate)
+    ? predicate(item, event)
+    : ItemDrag.defaultStartPredicate(item, event);
+};
 
 /**
  * Setup/reset drag data.
@@ -7413,7 +7418,7 @@ var layoutId = 0;
  * @param {String} [options.layoutEasing="ease"]
  * @param {?Object} [options.sortData=null]
  * @param {Boolean} [options.dragEnabled=false]
- * @param {?(String|HtmlElement)} [options.dragHandle=null]
+ * @param {?String} [options.dragHandle=null]
  * @param {?HtmlElement} [options.dragContainer=null]
  * @param {?Function} [options.dragStartPredicate]
  * @param {Number} [options.dragStartPredicate.distance=0]
@@ -7486,9 +7491,6 @@ function Grid(element, options) {
   var settings = mergeSettings(Grid.defaultOptions, options);
   settings.visibleStyles = normalizeStyles(settings.visibleStyles);
   settings.hiddenStyles = normalizeStyles(settings.hiddenStyles);
-  if (!isFunction(settings.dragSort)) {
-    settings.dragSort = !!settings.dragSort;
-  }
 
   this._id = createUid();
   this._element = element;
@@ -7854,6 +7856,219 @@ Grid.prototype.getItems = function (targets) {
   }
 
   return items;
+};
+
+/**
+ * Update the grid's settings.
+ *
+ * @public
+ * @param {Object} options
+ * @returns {Grid}
+ */
+Grid.prototype.updateSettings = function (options) {
+  if (this._isDestroyed || !options) return this;
+
+  var option, currentValue, nextValue, item, i, j;
+  var settings = this._settings;
+  var items = this._items;
+
+  var dragEnabledChanged = false;
+  var dragHandleChanged = false;
+  var dragCssPropsChanged = false;
+  var dragEventListenerOptionsChanged = false;
+  var visibleStylesChanged = false;
+  var hiddenStylesChanged = false;
+  var itemClasses = [];
+
+  // Create new settings object.
+  var nextSettings = mergeSettings(settings, options);
+  nextSettings.visibleStyles = normalizeStyles(nextSettings.visibleStyles);
+  nextSettings.hiddenStyles = normalizeStyles(nextSettings.hiddenStyles);
+
+  // Update internal settings object.
+  this._settings = nextSettings;
+
+  // Handle all options that need special care.
+  for (option in options) {
+    currentValue = settings[option];
+    nextValue = nextSettings[option];
+
+    switch (option) {
+      case 'visibleStyles': {
+        visibleStylesChanged = !isEqualObjects(currentValue, nextValue);
+        break;
+      }
+
+      case 'hiddenStyles': {
+        hiddenStylesChanged = !isEqualObjects(currentValue, nextValue);
+        break;
+      }
+
+      case 'dragEnabled': {
+        dragEnabledChanged = currentValue !== nextValue;
+        break;
+      }
+
+      case 'dragHandle': {
+        dragHandleChanged = currentValue !== nextValue;
+        break;
+      }
+
+      case 'dragCssProps': {
+        dragCssPropsChanged = !isEqualObjects(currentValue, nextValue);
+        break;
+      }
+
+      case 'dragEventListenerOptions': {
+        dragEventListenerOptionsChanged = !isEqualObjects(currentValue, nextValue);
+        break;
+      }
+
+      case 'layoutOnResize': {
+        if (currentValue !== nextValue) {
+          unbindLayoutOnResize(this);
+          bindLayoutOnResize(this, nextValue);
+        }
+        break;
+      }
+
+      case 'containerClass': {
+        if (currentValue !== nextValue) {
+          removeClass(this._element, currentValue);
+          addClass(this._element, nextValue);
+        }
+        break;
+      }
+
+      case 'itemClass':
+      case 'itemVisibleClass':
+      case 'itemHiddenClass':
+      case 'itemPositioningClass':
+      case 'itemDraggingClass':
+      case 'itemReleasingClass':
+      case 'itemPlaceholderClass': {
+        if (currentValue !== nextValue) {
+          itemClasses.push(option, currentValue, nextValue);
+        }
+        break;
+      }
+    }
+  }
+
+  // If any property changed that needs updating in the item level, let's loop
+  // through the items and do the updates.
+  if (
+    itemClasses.length ||
+    visibleStylesChanged ||
+    hiddenStylesChanged ||
+    dragEnabledChanged ||
+    dragHandleChanged ||
+    dragCssPropsChanged ||
+    dragEventListenerOptionsChanged
+  ) {
+    for (i = 0; i < items.length; i++) {
+      item = items[i];
+
+      for (j = 0; j < itemClasses.length; j += 3) {
+        option = itemClasses[i];
+        currentValue = itemClasses[i + 1];
+        nextValue = itemClasses[i + 2];
+        switch (itemClasses[j]) {
+          case 'itemClass': {
+            removeClass(item._element, currentValue);
+            addClass(item._element, nextValue);
+            break;
+          }
+          case 'itemVisibleClass': {
+            if (item.isVisible()) {
+              removeClass(item._element, currentValue);
+              addClass(item._element, nextValue);
+            }
+            break;
+          }
+          case 'itemHiddenClass': {
+            if (!item.isVisible()) {
+              removeClass(item._element, currentValue);
+              addClass(item._element, nextValue);
+            }
+            break;
+          }
+          case 'itemPositioningClass': {
+            if (item.isPositioning()) {
+              removeClass(item._element, currentValue);
+              addClass(item._element, nextValue);
+            }
+            break;
+          }
+          case 'itemDraggingClass': {
+            if (item.isDragging()) {
+              removeClass(item._element, currentValue);
+              addClass(item._element, nextValue);
+            }
+            break;
+          }
+          case 'itemReleasingClass': {
+            if (item.isReleasing()) {
+              removeClass(item._element, currentValue);
+              addClass(item._element, nextValue);
+            }
+            break;
+          }
+          case 'itemPlaceholderClass': {
+            if (item._dragPlaceholder && item._dragPlaceholder._element) {
+              removeClass(item._dragPlaceholder._element, currentValue);
+              addClass(item._dragPlaceholder._element, nextValue);
+              item._dragPlaceholder._className = nextValue;
+            }
+            break;
+          }
+        }
+      }
+
+      if (item.isActive()) {
+        if (visibleStylesChanged) {
+          item._visibility.setStyles(nextSettings.visibleStyles);
+          item._visibility.stop(true);
+        }
+      } else {
+        if (hiddenStylesChanged) {
+          item._visibility.setStyles(nextSettings.hiddenStyles);
+          item._visibility.stop(true);
+        }
+      }
+
+      if (
+        (dragHandleChanged || dragEnabledChanged) &&
+        item._drag &&
+        item._drag.getRootGrid() === this
+      ) {
+        item._drag.destroy();
+        item._drag = null;
+      }
+
+      if (nextSettings.dragEnabled) {
+        if (item._drag) {
+          if (item._drag.getRootGrid() === this) {
+            if (dragCssPropsChanged) {
+              item._drag._dragger.setCssProps(nextSettings.dragCssProps);
+            }
+            if (dragEventListenerOptionsChanged) {
+              item._drag._dragger.setListenerOptions(nextSettings.dragEventListenerOptions);
+            }
+          }
+        } else {
+          item._drag = new ItemDrag(item);
+        }
+      }
+    }
+  }
+
+  // Lastly, update sort data if it potentially changed.
+  if ('sortData' in options) {
+    this.refreshSortData();
+  }
+
+  return this;
 };
 
 /**
@@ -9131,6 +9346,20 @@ function compareIndexMap(indexMap, itemA, itemB) {
   var indexA = indexMap[itemA._id];
   var indexB = indexMap[itemB._id];
   return indexA - indexB;
+}
+
+/**
+ * Check if the provided objects have same keys and and values.
+ *
+ * @param {Object} a
+ * @param {Object} b
+ * @returns {Boolean}
+ */
+function isEqualObjects(a, b) {
+  for (var key in a) {
+    if (a[key] !== b[key]) return false;
+  }
+  return Object.keys(a).length === Object.keys(b).length;
 }
 
 export default Grid;

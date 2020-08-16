@@ -68,11 +68,6 @@ function ItemDrag(item) {
   this._rootGridId = grid._id;
   this._isDestroyed = false;
   this._isMigrated = false;
-
-  // Start predicate data.
-  this._startPredicate = isFunction(settings.dragStartPredicate)
-    ? settings.dragStartPredicate
-    : ItemDrag.defaultStartPredicate;
   this._startPredicateState = START_PREDICATE_INACTIVE;
 
   // Data for drag sort predicate heuristics.
@@ -100,15 +95,10 @@ function ItemDrag(item) {
   this._handleSort = this._handleSort.bind(this);
   this._handleSortDelayed = this._handleSortDelayed.bind(this);
 
-  // Get drag handle element.
-  this._handle =
-    (typeof settings.dragHandle === 'string'
-      ? element.querySelector(settings.dragHandle)
-      : settings.dragHandle) || element;
-
   // Init dragger.
   this._dragger = new Dragger(
-    this._handle,
+    (typeof settings.dragHandle === 'string' && element.querySelector(settings.dragHandle)) ||
+      element,
     settings.dragCssProps,
     settings.dragEventListenerOptions
   );
@@ -562,6 +552,21 @@ ItemDrag.prototype.destroy = function () {
  * Private prototype methods
  * *************************
  */
+
+/**
+ * Start predicate.
+ *
+ * @private
+ * @param {Item} item
+ * @param {Object} event
+ * @returns {(Boolean|undefined)}
+ */
+ItemDrag.prototype._startPredicate = function (item, event) {
+  var predicate = this.getRootGrid()._settings.dragStartPredicate;
+  return isFunction(predicate)
+    ? predicate(item, event)
+    : ItemDrag.defaultStartPredicate(item, event);
+};
 
 /**
  * Setup/reset drag data.

@@ -5,6 +5,20 @@
     return typeof val === 'object' && Object.prototype.toString.call(val) === '[object Object]';
   }
 
+  function elementMatches(el, selector) {
+    var matchesFn =
+      Element.prototype.matches ||
+      Element.prototype.matchesSelector ||
+      Element.prototype.webkitMatchesSelector ||
+      Element.prototype.mozMatchesSelector ||
+      Element.prototype.msMatchesSelector ||
+      Element.prototype.oMatchesSelector ||
+      function () {
+        return false;
+      };
+    return matchesFn.call(el, selector);
+  }
+
   var newOptions = {
     // Default show animation
     showDuration: 1000,
@@ -126,9 +140,9 @@
   });
 
   QUnit.test("updateSettings: should update grid's internal settings", function (assert) {
-    assert.expect(Object.keys(newOptions).length);
+    assert.expect(Object.keys(newOptions).length + 4);
 
-    var container = utils.createGridElements();
+    var container = utils.createGridElements({ itemCount: 1 });
     var grid = new Muuri(container);
     var teardown = function () {
       grid.destroy();
@@ -140,14 +154,36 @@
     // Make sure the grid's internal settings are updated to match the new options.
     for (var option in newOptions) {
       if (isPlainObject(newOptions[option])) {
-        assert.deepEqual(grid._settings[option], newOptions[option]);
+        assert.deepEqual(grid._settings[option], newOptions[option], option);
       } else {
-        assert.strictEqual(grid._settings[option], newOptions[option]);
+        assert.strictEqual(grid._settings[option], newOptions[option], option);
       }
     }
 
-    // TODO: Make sure all the grid's items are updated to match the new options.
-    // TODO: Make sure containerClass is updated.
+    // Make sure containerClass is updated.
+    assert.strictEqual(
+      elementMatches(grid.getElement(), '.' + newOptions.containerClass),
+      true,
+      'new containerClass exists'
+    );
+    assert.strictEqual(
+      elementMatches(grid.getElement(), '.muuri'),
+      false,
+      'old containerClass doest not exist'
+    );
+
+    // Make sure itemClass is updated.
+    var item = grid.getItems()[0];
+    assert.strictEqual(
+      elementMatches(item.getElement(), '.' + newOptions.itemClass),
+      true,
+      'new itemClass exists'
+    );
+    assert.strictEqual(
+      elementMatches(item.getElement(), '.muuri-item'),
+      false,
+      'oldItemClass does not exist'
+    );
 
     teardown();
   });

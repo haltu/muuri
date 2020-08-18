@@ -1197,6 +1197,7 @@ If you want to trigger scrolling on any element during dragging you can enable a
     targets: [],
     handle: null,
     threshold: 50,
+    safeZone: 0.2,
     speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     smoothStop: false,

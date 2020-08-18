@@ -543,10 +543,10 @@ The layout object, which needs to be provided to the callback, must include the 
 - **items** &nbsp;&mdash;&nbsp; _array_
   - Array of the active item instances that are part of the layout. You can pass the same `items` array here which is provided by Muuri (in case you haven't mutated it). This array items must be identical to the array of items provided by Muuri.
 - **slots** &nbsp;&mdash;&nbsp; _array_
-  - Array of the item positions (numbers). E.g. if the items were `[a, b]` this should be `[aLeft, aTop, bLeft, bTop]`. You have to calculate the `left` and `top` position for each item in the provided _items_ array in the same order the items are provided.
+  - Array of the item positions (numbers). E.g. if the items were `[a, b]` this should be `[aLeft, aTop, bLeft, bTop]`. You have to calculate the `left` and `top` position for each item in the provided `items` array in the same order the items are provided.
 - **styles** &nbsp;&mdash;&nbsp; _object / null_
-  - Here you can optionally define all the layout related CSS styles that should be applied to the grid element _just_ before the `layoutStart` event is emitted. E.g. `{width: '100%', height: '200px', minWidth: '200px'}`.
-  - It's important to keep in mind here that if the grid element's `box-sizing` CSS property is set to `border-box` the element's borders are included in the dimensions. E.g. if you set `{width: '100px', width: '100px'}` here and the element has a `5px` border and `box-sizing` is set to `border-box`, then the _layout's_ effective `width` and `height` (as perceived by Muuri) will be `90px`. So remember to take that into account and add the borders to the dimensions when necessary. If this sounds complicated then just don't set borders directly to the grid element or make sure that grid element's `box-sizing` is set to `content-box` (which is the default value).
+  - Here you can optionally define all the layout related CSS styles that should be applied to the grid element just before the `layoutStart` event is emitted. E.g. `{width: '100%', height: '200px', minWidth: '200px'}`.
+  - It's important to keep in mind here that if the grid element's `box-sizing` CSS property is set to `border-box` the element's borders are included in the dimensions. E.g. if you set `{width: '100px', height: '100px'}` here and the element has a `5px` border and `box-sizing` is set to `border-box`, then the layout's effective `width` and `height` (as perceived by Muuri) will be `90px`. So remember to take that into account and add the borders to the dimensions when necessary. If this sounds complicated then just don't set borders directly to the grid element or make sure that grid element's `box-sizing` is set to `content-box` (which is the default value).
 
 Note that you can add additional properties to the layout object if you wish, e.g. the default layout algorithm also stores the layout's width and height (in pixels) to the layout object.
 
@@ -1615,8 +1615,9 @@ var items = grid.getItems([elemA, elemB]);
 Update the grid's [settings](#grid-options) dynamically. A few things to keep in mind:
 
 - It is recommended to only provide the settings you wish to change.
-- Updating some options while dragging or animating will lead to dragging aborting and/or animation fast-forwarding to the end.
-- If you update [layout](<(#grid-option-layout)>) the grid will _not_ automatically layout itself. So remember to call `grid.layout()` after this method (if needed). The reasoning for this behaviour is that you might want to do other procedures to the grid (e.g. sort or filter) after calling this method in which case automatic layout is undesirable.
+- Updating some options while dragging or animating will lead to dragging aborting and animation fast-forwarding to the end.
+- If the new settings potentially cause item dimensions to change remember to call `grid.refreshItems()` before doing the next layout.
+- If you update [layout](#grid-option-layout) the grid will _not_ automatically layout itself. So remember to call `grid.layout()` after this method (if needed). The reasoning for this behaviour is that you might want to do other procedures to the grid (e.g. sort or filter) after calling this method in which case automatic layout is undesirable.
 
 **Parameters**
 

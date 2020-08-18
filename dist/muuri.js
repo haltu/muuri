@@ -7885,6 +7885,7 @@
     var visibleStylesChanged = false;
     var hiddenStylesChanged = false;
     var itemClasses = [];
+    var switchClass = false;
 
     // Create new settings object.
     var nextSettings = mergeSettings(settings, options);
@@ -7975,62 +7976,54 @@
       for (i = 0; i < items.length; i++) {
         item = items[i];
 
+        // Handle item class name changes.
         for (j = 0; j < itemClasses.length; j += 3) {
-          option = itemClasses[i];
-          currentValue = itemClasses[i + 1];
-          nextValue = itemClasses[i + 2];
-          switch (itemClasses[j]) {
+          option = itemClasses[j];
+          currentValue = itemClasses[j + 1];
+          nextValue = itemClasses[j + 2];
+          switchClass = false;
+
+          switch (option) {
             case 'itemClass': {
-              removeClass(item._element, currentValue);
-              addClass(item._element, nextValue);
+              switchClass = true;
               break;
             }
             case 'itemVisibleClass': {
-              if (item.isVisible()) {
-                removeClass(item._element, currentValue);
-                addClass(item._element, nextValue);
-              }
+              switchClass = item.isVisible();
               break;
             }
             case 'itemHiddenClass': {
-              if (!item.isVisible()) {
-                removeClass(item._element, currentValue);
-                addClass(item._element, nextValue);
-              }
+              switchClass = !item.isVisible();
               break;
             }
             case 'itemPositioningClass': {
-              if (item.isPositioning()) {
-                removeClass(item._element, currentValue);
-                addClass(item._element, nextValue);
-              }
+              switchClass = item.isPositioning();
               break;
             }
             case 'itemDraggingClass': {
-              if (item.isDragging()) {
-                removeClass(item._element, currentValue);
-                addClass(item._element, nextValue);
-              }
+              switchClass = item.isDragging();
               break;
             }
             case 'itemReleasingClass': {
-              if (item.isReleasing()) {
-                removeClass(item._element, currentValue);
-                addClass(item._element, nextValue);
-              }
+              switchClass = item.isReleasing();
               break;
             }
             case 'itemPlaceholderClass': {
               if (item._dragPlaceholder && item._dragPlaceholder._element) {
-                removeClass(item._dragPlaceholder._element, currentValue);
-                addClass(item._dragPlaceholder._element, nextValue);
+                switchClass = true;
                 item._dragPlaceholder._className = nextValue;
               }
               break;
             }
           }
+
+          if (switchClass) {
+            removeClass(item._element, currentValue);
+            addClass(item._element, nextValue);
+          }
         }
 
+        // Handle visibleStyles/hiddenStyles change.
         if (item.isActive()) {
           if (visibleStylesChanged) {
             item._visibility.setStyles(nextSettings.visibleStyles);

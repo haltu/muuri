@@ -7628,7 +7628,7 @@
    * @static
    * @type {Packer}
    */
-  Grid.defaultPacker = new Packer(2);
+  Grid.defaultPacker = new Packer();
 
   /**
    * Default options for Grid instance.

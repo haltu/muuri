@@ -483,7 +483,7 @@ var grid = new Muuri(elem, {
 
 Define how the items will be positioned. Muuri ships with a configurable layout algorithm which is used by default. It's pretty flexible and suitable for most common situations (lists, grids and even bin packed grids). If that does not fit the bill you can always provide your own layout algorithm (it's not as scary as it sounds).
 
-Muuri supports calculating the layout both synchronously and asynchronously. By default (if you use the default layout algorithm) Muuri will use two shared web workers to compute the layouts asynchronously. In browsers that do not support web workers Muuri will fallback to synchronous layout calculations.
+Muuri supports calculating the layout both synchronously and asynchronously. By default Muuri computes the layout synchronously, but you can easily configure Muuri to compute the layout asynchronously in web workers if you wish.
 
 - Default value:
   ```javascript
@@ -555,6 +555,59 @@ Note that you can add additional properties to the layout object if you wish, e.
 ```javascript
 // Customize the default layout algorithm.
 var grid = new Muuri(elem, {
+  layout: {
+    fillGaps: true,
+    horizontal: true,
+    alignRight: true,
+    alignBottom: true,
+    rounding: true,
+  },
+});
+```
+
+```javascript
+// Create an async Packer instance that computes the layouts in web workers.
+// The first argument defines how many web workers will be spawned for the
+// layout calculations. Having multiple workers is handy if you want to compute
+// multiple layouts simultaneously without blocking the main thread. Async
+// packer is recommended only for situations where the layout calculations are
+// starting to block the main thread too much (subjective matter).
+var asyncPacker = new Muuri.Packer(2, {
+  fillGaps: true,
+  horizontal: true,
+  alignRight: true,
+  alignBottom: true,
+  rounding: true,
+});
+
+// You can then feed the packer's `createLayout` method to grid's layout
+// option.
+var gridA = new Muuri(elemA, {
+  layout: function () {
+    return asyncPacker.createLayout.apply(asyncPacker, arguments);
+  },
+});
+var gridB = new Muuri(elemA, {
+  layout: function () {
+    return asyncPacker.createLayout.apply(asyncPacker, arguments);
+  },
+});
+
+// You can also dynamically update the packer's options, but note that it will
+// affect on all grid's that use the packer.
+asyncPacker.setOptions({
+  fillGaps: false,
+});
+
+// You can also an the async packer as the default packer and continue using
+// Muuri as if there never was a sync packer there in the first place.
+Muuri.defaultPacker.destroy();
+Muuri.defaultPacker = new Muuri.Packer(2);
+
+// This grid will use the new default (async) packer. Note that Muuri always
+// automatically updates the default packer's options before starting layout so
+// it's fine to have different configurations per grid.
+var gridC = new Muuri(elemA, {
   layout: {
     fillGaps: true,
     horizontal: true,

@@ -1,24 +1,6 @@
 (function (window) {
   var Muuri = window.Muuri;
 
-  function isPlainObject(val) {
-    return typeof val === 'object' && Object.prototype.toString.call(val) === '[object Object]';
-  }
-
-  function elementMatches(el, selector) {
-    var matchesFn =
-      Element.prototype.matches ||
-      Element.prototype.matchesSelector ||
-      Element.prototype.webkitMatchesSelector ||
-      Element.prototype.mozMatchesSelector ||
-      Element.prototype.msMatchesSelector ||
-      Element.prototype.oMatchesSelector ||
-      function () {
-        return false;
-      };
-    return matchesFn.call(el, selector);
-  }
-
   var newOptions = {
     // Default show animation
     showDuration: 1000,
@@ -140,7 +122,7 @@
   });
 
   QUnit.test("updateSettings: should update grid's internal settings", function (assert) {
-    assert.expect(Object.keys(newOptions).length + 4);
+    assert.expect(Object.keys(newOptions).length);
 
     var container = utils.createGridElements({ itemCount: 1 });
     var grid = new Muuri(container);
@@ -151,40 +133,110 @@
 
     grid.updateSettings(newOptions);
 
-    // Make sure the grid's internal settings are updated to match the new options.
     for (var option in newOptions) {
-      if (isPlainObject(newOptions[option])) {
-        assert.deepEqual(grid._settings[option], newOptions[option], option);
+      if (utils.isPlainObject(newOptions[option])) {
+        assert.deepEqual(
+          grid._settings[option],
+          newOptions[option],
+          option + ': setting updated internally'
+        );
       } else {
-        assert.strictEqual(grid._settings[option], newOptions[option], option);
+        assert.strictEqual(
+          grid._settings[option],
+          newOptions[option],
+          option + ': setting updated internally'
+        );
       }
     }
 
-    // Make sure containerClass is updated.
+    teardown();
+  });
+
+  QUnit.test('updateSettings: should update containerClass', function (assert) {
+    assert.expect(3);
+
+    var container = utils.createGridElements();
+    var grid = new Muuri(container);
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
     assert.strictEqual(
-      elementMatches(grid.getElement(), '.' + newOptions.containerClass),
-      true,
-      'new containerClass exists'
-    );
-    assert.strictEqual(
-      elementMatches(grid.getElement(), '.muuri'),
-      false,
-      'old containerClass doest not exist'
+      utils.matches(grid.getElement(), '.' + Muuri.defaultOptions.containerClass),
+      true
     );
 
-    // Make sure itemClass is updated.
-    var item = grid.getItems()[0];
+    grid.updateSettings({ containerClass: 'foo' });
+
+    assert.strictEqual(utils.matches(grid.getElement(), '.foo'), true, 'new containerClass added');
+
     assert.strictEqual(
-      elementMatches(item.getElement(), '.' + newOptions.itemClass),
-      true,
-      'new itemClass exists'
-    );
-    assert.strictEqual(
-      elementMatches(item.getElement(), '.muuri-item'),
+      utils.matches(grid.getElement(), '.' + Muuri.defaultOptions.containerClass),
       false,
-      'oldItemClass does not exist'
+      'old containerClass removed'
     );
 
     teardown();
   });
+
+  QUnit.test('updateSettings: should update itemClass', function (assert) {
+    assert.expect(3);
+
+    var container = utils.createGridElements();
+    var grid = new Muuri(container);
+    var item = grid.getItems()[0];
+    var teardown = function () {
+      grid.destroy();
+      container.parentNode.removeChild(container);
+    };
+
+    assert.strictEqual(
+      utils.matches(item.getElement(), '.' + Muuri.defaultOptions.itemClass),
+      true
+    );
+
+    grid.updateSettings({ itemClass: 'foo' });
+
+    assert.strictEqual(utils.matches(item.getElement(), '.foo'), true, 'new itemClass added');
+
+    assert.strictEqual(
+      utils.matches(item.getElement(), '.' + Muuri.defaultOptions.itemClass),
+      false,
+      'old itemClass removed'
+    );
+
+    teardown();
+  });
+
+  QUnit.test(
+    'updateSettings: updating dragEnabled should make items draggable or non-draggable',
+    function (assert) {
+      assert.expect(4);
+
+      var container = utils.createGridElements();
+      var grid = new Muuri(container);
+      var item = grid.getItems()[0];
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+      };
+
+      assert.strictEqual(item._drag, null);
+
+      grid.updateSettings({ dragEnabled: true });
+
+      assert.strictEqual(item._drag instanceof Muuri.ItemDrag, true);
+
+      grid.updateSettings({ dragEnabled: false });
+
+      assert.strictEqual(item._drag, null);
+
+      grid.updateSettings({ dragEnabled: true });
+
+      assert.strictEqual(item._drag instanceof Muuri.ItemDrag, true);
+
+      teardown();
+    }
+  );
 })(this);

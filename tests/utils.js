@@ -1,4 +1,4 @@
-(function(window) {
+(function (window) {
   var utils = (window.utils = {});
   var supportsTouch = !!('TouchEvent' in window);
   var supportsPointer = !!('PointerEvent' in window);
@@ -7,7 +7,7 @@
   // Methods
   //
 
-  utils.createGridElements = function(options) {
+  utils.createGridElements = function (options) {
     var opts = options || {};
     var container = opts.container || document.createElement('div');
     var itemCount = typeof opts.itemCount === 'number' && opts.itemCount >= 0 ? opts.itemCount : 10;
@@ -19,10 +19,10 @@
       border: '5px solid #ff0000',
       margin: '10px',
       background: '#000',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
     };
     var containerStyles = opts.containerStyles || {
-      position: 'relative'
+      position: 'relative',
     };
     var items = [];
     var item;
@@ -44,7 +44,7 @@
     return container;
   };
 
-  utils.dragElement = function(config) {
+  utils.dragElement = function (config) {
     var element = config.element;
     var moveLeft = typeof config.x === 'number' ? config.x : 0;
     var moveTop = typeof config.y === 'number' ? config.y : 0;
@@ -61,11 +61,11 @@
     // Create the hand istance.
     var hand = new Hand({
       timing: 'fastFrame',
-      onStop: function() {
+      onStop: function () {
         if (typeof onFinished === 'function') {
           window.setTimeout(onFinished, 100);
         }
-      }
+      },
     });
 
     // Create finger instance.
@@ -75,7 +75,7 @@
       width: 30,
       height: 30,
       x: from.left,
-      y: from.top
+      y: from.top,
     });
 
     // Do the drag if movement is defined.
@@ -96,76 +96,76 @@
     }
   };
 
-  utils.idList = function(collection) {
-    return collection.map(function(item) {
+  utils.idList = function (collection) {
+    return collection.map(function (item) {
       return item._id;
     });
   };
 
-  utils.sortedIdList = function(items) {
+  utils.sortedIdList = function (items) {
     return utils.idList(
-      items.sort(function(a, b) {
+      items.sort(function (a, b) {
         return a._id - b._id;
       })
     );
   };
 
-  utils.getActiveItems = function(grid) {
-    return grid.getItems().filter(function(item) {
+  utils.getActiveItems = function (grid) {
+    return grid.getItems().filter(function (item) {
       return item.isActive();
     });
   };
 
-  utils.getInactiveItems = function(grid) {
-    return grid.getItems().filter(function(item) {
+  utils.getInactiveItems = function (grid) {
+    return grid.getItems().filter(function (item) {
       return !item.isActive();
     });
   };
 
-  utils.getVisibleItems = function(grid) {
-    return grid.getItems().filter(function(item) {
+  utils.getVisibleItems = function (grid) {
+    return grid.getItems().filter(function (item) {
       return item.isVisible();
     });
   };
 
-  utils.getHiddenItems = function(grid) {
-    return grid.getItems().filter(function(item) {
+  utils.getHiddenItems = function (grid) {
+    return grid.getItems().filter(function (item) {
       return !item.isVisible();
     });
   };
 
-  utils.getShowingItems = function(grid) {
-    return grid.getItems().filter(function(item) {
+  utils.getShowingItems = function (grid) {
+    return grid.getItems().filter(function (item) {
       return item.isShowing();
     });
   };
 
-  utils.getHidingItems = function(grid) {
-    return grid.getItems().filter(function(item) {
+  utils.getHidingItems = function (grid) {
+    return grid.getItems().filter(function (item) {
       return item.isHiding();
     });
   };
 
-  utils.getPositioningItems = function(grid) {
-    return grid.getItems().filter(function(item) {
+  utils.getPositioningItems = function (grid) {
+    return grid.getItems().filter(function (item) {
       return item.isPositioning();
     });
   };
 
-  utils.getReleasingItems = function(grid) {
-    return grid.getItems().filter(function(item) {
+  utils.getReleasingItems = function (grid) {
+    return grid.getItems().filter(function (item) {
       return item.isReleasing();
     });
   };
 
-  utils.setStyles = function(element, styles) {
+  utils.setStyles = function (element, styles) {
     var props = Object.keys(styles);
     for (var i = 0; i < props.length; i++) {
       element.style[props[i]] = styles[props[i]];
     }
   };
 
-  utils.matches = function(el, selector) {
+  utils.matches = function (el, selector) {
     var p = Element.prototype;
     return (
       p.matches ||
@@ -177,23 +177,27 @@
     ).call(el, selector);
   };
 
-  utils.raf = function(cb) {
+  utils.isPlainObject = function (val) {
+    return typeof val === 'object' && Object.prototype.toString.call(val) === '[object Object]';
+  };
+
+  utils.raf = function (cb) {
     return (
       window.requestAnimationFrame ||
       window.webkitRequestAnimationFrame ||
       window.mozRequestAnimationFrame ||
       window.msRequestAnimationFrame ||
-      function(cb) {
+      function (cb) {
         return window.setTimeout(cb, 16);
       }
     )(cb);
   };
 
-  utils.isScrollEvent = function(e) {
+  utils.isScrollEvent = function (e) {
     return e.type === 'scroll';
   };
 
-  utils.isDraggerEvent = function(e) {
+  utils.isDraggerEvent = function (e) {
     var ret = true;
     var eventKeys = Object.keys(e);
     var requiredKeys = [
@@ -212,10 +216,10 @@
       'clientY',
       'pageX',
       'pageY',
-      'target'
+      'target',
     ];
 
-    requiredKeys.forEach(function(key) {
+    requiredKeys.forEach(function (key) {
       if (eventKeys.indexOf(key) === -1) {
         ret = false;
       }

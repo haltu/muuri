@@ -6933,7 +6933,7 @@ function createPackerProcessor(isWorker) {
   if (isWorker) {
     var PACKET_INDEX_WIDTH = 1;
     var PACKET_INDEX_HEIGHT = 2;
-    var PACKET_INDEX_OPTIONS = 3;
+    var PACKET_INDEX_SETTINGS = 3;
     var PACKET_HEADER_SLOTS = 4;
     var processor = new PackerProcessor();
 
@@ -6941,7 +6941,7 @@ function createPackerProcessor(isWorker) {
       var data = new Float32Array(msg.data);
       var items = data.subarray(PACKET_HEADER_SLOTS, data.length);
       var slots = new Float32Array(items.length);
-      var settings = data[PACKET_INDEX_OPTIONS];
+      var settings = data[PACKET_INDEX_SETTINGS];
       var layout = {
         items: items,
         slots: slots,
@@ -7030,7 +7030,7 @@ var ROUNDING = 16;
 var PACKET_INDEX_ID = 0;
 var PACKET_INDEX_WIDTH = 1;
 var PACKET_INDEX_HEIGHT = 2;
-var PACKET_INDEX_OPTIONS = 3;
+var PACKET_INDEX_SETTINGS = 3;
 var PACKET_HEADER_SLOTS = 4;
 
 /**
@@ -7044,7 +7044,7 @@ var PACKET_HEADER_SLOTS = 4;
  * @param {Boolean} [options.rounding=false]
  */
 function Packer(numWorkers, options) {
-  this._options = 0;
+  this._settings = 0;
   this._processor = null;
   this._layoutQueue = [];
   this._layouts = {};
@@ -7055,7 +7055,7 @@ function Packer(numWorkers, options) {
   this._onWorkerMessage = this._onWorkerMessage.bind(this);
 
   // Set initial options.
-  this.setOptions(options);
+  this.updateSettings(options);
 
   // Init the worker(s) or the processor if workers can't be used.
   numWorkers = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
@@ -7137,45 +7137,35 @@ Packer.prototype._finalizeLayout = function (layout) {
  * @param {Boolean} [options.alignBottom]
  * @param {Boolean} [options.rounding]
  */
-Packer.prototype.setOptions = function (options) {
+Packer.prototype.updateSettings = function (options) {
   if (!options) return;
 
-  var fillGaps;
+  var fillGaps = this._settings & FILL_GAPS;
   if (typeof options.fillGaps === 'boolean') {
     fillGaps = options.fillGaps ? FILL_GAPS : 0;
-  } else {
-    fillGaps = this._options & FILL_GAPS;
   }
 
-  var horizontal;
+  var horizontal = this._settings & HORIZONTAL;
   if (typeof options.horizontal === 'boolean') {
     horizontal = options.horizontal ? HORIZONTAL : 0;
-  } else {
-    horizontal = this._options & HORIZONTAL;
   }
 
-  var alignRight;
+  var alignRight = this._settings & ALIGN_RIGHT;
   if (typeof options.alignRight === 'boolean') {
     alignRight = options.alignRight ? ALIGN_RIGHT : 0;
-  } else {
-    alignRight = this._options & ALIGN_RIGHT;
   }
 
-  var alignBottom;
+  var alignBottom = this._settings & ALIGN_BOTTOM;
   if (typeof options.alignBottom === 'boolean') {
     alignBottom = options.alignBottom ? ALIGN_BOTTOM : 0;
-  } else {
-    alignBottom = this._options & ALIGN_BOTTOM;
   }
 
-  var rounding;
+  var rounding = this._settings & ROUNDING;
   if (typeof options.rounding === 'boolean') {
     rounding = options.rounding ? ROUNDING : 0;
-  } else {
-    rounding = this._options & ROUNDING;
   }
 
-  this._options = fillGaps | horizontal | alignRight | alignBottom | rounding;
+  this._settings = fillGaps | horizontal | alignRight | alignBottom | rounding;
 };
 
 /**
@@ -7193,7 +7183,7 @@ Packer.prototype.createLayout = function (grid, layoutId, items, width, height, 
     throw new Error('A layout with the provided id is currently being processed.');
   }
 
-  var horizontal = this._options & HORIZONTAL;
+  var horizontal = this._settings & HORIZONTAL;
   var layout = {
     id: layoutId,
     items: items,
@@ -7203,7 +7193,7 @@ Packer.prototype.createLayout = function (grid, layoutId, items, width, height, 
     // Temporary data, which will be removed before sending the layout data
     // outside of Packer's context.
     _grid: grid,
-    _settings: this._options,
+    _settings: this._settings,
   };
 
   // If there are no items let's call the callback immediately.
@@ -7232,7 +7222,7 @@ Packer.prototype.createLayout = function (grid, layoutId, items, width, height, 
   data[PACKET_INDEX_ID] = layoutId;
   data[PACKET_INDEX_WIDTH] = layout.width;
   data[PACKET_INDEX_HEIGHT] = layout.height;
-  data[PACKET_INDEX_OPTIONS] = layout._settings;
+  data[PACKET_INDEX_SETTINGS] = layout._settings;
 
   // Worker data items.
   var i, j, item;
@@ -8224,7 +8214,7 @@ Grid.prototype.layout = function (instant, onFinish) {
       this._onLayoutDataReceived
     );
   } else {
-    Grid.defaultPacker.setOptions(layoutSettings);
+    Grid.defaultPacker.updateSettings(layoutSettings);
     cancelLayout = Grid.defaultPacker.createLayout(
       this,
       nextLayoutId,

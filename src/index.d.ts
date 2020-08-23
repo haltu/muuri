@@ -467,7 +467,7 @@ export class AutoScroller {
 
 export class Packer {
   constructor(numWorkers?: number, options?: LayoutOptions);
-  setOptions(options?: LayoutOptions): void;
+  updateSettings(options?: LayoutOptions): void;
   createLayout(
     grid: Grid,
     id: number,

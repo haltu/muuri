@@ -505,7 +505,7 @@ function createPackerProcessor(isWorker) {
   if (isWorker) {
     var PACKET_INDEX_WIDTH = 1;
     var PACKET_INDEX_HEIGHT = 2;
-    var PACKET_INDEX_OPTIONS = 3;
+    var PACKET_INDEX_SETTINGS = 3;
     var PACKET_HEADER_SLOTS = 4;
     var processor = new PackerProcessor();
 
@@ -513,7 +513,7 @@ function createPackerProcessor(isWorker) {
       var data = new Float32Array(msg.data);
       var items = data.subarray(PACKET_HEADER_SLOTS, data.length);
       var slots = new Float32Array(items.length);
-      var settings = data[PACKET_INDEX_OPTIONS];
+      var settings = data[PACKET_INDEX_SETTINGS];
       var layout = {
         items: items,
         slots: slots,

@@ -893,7 +893,7 @@ Grid.prototype.layout = function (instant, onFinish) {
       this._onLayoutDataReceived
     );
   } else {
-    Grid.defaultPacker.setOptions(layoutSettings);
+    Grid.defaultPacker.updateSettings(layoutSettings);
     cancelLayout = Grid.defaultPacker.createLayout(
       this,
       nextLayoutId,

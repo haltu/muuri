@@ -593,9 +593,9 @@ var gridB = new Muuri(elemA, {
   },
 });
 
-// You can also dynamically update the packer's options, but note that it will
+// You can also dynamically update the packer's settings, but note that it will
 // affect on all grid's that use the packer.
-asyncPacker.setOptions({
+asyncPacker.updateSettings({
   fillGaps: false,
 });
 

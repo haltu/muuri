@@ -391,6 +391,7 @@ export class ItemDragPlaceholder {
   isActive(): boolean;
   getElement(): HTMLElement | null;
   updateDimensions(): void;
+  updateClassName(className: string): void;
   destroy(): void;
 }
 

@@ -672,10 +672,7 @@ Grid.prototype.updateSettings = function (options) {
             break;
           }
           case 'itemPlaceholderClass': {
-            if (item._dragPlaceholder && item._dragPlaceholder._element) {
-              switchClass = true;
-              item._dragPlaceholder._className = nextValue;
-            }
+            if (item._dragPlaceholder) item._dragPlaceholder.updateClassName(nextValue);
             break;
           }
         }

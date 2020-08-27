@@ -3291,7 +3291,7 @@
    * @returns {(Boolean|undefined)}
    */
   ItemDrag.prototype._startPredicate = function (item, event) {
-    var predicate = this.getRootGrid()._settings.dragStartPredicate;
+    var predicate = item.getGrid()._settings.dragStartPredicate;
     return isFunction(predicate)
       ? predicate(item, event)
       : ItemDrag.defaultStartPredicate(item, event);
@@ -3712,6 +3712,11 @@
         item._visibility.setStyles(targetSettings.hiddenStyles);
       }
 
+      // Update placeholder class.
+      if (item._dragPlaceholder) {
+        item._dragPlaceholder.updateClassName(targetSettings.itemPlaceholderClass);
+      }
+
       // Update item's cached dimensions.
       // NOTE: This should be only done if there's a chance that the DOM writes
       // have cause this to change. Maybe this is not needed always?
@@ -4013,7 +4018,7 @@
 
     this._moveDiffX = this._moveDiffY = 0;
     item._setTranslate(this._translateX, this._translateY);
-    this.getRootGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
+    item.getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
     ItemDrag.autoScroller.updateItem(item);
   };
 
@@ -4088,7 +4093,7 @@
 
     this._scrollDiffX = this._scrollDiffY = 0;
     item._setTranslate(this._translateX, this._translateY);
-    this.getRootGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
+    item.getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
   };
 
   /**
@@ -4127,7 +4132,7 @@
     ItemDrag.autoScroller.removeItem(item);
 
     // Emit dragEnd event.
-    this.getRootGrid()._emit(EVENT_DRAG_END, item, event);
+    item.getGrid()._emit(EVENT_DRAG_END, item, event);
 
     // Finish up the migration process or start the release process.
     this._isMigrated ? this._finishMigration() : item._dragRelease.start();
@@ -4777,6 +4782,19 @@
   ItemDragPlaceholder.prototype.updateDimensions = function () {
     if (!this.isActive()) return;
     addPlaceholderResizeTick(this._item._id, this._updateDimensions);
+  };
+
+  /**
+   * Update placeholder's class name.
+   *
+   * @public
+   * @param {String} className
+   */
+  ItemDragPlaceholder.prototype.updateClassName = function (className) {
+    if (!this.isActive()) return;
+    removeClass(this._element, this._className);
+    this._className = className;
+    addClass(this._element, className);
   };
 
   /**
@@ -7999,10 +8017,7 @@
               break;
             }
             case 'itemPlaceholderClass': {
-              if (item._dragPlaceholder && item._dragPlaceholder._element) {
-                switchClass = true;
-                item._dragPlaceholder._className = nextValue;
-              }
+              if (item._dragPlaceholder) item._dragPlaceholder.updateClassName(nextValue);
               break;
             }
           }

@@ -437,6 +437,19 @@ ItemDragPlaceholder.prototype.updateDimensions = function () {
 };
 
 /**
+ * Update placeholder's class name.
+ *
+ * @public
+ * @param {String} className
+ */
+ItemDragPlaceholder.prototype.updateClassName = function (className) {
+  if (!this.isActive()) return;
+  removeClass(this._element, this._className);
+  this._className = className;
+  addClass(this._element, className);
+};
+
+/**
  * Destroy placeholder instance.
  *
  * @public

@@ -3306,6 +3306,7 @@ ItemDrag.prototype._reset = function () {
 
   // Drag/scroll event data.
   this._dragStartEvent = null;
+  this._dragEndEvent = null;
   this._dragMoveEvent = null;
   this._dragPrevMoveEvent = null;
   this._scrollEvent = null;
@@ -3520,9 +3521,10 @@ ItemDrag.prototype._cancelSort = function () {
  */
 ItemDrag.prototype._finishSort = function () {
   var isSortEnabled = this._item.getGrid()._settings.dragSort;
-  var needsFinalCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
+  var needsFinalMoveCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
   this._cancelSort();
-  if (needsFinalCheck) this._checkOverlap();
+  if (needsFinalMoveCheck) this._checkOverlap();
+  if (isSortEnabled) this._checkOverlap(true);
 };
 
 /**
@@ -3530,8 +3532,9 @@ ItemDrag.prototype._finishSort = function () {
  * the configuration layout the items.
  *
  * @private
+ * @param {Boolean} [isDrop=false]
  */
-ItemDrag.prototype._checkOverlap = function () {
+ItemDrag.prototype._checkOverlap = function (isDrop) {
   if (!this._isActive) return;
 
   var item = this._item;
@@ -3552,8 +3555,8 @@ ItemDrag.prototype._checkOverlap = function () {
 
   // Get overlap check result.
   if (isFunction(settings.dragSortPredicate)) {
-    result = settings.dragSortPredicate(item, this._dragMoveEvent);
-  } else {
+    result = settings.dragSortPredicate(item, isDrop ? this._dragEndEvent : this._dragMoveEvent);
+  } else if (!isDrop) {
     result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);
   }
 
@@ -4104,6 +4107,8 @@ ItemDrag.prototype._onEnd = function (event) {
     this.stop();
     return;
   }
+
+  this._dragEndEvent = event;
 
   // Cancel queued ticks.
   cancelDragStartTick(item._id);

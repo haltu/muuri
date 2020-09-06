@@ -139,7 +139,7 @@
       var grid = new Muuri(container, {
         dragEnabled: true,
         dragSortPredicate: function () {
-          return false;
+          return null;
         },
       });
       var item = grid.getItems()[0];
@@ -179,11 +179,15 @@
       });
       var grid = new Muuri(container, {
         dragEnabled: true,
-        dragSortPredicate: function () {
-          return {
-            index: -1,
-            action: 'swap',
-          };
+        dragSortPredicate: function (item, e) {
+          if (e.type === 'move') {
+            return {
+              index: -1,
+              action: 'swap',
+            };
+          } else {
+            return null;
+          }
         },
       });
       var item = grid.getItems()[0];
@@ -228,8 +232,12 @@
       });
       var grid = new Muuri(container, {
         dragEnabled: true,
-        dragSortPredicate: function (item) {
-          return Muuri.ItemDrag.defaultSortPredicate(item);
+        dragSortPredicate: function (item, e) {
+          if (e.type === 'move') {
+            return Muuri.ItemDrag.defaultSortPredicate(item);
+          } else {
+            return null;
+          }
         },
       });
       var item = grid.getItems()[0];
@@ -269,11 +277,15 @@
       });
       var grid = new Muuri(container, {
         dragEnabled: true,
-        dragSortPredicate: function (item) {
-          return Muuri.ItemDrag.defaultSortPredicate(item, {
-            threshold: 30,
-            action: 'swap',
-          });
+        dragSortPredicate: function (item, e) {
+          if (e.type === 'move') {
+            return Muuri.ItemDrag.defaultSortPredicate(item, {
+              threshold: 30,
+              action: 'swap',
+            });
+          } else {
+            return null;
+          }
         },
       });
       var item = grid.getItems()[0];

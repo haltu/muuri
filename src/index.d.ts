@@ -180,7 +180,10 @@ export type DragSortPredicateResult = {
   action: 'move' | 'swap';
 } | null;
 
-export type DragSortPredicate = (item: Item, event: DraggerMoveEvent) => DragSortPredicateResult;
+export type DragSortPredicate = (
+  item: Item,
+  event: DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent
+) => DragSortPredicateResult;
 
 export interface DragSortPredicateOptions {
   threshold?: number;

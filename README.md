@@ -992,17 +992,6 @@ var grid = new Muuri(elem, {
 });
 ```
 
-```javascript
-// Pro tip: If you want drag sorting happening only on release set a really
-// long sortInterval. A bit of a hack, but works.
-var grid = new Muuri(elem, {
-  dragEnabled: true,
-  dragSortHeuristics: {
-    sortInterval: 3600000, // 1 hour
-  },
-});
-```
-
 <h3><a id="grid-option-dragsortpredicate" href="#grid-option-dragsortpredicate" aria-hidden="true">#</a> <i>option</i>: dragSortPredicate</h3>
 
 Defines the logic for the sort procedure during dragging an item.
@@ -1037,9 +1026,9 @@ Alternatively you can provide your own callback function where you can define yo
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The item that's being dragged.
 - **event** &nbsp;&mdash;&nbsp; _object_
-  - Muuri.Dragger event data.
+  - Muuri.Dragger event data. This can be either `move`, `end` or `cancel` event, which you can check from the `event.type` property. It's important to note that the default drag sort predicate logic only reacts to `move` events and ignores `end`/`cancel` events. When dragging ends and a custom `dragSortPredicate` is provided, Muuri always does one final sort check with `end`/`cancel` event (even if the heuristics would deem it unnecessary).
 
-The callback should return a _falsy_ value if sorting should not occur. If, however, sorting should occur the callback should return an object containing the following properties:
+The callback should return a _falsy_ (e.g. `null`) value if sorting should not occur. If, however, sorting should occur the callback must return an object containing the following properties:
 
 - **index** &nbsp;&mdash;&nbsp; _number_
   - The index where the item should be moved to.
@@ -1069,7 +1058,8 @@ var grid = new Muuri(elem, {
 // Provide your own predicate.
 var grid = new Muuri(elem, {
   dragSortPredicate: function (item, e) {
-    if (e.deltaTime < 1000) return false;
+    if (e.type !== 'move') return null;
+    if (e.deltaTime < 1000) return null;
     return {
       index: Math.round(e.deltaTime / 1000) % 2 === 0 ? -1 : 0,
       action: 'swap',
@@ -1079,13 +1069,27 @@ var grid = new Muuri(elem, {
 ```
 
 ```javascript
-// Pro tip: use the default predicate as fallback in your custom predicate.
+// Use the default predicate as fallback in your custom predicate.
 var grid = new Muuri(elem, {
   dragSortPredicate: function (item, e) {
-    if (item.classList.contains('no-sort')) return false;
+    if (e.type !== 'move') return null;
+    if (item.classList.contains('no-sort')) return null;
     return Muuri.ItemDrag.defaultSortPredicate(item, {
       action: 'swap',
       threshold: 75,
+    });
+  },
+});
+```
+
+```javascript
+// Only do sorting on drop.
+var grid = new Muuri(elem, {
+  dragSortPredicate: function (item, e) {
+    if (e.type === 'move') return null;
+    return Muuri.ItemDrag.defaultSortPredicate(item, {
+      action: 'move',
+      threshold: 50,
     });
   },
 });

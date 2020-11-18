@@ -143,8 +143,8 @@ ItemDragPlaceholder.prototype._onLayoutStart = function (items, isInstant) {
   // Let's make sure an ongoing animation's callback is cancelled before going
   // further. Without this there's a chance that the animation will finish
   // before the next tick and mess up our logic.
-  if (this._animation.isAnimating()) {
-    this._animation._animation.onfinish = null;
+  if (this._animation.animation) {
+    this._animation.animation.onfinish = null;
   }
 
   // Start the placeholder's layout animation in the next tick. We do this to
@@ -317,7 +317,7 @@ ItemDragPlaceholder.prototype.create = function () {
   this._element = element;
 
   // Update element to animation instance.
-  animation._element = element;
+  animation.element = element;
 
   // Add placeholder class to the placeholder element.
   this._className = settings.itemPlaceholderClass || '';
@@ -378,7 +378,7 @@ ItemDragPlaceholder.prototype.reset = function () {
 
   // Reset animation instance.
   animation.stop();
-  animation._element = null;
+  animation.element = null;
 
   // Unbind event listeners.
   grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);

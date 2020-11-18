@@ -20,11 +20,9 @@
 */
 
 var GRID_INSTANCES = {};
-var ITEM_ELEMENT_MAP = typeof Map === 'function' ? new Map() : null;
-
+var ITEM_ELEMENT_MAP = new Map();
 var ACTION_SWAP = 'swap';
 var ACTION_MOVE = 'move';
-
 var EVENT_SYNCHRONIZE = 'synchronize';
 var EVENT_LAYOUT_START = 'layoutStart';
 var EVENT_LAYOUT_END = 'layoutEnd';
@@ -50,223 +48,183 @@ var EVENT_DRAG_END = 'dragEnd';
 var EVENT_DRAG_RELEASE_START = 'dragReleaseStart';
 var EVENT_DRAG_RELEASE_END = 'dragReleaseEnd';
 var EVENT_DESTROY = 'destroy';
-
 var HAS_TOUCH_EVENTS = 'ontouchstart' in window;
 var HAS_POINTER_EVENTS = !!window.PointerEvent;
 var HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
-
 var UA = window.navigator.userAgent.toLowerCase();
 var IS_EDGE = UA.indexOf('edge') > -1;
 var IS_IE = UA.indexOf('trident') > -1;
 var IS_FIREFOX = UA.indexOf('firefox') > -1;
 var IS_ANDROID = UA.indexOf('android') > -1;
-var IS_IOS =
-  /^(iPad|iPhone|iPod)/.test(window.navigator.platform) ||
-  (/^Mac/.test(window.navigator.platform) && window.navigator.maxTouchPoints > 1);
-
+var IS_IOS = /^(iPad|iPhone|iPod)/.test(window.navigator.platform) ||
+    (/^Mac/.test(window.navigator.platform) && window.navigator.maxTouchPoints > 1);
 var MAX_SAFE_FLOAT32_INTEGER = 16777216;
-
 var VIEWPORT_THRESHOLD = 100;
 
-/**
- * Event emitter constructor.
- *
- * @class
- */
-function Emitter() {
-  this._events = {};
-  this._queue = [];
-  this._counter = 0;
-  this._clearOnEmit = false;
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+
+function __spreadArrays() {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
 }
 
 /**
- * Public prototype methods
- * ************************
+ * Event emitter.
  */
-
-/**
- * Bind an event listener.
- *
- * @public
- * @param {String} event
- * @param {Function} listener
- * @returns {Emitter}
- */
-Emitter.prototype.on = function (event, listener) {
-  if (!this._events || !event || !listener) return this;
-
-  // Get listeners queue and create it if it does not exist.
-  var listeners = this._events[event];
-  if (!listeners) listeners = this._events[event] = [];
-
-  // Add the listener to the queue.
-  listeners.push(listener);
-
-  return this;
-};
-
-/**
- * Unbind all event listeners that match the provided listener function.
- *
- * @public
- * @param {String} event
- * @param {Function} listener
- * @returns {Emitter}
- */
-Emitter.prototype.off = function (event, listener) {
-  if (!this._events || !event || !listener) return this;
-
-  // Get listeners and return immediately if none is found.
-  var listeners = this._events[event];
-  if (!listeners || !listeners.length) return this;
-
-  // Remove all matching listeners.
-  var index;
-  while ((index = listeners.indexOf(listener)) !== -1) {
-    listeners.splice(index, 1);
-  }
-
-  return this;
-};
-
-/**
- * Unbind all listeners of the provided event.
- *
- * @public
- * @param {String} event
- * @returns {Emitter}
- */
-Emitter.prototype.clear = function (event) {
-  if (!this._events || !event) return this;
-
-  var listeners = this._events[event];
-  if (listeners) {
-    listeners.length = 0;
-    delete this._events[event];
-  }
-
-  return this;
-};
-
-/**
- * Emit all listeners in a specified event with the provided arguments.
- *
- * @public
- * @param {String} event
- * @param {...*} [args]
- * @returns {Emitter}
- */
-Emitter.prototype.emit = function (event) {
-  if (!this._events || !event) {
-    this._clearOnEmit = false;
-    return this;
-  }
-
-  // Get event listeners and quit early if there's no listeners.
-  var listeners = this._events[event];
-  if (!listeners || !listeners.length) {
-    this._clearOnEmit = false;
-    return this;
-  }
-
-  var queue = this._queue;
-  var startIndex = queue.length;
-  var argsLength = arguments.length - 1;
-  var args;
-
-  // If we have more than 3 arguments let's put the arguments in an array and
-  // apply it to the listeners.
-  if (argsLength > 3) {
-    args = [];
-    args.push.apply(args, arguments);
-    args.shift();
-  }
-
-  // Add the current listeners to the callback queue before we process them.
-  // This is necessary to guarantee that all of the listeners are called in
-  // correct order even if new event listeners are removed/added during
-  // processing and/or events are emitted during processing.
-  queue.push.apply(queue, listeners);
-
-  // Reset the event's listeners if need be.
-  if (this._clearOnEmit) {
-    listeners.length = 0;
-    this._clearOnEmit = false;
-  }
-
-  // Increment queue counter. This is needed for the scenarios where emit is
-  // triggered while the queue is already processing. We need to keep track of
-  // how many "queue processors" there are active so that we can safely reset
-  // the queue in the end when the last queue processor is finished.
-  ++this._counter;
-
-  // Process the queue (the specific part of it for this emit).
-  var i = startIndex;
-  var endIndex = queue.length;
-  for (; i < endIndex; i++) {
-    // prettier-ignore
-    argsLength === 0 ? queue[i]() :
-    argsLength === 1 ? queue[i](arguments[1]) :
-    argsLength === 2 ? queue[i](arguments[1], arguments[2]) :
-    argsLength === 3 ? queue[i](arguments[1], arguments[2], arguments[3]) :
-                       queue[i].apply(null, args);
-
-    // Stop processing if the emitter is destroyed.
-    if (!this._events) return this;
-  }
-
-  // Decrement queue process counter.
-  --this._counter;
-
-  // Reset the queue if there are no more queue processes running.
-  if (!this._counter) queue.length = 0;
-
-  return this;
-};
-
-/**
- * Emit all listeners in a specified event with the provided arguments and
- * remove the event's listeners just before calling the them. This method allows
- * the emitter to serve as a queue where all listeners are called only once.
- *
- * @public
- * @param {String} event
- * @param {...*} [args]
- * @returns {Emitter}
- */
-Emitter.prototype.burst = function () {
-  if (!this._events) return this;
-  this._clearOnEmit = true;
-  this.emit.apply(this, arguments);
-  return this;
-};
-
-/**
- * Check how many listeners there are for a specific event.
- *
- * @public
- * @param {String} event
- * @returns {Boolean}
- */
-Emitter.prototype.countListeners = function (event) {
-  if (!this._events) return 0;
-  var listeners = this._events[event];
-  return listeners ? listeners.length : 0;
-};
-
-/**
- * Destroy emitter instance. Basically just removes all bound listeners.
- *
- * @public
- * @returns {Emitter}
- */
-Emitter.prototype.destroy = function () {
-  if (!this._events) return this;
-  this._queue.length = this._counter = 0;
-  this._events = null;
-  return this;
-};
+var Emitter = /** @class */ (function () {
+    function Emitter() {
+        this._events = {};
+        this._queue = [];
+        this._counter = 0;
+        this._clearOnEmit = false;
+    }
+    /**
+     * Bind an event listener.
+     */
+    Emitter.prototype.on = function (event, listener) {
+        if (!this._events)
+            return this;
+        // Get listeners queue and create it if it does not exist.
+        var listeners = this._events[event] || [];
+        this._events[event] = listeners;
+        // Add the listener to the queue.
+        listeners.push(listener);
+        return this;
+    };
+    /**
+     * Unbind all event listeners that match the provided listener function.
+     */
+    Emitter.prototype.off = function (event, listener) {
+        if (!this._events)
+            return this;
+        // Get listeners and return immediately if none is found.
+        var listeners = this._events[event];
+        if (!listeners || !listeners.length)
+            return this;
+        // Remove all matching listeners.
+        var index = 0;
+        while ((index = listeners.indexOf(listener)) !== -1) {
+            listeners.splice(index, 1);
+        }
+        return this;
+    };
+    /**
+     * Unbind all listeners of the provided event.
+     */
+    Emitter.prototype.clear = function (event) {
+        if (!this._events)
+            return this;
+        var listeners = this._events[event];
+        if (listeners) {
+            listeners.length = 0;
+            delete this._events[event];
+        }
+        return this;
+    };
+    /**
+     * Emit all listeners in a specified event with the provided arguments.
+     */
+    Emitter.prototype.emit = function (event) {
+        var args = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
+        if (!this._events) {
+            this._clearOnEmit = false;
+            return this;
+        }
+        // Get event listeners and quit early if there's no listeners.
+        var listeners = this._events[event];
+        if (!listeners || !listeners.length) {
+            this._clearOnEmit = false;
+            return this;
+        }
+        var queue = this._queue;
+        var startIndex = queue.length;
+        // Add the current listeners to the callback queue before we process them.
+        // This is necessary to guarantee that all of the listeners are called in
+        // correct order even if new event listeners are removed/added during
+        // processing and/or events are emitted during processing.
+        queue.push.apply(queue, listeners);
+        // Reset the event's listeners if need be.
+        if (this._clearOnEmit) {
+            listeners.length = 0;
+            this._clearOnEmit = false;
+        }
+        // Increment queue counter. This is needed for the scenarios where emit is
+        // triggered while the queue is already processing. We need to keep track of
+        // how many "queue processors" there are active so that we can safely reset
+        // the queue in the end when the last queue processor is finished.
+        ++this._counter;
+        // Process the queue (the specific part of it for this emit).
+        var i = startIndex;
+        var endIndex = queue.length;
+        for (; i < endIndex; i++) {
+            queue[i].apply(queue, args);
+            // Stop processing if the emitter is destroyed.
+            if (!this._events)
+                return this;
+        }
+        // Decrement queue process counter.
+        --this._counter;
+        // Reset the queue if there are no more queue processes running.
+        if (!this._counter)
+            queue.length = 0;
+        return this;
+    };
+    /**
+     * Emit all listeners in a specified event with the provided arguments and
+     * remove the event's listeners just before calling the them. This method
+     * allows the emitter to serve as a queue where all listeners are called only
+     * once.
+     */
+    Emitter.prototype.burst = function (event) {
+        var args = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
+        if (!this._events)
+            return this;
+        this._clearOnEmit = true;
+        return this.emit.apply(this, __spreadArrays([event], args));
+    };
+    /**
+     * Check how many listeners there are for a specific event.
+     */
+    Emitter.prototype.countListeners = function (event) {
+        if (!this._events)
+            return 0;
+        var listeners = this._events[event];
+        return listeners ? listeners.length : 0;
+    };
+    /**
+     * Destroy emitter instance. Basically just removes all bound listeners.
+     */
+    Emitter.prototype.destroy = function () {
+        if (!this._events)
+            return this;
+        this._queue.length = this._counter = 0;
+        this._events = null;
+        return this;
+    };
+    return Emitter;
+}());
 
 var pointerout = HAS_POINTER_EVENTS ? 'pointerout' : HAS_MS_POINTER_EVENTS ? 'MSPointerOut' : '';
 var waitDuration = 100;
@@ -379,49 +337,47 @@ EdgeHack.prototype.destroy = function () {
 
 // Playing it safe here, test all potential prefixes capitalized and lowercase.
 var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
-var cache = {};
-
+var cache = new Map();
 /**
  * Get prefixed CSS property name when given a non-prefixed CSS property name.
  * Returns null if the property is not supported at all.
  *
  * @param {CSSStyleDeclaration} style
- * @param {String} prop
- * @returns {String}
+ * @param {string} prop
+ * @returns {string}
  */
-function getPrefixedPropName(style, prop) {
-  var prefixedProp = cache[prop] || '';
-  if (prefixedProp) return prefixedProp;
-
-  var camelProp = prop[0].toUpperCase() + prop.slice(1);
-  var i = 0;
-  while (i < vendorPrefixes.length) {
-    prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : prop;
-    if (prefixedProp in style) {
-      cache[prop] = prefixedProp;
-      return prefixedProp;
+function getPrefixedPropName(style, styleProp) {
+    var prefixedProp = cache.get(styleProp);
+    if (prefixedProp)
+        return prefixedProp;
+    var camelProp = styleProp[0].toUpperCase() + styleProp.slice(1);
+    var i = 0;
+    while (i < vendorPrefixes.length) {
+        prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : styleProp;
+        if (prefixedProp in style) {
+            cache.set(styleProp, prefixedProp);
+            return prefixedProp;
+        }
+        ++i;
     }
-    ++i;
-  }
-
-  return '';
+    return '';
 }
 
 // Check if passive events are supported.
 // https://github.com/WICG/EventListenerOptions/blob/gh-pages/explainer.md#feature-detection
-
 var isPassiveEventsSupported = false;
-
 try {
-  var passiveOpts = Object.defineProperty({}, 'passive', {
-    get: function () {
-      isPassiveEventsSupported = true;
-    },
-  });
-  window.addEventListener('testPassive', null, passiveOpts);
-  window.removeEventListener('testPassive', null, passiveOpts);
-} catch (e) {}
-
+    var passiveOpts = Object.defineProperty({}, 'passive', {
+        get: function () {
+            isPassiveEventsSupported = true;
+        }
+    });
+    // @ts-ignore
+    window.addEventListener('testPassive', null, passiveOpts);
+    // @ts-ignore
+    window.removeEventListener('testPassive', null, passiveOpts);
+}
+catch (e) { }
 var hasPassiveEvents = isPassiveEventsSupported;
 
 var PASSIVE = 1;
@@ -1098,103 +1054,103 @@ Dragger.prototype.destroy = function () {
   this._isDestroyed = true;
 };
 
-var dt = 1000 / 60;
-
-var raf = (
-  window.requestAnimationFrame ||
-  window.webkitRequestAnimationFrame ||
-  window.mozRequestAnimationFrame ||
-  window.msRequestAnimationFrame ||
-  function (callback) {
-    return this.setTimeout(function () {
-      callback(Date.now());
-    }, dt);
-  }
-).bind(window);
-
 /**
- * A ticker system for handling DOM reads and writes in an efficient way.
- *
- * @class
+ * @param {Function} callback
+ * @returns {number}
  */
-function Ticker(numLanes) {
-  this._nextStep = null;
-  this._lanes = [];
-  this._stepQueue = [];
-  this._stepCallbacks = {};
-  this._step = this._step.bind(this);
-  for (var i = 0; i < numLanes; i++) {
-    this._lanes.push(new TickerLane());
-  }
-}
-
-Ticker.prototype._step = function (time) {
-  var lanes = this._lanes;
-  var stepQueue = this._stepQueue;
-  var stepCallbacks = this._stepCallbacks;
-  var i, j, id, laneQueue, laneCallbacks, laneIndices;
-
-  this._nextStep = null;
-
-  for (i = 0; i < lanes.length; i++) {
-    laneQueue = lanes[i].queue;
-    laneCallbacks = lanes[i].callbacks;
-    laneIndices = lanes[i].indices;
-    for (j = 0; j < laneQueue.length; j++) {
-      id = laneQueue[j];
-      if (!id) continue;
-      stepQueue.push(id);
-      stepCallbacks[id] = laneCallbacks[id];
-      delete laneCallbacks[id];
-      delete laneIndices[id];
-    }
-    laneQueue.length = 0;
-  }
-
-  for (i = 0; i < stepQueue.length; i++) {
-    id = stepQueue[i];
-    if (stepCallbacks[id]) stepCallbacks[id](time);
-    delete stepCallbacks[id];
-  }
-
-  stepQueue.length = 0;
-};
-
-Ticker.prototype.add = function (laneIndex, id, callback) {
-  this._lanes[laneIndex].add(id, callback);
-  if (!this._nextStep) this._nextStep = raf(this._step);
-};
-
-Ticker.prototype.remove = function (laneIndex, id) {
-  this._lanes[laneIndex].remove(id);
-};
+var raf = (window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    // @ts-ignore
+    window.mozRequestAnimationFrame ||
+    // @ts-ignore
+    window.msRequestAnimationFrame).bind(window);
 
 /**
  * A lane for ticker.
- *
- * @class
  */
-function TickerLane() {
-  this.queue = [];
-  this.indices = {};
-  this.callbacks = {};
-}
-
-TickerLane.prototype.add = function (id, callback) {
-  var index = this.indices[id];
-  if (index !== undefined) this.queue[index] = undefined;
-  this.queue.push(id);
-  this.callbacks[id] = callback;
-  this.indices[id] = this.queue.length - 1;
-};
-
-TickerLane.prototype.remove = function (id) {
-  var index = this.indices[id];
-  if (index === undefined) return;
-  this.queue[index] = undefined;
-  delete this.callbacks[id];
-  delete this.indices[id];
-};
+var TickerLane = /** @class */ (function () {
+    function TickerLane() {
+        this._queue = [];
+        this._indices = new Map();
+        this._callbacks = new Map();
+    }
+    TickerLane.prototype.add = function (id, callback) {
+        var _a = this, _queue = _a._queue, _indices = _a._indices, _callbacks = _a._callbacks;
+        var index = _indices.get(id);
+        if (index !== undefined)
+            _queue[index] = undefined;
+        _queue.push(id);
+        _callbacks.set(id, callback);
+        _indices.set(id, _queue.length - 1);
+    };
+    TickerLane.prototype.remove = function (id) {
+        var _a = this, _queue = _a._queue, _indices = _a._indices, _callbacks = _a._callbacks;
+        var index = _indices.get(id);
+        if (index === undefined)
+            return;
+        _queue[index] = undefined;
+        _callbacks["delete"](id);
+        _indices["delete"](id);
+    };
+    TickerLane.prototype.flush = function (targetQueue, targetCallbacks) {
+        var _a = this, _queue = _a._queue, _callbacks = _a._callbacks, _indices = _a._indices;
+        var id;
+        for (var i = 0; i < _queue.length; i++) {
+            id = _queue[i];
+            if (!id || targetCallbacks.has(id))
+                continue;
+            targetQueue.push(id);
+            targetCallbacks.set(id, _callbacks.get(id));
+        }
+        _queue.length = 0;
+        _callbacks.clear();
+        _indices.clear();
+    };
+    return TickerLane;
+}());
+/**
+ * A ticker system for handling DOM reads and writes in an efficient way.
+ */
+var Ticker = /** @class */ (function () {
+    function Ticker(numLanes) {
+        if (numLanes === void 0) { numLanes = 1; }
+        this._nextStep = null;
+        this._lanes = [];
+        this._stepQueue = [];
+        this._stepCallbacks = new Map();
+        this._step = this._step.bind(this);
+        for (var i = 0; i < numLanes; i++) {
+            this._lanes.push(new TickerLane());
+        }
+    }
+    Ticker.prototype._step = function (time) {
+        var _a = this, _lanes = _a._lanes, _stepQueue = _a._stepQueue, _stepCallbacks = _a._stepCallbacks;
+        var i = 0;
+        this._nextStep = null;
+        for (i = 0; i < _lanes.length; i++) {
+            _lanes[i].flush(_stepQueue, _stepCallbacks);
+        }
+        for (i = 0; i < _stepQueue.length; i++) {
+            _stepCallbacks.get(_stepQueue[i])(time);
+        }
+        _stepQueue.length = 0;
+        _stepCallbacks.clear();
+    };
+    Ticker.prototype.add = function (laneIndex, id, callback) {
+        var lane = this._lanes[laneIndex];
+        if (lane) {
+            lane.add(id, callback);
+            if (!this._nextStep)
+                this._nextStep = raf(this._step);
+        }
+    };
+    Ticker.prototype.remove = function (laneIndex, id) {
+        var lane = this._lanes[laneIndex];
+        if (lane)
+            lane.remove(id);
+    };
+    return Ticker;
+}());
 
 var LAYOUT_READ = 'layoutRead';
 var LAYOUT_WRITE = 'layoutWrite';
@@ -1215,115 +1171,91 @@ var PLACEHOLDER_RESIZE_WRITE = 'placeholderResizeWrite';
 var AUTO_SCROLL_READ = 'autoScrollRead';
 var AUTO_SCROLL_WRITE = 'autoScrollWrite';
 var DEBOUNCE_READ = 'debounceRead';
-
 var LANE_READ = 0;
 var LANE_READ_TAIL = 1;
 var LANE_WRITE = 2;
-
 var ticker = new Ticker(3);
-
 function addLayoutTick(itemId, read, write) {
-  ticker.add(LANE_READ, LAYOUT_READ + itemId, read);
-  ticker.add(LANE_WRITE, LAYOUT_WRITE + itemId, write);
+    ticker.add(LANE_READ, LAYOUT_READ + itemId, read);
+    ticker.add(LANE_WRITE, LAYOUT_WRITE + itemId, write);
 }
-
 function cancelLayoutTick(itemId) {
-  ticker.remove(LANE_READ, LAYOUT_READ + itemId);
-  ticker.remove(LANE_WRITE, LAYOUT_WRITE + itemId);
+    ticker.remove(LANE_READ, LAYOUT_READ + itemId);
+    ticker.remove(LANE_WRITE, LAYOUT_WRITE + itemId);
 }
-
 function addVisibilityTick(itemId, read, write) {
-  ticker.add(LANE_READ, VISIBILITY_READ + itemId, read);
-  ticker.add(LANE_WRITE, VISIBILITY_WRITE + itemId, write);
+    ticker.add(LANE_READ, VISIBILITY_READ + itemId, read);
+    ticker.add(LANE_WRITE, VISIBILITY_WRITE + itemId, write);
 }
-
 function cancelVisibilityTick(itemId) {
-  ticker.remove(LANE_READ, VISIBILITY_READ + itemId);
-  ticker.remove(LANE_WRITE, VISIBILITY_WRITE + itemId);
+    ticker.remove(LANE_READ, VISIBILITY_READ + itemId);
+    ticker.remove(LANE_WRITE, VISIBILITY_WRITE + itemId);
 }
-
 function addDragStartTick(itemId, read, write) {
-  ticker.add(LANE_READ, DRAG_START_READ + itemId, read);
-  ticker.add(LANE_WRITE, DRAG_START_WRITE + itemId, write);
+    ticker.add(LANE_READ, DRAG_START_READ + itemId, read);
+    ticker.add(LANE_WRITE, DRAG_START_WRITE + itemId, write);
 }
-
 function cancelDragStartTick(itemId) {
-  ticker.remove(LANE_READ, DRAG_START_READ + itemId);
-  ticker.remove(LANE_WRITE, DRAG_START_WRITE + itemId);
+    ticker.remove(LANE_READ, DRAG_START_READ + itemId);
+    ticker.remove(LANE_WRITE, DRAG_START_WRITE + itemId);
 }
-
 function addDragMoveTick(itemId, read, write) {
-  ticker.add(LANE_READ, DRAG_MOVE_READ + itemId, read);
-  ticker.add(LANE_WRITE, DRAG_MOVE_WRITE + itemId, write);
+    ticker.add(LANE_READ, DRAG_MOVE_READ + itemId, read);
+    ticker.add(LANE_WRITE, DRAG_MOVE_WRITE + itemId, write);
 }
-
 function cancelDragMoveTick(itemId) {
-  ticker.remove(LANE_READ, DRAG_MOVE_READ + itemId);
-  ticker.remove(LANE_WRITE, DRAG_MOVE_WRITE + itemId);
+    ticker.remove(LANE_READ, DRAG_MOVE_READ + itemId);
+    ticker.remove(LANE_WRITE, DRAG_MOVE_WRITE + itemId);
 }
-
 function addDragScrollTick(itemId, read, write) {
-  ticker.add(LANE_READ, DRAG_SCROLL_READ + itemId, read);
-  ticker.add(LANE_WRITE, DRAG_SCROLL_WRITE + itemId, write);
+    ticker.add(LANE_READ, DRAG_SCROLL_READ + itemId, read);
+    ticker.add(LANE_WRITE, DRAG_SCROLL_WRITE + itemId, write);
 }
-
 function cancelDragScrollTick(itemId) {
-  ticker.remove(LANE_READ, DRAG_SCROLL_READ + itemId);
-  ticker.remove(LANE_WRITE, DRAG_SCROLL_WRITE + itemId);
+    ticker.remove(LANE_READ, DRAG_SCROLL_READ + itemId);
+    ticker.remove(LANE_WRITE, DRAG_SCROLL_WRITE + itemId);
 }
-
 function addDragSortTick(itemId, read) {
-  ticker.add(LANE_READ_TAIL, DRAG_SORT_READ + itemId, read);
+    ticker.add(LANE_READ_TAIL, DRAG_SORT_READ + itemId, read);
 }
-
 function cancelDragSortTick(itemId) {
-  ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
+    ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
 }
-
 function addReleaseScrollTick(itemId, read, write) {
-  ticker.add(LANE_READ, RELEASE_SCROLL_READ + itemId, read);
-  ticker.add(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId, write);
+    ticker.add(LANE_READ, RELEASE_SCROLL_READ + itemId, read);
+    ticker.add(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId, write);
 }
-
 function cancelReleaseScrollTick(itemId) {
-  ticker.remove(LANE_READ, RELEASE_SCROLL_READ + itemId);
-  ticker.remove(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId);
+    ticker.remove(LANE_READ, RELEASE_SCROLL_READ + itemId);
+    ticker.remove(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId);
 }
-
 function addPlaceholderLayoutTick(itemId, read, write) {
-  ticker.add(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId, read);
-  ticker.add(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId, write);
+    ticker.add(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId, read);
+    ticker.add(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId, write);
 }
-
 function cancelPlaceholderLayoutTick(itemId) {
-  ticker.remove(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId);
-  ticker.remove(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId);
+    ticker.remove(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId);
+    ticker.remove(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId);
 }
-
 function addPlaceholderResizeTick(itemId, write) {
-  ticker.add(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId, write);
+    ticker.add(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId, write);
 }
-
 function cancelPlaceholderResizeTick(itemId) {
-  ticker.remove(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId);
+    ticker.remove(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId);
 }
-
 function addAutoScrollTick(read, write) {
-  ticker.add(LANE_READ, AUTO_SCROLL_READ, read);
-  ticker.add(LANE_WRITE, AUTO_SCROLL_WRITE, write);
+    ticker.add(LANE_READ, AUTO_SCROLL_READ, read);
+    ticker.add(LANE_WRITE, AUTO_SCROLL_WRITE, write);
 }
-
 function cancelAutoScrollTick() {
-  ticker.remove(LANE_READ, AUTO_SCROLL_READ);
-  ticker.remove(LANE_WRITE, AUTO_SCROLL_WRITE);
+    ticker.remove(LANE_READ, AUTO_SCROLL_READ);
+    ticker.remove(LANE_WRITE, AUTO_SCROLL_WRITE);
 }
-
 function addDebounceTick(debounceId, read) {
-  ticker.add(LANE_READ, DEBOUNCE_READ + debounceId, read);
+    ticker.add(LANE_READ, DEBOUNCE_READ + debounceId, read);
 }
-
 function cancelDebounceTick(debounceId) {
-  ticker.remove(LANE_READ, DEBOUNCE_READ + debounceId);
+    ticker.remove(LANE_READ, DEBOUNCE_READ + debounceId);
 }
 
 var AXIS_X = 1;
@@ -1336,55 +1268,52 @@ var UP = AXIS_Y | BACKWARD;
 var DOWN = AXIS_Y | FORWARD;
 
 var functionType = 'function';
-
 /**
  * Check if a value is a function.
  *
  * @param {*} val
- * @returns {Boolean}
+ * @returns {boolean}
  */
 function isFunction(val) {
-  return typeof val === functionType;
+    return typeof val === functionType;
 }
 
-var isWeakMapSupported = typeof WeakMap === 'function';
-var cache$1 = isWeakMapSupported ? new WeakMap() : null;
-var cacheInterval = 3000;
-var cacheTimer;
+var cache$1 = new WeakMap();
+var cacheTimer = null;
 var canClearCache = true;
+var cacheTime = 1000;
 var clearCache = function () {
-  if (canClearCache) {
-    cacheTimer = window.clearInterval(cacheTimer);
-    cache$1 = isWeakMapSupported ? new WeakMap() : null;
-  } else {
-    canClearCache = true;
-  }
+    if (canClearCache) {
+        canClearCache = true;
+        return;
+    }
+    if (cacheTimer !== null) {
+        window.clearInterval(cacheTimer);
+        cacheTimer = null;
+    }
+    cache$1 = new WeakMap();
 };
-
 /**
  * Returns the computed value of an element's style property as a string.
  *
  * @param {HTMLElement} element
- * @param {String} style
- * @returns {String}
+ * @param {string} prop
  */
-function getStyle(element, style) {
-  var styles = cache$1 && cache$1.get(element);
-
-  if (!styles) {
-    styles = window.getComputedStyle(element, null);
-    if (cache$1) cache$1.set(element, styles);
-  }
-
-  if (cache$1) {
-    if (!cacheTimer) {
-      cacheTimer = window.setInterval(clearCache, cacheInterval);
-    } else {
-      canClearCache = false;
+function getStyle(element, prop) {
+    if (!prop)
+        return '';
+    var styles = cache$1.get(element);
+    if (!styles) {
+        styles = window.getComputedStyle(element, null);
+        cache$1.set(element, styles);
     }
-  }
-
-  return styles.getPropertyValue(style);
+    if (!cacheTimer) {
+        cacheTimer = window.setInterval(clearCache, cacheTime);
+    }
+    else {
+        canClearCache = false;
+    }
+    return styles.getPropertyValue(prop);
 }
 
 /**
@@ -1392,11 +1321,11 @@ function getStyle(element, style) {
  * a float value.
  *
  * @param {HTMLElement} el
- * @param {String} style
- * @returns {Number}
+ * @param {string} style
+ * @returns {number}
  */
-function getStyleAsFloat(el, style) {
-  return parseFloat(getStyle(el, style)) || 0;
+function getStyleAsFloat(el, styleProp) {
+    return parseFloat(getStyle(el, styleProp)) || 0;
 }
 
 var DOC_ELEM = document.documentElement;
@@ -1710,15 +1639,13 @@ Pool.prototype.reset = function () {
  *
  * @param {Object} a
  * @param {Object} b
- * @returns {Number}
+ * @returns {boolean}
  */
 function isOverlapping(a, b) {
-  return !(
-    a.left + a.width <= b.left ||
-    b.left + b.width <= a.left ||
-    a.top + a.height <= b.top ||
-    b.top + b.height <= a.top
-  );
+    return !(a.left + a.width <= b.left ||
+        b.left + b.width <= a.left ||
+        a.top + a.height <= b.top ||
+        b.top + b.height <= a.top);
 }
 
 /**
@@ -1726,13 +1653,14 @@ function isOverlapping(a, b) {
  *
  * @param {Object} a
  * @param {Object} b
- * @returns {Number}
+ * @returns {number}
  */
 function getIntersectionArea(a, b) {
-  if (!isOverlapping(a, b)) return 0;
-  var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
-  var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-  return width * height;
+    if (!isOverlapping(a, b))
+        return 0;
+    var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+    var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+    return width * height;
 }
 
 /**
@@ -1741,13 +1669,14 @@ function getIntersectionArea(a, b) {
  *
  * @param {Object} a
  * @param {Object} b
- * @returns {Number}
+ * @returns {number}
  */
 function getIntersectionScore(a, b) {
-  var area = getIntersectionArea(a, b);
-  if (!area) return 0;
-  var maxArea = Math.min(a.width, b.width) * Math.min(a.height, b.height);
-  return (area / maxArea) * 100;
+    var area = getIntersectionArea(a, b);
+    if (!area)
+        return 0;
+    var maxArea = Math.min(a.width, b.width) * Math.min(a.height, b.height);
+    return (area / maxArea) * 100;
 }
 
 var RECT_1 = {
@@ -2464,49 +2393,15 @@ AutoScroller.prototype.destroy = function () {
   this._isDestroyed = true;
 };
 
-var ElProto = window.Element.prototype;
-var matchesFn =
-  ElProto.matches ||
-  ElProto.matchesSelector ||
-  ElProto.webkitMatchesSelector ||
-  ElProto.mozMatchesSelector ||
-  ElProto.msMatchesSelector ||
-  ElProto.oMatchesSelector ||
-  function () {
-    return false;
-  };
-
-/**
- * Check if element matches a CSS selector.
- *
- * @param {Element} el
- * @param {String} selector
- * @returns {Boolean}
- */
-function elementMatches(el, selector) {
-  return matchesFn.call(el, selector);
-}
-
 /**
  * Add class to an element.
  *
  * @param {HTMLElement} element
- * @param {String} className
+ * @param {string} className
  */
 function addClass(element, className) {
-  if (!className) return;
-
-  if (element.classList) {
-    element.classList.add(className);
-  } else {
-    if (!elementMatches(element, '.' + className)) {
-      element.className += ' ' + className;
-    }
-  }
+    className && element.classList.add(className);
 }
-
-var tempArray = [];
-var numberType = 'number';
 
 /**
  * Insert an item or an array of items to array to a specified index. Mutates
@@ -2515,14 +2410,13 @@ var numberType = 'number';
  *
  * @param {Array} array
  * @param {*} items
- * @param {Number} [index=-1]
+ * @param {number} [index=-1]
  */
 function arrayInsert(array, items, index) {
-  var startIndex = typeof index === numberType ? index : -1;
-  if (startIndex < 0) startIndex = array.length - startIndex + 1;
-
-  array.splice.apply(array, tempArray.concat(startIndex, 0, items));
-  tempArray.length = 0;
+    if (index === void 0) { index = -1; }
+    if (index < 0)
+        index = array.length - index + 1;
+    Array.isArray(items) ? array.splice.apply(array, __spreadArrays([index, 0], items)) : array.splice(index, 0, items);
 }
 
 /**
@@ -2533,61 +2427,60 @@ function arrayInsert(array, items, index) {
  * to the array or removing items from the array.
  *
  * @param {Array} array
- * @param {Number} index
- * @param {Number} [sizeOffset]
+ * @param {number} index
+ * @param {number} [sizeOffset=0]
+ * @returns {number}
  */
 function normalizeArrayIndex(array, index, sizeOffset) {
-  var maxIndex = Math.max(0, array.length - 1 + (sizeOffset || 0));
-  return index > maxIndex ? maxIndex : index < 0 ? Math.max(maxIndex + index + 1, 0) : index;
+    if (sizeOffset === void 0) { sizeOffset = 0; }
+    var maxIndex = Math.max(0, array.length - 1 + sizeOffset);
+    return index > maxIndex ? maxIndex : index < 0 ? Math.max(maxIndex + index + 1, 0) : index;
 }
 
 /**
  * Move array item to another index.
  *
  * @param {Array} array
- * @param {Number} fromIndex
+ * @param {number} fromIndex
  *   - Index (positive or negative) of the item that will be moved.
- * @param {Number} toIndex
+ * @param {number} toIndex
  *   - Index (positive or negative) where the item should be moved to.
  */
 function arrayMove(array, fromIndex, toIndex) {
-  // Make sure the array has two or more items.
-  if (array.length < 2) return;
-
-  // Normalize the indices.
-  var from = normalizeArrayIndex(array, fromIndex);
-  var to = normalizeArrayIndex(array, toIndex);
-
-  // Add target item to the new position.
-  if (from !== to) {
-    array.splice(to, 0, array.splice(from, 1)[0]);
-  }
+    // Make sure the array has two or more items.
+    if (array.length < 2)
+        return;
+    // Normalize the indices.
+    var from = normalizeArrayIndex(array, fromIndex);
+    var to = normalizeArrayIndex(array, toIndex);
+    // Add target item to the new position.
+    if (from !== to) {
+        array.splice(to, 0, array.splice(from, 1)[0]);
+    }
 }
 
 /**
  * Swap array items.
  *
  * @param {Array} array
- * @param {Number} index
+ * @param {number} index
  *   - Index (positive or negative) of the item that will be swapped.
- * @param {Number} withIndex
+ * @param {number} withIndex
  *   - Index (positive or negative) of the other item that will be swapped.
  */
 function arraySwap(array, index, withIndex) {
-  // Make sure the array has two or more items.
-  if (array.length < 2) return;
-
-  // Normalize the indices.
-  var indexA = normalizeArrayIndex(array, index);
-  var indexB = normalizeArrayIndex(array, withIndex);
-  var temp;
-
-  // Swap the items.
-  if (indexA !== indexB) {
-    temp = array[indexA];
-    array[indexA] = array[indexB];
-    array[indexB] = temp;
-  }
+    // Make sure the array has two or more items.
+    if (array.length < 2)
+        return;
+    // Normalize the indices.
+    var indexA = normalizeArrayIndex(array, index);
+    var indexB = normalizeArrayIndex(array, withIndex);
+    // Swap the items.
+    if (indexA !== indexB) {
+        var temp = array[indexA];
+        array[indexA] = array[indexB];
+        array[indexB] = temp;
+    }
 }
 
 var transformProp = getPrefixedPropName(document.documentElement.style, 'transform') || 'transform';
@@ -2595,28 +2488,24 @@ var transformProp = getPrefixedPropName(document.documentElement.style, 'transfo
 var styleNameRegEx = /([A-Z])/g;
 var prefixRegex = /^(webkit-|moz-|ms-|o-)/;
 var msPrefixRegex = /^(-m-s-)/;
-
 /**
  * Transforms a camel case style property to kebab case style property. Handles
  * vendor prefixed properties elegantly as well, e.g. "WebkitTransform" and
  * "webkitTransform" are both transformed into "-webkit-transform".
  *
- * @param {String} property
- * @returns {String}
+ * @param {string} property
+ * @returns {string}
  */
-function getStyleName(property) {
-  // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
-  var styleName = property.replace(styleNameRegEx, '-$1').toLowerCase();
-
-  // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
-  // need to add an extra '-' to the beginnig).
-  styleName = styleName.replace(prefixRegex, '-$1');
-
-  // Handle properties that start with "MS" prefix (we need to transform the
-  // "-m-s-" into "-ms-").
-  styleName = styleName.replace(msPrefixRegex, '-ms-');
-
-  return styleName;
+function getStyleName(styleProp) {
+    // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
+    var styleName = styleProp.replace(styleNameRegEx, '-$1').toLowerCase();
+    // Handle properties that start with "webkit", "moz", "ms" or "o" prefix (we
+    // need to add an extra '-' to the beginnig).
+    styleName = styleName.replace(prefixRegex, '-$1');
+    // Handle properties that start with "MS" prefix (we need to transform the
+    // "-m-s-" into "-ms-").
+    styleName = styleName.replace(msPrefixRegex, '-ms-');
+    return styleName;
 }
 
 var transformStyle = getStyleName(transformProp);
@@ -2625,27 +2514,24 @@ var transformNone = 'none';
 var displayInline = 'inline';
 var displayNone = 'none';
 var displayStyle = 'display';
-
 /**
  * Returns true if element is transformed, false if not. In practice the
  * element's display value must be anything else than "none" or "inline" as
  * well as have a valid transform value applied in order to be counted as a
- * transformed element.
- *
- * Borrowed from Mezr (v0.6.1):
+ * transformed element. Borrowed from Mezr (v0.6.1):
  * https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L661
  *
  * @param {HTMLElement} element
- * @returns {Boolean}
+ * @returns {boolean}
  */
 function isTransformed(element) {
-  var transform = getStyle(element, transformStyle);
-  if (!transform || transform === transformNone) return false;
-
-  var display = getStyle(element, displayStyle);
-  if (display === displayInline || display === displayNone) return false;
-
-  return true;
+    var transform = getStyle(element, transformStyle);
+    if (!transform || transform === transformNone)
+        return false;
+    var display = getStyle(element, displayStyle);
+    if (display === displayInline || display === displayNone)
+        return false;
+    return true;
 }
 
 /**
@@ -2658,117 +2544,98 @@ function isTransformed(element) {
  * @returns {(Document|Element)}
  */
 function getContainingBlock(element) {
-  // As long as the containing block is an element, static and not
-  // transformed, try to get the element's parent element and fallback to
-  // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
-  var doc = document;
-  var res = element || doc;
-  while (res && res !== doc && getStyle(res, 'position') === 'static' && !isTransformed(res)) {
-    res = res.parentElement || doc;
-  }
-  return res;
+    // As long as the containing block is an element, static and not
+    // transformed, try to get the element's parent element and fallback to
+    // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
+    var res = element || document;
+    while (res &&
+        res !== document &&
+        getStyle(res, 'position') === 'static' &&
+        !isTransformed(res)) {
+        res = res.parentElement || document;
+    }
+    return res;
 }
 
-var offsetA = {};
-var offsetB = {};
-var offsetDiff = {};
-
+var offsetA = { left: 0, top: 0 };
+var offsetB = { left: 0, top: 0 };
+var offsetDiff = { left: 0, top: 0 };
 /**
  * Returns the element's document offset, which in practice means the vertical
  * and horizontal distance between the element's northwest corner and the
  * document's northwest corner. Note that this function always returns the same
  * object so be sure to read the data from it instead using it as a reference.
  *
- * @param {(Document|Element|Window)} element
+ * @param {(HTMLElement|Document|Window)} element
  * @param {Object} [offsetData]
  *   - Optional data object where the offset data will be inserted to. If not
  *     provided a new object will be created for the return data.
  * @returns {Object}
  */
-function getOffset(element, offsetData) {
-  var offset = offsetData || {};
-  var rect;
-
-  // Set up return data.
-  offset.left = 0;
-  offset.top = 0;
-
-  // Document's offsets are always 0.
-  if (element === document) return offset;
-
-  // Add viewport scroll left/top to the respective offsets.
-  offset.left = window.pageXOffset || 0;
-  offset.top = window.pageYOffset || 0;
-
-  // Window's offsets are the viewport scroll left/top values.
-  if (element.self === window.self) return offset;
-
-  // Add element's client rects to the offsets.
-  rect = element.getBoundingClientRect();
-  offset.left += rect.left;
-  offset.top += rect.top;
-
-  // Exclude element's borders from the offset.
-  offset.left += getStyleAsFloat(element, 'border-left-width');
-  offset.top += getStyleAsFloat(element, 'border-top-width');
-
-  return offset;
+function getOffset(element, offset) {
+    if (offset === void 0) { offset = { left: 0, top: 0 }; }
+    // Set up return data.
+    offset.left = 0;
+    offset.top = 0;
+    // Document's offsets are always 0.
+    if (element === document)
+        return offset;
+    // Add viewport scroll left/top to the respective offsets.
+    offset.left = window.pageXOffset || 0;
+    offset.top = window.pageYOffset || 0;
+    // Window's offsets are the viewport scroll left/top values.
+    if ('self' in element && element.self === window.self)
+        return offset;
+    // Add element's client rects to the offsets.
+    var _a = element.getBoundingClientRect(), left = _a.left, top = _a.top;
+    offset.left += left;
+    offset.top += top;
+    // Exclude element's borders from the offset.
+    offset.left += getStyleAsFloat(element, 'border-left-width');
+    offset.top += getStyleAsFloat(element, 'border-top-width');
+    return offset;
 }
-
 /**
  * Calculate the offset difference two elements.
- *
- * @param {HTMLElement} elemA
- * @param {HTMLElement} elemB
- * @param {Boolean} [compareContainingBlocks=false]
+ * @param {(HTMLElement|Document)} elemA
+ * @param {(HTMLElement|Document)} elemB
+ * @param {boolean} [compareContainingBlocks=false]
  *   - When this is set to true the containing blocks of the provided elements
  *     will be used for calculating the difference. Otherwise the provided
  *     elements will be compared directly.
- * @returns {Object}
+ * @returns {object}
  */
 function getOffsetDiff(elemA, elemB, compareContainingBlocks) {
-  offsetDiff.left = 0;
-  offsetDiff.top = 0;
-
-  // If elements are same let's return early.
-  if (elemA === elemB) return offsetDiff;
-
-  // Compare containing blocks if necessary.
-  if (compareContainingBlocks) {
-    elemA = getContainingBlock(elemA);
-    elemB = getContainingBlock(elemB);
-
-    // If containing blocks are identical, let's return early.
-    if (elemA === elemB) return offsetDiff;
-  }
-
-  // Finally, let's calculate the offset diff.
-  getOffset(elemA, offsetA);
-  getOffset(elemB, offsetB);
-  offsetDiff.left = offsetB.left - offsetA.left;
-  offsetDiff.top = offsetB.top - offsetA.top;
-
-  return offsetDiff;
+    if (compareContainingBlocks === void 0) { compareContainingBlocks = false; }
+    offsetDiff.left = 0;
+    offsetDiff.top = 0;
+    // If elements are same let's return early.
+    if (elemA === elemB)
+        return offsetDiff;
+    // Compare containing blocks if necessary.
+    if (compareContainingBlocks) {
+        elemA = getContainingBlock(elemA);
+        elemB = getContainingBlock(elemB);
+        // If containing blocks are identical, let's return early.
+        if (elemA === elemB)
+            return offsetDiff;
+    }
+    // Finally, let's calculate the offset diff.
+    getOffset(elemA, offsetA);
+    getOffset(elemB, offsetB);
+    offsetDiff.left = offsetB.left - offsetA.left;
+    offsetDiff.top = offsetB.top - offsetA.top;
+    return offsetDiff;
 }
 
 /**
  * Remove class from an element.
  *
  * @param {HTMLElement} element
- * @param {String} className
+ * @param {string} className
  */
 function removeClass(element, className) {
-  if (!className) return;
-
-  if (element.classList) {
-    element.classList.remove(className);
-  } else {
-    if (elementMatches(element, '.' + className)) {
-      element.className = (' ' + element.className + ' ')
-        .replace(' ' + className + ' ', ' ')
-        .trim();
-    }
-  }
+    className && element.classList.remove(className);
 }
 
 var START_PREDICATE_INACTIVE = 0;
@@ -4138,46 +4005,38 @@ ItemDrag.prototype._onEnd = function (event) {
 };
 
 var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
-var cache$2 = {};
-
+var cache$2 = new Map();
 /**
  * Remove any potential vendor prefixes from a property name.
  *
- * @param {String} prop
- * @returns {String}
+ * @param {string} prop
+ * @returns {string}
  */
 function getUnprefixedPropName(prop) {
-  var result = cache$2[prop];
-  if (result) return result;
-
-  result = prop.replace(unprefixRegEx, '');
-
-  if (result !== prop) {
-    result = result[0].toLowerCase() + result.slice(1);
-  }
-
-  cache$2[prop] = result;
-
-  return result;
+    var result = cache$2.get(prop);
+    if (result)
+        return result;
+    result = prop.replace(unprefixRegEx, '');
+    if (result !== prop) {
+        result = result[0].toLowerCase() + result.slice(1);
+    }
+    cache$2.set(prop, result);
+    return result;
 }
 
 var nativeCode = '[native code]';
-
 /**
  * Check if a value (e.g. a method or constructor) is native code. Good for
  * detecting when a polyfill is used and when not.
  *
  * @param {*} feat
- * @returns {Boolean}
+ * @returns {boolean}
  */
 function isNative(feat) {
-  var S = window.Symbol;
-  return !!(
-    feat &&
-    isFunction(S) &&
-    isFunction(S.toString) &&
-    S(feat).toString().indexOf(nativeCode) > -1
-  );
+    return !!(feat &&
+        isFunction(window.Symbol) &&
+        isFunction(window.Symbol.toString) &&
+        window.Symbol(feat).toString().indexOf(nativeCode) > -1);
 }
 
 /**
@@ -4187,166 +4046,119 @@ function isNative(feat) {
  * @param {Object} styles
  */
 function setStyles(element, styles) {
-  for (var prop in styles) {
-    element.style[prop] = styles[prop];
-  }
+    for (var prop in styles) {
+        element.style[prop] = styles[prop] || '';
+    }
 }
 
-var HAS_WEB_ANIMATIONS = !!(Element && isFunction(Element.prototype.animate));
-var HAS_NATIVE_WEB_ANIMATIONS = !!(Element && isNative(Element.prototype.animate));
-
+var HAS_WEB_ANIMATIONS = isFunction(Element.prototype.animate);
+var HAS_NATIVE_WEB_ANIMATIONS = isNative(Element.prototype.animate);
+function createKeyframe(props, prefix) {
+    var keyframe = {};
+    for (var prop in props) {
+        keyframe[prefix ? prop : getUnprefixedPropName(prop)] = props[prop];
+    }
+    return keyframe;
+}
 /**
  * Item animation handler powered by Web Animations API.
- *
- * @class
- * @param {HTMLElement} element
  */
-function Animator(element) {
-  this._element = element;
-  this._animation = null;
-  this._callback = null;
-  this._isDestroyed = false;
-  this._onFinish = this._onFinish.bind(this);
-}
-
-/**
- * Public prototype methods
- * ************************
- */
-
-/**
- * Start instance's animation. Automatically stops current animation if it is
- * running.
- *
- * @public
- * @param {Object} propsFrom
- * @param {Object} propsTo
- * @param {Object} [options]
- * @param {Number} [options.duration=300]
- * @param {String} [options.easing='ease']
- * @param {Function} [options.onFinish]
- */
-Animator.prototype.start = function (propsFrom, propsTo, options) {
-  if (this._isDestroyed) return;
-
-  var element = this._element;
-  var opts = options || {};
-
-  // If we don't have web animations available let's not animate.
-  if (!HAS_WEB_ANIMATIONS) {
-    setStyles(element, propsTo);
-    this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
-    this._onFinish();
-    return;
-  }
-
-  // Cancel existing animation.
-  if (this._animation) this._animation.cancel();
-
-  // Store animation callback.
-  this._callback = isFunction(opts.onFinish) ? opts.onFinish : null;
-
-  // Start the animation. We need to provide unprefixed property names to the
-  // Web Animations polyfill if it is being used. If we have native Web
-  // Animations available we need to provide prefixed properties instead.
-  this._animation = element.animate(
-    [
-      createKeyframe(propsFrom, HAS_NATIVE_WEB_ANIMATIONS),
-      createKeyframe(propsTo, HAS_NATIVE_WEB_ANIMATIONS),
-    ],
-    {
-      duration: opts.duration || 300,
-      easing: opts.easing || 'ease',
+var Animator = /** @class */ (function () {
+    function Animator(element) {
+        this.element = element;
+        this.animation = null;
+        this._finishCallback = null;
+        this._onFinish = this._onFinish.bind(this);
     }
-  );
-  this._animation.onfinish = this._onFinish;
-
-  // Set the end styles. This makes sure that the element stays at the end
-  // values after animation is finished.
-  setStyles(element, propsTo);
-};
-
-/**
- * Stop instance's current animation if running.
- *
- * @public
- */
-Animator.prototype.stop = function () {
-  if (this._isDestroyed || !this._animation) return;
-  this._animation.cancel();
-  this._animation = this._callback = null;
-};
-
-/**
- * Check if the item is being animated currently.
- *
- * @public
- * @return {Boolean}
- */
-Animator.prototype.isAnimating = function () {
-  return !!this._animation;
-};
-
-/**
- * Destroy the instance and stop current animation if it is running.
- *
- * @public
- */
-Animator.prototype.destroy = function () {
-  if (this._isDestroyed) return;
-  this.stop();
-  this._element = null;
-  this._isDestroyed = true;
-};
-
-/**
- * Private prototype methods
- * *************************
- */
-
-/**
- * Animation end handler.
- *
- * @private
- */
-Animator.prototype._onFinish = function () {
-  var callback = this._callback;
-  this._animation = this._callback = null;
-  callback && callback();
-};
-
-/**
- * Private helpers
- * ***************
- */
-
-function createKeyframe(props, prefix) {
-  var frame = {};
-  for (var prop in props) {
-    frame[prefix ? prop : getUnprefixedPropName(prop)] = props[prop];
-  }
-  return frame;
-}
+    /**
+     * Animation end handler.
+     */
+    Animator.prototype._onFinish = function () {
+        var _finishCallback = this._finishCallback;
+        this.animation = this._finishCallback = null;
+        _finishCallback && _finishCallback();
+    };
+    /**
+     * Start instance's animation. Automatically stops current animation if it is
+     * running.
+     */
+    Animator.prototype.start = function (propsFrom, propsTo, options) {
+        if (!this.element)
+            return;
+        var element = this.element;
+        var _a = options || {}, duration = _a.duration, easing = _a.easing, onFinish = _a.onFinish;
+        // If we don't have web animations available let's not animate.
+        if (!HAS_WEB_ANIMATIONS) {
+            setStyles(element, propsTo);
+            this._finishCallback = isFunction(onFinish) ? onFinish : null;
+            this._onFinish();
+            return;
+        }
+        // Cancel existing animation.
+        if (this.animation)
+            this.animation.cancel();
+        // Start the animation. We need to provide unprefixed property names to the
+        // Web Animations polyfill if it is being used. If we have native Web
+        // Animations available we need to provide prefixed properties instead.
+        this.animation = element.animate([
+            createKeyframe(propsFrom, HAS_NATIVE_WEB_ANIMATIONS),
+            createKeyframe(propsTo, HAS_NATIVE_WEB_ANIMATIONS),
+        ], {
+            duration: duration || 300,
+            easing: easing || 'ease'
+        });
+        // Set animation finish callback.
+        this._finishCallback = isFunction(onFinish) ? onFinish : null;
+        this.animation.onfinish = this._onFinish;
+        // Set the end styles. This makes sure that the element stays at the end
+        // values after animation is finished.
+        setStyles(element, propsTo);
+    };
+    /**
+     * Stop instance's current animation if running.
+     */
+    Animator.prototype.stop = function () {
+        if (!this.element || !this.animation)
+            return;
+        this.animation.cancel();
+        this.animation = this._finishCallback = null;
+    };
+    /**
+     * Check if the instance is animating.
+     */
+    Animator.prototype.isAnimating = function () {
+        return !!this.animation;
+    };
+    /**
+     * Destroy the instance and stop current animation if it is running.
+     */
+    Animator.prototype.destroy = function () {
+        if (!this.element)
+            return;
+        this.stop();
+        this.element = null;
+    };
+    return Animator;
+}());
 
 /**
  * Transform translateX and translateY value into CSS transform style
  * property's value.
  *
- * @param {Number} x
- * @param {Number} y
- * @returns {String}
+ * @param {number} x
+ * @param {number} y
+ * @returns {string}
  */
 function getTranslateString(x, y) {
-  return 'translateX(' + x + 'px) translateY(' + y + 'px)';
+    return 'translateX(' + x + 'px) translateY(' + y + 'px)';
 }
 
-var translateValue = {};
+var translateValue = { x: 0, y: 0 };
 var transformNone$1 = 'none';
 var rxMat3d = /^matrix3d/;
 var rxMatTx = /([^,]*,){4}/;
 var rxMat3dTx = /([^,]*,){12}/;
 var rxNextItem = /[^,]*,/;
-
 /**
  * Returns the element's computed translateX and translateY values as a floats.
  * The returned object is always the same object and updated every time this
@@ -4356,23 +4168,19 @@ var rxNextItem = /[^,]*,/;
  * @returns {Object}
  */
 function getTranslate(element) {
-  translateValue.x = 0;
-  translateValue.y = 0;
-
-  var transform = getStyle(element, transformStyle);
-  if (!transform || transform === transformNone$1) {
+    translateValue.x = 0;
+    translateValue.y = 0;
+    var transform = getStyle(element, transformStyle);
+    if (!transform || transform === transformNone$1) {
+        return translateValue;
+    }
+    // Transform style can be in either matrix3d(...) or matrix(...).
+    var isMat3d = rxMat3d.test(transform);
+    var tX = transform.replace(isMat3d ? rxMat3dTx : rxMatTx, '');
+    var tY = tX.replace(rxNextItem, '');
+    translateValue.x = parseFloat(tX) || 0;
+    translateValue.y = parseFloat(tY) || 0;
     return translateValue;
-  }
-
-  // Transform style can be in either matrix3d(...) or matrix(...).
-  var isMat3d = rxMat3d.test(transform);
-  var tX = transform.replace(isMat3d ? rxMat3dTx : rxMatTx, '');
-  var tY = tX.replace(rxNextItem, '');
-
-  translateValue.x = parseFloat(tX) || 0;
-  translateValue.y = parseFloat(tY) || 0;
-
-  return translateValue;
 }
 
 var CURRENT_STYLES = {};
@@ -4490,8 +4298,8 @@ ItemDragPlaceholder.prototype._onLayoutStart = function (items, isInstant) {
   // Let's make sure an ongoing animation's callback is cancelled before going
   // further. Without this there's a chance that the animation will finish
   // before the next tick and mess up our logic.
-  if (this._animation.isAnimating()) {
-    this._animation._animation.onfinish = null;
+  if (this._animation.animation) {
+    this._animation.animation.onfinish = null;
   }
 
   // Start the placeholder's layout animation in the next tick. We do this to
@@ -4664,7 +4472,7 @@ ItemDragPlaceholder.prototype.create = function () {
   this._element = element;
 
   // Update element to animation instance.
-  animation._element = element;
+  animation.element = element;
 
   // Add placeholder class to the placeholder element.
   this._className = settings.itemPlaceholderClass || '';
@@ -4725,7 +4533,7 @@ ItemDragPlaceholder.prototype.reset = function () {
 
   // Reset animation instance.
   animation.stop();
-  animation._element = null;
+  animation.element = null;
 
   // Unbind event listeners.
   grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
@@ -5104,8 +4912,8 @@ ItemLayout.prototype.start = function (instant, onFinish) {
   // Let's make sure an ongoing animation's callback is cancelled before going
   // further. Without this there's a chance that the animation will finish
   // before the next tick and mess up our logic.
-  if (animation.isAnimating()) {
-    animation._animation.onfinish = null;
+  if (animation.animation) {
+    animation.animation.onfinish = null;
   }
 
   // Kick off animation to be started in the next tick.
@@ -5574,21 +5382,20 @@ ItemMigrate.prototype.destroy = function () {
  * @return {Object}
  */
 function getCurrentStyles(element, styles) {
-  var result = {};
-  var prop, i;
-
-  if (Array.isArray(styles)) {
-    for (i = 0; i < styles.length; i++) {
-      prop = styles[i];
-      result[prop] = getStyle(element, getStyleName(prop));
+    var result = {};
+    var prop;
+    if (Array.isArray(styles)) {
+        for (var i = 0; i < styles.length; i++) {
+            prop = styles[i];
+            result[prop] = getStyle(element, getStyleName(prop));
+        }
     }
-  } else {
-    for (prop in styles) {
-      result[prop] = getStyle(element, getStyleName(prop));
+    else {
+        for (prop in styles) {
+            result[prop] = getStyle(element, getStyleName(prop));
+        }
     }
-  }
-
-  return result;
+    return result;
 }
 
 /**
@@ -5843,8 +5650,8 @@ ItemVisibility.prototype._startAnimation = function (toVisible, instant, onFinis
   // Let's make sure an ongoing animation's callback is cancelled before going
   // further. Without this there's a chance that the animation will finish
   // before the next tick and mess up our logic.
-  if (animation.isAnimating()) {
-    animation._animation.onfinish = null;
+  if (animation.animation) {
+    animation.animation.onfinish = null;
   }
 
   // Start the animation in the next tick (to avoid layout thrashing).
@@ -5939,63 +5746,56 @@ ItemVisibility.prototype._removeCurrentStyles = function () {
 };
 
 var id = 0;
-
 /**
  * Returns a unique numeric id (increments a base value on every call).
- * @returns {Number}
+ * @returns {number}
  */
 function createUid() {
-  return ++id;
+    return ++id;
 }
 
 var windowSize = {
-  width: window.innerWidth,
-  height: window.innerHeight,
+    width: window.innerWidth,
+    height: window.innerHeight
 };
-
 window.addEventListener('resize', function () {
-  windowSize.width = window.innerWidth;
-  windowSize.height = window.innerHeight;
+    windowSize.width = window.innerWidth;
+    windowSize.height = window.innerHeight;
 });
 
 var targetRect = {
-  left: 0,
-  top: 0,
-  width: 0,
-  height: 0,
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0
 };
-
 var viewportRect = {
-  left: 0,
-  top: 0,
-  width: 0,
-  height: 0,
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0
 };
-
 /**
  * Check if the provided rectangle is in viewport.
  *
- * @private
- * @param {Number} width
- * @param {Number} height
- * @param {Number} left
- * @param {Number} top
- * @param {Number} padding
+ * @param {number} width
+ * @param {number} height
+ * @param {number} left
+ * @param {number} top
+ * @param {number} padding
+ * @returns {boolean}
  */
 function isInViewport(width, height, left, top, padding) {
-  padding = padding || 0;
-
-  targetRect.left = left;
-  targetRect.top = top;
-  targetRect.width = width;
-  targetRect.height = height;
-
-  viewportRect.left = 0 - padding;
-  viewportRect.top = 0 - padding;
-  viewportRect.width = windowSize.width + padding + padding;
-  viewportRect.height = windowSize.height + padding + padding;
-
-  return isOverlapping(targetRect, viewportRect);
+    padding = padding || 0;
+    targetRect.left = left;
+    targetRect.top = top;
+    targetRect.width = width;
+    targetRect.height = height;
+    viewportRect.left = 0 - padding;
+    viewportRect.top = 0 - padding;
+    viewportRect.width = windowSize.width + padding + padding;
+    viewportRect.height = windowSize.height + padding + padding;
+    return isOverlapping(targetRect, viewportRect);
 }
 
 /**
@@ -7305,7 +7105,6 @@ Packer.prototype.destroy = function () {
 };
 
 var debounceId = 0;
-
 /**
  * Returns a function, that, as long as it continues to be invoked, will not
  * be triggered. The function will be called after it stops being called for
@@ -7314,91 +7113,108 @@ var debounceId = 0;
  * function is canceled it cannot be invoked again.
  *
  * @param {Function} fn
- * @param {Number} durationMs
+ * @param {number} durationMs
  * @returns {Function}
  */
 function debounce(fn, durationMs) {
-  var id = ++debounceId;
-  var timer = 0;
-  var lastTime = 0;
-  var isCanceled = false;
-  var tick = function (time) {
-    if (isCanceled) return;
+    var id = ++debounceId;
+    var timer = 0;
+    var lastTime = 0;
+    var isCanceled = false;
+    var tick = function (time) {
+        if (isCanceled)
+            return;
+        if (lastTime)
+            timer -= time - lastTime;
+        lastTime = time;
+        if (timer > 0) {
+            tick && addDebounceTick(id, tick);
+        }
+        else {
+            timer = lastTime = 0;
+            fn();
+        }
+    };
+    return function debouncedFn(cancel) {
+        if (cancel === void 0) { cancel = false; }
+        if (isCanceled)
+            return;
+        if (durationMs <= 0) {
+            if (cancel !== true)
+                fn();
+            return;
+        }
+        if (cancel === true) {
+            isCanceled = true;
+            timer = lastTime = 0;
+            tick = undefined;
+            cancelDebounceTick(id);
+            return;
+        }
+        if (timer <= 0) {
+            timer = durationMs;
+            tick && tick(0);
+        }
+        else {
+            timer = durationMs;
+        }
+    };
+}
 
-    if (lastTime) timer -= time - lastTime;
-    lastTime = time;
-
-    if (timer > 0) {
-      addDebounceTick(id, tick);
-    } else {
-      timer = lastTime = 0;
-      fn();
-    }
-  };
-
-  return function (cancel) {
-    if (isCanceled) return;
-
-    if (durationMs <= 0) {
-      if (cancel !== true) fn();
-      return;
-    }
-
-    if (cancel === true) {
-      isCanceled = true;
-      timer = lastTime = 0;
-      tick = undefined;
-      cancelDebounceTick(id);
-      return;
-    }
-
-    if (timer <= 0) {
-      timer = durationMs;
-      tick(0);
-    } else {
-      timer = durationMs;
-    }
-  };
+var matches = Element.prototype.matches ||
+    Element.prototype.webkitMatchesSelector ||
+    // @ts-ignore
+    Element.prototype.msMatchesSelector ||
+    function () {
+        return false;
+    };
+/**
+ * Check if element matches a CSS selector.
+ *
+ * @param {HTMLElement} el
+ * @param {string} selector
+ * @returns {boolean}
+ */
+function elementMatches(el, selector) {
+    return matches.call(el, selector);
 }
 
 var htmlCollectionType = '[object HTMLCollection]';
 var nodeListType = '[object NodeList]';
-
 /**
  * Check if a value is a node list or a html collection.
  *
  * @param {*} val
- * @returns {Boolean}
+ * @returns {boolean}
  */
 function isNodeList(val) {
-  var type = Object.prototype.toString.call(val);
-  return type === htmlCollectionType || type === nodeListType;
+    var type = Object.prototype.toString.call(val);
+    return type === htmlCollectionType || type === nodeListType;
 }
 
 var objectType = 'object';
 var objectToStringType = '[object Object]';
 var toString = Object.prototype.toString;
-
 /**
  * Check if a value is a plain object.
  *
  * @param {*} val
- * @returns {Boolean}
+ * @returns {boolean}
  */
 function isPlainObject(val) {
-  return typeof val === objectType && toString.call(val) === objectToStringType;
+    return typeof val === objectType && toString.call(val) === objectToStringType;
 }
 
-function noop() {}
+function noop() { }
 
 /**
  * Converts a value to an array or clones an array.
  *
  * @param {*} val
- * @returns {Array}
+ * @returns {array}
  */
 function toArray(val) {
-  return isNodeList(val) ? Array.prototype.slice.call(val) : Array.prototype.concat(val);
+    return isNodeList(val) ? Array.prototype.slice.call(val) : Array.prototype.concat(val);
 }
 
 var NUMBER_TYPE = 'number';

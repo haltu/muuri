@@ -112,8 +112,8 @@ ItemLayout.prototype.start = function (instant, onFinish) {
   // Let's make sure an ongoing animation's callback is cancelled before going
   // further. Without this there's a chance that the animation will finish
   // before the next tick and mess up our logic.
-  if (animation.isAnimating()) {
-    animation._animation.onfinish = null;
+  if (animation.animation) {
+    animation.animation.onfinish = null;
   }
 
   // Kick off animation to be started in the next tick.

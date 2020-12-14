@@ -299,24 +299,6 @@ Dragger._proxies = [new DragProxy(0), new DragProxy(1), new DragProxy(2), new Dr
  */
 
 /**
- * Reset current drag operation (if any).
- *
- * @private
- */
-Dragger.prototype._reset = function () {
-  this._pointerId = null;
-  this._startTime = 0;
-  this._startX = 0;
-  this._startY = 0;
-  this._currentX = 0;
-  this._currentY = 0;
-  this._isActive = false;
-
-  var proxy = Dragger._proxies[this._listenerType];
-  if (proxy) proxy.removeDragger(this);
-};
-
-/**
  * Create a custom dragger event from a raw event.
  *
  * @private
@@ -432,7 +414,7 @@ Dragger.prototype._onMove = function (e) {
 Dragger.prototype._onCancel = function (e) {
   if (!this._getTrackedTouch(e)) return;
   this._emit(emitterEvents.cancel, e);
-  this._reset();
+  this.reset();
 };
 
 /**
@@ -444,7 +426,7 @@ Dragger.prototype._onCancel = function (e) {
 Dragger.prototype._onEnd = function (e) {
   if (!this._getTrackedTouch(e)) return;
   this._emit(emitterEvents.end, e);
-  this._reset();
+  this.reset();
 };
 
 /**
@@ -656,6 +638,24 @@ Dragger.prototype.off = function (eventName, listener) {
 };
 
 /**
+ * Reset current drag operation (if any).
+ *
+ * @public
+ */
+Dragger.prototype.reset = function () {
+  this._pointerId = null;
+  this._startTime = 0;
+  this._startX = 0;
+  this._startY = 0;
+  this._currentX = 0;
+  this._currentY = 0;
+  this._isActive = false;
+
+  var proxy = Dragger._proxies[this._listenerType];
+  if (proxy) proxy.removeDragger(this);
+};
+
+/**
  * Destroy the instance and unbind all drag event listeners.
  *
  * @public
@@ -668,7 +668,7 @@ Dragger.prototype.destroy = function () {
   if (this._edgeHack) this._edgeHack.destroy();
 
   // Reset data and deactivate the instance.
-  this._reset();
+  this.reset();
 
   // Destroy emitter.
   this._emitter.destroy();

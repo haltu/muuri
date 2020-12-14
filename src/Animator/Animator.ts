@@ -38,8 +38,8 @@ export default class Animator {
   public animation: Animation | null;
   private _finishCallback: Function | null;
 
-  constructor(element: HTMLElement) {
-    this.element = element;
+  constructor(element?: HTMLElement) {
+    this.element = element || null;
     this.animation = null;
     this._finishCallback = null;
     this._onFinish = this._onFinish.bind(this);

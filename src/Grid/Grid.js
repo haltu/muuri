@@ -164,8 +164,23 @@ function Grid(element, options) {
   this._id = createUid();
   this._element = element;
   this._settings = settings;
-  this._isDestroyed = false;
   this._items = [];
+  this._isDestroyed = false;
+
+  this._width = 0;
+  this._height = 0;
+  this._left = 0;
+  this._top = 0;
+  this._right = 0;
+  this._bottom = 0;
+  this._borderLeft = 0;
+  this._borderRight = 0;
+  this._borderTop = 0;
+  this._borderBottom = 0;
+
+  this._itemLayoutNeedsDimensionRefresh = false;
+  this._itemVisibilityNeedsDimensionRefresh = false;
+
   this._layout = {
     id: 0,
     items: [],
@@ -174,6 +189,7 @@ function Grid(element, options) {
   this._isLayoutFinished = true;
   this._nextLayoutData = null;
   this._emitter = new Emitter();
+
   this._onLayoutDataReceived = this._onLayoutDataReceived.bind(this);
 
   // Store grid instance to the grid instances collection.

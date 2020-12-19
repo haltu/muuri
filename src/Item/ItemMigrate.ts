@@ -16,15 +16,13 @@ import arrayInsert from '../utils/arrayInsert';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 
-import { ItemMigrate as ItemMigrateInterface } from '../types';
-
 /**
  * The migrate process handler constructor.
  *
  * @class
  * @param {Item} item
  */
-class ItemMigrate implements ItemMigrateInterface {
+class ItemMigrate {
   public _item: Item;
   public _isActive: boolean;
   public _isDestroyed: boolean;

@@ -18,7 +18,7 @@ import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
-import { ItemLayout as ItemLayoutInterface, StyleDeclaration } from '../types';
+import { StyleDeclaration } from '../types';
 
 const MIN_ANIMATION_DISTANCE = 2;
 const CURRENT_STYLES: StyleDeclaration = {};
@@ -35,7 +35,7 @@ const ANIM_OPTIONS: AnimationOptions = {
  * @class
  * @param {Item} item
  */
-class ItemLayout implements ItemLayoutInterface {
+class ItemLayout {
   public _item: Item;
   public _isActive: boolean;
   public _isDestroyed: boolean;

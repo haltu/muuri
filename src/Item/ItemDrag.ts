@@ -19,11 +19,18 @@ import {
   EVENT_DRAG_END,
   GRID_INSTANCES,
   IS_IOS,
+  HAS_PASSIVE_EVENTS,
 } from '../constants';
 
 import Grid from '../Grid/Grid';
 import Item from './Item';
-import Dragger from '../Dragger/Dragger';
+import Dragger, {
+  DraggerStartEvent,
+  DraggerMoveEvent,
+  DraggerEndEvent,
+  DraggerCancelEvent,
+  DraggerAnyEvent,
+} from '../Dragger/Dragger';
 import AutoScroller from '../AutoScroller/AutoScroller';
 
 import {
@@ -45,17 +52,10 @@ import getContainingBlock from '../utils/getContainingBlock';
 import getIntersectionScore from '../utils/getIntersectionScore';
 import getOffsetDiff from '../utils/getOffsetDiff';
 import getStyle from '../utils/getStyle';
-import hasPassiveEvents from '../utils/hasPassiveEvents';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 
 import {
-  ItemDrag as ItemDragInterface,
-  DraggerStartEvent,
-  DraggerMoveEvent,
-  DraggerEndEvent,
-  DraggerCancelEvent,
-  DraggerAnyEvent,
   ScrollEvent,
   DragStartPredicateOptions,
   DragSortPredicateOptions,
@@ -67,7 +67,7 @@ import {
 const START_PREDICATE_INACTIVE = 0;
 const START_PREDICATE_PENDING = 1;
 const START_PREDICATE_RESOLVED = 2;
-const SCROLL_LISTENER_OPTIONS = hasPassiveEvents ? { capture: true, passive: true } : true;
+const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: true } : true;
 const RECT_A: Rect = { left: 0, top: 0, width: 0, height: 0 };
 const RECT_B: Rect = { left: 0, top: 0, width: 0, height: 0 };
 
@@ -196,11 +196,11 @@ const getTargetGrid = function (item: Item, threshold: number) {
   let grid: Grid;
   let container: HTMLElement | Document | null = null;
   let containerRect: RectExtended;
-  let left: number;
-  let top: number;
-  let right: number;
-  let bottom: number;
-  let i: number;
+  let left = 0;
+  let top = 0;
+  let right = 0;
+  let bottom = 0;
+  let i = 0;
 
   // Set up item rect data for comparing against grids.
   itemRect.width = item._width;
@@ -209,7 +209,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
   itemRect.top = (item._drag as ItemDrag)._clientY;
 
   // Loop through the grids and get the best match.
-  for (i = 0; i < grids.length; i++) {
+  for (; i < grids.length; i++) {
     grid = grids[i];
 
     // Filter out all destroyed grids.
@@ -226,7 +226,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
     // The grid might be inside one or more elements that clip it's visibility
     // (e.g overflow scroll/hidden) so we want to find out the visible portion
     // of the grid in the viewport and use that in our calculations.
-    container = (grid._element as HTMLElement).parentNode as HTMLElement | Document | null;
+    container = grid._element.parentNode as HTMLElement | Document | null;
     while (
       container &&
       container !== document &&
@@ -388,7 +388,7 @@ const defaultSortPredicate = function (
  * @class
  * @param {Item} item
  */
-class ItemDrag implements ItemDragInterface {
+class ItemDrag {
   public _item: Item;
   public _rootGridId: number;
   public _isDestroyed: boolean;
@@ -587,7 +587,7 @@ class ItemDrag implements ItemDragInterface {
       // not there already. Also make sure the translate values are adjusted to
       // account for the DOM shift.
       if (element.parentNode !== grid._element) {
-        (grid._element as HTMLElement).appendChild(element);
+        grid._element.appendChild(element);
         item._setTranslate(
           this._translateX - item._containerDiffX,
           this._translateY - item._containerDiffY
@@ -1011,7 +1011,7 @@ class ItemDrag implements ItemDragInterface {
       // important to keep this synced so that we can feed correct data to the
       // drag sort heuristics and easily compute the item's position within it's
       // current grid element.
-      let offsetDiff = getOffsetDiff(targetDragContainer, targetGrid._element as HTMLElement, true);
+      let offsetDiff = getOffsetDiff(targetDragContainer, targetGrid._element, true);
       item._containerDiffX = this._containerDiffX = offsetDiff.left;
       item._containerDiffY = this._containerDiffY = offsetDiff.top;
 
@@ -1229,7 +1229,7 @@ class ItemDrag implements ItemDragInterface {
     this._containerDiffX = this._containerDiffY = 0;
 
     if (dragContainer !== grid._element) {
-      const { left, top } = getOffsetDiff(containingBlock, grid._element as HTMLElement);
+      const { left, top } = getOffsetDiff(containingBlock, grid._element);
       this._containerDiffX = left;
       this._containerDiffY = top;
     }
@@ -1406,7 +1406,7 @@ class ItemDrag implements ItemDragInterface {
     if (this._container !== grid._element) {
       const { left, top } = getOffsetDiff(
         this._containingBlock as HTMLElement | Document,
-        grid._element as HTMLElement
+        grid._element
       );
       item._containerDiffX = this._containerDiffX = left;
       item._containerDiffY = this._containerDiffY = top;

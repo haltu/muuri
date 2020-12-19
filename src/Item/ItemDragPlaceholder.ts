@@ -29,7 +29,7 @@ import setStyles from '../utils/setStyles';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
-import { ItemDragPlaceholder as ItemDragPlaceholderInterface, StyleDeclaration } from '../types';
+import { StyleDeclaration } from '../types';
 
 const CURRENT_STYLES: StyleDeclaration = {};
 const TARGET_STYLES: StyleDeclaration = {};
@@ -40,7 +40,7 @@ const TARGET_STYLES: StyleDeclaration = {};
  * @class
  * @param {Item} item
  */
-class ItemDragPlaceholder implements ItemDragPlaceholderInterface {
+class ItemDragPlaceholder {
   public _item: Item;
   public _animation: Animator;
   public _element: HTMLElement | null;

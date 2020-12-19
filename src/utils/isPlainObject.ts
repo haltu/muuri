@@ -4,9 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-const objectType = 'object';
-const objectToStringType = '[object Object]';
 const toString = Object.prototype.toString;
+export type PlainObject = { [key: string]: any };
 
 /**
  * Check if a value is a plain object.
@@ -14,6 +13,6 @@ const toString = Object.prototype.toString;
  * @param {*} val
  * @returns {boolean}
  */
-export default function isPlainObject(val: any) {
-  return typeof val === objectType && toString.call(val) === objectToStringType;
+export default function isPlainObject(val: any): val is PlainObject {
+  return typeof val === 'object' && toString.call(val) === '[object Object]';
 }

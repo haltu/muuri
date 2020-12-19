@@ -4,14 +4,12 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-const functionType = 'function';
-
 /**
  * Check if a value is a function.
  *
  * @param {*} val
  * @returns {boolean}
  */
-export default function isFunction(val: any) {
-  return typeof val === functionType;
+export default function isFunction(val: any): val is (...args: any) => any {
+  return typeof val === 'function';
 }

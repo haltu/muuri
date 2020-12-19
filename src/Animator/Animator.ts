@@ -5,7 +5,6 @@
  */
 
 import getUnprefixedPropName from '../utils/getUnprefixedPropName';
-import isFunction from '../utils/isFunction';
 import isNative from '../utils/isNative';
 import setStyles from '../utils/setStyles';
 
@@ -19,12 +18,13 @@ export interface AnimationOptions {
   onFinish?: Function;
 }
 
-const HAS_WEB_ANIMATIONS = isFunction(Element.prototype.animate);
+const HAS_WEB_ANIMATIONS = typeof Element.prototype.animate === 'function';
 const HAS_NATIVE_WEB_ANIMATIONS = isNative(Element.prototype.animate);
 
 function createKeyframe(props: AnimationProperties, prefix: boolean) {
   const keyframe: AnimationProperties = {};
-  for (let prop in props) {
+  let prop: string;
+  for (prop in props) {
     keyframe[prefix ? prop : getUnprefixedPropName(prop)] = props[prop];
   }
   return keyframe;
@@ -71,7 +71,7 @@ export default class Animator {
     // If we don't have web animations available let's not animate.
     if (!HAS_WEB_ANIMATIONS) {
       setStyles(element, propsTo);
-      this._finishCallback = isFunction(onFinish) ? (onFinish as Function) : null;
+      this._finishCallback = typeof onFinish === 'function' ? onFinish : null;
       this._onFinish();
       return;
     }
@@ -94,7 +94,7 @@ export default class Animator {
     );
 
     // Set animation finish callback.
-    this._finishCallback = isFunction(onFinish) ? (onFinish as Function) : null;
+    this._finishCallback = typeof onFinish === 'function' ? onFinish : null;
     this.animation.onfinish = this._onFinish;
 
     // Set the end styles. This makes sure that the element stays at the end

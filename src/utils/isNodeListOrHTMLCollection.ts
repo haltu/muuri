@@ -13,7 +13,7 @@ const nodeListType = '[object NodeList]';
  * @param {*} val
  * @returns {boolean}
  */
-export default function isNodeList(val: any) {
+export default function isNodeListOrHTMLCollection(val: any): val is NodeList | HTMLCollection {
   const type = Object.prototype.toString.call(val);
   return type === htmlCollectionType || type === nodeListType;
 }

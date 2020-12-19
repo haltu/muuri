@@ -11,7 +11,8 @@
  * @param {Object} styles
  */
 export default function setStyles(element: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
-  for (let prop in styles) {
+  let prop: string;
+  for (prop in styles) {
     element.style[prop] = styles[prop] || '';
   }
 }

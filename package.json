@@ -23,7 +23,7 @@
   },
   "main": "dist/muuri.js",
   "module": "dist/muuri.module.js",
-  "types": "src/types.d.ts",
+  "types": "src/index.d.ts",
   "files": [
     "package.json",
     "src",
@@ -40,7 +40,7 @@
     "test-local": "$(npm bin)/gulp test-local",
     "test-local-min": "$(npm bin)/gulp test-local-min",
     "bundle": "$(npm bin)/rollup -c",
-    "minify": "$(npm bin)/terser ./dist/muuri.js -o ./dist/muuri.min.js -c -m --comments",
+    "minify": "$(npm bin)/terser ./dist/muuri.js -o ./dist/muuri.min.js -c -m --comments false --ecma 5",
     "build": "$(npm bin)/gulp build",
     "ts-build": "$(npm bin)/tsc",
     "lint": "$(npm bin)/gulp lint",

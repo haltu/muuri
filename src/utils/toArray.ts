@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import isNodeList from './isNodeList';
+import isNodeListOrHTMLCollection from './isNodeListOrHTMLCollection';
 
 /**
  * Converts a value to an array or clones an array.
@@ -13,5 +13,7 @@ import isNodeList from './isNodeList';
  * @returns {array}
  */
 export default function toArray(val: any) {
-  return isNodeList(val) ? Array.prototype.slice.call(val) : Array.prototype.concat(val);
+  return isNodeListOrHTMLCollection(val)
+    ? Array.prototype.slice.call(val)
+    : Array.prototype.concat(val);
 }

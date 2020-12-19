@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END } from '../constants';
+import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END, HAS_PASSIVE_EVENTS } from '../constants';
 
 import { addReleaseScrollTick, cancelReleaseScrollTick } from '../ticker';
 
@@ -12,12 +12,9 @@ import Item from './Item';
 
 import addClass from '../utils/addClass';
 import getOffsetDiff from '../utils/getOffsetDiff';
-import hasPassiveEvents from '../utils/hasPassiveEvents';
 import removeClass from '../utils/removeClass';
 
-import { ItemDragRelease as ItemDragReleaseInterface } from '../types';
-
-const SCROLL_LISTENER_OPTIONS = hasPassiveEvents ? { capture: true, passive: true } : true;
+const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: true } : true;
 
 /**
  * The release process handler constructor. Although this might seem as proper
@@ -28,7 +25,7 @@ const SCROLL_LISTENER_OPTIONS = hasPassiveEvents ? { capture: true, passive: tru
  * @class
  * @param {Item} item
  */
-class ItemDragRelease implements ItemDragReleaseInterface {
+class ItemDragRelease {
   public _item: Item;
   public _isActive: boolean;
   public _isDestroyed: boolean;

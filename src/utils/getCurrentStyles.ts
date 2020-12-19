@@ -19,10 +19,11 @@ export default function getCurrentStyles(
   styles: string[] | { [key: string]: string }
 ) {
   const result: { [key: string]: string } = {};
-  let prop;
+  let prop: string;
 
   if (Array.isArray(styles)) {
-    for (var i = 0; i < styles.length; i++) {
+    let i = 0;
+    for (; i < styles.length; i++) {
       prop = styles[i];
       result[prop] = getStyle(element, getStyleName(prop));
     }

@@ -25,8 +25,6 @@ import isInViewport from '../utils/isInViewport';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
-import { Item as ItemInterface } from '../types';
-
 const _getTranslateResult = { x: 0, y: 0 };
 const _getClientRootPositionResult = { left: 0, top: 0 };
 
@@ -38,7 +36,7 @@ const _getClientRootPositionResult = { left: 0, top: 0 };
  * @param {HTMLElement} element
  * @param {boolean} [isActive]
  */
-class Item implements ItemInterface {
+class Item {
   public _id: number;
   public _gridId: number;
   public _element: HTMLElement;
@@ -334,7 +332,8 @@ class Item implements ItemInterface {
     this._sortData = {};
     const getters = this.getGrid()._settings.sortData;
     if (getters) {
-      for (let prop in getters) {
+      let prop: string;
+      for (prop in getters) {
         this._sortData[prop] = getters[prop](this, this._element);
       }
     }

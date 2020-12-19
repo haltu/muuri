@@ -4,7 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { Item, Grid } from './types';
+import Grid from './Grid/Grid';
+import Item from './Item/Item';
 
 export const GRID_INSTANCES: { [gridId: number]: Grid } = {};
 export const ITEM_ELEMENT_MAP: Map<HTMLElement, Item> = new Map();
@@ -40,7 +41,6 @@ export const EVENT_DESTROY = 'destroy';
 
 export const HAS_TOUCH_EVENTS = 'ontouchstart' in window;
 export const HAS_POINTER_EVENTS = !!window.PointerEvent;
-export const HAS_MS_POINTER_EVENTS = !!window.navigator.msPointerEnabled;
 
 export const UA = window.navigator.userAgent.toLowerCase();
 export const IS_EDGE = UA.indexOf('edge') > -1;
@@ -54,3 +54,19 @@ export const IS_IOS =
 export const MAX_SAFE_FLOAT32_INTEGER = 16777216;
 
 export const VIEWPORT_THRESHOLD = 100;
+
+export const HAS_PASSIVE_EVENTS = (() => {
+  let isPassiveEventsSupported = false;
+  try {
+    const passiveOpts = Object.defineProperty({}, 'passive', {
+      get: function () {
+        isPassiveEventsSupported = true;
+      },
+    });
+    // @ts-ignore
+    window.addEventListener('testPassive', null, passiveOpts);
+    // @ts-ignore
+    window.removeEventListener('testPassive', null, passiveOpts);
+  } catch (e) {}
+  return isPassiveEventsSupported;
+})();

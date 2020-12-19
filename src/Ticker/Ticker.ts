@@ -46,7 +46,8 @@ class TickerLane {
     const { _queue, _callbacks, _indices } = this;
     let id: undefined | string;
 
-    for (var i = 0; i < _queue.length; i++) {
+    let i = 0;
+    for (; i < _queue.length; i++) {
       id = _queue[i];
       if (!id || targetCallbacks.has(id)) continue;
       targetQueue.push(id);
@@ -76,7 +77,8 @@ export default class Ticker {
 
     this._step = this._step.bind(this);
 
-    for (var i = 0; i < numLanes; i++) {
+    let i = 0;
+    for (; i < numLanes; i++) {
       this._lanes.push(new TickerLane());
     }
   }

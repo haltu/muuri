@@ -17,7 +17,7 @@ import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 
-import { ItemVisibility as ItemVisibilityInterface, StyleDeclaration } from '../types';
+import { StyleDeclaration } from '../types';
 
 /**
  * Visibility manager for Item instance, handles visibility of an item.
@@ -25,7 +25,7 @@ import { ItemVisibility as ItemVisibilityInterface, StyleDeclaration } from '../
  * @class
  * @param {Item} item
  */
-class ItemVisibility implements ItemVisibilityInterface {
+class ItemVisibility {
   public _item: Item;
   public _isDestroyed: boolean;
   public _isHidden: boolean;
@@ -200,7 +200,8 @@ class ItemVisibility implements ItemVisibilityInterface {
     const childElement = this._childElement;
     const currentStyleProps = this._currentStyleProps;
     this._removeCurrentStyles();
-    for (let prop in styles) {
+    let prop: string;
+    for (prop in styles) {
       currentStyleProps.push(prop);
       childElement.style[prop as any] = styles[prop];
     }
@@ -372,7 +373,8 @@ class ItemVisibility implements ItemVisibilityInterface {
     const childElement = this._childElement;
     const currentStyleProps = this._currentStyleProps;
 
-    for (let i = 0; i < currentStyleProps.length; i++) {
+    let i = 0;
+    for (; i < currentStyleProps.length; i++) {
       childElement.style[currentStyleProps[i] as any] = '';
     }
 

@@ -8,6 +8,7 @@ import { VIEWPORT_THRESHOLD } from '../constants';
 
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
 
+import Grid from '../Grid/Grid';
 import Item from './Item';
 import Animator from '../Animator/Animator';
 
@@ -26,15 +27,15 @@ import { StyleDeclaration } from '../types';
  * @param {Item} item
  */
 class ItemVisibility {
-  public _item: Item;
-  public _isDestroyed: boolean;
-  public _isHidden: boolean;
-  public _isHiding: boolean;
-  public _isShowing: boolean;
-  public _childElement: HTMLElement;
-  public _currentStyleProps: string[];
-  public _animation: Animator;
-  public _queue: string;
+  _item: Item;
+  _isDestroyed: boolean;
+  _isHidden: boolean;
+  _isHiding: boolean;
+  _isShowing: boolean;
+  _childElement: HTMLElement;
+  _currentStyleProps: string[];
+  _animation: Animator;
+  _queue: string;
 
   constructor(item: Item) {
     const isActive = item._isActive;
@@ -60,11 +61,9 @@ class ItemVisibility {
 
     element.style.display = isActive ? '' : 'none';
 
-    const settings = item.getGrid()?._settings;
-    if (settings) {
-      addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
-      this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
-    }
+    const settings = (item.getGrid() as Grid)._settings;
+    addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
+    this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
   }
 
   /**
@@ -74,7 +73,7 @@ class ItemVisibility {
    * @param {boolean} instant
    * @param {Function} [onFinish]
    */
-  public show(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => any) {
+  show(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => any) {
     if (this._isDestroyed) return;
 
     const item = this._item;
@@ -99,7 +98,7 @@ class ItemVisibility {
     if (!this._isShowing) {
       item._emitter.burst(this._queue, true, item);
       const element = item._element;
-      const settings = item.getGrid()?._settings;
+      const settings = (item.getGrid() as Grid)._settings;
       if (settings) {
         removeClass(element, settings.itemHiddenClass);
         addClass(element, settings.itemVisibleClass);
@@ -125,7 +124,7 @@ class ItemVisibility {
    * @param {boolean} instant
    * @param {Function} [onFinish]
    */
-  public hide(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => any) {
+  hide(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => any) {
     if (this._isDestroyed) return;
 
     const item = this._item;
@@ -150,7 +149,7 @@ class ItemVisibility {
     if (!this._isHiding) {
       item._emitter.burst(this._queue, true, item);
       const element = item._element;
-      const settings = item.getGrid()?._settings;
+      const settings = (item.getGrid() as Grid)._settings;
       if (settings) {
         addClass(element, settings.itemHiddenClass);
         removeClass(element, settings.itemVisibleClass);
@@ -174,7 +173,7 @@ class ItemVisibility {
    * @public
    * @param {boolean} processCallbackQueue
    */
-  public stop(processCallbackQueue: boolean) {
+  stop(processCallbackQueue: boolean) {
     if (this._isDestroyed) return;
     if (!this._isHiding && !this._isShowing) return;
 
@@ -196,7 +195,7 @@ class ItemVisibility {
    * @public
    * @param {Object} styles
    */
-  public setStyles(styles: StyleDeclaration) {
+  setStyles(styles: StyleDeclaration) {
     const childElement = this._childElement;
     const currentStyleProps = this._currentStyleProps;
     this._removeCurrentStyles();
@@ -212,12 +211,12 @@ class ItemVisibility {
    *
    * @public
    */
-  public destroy() {
+  destroy() {
     if (this._isDestroyed) return;
 
     const item = this._item;
     const element = item._element;
-    const settings = item.getGrid()?._settings;
+    const settings = (item.getGrid() as Grid)._settings;
 
     this.stop(true);
     item._emitter.clear(this._queue);
@@ -242,14 +241,11 @@ class ItemVisibility {
    * @param {boolean} instant
    * @param {Function} [onFinish]
    */
-  public _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void) {
+  _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void) {
     if (this._isDestroyed) return;
 
     const item = this._item;
-    const grid = item.getGrid();
-
-    if (!grid) return;
-
+    const grid = item.getGrid() as Grid;
     const animation = this._animation;
     const childElement = this._childElement;
     const settings = grid._settings;
@@ -344,7 +340,7 @@ class ItemVisibility {
    *
    * @private
    */
-  public _finishShow() {
+  _finishShow() {
     if (this._isHidden) return;
     this._isShowing = false;
     this._item._emitter.burst(this._queue, false, this._item);
@@ -355,7 +351,7 @@ class ItemVisibility {
    *
    * @private
    */
-  public _finishHide() {
+  _finishHide() {
     if (!this._isHidden) return;
     const item = this._item;
     this._isHiding = false;
@@ -369,7 +365,7 @@ class ItemVisibility {
    *
    * @private
    */
-  public _removeCurrentStyles() {
+  _removeCurrentStyles() {
     const childElement = this._childElement;
     const currentStyleProps = this._currentStyleProps;
 

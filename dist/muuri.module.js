@@ -53,10 +53,11 @@ function __spreadArrays() {
     return r;
 }
 
-var GRID_INSTANCES = {};
+var GRID_INSTANCES = new Map();
 var ITEM_ELEMENT_MAP = new Map();
 var ACTION_SWAP = 'swap';
 var ACTION_MOVE = 'move';
+var INSTANT_LAYOUT = 'instant';
 var EVENT_SYNCHRONIZE = 'synchronize';
 var EVENT_LAYOUT_START = 'layoutStart';
 var EVENT_LAYOUT_END = 'layoutEnd';
@@ -2529,7 +2530,7 @@ var getTargetGrid = function (item, threshold) {
     var dragSort = itemGrid._settings.dragSort;
     var grids = dragSort === true
         ? [itemGrid]
-        : typeof dragSort === 'function'
+        : isFunction(dragSort)
             ? dragSort.call(itemGrid, item)
             : undefined;
     var target = null;
@@ -2778,7 +2779,7 @@ var ItemDrag = /** @class */ (function () {
      * @returns {?Grid}
      */
     ItemDrag.prototype.getRootGrid = function () {
-        return GRID_INSTANCES[this._rootGridId] || null;
+        return GRID_INSTANCES.get(this._rootGridId) || null;
     };
     /**
      * Abort dragging and reset drag data.
@@ -2876,7 +2877,7 @@ var ItemDrag = /** @class */ (function () {
      */
     ItemDrag.prototype._startPredicate = function (item, event) {
         var predicate = item.getGrid()._settings.dragStartPredicate;
-        return typeof predicate === 'function'
+        return isFunction(predicate)
             ? predicate(item, event)
             : ItemDrag.defaultStartPredicate(item, event);
     };
@@ -3092,7 +3093,7 @@ var ItemDrag = /** @class */ (function () {
         var settings = item.getGrid()._settings;
         // Get overlap check result.
         var result = null;
-        if (typeof settings.dragSortPredicate === 'function') {
+        if (isFunction(settings.dragSortPredicate)) {
             result = settings.dragSortPredicate(item, (isDrop ? this._dragEndEvent : this._dragMoveEvent));
         }
         else if (!isDrop) {
@@ -3226,7 +3227,7 @@ var ItemDrag = /** @class */ (function () {
             // Update item's cached dimensions.
             // NOTE: This should be only done if there's a chance that the DOM writes
             // have cause this to change. Maybe this is not needed always?
-            item._refreshDimensions();
+            item._updateDimensions();
             // Emit send event.
             if (currentGrid._hasListeners(EVENT_SEND)) {
                 currentGrid._emit(EVENT_SEND, {
@@ -3659,7 +3660,7 @@ function setStyles(element, styles) {
     }
 }
 
-var HAS_WEB_ANIMATIONS = typeof Element.prototype.animate === 'function';
+var HAS_WEB_ANIMATIONS = isFunction(Element.prototype.animate);
 var HAS_NATIVE_WEB_ANIMATIONS = isNative(Element.prototype.animate);
 function createKeyframe(props, prefix) {
     var keyframe = {};
@@ -3699,7 +3700,7 @@ var Animator = /** @class */ (function () {
         // If we don't have web animations available let's not animate.
         if (!HAS_WEB_ANIMATIONS) {
             setStyles(element, propsTo);
-            this._finishCallback = typeof onFinish === 'function' ? onFinish : null;
+            this._finishCallback = isFunction(onFinish) ? onFinish : null;
             this._onFinish();
             return;
         }
@@ -3717,7 +3718,7 @@ var Animator = /** @class */ (function () {
             easing: easing || 'ease',
         });
         // Set animation finish callback.
-        this._finishCallback = typeof onFinish === 'function' ? onFinish : null;
+        this._finishCallback = isFunction(onFinish) ? onFinish : null;
         this.animation.onfinish = this._onFinish;
         // Set the end styles. This makes sure that the element stays at the end
         // values after animation is finished.
@@ -4034,7 +4035,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
         this._left = item._left;
         this._top = item._top;
         // Create placeholder element.
-        if (typeof settings.dragPlaceholder.createElement === 'function') {
+        if (isFunction(settings.dragPlaceholder.createElement)) {
             this._element = settings.dragPlaceholder.createElement(item);
         }
         else {
@@ -4064,7 +4065,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
         grid.on(EVENT_BEFORE_SEND, this._onMigrate);
         grid.on(EVENT_HIDE_START, this._onHide);
         // onCreate hook.
-        if (typeof settings.dragPlaceholder.onCreate === 'function') {
+        if (isFunction(settings.dragPlaceholder.onCreate)) {
             settings.dragPlaceholder.onCreate(item, element);
         }
         // Insert the placeholder element to the grid.
@@ -4108,9 +4109,8 @@ var ItemDragPlaceholder = /** @class */ (function () {
         // so if the item has migrated during drag the onRemove method will not be
         // the originating grid's method.
         var onRemove = grid._settings.dragPlaceholder.onRemove;
-        if (typeof onRemove === 'function') {
+        if (isFunction(onRemove))
             onRemove(item, element);
-        }
     };
     /**
      * Check if placeholder is currently active (visible).
@@ -4195,8 +4195,6 @@ var ItemDragRelease = /** @class */ (function () {
             return;
         var item = this._item;
         var grid = item.getGrid();
-        if (!grid)
-            return;
         var settings = grid._settings;
         this._isActive = true;
         addClass(item._element, settings.itemReleasingClass);
@@ -4221,13 +4219,12 @@ var ItemDragRelease = /** @class */ (function () {
      *  - Should the release be aborted? When true, the release end event won't be
      *    emitted. Set to true only when you need to abort the release process
      *    while the item is animating to it's position.
-     * @param {Number} [left]
+     * @param {number} [left]
      *  - The element's current translateX value (optional).
-     * @param {Number} [top]
+     * @param {number} [top]
      *  - The element's current translateY value (optional).
      */
     ItemDragRelease.prototype.stop = function (abort, left, top) {
-        var _a;
         if (abort === void 0) { abort = false; }
         if (this._isDestroyed || !this._isActive)
             return;
@@ -4239,7 +4236,7 @@ var ItemDragRelease = /** @class */ (function () {
         var didReparent = this._placeToGrid(left, top);
         this._reset(didReparent);
         if (!abort)
-            (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._emit(EVENT_DRAG_RELEASE_END, item);
+            item.getGrid()._emit(EVENT_DRAG_RELEASE_END, item);
     };
     ItemDragRelease.prototype.isJustReleased = function () {
         return this._isActive && this._isPositioningStarted === false;
@@ -4268,16 +4265,15 @@ var ItemDragRelease = /** @class */ (function () {
      *   - Returns `true` if the element was reparented, `false` otherwise.
      */
     ItemDragRelease.prototype._placeToGrid = function (left, top) {
-        var _a;
         var didReparent = false;
         if (this._isDestroyed)
             return didReparent;
         var item = this._item;
         var element = item._element;
-        var container = (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._element;
+        var container = item.getGrid()._element;
         if (container && element.parentNode !== container) {
             if (left === undefined || top === undefined) {
-                var _b = item._getTranslate(), x = _b.x, y = _b.y;
+                var _a = item._getTranslate(), x = _a.x, y = _a.y;
                 left = x - item._containerDiffX;
                 top = y - item._containerDiffY;
             }
@@ -4296,12 +4292,11 @@ var ItemDragRelease = /** @class */ (function () {
      * @param {Boolean} [needsReflow=false]
      */
     ItemDragRelease.prototype._reset = function (needsReflow) {
-        var _a;
         if (needsReflow === void 0) { needsReflow = false; }
         if (this._isDestroyed)
             return;
         var item = this._item;
-        var releasingClass = (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._settings.itemReleasingClass;
+        var releasingClass = item.getGrid()._settings.itemReleasingClass;
         this._isActive = false;
         this._isPositioningStarted = false;
         cancelReleaseScrollTick(item._id);
@@ -4326,13 +4321,12 @@ var ItemDragRelease = /** @class */ (function () {
         var diffX = 0;
         var diffY = 0;
         addReleaseScrollTick(item._id, function () {
-            var _a;
             if (!_this._isActive)
                 return;
             var itemContainer = item._element.parentNode;
-            var gridContainer = (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._element;
+            var gridContainer = item.getGrid()._element;
             if (itemContainer && gridContainer) {
-                var _b = getOffsetDiff(itemContainer, gridContainer, true), left = _b.left, top_1 = _b.top;
+                var _a = getOffsetDiff(itemContainer, gridContainer, true), left = _a.left, top_1 = _a.top;
                 diffX = left;
                 diffY = top_1;
             }
@@ -4402,8 +4396,6 @@ var ItemLayout = /** @class */ (function () {
             return;
         var item = this._item;
         var grid = item.getGrid();
-        if (!grid)
-            return;
         var release = item._dragRelease;
         var gridSettings = grid._settings;
         var isPositioning = this._isActive;
@@ -4459,7 +4451,6 @@ var ItemLayout = /** @class */ (function () {
      * @param {number} [top]
      */
     ItemLayout.prototype.stop = function (processCallbackQueue, left, top) {
-        var _a;
         if (this._isDestroyed || !this._isActive)
             return;
         var item = this._item;
@@ -4468,7 +4459,7 @@ var ItemLayout = /** @class */ (function () {
         // Stop animation.
         if (this._animation.isAnimating()) {
             if (left === undefined || top === undefined) {
-                var _b = getTranslate(item._element), x = _b.x, y = _b.y;
+                var _a = getTranslate(item._element), x = _a.x, y = _a.y;
                 item._setTranslate(x, y);
             }
             else {
@@ -4477,7 +4468,7 @@ var ItemLayout = /** @class */ (function () {
             this._animation.stop();
         }
         // Remove positioning class.
-        removeClass(item._element, ((_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._settings.itemPositioningClass) || '');
+        removeClass(item._element, item.getGrid()._settings.itemPositioningClass || '');
         // Reset active state.
         this._isActive = false;
         // Process callback queue if needed.
@@ -4508,7 +4499,6 @@ var ItemLayout = /** @class */ (function () {
      * @private
      */
     ItemLayout.prototype._finish = function () {
-        var _a;
         if (this._isDestroyed)
             return;
         var item = this._item;
@@ -4518,7 +4508,7 @@ var ItemLayout = /** @class */ (function () {
         // Mark the item as inactive and remove positioning classes.
         if (this._isActive) {
             this._isActive = false;
-            removeClass(item._element, ((_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._settings.itemPositioningClass) || '');
+            removeClass(item._element, item.getGrid()._settings.itemPositioningClass || '');
         }
         // Finish up release and migration.
         if (item._dragRelease._isActive)
@@ -4541,7 +4531,7 @@ var ItemLayout = /** @class */ (function () {
         this._tX = x;
         this._tY = y;
         var grid = item.getGrid();
-        if (grid && grid._settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
+        if (grid._settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
             grid._itemLayoutNeedsDimensionRefresh = false;
             grid._updateBoundingRect();
             grid._updateBorders(true, false, true, false);
@@ -4557,8 +4547,6 @@ var ItemLayout = /** @class */ (function () {
             return;
         var item = this._item;
         var grid = item.getGrid();
-        if (!grid)
-            return;
         var settings = grid._settings;
         var isInstant = this._duration <= 0;
         // Calculate next translate values.
@@ -4631,11 +4619,11 @@ var ItemMigrate = /** @class */ (function () {
     ItemMigrate.prototype.start = function (targetGrid, position, container) {
         if (this._isDestroyed)
             return;
+        var targetElement = targetGrid._element;
+        if (!targetElement)
+            return;
         var item = this._item;
         var grid = item.getGrid();
-        var targetElement = targetGrid._element;
-        if (!grid || !targetElement)
-            return;
         var element = item._element;
         var isActive = item.isActive();
         var isVisible = item.isVisible();
@@ -4749,7 +4737,7 @@ var ItemMigrate = /** @class */ (function () {
             item._containerDiffY = top_1;
         }
         // Update item's cached dimensions.
-        item._refreshDimensions();
+        item._updateDimensions();
         // Reset item's sort data.
         item._sortData = null;
         // Create new drag handler.
@@ -4799,12 +4787,11 @@ var ItemMigrate = /** @class */ (function () {
      *  - The element's current translateY value (optional).
      */
     ItemMigrate.prototype.stop = function (abort, left, top) {
-        var _a;
         if (abort === void 0) { abort = false; }
         if (this._isDestroyed || !this._isActive)
             return;
         var item = this._item;
-        var gridElement = (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._element;
+        var gridElement = item.getGrid()._element;
         if (!gridElement)
             return;
         if (this._container !== gridElement) {
@@ -4874,7 +4861,6 @@ function getCurrentStyles(element, styles) {
  */
 var ItemVisibility = /** @class */ (function () {
     function ItemVisibility(item) {
-        var _a;
         var isActive = item._isActive;
         var element = item._element;
         var childElement = element.children[0];
@@ -4893,11 +4879,9 @@ var ItemVisibility = /** @class */ (function () {
         this._finishShow = this._finishShow.bind(this);
         this._finishHide = this._finishHide.bind(this);
         element.style.display = isActive ? '' : 'none';
-        var settings = (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._settings;
-        if (settings) {
-            addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
-            this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
-        }
+        var settings = item.getGrid()._settings;
+        addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
+        this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
     }
     /**
      * Show item.
@@ -4907,7 +4891,6 @@ var ItemVisibility = /** @class */ (function () {
      * @param {Function} [onFinish]
      */
     ItemVisibility.prototype.show = function (instant, onFinish) {
-        var _a;
         if (this._isDestroyed)
             return;
         var item = this._item;
@@ -4929,7 +4912,7 @@ var ItemVisibility = /** @class */ (function () {
         if (!this._isShowing) {
             item._emitter.burst(this._queue, true, item);
             var element = item._element;
-            var settings = (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._settings;
+            var settings = item.getGrid()._settings;
             if (settings) {
                 removeClass(element, settings.itemHiddenClass);
                 addClass(element, settings.itemVisibleClass);
@@ -4953,7 +4936,6 @@ var ItemVisibility = /** @class */ (function () {
      * @param {Function} [onFinish]
      */
     ItemVisibility.prototype.hide = function (instant, onFinish) {
-        var _a;
         if (this._isDestroyed)
             return;
         var item = this._item;
@@ -4975,7 +4957,7 @@ var ItemVisibility = /** @class */ (function () {
         if (!this._isHiding) {
             item._emitter.burst(this._queue, true, item);
             var element = item._element;
-            var settings = (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._settings;
+            var settings = item.getGrid()._settings;
             if (settings) {
                 addClass(element, settings.itemHiddenClass);
                 removeClass(element, settings.itemVisibleClass);
@@ -5032,12 +5014,11 @@ var ItemVisibility = /** @class */ (function () {
      * @public
      */
     ItemVisibility.prototype.destroy = function () {
-        var _a;
         if (this._isDestroyed)
             return;
         var item = this._item;
         var element = item._element;
-        var settings = (_a = item.getGrid()) === null || _a === void 0 ? void 0 : _a._settings;
+        var settings = item.getGrid()._settings;
         this.stop(true);
         item._emitter.clear(this._queue);
         this._animation.destroy();
@@ -5065,8 +5046,6 @@ var ItemVisibility = /** @class */ (function () {
             return;
         var item = this._item;
         var grid = item.getGrid();
-        if (!grid)
-            return;
         var animation = this._animation;
         var childElement = this._childElement;
         var settings = grid._settings;
@@ -5308,17 +5287,17 @@ var Item = /** @class */ (function () {
         // instance. They are deliberately not called in the end as it would cause
         // potentially a massive amount of reflows if multiple items were instantiated
         // in a loop.
-        // this._refreshDimensions();
-        // this._refreshSortData();
+        // this._updateDimensions();
+        // this._updateSortData();
     }
     /**
      * Get the instance grid reference.
      *
      * @public
-     * @returns {Grid}
+     * @returns {?Grid}
      */
     Item.prototype.getGrid = function () {
-        return GRID_INSTANCES[this._gridId];
+        return GRID_INSTANCES.get(this._gridId) || null;
     };
     /**
      * Get the instance element.
@@ -5451,7 +5430,7 @@ var Item = /** @class */ (function () {
      * @private
      * @param {boolean} [force=false]
      */
-    Item.prototype._refreshDimensions = function (force) {
+    Item.prototype._updateDimensions = function (force) {
         if (this._isDestroyed)
             return;
         if (force !== true && !this.isVisible() && !this.isHiding())
@@ -5476,7 +5455,7 @@ var Item = /** @class */ (function () {
      *
      * @private
      */
-    Item.prototype._refreshSortData = function () {
+    Item.prototype._updateSortData = function () {
         if (this._isDestroyed)
             return;
         this._sortData = {};
@@ -5639,592 +5618,452 @@ var Item = /** @class */ (function () {
 }());
 
 function createPackerProcessor(isWorker) {
-  var FILL_GAPS = 1;
-  var HORIZONTAL = 2;
-  var ALIGN_RIGHT = 4;
-  var ALIGN_BOTTOM = 8;
-  var ROUNDING = 16;
-
-  var EPS = 0.001;
-  var MIN_SLOT_SIZE = 0.5;
-
-  // Rounds number first to three decimal precision and then floors the result
-  // to two decimal precision.
-  // Math.floor(Math.round(number * 1000) / 10) / 100
-  function roundNumber(number) {
-    return ((((number * 1000 + 0.5) << 0) / 10) << 0) / 100;
-  }
-
-  /**
-   * @class
-   */
-  function PackerProcessor() {
-    this.currentRects = [];
-    this.nextRects = [];
-    this.rectTarget = {};
-    this.rectStore = [];
-    this.slotSizes = [];
-    this.rectId = 0;
-    this.slotIndex = -1;
-    this.slotData = { left: 0, top: 0, width: 0, height: 0 };
-    this.sortRectsLeftTop = this.sortRectsLeftTop.bind(this);
-    this.sortRectsTopLeft = this.sortRectsTopLeft.bind(this);
-  }
-
-  /**
-   * Takes a layout object as an argument and computes positions (slots) for the
-   * layout items. Also computes the final width and height of the layout. The
-   * provided layout object's slots array is mutated as well as the width and
-   * height properties.
-   *
-   * @param {Object} layout
-   * @param {Number} layout.width
-   *   - The start (current) width of the layout in pixels.
-   * @param {Number} layout.height
-   *   - The start (current) height of the layout in pixels.
-   * @param {(Item[]|Number[])} layout.items
-   *   - List of Muuri.Item instances or a list of item dimensions
-   *     (e.g [ item1Width, item1Height, item2Width, item2Height, ... ]).
-   * @param {(Array|Float32Array)} layout.slots
-   *   - An Array/Float32Array instance which's length should equal to
-   *     the amount of items times two. The position (width and height) of each
-   *     item will be written into this array.
-   * @param {Number} settings
-   *   - The layout's settings as bitmasks.
-   * @returns {Object}
-   */
-  PackerProcessor.prototype.computeLayout = function (layout, settings) {
-    var items = layout.items;
-    var slots = layout.slots;
-    var fillGaps = !!(settings & FILL_GAPS);
-    var horizontal = !!(settings & HORIZONTAL);
-    var alignRight = !!(settings & ALIGN_RIGHT);
-    var alignBottom = !!(settings & ALIGN_BOTTOM);
-    var rounding = !!(settings & ROUNDING);
-    var isPreProcessed = typeof items[0] === 'number';
-    var i, bump, item, slotWidth, slotHeight, slot;
-
-    // No need to go further if items do not exist.
-    if (!items.length) return layout;
-
-    // Compute slots for the items.
-    bump = isPreProcessed ? 2 : 1;
-    for (i = 0; i < items.length; i += bump) {
-      // If items are pre-processed it means that items array contains only
-      // the raw dimensions of the items. Otherwise we assume it is an array
-      // of normal Muuri items.
-      if (isPreProcessed) {
-        slotWidth = items[i];
-        slotHeight = items[i + 1];
-      } else {
-        item = items[i];
-        slotWidth = item._width + item._marginLeft + item._marginRight;
-        slotHeight = item._height + item._marginTop + item._marginBottom;
-      }
-
-      // If rounding is enabled let's round the item's width and height to
-      // make the layout algorithm a bit more stable. This has a performance
-      // cost so don't use this if not necessary.
-      if (rounding) {
-        slotWidth = roundNumber(slotWidth);
-        slotHeight = roundNumber(slotHeight);
-      }
-
-      // Get slot data.
-      slot = this.computeNextSlot(layout, slotWidth, slotHeight, fillGaps, horizontal);
-
-      // Update layout width/height.
-      if (horizontal) {
-        if (slot.left + slot.width > layout.width) {
-          layout.width = slot.left + slot.width;
+    if (isWorker === void 0) { isWorker = false; }
+    var FILL_GAPS = 1;
+    var HORIZONTAL = 2;
+    var ALIGN_RIGHT = 4;
+    var ALIGN_BOTTOM = 8;
+    var ROUNDING = 16;
+    var EPS = 0.001;
+    var MIN_SLOT_SIZE = 0.5;
+    // Rounds number first to three decimal precision and then floors the result
+    // to two decimal precision.
+    // Math.floor(Math.round(number * 1000) / 10) / 100
+    function roundNumber(number) {
+        return ((((number * 1000 + 0.5) << 0) / 10) << 0) / 100;
+    }
+    var PrivatePackerProcessor = /** @class */ (function () {
+        function PrivatePackerProcessor() {
+            this._currentRects = [];
+            this._nextRects = [];
+            this._rectStore = [];
+            this._slotSizes = [];
+            this._shards = [];
+            this._rectTarget = { left: 0, top: 0, width: 0, height: 0 };
+            this._tempRectA = { left: 0, top: 0, width: 0, height: 0 };
+            this._tempRectB = { left: 0, top: 0, width: 0, height: 0 };
+            this._rectId = 0;
+            this._slotIndex = -1;
+            this._slot = { left: 0, top: 0, width: 0, height: 0 };
+            this._sortRectsLeftTop = this._sortRectsLeftTop.bind(this);
+            this._sortRectsTopLeft = this._sortRectsTopLeft.bind(this);
         }
-      } else {
-        if (slot.top + slot.height > layout.height) {
-          layout.height = slot.top + slot.height;
-        }
-      }
-
-      // Add item slot data to layout slots.
-      slots[++this.slotIndex] = slot.left;
-      slots[++this.slotIndex] = slot.top;
-
-      // Store the size too (for later usage) if needed.
-      if (alignRight || alignBottom) {
-        this.slotSizes.push(slot.width, slot.height);
-      }
+        /**
+         * Takes a layout object as an argument and computes positions (slots) for
+         * the layout items. Also computes the final width and height of the layout.
+         * The provided layout object's slots array is mutated as well as the width
+         * and height properties.
+         */
+        PrivatePackerProcessor.prototype.computeLayout = function (layout, settings) {
+            var items = layout.items;
+            if (!items.length)
+                return layout;
+            var slots = layout.slots;
+            var fillGaps = !!(settings & FILL_GAPS);
+            var horizontal = !!(settings & HORIZONTAL);
+            var alignRight = !!(settings & ALIGN_RIGHT);
+            var alignBottom = !!(settings & ALIGN_BOTTOM);
+            var rounding = !!(settings & ROUNDING);
+            var isPreProcessed = typeof items[0] === 'number';
+            var bump = isPreProcessed ? 2 : 1;
+            var i = 0;
+            var slotWidth = 0;
+            var slotHeight = 0;
+            var slot;
+            var item;
+            // Compute slots for the items.
+            for (i = 0; i < items.length; i += bump) {
+                // If items are pre-processed it means that items array contains only
+                // the raw dimensions of the items. Otherwise we assume it is an array
+                // of normal Muuri items.
+                if (isPreProcessed) {
+                    slotWidth = items[i];
+                    slotHeight = items[i + 1];
+                }
+                else {
+                    item = items[i];
+                    slotWidth = item._width + (item._marginLeft || 0) + (item._marginRight || 0);
+                    slotHeight = item._height + (item._marginTop || 0) + (item._marginBottom || 0);
+                }
+                // If rounding is enabled let's round the item's width and height to
+                // make the layout algorithm a bit more stable. This has a performance
+                // cost so don't use this if not necessary.
+                if (rounding) {
+                    slotWidth = roundNumber(slotWidth);
+                    slotHeight = roundNumber(slotHeight);
+                }
+                // Get slot data.
+                slot = this._computeNextSlot(layout, slotWidth, slotHeight, fillGaps, horizontal);
+                // Update layout width/height.
+                if (horizontal) {
+                    if (slot.left + slot.width > layout.width) {
+                        layout.width = slot.left + slot.width;
+                    }
+                }
+                else {
+                    if (slot.top + slot.height > layout.height) {
+                        layout.height = slot.top + slot.height;
+                    }
+                }
+                // Add item slot data to layout slots.
+                slots[++this._slotIndex] = slot.left;
+                slots[++this._slotIndex] = slot.top;
+                // Store the size too (for later usage) if needed.
+                if (alignRight || alignBottom) {
+                    this._slotSizes.push(slot.width, slot.height);
+                }
+            }
+            // If the alignment is set to right we need to adjust the results.
+            if (alignRight) {
+                for (i = 0; i < slots.length; i += 2) {
+                    slots[i] = layout.width - (slots[i] + this._slotSizes[i]);
+                }
+            }
+            // If the alignment is set to bottom we need to adjust the results.
+            if (alignBottom) {
+                for (i = 1; i < slots.length; i += 2) {
+                    slots[i] = layout.height - (slots[i] + this._slotSizes[i]);
+                }
+            }
+            // Reset stuff.
+            this._slotSizes.length = 0;
+            this._currentRects.length = 0;
+            this._nextRects.length = 0;
+            this._shards.length = 0;
+            this._rectId = 0;
+            this._slotIndex = -1;
+            return layout;
+        };
+        /**
+         * Calculate next slot in the layout. Returns a slot object with position
+         * and dimensions data. The returned object is reused between calls.
+         */
+        PrivatePackerProcessor.prototype._computeNextSlot = function (layout, slotWidth, slotHeight, fillGaps, horizontal) {
+            var _a = this, slot = _a._slot, currentRects = _a._currentRects, nextRects = _a._nextRects;
+            var ignoreCurrentRects = false;
+            var foundInitialSlot = false;
+            var rect;
+            var rectId;
+            var i = 0;
+            var j = 0;
+            // Reset new slots.
+            nextRects.length = 0;
+            // Set item slot initial data.
+            slot.left = 0;
+            slot.top = 0;
+            slot.width = slotWidth;
+            slot.height = slotHeight;
+            // Try to find position for the slot from the existing free spaces in the
+            // layout.
+            for (i = 0; i < currentRects.length; i++) {
+                rectId = currentRects[i];
+                if (!rectId)
+                    continue;
+                rect = this._getRect(rectId);
+                if (slot.width <= rect.width + EPS && slot.height <= rect.height + EPS) {
+                    foundInitialSlot = true;
+                    slot.left = rect.left;
+                    slot.top = rect.top;
+                    break;
+                }
+            }
+            // If no position was found for the slot let's position the slot to
+            // the bottom left (in vertical mode) or top right (in horizontal mode) of
+            // the layout.
+            if (!foundInitialSlot) {
+                if (horizontal) {
+                    slot.left = layout.width;
+                    slot.top = 0;
+                }
+                else {
+                    slot.left = 0;
+                    slot.top = layout.height;
+                }
+                // If gaps don't need filling let's throw away all the current free
+                // spaces (currentRects).
+                if (!fillGaps) {
+                    ignoreCurrentRects = true;
+                }
+            }
+            // In vertical mode, if the slot's bottom overlaps the layout's bottom.
+            if (!horizontal && slot.top + slot.height > layout.height + EPS) {
+                // If slot is not aligned to the left edge, create a new free space to
+                // the left of the slot.
+                if (slot.left > MIN_SLOT_SIZE) {
+                    nextRects.push(this._addRect(0, layout.height, slot.left, Infinity));
+                }
+                // If slot is not aligned to the right edge, create a new free space to
+                // the right of the slot.
+                if (slot.left + slot.width < layout.width - MIN_SLOT_SIZE) {
+                    nextRects.push(this._addRect(slot.left + slot.width, layout.height, layout.width - slot.left - slot.width, Infinity));
+                }
+                // Update layout height.
+                layout.height = slot.top + slot.height;
+            }
+            // In horizontal mode, if the slot's right overlaps the layout's right
+            // edge.
+            if (horizontal && slot.left + slot.width > layout.width + EPS) {
+                // If slot is not aligned to the top, create a new free space above the
+                // slot.
+                if (slot.top > MIN_SLOT_SIZE) {
+                    nextRects.push(this._addRect(layout.width, 0, Infinity, slot.top));
+                }
+                // If slot is not aligned to the bottom, create a new free space below
+                // the slot.
+                if (slot.top + slot.height < layout.height - MIN_SLOT_SIZE) {
+                    nextRects.push(this._addRect(layout.width, slot.top + slot.height, Infinity, layout.height - slot.top - slot.height));
+                }
+                // Update layout width.
+                layout.width = slot.left + slot.width;
+            }
+            // Clean up the current free spaces making sure none of them overlap with
+            // the slot. Split all overlapping free spaces into smaller shards that do
+            // not overlap with the slot.
+            if (!ignoreCurrentRects) {
+                if (fillGaps)
+                    i = 0;
+                for (; i < currentRects.length; i++) {
+                    rectId = currentRects[i];
+                    if (!rectId)
+                        continue;
+                    rect = this._getRect(rectId);
+                    var shards = this._splitRect(rect, slot);
+                    for (j = 0; j < shards.length; j++) {
+                        rectId = shards[j];
+                        rect = this._getRect(rectId);
+                        // Make sure that the free space is within the boundaries of the
+                        // layout. This routine is critical to the algorithm as it makes
+                        // sure that there are no leftover spaces with infinite
+                        // height/width. It's also essential that we don't compare values
+                        // absolutely to each other but leave a little headroom (EPSILON) to
+                        // get rid of false positives.
+                        if (horizontal
+                            ? rect.left + EPS < layout.width - EPS
+                            : rect.top + EPS < layout.height - EPS) {
+                            nextRects.push(rectId);
+                        }
+                    }
+                }
+            }
+            // Sanitize and sort all the new free spaces that will be used in the next
+            // iteration. This procedure is critical to make the bin-packing algorithm
+            // work. The free spaces have to be in correct order in the beginning of
+            // the next iteration.
+            if (nextRects.length > 1) {
+                this._purgeRects(nextRects).sort(horizontal ? this._sortRectsLeftTop : this._sortRectsTopLeft);
+            }
+            // Finally we need to make sure that `this.currentRects` points to
+            // `nextRects` array as that is used in the next iteration's beginning
+            // when we try to find a space for the next slot.
+            this._currentRects = nextRects;
+            this._nextRects = currentRects;
+            return slot;
+        };
+        /**
+         * Add a new rectangle to the rectangle store. Returns the id of the new
+         * rectangle.
+         */
+        PrivatePackerProcessor.prototype._addRect = function (left, top, width, height) {
+            var rectId = ++this._rectId;
+            this._rectStore[rectId] = left || 0;
+            this._rectStore[++this._rectId] = top || 0;
+            this._rectStore[++this._rectId] = width || 0;
+            this._rectStore[++this._rectId] = height || 0;
+            return rectId;
+        };
+        /**
+         * Get rectangle data from the rectangle store by id. Optionally you can
+         * provide a target object where the rectangle data will be written in. By
+         * default an internal object is reused as a target object.
+         */
+        PrivatePackerProcessor.prototype._getRect = function (id, target) {
+            target = target || this._rectTarget;
+            target.left = this._rectStore[id] || 0;
+            target.top = this._rectStore[++id] || 0;
+            target.width = this._rectStore[++id] || 0;
+            target.height = this._rectStore[++id] || 0;
+            return target;
+        };
+        /**
+         * Punch a hole into a rectangle and return the shards (1-4).
+         */
+        PrivatePackerProcessor.prototype._splitRect = function (rect, hole) {
+            var shards = this._shards;
+            var width = 0;
+            var height = 0;
+            // Reset shards.
+            shards.length = 0;
+            // If the slot does not overlap with the hole add slot to the return data
+            // as is. Note that in this case we are eager to keep the slot as is if
+            // possible so we use the EPSILON in favour of that logic.
+            if (rect.left + rect.width <= hole.left + EPS ||
+                hole.left + hole.width <= rect.left + EPS ||
+                rect.top + rect.height <= hole.top + EPS ||
+                hole.top + hole.height <= rect.top + EPS) {
+                shards.push(this._addRect(rect.left, rect.top, rect.width, rect.height));
+                return shards;
+            }
+            // Left split.
+            width = hole.left - rect.left;
+            if (width >= MIN_SLOT_SIZE) {
+                shards.push(this._addRect(rect.left, rect.top, width, rect.height));
+            }
+            // Right split.
+            width = rect.left + rect.width - (hole.left + hole.width);
+            if (width >= MIN_SLOT_SIZE) {
+                shards.push(this._addRect(hole.left + hole.width, rect.top, width, rect.height));
+            }
+            // Top split.
+            height = hole.top - rect.top;
+            if (height >= MIN_SLOT_SIZE) {
+                shards.push(this._addRect(rect.left, rect.top, rect.width, height));
+            }
+            // Bottom split.
+            height = rect.top + rect.height - (hole.top + hole.height);
+            if (height >= MIN_SLOT_SIZE) {
+                shards.push(this._addRect(rect.left, hole.top + hole.height, rect.width, height));
+            }
+            return shards;
+        };
+        /**
+         * Check if a rectangle is fully within another rectangle.
+         */
+        PrivatePackerProcessor.prototype._isRectAWithinRectB = function (a, b) {
+            return (a.left + EPS >= b.left &&
+                a.top + EPS >= b.top &&
+                a.left + a.width - EPS <= b.left + b.width &&
+                a.top + a.height - EPS <= b.top + b.height);
+        };
+        /**
+         * Loops through an array of rectangle ids and resets all that are fully
+         * within another rectangle in the array. Resetting in this case means that
+         * the rectangle id value is replaced with zero.
+         */
+        PrivatePackerProcessor.prototype._purgeRects = function (rectIds) {
+            var _a = this, a = _a._tempRectA, b = _a._tempRectB;
+            var i = rectIds.length;
+            var j = 0;
+            while (i--) {
+                j = rectIds.length;
+                if (!rectIds[i])
+                    continue;
+                this._getRect(rectIds[i], a);
+                while (j--) {
+                    if (!rectIds[j] || i === j)
+                        continue;
+                    this._getRect(rectIds[j], b);
+                    if (this._isRectAWithinRectB(a, b)) {
+                        rectIds[i] = 0;
+                        break;
+                    }
+                }
+            }
+            return rectIds;
+        };
+        /**
+         * Sort rectangles with top-left gravity.
+         */
+        PrivatePackerProcessor.prototype._sortRectsTopLeft = function (aId, bId) {
+            var _a = this, a = _a._tempRectA, b = _a._tempRectB;
+            this._getRect(aId, a);
+            this._getRect(bId, b);
+            return a.top < b.top && a.top + EPS < b.top
+                ? -1
+                : a.top > b.top && a.top - EPS > b.top
+                    ? 1
+                    : a.left < b.left && a.left + EPS < b.left
+                        ? -1
+                        : a.left > b.left && a.left - EPS > b.left
+                            ? 1
+                            : 0;
+        };
+        /**
+         * Sort rectangles with left-top gravity.
+         */
+        PrivatePackerProcessor.prototype._sortRectsLeftTop = function (aId, bId) {
+            var _a = this, a = _a._tempRectA, b = _a._tempRectB;
+            this._getRect(aId, a);
+            this._getRect(bId, b);
+            return a.left < b.left && a.left + EPS < b.left
+                ? -1
+                : a.left > b.left && a.left - EPS < b.left
+                    ? 1
+                    : a.top < b.top && a.top + EPS < b.top
+                        ? -1
+                        : a.top > b.top && a.top - EPS > b.top
+                            ? 1
+                            : 0;
+        };
+        return PrivatePackerProcessor;
+    }());
+    var processor = new PrivatePackerProcessor();
+    if (isWorker) {
+        var workerScope_1 = self;
+        var PACKET_INDEX_WIDTH_1 = 1;
+        var PACKET_INDEX_HEIGHT_1 = 2;
+        var PACKET_INDEX_SETTINGS_1 = 3;
+        var PACKET_HEADER_SLOTS_1 = 4;
+        workerScope_1.onmessage = function (msg) {
+            var data = new Float32Array(msg.data);
+            var items = data.subarray(PACKET_HEADER_SLOTS_1, data.length);
+            var slots = new Float32Array(items.length);
+            var settings = data[PACKET_INDEX_SETTINGS_1];
+            var layout = {
+                items: items,
+                slots: slots,
+                width: data[PACKET_INDEX_WIDTH_1],
+                height: data[PACKET_INDEX_HEIGHT_1],
+            };
+            // Compute the layout (width / height / slots).
+            processor.computeLayout(layout, settings);
+            // Copy layout data to the return data.
+            data[PACKET_INDEX_WIDTH_1] = layout.width;
+            data[PACKET_INDEX_HEIGHT_1] = layout.height;
+            data.set(layout.slots, PACKET_HEADER_SLOTS_1);
+            // Send layout back to the main thread.
+            workerScope_1.postMessage(data.buffer, [data.buffer]);
+        };
     }
-
-    // If the alignment is set to right we need to adjust the results.
-    if (alignRight) {
-      for (i = 0; i < slots.length; i += 2) {
-        slots[i] = layout.width - (slots[i] + this.slotSizes[i]);
-      }
-    }
-
-    // If the alignment is set to bottom we need to adjust the results.
-    if (alignBottom) {
-      for (i = 1; i < slots.length; i += 2) {
-        slots[i] = layout.height - (slots[i] + this.slotSizes[i]);
-      }
-    }
-
-    // Reset stuff.
-    this.slotSizes.length = 0;
-    this.currentRects.length = 0;
-    this.nextRects.length = 0;
-    this.rectId = 0;
-    this.slotIndex = -1;
-
-    return layout;
-  };
-
-  /**
-   * Calculate next slot in the layout. Returns a slot object with position and
-   * dimensions data. The returned object is reused between calls.
-   *
-   * @param {Object} layout
-   * @param {Number} slotWidth
-   * @param {Number} slotHeight
-   * @param {Boolean} fillGaps
-   * @param {Boolean} horizontal
-   * @returns {Object}
-   */
-  PackerProcessor.prototype.computeNextSlot = function (
-    layout,
-    slotWidth,
-    slotHeight,
-    fillGaps,
-    horizontal
-  ) {
-    var slot = this.slotData;
-    var currentRects = this.currentRects;
-    var nextRects = this.nextRects;
-    var ignoreCurrentRects = false;
-    var rect;
-    var rectId;
-    var shards;
-    var i;
-    var j;
-
-    // Reset new slots.
-    nextRects.length = 0;
-
-    // Set item slot initial data.
-    slot.left = null;
-    slot.top = null;
-    slot.width = slotWidth;
-    slot.height = slotHeight;
-
-    // Try to find position for the slot from the existing free spaces in the
-    // layout.
-    for (i = 0; i < currentRects.length; i++) {
-      rectId = currentRects[i];
-      if (!rectId) continue;
-      rect = this.getRect(rectId);
-      if (slot.width <= rect.width + EPS && slot.height <= rect.height + EPS) {
-        slot.left = rect.left;
-        slot.top = rect.top;
-        break;
-      }
-    }
-
-    // If no position was found for the slot let's position the slot to
-    // the bottom left (in vertical mode) or top right (in horizontal mode) of
-    // the layout.
-    if (slot.left === null) {
-      if (horizontal) {
-        slot.left = layout.width;
-        slot.top = 0;
-      } else {
-        slot.left = 0;
-        slot.top = layout.height;
-      }
-
-      // If gaps don't need filling let's throw away all the current free spaces
-      // (currentRects).
-      if (!fillGaps) {
-        ignoreCurrentRects = true;
-      }
-    }
-
-    // In vertical mode, if the slot's bottom overlaps the layout's bottom.
-    if (!horizontal && slot.top + slot.height > layout.height + EPS) {
-      // If slot is not aligned to the left edge, create a new free space to the
-      // left of the slot.
-      if (slot.left > MIN_SLOT_SIZE) {
-        nextRects.push(this.addRect(0, layout.height, slot.left, Infinity));
-      }
-
-      // If slot is not aligned to the right edge, create a new free space to
-      // the right of the slot.
-      if (slot.left + slot.width < layout.width - MIN_SLOT_SIZE) {
-        nextRects.push(
-          this.addRect(
-            slot.left + slot.width,
-            layout.height,
-            layout.width - slot.left - slot.width,
-            Infinity
-          )
-        );
-      }
-
-      // Update layout height.
-      layout.height = slot.top + slot.height;
-    }
-
-    // In horizontal mode, if the slot's right overlaps the layout's right edge.
-    if (horizontal && slot.left + slot.width > layout.width + EPS) {
-      // If slot is not aligned to the top, create a new free space above the
-      // slot.
-      if (slot.top > MIN_SLOT_SIZE) {
-        nextRects.push(this.addRect(layout.width, 0, Infinity, slot.top));
-      }
-
-      // If slot is not aligned to the bottom, create a new free space below
-      // the slot.
-      if (slot.top + slot.height < layout.height - MIN_SLOT_SIZE) {
-        nextRects.push(
-          this.addRect(
-            layout.width,
-            slot.top + slot.height,
-            Infinity,
-            layout.height - slot.top - slot.height
-          )
-        );
-      }
-
-      // Update layout width.
-      layout.width = slot.left + slot.width;
-    }
-
-    // Clean up the current free spaces making sure none of them overlap with
-    // the slot. Split all overlapping free spaces into smaller shards that do
-    // not overlap with the slot.
-    if (!ignoreCurrentRects) {
-      if (fillGaps) i = 0;
-      for (; i < currentRects.length; i++) {
-        rectId = currentRects[i];
-        if (!rectId) continue;
-        rect = this.getRect(rectId);
-        shards = this.splitRect(rect, slot);
-        for (j = 0; j < shards.length; j++) {
-          rectId = shards[j];
-          rect = this.getRect(rectId);
-          // Make sure that the free space is within the boundaries of the
-          // layout. This routine is critical to the algorithm as it makes sure
-          // that there are no leftover spaces with infinite height/width.
-          // It's also essential that we don't compare values absolutely to each
-          // other but leave a little headroom (EPSILON) to get rid of false
-          // positives.
-          if (
-            horizontal ? rect.left + EPS < layout.width - EPS : rect.top + EPS < layout.height - EPS
-          ) {
-            nextRects.push(rectId);
-          }
-        }
-      }
-    }
-
-    // Sanitize and sort all the new free spaces that will be used in the next
-    // iteration. This procedure is critical to make the bin-packing algorithm
-    // work. The free spaces have to be in correct order in the beginning of the
-    // next iteration.
-    if (nextRects.length > 1) {
-      this.purgeRects(nextRects).sort(horizontal ? this.sortRectsLeftTop : this.sortRectsTopLeft);
-    }
-
-    // Finally we need to make sure that `this.currentRects` points to
-    // `nextRects` array as that is used in the next iteration's beginning when
-    // we try to find a space for the next slot.
-    this.currentRects = nextRects;
-    this.nextRects = currentRects;
-
-    return slot;
-  };
-
-  /**
-   * Add a new rectangle to the rectangle store. Returns the id of the new
-   * rectangle.
-   *
-   * @param {Number} left
-   * @param {Number} top
-   * @param {Number} width
-   * @param {Number} height
-   * @returns {Number}
-   */
-  PackerProcessor.prototype.addRect = function (left, top, width, height) {
-    var rectId = ++this.rectId;
-    this.rectStore[rectId] = left || 0;
-    this.rectStore[++this.rectId] = top || 0;
-    this.rectStore[++this.rectId] = width || 0;
-    this.rectStore[++this.rectId] = height || 0;
-    return rectId;
-  };
-
-  /**
-   * Get rectangle data from the rectangle store by id. Optionally you can
-   * provide a target object where the rectangle data will be written in. By
-   * default an internal object is reused as a target object.
-   *
-   * @param {Number} id
-   * @param {Object} [target]
-   * @returns {Object}
-   */
-  PackerProcessor.prototype.getRect = function (id, target) {
-    if (!target) target = this.rectTarget;
-    target.left = this.rectStore[id] || 0;
-    target.top = this.rectStore[++id] || 0;
-    target.width = this.rectStore[++id] || 0;
-    target.height = this.rectStore[++id] || 0;
-    return target;
-  };
-
-  /**
-   * Punch a hole into a rectangle and return the shards (1-4).
-   *
-   * @param {Object} rect
-   * @param {Object} hole
-   * @returns {Number[]}
-   */
-  PackerProcessor.prototype.splitRect = (function () {
-    var shards = [];
-    var width = 0;
-    var height = 0;
-    return function (rect, hole) {
-      // Reset old shards.
-      shards.length = 0;
-
-      // If the slot does not overlap with the hole add slot to the return data
-      // as is. Note that in this case we are eager to keep the slot as is if
-      // possible so we use the EPSILON in favour of that logic.
-      if (
-        rect.left + rect.width <= hole.left + EPS ||
-        hole.left + hole.width <= rect.left + EPS ||
-        rect.top + rect.height <= hole.top + EPS ||
-        hole.top + hole.height <= rect.top + EPS
-      ) {
-        shards.push(this.addRect(rect.left, rect.top, rect.width, rect.height));
-        return shards;
-      }
-
-      // Left split.
-      width = hole.left - rect.left;
-      if (width >= MIN_SLOT_SIZE) {
-        shards.push(this.addRect(rect.left, rect.top, width, rect.height));
-      }
-
-      // Right split.
-      width = rect.left + rect.width - (hole.left + hole.width);
-      if (width >= MIN_SLOT_SIZE) {
-        shards.push(this.addRect(hole.left + hole.width, rect.top, width, rect.height));
-      }
-
-      // Top split.
-      height = hole.top - rect.top;
-      if (height >= MIN_SLOT_SIZE) {
-        shards.push(this.addRect(rect.left, rect.top, rect.width, height));
-      }
-
-      // Bottom split.
-      height = rect.top + rect.height - (hole.top + hole.height);
-      if (height >= MIN_SLOT_SIZE) {
-        shards.push(this.addRect(rect.left, hole.top + hole.height, rect.width, height));
-      }
-
-      return shards;
-    };
-  })();
-
-  /**
-   * Check if a rectangle is fully within another rectangle.
-   *
-   * @param {Object} a
-   * @param {Object} b
-   * @returns {Boolean}
-   */
-  PackerProcessor.prototype.isRectAWithinRectB = function (a, b) {
-    return (
-      a.left + EPS >= b.left &&
-      a.top + EPS >= b.top &&
-      a.left + a.width - EPS <= b.left + b.width &&
-      a.top + a.height - EPS <= b.top + b.height
-    );
-  };
-
-  /**
-   * Loops through an array of rectangle ids and resets all that are fully
-   * within another rectangle in the array. Resetting in this case means that
-   * the rectangle id value is replaced with zero.
-   *
-   * @param {Number[]} rectIds
-   * @returns {Number[]}
-   */
-  PackerProcessor.prototype.purgeRects = (function () {
-    var rectA = {};
-    var rectB = {};
-    return function (rectIds) {
-      var i = rectIds.length;
-      var j;
-
-      while (i--) {
-        j = rectIds.length;
-        if (!rectIds[i]) continue;
-        this.getRect(rectIds[i], rectA);
-        while (j--) {
-          if (!rectIds[j] || i === j) continue;
-          this.getRect(rectIds[j], rectB);
-          if (this.isRectAWithinRectB(rectA, rectB)) {
-            rectIds[i] = 0;
-            break;
-          }
-        }
-      }
-
-      return rectIds;
-    };
-  })();
-
-  /**
-   * Sort rectangles with top-left gravity.
-   *
-   * @param {Number} aId
-   * @param {Number} bId
-   * @returns {Number}
-   */
-  PackerProcessor.prototype.sortRectsTopLeft = (function () {
-    var rectA = {};
-    var rectB = {};
-    return function (aId, bId) {
-      this.getRect(aId, rectA);
-      this.getRect(bId, rectB);
-
-      return rectA.top < rectB.top && rectA.top + EPS < rectB.top
-        ? -1
-        : rectA.top > rectB.top && rectA.top - EPS > rectB.top
-        ? 1
-        : rectA.left < rectB.left && rectA.left + EPS < rectB.left
-        ? -1
-        : rectA.left > rectB.left && rectA.left - EPS > rectB.left
-        ? 1
-        : 0;
-    };
-  })();
-
-  /**
-   * Sort rectangles with left-top gravity.
-   *
-   * @param {Number} aId
-   * @param {Number} bId
-   * @returns {Number}
-   */
-  PackerProcessor.prototype.sortRectsLeftTop = (function () {
-    var rectA = {};
-    var rectB = {};
-    return function (aId, bId) {
-      this.getRect(aId, rectA);
-      this.getRect(bId, rectB);
-      return rectA.left < rectB.left && rectA.left + EPS < rectB.left
-        ? -1
-        : rectA.left > rectB.left && rectA.left - EPS < rectB.left
-        ? 1
-        : rectA.top < rectB.top && rectA.top + EPS < rectB.top
-        ? -1
-        : rectA.top > rectB.top && rectA.top - EPS > rectB.top
-        ? 1
-        : 0;
-    };
-  })();
-
-  if (isWorker) {
-    var PACKET_INDEX_WIDTH = 1;
-    var PACKET_INDEX_HEIGHT = 2;
-    var PACKET_INDEX_SETTINGS = 3;
-    var PACKET_HEADER_SLOTS = 4;
-    var processor = new PackerProcessor();
-
-    self.onmessage = function (msg) {
-      var data = new Float32Array(msg.data);
-      var items = data.subarray(PACKET_HEADER_SLOTS, data.length);
-      var slots = new Float32Array(items.length);
-      var settings = data[PACKET_INDEX_SETTINGS];
-      var layout = {
-        items: items,
-        slots: slots,
-        width: data[PACKET_INDEX_WIDTH],
-        height: data[PACKET_INDEX_HEIGHT],
-      };
-
-      // Compute the layout (width / height / slots).
-      processor.computeLayout(layout, settings);
-
-      // Copy layout data to the return data.
-      data[PACKET_INDEX_WIDTH] = layout.width;
-      data[PACKET_INDEX_HEIGHT] = layout.height;
-      data.set(layout.slots, PACKET_HEADER_SLOTS);
-
-      // Send layout back to the main thread.
-      postMessage(data.buffer, [data.buffer]);
-    };
-  }
-
-  return PackerProcessor;
+    return processor;
 }
 
-var PackerProcessor = createPackerProcessor();
-
-//
-// WORKER UTILS
-//
-
-var blobUrl = null;
-var activeWorkers = [];
-
+// Cache packer processor's blob url so we don't have to create multiple times
+// for nothing.
+var blobUrl = '';
+// Keep track of all spawned workers.
+var allWorkers = new Set();
 function createWorkerProcessors(amount, onmessage) {
-  var workers = [];
-
-  if (amount > 0) {
-    if (!blobUrl) {
-      blobUrl = URL.createObjectURL(
-        new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
-          type: 'application/javascript',
-        })
-      );
+    var workers = [];
+    if (amount > 0) {
+        if (!blobUrl) {
+            blobUrl = URL.createObjectURL(new Blob(['(' + createPackerProcessor.toString() + ')(true)'], {
+                type: 'application/javascript',
+            }));
+        }
+        var i = 0;
+        for (; i < amount; i++) {
+            var worker = new Worker(blobUrl);
+            worker.onmessage = onmessage;
+            workers.push(worker);
+            allWorkers.add(worker);
+        }
     }
-
-    for (var i = 0, worker; i < amount; i++) {
-      worker = new Worker(blobUrl);
-      if (onmessage) worker.onmessage = onmessage;
-      workers.push(worker);
-      activeWorkers.push(worker);
-    }
-  }
-
-  return workers;
+    return workers;
 }
-
 function destroyWorkerProcessors(workers) {
-  var worker;
-  var index;
-
-  for (var i = 0; i < workers.length; i++) {
-    worker = workers[i];
-    worker.onmessage = null;
-    worker.onerror = null;
-    worker.onmessageerror = null;
-    worker.terminate();
-
-    index = activeWorkers.indexOf(worker);
-    if (index > -1) activeWorkers.splice(index, 1);
-  }
-
-  if (blobUrl && !activeWorkers.length) {
-    URL.revokeObjectURL(blobUrl);
-    blobUrl = null;
-  }
-}
-
-function isWorkerProcessorsSupported() {
-  return !!(window.Worker && window.URL && window.Blob);
+    var i = 0;
+    for (; i < workers.length; i++) {
+        var worker = workers[i];
+        worker.onmessage = null;
+        worker.onerror = null;
+        worker.onmessageerror = null;
+        worker.terminate();
+        allWorkers.delete(worker);
+    }
+    if (blobUrl && !allWorkers.size) {
+        URL.revokeObjectURL(blobUrl);
+        blobUrl = '';
+    }
 }
 
 var FILL_GAPS = 1;
@@ -6237,254 +6076,192 @@ var PACKET_INDEX_WIDTH = 1;
 var PACKET_INDEX_HEIGHT = 2;
 var PACKET_INDEX_SETTINGS = 3;
 var PACKET_HEADER_SLOTS = 4;
-
-/**
- * @class
- * @param {Number} [numWorkers=0]
- * @param {Object} [options]
- * @param {Boolean} [options.fillGaps=false]
- * @param {Boolean} [options.horizontal=false]
- * @param {Boolean} [options.alignRight=false]
- * @param {Boolean} [options.alignBottom=false]
- * @param {Boolean} [options.rounding=false]
- */
-function Packer(numWorkers, options) {
-  this._settings = 0;
-  this._processor = null;
-  this._layoutQueue = [];
-  this._layouts = {};
-  this._layoutCallbacks = {};
-  this._layoutWorkers = {};
-  this._layoutWorkerData = {};
-  this._workers = [];
-  this._onWorkerMessage = this._onWorkerMessage.bind(this);
-
-  // Set initial options.
-  this.updateSettings(options);
-
-  // Init the worker(s) or the processor if workers can't be used.
-  numWorkers = typeof numWorkers === 'number' ? Math.max(0, numWorkers) : 0;
-  if (numWorkers && isWorkerProcessorsSupported()) {
-    try {
-      this._workers = createWorkerProcessors(numWorkers, this._onWorkerMessage);
-    } catch (e) {
-      this._processor = new PackerProcessor();
+var PACKER_PROCESSOR = createPackerProcessor();
+var Packer = /** @class */ (function () {
+    function Packer(numWorkers, options) {
+        if (numWorkers === void 0) { numWorkers = 0; }
+        this._settings = 0;
+        this._asyncMode = true;
+        this._workers = [];
+        this._layoutWorkerQueue = [];
+        this._layoutsProcessing = new Set();
+        this._layoutWorkerData = new Map();
+        this._onWorkerMessage = this._onWorkerMessage.bind(this);
+        // Set initial options.
+        if (options)
+            this.updateSettings(options);
+        // Try to init the workers.
+        try {
+            this._workers = createWorkerProcessors(numWorkers, this._onWorkerMessage);
+            this._asyncMode = !!this._workers.length;
+        }
+        catch (e) { }
     }
-  } else {
-    this._processor = new PackerProcessor();
-  }
-}
-
-Packer.prototype._sendToWorker = function () {
-  if (!this._layoutQueue.length || !this._workers.length) return;
-
-  var layoutId = this._layoutQueue.shift();
-  var worker = this._workers.pop();
-  var data = this._layoutWorkerData[layoutId];
-
-  delete this._layoutWorkerData[layoutId];
-  this._layoutWorkers[layoutId] = worker;
-  worker.postMessage(data.buffer, [data.buffer]);
-};
-
-Packer.prototype._onWorkerMessage = function (msg) {
-  var data = new Float32Array(msg.data);
-  var layoutId = data[PACKET_INDEX_ID];
-  var layout = this._layouts[layoutId];
-  var callback = this._layoutCallbacks[layoutId];
-  var worker = this._layoutWorkers[layoutId];
-
-  if (layout) delete this._layoutCallbacks[layoutId];
-  if (callback) delete this._layoutCallbacks[layoutId];
-  if (worker) delete this._layoutWorkers[layoutId];
-
-  if (layout && callback) {
-    layout.width = data[PACKET_INDEX_WIDTH];
-    layout.height = data[PACKET_INDEX_HEIGHT];
-    layout.slots = data.subarray(PACKET_HEADER_SLOTS, data.length);
-    this._finalizeLayout(layout);
-    callback(layout);
-  }
-
-  if (worker) {
-    this._workers.push(worker);
-    this._sendToWorker();
-  }
-};
-
-Packer.prototype._finalizeLayout = function (layout) {
-  var grid = layout._grid;
-  var isHorizontal = layout._settings & HORIZONTAL;
-  var isBorderBox = grid._boxSizing === 'border-box';
-
-  delete layout._grid;
-  delete layout._settings;
-
-  layout.styles = {};
-
-  if (isHorizontal) {
-    layout.styles.width =
-      (isBorderBox ? layout.width + grid._borderLeft + grid._borderRight : layout.width) + 'px';
-  } else {
-    layout.styles.height =
-      (isBorderBox ? layout.height + grid._borderTop + grid._borderBottom : layout.height) + 'px';
-  }
-
-  return layout;
-};
-
-/**
- * @public
- * @param {Object} [options]
- * @param {Boolean} [options.fillGaps]
- * @param {Boolean} [options.horizontal]
- * @param {Boolean} [options.alignRight]
- * @param {Boolean} [options.alignBottom]
- * @param {Boolean} [options.rounding]
- */
-Packer.prototype.updateSettings = function (options) {
-  if (!options) return;
-
-  var fillGaps = this._settings & FILL_GAPS;
-  if (typeof options.fillGaps === 'boolean') {
-    fillGaps = options.fillGaps ? FILL_GAPS : 0;
-  }
-
-  var horizontal = this._settings & HORIZONTAL;
-  if (typeof options.horizontal === 'boolean') {
-    horizontal = options.horizontal ? HORIZONTAL : 0;
-  }
-
-  var alignRight = this._settings & ALIGN_RIGHT;
-  if (typeof options.alignRight === 'boolean') {
-    alignRight = options.alignRight ? ALIGN_RIGHT : 0;
-  }
-
-  var alignBottom = this._settings & ALIGN_BOTTOM;
-  if (typeof options.alignBottom === 'boolean') {
-    alignBottom = options.alignBottom ? ALIGN_BOTTOM : 0;
-  }
-
-  var rounding = this._settings & ROUNDING;
-  if (typeof options.rounding === 'boolean') {
-    rounding = options.rounding ? ROUNDING : 0;
-  }
-
-  this._settings = fillGaps | horizontal | alignRight | alignBottom | rounding;
-};
-
-/**
- * @public
- * @param {Grid} grid
- * @param {Number} layoutId
- * @param {Item[]} items
- * @param {Number} width
- * @param {Number} height
- * @param {Function} callback
- * @returns {?Function}
- */
-Packer.prototype.createLayout = function (grid, layoutId, items, width, height, callback) {
-  if (this._layouts[layoutId]) {
-    throw new Error('A layout with the provided id is currently being processed.');
-  }
-
-  var horizontal = this._settings & HORIZONTAL;
-  var layout = {
-    id: layoutId,
-    items: items,
-    slots: null,
-    width: horizontal ? 0 : width,
-    height: !horizontal ? 0 : height,
-    // Temporary data, which will be removed before sending the layout data
-    // outside of Packer's context.
-    _grid: grid,
-    _settings: this._settings,
-  };
-
-  // If there are no items let's call the callback immediately.
-  if (!items.length) {
-    layout.slots = [];
-    this._finalizeLayout(layout);
-    callback(layout);
-    return;
-  }
-
-  // Create layout synchronously if needed.
-  if (this._processor) {
-    layout.slots = window.Float32Array
-      ? new Float32Array(items.length * 2)
-      : new Array(items.length * 2);
-    this._processor.computeLayout(layout, layout._settings);
-    this._finalizeLayout(layout);
-    callback(layout);
-    return;
-  }
-
-  // Worker data.
-  var data = new Float32Array(PACKET_HEADER_SLOTS + items.length * 2);
-
-  // Worker data header.
-  data[PACKET_INDEX_ID] = layoutId;
-  data[PACKET_INDEX_WIDTH] = layout.width;
-  data[PACKET_INDEX_HEIGHT] = layout.height;
-  data[PACKET_INDEX_SETTINGS] = layout._settings;
-
-  // Worker data items.
-  var i, j, item;
-  for (i = 0, j = PACKET_HEADER_SLOTS - 1, item; i < items.length; i++) {
-    item = items[i];
-    data[++j] = item._width + item._marginLeft + item._marginRight;
-    data[++j] = item._height + item._marginTop + item._marginBottom;
-  }
-
-  this._layoutQueue.push(layoutId);
-  this._layouts[layoutId] = layout;
-  this._layoutCallbacks[layoutId] = callback;
-  this._layoutWorkerData[layoutId] = data;
-
-  this._sendToWorker();
-
-  return this.cancelLayout.bind(this, layoutId);
-};
-
-/**
- * @public
- * @param {Number} layoutId
- */
-Packer.prototype.cancelLayout = function (layoutId) {
-  var layout = this._layouts[layoutId];
-  if (!layout) return;
-
-  delete this._layouts[layoutId];
-  delete this._layoutCallbacks[layoutId];
-
-  if (this._layoutWorkerData[layoutId]) {
-    delete this._layoutWorkerData[layoutId];
-    var queueIndex = this._layoutQueue.indexOf(layoutId);
-    if (queueIndex > -1) this._layoutQueue.splice(queueIndex, 1);
-  }
-};
-
-/**
- * @public
- */
-Packer.prototype.destroy = function () {
-  // Move all currently used workers back in the workers array.
-  for (var key in this._layoutWorkers) {
-    this._workers.push(this._layoutWorkers[key]);
-  }
-
-  // Destroy all instance's workers.
-  destroyWorkerProcessors(this._workers);
-
-  // Reset data.
-  this._workers.length = 0;
-  this._layoutQueue.length = 0;
-  this._layouts = {};
-  this._layoutCallbacks = {};
-  this._layoutWorkers = {};
-  this._layoutWorkerData = {};
-};
+    Packer.prototype._sendToWorker = function () {
+        if (!this._layoutWorkerQueue.length || !this._workers.length)
+            return;
+        var worker = this._workers.pop();
+        var layoutId = this._layoutWorkerQueue.shift();
+        var workerData = this._layoutWorkerData.get(layoutId);
+        workerData.worker = worker;
+        this._layoutsProcessing.add(layoutId);
+        var buffer = workerData.packet.buffer;
+        worker.postMessage(buffer, [buffer]);
+    };
+    Packer.prototype._onWorkerMessage = function (msg) {
+        var data = new Float32Array(msg.data);
+        var layoutId = data[PACKET_INDEX_ID];
+        var layoutData = this._layoutWorkerData.get(layoutId);
+        // Delete internal references.
+        this._layoutWorkerData.delete(layoutId);
+        this._layoutsProcessing.delete(layoutId);
+        // If we don't have layout data for some reason, there's nothing we can do.
+        if (!layoutData)
+            return;
+        // Return worker to the pool.
+        var worker = layoutData.worker;
+        if (worker)
+            this._workers.push(worker);
+        // If layout has not been aborted let's finish things up.
+        if (!layoutData.aborted) {
+            var layout = {
+                id: layoutId,
+                items: layoutData.items,
+                slots: data.subarray(PACKET_HEADER_SLOTS, data.length),
+                width: data[PACKET_INDEX_WIDTH],
+                height: data[PACKET_INDEX_HEIGHT],
+                styles: {},
+            };
+            this._setContainerStyles(layout, layoutData.container, layoutData.settings);
+            layoutData.callback(layout);
+        }
+        // Finally try to process the next layout in the queue.
+        if (worker)
+            this._sendToWorker();
+    };
+    Packer.prototype._setContainerStyles = function (layout, containerData, settings) {
+        var isHorizontal = !!(settings & HORIZONTAL);
+        var isBorderBox = containerData.boxSizing === 'border-box';
+        var _a = containerData.borderLeft, borderLeft = _a === void 0 ? 0 : _a, _b = containerData.borderRight, borderRight = _b === void 0 ? 0 : _b, _c = containerData.borderTop, borderTop = _c === void 0 ? 0 : _c, _d = containerData.borderBottom, borderBottom = _d === void 0 ? 0 : _d;
+        var styles = layout.styles, width = layout.width, height = layout.height;
+        if (isHorizontal) {
+            styles.width = (isBorderBox ? width + borderLeft + borderRight : width) + 'px';
+        }
+        else {
+            styles.height = (isBorderBox ? height + borderTop + borderBottom : height) + 'px';
+        }
+    };
+    Packer.prototype.updateSettings = function (options) {
+        var fillGaps = this._settings & FILL_GAPS;
+        if (typeof options.fillGaps === 'boolean') {
+            fillGaps = options.fillGaps ? FILL_GAPS : 0;
+        }
+        var horizontal = this._settings & HORIZONTAL;
+        if (typeof options.horizontal === 'boolean') {
+            horizontal = options.horizontal ? HORIZONTAL : 0;
+        }
+        var alignRight = this._settings & ALIGN_RIGHT;
+        if (typeof options.alignRight === 'boolean') {
+            alignRight = options.alignRight ? ALIGN_RIGHT : 0;
+        }
+        var alignBottom = this._settings & ALIGN_BOTTOM;
+        if (typeof options.alignBottom === 'boolean') {
+            alignBottom = options.alignBottom ? ALIGN_BOTTOM : 0;
+        }
+        var rounding = this._settings & ROUNDING;
+        if (typeof options.rounding === 'boolean') {
+            rounding = options.rounding ? ROUNDING : 0;
+        }
+        this._settings = fillGaps | horizontal | alignRight | alignBottom | rounding;
+    };
+    Packer.prototype.createLayout = function (grid, layoutId, items, width, height, callback) {
+        if (this._layoutWorkerData.has(layoutId)) {
+            throw new Error('A layout with the provided id is currently being processed.');
+        }
+        var containerData = {
+            width: width,
+            height: height,
+            borderLeft: grid._borderLeft,
+            borderRight: grid._borderRight,
+            borderTop: grid._borderTop,
+            borderBottom: grid._borderBottom,
+            boxSizing: grid._boxSizing,
+        };
+        var useSyncProcessing = !this._asyncMode || !items.length;
+        var isHorizontal = this._settings & HORIZONTAL;
+        var layout = {
+            id: layoutId,
+            items: items,
+            slots: new Float32Array(useSyncProcessing ? items.length * 2 : 0),
+            width: isHorizontal ? 0 : containerData.width,
+            height: !isHorizontal ? 0 : containerData.height,
+            styles: {},
+        };
+        // Compute layout synchronously if needed.
+        if (useSyncProcessing) {
+            if (items.length)
+                PACKER_PROCESSOR.computeLayout(layout, this._settings);
+            this._setContainerStyles(layout, containerData, this._settings);
+            callback(layout);
+            return;
+        }
+        // Create worker packet.
+        var packet = new Float32Array(PACKET_HEADER_SLOTS + items.length * 2);
+        // Add headers to packet.
+        packet[PACKET_INDEX_ID] = layoutId;
+        packet[PACKET_INDEX_WIDTH] = layout.width;
+        packet[PACKET_INDEX_HEIGHT] = layout.height;
+        packet[PACKET_INDEX_SETTINGS] = this._settings;
+        // Add items packet.
+        var i = 0;
+        var j = PACKET_HEADER_SLOTS - 1;
+        for (; i < items.length; i++) {
+            var item = items[i];
+            packet[++j] = item._width + (item._marginLeft || 0) + (item._marginRight || 0);
+            packet[++j] = item._height + (item._marginTop || 0) + (item._marginBottom || 0);
+        }
+        // Store the layout data and add it to worker queue.
+        this._layoutWorkerQueue.push(layoutId);
+        this._layoutWorkerData.set(layoutId, __assign(__assign({}, layout), { container: containerData, settings: this._settings, callback: callback, packet: packet, aborted: false }));
+        // Try to send the next layout to worker for processing.
+        this._sendToWorker();
+        // Return the cancel method for this specific layout.
+        return this.cancelLayout.bind(this, layoutId);
+    };
+    Packer.prototype.cancelLayout = function (layoutId) {
+        var data = this._layoutWorkerData.get(layoutId);
+        if (!data || data.aborted)
+            return;
+        // If the layout is queueing to worker we can safely just remove
+        // all the refences to it, otherwise let's mark it as aborted.
+        if (data.worker) {
+            data.aborted = true;
+        }
+        else {
+            var queueIndex = this._layoutWorkerQueue.indexOf(layoutId);
+            this._layoutWorkerQueue.splice(queueIndex, 1);
+            this._layoutWorkerData.delete(layoutId);
+        }
+    };
+    Packer.prototype.destroy = function () {
+        var _this = this;
+        // Cancel all queueing and processing layouts, and move all currently used
+        // workers back into the workers array.
+        this._layoutWorkerData.forEach(function (data) {
+            _this.cancelLayout(data.id);
+            if (data.worker)
+                _this._workers.push(data.worker);
+        });
+        // Reset all the worker related data.
+        this._layoutWorkerData.clear();
+        this._layoutsProcessing.clear();
+        this._layoutWorkerQueue.length = 0;
+        // Destroy all workers.
+        destroyWorkerProcessors(this._workers);
+        this._workers.length = 0;
+    };
+    return Packer;
+}());
 
 var debounceId = 0;
 /**
@@ -6597,86 +6374,282 @@ function toArray(val) {
         : Array.prototype.concat(val);
 }
 
-var INSTANT_LAYOUT = 'instant';
 var layoutId = 0;
+/**
+ * Merge default settings with user settings. The returned object is a new
+ * object with merged values. The merging is a deep merge meaning that all
+ * objects and arrays within the provided settings objects will be also merged
+ * so that modifying the values of the settings object will have no effect on
+ * the returned object.
+ *
+ * @param {Object} baseSettings
+ * @param {Object} [overrides={}]
+ * @returns {Object}
+ */
+function createSettings(baseSettings, overrides) {
+    if (overrides === void 0) { overrides = {}; }
+    // Create a fresh copy of default settings.
+    var newSettings = mergeObjects({}, baseSettings);
+    // Merge user settings to default settings.
+    newSettings = mergeObjects(newSettings, overrides);
+    // Handle visible/hidden styles manually so that the whole object is
+    // overridden instead of the props.
+    if (overrides.visibleStyles) {
+        newSettings.visibleStyles = __assign({}, overrides.visibleStyles);
+    }
+    else if (baseSettings.visibleStyles) {
+        newSettings.visibleStyles = __assign({}, baseSettings.visibleStyles);
+    }
+    if (overrides.hiddenStyles) {
+        newSettings.hiddenStyles = __assign({}, overrides.hiddenStyles);
+    }
+    else if (baseSettings.hiddenStyles) {
+        newSettings.hiddenStyles = __assign({}, baseSettings.hiddenStyles);
+    }
+    return newSettings;
+}
+/**
+ * Merge two objects recursively (deep merge). The source object's properties
+ * are merged to the target object.
+ *
+ * @param {Object} target
+ * @param {Object} source
+ * @returns {Object}
+ */
+function mergeObjects(target, source) {
+    var sourceKeys = Object.keys(source);
+    var length = sourceKeys.length;
+    var i = 0;
+    for (; i < length; i++) {
+        var propName = sourceKeys[i];
+        var isSourceObject = isPlainObject(source[propName]);
+        // If target and source values are both objects, merge the objects and
+        // assign the merged value to the target property.
+        if (isPlainObject(target[propName]) && isSourceObject) {
+            target[propName] = mergeObjects(mergeObjects({}, target[propName]), source[propName]);
+            continue;
+        }
+        // If source's value is object and target's is not let's clone the object as
+        // the target's value.
+        if (isSourceObject) {
+            target[propName] = mergeObjects({}, source[propName]);
+            continue;
+        }
+        // If source's value is an array let's clone the array as the target's
+        // value.
+        if (Array.isArray(source[propName])) {
+            target[propName] = source[propName].slice(0);
+            continue;
+        }
+        // In all other cases let's just directly assign the source's value as the
+        // target's value.
+        target[propName] = source[propName];
+    }
+    return target;
+}
+/**
+ * Collect and return initial items for grid.
+ *
+ * @param {HTMLElement} gridElement
+ * @param {(HTMLElement[]|NodeList|HtmlCollection|string)} elements
+ * @returns {(HTMLElement[]|NodeList|HtmlCollection)}
+ */
+function getInitialGridElements(gridElement, elements) {
+    // If we have a wildcard selector let's return all the children.
+    if (elements === '*') {
+        return gridElement.children;
+    }
+    // If we have some more specific selector, let's filter the elements.
+    if (typeof elements === 'string') {
+        var result = [];
+        var children = gridElement.children;
+        var i = 0;
+        for (; i < children.length; i++) {
+            if (elementMatches(children[i], elements)) {
+                result.push(children[i]);
+            }
+        }
+        return result;
+    }
+    // If we have an array of elements or a node list.
+    if (Array.isArray(elements) || isNodeListOrHTMLCollection(elements)) {
+        return elements;
+    }
+    // Otherwise just return an empty array.
+    return [];
+}
+/**
+ * Bind grid's resize handler to window.
+ *
+ * @param {Grid} grid
+ * @param {(number|boolean)} delay
+ */
+function bindLayoutOnResize(grid, delay) {
+    if (typeof delay !== 'number') {
+        delay = delay === true ? 0 : -1;
+    }
+    if (delay >= 0) {
+        grid._resizeHandler = debounce(function () {
+            grid.refreshItems().layout();
+        }, delay);
+        window.addEventListener('resize', grid._resizeHandler);
+    }
+}
+/**
+ * Unbind grid's resize handler from window.
+ *
+ * @param {Grid} grid
+ */
+function unbindLayoutOnResize(grid) {
+    if (grid._resizeHandler) {
+        grid._resizeHandler(true);
+        window.removeEventListener('resize', grid._resizeHandler);
+        grid._resizeHandler = null;
+    }
+}
+/**
+ * Normalize style declaration object, returns a normalized (new) styles object
+ * (prefixed properties and invalid properties removed).
+ *
+ * @param {Object} styles
+ * @returns {Object}
+ */
+function normalizeStyles(styles) {
+    var normalized = {};
+    var docElemStyle = document.documentElement.style;
+    var prop;
+    var prefixedProp;
+    // Normalize visible styles (prefix and remove invalid).
+    for (prop in styles) {
+        if (!styles[prop])
+            continue;
+        prefixedProp = getPrefixedPropName(docElemStyle, prop);
+        if (!prefixedProp)
+            continue;
+        normalized[prefixedProp] = styles[prop];
+    }
+    return normalized;
+}
+/**
+ * Create index map from items.
+ *
+ * @param {Item[]} items
+ * @returns {Object}
+ */
+function createIndexMap(items) {
+    var result = {};
+    var i = 0;
+    for (; i < items.length; i++) {
+        result[items[i]._id] = i;
+    }
+    return result;
+}
+/**
+ * Sort comparer function for items' index map.
+ *
+ * @param {Object} indexMap
+ * @param {Item} itemA
+ * @param {Item} itemB
+ * @returns {number}
+ */
+function compareIndexMap(indexMap, itemA, itemB) {
+    var indexA = indexMap[itemA._id];
+    var indexB = indexMap[itemB._id];
+    return indexA - indexB;
+}
+/**
+ * Check if the provided objects have same keys and and values.
+ *
+ * @param {Object} a
+ * @param {Object} b
+ * @returns {boolean}
+ */
+function isEqualObjects(a, b) {
+    var key;
+    for (key in a) {
+        if (a[key] !== b[key])
+            return false;
+    }
+    return Object.keys(a).length === Object.keys(b).length;
+}
 /**
  * Creates a new Grid instance.
  *
  * @class
- * @param {(HTMLElement|String)} element
+ * @param {(HTMLElement|string)} element
  * @param {Object} [options]
- * @param {(String|HTMLElement[]|NodeList|HTMLCollection)} [options.items="*"]
- * @param {Number} [options.showDuration=300]
- * @param {String} [options.showEasing="ease"]
+ * @param {(string|HTMLElement[]|NodeList|HTMLCollection)} [options.items="*"]
+ * @param {number} [options.showDuration=300]
+ * @param {string} [options.showEasing="ease"]
  * @param {Object} [options.visibleStyles={opacity: "1", transform: "scale(1)"}]
- * @param {Number} [options.hideDuration=300]
- * @param {String} [options.hideEasing="ease"]
+ * @param {number} [options.hideDuration=300]
+ * @param {string} [options.hideEasing="ease"]
  * @param {Object} [options.hiddenStyles={opacity: "0", transform: "scale(0.5)"}]
  * @param {(Function|Object)} [options.layout]
- * @param {Boolean} [options.layout.fillGaps=false]
- * @param {Boolean} [options.layout.horizontal=false]
- * @param {Boolean} [options.layout.alignRight=false]
- * @param {Boolean} [options.layout.alignBottom=false]
- * @param {Boolean} [options.layout.rounding=false]
- * @param {(Boolean|Number)} [options.layoutOnResize=150]
- * @param {Boolean} [options.layoutOnInit=true]
- * @param {Number} [options.layoutDuration=300]
- * @param {String} [options.layoutEasing="ease"]
+ * @param {boolean} [options.layout.fillGaps=false]
+ * @param {boolean} [options.layout.horizontal=false]
+ * @param {boolean} [options.layout.alignRight=false]
+ * @param {boolean} [options.layout.alignBottom=false]
+ * @param {boolean} [options.layout.rounding=false]
+ * @param {(boolean|number)} [options.layoutOnResize=150]
+ * @param {boolean} [options.layoutOnInit=true]
+ * @param {number} [options.layoutDuration=300]
+ * @param {string} [options.layoutEasing="ease"]
  * @param {?Object} [options.sortData=null]
- * @param {Boolean} [options.dragEnabled=false]
- * @param {?String} [options.dragHandle=null]
- * @param {?HtmlElement} [options.dragContainer=null]
+ * @param {boolean} [options.dragEnabled=false]
+ * @param {?string} [options.dragHandle=null]
+ * @param {?HTMLElement} [options.dragContainer=null]
  * @param {?Function} [options.dragStartPredicate]
- * @param {Number} [options.dragStartPredicate.distance=0]
- * @param {Number} [options.dragStartPredicate.delay=0]
- * @param {String} [options.dragAxis="xy"]
- * @param {(Boolean|Function)} [options.dragSort=true]
+ * @param {number} [options.dragStartPredicate.distance=0]
+ * @param {number} [options.dragStartPredicate.delay=0]
+ * @param {string} [options.dragAxis="xy"]
+ * @param {(boolean|Function)} [options.dragSort=true]
  * @param {Object} [options.dragSortHeuristics]
- * @param {Number} [options.dragSortHeuristics.sortInterval=100]
- * @param {Number} [options.dragSortHeuristics.minDragDistance=10]
- * @param {Number} [options.dragSortHeuristics.minBounceBackAngle=1]
+ * @param {number} [options.dragSortHeuristics.sortInterval=100]
+ * @param {number} [options.dragSortHeuristics.minDragDistance=10]
+ * @param {number} [options.dragSortHeuristics.minBounceBackAngle=1]
  * @param {(Function|Object)} [options.dragSortPredicate]
- * @param {Number} [options.dragSortPredicate.threshold=50]
- * @param {String} [options.dragSortPredicate.action="move"]
- * @param {String} [options.dragSortPredicate.migrateAction="move"]
+ * @param {number} [options.dragSortPredicate.threshold=50]
+ * @param {string} [options.dragSortPredicate.action="move"]
+ * @param {string} [options.dragSortPredicate.migrateAction="move"]
  * @param {Object} [options.dragRelease]
- * @param {Number} [options.dragRelease.duration=300]
- * @param {String} [options.dragRelease.easing="ease"]
- * @param {Boolean} [options.dragRelease.useDragContainer=true]
+ * @param {number} [options.dragRelease.duration=300]
+ * @param {string} [options.dragRelease.easing="ease"]
+ * @param {boolean} [options.dragRelease.useDragContainer=true]
  * @param {Object} [options.dragCssProps]
- * @param {String} [options.dragCssProps.touchAction="none"]
- * @param {String} [options.dragCssProps.userSelect="none"]
- * @param {String} [options.dragCssProps.userDrag="none"]
- * @param {String} [options.dragCssProps.tapHighlightColor="rgba(0, 0, 0, 0)"]
- * @param {String} [options.dragCssProps.touchCallout="none"]
- * @param {String} [options.dragCssProps.contentZooming="none"]
+ * @param {string} [options.dragCssProps.touchAction="none"]
+ * @param {string} [options.dragCssProps.userSelect="none"]
+ * @param {string} [options.dragCssProps.userDrag="none"]
+ * @param {string} [options.dragCssProps.tapHighlightColor="rgba(0, 0, 0, 0)"]
+ * @param {string} [options.dragCssProps.touchCallout="none"]
+ * @param {string} [options.dragCssProps.contentZooming="none"]
  * @param {Object} [options.dragEventListenerOptions]
- * @param {Boolen} [options.dragEventListenerOptions.capture=false]
- * @param {Boolen} [options.dragEventListenerOptions.passive=true]
+ * @param {boolean} [options.dragEventListenerOptions.capture=false]
+ * @param {boolean} [options.dragEventListenerOptions.passive=true]
  * @param {Object} [options.dragPlaceholder]
- * @param {Boolean} [options.dragPlaceholder.enabled=false]
+ * @param {boolean} [options.dragPlaceholder.enabled=false]
  * @param {?Function} [options.dragPlaceholder.createElement=null]
  * @param {?Function} [options.dragPlaceholder.onCreate=null]
  * @param {?Function} [options.dragPlaceholder.onRemove=null]
  * @param {Object} [options.dragAutoScroll]
  * @param {(Function|Array)} [options.dragAutoScroll.targets=[]]
  * @param {?Function} [options.dragAutoScroll.handle=null]
- * @param {Number} [options.dragAutoScroll.threshold=50]
- * @param {Number} [options.dragAutoScroll.safeZone=0.2]
- * @param {(Function|Number)} [options.dragAutoScroll.speed]
- * @param {Boolean} [options.dragAutoScroll.sortDuringScroll=true]
- * @param {Boolean} [options.dragAutoScroll.smoothStop=false]
+ * @param {number} [options.dragAutoScroll.threshold=50]
+ * @param {number} [options.dragAutoScroll.safeZone=0.2]
+ * @param {(Function|number)} [options.dragAutoScroll.speed]
+ * @param {boolean} [options.dragAutoScroll.sortDuringScroll=true]
+ * @param {boolean} [options.dragAutoScroll.smoothStop=false]
  * @param {?Function} [options.dragAutoScroll.onStart=null]
  * @param {?Function} [options.dragAutoScroll.onStop=null]
- * @param {String} [options.containerClass="muuri"]
- * @param {String} [options.itemClass="muuri-item"]
- * @param {String} [options.itemVisibleClass="muuri-item-visible"]
- * @param {String} [options.itemHiddenClass="muuri-item-hidden"]
- * @param {String} [options.itemPositioningClass="muuri-item-positioning"]
- * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
- * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
- * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
- * @param {Boolean} [options._animationWindowing=false]
+ * @param {string} [options.containerClass="muuri"]
+ * @param {string} [options.itemClass="muuri-item"]
+ * @param {string} [options.itemVisibleClass="muuri-item-visible"]
+ * @param {string} [options.itemHiddenClass="muuri-item-hidden"]
+ * @param {string} [options.itemPositioningClass="muuri-item-positioning"]
+ * @param {string} [options.itemDraggingClass="muuri-item-dragging"]
+ * @param {string} [options.itemReleasingClass="muuri-item-releasing"]
+ * @param {string} [options.itemPlaceholderClass="muuri-item-placeholder"]
+ * @param {boolean} [options._animationWindowing=false]
  */
 var Grid = /** @class */ (function () {
     function Grid(element, options) {
@@ -6729,7 +6702,7 @@ var Grid = /** @class */ (function () {
         this._emitter = new Emitter();
         this._onLayoutDataReceived = this._onLayoutDataReceived.bind(this);
         // Store grid instance to the grid instances collection.
-        GRID_INSTANCES[this._id] = this;
+        GRID_INSTANCES.set(this._id, this);
         // Add container element's class name.
         addClass(element, settings.containerClass);
         // If layoutOnResize option is a valid number sanitize it and bind the resize
@@ -6742,6 +6715,294 @@ var Grid = /** @class */ (function () {
             this.layout(true);
         }
     }
+    /**
+     * Emit a grid event.
+     *
+     * @private
+     * @param {string} event
+     * @param {...*} [args]
+     */
+    Grid.prototype._emit = function (event) {
+        var _a;
+        var args = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
+        if (this._isDestroyed)
+            return;
+        (_a = this._emitter).emit.apply(_a, __spreadArrays([event], args));
+    };
+    /**
+     * Check if there are any events listeners for an event.
+     *
+     * @private
+     * @param {string} event
+     * @returns {boolean}
+     */
+    Grid.prototype._hasListeners = function (event) {
+        if (this._isDestroyed)
+            return false;
+        return this._emitter.countListeners(event) > 0;
+    };
+    /**
+     * Update container's width, height and offsets.
+     *
+     * @private
+     */
+    Grid.prototype._updateBoundingRect = function () {
+        var element = this._element;
+        var rect = element.getBoundingClientRect();
+        this._width = rect.width;
+        this._height = rect.height;
+        this._left = rect.left;
+        this._top = rect.top;
+        this._right = rect.right;
+        this._bottom = rect.bottom;
+    };
+    /**
+     * Update container's border sizes.
+     *
+     * @private
+     * @param {boolean} left
+     * @param {boolean} right
+     * @param {boolean} top
+     * @param {boolean} bottom
+     */
+    Grid.prototype._updateBorders = function (left, right, top, bottom) {
+        var element = this._element;
+        if (left)
+            this._borderLeft = getStyleAsFloat(element, 'border-left-width');
+        if (right)
+            this._borderRight = getStyleAsFloat(element, 'border-right-width');
+        if (top)
+            this._borderTop = getStyleAsFloat(element, 'border-top-width');
+        if (bottom)
+            this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
+    };
+    /**
+     * Refresh all of container's internal dimensions and offsets.
+     *
+     * @private
+     */
+    Grid.prototype._updateDimensions = function () {
+        this._updateBoundingRect();
+        this._updateBorders(true, true, true, true);
+        this._boxSizing = getStyle(this._element, 'box-sizing');
+    };
+    /**
+     * Calculate and apply item positions.
+     *
+     * @private
+     * @param {Object} layout
+     */
+    Grid.prototype._onLayoutDataReceived = function (layout) {
+        var _this = this;
+        if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id)
+            return;
+        var instant = this._nextLayoutData.instant;
+        var onFinish = this._nextLayoutData.onFinish;
+        var numItems = layout.items.length;
+        var counter = numItems;
+        var item;
+        var left;
+        var top;
+        var i;
+        // Reset next layout data.
+        this._nextLayoutData = null;
+        if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
+            this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
+        }
+        // Update the layout reference.
+        this._layout = layout;
+        // Update the item positions and collect all items that need to be laid
+        // out. It is critical that we update the item position _before_ the
+        // layoutStart event as the new data might be needed in the callback.
+        var itemsToLayout = [];
+        for (i = 0; i < numItems; i++) {
+            item = layout.items[i];
+            // Make sure we have a matching item.
+            if (!item) {
+                --counter;
+                continue;
+            }
+            // Get the item's new left and top values.
+            left = layout.slots[i * 2];
+            top = layout.slots[i * 2 + 1];
+            // Let's skip the layout process if we can. Possibly avoids a lot of DOM
+            // operations which saves us some CPU cycles.
+            if (item._canSkipLayout(left, top)) {
+                --counter;
+                continue;
+            }
+            // Update the item's position.
+            item._left = left;
+            item._top = top;
+            // Only active non-dragged items need to be moved.
+            if (item.isActive() && !item.isDragging()) {
+                itemsToLayout.push(item);
+            }
+            else {
+                --counter;
+            }
+        }
+        // Set layout styles to the grid element.
+        if (layout.styles) {
+            setStyles(this._element, layout.styles);
+        }
+        // layoutStart event is intentionally emitted after the container element's
+        // dimensions are set, because otherwise there would be no hook for reacting
+        // to container dimension changes.
+        if (this._hasListeners(EVENT_LAYOUT_START)) {
+            this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant);
+            // Let's make sure that the current layout process has not been overridden
+            // in the layoutStart event, and if so, let's stop processing the aborted
+            // layout.
+            if (this._layout.id !== layout.id)
+                return;
+        }
+        var tryFinish = function () {
+            if (--counter > 0)
+                return;
+            var isAborted = _this._layout.id !== layout.id;
+            if (!isAborted) {
+                _this._isLayoutFinished = true;
+            }
+            if (isFunction(onFinish)) {
+                onFinish(layout.items.slice(0), isAborted);
+            }
+            if (!isAborted && _this._hasListeners(EVENT_LAYOUT_END)) {
+                _this._emit(EVENT_LAYOUT_END, layout.items.slice(0));
+            }
+        };
+        if (!itemsToLayout.length) {
+            tryFinish();
+            return this;
+        }
+        this._isLayoutFinished = false;
+        for (i = 0; i < itemsToLayout.length; i++) {
+            if (this._layout.id !== layout.id)
+                break;
+            itemsToLayout[i]._layout.start(instant, tryFinish);
+        }
+        return this;
+    };
+    /**
+     * Show or hide Grid instance's items.
+     *
+     * @private
+     * @param {Item[]} items
+     * @param {boolean} toVisible
+     * @param {Object} [options]
+     * @param {boolean} [options.instant=false]
+     * @param {boolean} [options.syncWithLayout=true]
+     * @param {Function} [options.onFinish]
+     * @param {(boolean|Function|string)} [options.layout=true]
+     */
+    Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
+        var _this = this;
+        if (options === void 0) { options = {}; }
+        var targetItems = items.slice(0);
+        var isInstant = options.instant === true;
+        var callback = options.onFinish;
+        var layout = options.layout ? options.layout : options.layout === undefined;
+        var startEvent = toVisible ? EVENT_SHOW_START : EVENT_HIDE_START;
+        var endEvent = toVisible ? EVENT_SHOW_END : EVENT_HIDE_END;
+        var method = toVisible ? 'show' : 'hide';
+        var completedItems = [];
+        var hiddenItems = [];
+        var needsLayout = false;
+        var counter = targetItems.length;
+        var item;
+        var i;
+        // If there are no items call the callback, but don't emit any events.
+        if (!counter) {
+            if (isFunction(callback))
+                callback(targetItems);
+            return;
+        }
+        // Prepare the items.
+        for (i = 0; i < targetItems.length; i++) {
+            item = targetItems[i];
+            // If inactive item is shown or active item is hidden we need to do
+            // layout.
+            if ((toVisible && !item._isActive) || (!toVisible && item._isActive)) {
+                needsLayout = true;
+            }
+            // If inactive item is shown we also need to do a little hack to make the
+            // item not animate it's next positioning (layout).
+            item._layout._skipNextAnimation = !!(toVisible && !item._isActive);
+            // If a hidden item is being shown we need to refresh the item's
+            // dimensions.
+            if (toVisible && !item.isVisible() && !item.isHiding()) {
+                hiddenItems.push(item);
+            }
+            // Add item to layout or remove it from layout.
+            if (toVisible) {
+                item._addToLayout();
+            }
+            else {
+                item._removeFromLayout();
+            }
+        }
+        // Force refresh the dimensions of all hidden items.
+        // TODO: How can we avoid this?
+        //       - 1. Set item visibility: 'hidden' and display: ''
+        //       - 2. Read the dimensions in the next read tick.
+        //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
+        //       - 4. Continue with the normal flow. To make this simpler we could always do this
+        //            one tick delay.
+        if (hiddenItems.length) {
+            this.refreshItems(hiddenItems, true);
+            hiddenItems.length = 0;
+        }
+        // Show the items in sync with the next layout.
+        var triggerVisibilityChange = function () {
+            if (needsLayout && options.syncWithLayout !== false) {
+                _this.off(EVENT_LAYOUT_START, triggerVisibilityChange);
+            }
+            if (_this._hasListeners(startEvent)) {
+                _this._emit(startEvent, targetItems.slice(0));
+            }
+            for (i = 0; i < targetItems.length; i++) {
+                // Make sure the item is still in the original grid. There is a chance
+                // that the item starts migrating before tiggerVisibilityChange is called.
+                if (targetItems[i]._gridId !== _this._id) {
+                    if (--counter < 1) {
+                        if (isFunction(callback))
+                            callback(completedItems.slice(0));
+                        if (_this._hasListeners(endEvent))
+                            _this._emit(endEvent, completedItems.slice(0));
+                    }
+                    continue;
+                }
+                targetItems[i]._visibility[method](isInstant, function (interrupted, item) {
+                    // If the current item's animation was not interrupted add it to the
+                    // completedItems array.
+                    if (!interrupted)
+                        completedItems.push(item);
+                    // If all items have finished their animations call the callback
+                    // and emit showEnd/hideEnd event.
+                    if (--counter < 1) {
+                        if (isFunction(callback))
+                            callback(completedItems.slice(0));
+                        if (_this._hasListeners(endEvent))
+                            _this._emit(endEvent, completedItems.slice(0));
+                    }
+                });
+            }
+        };
+        // Trigger the visibility change, either async with layout or instantly.
+        if (needsLayout && options.syncWithLayout !== false) {
+            this.on(EVENT_LAYOUT_START, triggerVisibilityChange);
+        }
+        else {
+            triggerVisibilityChange();
+        }
+        // Trigger layout if needed.
+        if (needsLayout && layout) {
+            this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
+        }
+    };
     /**
      * Bind an event listener.
      *
@@ -7053,7 +7314,7 @@ var Grid = /** @class */ (function () {
             }
         }
         for (i = 0; i < targets.length; i++) {
-            targets[i]._refreshDimensions(force);
+            targets[i]._updateDimensions(force);
         }
         if (hiddenItemStyles) {
             for (i = 0; i < hiddenItemStyles.length; i++) {
@@ -7080,7 +7341,7 @@ var Grid = /** @class */ (function () {
         var targets = items || this._items;
         var i = 0;
         for (; i < targets.length; i++) {
-            targets[i]._refreshSortData();
+            targets[i]._updateSortData();
         }
         return this;
     };
@@ -7131,12 +7392,11 @@ var Grid = /** @class */ (function () {
             return this;
         // Cancel unfinished layout algorithm if possible.
         var unfinishedLayout = this._nextLayoutData;
-        if (unfinishedLayout && typeof unfinishedLayout.cancel === 'function') {
+        if (unfinishedLayout && isFunction(unfinishedLayout.cancel)) {
             unfinishedLayout.cancel();
         }
         // Compute layout id (let's stay in Float32 range).
-        layoutId = (layoutId % MAX_SAFE_FLOAT32_INTEGER) + 1;
-        var nextLayoutId = layoutId;
+        var nextLayoutId = (layoutId = (layoutId % MAX_SAFE_FLOAT32_INTEGER) + 1);
         // Store data for next layout.
         this._nextLayoutData = {
             id: nextLayoutId,
@@ -7156,12 +7416,12 @@ var Grid = /** @class */ (function () {
         // TODO: This causes forced reflows. As we already have async layout system
         // Maybe we could always postpone this to the next tick's read queue and
         // then start the layout process in the write tick?
-        this._refreshDimensions();
+        this._updateDimensions();
         var gridWidth = this._width - this._borderLeft - this._borderRight;
         var gridHeight = this._height - this._borderTop - this._borderBottom;
         var layoutSettings = this._settings.layout;
         var cancelLayout;
-        if (typeof layoutSettings === 'function') {
+        if (isFunction(layoutSettings)) {
             cancelLayout = layoutSettings(this, nextLayoutId, layoutItems, gridWidth, gridHeight, this._onLayoutDataReceived);
         }
         else {
@@ -7169,7 +7429,7 @@ var Grid = /** @class */ (function () {
             cancelLayout = Grid.defaultPacker.createLayout(this, nextLayoutId, layoutItems, gridWidth, gridHeight, this._onLayoutDataReceived);
         }
         // Store layout cancel method if available.
-        if (typeof cancelLayout === 'function' &&
+        if (isFunction(cancelLayout) &&
             this._nextLayoutData &&
             this._nextLayoutData.id === nextLayoutId) {
             this._nextLayoutData.cancel = cancelLayout;
@@ -7245,8 +7505,8 @@ var Grid = /** @class */ (function () {
         // in a separate loop to avoid layout thrashing.
         for (i = 0; i < newItems.length; i++) {
             item = newItems[i];
-            item._refreshDimensions();
-            item._refreshSortData();
+            item._updateDimensions();
+            item._updateSortData();
         }
         // Add the new items to the items collection to correct index.
         arrayInsert(items, newItems, options.index);
@@ -7371,14 +7631,12 @@ var Grid = /** @class */ (function () {
         // Check which items need to be shown and which hidden.
         var itemsToShow = [];
         var itemsToHide = [];
-        if (typeof predicate === 'function' || typeof predicate === 'string') {
+        if (isFunction(predicate) || typeof predicate === 'string') {
             var item = void 0;
             var i = void 0;
             for (i = 0; i < this._items.length; i++) {
                 item = this._items[i];
-                if (typeof predicate === 'function'
-                    ? predicate(item)
-                    : elementMatches(item._element, predicate)) {
+                if (isFunction(predicate) ? predicate(item) : elementMatches(item._element, predicate)) {
                     itemsToShow.push(item);
                 }
                 else {
@@ -7386,7 +7644,7 @@ var Grid = /** @class */ (function () {
                 }
             }
         }
-        var onFinish = typeof options.onFinish === 'function' ? options.onFinish : undefined;
+        var onFinish = isFunction(options.onFinish) ? options.onFinish : undefined;
         var shownItems = [];
         var hiddenItems = [];
         var finishCounter = -1;
@@ -7464,7 +7722,7 @@ var Grid = /** @class */ (function () {
         var isDescending = !!options.descending;
         var indexMap = null;
         // If function is provided do a native array sort.
-        if (typeof comparer === 'function') {
+        if (isFunction(comparer)) {
             items.sort(function (a, b) {
                 var result = isDescending ? -comparer(a, b) : comparer(a, b);
                 if (!result) {
@@ -7498,9 +7756,9 @@ var Grid = /** @class */ (function () {
                     // Get items' cached sort values for the criteria. If the item has no sort
                     // data let's update the items sort data (this is a lazy load mechanism).
                     if (a._sortData === null)
-                        a._refreshSortData();
+                        a._updateSortData();
                     if (b._sortData === null)
-                        b._refreshSortData();
+                        b._updateSortData();
                     var valA = a._sortData[criteriaName];
                     var valB = b._sortData[criteriaName];
                     // Sort the items in descending order if defined so explicitly. Otherwise
@@ -7557,10 +7815,7 @@ var Grid = /** @class */ (function () {
      * @param {(Item|HTMLElement|number)} position
      * @param {Object} [options]
      * @param {string} [options.action="move"]
-     *   - Accepts either "move" or "swap".
-     *   - "move" moves the item in place of the other item.
-     *   - "swap" swaps the position of the items.
-     * @param {(Boolean|Function|String)} [options.layout=true]
+     * @param {(boolean|Function|string)} [options.layout=true]
      * @returns {Grid}
      */
     Grid.prototype.move = function (item, position, options) {
@@ -7605,9 +7860,9 @@ var Grid = /** @class */ (function () {
      * Send item to another Grid instance.
      *
      * @public
-     * @param {(Item|HtmlElement|number)} item
+     * @param {(Item|HTMLElement|number)} item
      * @param {Grid} targetGrid
-     * @param {(Item|HtmlElement|number)} position
+     * @param {(Item|HTMLElement|number)} position
      * @param {Object} [options]
      * @param {HTMLElement} [options.appendTo=document.body]
      * @param {(boolean|Function|string)} [options.layoutSender=true]
@@ -7669,7 +7924,7 @@ var Grid = /** @class */ (function () {
         for (prop in layoutStyles)
             container.style[prop] = '';
         // Remove reference from the grid instances collection.
-        delete GRID_INSTANCES[this._id];
+        GRID_INSTANCES.delete(this._id);
         // Flag instance as destroyed. It's important to set this to `true` before
         // emitting the destroy event to avoid potential infinite loop.
         this._isDestroyed = true;
@@ -7679,294 +7934,6 @@ var Grid = /** @class */ (function () {
         this._emitter.emit(EVENT_DESTROY);
         this._emitter.destroy();
         return this;
-    };
-    /**
-     * Emit a grid event.
-     *
-     * @private
-     * @param {string} event
-     * @param {...*} [args]
-     */
-    Grid.prototype._emit = function (event) {
-        var _a;
-        var args = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            args[_i - 1] = arguments[_i];
-        }
-        if (this._isDestroyed)
-            return;
-        (_a = this._emitter).emit.apply(_a, __spreadArrays([event], args));
-    };
-    /**
-     * Check if there are any events listeners for an event.
-     *
-     * @private
-     * @param {string} event
-     * @returns {boolean}
-     */
-    Grid.prototype._hasListeners = function (event) {
-        if (this._isDestroyed)
-            return false;
-        return this._emitter.countListeners(event) > 0;
-    };
-    /**
-     * Update container's width, height and offsets.
-     *
-     * @private
-     */
-    Grid.prototype._updateBoundingRect = function () {
-        var element = this._element;
-        var rect = element.getBoundingClientRect();
-        this._width = rect.width;
-        this._height = rect.height;
-        this._left = rect.left;
-        this._top = rect.top;
-        this._right = rect.right;
-        this._bottom = rect.bottom;
-    };
-    /**
-     * Update container's border sizes.
-     *
-     * @private
-     * @param {Boolean} left
-     * @param {Boolean} right
-     * @param {Boolean} top
-     * @param {Boolean} bottom
-     */
-    Grid.prototype._updateBorders = function (left, right, top, bottom) {
-        var element = this._element;
-        if (left)
-            this._borderLeft = getStyleAsFloat(element, 'border-left-width');
-        if (right)
-            this._borderRight = getStyleAsFloat(element, 'border-right-width');
-        if (top)
-            this._borderTop = getStyleAsFloat(element, 'border-top-width');
-        if (bottom)
-            this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
-    };
-    /**
-     * Refresh all of container's internal dimensions and offsets.
-     *
-     * @private
-     */
-    Grid.prototype._refreshDimensions = function () {
-        this._updateBoundingRect();
-        this._updateBorders(true, true, true, true);
-        this._boxSizing = getStyle(this._element, 'box-sizing');
-    };
-    /**
-     * Calculate and apply item positions.
-     *
-     * @private
-     * @param {Object} layout
-     */
-    Grid.prototype._onLayoutDataReceived = function (layout) {
-        var _this = this;
-        if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id)
-            return;
-        var instant = this._nextLayoutData.instant;
-        var onFinish = this._nextLayoutData.onFinish;
-        var numItems = layout.items.length;
-        var counter = numItems;
-        var item;
-        var left;
-        var top;
-        var i;
-        // Reset next layout data.
-        this._nextLayoutData = null;
-        if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
-            this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
-        }
-        // Update the layout reference.
-        this._layout = layout;
-        // Update the item positions and collect all items that need to be laid
-        // out. It is critical that we update the item position _before_ the
-        // layoutStart event as the new data might be needed in the callback.
-        var itemsToLayout = [];
-        for (i = 0; i < numItems; i++) {
-            item = layout.items[i];
-            // Make sure we have a matching item.
-            if (!item) {
-                --counter;
-                continue;
-            }
-            // Get the item's new left and top values.
-            left = layout.slots[i * 2];
-            top = layout.slots[i * 2 + 1];
-            // Let's skip the layout process if we can. Possibly avoids a lot of DOM
-            // operations which saves us some CPU cycles.
-            if (item._canSkipLayout(left, top)) {
-                --counter;
-                continue;
-            }
-            // Update the item's position.
-            item._left = left;
-            item._top = top;
-            // Only active non-dragged items need to be moved.
-            if (item.isActive() && !item.isDragging()) {
-                itemsToLayout.push(item);
-            }
-            else {
-                --counter;
-            }
-        }
-        // Set layout styles to the grid element.
-        if (layout.styles) {
-            setStyles(this._element, layout.styles);
-        }
-        // layoutStart event is intentionally emitted after the container element's
-        // dimensions are set, because otherwise there would be no hook for reacting
-        // to container dimension changes.
-        if (this._hasListeners(EVENT_LAYOUT_START)) {
-            this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant);
-            // Let's make sure that the current layout process has not been overridden
-            // in the layoutStart event, and if so, let's stop processing the aborted
-            // layout.
-            if (this._layout.id !== layout.id)
-                return;
-        }
-        var tryFinish = function () {
-            if (--counter > 0)
-                return;
-            var isAborted = _this._layout.id !== layout.id;
-            if (!isAborted) {
-                _this._isLayoutFinished = true;
-            }
-            if (typeof onFinish === 'function') {
-                onFinish(layout.items.slice(0), isAborted);
-            }
-            if (!isAborted && _this._hasListeners(EVENT_LAYOUT_END)) {
-                _this._emit(EVENT_LAYOUT_END, layout.items.slice(0));
-            }
-        };
-        if (!itemsToLayout.length) {
-            tryFinish();
-            return this;
-        }
-        this._isLayoutFinished = false;
-        for (i = 0; i < itemsToLayout.length; i++) {
-            if (this._layout.id !== layout.id)
-                break;
-            itemsToLayout[i]._layout.start(instant, tryFinish);
-        }
-        return this;
-    };
-    /**
-     * Show or hide Grid instance's items.
-     *
-     * @private
-     * @param {Item[]} items
-     * @param {boolean} toVisible
-     * @param {Object} [options]
-     * @param {boolean} [options.instant=false]
-     * @param {boolean} [options.syncWithLayout=true]
-     * @param {Function} [options.onFinish]
-     * @param {(boolean|Function|string)} [options.layout=true]
-     */
-    Grid.prototype._setItemsVisibility = function (items, toVisible, options) {
-        var _this = this;
-        if (options === void 0) { options = {}; }
-        var targetItems = items.slice(0);
-        var isInstant = options.instant === true;
-        var callback = options.onFinish;
-        var layout = options.layout ? options.layout : options.layout === undefined;
-        var startEvent = toVisible ? EVENT_SHOW_START : EVENT_HIDE_START;
-        var endEvent = toVisible ? EVENT_SHOW_END : EVENT_HIDE_END;
-        var method = toVisible ? 'show' : 'hide';
-        var completedItems = [];
-        var hiddenItems = [];
-        var needsLayout = false;
-        var counter = targetItems.length;
-        var item;
-        var i;
-        // If there are no items call the callback, but don't emit any events.
-        if (!counter) {
-            if (isFunction(callback))
-                callback(targetItems);
-            return;
-        }
-        // Prepare the items.
-        for (i = 0; i < targetItems.length; i++) {
-            item = targetItems[i];
-            // If inactive item is shown or active item is hidden we need to do
-            // layout.
-            if ((toVisible && !item._isActive) || (!toVisible && item._isActive)) {
-                needsLayout = true;
-            }
-            // If inactive item is shown we also need to do a little hack to make the
-            // item not animate it's next positioning (layout).
-            item._layout._skipNextAnimation = !!(toVisible && !item._isActive);
-            // If a hidden item is being shown we need to refresh the item's
-            // dimensions.
-            if (toVisible && !item.isVisible() && !item.isHiding()) {
-                hiddenItems.push(item);
-            }
-            // Add item to layout or remove it from layout.
-            if (toVisible) {
-                item._addToLayout();
-            }
-            else {
-                item._removeFromLayout();
-            }
-        }
-        // Force refresh the dimensions of all hidden items.
-        // TODO: How can we avoid this?
-        //       - 1. Set item visibility: 'hidden' and display: ''
-        //       - 2. Read the dimensions in the next read tick.
-        //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
-        //       - 4. Continue with the normal flow. To make this simpler we could always do this
-        //            one tick delay.
-        if (hiddenItems.length) {
-            this.refreshItems(hiddenItems, true);
-            hiddenItems.length = 0;
-        }
-        // Show the items in sync with the next layout.
-        var triggerVisibilityChange = function () {
-            if (needsLayout && options.syncWithLayout !== false) {
-                _this.off(EVENT_LAYOUT_START, triggerVisibilityChange);
-            }
-            if (_this._hasListeners(startEvent)) {
-                _this._emit(startEvent, targetItems.slice(0));
-            }
-            for (i = 0; i < targetItems.length; i++) {
-                // Make sure the item is still in the original grid. There is a chance
-                // that the item starts migrating before tiggerVisibilityChange is called.
-                if (targetItems[i]._gridId !== _this._id) {
-                    if (--counter < 1) {
-                        if (isFunction(callback))
-                            callback(completedItems.slice(0));
-                        if (_this._hasListeners(endEvent))
-                            _this._emit(endEvent, completedItems.slice(0));
-                    }
-                    continue;
-                }
-                targetItems[i]._visibility[method](isInstant, function (interrupted, item) {
-                    // If the current item's animation was not interrupted add it to the
-                    // completedItems array.
-                    if (!interrupted)
-                        completedItems.push(item);
-                    // If all items have finished their animations call the callback
-                    // and emit showEnd/hideEnd event.
-                    if (--counter < 1) {
-                        if (isFunction(callback))
-                            callback(completedItems.slice(0));
-                        if (_this._hasListeners(endEvent))
-                            _this._emit(endEvent, completedItems.slice(0));
-                    }
-                });
-            }
-        };
-        // Trigger the visibility change, either async with layout or instantly.
-        if (needsLayout && options.syncWithLayout !== false) {
-            this.on(EVENT_LAYOUT_START, triggerVisibilityChange);
-        }
-        else {
-            triggerVisibilityChange();
-        }
-        // Trigger layout if needed.
-        if (needsLayout && layout) {
-            this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
-        }
     };
     Grid.Item = Item;
     Grid.ItemLayout = ItemLayout;
@@ -8082,202 +8049,5 @@ var Grid = /** @class */ (function () {
     };
     return Grid;
 }());
-/**
- * Merge default settings with user settings. The returned object is a new
- * object with merged values. The merging is a deep merge meaning that all
- * objects and arrays within the provided settings objects will be also merged
- * so that modifying the values of the settings object will have no effect on
- * the returned object.
- *
- * @param {Object} baseSettings
- * @param {Object} [overrides={}]
- * @returns {Object}
- */
-function createSettings(baseSettings, overrides) {
-    if (overrides === void 0) { overrides = {}; }
-    // Create a fresh copy of default settings.
-    var newSettings = mergeObjects({}, baseSettings);
-    // Merge user settings to default settings.
-    newSettings = mergeObjects(newSettings, overrides);
-    // Handle visible/hidden styles manually so that the whole object is
-    // overridden instead of the props.
-    if (overrides.visibleStyles) {
-        newSettings.visibleStyles = __assign({}, overrides.visibleStyles);
-    }
-    else if (baseSettings.visibleStyles) {
-        newSettings.visibleStyles = __assign({}, baseSettings.visibleStyles);
-    }
-    if (overrides.hiddenStyles) {
-        newSettings.hiddenStyles = __assign({}, overrides.hiddenStyles);
-    }
-    else if (baseSettings.hiddenStyles) {
-        newSettings.hiddenStyles = __assign({}, baseSettings.hiddenStyles);
-    }
-    return newSettings;
-}
-/**
- * Merge two objects recursively (deep merge). The source object's properties
- * are merged to the target object.
- *
- * @param {Object} target
- * @param {Object} source
- * @returns {Object}
- */
-function mergeObjects(target, source) {
-    var sourceKeys = Object.keys(source);
-    var length = sourceKeys.length;
-    var i = 0;
-    for (; i < length; i++) {
-        var propName = sourceKeys[i];
-        var isSourceObject = isPlainObject(source[propName]);
-        // If target and source values are both objects, merge the objects and
-        // assign the merged value to the target property.
-        if (isPlainObject(target[propName]) && isSourceObject) {
-            target[propName] = mergeObjects(mergeObjects({}, target[propName]), source[propName]);
-            continue;
-        }
-        // If source's value is object and target's is not let's clone the object as
-        // the target's value.
-        if (isSourceObject) {
-            target[propName] = mergeObjects({}, source[propName]);
-            continue;
-        }
-        // If source's value is an array let's clone the array as the target's
-        // value.
-        if (Array.isArray(source[propName])) {
-            target[propName] = source[propName].slice(0);
-            continue;
-        }
-        // In all other cases let's just directly assign the source's value as the
-        // target's value.
-        target[propName] = source[propName];
-    }
-    return target;
-}
-/**
- * Collect and return initial items for grid.
- *
- * @param {HTMLElement} gridElement
- * @param {(HTMLElement[]|NodeList|HtmlCollection|String)} elements
- * @returns {(HTMLElement[]|NodeList|HtmlCollection)}
- */
-function getInitialGridElements(gridElement, elements) {
-    // If we have a wildcard selector let's return all the children.
-    if (elements === '*') {
-        return gridElement.children;
-    }
-    // If we have some more specific selector, let's filter the elements.
-    if (typeof elements === 'string') {
-        var result = [];
-        var children = gridElement.children;
-        var i = 0;
-        for (; i < children.length; i++) {
-            if (elementMatches(children[i], elements)) {
-                result.push(children[i]);
-            }
-        }
-        return result;
-    }
-    // If we have an array of elements or a node list.
-    if (Array.isArray(elements) || isNodeListOrHTMLCollection(elements)) {
-        return elements;
-    }
-    // Otherwise just return an empty array.
-    return [];
-}
-/**
- * Bind grid's resize handler to window.
- *
- * @param {Grid} grid
- * @param {(number|boolean)} delay
- */
-function bindLayoutOnResize(grid, delay) {
-    if (typeof delay !== 'number') {
-        delay = delay === true ? 0 : -1;
-    }
-    if (delay >= 0) {
-        grid._resizeHandler = debounce(function () {
-            grid.refreshItems().layout();
-        }, delay);
-        window.addEventListener('resize', grid._resizeHandler);
-    }
-}
-/**
- * Unbind grid's resize handler from window.
- *
- * @param {Grid} grid
- */
-function unbindLayoutOnResize(grid) {
-    if (grid._resizeHandler) {
-        grid._resizeHandler(true);
-        window.removeEventListener('resize', grid._resizeHandler);
-        grid._resizeHandler = null;
-    }
-}
-/**
- * Normalize style declaration object, returns a normalized (new) styles object
- * (prefixed properties and invalid properties removed).
- *
- * @param {Object} styles
- * @returns {Object}
- */
-function normalizeStyles(styles) {
-    var normalized = {};
-    var docElemStyle = document.documentElement.style;
-    var prop;
-    var prefixedProp;
-    // Normalize visible styles (prefix and remove invalid).
-    for (prop in styles) {
-        if (!styles[prop])
-            continue;
-        prefixedProp = getPrefixedPropName(docElemStyle, prop);
-        if (!prefixedProp)
-            continue;
-        normalized[prefixedProp] = styles[prop];
-    }
-    return normalized;
-}
-/**
- * Create index map from items.
- *
- * @param {Item[]} items
- * @returns {Object}
- */
-function createIndexMap(items) {
-    var result = {};
-    var i = 0;
-    for (; i < items.length; i++) {
-        result[items[i]._id] = i;
-    }
-    return result;
-}
-/**
- * Sort comparer function for items' index map.
- *
- * @param {Object} indexMap
- * @param {Item} itemA
- * @param {Item} itemB
- * @returns {number}
- */
-function compareIndexMap(indexMap, itemA, itemB) {
-    var indexA = indexMap[itemA._id];
-    var indexB = indexMap[itemB._id];
-    return indexA - indexB;
-}
-/**
- * Check if the provided objects have same keys and and values.
- *
- * @param {Object} a
- * @param {Object} b
- * @returns {boolean}
- */
-function isEqualObjects(a, b) {
-    var key;
-    for (key in a) {
-        if (a[key] !== b[key])
-            return false;
-    }
-    return Object.keys(a).length === Object.keys(b).length;
-}
 
 export default Grid;

@@ -37,31 +37,31 @@ const _getClientRootPositionResult = { left: 0, top: 0 };
  * @param {boolean} [isActive]
  */
 class Item {
-  public _id: number;
-  public _gridId: number;
-  public _element: HTMLElement;
-  public _isActive: boolean;
-  public _isDestroyed: boolean;
-  public _left: number;
-  public _top: number;
-  public _width: number;
-  public _height: number;
-  public _marginLeft: number;
-  public _marginRight: number;
-  public _marginTop: number;
-  public _marginBottom: number;
-  public _translateX?: number;
-  public _translateY?: number;
-  public _containerDiffX: number;
-  public _containerDiffY: number;
-  public _sortData: { [key: string]: any } | null;
-  public _emitter: Emitter;
-  public _visibility: ItemVisibility;
-  public _layout: ItemLayout;
-  public _migrate: ItemMigrate;
-  public _drag: ItemDrag | null;
-  public _dragRelease: ItemDragRelease;
-  public _dragPlaceholder: ItemDragPlaceholder;
+  _id: number;
+  _gridId: number;
+  _element: HTMLElement;
+  _isActive: boolean;
+  _isDestroyed: boolean;
+  _left: number;
+  _top: number;
+  _width: number;
+  _height: number;
+  _marginLeft: number;
+  _marginRight: number;
+  _marginTop: number;
+  _marginBottom: number;
+  _translateX?: number;
+  _translateY?: number;
+  _containerDiffX: number;
+  _containerDiffY: number;
+  _sortData: { [key: string]: any } | null;
+  _emitter: Emitter;
+  _visibility: ItemVisibility;
+  _layout: ItemLayout;
+  _migrate: ItemMigrate;
+  _drag: ItemDrag | null;
+  _dragRelease: ItemDragRelease;
+  _dragPlaceholder: ItemDragPlaceholder;
 
   constructor(grid: Grid, element: HTMLElement, isActive?: boolean) {
     const settings = grid._settings;
@@ -141,18 +141,18 @@ class Item {
     // instance. They are deliberately not called in the end as it would cause
     // potentially a massive amount of reflows if multiple items were instantiated
     // in a loop.
-    // this._refreshDimensions();
-    // this._refreshSortData();
+    // this._updateDimensions();
+    // this._updateSortData();
   }
 
   /**
    * Get the instance grid reference.
    *
    * @public
-   * @returns {Grid}
+   * @returns {?Grid}
    */
-  public getGrid() {
-    return GRID_INSTANCES[this._gridId];
+  getGrid() {
+    return GRID_INSTANCES.get(this._gridId) || null;
   }
 
   /**
@@ -161,7 +161,7 @@ class Item {
    * @public
    * @returns {HTMLElement}
    */
-  public getElement() {
+  getElement() {
     return this._element;
   }
 
@@ -171,7 +171,7 @@ class Item {
    * @public
    * @returns {number}
    */
-  public getWidth() {
+  getWidth() {
     return this._width;
   }
 
@@ -181,7 +181,7 @@ class Item {
    * @public
    * @returns {number}
    */
-  public getHeight() {
+  getHeight() {
     return this._height;
   }
 
@@ -191,7 +191,7 @@ class Item {
    * @public
    * @returns {Object}
    */
-  public getMargin() {
+  getMargin() {
     return {
       left: this._marginLeft,
       right: this._marginRight,
@@ -206,7 +206,7 @@ class Item {
    * @public
    * @returns {Object}
    */
-  public getPosition() {
+  getPosition() {
     return {
       left: this._left,
       top: this._top,
@@ -219,7 +219,7 @@ class Item {
    * @public
    * @returns {boolean}
    */
-  public isActive() {
+  isActive() {
     return this._isActive;
   }
 
@@ -229,7 +229,7 @@ class Item {
    * @public
    * @returns {boolean}
    */
-  public isVisible() {
+  isVisible() {
     return !!this._visibility && !this._visibility._isHidden;
   }
 
@@ -239,7 +239,7 @@ class Item {
    * @public
    * @returns {boolean}
    */
-  public isShowing() {
+  isShowing() {
     return !!(this._visibility && this._visibility._isShowing);
   }
 
@@ -249,7 +249,7 @@ class Item {
    * @public
    * @returns {boolean}
    */
-  public isHiding() {
+  isHiding() {
     return !!(this._visibility && this._visibility._isHiding);
   }
 
@@ -259,7 +259,7 @@ class Item {
    * @public
    * @returns {boolean}
    */
-  public isPositioning() {
+  isPositioning() {
     return !!(this._layout && this._layout._isActive);
   }
 
@@ -269,7 +269,7 @@ class Item {
    * @public
    * @returns {boolean}
    */
-  public isDragging() {
+  isDragging() {
     return !!(this._drag && this._drag._isActive);
   }
 
@@ -279,7 +279,7 @@ class Item {
    * @public
    * @returns {boolean}
    */
-  public isReleasing() {
+  isReleasing() {
     return !!(this._dragRelease && this._dragRelease._isActive);
   }
 
@@ -289,7 +289,7 @@ class Item {
    * @public
    * @returns {boolean}
    */
-  public isDestroyed() {
+  isDestroyed() {
     return this._isDestroyed;
   }
 
@@ -299,7 +299,7 @@ class Item {
    * @private
    * @param {boolean} [force=false]
    */
-  public _refreshDimensions(force?: boolean) {
+  _updateDimensions(force?: boolean) {
     if (this._isDestroyed) return;
     if (force !== true && !this.isVisible() && !this.isHiding()) return;
 
@@ -326,11 +326,11 @@ class Item {
    *
    * @private
    */
-  public _refreshSortData() {
+  _updateSortData() {
     if (this._isDestroyed) return;
 
     this._sortData = {};
-    const getters = this.getGrid()._settings.sortData;
+    const getters = (this.getGrid() as Grid)._settings.sortData;
     if (getters) {
       let prop: string;
       for (prop in getters) {
@@ -346,7 +346,7 @@ class Item {
    * @param {number} [left=0]
    * @param {number} [top=0]
    */
-  public _addToLayout(left = 0, top = 0) {
+  _addToLayout(left = 0, top = 0) {
     if (this._isActive) return;
     this._isActive = true;
     this._left = left;
@@ -358,7 +358,7 @@ class Item {
    *
    * @private
    */
-  public _removeFromLayout() {
+  _removeFromLayout() {
     if (!this._isActive) return;
     this._isActive = false;
     this._left = 0;
@@ -373,7 +373,7 @@ class Item {
    * @param {number} top
    * @returns {boolean}
    */
-  public _canSkipLayout(left: number, top: number) {
+  _canSkipLayout(left: number, top: number) {
     return (
       this._left === left &&
       this._top === top &&
@@ -393,7 +393,7 @@ class Item {
    * @param {number} x
    * @param {number} y
    */
-  public _setTranslate(x: number, y: number) {
+  _setTranslate(x: number, y: number) {
     if (this._translateX === x && this._translateY === y) return;
     this._translateX = x;
     this._translateY = y;
@@ -408,7 +408,7 @@ class Item {
    * @private
    * @returns {Object}
    */
-  public _getTranslate() {
+  _getTranslate() {
     if (this._translateX === undefined || this._translateY === undefined) {
       const translate = getTranslate(this._element);
       _getTranslateResult.x = translate.x;
@@ -430,8 +430,8 @@ class Item {
    * @private
    * @returns {Object}
    */
-  public _getClientRootPosition() {
-    const grid = this.getGrid();
+  _getClientRootPosition() {
+    const grid = this.getGrid() as Grid;
     _getClientRootPositionResult.left = grid._left + grid._borderLeft - this._containerDiffX;
     _getClientRootPositionResult.top = grid._top + grid._borderTop - this._containerDiffY;
     return _getClientRootPositionResult;
@@ -447,7 +447,7 @@ class Item {
    * @param {number} [viewportThreshold=0]
    * @returns {boolean}
    */
-  public _isInViewport(x: number, y: number, viewportThreshold = 0) {
+  _isInViewport(x: number, y: number, viewportThreshold = 0) {
     const rootPosition = this._getClientRootPosition();
     return isInViewport(
       this._width,
@@ -464,11 +464,11 @@ class Item {
    * @private
    * @param {boolean} [removeElement=false]
    */
-  public _destroy(removeElement = false) {
+  _destroy(removeElement = false) {
     if (this._isDestroyed) return;
 
     const element = this._element;
-    const grid = this.getGrid();
+    const grid = this.getGrid() as Grid;
     const settings = grid._settings;
 
     // Destroy handlers.

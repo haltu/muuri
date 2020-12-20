@@ -23,10 +23,10 @@ import removeClass from '../utils/removeClass';
  * @param {Item} item
  */
 class ItemMigrate {
-  public _item: Item;
-  public _isActive: boolean;
-  public _isDestroyed: boolean;
-  public _container: HTMLElement | null;
+  _item: Item;
+  _isActive: boolean;
+  _isDestroyed: boolean;
+  _container: HTMLElement | null;
 
   constructor(item: Item) {
     this._item = item;
@@ -43,15 +43,14 @@ class ItemMigrate {
    * @param {(HTMLElement|Number|Item)} position
    * @param {HTMLElement} [container]
    */
-  public start(targetGrid: Grid, position: HTMLElement | number | Item, container?: HTMLElement) {
+  start(targetGrid: Grid, position: HTMLElement | number | Item, container?: HTMLElement) {
     if (this._isDestroyed) return;
 
-    const item = this._item;
-    const grid = item.getGrid();
     const targetElement = targetGrid._element;
+    if (!targetElement) return;
 
-    if (!grid || !targetElement) return;
-
+    const item = this._item;
+    const grid = item.getGrid() as Grid;
     const element = item._element;
     const isActive = item.isActive();
     const isVisible = item.isVisible();
@@ -182,7 +181,7 @@ class ItemMigrate {
     }
 
     // Update item's cached dimensions.
-    item._refreshDimensions();
+    item._updateDimensions();
 
     // Reset item's sort data.
     item._sortData = null;
@@ -236,11 +235,11 @@ class ItemMigrate {
    * @param {number} [top]
    *  - The element's current translateY value (optional).
    */
-  public stop(abort = false, left?: number, top?: number) {
+  stop(abort = false, left?: number, top?: number) {
     if (this._isDestroyed || !this._isActive) return;
 
     const item = this._item;
-    const gridElement = item.getGrid()?._element;
+    const gridElement = (item.getGrid() as Grid)._element;
 
     if (!gridElement) return;
 
@@ -271,7 +270,7 @@ class ItemMigrate {
    *
    * @public
    */
-  public destroy() {
+  destroy() {
     if (this._isDestroyed) return;
     this.stop(true);
     this._isDestroyed = true;

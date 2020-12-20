@@ -8,6 +8,7 @@ import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END, HAS_PASSIVE_EVENTS } 
 
 import { addReleaseScrollTick, cancelReleaseScrollTick } from '../ticker';
 
+import Grid from '../Grid/Grid';
 import Item from './Item';
 
 import addClass from '../utils/addClass';
@@ -26,10 +27,10 @@ const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: t
  * @param {Item} item
  */
 class ItemDragRelease {
-  public _item: Item;
-  public _isActive: boolean;
-  public _isDestroyed: boolean;
-  public _isPositioningStarted: boolean;
+  _item: Item;
+  _isActive: boolean;
+  _isDestroyed: boolean;
+  _isPositioningStarted: boolean;
 
   constructor(item: Item) {
     this._item = item;
@@ -44,14 +45,11 @@ class ItemDragRelease {
    *
    * @public
    */
-  public start() {
+  start() {
     if (this._isDestroyed || this._isActive) return;
 
     const item = this._item;
-    const grid = item.getGrid();
-
-    if (!grid) return;
-
+    const grid = item.getGrid() as Grid;
     const settings = grid._settings;
 
     this._isActive = true;
@@ -80,12 +78,12 @@ class ItemDragRelease {
    *  - Should the release be aborted? When true, the release end event won't be
    *    emitted. Set to true only when you need to abort the release process
    *    while the item is animating to it's position.
-   * @param {Number} [left]
+   * @param {number} [left]
    *  - The element's current translateX value (optional).
-   * @param {Number} [top]
+   * @param {number} [top]
    *  - The element's current translateY value (optional).
    */
-  public stop(abort = false, left?: number, top?: number) {
+  stop(abort = false, left?: number, top?: number) {
     if (this._isDestroyed || !this._isActive) return;
 
     const item = this._item;
@@ -98,10 +96,10 @@ class ItemDragRelease {
     const didReparent = this._placeToGrid(left, top);
     this._reset(didReparent);
 
-    if (!abort) item.getGrid()?._emit(EVENT_DRAG_RELEASE_END, item);
+    if (!abort) (item.getGrid() as Grid)._emit(EVENT_DRAG_RELEASE_END, item);
   }
 
-  public isJustReleased() {
+  isJustReleased() {
     return this._isActive && this._isPositioningStarted === false;
   }
 
@@ -110,7 +108,7 @@ class ItemDragRelease {
    *
    * @public
    */
-  public destroy() {
+  destroy() {
     if (this._isDestroyed) return;
     this.stop(true);
     this._isDestroyed = true;
@@ -128,14 +126,14 @@ class ItemDragRelease {
    * @returns {boolean}
    *   - Returns `true` if the element was reparented, `false` otherwise.
    */
-  public _placeToGrid(left?: number, top?: number) {
+  _placeToGrid(left?: number, top?: number) {
     let didReparent = false;
 
     if (this._isDestroyed) return didReparent;
 
     const item = this._item;
     const element = item._element;
-    const container = item.getGrid()?._element;
+    const container = (item.getGrid() as Grid)._element;
 
     if (container && element.parentNode !== container) {
       if (left === undefined || top === undefined) {
@@ -160,11 +158,11 @@ class ItemDragRelease {
    * @private
    * @param {Boolean} [needsReflow=false]
    */
-  public _reset(needsReflow = false) {
+  _reset(needsReflow = false) {
     if (this._isDestroyed) return;
 
     const item = this._item;
-    const releasingClass = item.getGrid()?._settings.itemReleasingClass;
+    const releasingClass = (item.getGrid() as Grid)._settings.itemReleasingClass;
 
     this._isActive = false;
     this._isPositioningStarted = false;
@@ -184,7 +182,7 @@ class ItemDragRelease {
   /**
    * @private
    */
-  public _onScroll() {
+  _onScroll() {
     if (this._isDestroyed || !this._isActive) return;
 
     const item = this._item;
@@ -197,7 +195,7 @@ class ItemDragRelease {
         if (!this._isActive) return;
 
         const itemContainer = item._element.parentNode as HTMLElement | null;
-        const gridContainer = item.getGrid()?._element;
+        const gridContainer = (item.getGrid() as Grid)._element;
         if (itemContainer && gridContainer) {
           const { left, top } = getOffsetDiff(itemContainer, gridContainer, true);
           diffX = left;

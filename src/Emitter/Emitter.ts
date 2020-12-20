@@ -12,10 +12,10 @@ export type EventListener = Function;
  * Event emitter.
  */
 export default class Emitter {
-  private _events: { [event: string]: EventListener[] } | null;
-  private _queue: EventListener[];
-  private _counter: number;
-  private _clearOnEmit: boolean;
+  _events: { [event: string]: EventListener[] } | null;
+  _queue: EventListener[];
+  _counter: number;
+  _clearOnEmit: boolean;
 
   constructor() {
     this._events = {};
@@ -27,7 +27,7 @@ export default class Emitter {
   /**
    * Bind an event listener.
    */
-  public on(event: EventName, listener: EventListener): this {
+  on(event: EventName, listener: EventListener): this {
     if (!this._events) return this;
 
     // Get listeners queue and create it if it does not exist.
@@ -43,7 +43,7 @@ export default class Emitter {
   /**
    * Unbind all event listeners that match the provided listener function.
    */
-  public off(event: EventName, listener: EventListener): this {
+  off(event: EventName, listener: EventListener): this {
     if (!this._events) return this;
 
     // Get listeners and return immediately if none is found.
@@ -62,7 +62,7 @@ export default class Emitter {
   /**
    * Unbind all listeners of the provided event.
    */
-  public clear(event: EventName): this {
+  clear(event: EventName): this {
     if (!this._events) return this;
 
     const listeners = this._events[event];
@@ -77,7 +77,7 @@ export default class Emitter {
   /**
    * Emit all listeners in a specified event with the provided arguments.
    */
-  public emit(event: EventName, ...args: any[]): this {
+  emit(event: EventName, ...args: any[]): this {
     if (!this._events) {
       this._clearOnEmit = false;
       return this;
@@ -135,7 +135,7 @@ export default class Emitter {
    * allows the emitter to serve as a queue where all listeners are called only
    * once.
    */
-  public burst(event: EventName, ...args: any[]): this {
+  burst(event: EventName, ...args: any[]): this {
     if (!this._events) return this;
     this._clearOnEmit = true;
     return this.emit(event, ...args);
@@ -144,7 +144,7 @@ export default class Emitter {
   /**
    * Check how many listeners there are for a specific event.
    */
-  public countListeners(event: EventName) {
+  countListeners(event: EventName) {
     if (!this._events) return 0;
     const listeners = this._events[event];
     return listeners ? listeners.length : 0;
@@ -153,7 +153,7 @@ export default class Emitter {
   /**
    * Destroy emitter instance. Basically just removes all bound listeners.
    */
-  public destroy(): this {
+  destroy(): this {
     if (!this._events) return this;
     this._queue.length = this._counter = 0;
     this._events = null;

@@ -227,9 +227,9 @@ function getTouchById(
  * dragger instances.
  */
 class DragProxy {
-  private _emitter: Emitter;
-  private _listenerOptions: ReturnType<typeof getListenerOptions>;
-  private _draggers: Set<Dragger>;
+  _emitter: Emitter;
+  _listenerOptions: ReturnType<typeof getListenerOptions>;
+  _draggers: Set<Dragger>;
 
   constructor(listenerType: ListenerType) {
     this._emitter = new Emitter();
@@ -240,7 +240,7 @@ class DragProxy {
     this._onEnd = this._onEnd.bind(this);
   }
 
-  private _activate() {
+  _activate() {
     window.addEventListener(SOURCE_EVENTS.move, this._onMove, this._listenerOptions);
     window.addEventListener(SOURCE_EVENTS.end, this._onEnd, this._listenerOptions);
     if (SOURCE_EVENTS.cancel) {
@@ -248,7 +248,7 @@ class DragProxy {
     }
   }
 
-  private _deactivate() {
+  _deactivate() {
     window.removeEventListener(SOURCE_EVENTS.move, this._onMove, this._listenerOptions);
     window.removeEventListener(SOURCE_EVENTS.end, this._onEnd, this._listenerOptions);
     if (SOURCE_EVENTS.cancel) {
@@ -256,23 +256,23 @@ class DragProxy {
     }
   }
 
-  private _onMove(e: PointerEvent | TouchEvent | MouseEvent) {
+  _onMove(e: PointerEvent | TouchEvent | MouseEvent) {
     this._emitter.emit(DRAGGER_EVENTS.move, e);
   }
 
-  private _onCancel(e: PointerEvent | TouchEvent | MouseEvent) {
+  _onCancel(e: PointerEvent | TouchEvent | MouseEvent) {
     this._emitter.emit(DRAGGER_EVENTS.cancel, e);
   }
 
-  private _onEnd(e: PointerEvent | TouchEvent | MouseEvent) {
+  _onEnd(e: PointerEvent | TouchEvent | MouseEvent) {
     this._emitter.emit(DRAGGER_EVENTS.end, e);
   }
 
-  public hasDragger(dragger: Dragger) {
+  hasDragger(dragger: Dragger) {
     return this._draggers.has(dragger);
   }
 
-  public addDragger(dragger: Dragger) {
+  addDragger(dragger: Dragger) {
     if (this._draggers.has(dragger)) return;
 
     this._draggers.add(dragger);
@@ -285,7 +285,7 @@ class DragProxy {
     }
   }
 
-  public removeDragger(dragger: Dragger) {
+  removeDragger(dragger: Dragger) {
     if (!this._draggers.has(dragger)) return;
 
     this._draggers.delete(dragger);
@@ -298,7 +298,7 @@ class DragProxy {
     }
   }
 
-  public destroy() {
+  destroy() {
     if (this._draggers.size) this._deactivate();
     this._draggers.clear();
     this._emitter.destroy();
@@ -312,19 +312,19 @@ if (HAS_PASSIVE_EVENTS) dragProxies.push(new DragProxy(2), new DragProxy(3));
  * Creates a new Dragger instance for an element.
  */
 export default class Dragger {
-  private _element: HTMLElement | null;
-  private _emitter: Emitter;
-  private _cssProps: { [key: string]: string };
-  private _touchAction: DraggerTouchAction;
-  private _listenerType: ListenerType;
-  private _isActive: boolean;
-  private _pointerId: number | null;
-  private _startTime: number;
-  private _startX: number;
-  private _startY: number;
-  private _currentX: number;
-  private _currentY: number;
-  private _edgeHack: EdgeHack | null;
+  _element: HTMLElement | null;
+  _emitter: Emitter;
+  _cssProps: { [key: string]: string };
+  _touchAction: DraggerTouchAction;
+  _listenerType: ListenerType;
+  _isActive: boolean;
+  _pointerId: number | null;
+  _startTime: number;
+  _startX: number;
+  _startY: number;
+  _currentX: number;
+  _currentY: number;
+  _edgeHack: EdgeHack | null;
 
   constructor(
     element: HTMLElement,
@@ -377,7 +377,7 @@ export default class Dragger {
   /**
    * Create a custom dragger event from a raw event.
    */
-  private _createEvent(
+  _createEvent(
     type: DraggerEventType,
     e: PointerEvent | TouchEvent | MouseEvent
   ): DraggerEvent | null {
@@ -409,7 +409,7 @@ export default class Dragger {
   /**
    * Emit a raw event as dragger event internally.
    */
-  private _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent) {
+  _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent) {
     this._emitter.emit(type, this._createEvent(type, e));
   }
 
@@ -421,7 +421,7 @@ export default class Dragger {
    * is a MouseEvent (or just any other event than PointerEvent or TouchEvent)
    * it will be returned immediately.
    */
-  public getTrackedTouch(
+  getTrackedTouch(
     e: PointerEvent | TouchEvent | MouseEvent
   ): PointerEvent | MouseEvent | Touch | null {
     if (this._pointerId === null) return null;
@@ -431,7 +431,7 @@ export default class Dragger {
   /**
    * Handler for start event.
    */
-  public onStart(e: PointerEvent | TouchEvent | MouseEvent) {
+  onStart(e: PointerEvent | TouchEvent | MouseEvent) {
     if (!this._element) return;
 
     // If pointer id is already assigned let's return early.
@@ -463,7 +463,7 @@ export default class Dragger {
   /**
    * Handler for move event.
    */
-  public onMove(e: PointerEvent | TouchEvent | MouseEvent) {
+  onMove(e: PointerEvent | TouchEvent | MouseEvent) {
     const touch = this.getTrackedTouch(e);
     if (!touch) return;
     this._currentX = touch.clientX;
@@ -474,7 +474,7 @@ export default class Dragger {
   /**
    * Handler for cancel event.
    */
-  public onCancel(e: PointerEvent | TouchEvent | MouseEvent) {
+  onCancel(e: PointerEvent | TouchEvent | MouseEvent) {
     if (!this.getTrackedTouch(e)) return;
     this._emit(DRAGGER_EVENTS.cancel, e);
     this.reset();
@@ -483,7 +483,7 @@ export default class Dragger {
   /**
    * Handler for end event.
    */
-  public onEnd(e: PointerEvent | TouchEvent | MouseEvent) {
+  onEnd(e: PointerEvent | TouchEvent | MouseEvent) {
     if (!this.getTrackedTouch(e)) return;
     this._emit(DRAGGER_EVENTS.end, e);
     this.reset();
@@ -492,14 +492,14 @@ export default class Dragger {
   /**
    * Check if the element is being dragged at the moment.
    */
-  public isActive() {
+  isActive() {
     return this._isActive;
   }
 
   /**
    * Set element's touch-action CSS property.
    */
-  public setTouchAction(value: DraggerTouchAction) {
+  setTouchAction(value: DraggerTouchAction) {
     if (!this._element || !value) return;
 
     // Store unmodified touch action value (we trust user input here).
@@ -533,7 +533,7 @@ export default class Dragger {
    * Update element's CSS properties. Accepts an object with camel cased style
    * props with value pairs as it's first argument.
    */
-  public setCssProps(newProps: DraggerCssPropsOptions) {
+  setCssProps(newProps: DraggerCssPropsOptions) {
     if (!this._element) return;
 
     const currentProps = this._cssProps;
@@ -572,7 +572,7 @@ export default class Dragger {
   /**
    * Update the instance's event listener options.
    */
-  public setListenerOptions(options: DraggerListenerOptions) {
+  setListenerOptions(options: DraggerListenerOptions) {
     if (!this._element) return;
 
     const { capture = true, passive = true } = options;
@@ -615,7 +615,7 @@ export default class Dragger {
    * How much the pointer has moved on x-axis from start position, in pixels.
    * Positive value indicates movement from left to right.
    */
-  public getDeltaX() {
+  getDeltaX() {
     return this._currentX - this._startX;
   }
 
@@ -623,14 +623,14 @@ export default class Dragger {
    * How much the pointer has moved on y-axis from start position, in pixels.
    * Positive value indicates movement from top to bottom.
    */
-  public getDeltaY() {
+  getDeltaY() {
     return this._currentY - this._startY;
   }
 
   /**
    * How far (in pixels) has pointer moved from start position.
    */
-  public getDistance() {
+  getDistance() {
     const x = this.getDeltaX();
     const y = this.getDeltaY();
     return Math.sqrt(x * x + y * y);
@@ -639,28 +639,28 @@ export default class Dragger {
   /**
    * How long has pointer been dragged.
    */
-  public getDeltaTime() {
+  getDeltaTime() {
     return this._startTime ? Date.now() - this._startTime : 0;
   }
 
   /**
    * Bind drag event listeners.
    */
-  public on<T extends keyof DraggerEvents>(event: T, listener: DraggerEvents[T]): void {
+  on<T extends keyof DraggerEvents>(event: T, listener: DraggerEvents[T]): void {
     this._emitter.on(event, listener);
   }
 
   /**
    * Unbind drag event listeners.
    */
-  public off<T extends keyof DraggerEvents>(event: T, listener: DraggerEvents[T]): void {
+  off<T extends keyof DraggerEvents>(event: T, listener: DraggerEvents[T]): void {
     this._emitter.off(event, listener);
   }
 
   /**
    * Reset current drag operation (if any).
    */
-  public reset() {
+  reset() {
     this._pointerId = null;
     this._startTime = 0;
     this._startX = 0;
@@ -676,7 +676,7 @@ export default class Dragger {
   /**
    * Destroy the instance and unbind all drag event listeners.
    */
-  public destroy() {
+  destroy() {
     const element = this._element;
     if (!element) return;
 

@@ -5,6 +5,7 @@
  */
 
 import getUnprefixedPropName from '../utils/getUnprefixedPropName';
+import isFunction from '../utils/isFunction';
 import isNative from '../utils/isNative';
 import setStyles from '../utils/setStyles';
 
@@ -18,7 +19,7 @@ export interface AnimationOptions {
   onFinish?: Function;
 }
 
-const HAS_WEB_ANIMATIONS = typeof Element.prototype.animate === 'function';
+const HAS_WEB_ANIMATIONS = isFunction(Element.prototype.animate);
 const HAS_NATIVE_WEB_ANIMATIONS = isNative(Element.prototype.animate);
 
 function createKeyframe(props: AnimationProperties, prefix: boolean) {
@@ -34,9 +35,9 @@ function createKeyframe(props: AnimationProperties, prefix: boolean) {
  * Item animation handler powered by Web Animations API.
  */
 export default class Animator {
-  public element: HTMLElement | null;
-  public animation: Animation | null;
-  private _finishCallback: Function | null;
+  element: HTMLElement | null;
+  animation: Animation | null;
+  _finishCallback: Function | null;
 
   constructor(element?: HTMLElement) {
     this.element = element || null;
@@ -48,7 +49,7 @@ export default class Animator {
   /**
    * Animation end handler.
    */
-  private _onFinish() {
+  _onFinish() {
     const { _finishCallback } = this;
     this.animation = this._finishCallback = null;
     _finishCallback && _finishCallback();
@@ -58,11 +59,7 @@ export default class Animator {
    * Start instance's animation. Automatically stops current animation if it is
    * running.
    */
-  public start(
-    propsFrom: AnimationProperties,
-    propsTo: AnimationProperties,
-    options?: AnimationOptions
-  ) {
+  start(propsFrom: AnimationProperties, propsTo: AnimationProperties, options?: AnimationOptions) {
     if (!this.element) return;
 
     const { element } = this;
@@ -71,7 +68,7 @@ export default class Animator {
     // If we don't have web animations available let's not animate.
     if (!HAS_WEB_ANIMATIONS) {
       setStyles(element, propsTo);
-      this._finishCallback = typeof onFinish === 'function' ? onFinish : null;
+      this._finishCallback = isFunction(onFinish) ? onFinish : null;
       this._onFinish();
       return;
     }
@@ -94,7 +91,7 @@ export default class Animator {
     );
 
     // Set animation finish callback.
-    this._finishCallback = typeof onFinish === 'function' ? onFinish : null;
+    this._finishCallback = isFunction(onFinish) ? onFinish : null;
     this.animation.onfinish = this._onFinish;
 
     // Set the end styles. This makes sure that the element stays at the end
@@ -105,7 +102,7 @@ export default class Animator {
   /**
    * Stop instance's current animation if running.
    */
-  public stop() {
+  stop() {
     if (!this.element || !this.animation) return;
     this.animation.cancel();
     this.animation = this._finishCallback = null;
@@ -114,14 +111,14 @@ export default class Animator {
   /**
    * Check if the instance is animating.
    */
-  public isAnimating() {
+  isAnimating() {
     return !!this.animation;
   }
 
   /**
    * Destroy the instance and stop current animation if it is running.
    */
-  public destroy() {
+  destroy() {
     if (!this.element) return;
     this.stop();
     this.element = null;

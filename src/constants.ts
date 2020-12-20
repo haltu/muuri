@@ -7,11 +7,12 @@
 import Grid from './Grid/Grid';
 import Item from './Item/Item';
 
-export const GRID_INSTANCES: { [gridId: number]: Grid } = {};
+export const GRID_INSTANCES: Map<number, Grid> = new Map();
 export const ITEM_ELEMENT_MAP: Map<HTMLElement, Item> = new Map();
 
 export const ACTION_SWAP = 'swap';
 export const ACTION_MOVE = 'move';
+export const INSTANT_LAYOUT = 'instant';
 
 export const EVENT_SYNCHRONIZE = 'synchronize';
 export const EVENT_LAYOUT_START = 'layoutStart';

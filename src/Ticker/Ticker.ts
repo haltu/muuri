@@ -14,9 +14,9 @@ export type TickCallback = (time: number) => any;
  * A lane for ticker.
  */
 class TickerLane {
-  private _queue: (TickId | undefined)[];
-  private _indices: Map<TickId, number>;
-  private _callbacks: Map<TickId, TickCallback>;
+  _queue: (TickId | undefined)[];
+  _indices: Map<TickId, number>;
+  _callbacks: Map<TickId, TickCallback>;
 
   constructor() {
     this._queue = [];
@@ -24,7 +24,7 @@ class TickerLane {
     this._callbacks = new Map();
   }
 
-  public add(id: TickId, callback: TickCallback) {
+  add(id: TickId, callback: TickCallback) {
     const { _queue, _indices, _callbacks } = this;
     const index = _indices.get(id);
     if (index !== undefined) _queue[index] = undefined;
@@ -33,7 +33,7 @@ class TickerLane {
     _indices.set(id, _queue.length - 1);
   }
 
-  public remove(id: TickId) {
+  remove(id: TickId) {
     const { _queue, _indices, _callbacks } = this;
     const index = _indices.get(id);
     if (index === undefined) return;
@@ -42,7 +42,7 @@ class TickerLane {
     _indices.delete(id);
   }
 
-  public flush(targetQueue: TickId[], targetCallbacks: Map<TickId, TickCallback>) {
+  flush(targetQueue: TickId[], targetCallbacks: Map<TickId, TickCallback>) {
     const { _queue, _callbacks, _indices } = this;
     let id: undefined | string;
 
@@ -64,10 +64,10 @@ class TickerLane {
  * A ticker system for handling DOM reads and writes in an efficient way.
  */
 export default class Ticker {
-  private _nextStep: number | null;
-  private _lanes: TickerLane[];
-  private _stepQueue: TickId[];
-  private _stepCallbacks: Map<TickId, TickCallback>;
+  _nextStep: number | null;
+  _lanes: TickerLane[];
+  _stepQueue: TickId[];
+  _stepCallbacks: Map<TickId, TickCallback>;
 
   constructor(numLanes = 1) {
     this._nextStep = null;
@@ -83,7 +83,7 @@ export default class Ticker {
     }
   }
 
-  private _step(time: number) {
+  _step(time: number) {
     const { _lanes, _stepQueue, _stepCallbacks } = this;
     let i = 0;
 
@@ -101,7 +101,7 @@ export default class Ticker {
     _stepCallbacks.clear();
   }
 
-  public add(laneIndex: number, id: string, callback: TickCallback) {
+  add(laneIndex: number, id: string, callback: TickCallback) {
     const lane = this._lanes[laneIndex];
     if (lane) {
       lane.add(id, callback);
@@ -109,7 +109,7 @@ export default class Ticker {
     }
   }
 
-  public remove(laneIndex: number, id: string) {
+  remove(laneIndex: number, id: string) {
     const lane = this._lanes[laneIndex];
     if (lane) lane.remove(id);
   }

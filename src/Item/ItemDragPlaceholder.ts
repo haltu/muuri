@@ -25,6 +25,7 @@ import Animator from '../Animator/Animator';
 import addClass from '../utils/addClass';
 import getTranslateString from '../utils/getTranslateString';
 import getTranslate from '../utils/getTranslate';
+import isFunction from '../utils/isFunction';
 import setStyles from '../utils/setStyles';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
@@ -41,18 +42,18 @@ const TARGET_STYLES: StyleDeclaration = {};
  * @param {Item} item
  */
 class ItemDragPlaceholder {
-  public _item: Item;
-  public _animation: Animator;
-  public _element: HTMLElement | null;
-  public _className: string;
-  public _didMigrate: boolean;
-  public _resetAfterLayout: boolean;
-  public _left: number;
-  public _top: number;
-  public _transX: number;
-  public _transY: number;
-  public _nextTransX: number;
-  public _nextTransY: number;
+  _item: Item;
+  _animation: Animator;
+  _element: HTMLElement | null;
+  _className: string;
+  _didMigrate: boolean;
+  _resetAfterLayout: boolean;
+  _left: number;
+  _top: number;
+  _transX: number;
+  _transY: number;
+  _nextTransX: number;
+  _nextTransY: number;
 
   constructor(item: Item) {
     this._item = item;
@@ -86,7 +87,7 @@ class ItemDragPlaceholder {
    *
    * @private
    */
-  public _updateDimensions() {
+  _updateDimensions() {
     if (!this._element) return;
 
     setStyles(this._element, {
@@ -102,7 +103,7 @@ class ItemDragPlaceholder {
    * @param {Item[]} items
    * @param {boolean} isInstant
    */
-  public _onLayoutStart(items: Item[], isInstant: boolean) {
+  _onLayoutStart(items: Item[], isInstant: boolean) {
     if (!this._element) return;
 
     const item = this._item;
@@ -174,7 +175,7 @@ class ItemDragPlaceholder {
    *
    * @private
    */
-  public _setupAnimation() {
+  _setupAnimation() {
     if (!this._element) return;
 
     const { x, y } = getTranslate(this._element);
@@ -187,7 +188,7 @@ class ItemDragPlaceholder {
    *
    * @private
    */
-  public _startAnimation() {
+  _startAnimation() {
     if (!this._element) return;
 
     const animation = this._animation;
@@ -222,7 +223,7 @@ class ItemDragPlaceholder {
    *
    * @private
    */
-  public _onLayoutEnd() {
+  _onLayoutEnd() {
     if (this._resetAfterLayout) {
       this.reset();
     }
@@ -235,7 +236,7 @@ class ItemDragPlaceholder {
    * @private
    * @param {Item} item
    */
-  public _onReleaseEnd(item: Item) {
+  _onReleaseEnd(item: Item) {
     if (item._id === this._item._id) {
       // If the placeholder is not animating anymore we can safely reset it.
       if (!this._animation.isAnimating()) {
@@ -261,7 +262,7 @@ class ItemDragPlaceholder {
    * @param {Grid} data.toGrid
    * @param {number} data.toIndex
    */
-  public _onMigrate(data: {
+  _onMigrate(data: {
     item: Item;
     fromGrid: Grid;
     fromIndex: number;
@@ -295,7 +296,7 @@ class ItemDragPlaceholder {
    * @private
    * @param {Item[]} items
    */
-  public _onHide(items: Item[]) {
+  _onHide(items: Item[]) {
     if (items.indexOf(this._item) > -1) this.reset();
   }
 
@@ -306,7 +307,7 @@ class ItemDragPlaceholder {
    *
    * @public
    */
-  public create() {
+  create() {
     // If we already have placeholder set up we can skip the initiation logic.
     if (this._element) {
       this._resetAfterLayout = false;
@@ -322,7 +323,7 @@ class ItemDragPlaceholder {
     this._top = item._top;
 
     // Create placeholder element.
-    if (typeof settings.dragPlaceholder.createElement === 'function') {
+    if (isFunction(settings.dragPlaceholder.createElement)) {
       this._element = settings.dragPlaceholder.createElement(item);
     } else {
       this._element = document.createElement('div');
@@ -360,7 +361,7 @@ class ItemDragPlaceholder {
     grid.on(EVENT_HIDE_START, this._onHide);
 
     // onCreate hook.
-    if (typeof settings.dragPlaceholder.onCreate === 'function') {
+    if (isFunction(settings.dragPlaceholder.onCreate)) {
       settings.dragPlaceholder.onCreate(item, element);
     }
 
@@ -373,7 +374,7 @@ class ItemDragPlaceholder {
    *
    * @public
    */
-  public reset() {
+  reset() {
     if (!this._element) return;
 
     const element = this._element;
@@ -412,9 +413,7 @@ class ItemDragPlaceholder {
     // so if the item has migrated during drag the onRemove method will not be
     // the originating grid's method.
     const { onRemove } = grid._settings.dragPlaceholder;
-    if (typeof onRemove === 'function') {
-      onRemove(item, element);
-    }
+    if (isFunction(onRemove)) onRemove(item, element);
   }
 
   /**
@@ -423,7 +422,7 @@ class ItemDragPlaceholder {
    * @public
    * @returns {Boolean}
    */
-  public isActive() {
+  isActive() {
     return !!this._element;
   }
 
@@ -433,7 +432,7 @@ class ItemDragPlaceholder {
    * @public
    * @returns {?HTMLElement}
    */
-  public getElement() {
+  getElement() {
     return this._element;
   }
 
@@ -444,7 +443,7 @@ class ItemDragPlaceholder {
    *
    * @public
    */
-  public updateDimensions() {
+  updateDimensions() {
     if (!this.isActive()) return;
     addPlaceholderResizeTick(this._item._id, this._updateDimensions);
   }
@@ -455,7 +454,7 @@ class ItemDragPlaceholder {
    * @public
    * @param {string} className
    */
-  public updateClassName(className: string) {
+  updateClassName(className: string) {
     if (!this._element) return;
     removeClass(this._element, this._className);
     this._className = className;
@@ -467,7 +466,7 @@ class ItemDragPlaceholder {
    *
    * @public
    */
-  public destroy() {
+  destroy() {
     this.reset();
     this._animation && this._animation.destroy();
   }

@@ -8,6 +8,7 @@ import { VIEWPORT_THRESHOLD } from '../constants';
 
 import { addLayoutTick, cancelLayoutTick } from '../ticker';
 
+import Grid from '../Grid/Grid';
 import Item from './Item';
 import Animator, { AnimationOptions } from '../Animator/Animator';
 
@@ -36,17 +37,17 @@ const ANIM_OPTIONS: AnimationOptions = {
  * @param {Item} item
  */
 class ItemLayout {
-  public _item: Item;
-  public _isActive: boolean;
-  public _isDestroyed: boolean;
-  public _isInterrupted: boolean;
-  public _skipNextAnimation: boolean;
-  public _easing: string;
-  public _duration: number;
-  public _tX: number;
-  public _tY: number;
-  public _animation: Animator;
-  public _queue: string;
+  _item: Item;
+  _isActive: boolean;
+  _isDestroyed: boolean;
+  _isInterrupted: boolean;
+  _skipNextAnimation: boolean;
+  _easing: string;
+  _duration: number;
+  _tX: number;
+  _tY: number;
+  _animation: Animator;
+  _queue: string;
 
   constructor(item: Item) {
     this._item = item;
@@ -80,14 +81,11 @@ class ItemLayout {
    * @param {boolean} instant
    * @param {Function} [onFinish]
    */
-  public start(instant: boolean, onFinish?: () => void) {
+  start(instant: boolean, onFinish?: () => void) {
     if (this._isDestroyed) return;
 
     const item = this._item;
-    const grid = item.getGrid();
-
-    if (!grid) return;
-
+    const grid = item.getGrid() as Grid;
     const release = item._dragRelease;
     const gridSettings = grid._settings;
     const isPositioning = this._isActive;
@@ -149,7 +147,7 @@ class ItemLayout {
    * @param {number} [left]
    * @param {number} [top]
    */
-  public stop(processCallbackQueue: boolean, left?: number, top?: number) {
+  stop(processCallbackQueue: boolean, left?: number, top?: number) {
     if (this._isDestroyed || !this._isActive) return;
 
     const item = this._item;
@@ -169,7 +167,7 @@ class ItemLayout {
     }
 
     // Remove positioning class.
-    removeClass(item._element, item.getGrid()?._settings.itemPositioningClass || '');
+    removeClass(item._element, (item.getGrid() as Grid)._settings.itemPositioningClass || '');
 
     // Reset active state.
     this._isActive = false;
@@ -185,7 +183,7 @@ class ItemLayout {
    *
    * @public
    */
-  public destroy() {
+  destroy() {
     if (this._isDestroyed) return;
 
     this.stop(true, 0, 0);
@@ -205,7 +203,7 @@ class ItemLayout {
    *
    * @private
    */
-  public _finish() {
+  _finish() {
     if (this._isDestroyed) return;
 
     const item = this._item;
@@ -217,7 +215,7 @@ class ItemLayout {
     // Mark the item as inactive and remove positioning classes.
     if (this._isActive) {
       this._isActive = false;
-      removeClass(item._element, item.getGrid()?._settings.itemPositioningClass || '');
+      removeClass(item._element, (item.getGrid() as Grid)._settings.itemPositioningClass || '');
     }
 
     // Finish up release and migration.
@@ -233,7 +231,7 @@ class ItemLayout {
    *
    * @private
    */
-  public _setupAnimation() {
+  _setupAnimation() {
     if (this._isDestroyed || !this._isActive) return;
 
     const item = this._item;
@@ -242,8 +240,8 @@ class ItemLayout {
     this._tX = x;
     this._tY = y;
 
-    const grid = item.getGrid();
-    if (grid && grid._settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
+    const grid = item.getGrid() as Grid;
+    if (grid._settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
       grid._itemLayoutNeedsDimensionRefresh = false;
       grid._updateBoundingRect();
       grid._updateBorders(true, false, true, false);
@@ -255,14 +253,11 @@ class ItemLayout {
    *
    * @private
    */
-  public _startAnimation() {
+  _startAnimation() {
     if (this._isDestroyed || !this._isActive) return;
 
     const item = this._item;
-    const grid = item.getGrid();
-
-    if (!grid) return;
-
+    const grid = item.getGrid() as Grid;
     const settings = grid._settings;
     const isInstant = this._duration <= 0;
 

@@ -1,4 +1,5 @@
 const typescript = require('@rollup/plugin-typescript');
+const dts = require('rollup-plugin-dts').default;
 const pkg = require('./package.json');
 
 const banner = `/**
@@ -32,21 +33,28 @@ const stripBanner = {
   },
 };
 
-module.exports = {
-  input: 'src/index.ts',
-  output: [
-    {
-      name: 'Muuri',
-      file: pkg.main,
-      format: 'umd',
-      banner: banner,
-    },
-    {
-      name: 'Muuri',
-      file: pkg.module,
-      format: 'es',
-      banner: banner,
-    },
-  ],
-  plugins: [stripBanner, typescript()],
-};
+module.exports = [
+  {
+    input: 'src/index.ts',
+    output: [
+      {
+        name: 'Muuri',
+        file: pkg.main,
+        format: 'umd',
+        banner: banner,
+      },
+      {
+        name: 'Muuri',
+        file: pkg.module,
+        format: 'es',
+        banner: banner,
+      },
+    ],
+    plugins: [stripBanner, typescript()],
+  },
+  {
+    input: 'src/index.ts',
+    output: [{ file: 'dist/muuri.d.ts', format: 'es' }],
+    plugins: [dts()],
+  },
+];

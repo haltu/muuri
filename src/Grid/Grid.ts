@@ -7,6 +7,7 @@
 import {
   ACTION_MOVE,
   ACTION_SWAP,
+  INSTANT_LAYOUT,
   EVENT_SYNCHRONIZE,
   EVENT_LAYOUT_START,
   EVENT_LAYOUT_ABORT,
@@ -36,7 +37,14 @@ import ItemVisibility from '../Item/ItemVisibility';
 import Emitter, { EventName } from '../Emitter/Emitter';
 import Animator from '../Animator/Animator';
 import Packer from '../Packer/Packer';
-import Dragger from '../Dragger/Dragger';
+import Dragger, {
+  DraggerCssPropsOptions,
+  DraggerListenerOptions,
+  DraggerStartEvent,
+  DraggerMoveEvent,
+  DraggerEndEvent,
+  DraggerCancelEvent,
+} from '../Dragger/Dragger';
 import AutoScroller from '../AutoScroller/AutoScroller';
 
 import addClass from '../utils/addClass';
@@ -56,100 +64,575 @@ import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 import toArray from '../utils/toArray';
 
-import {
-  GridInitOptions,
-  GridOptions,
-  GridSettings,
-  GridEvents,
-  LayoutOnFinish,
-  LayoutFunctionCancel,
-  StyleDeclaration,
-  LayoutData,
-} from '../types';
+import { StyleDeclaration, ScrollEvent } from '../types';
 
-const INSTANT_LAYOUT = 'instant';
+export type InstantLayout = typeof INSTANT_LAYOUT;
+
+export type MoveAction = typeof ACTION_MOVE | typeof ACTION_SWAP;
+
+export interface GridEvents {
+  synchronize(): any;
+  layoutStart(items: Item[], isInstant: boolean): any;
+  layoutEnd(items: Item[]): any;
+  layoutAbort(items: Item[]): any;
+  add(items: Item[]): any;
+  remove(items: Item[], indices: number[]): any;
+  showStart(items: Item[]): any;
+  showEnd(items: Item[]): any;
+  hideStart(items: Item[]): any;
+  hideEnd(items: Item[]): any;
+  filter(shownItems: Item[], hiddenItems: Item[]): any;
+  sort(currentOrder: Item[], previousOrder: Item[]): any;
+  move(data: { item: Item; fromIndex: number; toIndex: number; action: MoveAction }): any;
+  send(data: { item: Item; fromGrid: Grid; fromIndex: number; toGrid: Grid; toIndex: number }): any;
+  beforeSend(data: {
+    item: Item;
+    fromGrid: Grid;
+    fromIndex: number;
+    toGrid: Grid;
+    toIndex: number;
+  }): any;
+  receive(data: {
+    item: Item;
+    fromGrid: Grid;
+    fromIndex: number;
+    toGrid: Grid;
+    toIndex: number;
+  }): any;
+  beforeReceive(data: {
+    item: Item;
+    fromGrid: Grid;
+    fromIndex: number;
+    toGrid: Grid;
+    toIndex: number;
+  }): any;
+  dragInit(item: Item, event: DraggerStartEvent | DraggerMoveEvent): any;
+  dragStart(item: Item, event: DraggerStartEvent | DraggerMoveEvent): any;
+  dragMove(item: Item, event: DraggerMoveEvent): any;
+  dragScroll(item: Item, event: ScrollEvent): any;
+  dragEnd(item: Item, event: DraggerEndEvent | DraggerCancelEvent): any;
+  dragReleaseStart(item: Item): any;
+  dragReleaseEnd(item: Item): any;
+  destroy(): any;
+}
+
+export interface LayoutOptions {
+  fillGaps?: boolean;
+  horizontal?: boolean;
+  alignRight?: boolean;
+  alignBottom?: boolean;
+  rounding?: boolean;
+}
+
+export interface LayoutData {
+  id: number;
+  items: Item[];
+  slots: number[] | Float32Array;
+  styles?: StyleDeclaration | null;
+  [key: string]: any;
+}
+
+export type LayoutOnFinish = (items: Item[], isAborted: boolean) => any;
+
+export type LayoutCallback = (layout: LayoutData) => any;
+
+export type LayoutCancel = (...args: any[]) => any;
+
+export type LayoutFunction = (
+  grid: Grid,
+  id: number,
+  items: Item[],
+  gridWidth: number,
+  gridHeight: number,
+  callback: LayoutCallback
+) => void | undefined | LayoutCancel;
+
+export type DragStartPredicate = (
+  item: Item,
+  event: DraggerStartEvent | DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent
+) => boolean | undefined;
+
+export interface DragStartPredicateOptions {
+  distance?: number;
+  delay?: number;
+}
+
+export type DragSortGetter = (this: Grid, item: Item) => Grid[] | null | void | undefined;
+
+export interface DragSortHeuristicsOptions {
+  sortInterval?: number;
+  minDragDistance?: number;
+  minBounceBackAngle?: number;
+}
+
+export type DragSortPredicateResult = {
+  grid: Grid;
+  index: number;
+  action: MoveAction;
+} | null;
+
+export type DragSortPredicate = (
+  item: Item,
+  event: DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent
+) => DragSortPredicateResult;
+
+export interface DragSortPredicateOptions {
+  threshold?: number;
+  action?: MoveAction;
+  migrateAction?: MoveAction;
+}
+
+export interface DragReleaseOptions {
+  duration?: number;
+  easing?: string;
+  useDragContainer?: boolean;
+}
+
+export interface DragPlaceholderOptions {
+  enabled?: boolean;
+  createElement?: ((item: Item) => HTMLElement) | null;
+  onCreate?: ((item: Item, placeholderElement: HTMLElement) => any) | null;
+  onRemove?: ((item: Item, placeholderElement: HTMLElement) => any) | null;
+}
+
+export interface DragAutoScrollTarget {
+  element: Window | HTMLElement;
+  axis?: number;
+  priority?: number;
+  threshold?: number;
+}
+
+export type DragAutoScrollTargets = Array<Window | HTMLElement | DragAutoScrollTarget>;
+
+export type DragAutoScrollTargetsGetter = (item: Item) => DragAutoScrollTargets;
+
+export type DragAutoScrollOnStart = (
+  item: Item,
+  scrollElement: Window | HTMLElement,
+  scrollDirection: number
+) => any;
+
+export type DragAutoScrollOnStop = (
+  item: Item,
+  scrollElement: Window | HTMLElement,
+  scrollDirection: number
+) => any;
+
+export type DragAutoScrollHandle = (
+  item: Item,
+  itemClientX: number,
+  itemClientY: number,
+  itemWidth: number,
+  itemHeight: number,
+  pointerClientX: number,
+  pointerClientY: number
+) => {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+export type DragAutoScrollSpeed = (
+  item: Item,
+  scrollElement: Window | HTMLElement,
+  scrollData: {
+    direction: number;
+    threshold: number;
+    distance: number;
+    value: number;
+    maxValue: number;
+    duration: number;
+    speed: number;
+    deltaTime: number;
+    isEnding: boolean;
+  }
+) => number;
+
+export interface DragAutoScrollOptions {
+  targets?: DragAutoScrollTargets | DragAutoScrollTargetsGetter;
+  handle?: DragAutoScrollHandle | null;
+  threshold?: number;
+  safeZone?: number;
+  speed?: number | DragAutoScrollSpeed;
+  sortDuringScroll?: boolean;
+  smoothStop?: boolean;
+  onStart?: DragAutoScrollOnStart | null;
+  onStop?: DragAutoScrollOnStop | null;
+}
+
+export interface GridSettings {
+  items: HTMLElement[] | NodeList | HTMLCollection | string;
+  layoutOnInit: boolean;
+  showDuration: number;
+  showEasing: string;
+  visibleStyles: StyleDeclaration;
+  hideDuration: number;
+  hideEasing: string;
+  hiddenStyles: StyleDeclaration;
+  layout: Required<LayoutOptions> | LayoutFunction;
+  layoutOnResize: boolean | number;
+  layoutDuration: number;
+  layoutEasing: string;
+  sortData: { [key: string]: (item: Item, element: HTMLElement) => any } | null;
+  dragEnabled: boolean;
+  dragHandle: string | null;
+  dragContainer: HTMLElement | null;
+  dragStartPredicate: Required<DragStartPredicateOptions> | DragStartPredicate;
+  dragAxis: 'x' | 'y' | 'xy';
+  dragSort: boolean | DragSortGetter;
+  dragSortHeuristics: Required<DragSortHeuristicsOptions>;
+  dragSortPredicate: Required<DragSortPredicateOptions> | DragSortPredicate;
+  dragRelease: Required<DragReleaseOptions>;
+  dragCssProps: Required<DraggerCssPropsOptions>;
+  dragEventListenerOptions: Required<DraggerListenerOptions>;
+  dragPlaceholder: Required<DragPlaceholderOptions>;
+  dragAutoScroll: Required<DragAutoScrollOptions>;
+  containerClass: string;
+  itemClass: string;
+  itemVisibleClass: string;
+  itemHiddenClass: string;
+  itemPositioningClass: string;
+  itemDraggingClass: string;
+  itemReleasingClass: string;
+  itemPlaceholderClass: string;
+  _animationWindowing: boolean;
+}
+
+export interface GridInitOptions extends Partial<GridSettings> {}
+
+export interface GridOptions
+  extends Partial<
+    Omit<
+      GridSettings,
+      | 'items'
+      | 'layoutOnInit'
+      | 'layout'
+      | 'dragStartPredicate'
+      | 'dragSortHeuristics'
+      | 'dragSortPredicate'
+      | 'dragRelease'
+      | 'dragCssProps'
+      | 'dragEventListenerOptions'
+      | 'dragPlaceholder'
+      | 'dragAutoScroll'
+    >
+  > {
+  layout?: LayoutOptions | LayoutFunction;
+  dragStartPredicate?: DragStartPredicateOptions | DragStartPredicate;
+  dragSortHeuristics?: DragSortHeuristicsOptions;
+  dragSortPredicate?: DragSortPredicateOptions | DragSortPredicate;
+  dragRelease?: DragReleaseOptions;
+  dragCssProps?: DraggerCssPropsOptions;
+  dragEventListenerOptions?: DraggerListenerOptions;
+  dragPlaceholder?: DragPlaceholderOptions;
+  dragAutoScroll?: DragAutoScrollOptions;
+}
+
 let layoutId = 0;
+
+/**
+ * Merge default settings with user settings. The returned object is a new
+ * object with merged values. The merging is a deep merge meaning that all
+ * objects and arrays within the provided settings objects will be also merged
+ * so that modifying the values of the settings object will have no effect on
+ * the returned object.
+ *
+ * @param {Object} baseSettings
+ * @param {Object} [overrides={}]
+ * @returns {Object}
+ */
+function createSettings(
+  baseSettings: GridSettings,
+  overrides: GridSettings | GridInitOptions | GridOptions = {}
+) {
+  // Create a fresh copy of default settings.
+  let newSettings = mergeObjects({} as GridSettings, baseSettings) as GridSettings;
+
+  // Merge user settings to default settings.
+  newSettings = mergeObjects(newSettings, overrides) as GridSettings;
+
+  // Handle visible/hidden styles manually so that the whole object is
+  // overridden instead of the props.
+  if (overrides.visibleStyles) {
+    newSettings.visibleStyles = { ...overrides.visibleStyles };
+  } else if (baseSettings.visibleStyles) {
+    newSettings.visibleStyles = { ...baseSettings.visibleStyles };
+  }
+  if (overrides.hiddenStyles) {
+    newSettings.hiddenStyles = { ...overrides.hiddenStyles };
+  } else if (baseSettings.hiddenStyles) {
+    newSettings.hiddenStyles = { ...baseSettings.hiddenStyles };
+  }
+
+  return newSettings;
+}
+
+/**
+ * Merge two objects recursively (deep merge). The source object's properties
+ * are merged to the target object.
+ *
+ * @param {Object} target
+ * @param {Object} source
+ * @returns {Object}
+ */
+function mergeObjects(target: { [key: string]: any }, source: { [key: string]: any }) {
+  const sourceKeys = Object.keys(source);
+  const length = sourceKeys.length;
+  let i = 0;
+
+  for (; i < length; i++) {
+    const propName = sourceKeys[i];
+    const isSourceObject = isPlainObject(source[propName]);
+
+    // If target and source values are both objects, merge the objects and
+    // assign the merged value to the target property.
+    if (isPlainObject(target[propName]) && isSourceObject) {
+      target[propName] = mergeObjects(mergeObjects({}, target[propName]), source[propName]);
+      continue;
+    }
+
+    // If source's value is object and target's is not let's clone the object as
+    // the target's value.
+    if (isSourceObject) {
+      target[propName] = mergeObjects({}, source[propName]);
+      continue;
+    }
+
+    // If source's value is an array let's clone the array as the target's
+    // value.
+    if (Array.isArray(source[propName])) {
+      target[propName] = source[propName].slice(0);
+      continue;
+    }
+
+    // In all other cases let's just directly assign the source's value as the
+    // target's value.
+    target[propName] = source[propName];
+  }
+
+  return target;
+}
+
+/**
+ * Collect and return initial items for grid.
+ *
+ * @param {HTMLElement} gridElement
+ * @param {(HTMLElement[]|NodeList|HtmlCollection|string)} elements
+ * @returns {(HTMLElement[]|NodeList|HtmlCollection)}
+ */
+function getInitialGridElements(
+  gridElement: HTMLElement,
+  elements: HTMLElement[] | NodeList | HTMLCollection | string
+) {
+  // If we have a wildcard selector let's return all the children.
+  if (elements === '*') {
+    return gridElement.children;
+  }
+
+  // If we have some more specific selector, let's filter the elements.
+  if (typeof elements === 'string') {
+    const result: HTMLElement[] = [];
+    const children = gridElement.children;
+    let i = 0;
+    for (; i < children.length; i++) {
+      if (elementMatches(children[i] as HTMLElement, elements)) {
+        result.push(children[i] as HTMLElement);
+      }
+    }
+    return result;
+  }
+
+  // If we have an array of elements or a node list.
+  if (Array.isArray(elements) || isNodeListOrHTMLCollection(elements)) {
+    return elements;
+  }
+
+  // Otherwise just return an empty array.
+  return [];
+}
+
+/**
+ * Bind grid's resize handler to window.
+ *
+ * @param {Grid} grid
+ * @param {(number|boolean)} delay
+ */
+function bindLayoutOnResize(grid: Grid, delay: number | boolean) {
+  if (typeof delay !== 'number') {
+    delay = delay === true ? 0 : -1;
+  }
+
+  if (delay >= 0) {
+    grid._resizeHandler = debounce(function () {
+      grid.refreshItems().layout();
+    }, delay);
+
+    window.addEventListener('resize', grid._resizeHandler as () => void);
+  }
+}
+
+/**
+ * Unbind grid's resize handler from window.
+ *
+ * @param {Grid} grid
+ */
+function unbindLayoutOnResize(grid: Grid) {
+  if (grid._resizeHandler) {
+    grid._resizeHandler(true);
+    window.removeEventListener('resize', grid._resizeHandler as () => void);
+    grid._resizeHandler = null;
+  }
+}
+
+/**
+ * Normalize style declaration object, returns a normalized (new) styles object
+ * (prefixed properties and invalid properties removed).
+ *
+ * @param {Object} styles
+ * @returns {Object}
+ */
+function normalizeStyles(styles: StyleDeclaration) {
+  const normalized: StyleDeclaration = {};
+  const docElemStyle = document.documentElement.style;
+  let prop: string;
+  let prefixedProp: string;
+
+  // Normalize visible styles (prefix and remove invalid).
+  for (prop in styles) {
+    if (!styles[prop]) continue;
+    prefixedProp = getPrefixedPropName(docElemStyle, prop);
+    if (!prefixedProp) continue;
+    normalized[prefixedProp] = styles[prop];
+  }
+
+  return normalized;
+}
+
+/**
+ * Create index map from items.
+ *
+ * @param {Item[]} items
+ * @returns {Object}
+ */
+function createIndexMap(items: Item[]) {
+  const result: { [key: number]: number } = {};
+  let i = 0;
+  for (; i < items.length; i++) {
+    result[items[i]._id] = i;
+  }
+  return result;
+}
+
+/**
+ * Sort comparer function for items' index map.
+ *
+ * @param {Object} indexMap
+ * @param {Item} itemA
+ * @param {Item} itemB
+ * @returns {number}
+ */
+function compareIndexMap(indexMap: { [key: number]: number }, itemA: Item, itemB: Item) {
+  const indexA = indexMap[itemA._id];
+  const indexB = indexMap[itemB._id];
+  return indexA - indexB;
+}
+
+/**
+ * Check if the provided objects have same keys and and values.
+ *
+ * @param {Object} a
+ * @param {Object} b
+ * @returns {boolean}
+ */
+function isEqualObjects(a: { [key: string]: any }, b: { [key: string]: any }) {
+  let key: string;
+  for (key in a) {
+    if (a[key] !== b[key]) return false;
+  }
+  return Object.keys(a).length === Object.keys(b).length;
+}
 
 /**
  * Creates a new Grid instance.
  *
  * @class
- * @param {(HTMLElement|String)} element
+ * @param {(HTMLElement|string)} element
  * @param {Object} [options]
- * @param {(String|HTMLElement[]|NodeList|HTMLCollection)} [options.items="*"]
- * @param {Number} [options.showDuration=300]
- * @param {String} [options.showEasing="ease"]
+ * @param {(string|HTMLElement[]|NodeList|HTMLCollection)} [options.items="*"]
+ * @param {number} [options.showDuration=300]
+ * @param {string} [options.showEasing="ease"]
  * @param {Object} [options.visibleStyles={opacity: "1", transform: "scale(1)"}]
- * @param {Number} [options.hideDuration=300]
- * @param {String} [options.hideEasing="ease"]
+ * @param {number} [options.hideDuration=300]
+ * @param {string} [options.hideEasing="ease"]
  * @param {Object} [options.hiddenStyles={opacity: "0", transform: "scale(0.5)"}]
  * @param {(Function|Object)} [options.layout]
- * @param {Boolean} [options.layout.fillGaps=false]
- * @param {Boolean} [options.layout.horizontal=false]
- * @param {Boolean} [options.layout.alignRight=false]
- * @param {Boolean} [options.layout.alignBottom=false]
- * @param {Boolean} [options.layout.rounding=false]
- * @param {(Boolean|Number)} [options.layoutOnResize=150]
- * @param {Boolean} [options.layoutOnInit=true]
- * @param {Number} [options.layoutDuration=300]
- * @param {String} [options.layoutEasing="ease"]
+ * @param {boolean} [options.layout.fillGaps=false]
+ * @param {boolean} [options.layout.horizontal=false]
+ * @param {boolean} [options.layout.alignRight=false]
+ * @param {boolean} [options.layout.alignBottom=false]
+ * @param {boolean} [options.layout.rounding=false]
+ * @param {(boolean|number)} [options.layoutOnResize=150]
+ * @param {boolean} [options.layoutOnInit=true]
+ * @param {number} [options.layoutDuration=300]
+ * @param {string} [options.layoutEasing="ease"]
  * @param {?Object} [options.sortData=null]
- * @param {Boolean} [options.dragEnabled=false]
- * @param {?String} [options.dragHandle=null]
- * @param {?HtmlElement} [options.dragContainer=null]
+ * @param {boolean} [options.dragEnabled=false]
+ * @param {?string} [options.dragHandle=null]
+ * @param {?HTMLElement} [options.dragContainer=null]
  * @param {?Function} [options.dragStartPredicate]
- * @param {Number} [options.dragStartPredicate.distance=0]
- * @param {Number} [options.dragStartPredicate.delay=0]
- * @param {String} [options.dragAxis="xy"]
- * @param {(Boolean|Function)} [options.dragSort=true]
+ * @param {number} [options.dragStartPredicate.distance=0]
+ * @param {number} [options.dragStartPredicate.delay=0]
+ * @param {string} [options.dragAxis="xy"]
+ * @param {(boolean|Function)} [options.dragSort=true]
  * @param {Object} [options.dragSortHeuristics]
- * @param {Number} [options.dragSortHeuristics.sortInterval=100]
- * @param {Number} [options.dragSortHeuristics.minDragDistance=10]
- * @param {Number} [options.dragSortHeuristics.minBounceBackAngle=1]
+ * @param {number} [options.dragSortHeuristics.sortInterval=100]
+ * @param {number} [options.dragSortHeuristics.minDragDistance=10]
+ * @param {number} [options.dragSortHeuristics.minBounceBackAngle=1]
  * @param {(Function|Object)} [options.dragSortPredicate]
- * @param {Number} [options.dragSortPredicate.threshold=50]
- * @param {String} [options.dragSortPredicate.action="move"]
- * @param {String} [options.dragSortPredicate.migrateAction="move"]
+ * @param {number} [options.dragSortPredicate.threshold=50]
+ * @param {string} [options.dragSortPredicate.action="move"]
+ * @param {string} [options.dragSortPredicate.migrateAction="move"]
  * @param {Object} [options.dragRelease]
- * @param {Number} [options.dragRelease.duration=300]
- * @param {String} [options.dragRelease.easing="ease"]
- * @param {Boolean} [options.dragRelease.useDragContainer=true]
+ * @param {number} [options.dragRelease.duration=300]
+ * @param {string} [options.dragRelease.easing="ease"]
+ * @param {boolean} [options.dragRelease.useDragContainer=true]
  * @param {Object} [options.dragCssProps]
- * @param {String} [options.dragCssProps.touchAction="none"]
- * @param {String} [options.dragCssProps.userSelect="none"]
- * @param {String} [options.dragCssProps.userDrag="none"]
- * @param {String} [options.dragCssProps.tapHighlightColor="rgba(0, 0, 0, 0)"]
- * @param {String} [options.dragCssProps.touchCallout="none"]
- * @param {String} [options.dragCssProps.contentZooming="none"]
+ * @param {string} [options.dragCssProps.touchAction="none"]
+ * @param {string} [options.dragCssProps.userSelect="none"]
+ * @param {string} [options.dragCssProps.userDrag="none"]
+ * @param {string} [options.dragCssProps.tapHighlightColor="rgba(0, 0, 0, 0)"]
+ * @param {string} [options.dragCssProps.touchCallout="none"]
+ * @param {string} [options.dragCssProps.contentZooming="none"]
  * @param {Object} [options.dragEventListenerOptions]
- * @param {Boolen} [options.dragEventListenerOptions.capture=false]
- * @param {Boolen} [options.dragEventListenerOptions.passive=true]
+ * @param {boolean} [options.dragEventListenerOptions.capture=false]
+ * @param {boolean} [options.dragEventListenerOptions.passive=true]
  * @param {Object} [options.dragPlaceholder]
- * @param {Boolean} [options.dragPlaceholder.enabled=false]
+ * @param {boolean} [options.dragPlaceholder.enabled=false]
  * @param {?Function} [options.dragPlaceholder.createElement=null]
  * @param {?Function} [options.dragPlaceholder.onCreate=null]
  * @param {?Function} [options.dragPlaceholder.onRemove=null]
  * @param {Object} [options.dragAutoScroll]
  * @param {(Function|Array)} [options.dragAutoScroll.targets=[]]
  * @param {?Function} [options.dragAutoScroll.handle=null]
- * @param {Number} [options.dragAutoScroll.threshold=50]
- * @param {Number} [options.dragAutoScroll.safeZone=0.2]
- * @param {(Function|Number)} [options.dragAutoScroll.speed]
- * @param {Boolean} [options.dragAutoScroll.sortDuringScroll=true]
- * @param {Boolean} [options.dragAutoScroll.smoothStop=false]
+ * @param {number} [options.dragAutoScroll.threshold=50]
+ * @param {number} [options.dragAutoScroll.safeZone=0.2]
+ * @param {(Function|number)} [options.dragAutoScroll.speed]
+ * @param {boolean} [options.dragAutoScroll.sortDuringScroll=true]
+ * @param {boolean} [options.dragAutoScroll.smoothStop=false]
  * @param {?Function} [options.dragAutoScroll.onStart=null]
  * @param {?Function} [options.dragAutoScroll.onStop=null]
- * @param {String} [options.containerClass="muuri"]
- * @param {String} [options.itemClass="muuri-item"]
- * @param {String} [options.itemVisibleClass="muuri-item-visible"]
- * @param {String} [options.itemHiddenClass="muuri-item-hidden"]
- * @param {String} [options.itemPositioningClass="muuri-item-positioning"]
- * @param {String} [options.itemDraggingClass="muuri-item-dragging"]
- * @param {String} [options.itemReleasingClass="muuri-item-releasing"]
- * @param {String} [options.itemPlaceholderClass="muuri-item-placeholder"]
- * @param {Boolean} [options._animationWindowing=false]
+ * @param {string} [options.containerClass="muuri"]
+ * @param {string} [options.itemClass="muuri-item"]
+ * @param {string} [options.itemVisibleClass="muuri-item-visible"]
+ * @param {string} [options.itemHiddenClass="muuri-item-hidden"]
+ * @param {string} [options.itemPositioningClass="muuri-item-positioning"]
+ * @param {string} [options.itemDraggingClass="muuri-item-dragging"]
+ * @param {string} [options.itemReleasingClass="muuri-item-releasing"]
+ * @param {string} [options.itemPlaceholderClass="muuri-item-placeholder"]
+ * @param {boolean} [options._animationWindowing=false]
  */
-class Grid {
+export default class Grid {
   _id: number;
   _element: HTMLElement;
   _settings: GridSettings;
@@ -174,7 +657,7 @@ class Grid {
     id: number;
     instant: boolean;
     onFinish?: LayoutOnFinish;
-    cancel?: LayoutFunctionCancel | null;
+    cancel?: LayoutCancel | null;
   } | null;
   _resizeHandler: ReturnType<typeof debounce> | null;
   _emitter: Emitter;
@@ -235,7 +718,7 @@ class Grid {
     this._onLayoutDataReceived = this._onLayoutDataReceived.bind(this);
 
     // Store grid instance to the grid instances collection.
-    GRID_INSTANCES[this._id] = this;
+    GRID_INSTANCES.set(this._id, this);
 
     // Add container element's class name.
     addClass(element, settings.containerClass);
@@ -253,20 +736,20 @@ class Grid {
     }
   }
 
-  public static Item = Item;
-  public static ItemLayout = ItemLayout;
-  public static ItemVisibility = ItemVisibility;
-  public static ItemMigrate = ItemMigrate;
-  public static ItemDrag = ItemDrag;
-  public static ItemDragRelease = ItemDragRelease;
-  public static ItemDragPlaceholder = ItemDragPlaceholder;
-  public static Emitter = Emitter;
-  public static Animator = Animator;
-  public static Dragger = Dragger;
-  public static Packer = Packer;
-  public static AutoScroller = AutoScroller;
-  public static defaultPacker: Packer = new Packer();
-  public static defaultOptions: GridSettings = {
+  static Item = Item;
+  static ItemLayout = ItemLayout;
+  static ItemVisibility = ItemVisibility;
+  static ItemMigrate = ItemMigrate;
+  static ItemDrag = ItemDrag;
+  static ItemDragRelease = ItemDragRelease;
+  static ItemDragPlaceholder = ItemDragPlaceholder;
+  static Emitter = Emitter;
+  static Animator = Animator;
+  static Dragger = Dragger;
+  static Packer = Packer;
+  static AutoScroller = AutoScroller;
+  static defaultPacker: Packer = new Packer();
+  static defaultOptions: GridSettings = {
     // Initial item elements
     items: '*',
 
@@ -375,6 +858,319 @@ class Grid {
   };
 
   /**
+   * Emit a grid event.
+   *
+   * @private
+   * @param {string} event
+   * @param {...*} [args]
+   */
+  _emit(event: EventName, ...args: any[]) {
+    if (this._isDestroyed) return;
+    this._emitter.emit(event, ...args);
+  }
+
+  /**
+   * Check if there are any events listeners for an event.
+   *
+   * @private
+   * @param {string} event
+   * @returns {boolean}
+   */
+  _hasListeners(event: EventName) {
+    if (this._isDestroyed) return false;
+    return this._emitter.countListeners(event) > 0;
+  }
+
+  /**
+   * Update container's width, height and offsets.
+   *
+   * @private
+   */
+  _updateBoundingRect() {
+    const element = this._element;
+    const rect = element.getBoundingClientRect();
+    this._width = rect.width;
+    this._height = rect.height;
+    this._left = rect.left;
+    this._top = rect.top;
+    this._right = rect.right;
+    this._bottom = rect.bottom;
+  }
+
+  /**
+   * Update container's border sizes.
+   *
+   * @private
+   * @param {boolean} left
+   * @param {boolean} right
+   * @param {boolean} top
+   * @param {boolean} bottom
+   */
+  _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean) {
+    const element = this._element;
+    if (left) this._borderLeft = getStyleAsFloat(element, 'border-left-width');
+    if (right) this._borderRight = getStyleAsFloat(element, 'border-right-width');
+    if (top) this._borderTop = getStyleAsFloat(element, 'border-top-width');
+    if (bottom) this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
+  }
+
+  /**
+   * Refresh all of container's internal dimensions and offsets.
+   *
+   * @private
+   */
+  _updateDimensions() {
+    this._updateBoundingRect();
+    this._updateBorders(true, true, true, true);
+    this._boxSizing = getStyle(this._element, 'box-sizing') as 'border-box' | 'content-box' | '';
+  }
+
+  /**
+   * Calculate and apply item positions.
+   *
+   * @private
+   * @param {Object} layout
+   */
+  _onLayoutDataReceived(layout: LayoutData) {
+    if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
+
+    const instant = this._nextLayoutData.instant;
+    const onFinish = this._nextLayoutData.onFinish;
+    const numItems = layout.items.length;
+    let counter = numItems;
+    let item: Item;
+    let left: number;
+    let top: number;
+    let i: number;
+
+    // Reset next layout data.
+    this._nextLayoutData = null;
+
+    if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
+      this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
+    }
+
+    // Update the layout reference.
+    this._layout = layout;
+
+    // Update the item positions and collect all items that need to be laid
+    // out. It is critical that we update the item position _before_ the
+    // layoutStart event as the new data might be needed in the callback.
+    const itemsToLayout = [];
+    for (i = 0; i < numItems; i++) {
+      item = layout.items[i];
+
+      // Make sure we have a matching item.
+      if (!item) {
+        --counter;
+        continue;
+      }
+
+      // Get the item's new left and top values.
+      left = layout.slots[i * 2];
+      top = layout.slots[i * 2 + 1];
+
+      // Let's skip the layout process if we can. Possibly avoids a lot of DOM
+      // operations which saves us some CPU cycles.
+      if (item._canSkipLayout(left, top)) {
+        --counter;
+        continue;
+      }
+
+      // Update the item's position.
+      item._left = left;
+      item._top = top;
+
+      // Only active non-dragged items need to be moved.
+      if (item.isActive() && !item.isDragging()) {
+        itemsToLayout.push(item);
+      } else {
+        --counter;
+      }
+    }
+
+    // Set layout styles to the grid element.
+    if (layout.styles) {
+      setStyles(this._element, layout.styles);
+    }
+
+    // layoutStart event is intentionally emitted after the container element's
+    // dimensions are set, because otherwise there would be no hook for reacting
+    // to container dimension changes.
+    if (this._hasListeners(EVENT_LAYOUT_START)) {
+      this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant);
+      // Let's make sure that the current layout process has not been overridden
+      // in the layoutStart event, and if so, let's stop processing the aborted
+      // layout.
+      if (this._layout.id !== layout.id) return;
+    }
+
+    const tryFinish = () => {
+      if (--counter > 0) return;
+
+      const isAborted = this._layout.id !== layout.id;
+
+      if (!isAborted) {
+        this._isLayoutFinished = true;
+      }
+
+      if (isFunction(onFinish)) {
+        onFinish(layout.items.slice(0), isAborted);
+      }
+
+      if (!isAborted && this._hasListeners(EVENT_LAYOUT_END)) {
+        this._emit(EVENT_LAYOUT_END, layout.items.slice(0));
+      }
+    };
+
+    if (!itemsToLayout.length) {
+      tryFinish();
+      return this;
+    }
+
+    this._isLayoutFinished = false;
+
+    for (i = 0; i < itemsToLayout.length; i++) {
+      if (this._layout.id !== layout.id) break;
+      itemsToLayout[i]._layout.start(instant, tryFinish);
+    }
+
+    return this;
+  }
+
+  /**
+   * Show or hide Grid instance's items.
+   *
+   * @private
+   * @param {Item[]} items
+   * @param {boolean} toVisible
+   * @param {Object} [options]
+   * @param {boolean} [options.instant=false]
+   * @param {boolean} [options.syncWithLayout=true]
+   * @param {Function} [options.onFinish]
+   * @param {(boolean|Function|string)} [options.layout=true]
+   */
+  _setItemsVisibility(
+    items: Item[],
+    toVisible: boolean,
+    options: {
+      instant?: boolean;
+      syncWithLayout?: boolean;
+      onFinish?: (items: Item[]) => void;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
+    } = {}
+  ) {
+    const targetItems = items.slice(0);
+    const isInstant = options.instant === true;
+    const callback = options.onFinish;
+    const layout = options.layout ? options.layout : options.layout === undefined;
+    const startEvent = toVisible ? EVENT_SHOW_START : EVENT_HIDE_START;
+    const endEvent = toVisible ? EVENT_SHOW_END : EVENT_HIDE_END;
+    const method = toVisible ? 'show' : 'hide';
+    const completedItems: Item[] = [];
+    const hiddenItems: Item[] = [];
+
+    let needsLayout = false;
+    let counter = targetItems.length;
+    let item: Item;
+    let i: number;
+
+    // If there are no items call the callback, but don't emit any events.
+    if (!counter) {
+      if (isFunction(callback)) callback(targetItems);
+      return;
+    }
+
+    // Prepare the items.
+    for (i = 0; i < targetItems.length; i++) {
+      item = targetItems[i];
+
+      // If inactive item is shown or active item is hidden we need to do
+      // layout.
+      if ((toVisible && !item._isActive) || (!toVisible && item._isActive)) {
+        needsLayout = true;
+      }
+
+      // If inactive item is shown we also need to do a little hack to make the
+      // item not animate it's next positioning (layout).
+      item._layout._skipNextAnimation = !!(toVisible && !item._isActive);
+
+      // If a hidden item is being shown we need to refresh the item's
+      // dimensions.
+      if (toVisible && !item.isVisible() && !item.isHiding()) {
+        hiddenItems.push(item);
+      }
+
+      // Add item to layout or remove it from layout.
+      if (toVisible) {
+        item._addToLayout();
+      } else {
+        item._removeFromLayout();
+      }
+    }
+
+    // Force refresh the dimensions of all hidden items.
+    // TODO: How can we avoid this?
+    //       - 1. Set item visibility: 'hidden' and display: ''
+    //       - 2. Read the dimensions in the next read tick.
+    //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
+    //       - 4. Continue with the normal flow. To make this simpler we could always do this
+    //            one tick delay.
+    if (hiddenItems.length) {
+      this.refreshItems(hiddenItems, true);
+      hiddenItems.length = 0;
+    }
+
+    // Show the items in sync with the next layout.
+    const triggerVisibilityChange = () => {
+      if (needsLayout && options.syncWithLayout !== false) {
+        this.off(EVENT_LAYOUT_START, triggerVisibilityChange);
+      }
+
+      if (this._hasListeners(startEvent)) {
+        this._emit(startEvent, targetItems.slice(0));
+      }
+
+      for (i = 0; i < targetItems.length; i++) {
+        // Make sure the item is still in the original grid. There is a chance
+        // that the item starts migrating before tiggerVisibilityChange is called.
+        if (targetItems[i]._gridId !== this._id) {
+          if (--counter < 1) {
+            if (isFunction(callback)) callback(completedItems.slice(0));
+            if (this._hasListeners(endEvent)) this._emit(endEvent, completedItems.slice(0));
+          }
+          continue;
+        }
+
+        targetItems[i]._visibility[method](isInstant, (interrupted, item) => {
+          // If the current item's animation was not interrupted add it to the
+          // completedItems array.
+          if (!interrupted) completedItems.push(item);
+
+          // If all items have finished their animations call the callback
+          // and emit showEnd/hideEnd event.
+          if (--counter < 1) {
+            if (isFunction(callback)) callback(completedItems.slice(0));
+            if (this._hasListeners(endEvent)) this._emit(endEvent, completedItems.slice(0));
+          }
+        });
+      }
+    };
+
+    // Trigger the visibility change, either async with layout or instantly.
+    if (needsLayout && options.syncWithLayout !== false) {
+      this.on(EVENT_LAYOUT_START, triggerVisibilityChange);
+    } else {
+      triggerVisibilityChange();
+    }
+
+    // Trigger layout if needed.
+    if (needsLayout && layout) {
+      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
+    }
+  }
+
+  /**
    * Bind an event listener.
    *
    * @public
@@ -382,7 +1178,7 @@ class Grid {
    * @param {Function} listener
    * @returns {Grid}
    */
-  public on<T extends keyof GridEvents>(event: T, listener: GridEvents[T]) {
+  on<T extends keyof GridEvents>(event: T, listener: GridEvents[T]) {
     this._emitter.on(event, listener);
     return this;
   }
@@ -395,7 +1191,7 @@ class Grid {
    * @param {Function} listener
    * @returns {Grid}
    */
-  public off<T extends keyof GridEvents>(event: T, listener: GridEvents[T]) {
+  off<T extends keyof GridEvents>(event: T, listener: GridEvents[T]) {
     this._emitter.off(event, listener);
     return this;
   }
@@ -406,7 +1202,7 @@ class Grid {
    * @public
    * @returns {HTMLElement}
    */
-  public getElement() {
+  getElement() {
     return this._element;
   }
 
@@ -420,7 +1216,7 @@ class Grid {
    * @param {(HTMLElement|Item|number)} [target]
    * @returns {?Item}
    */
-  public getItem(target?: HTMLElement | Item | number) {
+  getItem(target?: HTMLElement | Item | number) {
     // If no target is specified or the instance is destroyed, return null.
     if (this._isDestroyed || (!target && target !== 0)) {
       return null;
@@ -455,7 +1251,7 @@ class Grid {
    * @param {(HTMLElement|Item|number|Array)} [targets]
    * @returns {Item[]}
    */
-  public getItems(
+  getItems(
     targets?:
       | HTMLElement
       | Item
@@ -494,7 +1290,7 @@ class Grid {
    * @param {Object} options
    * @returns {Grid}
    */
-  public updateSettings(options: GridOptions) {
+  updateSettings(options: GridOptions) {
     if (this._isDestroyed || !options) return this;
 
     const settings = this._settings;
@@ -702,7 +1498,7 @@ class Grid {
    * @param {boolean} [force=false]
    * @returns {Grid}
    */
-  public refreshItems(items?: Item[], force = false) {
+  refreshItems(items?: Item[], force = false) {
     if (this._isDestroyed) return this;
 
     const targets = items || this._items;
@@ -726,7 +1522,7 @@ class Grid {
     }
 
     for (i = 0; i < targets.length; i++) {
-      targets[i]._refreshDimensions(force);
+      targets[i]._updateDimensions(force);
     }
 
     if (hiddenItemStyles) {
@@ -750,13 +1546,13 @@ class Grid {
    * @param {Item[]} [items]
    * @returns {Grid}
    */
-  public refreshSortData(items?: Item[]) {
+  refreshSortData(items?: Item[]) {
     if (this._isDestroyed) return this;
 
     const targets = items || this._items;
     let i = 0;
     for (; i < targets.length; i++) {
-      targets[i]._refreshSortData();
+      targets[i]._updateSortData();
     }
 
     return this;
@@ -772,7 +1568,7 @@ class Grid {
    * @public
    * @returns {Grid}
    */
-  public synchronize() {
+  synchronize() {
     if (this._isDestroyed) return this;
 
     const items = this._items;
@@ -806,18 +1602,17 @@ class Grid {
    * @param {Function} [onFinish]
    * @returns {Grid}
    */
-  public layout(instant = false, onFinish?: LayoutOnFinish) {
+  layout(instant = false, onFinish?: LayoutOnFinish) {
     if (this._isDestroyed) return this;
 
     // Cancel unfinished layout algorithm if possible.
     const unfinishedLayout = this._nextLayoutData;
-    if (unfinishedLayout && typeof unfinishedLayout.cancel === 'function') {
+    if (unfinishedLayout && isFunction(unfinishedLayout.cancel)) {
       unfinishedLayout.cancel();
     }
 
     // Compute layout id (let's stay in Float32 range).
-    layoutId = (layoutId % MAX_SAFE_FLOAT32_INTEGER) + 1;
-    const nextLayoutId = layoutId;
+    const nextLayoutId = (layoutId = (layoutId % MAX_SAFE_FLOAT32_INTEGER) + 1);
 
     // Store data for next layout.
     this._nextLayoutData = {
@@ -839,12 +1634,12 @@ class Grid {
     // TODO: This causes forced reflows. As we already have async layout system
     // Maybe we could always postpone this to the next tick's read queue and
     // then start the layout process in the write tick?
-    this._refreshDimensions();
+    this._updateDimensions();
     const gridWidth = this._width - this._borderLeft - this._borderRight;
     const gridHeight = this._height - this._borderTop - this._borderBottom;
     const layoutSettings = this._settings.layout;
-    let cancelLayout: LayoutFunctionCancel | null | undefined | void;
-    if (typeof layoutSettings === 'function') {
+    let cancelLayout: LayoutCancel | null | undefined | void;
+    if (isFunction(layoutSettings)) {
       cancelLayout = layoutSettings(
         this,
         nextLayoutId,
@@ -867,7 +1662,7 @@ class Grid {
 
     // Store layout cancel method if available.
     if (
-      typeof cancelLayout === 'function' &&
+      isFunction(cancelLayout) &&
       this._nextLayoutData &&
       this._nextLayoutData.id === nextLayoutId
     ) {
@@ -898,12 +1693,12 @@ class Grid {
    * @param {(boolean|Function|string)} [options.layout=true]
    * @returns {Item[]}
    */
-  public add(
+  add(
     elements: HTMLElement | HTMLElement[] | NodeList | HTMLCollection,
     options: {
       index?: number;
       active?: boolean;
-      layout?: boolean | 'instant' | LayoutOnFinish;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
     if (this._isDestroyed || !elements) return [];
@@ -958,8 +1753,8 @@ class Grid {
     // in a separate loop to avoid layout thrashing.
     for (i = 0; i < newItems.length; i++) {
       item = newItems[i];
-      item._refreshDimensions();
-      item._refreshSortData();
+      item._updateDimensions();
+      item._updateSortData();
     }
 
     // Add the new items to the items collection to correct index.
@@ -988,11 +1783,11 @@ class Grid {
    * @param {(boolean|Function|string)} [options.layout=true]
    * @returns {Item[]}
    */
-  public remove(
+  remove(
     items: Item[],
     options: {
       removeElements?: boolean;
-      layout?: boolean | 'instant' | LayoutOnFinish;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
     if (this._isDestroyed || !items.length) return [];
@@ -1048,13 +1843,13 @@ class Grid {
    * @param {(boolean|Function|string)} [options.layout=true]
    * @returns {Grid}
    */
-  public show(
+  show(
     items: Item[],
     options: {
       instant?: boolean;
       syncWithLayout?: boolean;
       onFinish?: (items: Item[]) => any;
-      layout?: boolean | 'instant' | LayoutOnFinish;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
     if (!this._isDestroyed && items.length) {
@@ -1075,13 +1870,13 @@ class Grid {
    * @param {(boolean|Function|string)} [options.layout=true]
    * @returns {Grid}
    */
-  public hide(
+  hide(
     items: Item[],
     options: {
       instant?: boolean;
       syncWithLayout?: boolean;
       onFinish?: (items: Item[]) => any;
-      layout?: boolean | 'instant' | LayoutOnFinish;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
     if (!this._isDestroyed && items.length) {
@@ -1109,13 +1904,13 @@ class Grid {
    * @param {(boolean|Function|string)} [options.layout=true]
    * @returns {Grid}
    */
-  public filter(
+  filter(
     predicate: string | ((item: Item) => boolean),
     options: {
       instant?: boolean;
       syncWithLayout?: boolean;
       onFinish?: (shownItems: Item[], hiddenItems: Item[]) => any;
-      layout?: boolean | 'instant' | LayoutOnFinish;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
     if (this._isDestroyed || !this._items.length) return this;
@@ -1123,16 +1918,12 @@ class Grid {
     // Check which items need to be shown and which hidden.
     const itemsToShow: Item[] = [];
     const itemsToHide: Item[] = [];
-    if (typeof predicate === 'function' || typeof predicate === 'string') {
+    if (isFunction(predicate) || typeof predicate === 'string') {
       let item: Item;
       let i: number;
       for (i = 0; i < this._items.length; i++) {
         item = this._items[i];
-        if (
-          typeof predicate === 'function'
-            ? predicate(item)
-            : elementMatches(item._element, predicate)
-        ) {
+        if (isFunction(predicate) ? predicate(item) : elementMatches(item._element, predicate)) {
           itemsToShow.push(item);
         } else {
           itemsToHide.push(item);
@@ -1140,7 +1931,7 @@ class Grid {
       }
     }
 
-    const onFinish = typeof options.onFinish === 'function' ? options.onFinish : undefined;
+    const onFinish = isFunction(options.onFinish) ? options.onFinish : undefined;
     let shownItems: Item[] = [];
     let hiddenItems: Item[] = [];
     let finishCounter = -1;
@@ -1212,11 +2003,11 @@ class Grid {
    * @param {(boolean|Function|string)} [options.layout=true]
    * @returns {Grid}
    */
-  public sort(
+  sort(
     comparer: ((a: Item, b: Item) => number) | string | Item[],
     options: {
       descending?: boolean;
-      layout?: boolean | 'instant' | LayoutOnFinish;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
     if (this._isDestroyed || this._items.length < 2) return this;
@@ -1228,7 +2019,7 @@ class Grid {
     let indexMap: null | { [key: number]: number } = null;
 
     // If function is provided do a native array sort.
-    if (typeof comparer === 'function') {
+    if (isFunction(comparer)) {
       items.sort((a: Item, b: Item) => {
         let result = isDescending ? -comparer(a, b) : comparer(a, b);
         if (!result) {
@@ -1263,8 +2054,8 @@ class Grid {
 
           // Get items' cached sort values for the criteria. If the item has no sort
           // data let's update the items sort data (this is a lazy load mechanism).
-          if (a._sortData === null) a._refreshSortData();
-          if (b._sortData === null) b._refreshSortData();
+          if (a._sortData === null) a._updateSortData();
+          if (b._sortData === null) b._updateSortData();
           const valA = (a._sortData as { [key: string]: any })[criteriaName];
           const valB = (b._sortData as { [key: string]: any })[criteriaName];
 
@@ -1325,18 +2116,15 @@ class Grid {
    * @param {(Item|HTMLElement|number)} position
    * @param {Object} [options]
    * @param {string} [options.action="move"]
-   *   - Accepts either "move" or "swap".
-   *   - "move" moves the item in place of the other item.
-   *   - "swap" swaps the position of the items.
-   * @param {(Boolean|Function|String)} [options.layout=true]
+   * @param {(boolean|Function|string)} [options.layout=true]
    * @returns {Grid}
    */
-  public move(
+  move(
     item: Item | HTMLElement | number,
     position: Item | HTMLElement | number,
     options: {
-      action?: 'move' | 'swap';
-      layout?: boolean | 'instant' | LayoutOnFinish;
+      action?: MoveAction;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
     if (this._isDestroyed || this._items.length < 2) return this;
@@ -1384,23 +2172,23 @@ class Grid {
    * Send item to another Grid instance.
    *
    * @public
-   * @param {(Item|HtmlElement|number)} item
+   * @param {(Item|HTMLElement|number)} item
    * @param {Grid} targetGrid
-   * @param {(Item|HtmlElement|number)} position
+   * @param {(Item|HTMLElement|number)} position
    * @param {Object} [options]
    * @param {HTMLElement} [options.appendTo=document.body]
    * @param {(boolean|Function|string)} [options.layoutSender=true]
    * @param {(boolean|Function|string)} [options.layoutReceiver=true]
    * @returns {Grid}
    */
-  public send(
+  send(
     item: Item | HTMLElement | number,
     targetGrid: Grid,
     position: Item | HTMLElement | number,
     options: {
       appendTo?: HTMLElement;
-      layoutSender?: boolean | 'instant' | LayoutOnFinish;
-      layoutReceiver?: boolean | 'instant' | LayoutOnFinish;
+      layoutSender?: boolean | InstantLayout | LayoutOnFinish;
+      layoutReceiver?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
     if (this._isDestroyed || targetGrid._isDestroyed || this === targetGrid) return this;
@@ -1448,7 +2236,7 @@ class Grid {
    * @param {boolean} [removeElements=false]
    * @returns {Grid}
    */
-  public destroy(removeElements = false) {
+  destroy(removeElements = false) {
     if (this._isDestroyed) return this;
 
     const container = this._element;
@@ -1469,7 +2257,7 @@ class Grid {
     for (prop in layoutStyles) container.style[prop] = '';
 
     // Remove reference from the grid instances collection.
-    delete GRID_INSTANCES[this._id];
+    GRID_INSTANCES.delete(this._id);
 
     // Flag instance as destroyed. It's important to set this to `true` before
     // emitting the destroy event to avoid potential infinite loop.
@@ -1483,541 +2271,4 @@ class Grid {
 
     return this;
   }
-
-  /**
-   * Emit a grid event.
-   *
-   * @private
-   * @param {string} event
-   * @param {...*} [args]
-   */
-  public _emit(event: EventName, ...args: any[]) {
-    if (this._isDestroyed) return;
-    this._emitter.emit(event, ...args);
-  }
-
-  /**
-   * Check if there are any events listeners for an event.
-   *
-   * @private
-   * @param {string} event
-   * @returns {boolean}
-   */
-  public _hasListeners(event: EventName) {
-    if (this._isDestroyed) return false;
-    return this._emitter.countListeners(event) > 0;
-  }
-
-  /**
-   * Update container's width, height and offsets.
-   *
-   * @private
-   */
-  public _updateBoundingRect() {
-    const element = this._element;
-    const rect = element.getBoundingClientRect();
-    this._width = rect.width;
-    this._height = rect.height;
-    this._left = rect.left;
-    this._top = rect.top;
-    this._right = rect.right;
-    this._bottom = rect.bottom;
-  }
-
-  /**
-   * Update container's border sizes.
-   *
-   * @private
-   * @param {Boolean} left
-   * @param {Boolean} right
-   * @param {Boolean} top
-   * @param {Boolean} bottom
-   */
-  public _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean) {
-    const element = this._element;
-    if (left) this._borderLeft = getStyleAsFloat(element, 'border-left-width');
-    if (right) this._borderRight = getStyleAsFloat(element, 'border-right-width');
-    if (top) this._borderTop = getStyleAsFloat(element, 'border-top-width');
-    if (bottom) this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
-  }
-
-  /**
-   * Refresh all of container's internal dimensions and offsets.
-   *
-   * @private
-   */
-  public _refreshDimensions() {
-    this._updateBoundingRect();
-    this._updateBorders(true, true, true, true);
-    this._boxSizing = getStyle(this._element, 'box-sizing') as 'border-box' | 'content-box' | '';
-  }
-
-  /**
-   * Calculate and apply item positions.
-   *
-   * @private
-   * @param {Object} layout
-   */
-  public _onLayoutDataReceived(layout: LayoutData) {
-    if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
-
-    const instant = this._nextLayoutData.instant;
-    const onFinish = this._nextLayoutData.onFinish;
-    const numItems = layout.items.length;
-    let counter = numItems;
-    let item: Item;
-    let left: number;
-    let top: number;
-    let i: number;
-
-    // Reset next layout data.
-    this._nextLayoutData = null;
-
-    if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
-      this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
-    }
-
-    // Update the layout reference.
-    this._layout = layout;
-
-    // Update the item positions and collect all items that need to be laid
-    // out. It is critical that we update the item position _before_ the
-    // layoutStart event as the new data might be needed in the callback.
-    const itemsToLayout = [];
-    for (i = 0; i < numItems; i++) {
-      item = layout.items[i];
-
-      // Make sure we have a matching item.
-      if (!item) {
-        --counter;
-        continue;
-      }
-
-      // Get the item's new left and top values.
-      left = layout.slots[i * 2];
-      top = layout.slots[i * 2 + 1];
-
-      // Let's skip the layout process if we can. Possibly avoids a lot of DOM
-      // operations which saves us some CPU cycles.
-      if (item._canSkipLayout(left, top)) {
-        --counter;
-        continue;
-      }
-
-      // Update the item's position.
-      item._left = left;
-      item._top = top;
-
-      // Only active non-dragged items need to be moved.
-      if (item.isActive() && !item.isDragging()) {
-        itemsToLayout.push(item);
-      } else {
-        --counter;
-      }
-    }
-
-    // Set layout styles to the grid element.
-    if (layout.styles) {
-      setStyles(this._element, layout.styles);
-    }
-
-    // layoutStart event is intentionally emitted after the container element's
-    // dimensions are set, because otherwise there would be no hook for reacting
-    // to container dimension changes.
-    if (this._hasListeners(EVENT_LAYOUT_START)) {
-      this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant);
-      // Let's make sure that the current layout process has not been overridden
-      // in the layoutStart event, and if so, let's stop processing the aborted
-      // layout.
-      if (this._layout.id !== layout.id) return;
-    }
-
-    const tryFinish = () => {
-      if (--counter > 0) return;
-
-      const isAborted = this._layout.id !== layout.id;
-
-      if (!isAborted) {
-        this._isLayoutFinished = true;
-      }
-
-      if (typeof onFinish === 'function') {
-        onFinish(layout.items.slice(0), isAborted);
-      }
-
-      if (!isAborted && this._hasListeners(EVENT_LAYOUT_END)) {
-        this._emit(EVENT_LAYOUT_END, layout.items.slice(0));
-      }
-    };
-
-    if (!itemsToLayout.length) {
-      tryFinish();
-      return this;
-    }
-
-    this._isLayoutFinished = false;
-
-    for (i = 0; i < itemsToLayout.length; i++) {
-      if (this._layout.id !== layout.id) break;
-      itemsToLayout[i]._layout.start(instant, tryFinish);
-    }
-
-    return this;
-  }
-
-  /**
-   * Show or hide Grid instance's items.
-   *
-   * @private
-   * @param {Item[]} items
-   * @param {boolean} toVisible
-   * @param {Object} [options]
-   * @param {boolean} [options.instant=false]
-   * @param {boolean} [options.syncWithLayout=true]
-   * @param {Function} [options.onFinish]
-   * @param {(boolean|Function|string)} [options.layout=true]
-   */
-  public _setItemsVisibility(
-    items: Item[],
-    toVisible: boolean,
-    options: {
-      instant?: boolean;
-      syncWithLayout?: boolean;
-      onFinish?: (items: Item[]) => void;
-      layout?: boolean | 'instant' | ((items: Item[], hasLayoutChanged: boolean) => void);
-    } = {}
-  ) {
-    const targetItems = items.slice(0);
-    const isInstant = options.instant === true;
-    const callback = options.onFinish;
-    const layout = options.layout ? options.layout : options.layout === undefined;
-    const startEvent = toVisible ? EVENT_SHOW_START : EVENT_HIDE_START;
-    const endEvent = toVisible ? EVENT_SHOW_END : EVENT_HIDE_END;
-    const method = toVisible ? 'show' : 'hide';
-    const completedItems: Item[] = [];
-    const hiddenItems: Item[] = [];
-
-    let needsLayout = false;
-    let counter = targetItems.length;
-    let item: Item;
-    let i: number;
-
-    // If there are no items call the callback, but don't emit any events.
-    if (!counter) {
-      if (isFunction(callback)) callback(targetItems);
-      return;
-    }
-
-    // Prepare the items.
-    for (i = 0; i < targetItems.length; i++) {
-      item = targetItems[i];
-
-      // If inactive item is shown or active item is hidden we need to do
-      // layout.
-      if ((toVisible && !item._isActive) || (!toVisible && item._isActive)) {
-        needsLayout = true;
-      }
-
-      // If inactive item is shown we also need to do a little hack to make the
-      // item not animate it's next positioning (layout).
-      item._layout._skipNextAnimation = !!(toVisible && !item._isActive);
-
-      // If a hidden item is being shown we need to refresh the item's
-      // dimensions.
-      if (toVisible && !item.isVisible() && !item.isHiding()) {
-        hiddenItems.push(item);
-      }
-
-      // Add item to layout or remove it from layout.
-      if (toVisible) {
-        item._addToLayout();
-      } else {
-        item._removeFromLayout();
-      }
-    }
-
-    // Force refresh the dimensions of all hidden items.
-    // TODO: How can we avoid this?
-    //       - 1. Set item visibility: 'hidden' and display: ''
-    //       - 2. Read the dimensions in the next read tick.
-    //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
-    //       - 4. Continue with the normal flow. To make this simpler we could always do this
-    //            one tick delay.
-    if (hiddenItems.length) {
-      this.refreshItems(hiddenItems, true);
-      hiddenItems.length = 0;
-    }
-
-    // Show the items in sync with the next layout.
-    const triggerVisibilityChange = () => {
-      if (needsLayout && options.syncWithLayout !== false) {
-        this.off(EVENT_LAYOUT_START, triggerVisibilityChange);
-      }
-
-      if (this._hasListeners(startEvent)) {
-        this._emit(startEvent, targetItems.slice(0));
-      }
-
-      for (i = 0; i < targetItems.length; i++) {
-        // Make sure the item is still in the original grid. There is a chance
-        // that the item starts migrating before tiggerVisibilityChange is called.
-        if (targetItems[i]._gridId !== this._id) {
-          if (--counter < 1) {
-            if (isFunction(callback)) callback(completedItems.slice(0));
-            if (this._hasListeners(endEvent)) this._emit(endEvent, completedItems.slice(0));
-          }
-          continue;
-        }
-
-        targetItems[i]._visibility[method](isInstant, (interrupted, item) => {
-          // If the current item's animation was not interrupted add it to the
-          // completedItems array.
-          if (!interrupted) completedItems.push(item);
-
-          // If all items have finished their animations call the callback
-          // and emit showEnd/hideEnd event.
-          if (--counter < 1) {
-            if (isFunction(callback)) callback(completedItems.slice(0));
-            if (this._hasListeners(endEvent)) this._emit(endEvent, completedItems.slice(0));
-          }
-        });
-      }
-    };
-
-    // Trigger the visibility change, either async with layout or instantly.
-    if (needsLayout && options.syncWithLayout !== false) {
-      this.on(EVENT_LAYOUT_START, triggerVisibilityChange);
-    } else {
-      triggerVisibilityChange();
-    }
-
-    // Trigger layout if needed.
-    if (needsLayout && layout) {
-      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
-    }
-  }
 }
-
-/**
- * Merge default settings with user settings. The returned object is a new
- * object with merged values. The merging is a deep merge meaning that all
- * objects and arrays within the provided settings objects will be also merged
- * so that modifying the values of the settings object will have no effect on
- * the returned object.
- *
- * @param {Object} baseSettings
- * @param {Object} [overrides={}]
- * @returns {Object}
- */
-function createSettings(
-  baseSettings: GridSettings,
-  overrides: GridSettings | GridInitOptions | GridOptions = {}
-) {
-  // Create a fresh copy of default settings.
-  let newSettings = mergeObjects({} as GridSettings, baseSettings) as GridSettings;
-
-  // Merge user settings to default settings.
-  newSettings = mergeObjects(newSettings, overrides) as GridSettings;
-
-  // Handle visible/hidden styles manually so that the whole object is
-  // overridden instead of the props.
-  if (overrides.visibleStyles) {
-    newSettings.visibleStyles = { ...overrides.visibleStyles };
-  } else if (baseSettings.visibleStyles) {
-    newSettings.visibleStyles = { ...baseSettings.visibleStyles };
-  }
-  if (overrides.hiddenStyles) {
-    newSettings.hiddenStyles = { ...overrides.hiddenStyles };
-  } else if (baseSettings.hiddenStyles) {
-    newSettings.hiddenStyles = { ...baseSettings.hiddenStyles };
-  }
-
-  return newSettings;
-}
-
-/**
- * Merge two objects recursively (deep merge). The source object's properties
- * are merged to the target object.
- *
- * @param {Object} target
- * @param {Object} source
- * @returns {Object}
- */
-function mergeObjects(target: { [key: string]: any }, source: { [key: string]: any }) {
-  const sourceKeys = Object.keys(source);
-  const length = sourceKeys.length;
-  let i = 0;
-
-  for (; i < length; i++) {
-    const propName = sourceKeys[i];
-    const isSourceObject = isPlainObject(source[propName]);
-
-    // If target and source values are both objects, merge the objects and
-    // assign the merged value to the target property.
-    if (isPlainObject(target[propName]) && isSourceObject) {
-      target[propName] = mergeObjects(mergeObjects({}, target[propName]), source[propName]);
-      continue;
-    }
-
-    // If source's value is object and target's is not let's clone the object as
-    // the target's value.
-    if (isSourceObject) {
-      target[propName] = mergeObjects({}, source[propName]);
-      continue;
-    }
-
-    // If source's value is an array let's clone the array as the target's
-    // value.
-    if (Array.isArray(source[propName])) {
-      target[propName] = source[propName].slice(0);
-      continue;
-    }
-
-    // In all other cases let's just directly assign the source's value as the
-    // target's value.
-    target[propName] = source[propName];
-  }
-
-  return target;
-}
-
-/**
- * Collect and return initial items for grid.
- *
- * @param {HTMLElement} gridElement
- * @param {(HTMLElement[]|NodeList|HtmlCollection|String)} elements
- * @returns {(HTMLElement[]|NodeList|HtmlCollection)}
- */
-function getInitialGridElements(
-  gridElement: HTMLElement,
-  elements: HTMLElement[] | NodeList | HTMLCollection | string
-) {
-  // If we have a wildcard selector let's return all the children.
-  if (elements === '*') {
-    return gridElement.children;
-  }
-
-  // If we have some more specific selector, let's filter the elements.
-  if (typeof elements === 'string') {
-    const result: HTMLElement[] = [];
-    const children = gridElement.children;
-    let i = 0;
-    for (; i < children.length; i++) {
-      if (elementMatches(children[i] as HTMLElement, elements)) {
-        result.push(children[i] as HTMLElement);
-      }
-    }
-    return result;
-  }
-
-  // If we have an array of elements or a node list.
-  if (Array.isArray(elements) || isNodeListOrHTMLCollection(elements)) {
-    return elements;
-  }
-
-  // Otherwise just return an empty array.
-  return [];
-}
-
-/**
- * Bind grid's resize handler to window.
- *
- * @param {Grid} grid
- * @param {(number|boolean)} delay
- */
-function bindLayoutOnResize(grid: Grid, delay: number | boolean) {
-  if (typeof delay !== 'number') {
-    delay = delay === true ? 0 : -1;
-  }
-
-  if (delay >= 0) {
-    grid._resizeHandler = debounce(function () {
-      grid.refreshItems().layout();
-    }, delay);
-
-    window.addEventListener('resize', grid._resizeHandler as () => void);
-  }
-}
-
-/**
- * Unbind grid's resize handler from window.
- *
- * @param {Grid} grid
- */
-function unbindLayoutOnResize(grid: Grid) {
-  if (grid._resizeHandler) {
-    grid._resizeHandler(true);
-    window.removeEventListener('resize', grid._resizeHandler as () => void);
-    grid._resizeHandler = null;
-  }
-}
-
-/**
- * Normalize style declaration object, returns a normalized (new) styles object
- * (prefixed properties and invalid properties removed).
- *
- * @param {Object} styles
- * @returns {Object}
- */
-function normalizeStyles(styles: StyleDeclaration) {
-  const normalized: StyleDeclaration = {};
-  const docElemStyle = document.documentElement.style;
-  let prop: string;
-  let prefixedProp: string;
-
-  // Normalize visible styles (prefix and remove invalid).
-  for (prop in styles) {
-    if (!styles[prop]) continue;
-    prefixedProp = getPrefixedPropName(docElemStyle, prop);
-    if (!prefixedProp) continue;
-    normalized[prefixedProp] = styles[prop];
-  }
-
-  return normalized;
-}
-
-/**
- * Create index map from items.
- *
- * @param {Item[]} items
- * @returns {Object}
- */
-function createIndexMap(items: Item[]) {
-  const result: { [key: number]: number } = {};
-  let i = 0;
-  for (; i < items.length; i++) {
-    result[items[i]._id] = i;
-  }
-  return result;
-}
-
-/**
- * Sort comparer function for items' index map.
- *
- * @param {Object} indexMap
- * @param {Item} itemA
- * @param {Item} itemB
- * @returns {number}
- */
-function compareIndexMap(indexMap: { [key: number]: number }, itemA: Item, itemB: Item) {
-  const indexA = indexMap[itemA._id];
-  const indexB = indexMap[itemB._id];
-  return indexA - indexB;
-}
-
-/**
- * Check if the provided objects have same keys and and values.
- *
- * @param {Object} a
- * @param {Object} b
- * @returns {boolean}
- */
-function isEqualObjects(a: { [key: string]: any }, b: { [key: string]: any }) {
-  let key: string;
-  for (key in a) {
-    if (a[key] !== b[key]) return false;
-  }
-  return Object.keys(a).length === Object.keys(b).length;
-}
-
-export default Grid;

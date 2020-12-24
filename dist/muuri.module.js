@@ -1234,7 +1234,7 @@ function prepareItemScrollSync(item) {
  * @param {Item} item
  */
 function applyItemScrollSync(item) {
-  if (!item._drag || !item._isActive) return;
+  if (!item._drag || !item.isActive()) return;
   var drag = item._drag;
   drag._scrollDiffX = drag._scrollDiffY = 0;
   item._setTranslate(drag._translateX, drag._translateY);
@@ -2482,7 +2482,8 @@ var defaultStartPredicate = function (item, event, options) {
     var predicate = drag._startPredicateData;
     if (!predicate) {
         predicate = drag._startPredicateData = { distance: 0, delay: 0 };
-        var config = options || item.getGrid()._settings.dragStartPredicate;
+        var dragStartPredicate = item.getGrid().settings.dragStartPredicate;
+        var config = options || dragStartPredicate;
         if (typeof config == 'object') {
             predicate.distance = Math.max(config.distance || 0, 0);
             predicate.delay = Math.max(config.delay || 0, 0);
@@ -2527,12 +2528,8 @@ var defaultStartPredicate = function (item, event, options) {
 };
 var getTargetGrid = function (item, threshold) {
     var itemGrid = item.getGrid();
-    var dragSort = itemGrid._settings.dragSort;
-    var grids = dragSort === true
-        ? [itemGrid]
-        : isFunction(dragSort)
-            ? dragSort.call(itemGrid, item)
-            : undefined;
+    var dragSort = itemGrid.settings.dragSort;
+    var grids = dragSort === true ? [itemGrid] : isFunction(dragSort) ? dragSort(item) : undefined;
     var target = null;
     // Return immediately if there are no grids.
     if (!grids || !Array.isArray(grids) || !grids.length) {
@@ -2551,10 +2548,11 @@ var getTargetGrid = function (item, threshold) {
     var bottom = 0;
     var i = 0;
     // Set up item rect data for comparing against grids.
-    itemRect.width = item._width;
-    itemRect.height = item._height;
-    itemRect.left = item._drag._clientX;
-    itemRect.top = item._drag._clientY;
+    var drag = item._drag;
+    itemRect.width = item.width;
+    itemRect.height = item.height;
+    itemRect.left = drag._clientX;
+    itemRect.top = drag._clientY;
     // Loop through the grids and get the best match.
     for (; i < grids.length; i++) {
         grid = grids[i];
@@ -2564,14 +2562,14 @@ var getTargetGrid = function (item, threshold) {
         // Compute the grid's client rect an clamp the initial boundaries to
         // viewport dimensions.
         grid._updateBoundingRect();
-        left = Math.max(0, grid._left);
-        top = Math.max(0, grid._top);
-        right = Math.min(window.innerWidth, grid._right);
-        bottom = Math.min(window.innerHeight, grid._bottom);
+        left = Math.max(0, grid._rect.left);
+        top = Math.max(0, grid._rect.top);
+        right = Math.min(window.innerWidth, grid._rect.right);
+        bottom = Math.min(window.innerHeight, grid._rect.bottom);
         // The grid might be inside one or more elements that clip it's visibility
         // (e.g overflow scroll/hidden) so we want to find out the visible portion
         // of the grid in the viewport and use that in our calculations.
-        container = grid._element.parentNode;
+        container = grid.element.parentNode;
         while (container &&
             container !== document &&
             container !== document.documentElement &&
@@ -2636,35 +2634,37 @@ var defaultSortPredicate = function (item, options) {
     var itemRect = RECT_A;
     var targetRect = RECT_B;
     // Set item rect for comparing against grid items.
-    itemRect.width = item._width;
-    itemRect.height = item._height;
+    itemRect.width = item.width;
+    itemRect.height = item.height;
     if (isMigration) {
         grid._updateBorders(true, false, true, false);
-        itemRect.left = drag._clientX - (grid._left + grid._borderLeft);
-        itemRect.top = drag._clientY - (grid._top + grid._borderTop);
+        itemRect.left = drag._clientX - (grid._rect.left + grid._borderLeft);
+        itemRect.top = drag._clientY - (grid._rect.top + grid._borderTop);
     }
     else {
-        itemRect.left = drag._translateX - item._containerDiffX + item._marginLeft;
-        itemRect.top = drag._translateY - item._containerDiffY + item._marginTop;
+        itemRect.left =
+            drag._translateX - item._containerDiffX + item.marginLeft;
+        itemRect.top =
+            drag._translateY - item._containerDiffY + item.marginTop;
     }
     var matchScore = 0;
     var matchIndex = -1;
     var hasValidTargets = false;
     // Loop through the target grid items and try to find the best match.
-    for (var i = 0; i < grid._items.length; i++) {
-        var target = grid._items[i];
+    for (var i = 0; i < grid.items.length; i++) {
+        var target = grid.items[i];
         // If the target item is not active or the target item is the dragged
         // item let's skip to the next item.
-        if (!target._isActive || target === item) {
+        if (!target.isActive() || target === item) {
             continue;
         }
         // Mark the grid as having valid target items.
         hasValidTargets = true;
         // Calculate the target's overlap score with the dragged item.
-        targetRect.width = target._width;
-        targetRect.height = target._height;
-        targetRect.left = target._left + target._marginLeft;
-        targetRect.top = target._top + target._marginTop;
+        targetRect.width = target.width;
+        targetRect.height = target.height;
+        targetRect.left = target.left + target.marginLeft;
+        targetRect.top = target.top + target.marginTop;
         var score = getIntersectionScore(itemRect, targetRect);
         // Update best match index and score if the target's overlap score with
         // the dragged item is higher than the current best match score.
@@ -2704,11 +2704,11 @@ var defaultSortPredicate = function (item, options) {
  */
 var ItemDrag = /** @class */ (function () {
     function ItemDrag(item) {
-        var element = item._element;
+        var element = item.element;
         var grid = item.getGrid();
-        var settings = grid._settings;
+        var settings = grid.settings;
         this._item = item;
-        this._rootGridId = grid._id;
+        this._rootGridId = grid.id;
         this._isDestroyed = false;
         this._isMigrated = false;
         this._isActive = false;
@@ -2800,33 +2800,33 @@ var ItemDrag = /** @class */ (function () {
         // Stop auto-scroll.
         ItemDrag.autoScroller.removeItem(item);
         // Cancel queued ticks.
-        cancelDragStartTick(item._id);
-        cancelDragMoveTick(item._id);
-        cancelDragScrollTick(item._id);
+        cancelDragStartTick(item.id);
+        cancelDragMoveTick(item.id);
+        cancelDragScrollTick(item.id);
         // Cancel sort procedure.
         this._cancelSort();
         if (this._isStarted) {
-            var element = item._element;
+            var element = item.element;
             var grid = item.getGrid();
-            var draggingClass = grid._settings.itemDraggingClass;
+            var itemDraggingClass = grid.settings.itemDraggingClass;
             // Remove scroll listeners.
             this._unbindScrollHandler();
             // Append item element to it's current grid's container element if it's
             // not there already. Also make sure the translate values are adjusted to
             // account for the DOM shift.
-            if (element.parentNode !== grid._element) {
-                grid._element.appendChild(element);
+            if (element.parentNode !== grid.element) {
+                grid.element.appendChild(element);
                 item._setTranslate(this._translateX - item._containerDiffX, this._translateY - item._containerDiffY);
                 item._containerDiffX = this._containerDiffX = 0;
                 item._containerDiffY = this._containerDiffY = 0;
                 // We need to do forced reflow to make sure the dragging class is
                 // removed gracefully.
                 // eslint-disable-next-line
-                if (draggingClass)
+                if (itemDraggingClass)
                     element.clientWidth;
             }
             // Remove dragging class.
-            removeClass(element, draggingClass);
+            removeClass(element, itemDraggingClass);
         }
         // Reset drag data.
         this._reset();
@@ -2842,12 +2842,12 @@ var ItemDrag = /** @class */ (function () {
     ItemDrag.prototype.sort = function (force) {
         if (force === void 0) { force = false; }
         var item = this._item;
-        if (this._isActive && item._isActive && this._dragMoveEvent) {
+        if (this._isActive && item.isActive() && this._dragMoveEvent) {
             if (force) {
                 this._handleSort();
             }
             else {
-                addDragSortTick(item._id, this._handleSort);
+                addDragSortTick(item.id, this._handleSort);
             }
         }
     };
@@ -2876,9 +2876,9 @@ var ItemDrag = /** @class */ (function () {
      * @returns {(boolean|undefined)}
      */
     ItemDrag.prototype._startPredicate = function (item, event) {
-        var predicate = item.getGrid()._settings.dragStartPredicate;
-        return isFunction(predicate)
-            ? predicate(item, event)
+        var dragStartPredicate = item.getGrid().settings.dragStartPredicate;
+        return isFunction(dragStartPredicate)
+            ? dragStartPredicate(item, event)
             : ItemDrag.defaultStartPredicate(item, event);
     };
     /**
@@ -2945,8 +2945,8 @@ var ItemDrag = /** @class */ (function () {
      * @returns {boolean}
      */
     ItemDrag.prototype._checkHeuristics = function (x, y) {
-        var grid = this._item.getGrid();
-        var _a = grid._settings.dragSortHeuristics, minDragDistance = _a.minDragDistance, minBounceBackAngle = _a.minBounceBackAngle;
+        var settings = this._item.getGrid().settings;
+        var _a = settings.dragSortHeuristics, minDragDistance = _a.minDragDistance, minBounceBackAngle = _a.minBounceBackAngle;
         // Skip heuristics if not needed.
         if (minDragDistance <= 0) {
             this._blockedSortIndex = null;
@@ -3004,12 +3004,13 @@ var ItemDrag = /** @class */ (function () {
         if (!this._isActive)
             return;
         var item = this._item;
-        var _a = item.getGrid()._settings, dragSort = _a.dragSort, dragSortHeuristics = _a.dragSortHeuristics, dragAutoScroll = _a.dragAutoScroll;
+        var _a = item.getGrid().settings, dragSort = _a.dragSort, dragSortHeuristics = _a.dragSortHeuristics, dragAutoScroll = _a.dragAutoScroll;
         // No sorting when drag sort is disabled. Also, account for the scenario where
         // dragSort is temporarily disabled during drag procedure so we need to reset
         // sort timer heuristics state too.
         if (!dragSort ||
-            (!dragAutoScroll.sortDuringScroll && ItemDrag.autoScroller.isItemScrolling(item))) {
+            (!dragAutoScroll.sortDuringScroll &&
+                ItemDrag.autoScroller.isItemScrolling(item))) {
             this._sortX1 = this._sortX2 = this._translateX - item._containerDiffX;
             this._sortY1 = this._sortY2 = this._translateY - item._containerDiffY;
             // We set this to true intentionally so that overlap check would be
@@ -3049,7 +3050,7 @@ var ItemDrag = /** @class */ (function () {
     ItemDrag.prototype._handleSortDelayed = function () {
         this._isSortNeeded = true;
         this._sortTimer = undefined;
-        addDragSortTick(this._item._id, this._handleSort);
+        addDragSortTick(this._item.id, this._handleSort);
     };
     /**
      * Cancel and reset sort procedure.
@@ -3061,7 +3062,7 @@ var ItemDrag = /** @class */ (function () {
         if (this._sortTimer !== undefined) {
             this._sortTimer = void window.clearTimeout(this._sortTimer);
         }
-        cancelDragSortTick(this._item._id);
+        cancelDragSortTick(this._item.id);
     };
     /**
      * Handle the ending of the drag procedure for sorting.
@@ -3069,12 +3070,12 @@ var ItemDrag = /** @class */ (function () {
      * @private
      */
     ItemDrag.prototype._finishSort = function () {
-        var isSortEnabled = this._item.getGrid()._settings.dragSort;
-        var needsFinalMoveCheck = isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
+        var dragSort = this._item.getGrid().settings.dragSort;
+        var needsFinalCheck = dragSort && (this._isSortNeeded || this._sortTimer !== undefined);
         this._cancelSort();
-        if (needsFinalMoveCheck)
+        if (needsFinalCheck)
             this._checkOverlap();
-        if (isSortEnabled)
+        if (dragSort)
             this._checkOverlap(true);
     };
     /**
@@ -3089,8 +3090,9 @@ var ItemDrag = /** @class */ (function () {
         if (!this._isActive)
             return;
         var item = this._item;
-        var element = item._element;
-        var settings = item.getGrid()._settings;
+        var element = item.element;
+        var currentGrid = item.getGrid();
+        var settings = currentGrid.settings;
         // Get overlap check result.
         var result = null;
         if (isFunction(settings.dragSortPredicate)) {
@@ -3103,11 +3105,10 @@ var ItemDrag = /** @class */ (function () {
         if (!result || typeof result.index !== 'number')
             return;
         var sortAction = result.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
-        var currentGrid = item.getGrid();
         var targetGrid = result.grid || currentGrid;
         var isMigration = currentGrid !== targetGrid;
-        var currentIndex = currentGrid._items.indexOf(item);
-        var targetIndex = normalizeArrayIndex(targetGrid._items, result.index, isMigration && sortAction === ACTION_MOVE ? 1 : 0);
+        var currentIndex = currentGrid.items.indexOf(item);
+        var targetIndex = normalizeArrayIndex(targetGrid.items, result.index, isMigration && sortAction === ACTION_MOVE ? 1 : 0);
         // Prevent position bounce.
         if (!isMigration && targetIndex === this._blockedSortIndex) {
             return;
@@ -3118,7 +3119,7 @@ var ItemDrag = /** @class */ (function () {
             if (currentIndex !== targetIndex) {
                 this._blockedSortIndex = currentIndex;
                 // Do the sort.
-                (sortAction === ACTION_SWAP ? arraySwap : arrayMove)(currentGrid._items, currentIndex, targetIndex);
+                (sortAction === ACTION_SWAP ? arraySwap : arrayMove)(currentGrid.items, currentIndex, targetIndex);
                 // Emit move event.
                 if (currentGrid._hasListeners(EVENT_MOVE)) {
                     currentGrid._emit(EVENT_MOVE, {
@@ -3136,8 +3137,8 @@ var ItemDrag = /** @class */ (function () {
         else {
             this._blockedSortIndex = null;
             // Let's fetch the target item when it's still in it's original index.
-            var targetItem = targetGrid._items[targetIndex];
-            var targetSettings = targetGrid._settings;
+            var targetItem = targetGrid.items[targetIndex];
+            var targetSettings = targetGrid.settings;
             // Emit beforeSend event.
             if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {
                 currentGrid._emit(EVENT_BEFORE_SEND, {
@@ -3160,28 +3161,27 @@ var ItemDrag = /** @class */ (function () {
             }
             // If the drag is not active anymore after the events or either of the
             // grids got destroyed during the emitted events, let's abort the process.
-            if (!this._isActive || currentGrid._isDestroyed || targetGrid._isDestroyed) {
+            if (!this._isActive || currentGrid.isDestroyed() || targetGrid.isDestroyed()) {
                 return;
             }
             // Update item's grid id reference.
-            item._gridId = targetGrid._id;
+            item._gridId = targetGrid.id;
             // Update migrating indicator.
             this._isMigrated = item._gridId !== this._rootGridId;
             // Move item instance from current grid to target grid.
-            currentGrid._items.splice(currentIndex, 1);
-            arrayInsert(targetGrid._items, item, targetIndex);
+            currentGrid.items.splice(currentIndex, 1);
+            arrayInsert(targetGrid.items, item, targetIndex);
             // Reset sort data.
             item._sortData = null;
             // Get the next drag container.
             var currentDragContainer = this._container;
-            var targetDragContainer = (targetSettings.dragContainer ||
-                targetGrid._element);
+            var targetDragContainer = targetSettings.dragContainer || targetGrid.element;
             // Update item's container offset so we can keep computing the item's
             // current translate position relative to it's current grid element. It's
             // important to keep this synced so that we can feed correct data to the
             // drag sort heuristics and easily compute the item's position within it's
             // current grid element.
-            var offsetDiff = getOffsetDiff(targetDragContainer, targetGrid._element, true);
+            var offsetDiff = getOffsetDiff(targetDragContainer, targetGrid.element, true);
             item._containerDiffX = this._containerDiffX = offsetDiff.left;
             item._containerDiffY = this._containerDiffY = offsetDiff.top;
             // If drag container changed let's update containing block and move the
@@ -3206,7 +3206,7 @@ var ItemDrag = /** @class */ (function () {
                 addClass(element, targetSettings.itemDraggingClass);
             }
             // Update visibility styles/class.
-            if (item._isActive) {
+            if (item.isActive()) {
                 if (settings.itemVisibleClass !== targetSettings.itemVisibleClass) {
                     removeClass(element, settings.itemVisibleClass);
                     addClass(element, targetSettings.itemVisibleClass);
@@ -3256,7 +3256,7 @@ var ItemDrag = /** @class */ (function () {
             if (sortAction === ACTION_SWAP && targetItem && targetItem.isActive()) {
                 // Sanity check to make sure that the target item is still part of the
                 // target grid. It could have been manipulated in the event handlers.
-                if (targetGrid._items.indexOf(targetItem) > -1) {
+                if (targetGrid.items.indexOf(targetItem) > -1) {
                     targetGrid.send(targetItem, currentGrid, currentIndex, {
                         appendTo: currentDragContainer || document.body,
                         layoutSender: false,
@@ -3276,7 +3276,7 @@ var ItemDrag = /** @class */ (function () {
      */
     ItemDrag.prototype._finishMigration = function () {
         var item = this._item;
-        var dragEnabled = item.getGrid()._settings.dragEnabled;
+        var dragEnabled = item.getGrid().settings.dragEnabled;
         this.destroy();
         item._drag = dragEnabled ? new ItemDrag(item) : null;
         item._dragRelease.start();
@@ -3342,12 +3342,12 @@ var ItemDrag = /** @class */ (function () {
      */
     ItemDrag.prototype._onStart = function (event) {
         var item = this._item;
-        if (!item._isActive)
+        if (!item.isActive())
             return;
         this._isActive = true;
         this._dragStartEvent = event;
         ItemDrag.autoScroller.addItem(item);
-        addDragStartTick(item._id, this._prepareStart, this._applyStart);
+        addDragStartTick(item.id, this._prepareStart, this._applyStart);
     };
     /**
      * @private
@@ -3356,12 +3356,11 @@ var ItemDrag = /** @class */ (function () {
         if (!this._isActive)
             return;
         var item = this._item;
-        if (!item._isActive)
+        if (!item.isActive())
             return;
-        var element = item._element;
+        var element = item.element;
         var grid = item.getGrid();
-        var settings = grid._settings;
-        var dragContainer = (settings.dragContainer || grid._element);
+        var dragContainer = grid.settings.dragContainer || grid.element;
         var containingBlock = getContainingBlock(dragContainer);
         var translate = item._getTranslate();
         var elementRect = element.getBoundingClientRect();
@@ -3374,8 +3373,8 @@ var ItemDrag = /** @class */ (function () {
         this._scrollDiffX = this._scrollDiffY = 0;
         this._moveDiffX = this._moveDiffY = 0;
         this._containerDiffX = this._containerDiffY = 0;
-        if (dragContainer !== grid._element) {
-            var _a = getOffsetDiff(containingBlock, grid._element), left = _a.left, top_1 = _a.top;
+        if (dragContainer !== grid.element) {
+            var _a = getOffsetDiff(containingBlock, grid.element), left = _a.left, top_1 = _a.top;
             this._containerDiffX = left;
             this._containerDiffY = top_1;
         }
@@ -3388,7 +3387,7 @@ var ItemDrag = /** @class */ (function () {
         if (!this._isActive)
             return;
         var item = this._item;
-        if (!item._isActive)
+        if (!item.isActive())
             return;
         if (item.isPositioning()) {
             item._layout.stop(true, this._translateX, this._translateY);
@@ -3404,12 +3403,14 @@ var ItemDrag = /** @class */ (function () {
             release._reset();
         }
         var grid = item.getGrid();
-        var element = item._element;
-        if (grid._settings.dragPlaceholder.enabled) {
+        var element = item.element;
+        if (grid.settings.dragPlaceholder.enabled) {
             item._dragPlaceholder.create();
         }
         this._isStarted = true;
-        grid._emit(EVENT_DRAG_INIT, item, this._dragStartEvent);
+        if (this._dragStartEvent) {
+            grid._emit(EVENT_DRAG_INIT, item, this._dragStartEvent);
+        }
         // If the dragged element is not a child of the drag container we need to
         // append the element inside the correct container, setup the actual drag
         // position data and adjust the element's translate values to account for
@@ -3423,9 +3424,11 @@ var ItemDrag = /** @class */ (function () {
         // Make sure item's container diff is synced at this point.
         item._containerDiffX = this._containerDiffX;
         item._containerDiffY = this._containerDiffY;
-        addClass(element, grid._settings.itemDraggingClass);
+        addClass(element, grid.settings.itemDraggingClass);
         this._bindScrollHandler();
-        grid._emit(EVENT_DRAG_START, item, this._dragStartEvent);
+        if (this._dragStartEvent) {
+            grid._emit(EVENT_DRAG_START, item, this._dragStartEvent);
+        }
     };
     /**
      * Drag move handler.
@@ -3435,13 +3438,13 @@ var ItemDrag = /** @class */ (function () {
      */
     ItemDrag.prototype._onMove = function (event) {
         var item = this._item;
-        if (!item._isActive) {
+        if (!item.isActive()) {
             this.stop();
             return;
         }
         this._dragMoveEvent = event;
-        addDragMoveTick(item._id, this._prepareMove, this._applyMove);
-        addDragSortTick(item._id, this._handleSort);
+        addDragMoveTick(item.id, this._prepareMove, this._applyMove);
+        addDragSortTick(item.id, this._handleSort);
     };
     /**
      * Prepare dragged item for moving.
@@ -3452,20 +3455,20 @@ var ItemDrag = /** @class */ (function () {
         if (!this._isActive)
             return;
         var item = this._item;
-        if (!item._isActive)
+        if (!item.isActive())
             return;
-        var axis = item.getGrid()._settings.dragAxis;
+        var dragAxis = item.getGrid().settings.dragAxis;
         var nextEvent = this._dragMoveEvent;
         var prevEvent = (this._dragPrevMoveEvent || this._dragStartEvent || nextEvent);
         // Update horizontal position data.
-        if (axis !== 'y') {
+        if (dragAxis !== 'y') {
             var moveDiffX = nextEvent.clientX - prevEvent.clientX;
             this._translateX = this._translateX - this._moveDiffX + moveDiffX;
             this._clientX = this._clientX - this._moveDiffX + moveDiffX;
             this._moveDiffX = moveDiffX;
         }
         // Update vertical position data.
-        if (axis !== 'x') {
+        if (dragAxis !== 'x') {
             var moveDiffY = nextEvent.clientY - prevEvent.clientY;
             this._translateY = this._translateY - this._moveDiffY + moveDiffY;
             this._clientY = this._clientY - this._moveDiffY + moveDiffY;
@@ -3482,11 +3485,14 @@ var ItemDrag = /** @class */ (function () {
         if (!this._isActive)
             return;
         var item = this._item;
-        if (!item._isActive)
+        if (!item.isActive())
             return;
+        var grid = item.getGrid();
         this._moveDiffX = this._moveDiffY = 0;
         item._setTranslate(this._translateX, this._translateY);
-        item.getGrid()._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
+        if (this._dragMoveEvent) {
+            grid._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
+        }
         ItemDrag.autoScroller.updateItem(item);
     };
     /**
@@ -3497,13 +3503,13 @@ var ItemDrag = /** @class */ (function () {
      */
     ItemDrag.prototype._onScroll = function (event) {
         var item = this._item;
-        if (!item._isActive) {
+        if (!item.isActive()) {
             this.stop();
             return;
         }
         this._scrollEvent = event;
-        addDragScrollTick(item._id, this._prepareScroll, this._applyScroll);
-        addDragSortTick(item._id, this._handleSort);
+        addDragScrollTick(item.id, this._prepareScroll, this._applyScroll);
+        addDragSortTick(item.id, this._handleSort);
     };
     /**
      * Prepare dragged item for scrolling.
@@ -3515,17 +3521,17 @@ var ItemDrag = /** @class */ (function () {
             return;
         // If item is not active do nothing.
         var item = this._item;
-        if (!item._isActive)
+        if (!item.isActive())
             return;
-        var element = item._element;
+        var element = item.element;
         var grid = item.getGrid();
         // Update container diff.
-        if (this._container !== grid._element) {
-            var _a = getOffsetDiff(this._containingBlock, grid._element), left_1 = _a.left, top_2 = _a.top;
+        if (this._container !== grid.element) {
+            var _a = getOffsetDiff(this._containingBlock, grid.element), left_1 = _a.left, top_2 = _a.top;
             item._containerDiffX = this._containerDiffX = left_1;
             item._containerDiffY = this._containerDiffY = top_2;
         }
-        var dragAxis = grid._settings.dragAxis;
+        var dragAxis = grid.settings.dragAxis;
         var _b = element.getBoundingClientRect(), left = _b.left, top = _b.top;
         // Update horizontal position data.
         if (dragAxis !== 'y') {
@@ -3549,11 +3555,14 @@ var ItemDrag = /** @class */ (function () {
         if (!this._isActive)
             return;
         var item = this._item;
-        if (!item._isActive)
+        if (!item.isActive())
             return;
+        var grid = item.getGrid();
         this._scrollDiffX = this._scrollDiffY = 0;
         item._setTranslate(this._translateX, this._translateY);
-        item.getGrid()._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
+        if (this._scrollEvent) {
+            grid._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
+        }
     };
     /**
      * Drag end handler.
@@ -3564,16 +3573,16 @@ var ItemDrag = /** @class */ (function () {
     ItemDrag.prototype._onEnd = function (event) {
         var item = this._item;
         // If item is not active, reset drag.
-        if (!item._isActive) {
+        if (!item.isActive()) {
             this.stop();
             return;
         }
         var grid = item.getGrid();
         this._dragEndEvent = event;
         // Cancel queued ticks.
-        cancelDragStartTick(item._id);
-        cancelDragMoveTick(item._id);
-        cancelDragScrollTick(item._id);
+        cancelDragStartTick(item.id);
+        cancelDragMoveTick(item.id);
+        cancelDragScrollTick(item.id);
         // Finish sort procedure (does final overlap check if needed).
         this._finishSort();
         // Remove scroll listeners.
@@ -3581,7 +3590,7 @@ var ItemDrag = /** @class */ (function () {
         // Reset drag data.
         this._reset();
         // Remove dragging class from element.
-        removeClass(item._element, grid._settings.itemDraggingClass);
+        removeClass(item.element, grid.settings.itemDraggingClass);
         // Stop auto-scroll.
         ItemDrag.autoScroller.removeItem(item);
         // Emit dragEnd event.
@@ -3804,7 +3813,7 @@ var TARGET_STYLES = {};
 var ItemDragPlaceholder = /** @class */ (function () {
     function ItemDragPlaceholder(item) {
         this._item = item;
-        this._animation = new Animator();
+        this._animator = new Animator();
         this._element = null;
         this._className = '';
         this._didMigrate = false;
@@ -3835,8 +3844,8 @@ var ItemDragPlaceholder = /** @class */ (function () {
         if (!this._element)
             return;
         setStyles(this._element, {
-            width: this._item._width + 'px',
-            height: this._item._height + 'px',
+            width: this._item.width + 'px',
+            height: this._item.height + 'px',
         });
     };
     /**
@@ -3855,8 +3864,8 @@ var ItemDragPlaceholder = /** @class */ (function () {
             this.reset();
             return;
         }
-        var nextLeft = item._left;
-        var nextTop = item._top;
+        var nextLeft = item.left;
+        var nextTop = item.top;
         var currentLeft = this._left;
         var currentTop = this._top;
         // Keep track of item layout position.
@@ -3870,21 +3879,21 @@ var ItemDragPlaceholder = /** @class */ (function () {
         // Slots data is calculated with item margins added to them so we need to
         // add item's left and top margin to the slot data to get the placeholder's
         // next position.
-        var nextX = nextLeft + item._marginLeft;
-        var nextY = nextTop + item._marginTop;
+        var nextX = nextLeft + item.marginLeft;
+        var nextY = nextTop + item.marginTop;
         // Just snap to new position without any animations if no animation is
         // required or if placeholder moves between grids.
         var grid = item.getGrid();
-        var animEnabled = !isInstant && grid._settings.layoutDuration > 0;
+        var animEnabled = !isInstant && grid.settings.layoutDuration > 0;
         if (!animEnabled || this._didMigrate) {
             // Cancel potential (queued) layout tick.
-            cancelPlaceholderLayoutTick(item._id);
+            cancelPlaceholderLayoutTick(item.id);
             // Snap placeholder to correct position.
             this._element.style[transformProp] = getTranslateString(nextX, nextY);
-            this._animation.stop();
+            this._animator.stop();
             // Move placeholder inside correct container after migration.
             if (this._didMigrate) {
-                grid.getElement().appendChild(this._element);
+                grid.element.appendChild(this._element);
                 this._didMigrate = false;
             }
             return;
@@ -3892,14 +3901,14 @@ var ItemDragPlaceholder = /** @class */ (function () {
         // Let's make sure an ongoing animation's callback is cancelled before going
         // further. Without this there's a chance that the animation will finish
         // before the next tick and mess up our logic.
-        if (this._animation.animation) {
-            this._animation.animation.onfinish = null;
+        if (this._animator.animation) {
+            this._animator.animation.onfinish = null;
         }
         // Start the placeholder's layout animation in the next tick. We do this to
         // avoid layout thrashing.
         this._nextTransX = nextX;
         this._nextTransY = nextY;
-        addPlaceholderLayoutTick(item._id, this._setupAnimation, this._startAnimation);
+        addPlaceholderLayoutTick(item.id, this._setupAnimation, this._startAnimation);
     };
     /**
      * Prepare placeholder for layout animation.
@@ -3921,7 +3930,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
     ItemDragPlaceholder.prototype._startAnimation = function () {
         if (!this._element)
             return;
-        var animation = this._animation;
+        var animation = this._animator;
         var currentX = this._transX;
         var currentY = this._transY;
         var nextX = this._nextTransX;
@@ -3936,7 +3945,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
             return;
         }
         // Otherwise let's start the animation.
-        var _a = this._item.getGrid()._settings, layoutDuration = _a.layoutDuration, layoutEasing = _a.layoutEasing;
+        var _a = this._item.getGrid().settings, layoutDuration = _a.layoutDuration, layoutEasing = _a.layoutEasing;
         CURRENT_STYLES[transformProp] = getTranslateString(currentX, currentY);
         TARGET_STYLES[transformProp] = getTranslateString(nextX, nextY);
         animation.start(CURRENT_STYLES, TARGET_STYLES, {
@@ -3963,9 +3972,9 @@ var ItemDragPlaceholder = /** @class */ (function () {
      * @param {Item} item
      */
     ItemDragPlaceholder.prototype._onReleaseEnd = function (item) {
-        if (item._id === this._item._id) {
+        if (item.id === this._item.id) {
             // If the placeholder is not animating anymore we can safely reset it.
-            if (!this._animation.isAnimating()) {
+            if (!this._animator.isAnimating()) {
                 this.reset();
                 return;
             }
@@ -4030,10 +4039,10 @@ var ItemDragPlaceholder = /** @class */ (function () {
         }
         var item = this._item;
         var grid = item.getGrid();
-        var settings = grid._settings;
+        var settings = grid.settings;
         // Keep track of layout position.
-        this._left = item._left;
-        this._top = item._top;
+        this._left = item.left;
+        this._top = item.top;
         // Create placeholder element.
         if (isFunction(settings.dragPlaceholder.createElement)) {
             this._element = settings.dragPlaceholder.createElement(item);
@@ -4043,7 +4052,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
         }
         var element = this._element;
         // Update element to animation instance.
-        this._animation.element = element;
+        this._animator.element = element;
         // Add placeholder class to the placeholder element.
         this._className = settings.itemPlaceholderClass || '';
         if (this._className) {
@@ -4054,11 +4063,11 @@ var ItemDragPlaceholder = /** @class */ (function () {
             position: 'absolute',
             left: '0px',
             top: '0px',
-            width: item._width + 'px',
-            height: item._height + 'px',
+            width: item.width + 'px',
+            height: item.height + 'px',
         });
         // Set initial position.
-        element.style[transformProp] = getTranslateString(item._left + item._marginLeft, item._top + item._marginTop);
+        element.style[transformProp] = getTranslateString(item.left + item.marginLeft, item.top + item.marginTop);
         // Bind event listeners.
         grid.on(EVENT_LAYOUT_START, this._onLayoutStart);
         grid.on(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
@@ -4069,7 +4078,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
             settings.dragPlaceholder.onCreate(item, element);
         }
         // Insert the placeholder element to the grid.
-        grid.getElement().appendChild(element);
+        grid.element.appendChild(element);
     };
     /**
      * Reset placeholder data.
@@ -4086,10 +4095,10 @@ var ItemDragPlaceholder = /** @class */ (function () {
         // Reset flag.
         this._resetAfterLayout = false;
         // Cancel potential (queued) layout tick.
-        cancelPlaceholderLayoutTick(item._id);
-        cancelPlaceholderResizeTick(item._id);
+        cancelPlaceholderLayoutTick(item.id);
+        cancelPlaceholderResizeTick(item.id);
         // Reset animation instance.
-        var animation = this._animation;
+        var animation = this._animator;
         animation.stop();
         animation.element = null;
         // Unbind event listeners.
@@ -4108,7 +4117,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
         // onRemove hook. Note that here we use the current grid's onRemove callback
         // so if the item has migrated during drag the onRemove method will not be
         // the originating grid's method.
-        var onRemove = grid._settings.dragPlaceholder.onRemove;
+        var onRemove = grid.settings.dragPlaceholder.onRemove;
         if (isFunction(onRemove))
             onRemove(item, element);
     };
@@ -4140,7 +4149,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
     ItemDragPlaceholder.prototype.updateDimensions = function () {
         if (!this.isActive())
             return;
-        addPlaceholderResizeTick(this._item._id, this._updateDimensions);
+        addPlaceholderResizeTick(this._item.id, this._updateDimensions);
     };
     /**
      * Update placeholder's class name.
@@ -4162,7 +4171,7 @@ var ItemDragPlaceholder = /** @class */ (function () {
      */
     ItemDragPlaceholder.prototype.destroy = function () {
         this.reset();
-        this._animation && this._animation.destroy();
+        this._animator && this._animator.destroy();
     };
     return ItemDragPlaceholder;
 }());
@@ -4195,13 +4204,13 @@ var ItemDragRelease = /** @class */ (function () {
             return;
         var item = this._item;
         var grid = item.getGrid();
-        var settings = grid._settings;
+        var settings = grid.settings;
         this._isActive = true;
-        addClass(item._element, settings.itemReleasingClass);
+        addClass(item.element, settings.itemReleasingClass);
         if (!settings.dragRelease.useDragContainer) {
             this._placeToGrid();
         }
-        else if (item._element.parentNode !== grid._element) {
+        else if (item.element.parentNode !== grid.element) {
             window.addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS$1);
         }
         grid._emit(EVENT_DRAG_RELEASE_START, item);
@@ -4230,13 +4239,14 @@ var ItemDragRelease = /** @class */ (function () {
             return;
         var item = this._item;
         if (!abort && (left === undefined || top === undefined)) {
-            left = item._left;
-            top = item._top;
+            left = item.left;
+            top = item.top;
         }
         var didReparent = this._placeToGrid(left, top);
         this._reset(didReparent);
-        if (!abort)
+        if (!abort) {
             item.getGrid()._emit(EVENT_DRAG_RELEASE_END, item);
+        }
     };
     ItemDragRelease.prototype.isJustReleased = function () {
         return this._isActive && this._isPositioningStarted === false;
@@ -4269,15 +4279,15 @@ var ItemDragRelease = /** @class */ (function () {
         if (this._isDestroyed)
             return didReparent;
         var item = this._item;
-        var element = item._element;
-        var container = item.getGrid()._element;
-        if (container && element.parentNode !== container) {
+        var element = item.element;
+        var gridElement = item.getGrid().element;
+        if (element.parentNode !== gridElement) {
             if (left === undefined || top === undefined) {
                 var _a = item._getTranslate(), x = _a.x, y = _a.y;
                 left = x - item._containerDiffX;
                 top = y - item._containerDiffY;
             }
-            container.appendChild(element);
+            gridElement.appendChild(element);
             item._setTranslate(left, top);
             item._containerDiffX = 0;
             item._containerDiffY = 0;
@@ -4296,18 +4306,18 @@ var ItemDragRelease = /** @class */ (function () {
         if (this._isDestroyed)
             return;
         var item = this._item;
-        var releasingClass = item.getGrid()._settings.itemReleasingClass;
+        var itemReleasingClass = item.getGrid().settings.itemReleasingClass;
         this._isActive = false;
         this._isPositioningStarted = false;
-        cancelReleaseScrollTick(item._id);
+        cancelReleaseScrollTick(item.id);
         window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS$1);
         // If the element was just reparented we need to do a forced reflow to remove
         // the class gracefully.
-        if (releasingClass) {
+        if (itemReleasingClass) {
             // eslint-disable-next-line
             if (needsReflow)
-                item._element.clientWidth;
-            removeClass(item._element, releasingClass);
+                item.element.clientWidth;
+            removeClass(item.element, itemReleasingClass);
         }
     };
     /**
@@ -4320,13 +4330,13 @@ var ItemDragRelease = /** @class */ (function () {
         var item = this._item;
         var diffX = 0;
         var diffY = 0;
-        addReleaseScrollTick(item._id, function () {
+        addReleaseScrollTick(item.id, function () {
             if (!_this._isActive)
                 return;
-            var itemContainer = item._element.parentNode;
-            var gridContainer = item.getGrid()._element;
-            if (itemContainer && gridContainer) {
-                var _a = getOffsetDiff(itemContainer, gridContainer, true), left = _a.left, top_1 = _a.top;
+            var itemContainer = item.element.parentNode;
+            if (itemContainer) {
+                var gridElement = item.getGrid().element;
+                var _a = getOffsetDiff(itemContainer, gridElement, true), left = _a.left, top_1 = _a.top;
                 diffX = left;
                 diffY = top_1;
             }
@@ -4339,8 +4349,8 @@ var ItemDragRelease = /** @class */ (function () {
                 item._containerDiffY = diffY;
                 if (item._dragPlaceholder)
                     item._dragPlaceholder.reset();
-                item._layout.stop(true, item._left, item._top);
-                _this.stop(false, item._left, item._top);
+                item._layout.stop(true, item.left, item.top);
+                _this.stop(false, item.left, item.top);
             }
         });
     };
@@ -4372,17 +4382,17 @@ var ItemLayout = /** @class */ (function () {
         this._duration = 0;
         this._tX = 0;
         this._tY = 0;
-        this._animation = new Animator(item._element);
-        this._queue = 'layout-' + item._id;
+        this._animation = new Animator(item.element);
+        this._queue = 'layout-' + item.id;
         // Bind animation handlers.
         this._setupAnimation = this._setupAnimation.bind(this);
         this._startAnimation = this._startAnimation.bind(this);
         this._finish = this._finish.bind(this);
         // Set element's initial position styles.
-        var style = item._element.style;
+        var style = item.element.style;
         style.left = '0px';
         style.top = '0px';
-        item._setTranslate(0, 0);
+        this._item._setTranslate(0, 0);
     }
     /**
      * Start item layout based on it's current data.
@@ -4397,19 +4407,17 @@ var ItemLayout = /** @class */ (function () {
         var item = this._item;
         var grid = item.getGrid();
         var release = item._dragRelease;
-        var gridSettings = grid._settings;
+        var settings = grid.settings;
         var isPositioning = this._isActive;
         var isJustReleased = release.isJustReleased();
         var animation = this._animation;
-        var animDuration = isJustReleased
-            ? gridSettings.dragRelease.duration
-            : gridSettings.layoutDuration;
-        var animEasing = isJustReleased ? gridSettings.dragRelease.easing : gridSettings.layoutEasing;
+        var animDuration = isJustReleased ? settings.dragRelease.duration : settings.layoutDuration;
+        var animEasing = isJustReleased ? settings.dragRelease.easing : settings.layoutEasing;
         var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
         // If the item is currently positioning cancel potential queued layout tick
         // and process current layout callback queue with interrupted flag on.
         if (isPositioning) {
-            cancelLayoutTick(item._id);
+            cancelLayoutTick(item.id);
             item._emitter.burst(this._queue, true, item);
         }
         // Mark release positioning as started.
@@ -4423,7 +4431,7 @@ var ItemLayout = /** @class */ (function () {
         this._skipNextAnimation = false;
         // If no animations are needed, easy peasy!
         if (!animEnabled) {
-            item._setTranslate(item._left + item._containerDiffX, item._top + item._containerDiffY);
+            item._setTranslate(item.left + item._containerDiffX, item.top + item._containerDiffY);
             animation.stop();
             this._finish();
             return;
@@ -4440,7 +4448,7 @@ var ItemLayout = /** @class */ (function () {
         this._easing = animEasing;
         this._duration = animDuration;
         this._isInterrupted = isPositioning;
-        addLayoutTick(item._id, this._setupAnimation, this._startAnimation);
+        addLayoutTick(item.id, this._setupAnimation, this._startAnimation);
     };
     /**
      * Stop item's position animation if it is currently animating.
@@ -4455,11 +4463,11 @@ var ItemLayout = /** @class */ (function () {
             return;
         var item = this._item;
         // Cancel animation init.
-        cancelLayoutTick(item._id);
+        cancelLayoutTick(item.id);
         // Stop animation.
         if (this._animation.isAnimating()) {
             if (left === undefined || top === undefined) {
-                var _a = getTranslate(item._element), x = _a.x, y = _a.y;
+                var _a = getTranslate(item.element), x = _a.x, y = _a.y;
                 item._setTranslate(x, y);
             }
             else {
@@ -4468,7 +4476,8 @@ var ItemLayout = /** @class */ (function () {
             this._animation.stop();
         }
         // Remove positioning class.
-        removeClass(item._element, item.getGrid()._settings.itemPositioningClass || '');
+        var itemPositioningClass = item.getGrid().settings.itemPositioningClass;
+        removeClass(item.element, itemPositioningClass);
         // Reset active state.
         this._isActive = false;
         // Process callback queue if needed.
@@ -4487,7 +4496,7 @@ var ItemLayout = /** @class */ (function () {
         this.stop(true, 0, 0);
         this._item._emitter.clear(this._queue);
         this._animation.destroy();
-        var style = this._item._element.style;
+        var style = this._item.element.style;
         style[transformProp] = '';
         style.left = '';
         style.top = '';
@@ -4503,12 +4512,13 @@ var ItemLayout = /** @class */ (function () {
             return;
         var item = this._item;
         // Update internal translate values.
-        item._translateX = item._left + item._containerDiffX;
-        item._translateY = item._top + item._containerDiffY;
+        item._translateX = item.left + item._containerDiffX;
+        item._translateY = item.top + item._containerDiffY;
         // Mark the item as inactive and remove positioning classes.
         if (this._isActive) {
             this._isActive = false;
-            removeClass(item._element, item.getGrid()._settings.itemPositioningClass || '');
+            var itemPositioningClass = item.getGrid().settings.itemPositioningClass;
+            removeClass(item.element, itemPositioningClass);
         }
         // Finish up release and migration.
         if (item._dragRelease._isActive)
@@ -4531,7 +4541,7 @@ var ItemLayout = /** @class */ (function () {
         this._tX = x;
         this._tY = y;
         var grid = item.getGrid();
-        if (grid._settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
+        if (grid.settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
             grid._itemLayoutNeedsDimensionRefresh = false;
             grid._updateBoundingRect();
             grid._updateBorders(true, false, true, false);
@@ -4546,15 +4556,14 @@ var ItemLayout = /** @class */ (function () {
         if (this._isDestroyed || !this._isActive)
             return;
         var item = this._item;
-        var grid = item.getGrid();
-        var settings = grid._settings;
+        var settings = item.getGrid().settings;
         var isInstant = this._duration <= 0;
         // Calculate next translate values.
-        var nextLeft = item._left + item._containerDiffX;
-        var nextTop = item._top + item._containerDiffY;
+        var nextLeft = item.left + item._containerDiffX;
+        var nextTop = item.top + item._containerDiffY;
         // Check if we can skip the animation and just snap the element to it's place.
-        var xDiff = Math.abs(item._left - (this._tX - item._containerDiffX));
-        var yDiff = Math.abs(item._top - (this._tY - item._containerDiffY));
+        var xDiff = Math.abs(item.left - (this._tX - item._containerDiffX));
+        var yDiff = Math.abs(item.top - (this._tY - item._containerDiffY));
         if (isInstant ||
             (xDiff < MIN_ANIMATION_DISTANCE && yDiff < MIN_ANIMATION_DISTANCE) ||
             (settings._animationWindowing &&
@@ -4569,7 +4578,7 @@ var ItemLayout = /** @class */ (function () {
         }
         // Set item's positioning class if needed.
         if (!this._isInterrupted) {
-            addClass(item._element, settings.itemPositioningClass);
+            addClass(item.element, settings.itemPositioningClass);
         }
         // Get current/next styles for animation and provide animation options.
         CURRENT_STYLES$1[transformProp] = getTranslateString(this._tX, this._tY);
@@ -4612,25 +4621,23 @@ var ItemMigrate = /** @class */ (function () {
      * Start the migrate process of an item.
      *
      * @public
-     * @param {Grid} targetGrid
+     * @param {Grid} nextGrid
      * @param {(HTMLElement|Number|Item)} position
      * @param {HTMLElement} [container]
      */
     ItemMigrate.prototype.start = function (targetGrid, position, container) {
-        if (this._isDestroyed)
-            return;
-        var targetElement = targetGrid._element;
-        if (!targetElement)
+        if (this._isDestroyed || targetGrid.isDestroyed())
             return;
         var item = this._item;
         var grid = item.getGrid();
-        var element = item._element;
+        var element = item.element;
         var isActive = item.isActive();
         var isVisible = item.isVisible();
-        var settings = grid._settings;
-        var currentIndex = grid._items.indexOf(item);
-        var targetSettings = targetGrid._settings;
-        var targetItems = targetGrid._items;
+        var settings = grid.settings;
+        var currentIndex = grid.items.indexOf(item);
+        var targetElement = targetGrid.element;
+        var targetSettings = targetGrid.settings;
+        var targetItems = targetGrid.items;
         var targetContainer = container || document.body;
         // Get target index.
         var targetIndex = 0;
@@ -4685,7 +4692,7 @@ var ItemMigrate = /** @class */ (function () {
         }
         // Let's make sure that the item and both grids are not destroyed after
         // we have emitted the events.
-        if (item._isDestroyed || grid._isDestroyed || targetGrid._isDestroyed) {
+        if (item.isDestroyed() || grid.isDestroyed() || targetGrid.isDestroyed()) {
             return;
         }
         // Destroy current drag.
@@ -4708,10 +4715,10 @@ var ItemMigrate = /** @class */ (function () {
             addClass(element, nextVisClass);
         }
         // Move item instance from current grid to target grid.
-        grid._items.splice(currentIndex, 1);
+        grid.items.splice(currentIndex, 1);
         arrayInsert(targetItems, item, targetIndex);
         // Update item's grid id reference.
-        item._gridId = targetGrid._id;
+        item._gridId = targetGrid.id;
         // If item is active we need to move the item inside the target container for
         // the duration of the (potential) animation if it's different than the
         // current container.
@@ -4791,10 +4798,8 @@ var ItemMigrate = /** @class */ (function () {
         if (this._isDestroyed || !this._isActive)
             return;
         var item = this._item;
-        var gridElement = item.getGrid()._element;
-        if (!gridElement)
-            return;
-        if (this._container !== gridElement) {
+        var grid = item.getGrid();
+        if (this._container !== grid.element) {
             if (left === undefined || top === undefined) {
                 if (abort) {
                     var t = item._getTranslate();
@@ -4802,11 +4807,11 @@ var ItemMigrate = /** @class */ (function () {
                     top = t.y - item._containerDiffY;
                 }
                 else {
-                    left = item._left;
-                    top = item._top;
+                    left = item.left;
+                    top = item.top;
                 }
             }
-            gridElement.appendChild(item._element);
+            grid.element.appendChild(item.element);
             item._setTranslate(left, top);
             item._containerDiffX = 0;
             item._containerDiffY = 0;
@@ -4861,8 +4866,8 @@ function getCurrentStyles(element, styles) {
  */
 var ItemVisibility = /** @class */ (function () {
     function ItemVisibility(item) {
-        var isActive = item._isActive;
-        var element = item._element;
+        var isActive = item.isActive();
+        var element = item.element;
         var childElement = element.children[0];
         if (!childElement) {
             throw new Error('No valid child element found within item element.');
@@ -4875,11 +4880,11 @@ var ItemVisibility = /** @class */ (function () {
         this._childElement = childElement;
         this._currentStyleProps = [];
         this._animation = new Animator(childElement);
-        this._queue = 'visibility-' + item._id;
+        this._queue = 'visibility-' + item.id;
         this._finishShow = this._finishShow.bind(this);
         this._finishHide = this._finishHide.bind(this);
         element.style.display = isActive ? '' : 'none';
-        var settings = item.getGrid()._settings;
+        var settings = item.getGrid().settings;
         addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
         this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
     }
@@ -4911,8 +4916,8 @@ var ItemVisibility = /** @class */ (function () {
         // to block if necessary.
         if (!this._isShowing) {
             item._emitter.burst(this._queue, true, item);
-            var element = item._element;
-            var settings = item.getGrid()._settings;
+            var element = item.element;
+            var settings = item.getGrid().settings;
             if (settings) {
                 removeClass(element, settings.itemHiddenClass);
                 addClass(element, settings.itemVisibleClass);
@@ -4956,12 +4961,10 @@ var ItemVisibility = /** @class */ (function () {
         // to block if necessary.
         if (!this._isHiding) {
             item._emitter.burst(this._queue, true, item);
-            var element = item._element;
-            var settings = item.getGrid()._settings;
-            if (settings) {
-                addClass(element, settings.itemHiddenClass);
-                removeClass(element, settings.itemVisibleClass);
-            }
+            var element = item.element;
+            var settings = item.getGrid().settings;
+            addClass(element, settings.itemHiddenClass);
+            removeClass(element, settings.itemVisibleClass);
         }
         // Push callback to the callback queue.
         callback && item._emitter.on(this._queue, callback);
@@ -4983,7 +4986,7 @@ var ItemVisibility = /** @class */ (function () {
         if (!this._isHiding && !this._isShowing)
             return;
         var item = this._item;
-        cancelVisibilityTick(item._id);
+        cancelVisibilityTick(item.id);
         this._animation.stop();
         if (processCallbackQueue) {
             item._emitter.burst(this._queue, true, item);
@@ -5017,8 +5020,8 @@ var ItemVisibility = /** @class */ (function () {
         if (this._isDestroyed)
             return;
         var item = this._item;
-        var element = item._element;
-        var settings = item.getGrid()._settings;
+        var element = item.element;
+        var settings = item.getGrid().settings;
         this.stop(true);
         item._emitter.clear(this._queue);
         this._animation.destroy();
@@ -5048,7 +5051,7 @@ var ItemVisibility = /** @class */ (function () {
         var grid = item.getGrid();
         var animation = this._animation;
         var childElement = this._childElement;
-        var settings = grid._settings;
+        var settings = grid.settings;
         var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
         var duration = toVisible ? settings.showDuration : settings.hideDuration;
         var easing = toVisible ? settings.showEasing : settings.hideEasing;
@@ -5060,7 +5063,7 @@ var ItemVisibility = /** @class */ (function () {
             return;
         }
         // Cancel queued visibility tick.
-        cancelVisibilityTick(item._id);
+        cancelVisibilityTick(item.id);
         // If we need to apply the styles instantly without animation.
         if (isInstant) {
             setStyles(childElement, targetStyles);
@@ -5079,7 +5082,7 @@ var ItemVisibility = /** @class */ (function () {
         var tY = 0;
         // Start the animation in the next tick (to avoid layout thrashing).
         grid._itemVisibilityNeedsDimensionRefresh = true;
-        addVisibilityTick(item._id, function () {
+        addVisibilityTick(item.id, function () {
             // Make sure the item is still in hiding/showing.
             if (_this._isDestroyed || (toVisible ? !_this._isShowing : !_this._isHiding))
                 return;
@@ -5099,7 +5102,7 @@ var ItemVisibility = /** @class */ (function () {
             // If item is not in the viewport let's skip the animation.
             if (settings._animationWindowing && !item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
                 if (!item.isActive() ||
-                    !item._isInViewport(item._left + item._containerDiffX, item._top + item._containerDiffY, VIEWPORT_THRESHOLD)) {
+                    !item._isInViewport(item.left + item._containerDiffX, item.top + item._containerDiffY, VIEWPORT_THRESHOLD)) {
                     setStyles(childElement, targetStyles);
                     animation.stop();
                     onFinish && onFinish();
@@ -5137,7 +5140,7 @@ var ItemVisibility = /** @class */ (function () {
         var item = this._item;
         this._isHiding = false;
         item._layout.stop(true, 0, 0);
-        item._element.style.display = 'none';
+        item.element.style.display = 'none';
         item._emitter.burst(this._queue, false, item);
     };
     /**
@@ -5222,7 +5225,7 @@ var _getClientRootPositionResult = { left: 0, top: 0 };
  */
 var Item = /** @class */ (function () {
     function Item(grid, element, isActive) {
-        var settings = grid._settings;
+        var settings = grid.settings, gridElement = grid.element, gridId = grid.id;
         // Store item/element pair to a map (for faster item querying by element).
         if (ITEM_ELEMENT_MAP) {
             if (ITEM_ELEMENT_MAP.has(element)) {
@@ -5232,18 +5235,18 @@ var Item = /** @class */ (function () {
                 ITEM_ELEMENT_MAP.set(element, this);
             }
         }
-        this._id = createUid();
-        this._gridId = grid._id;
-        this._element = element;
+        this.id = createUid();
+        this.element = element;
+        this.left = 0;
+        this.top = 0;
+        this.width = 0;
+        this.height = 0;
+        this.marginLeft = 0;
+        this.marginRight = 0;
+        this.marginTop = 0;
+        this.marginBottom = 0;
+        this._gridId = gridId;
         this._isDestroyed = false;
-        this._left = 0;
-        this._top = 0;
-        this._width = 0;
-        this._height = 0;
-        this._marginLeft = 0;
-        this._marginRight = 0;
-        this._marginTop = 0;
-        this._marginBottom = 0;
         this._translateX = undefined;
         this._translateY = undefined;
         this._containerDiffX = 0;
@@ -5253,8 +5256,8 @@ var Item = /** @class */ (function () {
         // If the provided item element is not a direct child of the grid container
         // element, append it to the grid container. Note, we are indeed reading the
         // DOM here but it's a property that does not cause reflowing.
-        if (grid._element && element.parentNode !== grid._element) {
-            grid._element.appendChild(element);
+        if (gridElement && element.parentNode !== gridElement) {
+            gridElement.appendChild(element);
         }
         // Set item class.
         addClass(element, settings.itemClass);
@@ -5300,59 +5303,6 @@ var Item = /** @class */ (function () {
         return GRID_INSTANCES.get(this._gridId) || null;
     };
     /**
-     * Get the instance element.
-     *
-     * @public
-     * @returns {HTMLElement}
-     */
-    Item.prototype.getElement = function () {
-        return this._element;
-    };
-    /**
-     * Get instance element's cached width.
-     *
-     * @public
-     * @returns {number}
-     */
-    Item.prototype.getWidth = function () {
-        return this._width;
-    };
-    /**
-     * Get instance element's cached height.
-     *
-     * @public
-     * @returns {number}
-     */
-    Item.prototype.getHeight = function () {
-        return this._height;
-    };
-    /**
-     * Get instance element's cached margins.
-     *
-     * @public
-     * @returns {Object}
-     */
-    Item.prototype.getMargin = function () {
-        return {
-            left: this._marginLeft,
-            right: this._marginRight,
-            top: this._marginTop,
-            bottom: this._marginBottom,
-        };
-    };
-    /**
-     * Get instance element's cached position.
-     *
-     * @public
-     * @returns {Object}
-     */
-    Item.prototype.getPosition = function () {
-        return {
-            left: this._left,
-            top: this._top,
-        };
-    };
-    /**
      * Is the item active?
      *
      * @public
@@ -5368,7 +5318,7 @@ var Item = /** @class */ (function () {
      * @returns {boolean}
      */
     Item.prototype.isVisible = function () {
-        return !!this._visibility && !this._visibility._isHidden;
+        return !this._visibility._isHidden;
     };
     /**
      * Is the item being animated to visible?
@@ -5377,7 +5327,7 @@ var Item = /** @class */ (function () {
      * @returns {boolean}
      */
     Item.prototype.isShowing = function () {
-        return !!(this._visibility && this._visibility._isShowing);
+        return !!this._visibility._isShowing;
     };
     /**
      * Is the item being animated to hidden?
@@ -5386,7 +5336,7 @@ var Item = /** @class */ (function () {
      * @returns {boolean}
      */
     Item.prototype.isHiding = function () {
-        return !!(this._visibility && this._visibility._isHiding);
+        return !!this._visibility._isHiding;
     };
     /**
      * Is the item positioning?
@@ -5395,7 +5345,7 @@ var Item = /** @class */ (function () {
      * @returns {boolean}
      */
     Item.prototype.isPositioning = function () {
-        return !!(this._layout && this._layout._isActive);
+        return !!this._layout._isActive;
     };
     /**
      * Is the item being dragged (or queued for dragging)?
@@ -5413,7 +5363,7 @@ var Item = /** @class */ (function () {
      * @returns {boolean}
      */
     Item.prototype.isReleasing = function () {
-        return !!(this._dragRelease && this._dragRelease._isActive);
+        return !!this._dragRelease._isActive;
     };
     /**
      * Is the item destroyed?
@@ -5427,7 +5377,7 @@ var Item = /** @class */ (function () {
     /**
      * Recalculate item's dimensions.
      *
-     * @private
+     * @protected
      * @param {boolean} [force=false]
      */
     Item.prototype._updateDimensions = function (force) {
@@ -5435,16 +5385,16 @@ var Item = /** @class */ (function () {
             return;
         if (force !== true && !this.isVisible() && !this.isHiding())
             return;
-        var element = this._element;
+        var element = this.element;
         // Calculate width and height.
         var rect = element.getBoundingClientRect();
-        this._width = rect.width;
-        this._height = rect.height;
+        this.width = rect.width;
+        this.height = rect.height;
         // Calculate margins (ignore negative margins).
-        this._marginLeft = Math.max(0, getStyleAsFloat(element, 'margin-left'));
-        this._marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
-        this._marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
-        this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
+        this.marginLeft = Math.max(0, getStyleAsFloat(element, 'margin-left'));
+        this.marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
+        this.marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
+        this.marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
         // Keep drag placeholder's dimensions synced with the item's.
         var dragPlaceholder = this._dragPlaceholder;
         if (dragPlaceholder)
@@ -5453,24 +5403,25 @@ var Item = /** @class */ (function () {
     /**
      * Fetch and store item's sort data.
      *
-     * @private
+     * @protected
      */
     Item.prototype._updateSortData = function () {
         if (this._isDestroyed)
             return;
+        var settings = this.getGrid().settings;
+        var sortData = settings.sortData;
         this._sortData = {};
-        var getters = this.getGrid()._settings.sortData;
-        if (getters) {
+        if (sortData) {
             var prop = void 0;
-            for (prop in getters) {
-                this._sortData[prop] = getters[prop](this, this._element);
+            for (prop in sortData) {
+                this._sortData[prop] = sortData[prop](this, this.element);
             }
         }
     };
     /**
      * Add item to layout.
      *
-     * @private
+     * @protected
      * @param {number} [left=0]
      * @param {number} [top=0]
      */
@@ -5480,32 +5431,32 @@ var Item = /** @class */ (function () {
         if (this._isActive)
             return;
         this._isActive = true;
-        this._left = left;
-        this._top = top;
+        this.left = left;
+        this.top = top;
     };
     /**
      * Remove item from layout.
      *
-     * @private
+     * @protected
      */
     Item.prototype._removeFromLayout = function () {
         if (!this._isActive)
             return;
         this._isActive = false;
-        this._left = 0;
-        this._top = 0;
+        this.left = 0;
+        this.top = 0;
     };
     /**
      * Check if the layout procedure can be skipped for the item.
      *
-     * @private
+     * @protected
      * @param {number} left
      * @param {number} top
      * @returns {boolean}
      */
     Item.prototype._canSkipLayout = function (left, top) {
-        return (this._left === left &&
-            this._top === top &&
+        return (this.left === left &&
+            this.top === top &&
             !this._migrate._isActive &&
             !this._dragRelease._isActive &&
             !this._layout._skipNextAnimation);
@@ -5516,7 +5467,7 @@ var Item = /** @class */ (function () {
      * translate values and skips the update operation if the provided values are
      * identical to the currently applied values.
      *
-     * @private
+     * @protected
      * @param {number} x
      * @param {number} y
      */
@@ -5525,19 +5476,19 @@ var Item = /** @class */ (function () {
             return;
         this._translateX = x;
         this._translateY = y;
-        this._element.style[transformProp] = getTranslateString(x, y);
+        this.element.style[transformProp] = getTranslateString(x, y);
     };
     /**
      * Get the item's current translate values. If they can't be detected from cache
      * we will read them from the DOM (so try to use this only when it is safe
      * to query the DOM without causing a forced reflow).
      *
-     * @private
+     * @protected
      * @returns {Object}
      */
     Item.prototype._getTranslate = function () {
         if (this._translateX === undefined || this._translateY === undefined) {
-            var translate = getTranslate(this._element);
+            var translate = getTranslate(this.element);
             _getTranslateResult.x = translate.x;
             _getTranslateResult.y = translate.y;
         }
@@ -5554,20 +5505,20 @@ var Item = /** @class */ (function () {
      * zero. Note that this method uses the cached dimensions of grid, so it is up
      * to the user to update those when necessary before using this method.
      *
-     * @private
+     * @protected
      * @returns {Object}
      */
     Item.prototype._getClientRootPosition = function () {
         var grid = this.getGrid();
-        _getClientRootPositionResult.left = grid._left + grid._borderLeft - this._containerDiffX;
-        _getClientRootPositionResult.top = grid._top + grid._borderTop - this._containerDiffY;
+        _getClientRootPositionResult.left = grid._rect.left + grid._borderLeft - this._containerDiffX;
+        _getClientRootPositionResult.top = grid._rect.top + grid._borderTop - this._containerDiffY;
         return _getClientRootPositionResult;
     };
     /**
      * Check if item will be in viewport with the provided coordinates. The third
      * argument allows defining extra padding for the viewport.
      *
-     * @private
+     * @protected
      * @param {number} x
      * @param {number} y
      * @param {number} [viewportThreshold=0]
@@ -5576,12 +5527,12 @@ var Item = /** @class */ (function () {
     Item.prototype._isInViewport = function (x, y, viewportThreshold) {
         if (viewportThreshold === void 0) { viewportThreshold = 0; }
         var rootPosition = this._getClientRootPosition();
-        return isInViewport(this._width, this._height, rootPosition.left + this._marginLeft + x, rootPosition.top + this._marginTop + y, viewportThreshold || 0);
+        return isInViewport(this.width, this.height, rootPosition.left + this.marginLeft + x, rootPosition.top + this.marginTop + y, viewportThreshold || 0);
     };
     /**
      * Destroy item instance.
      *
-     * @private
+     * @protected
      * @param {boolean} [removeElement=false]
      */
     Item.prototype._destroy = function (removeElement) {
@@ -5589,9 +5540,8 @@ var Item = /** @class */ (function () {
         if (removeElement === void 0) { removeElement = false; }
         if (this._isDestroyed)
             return;
-        var element = this._element;
-        var grid = this.getGrid();
-        var settings = grid._settings;
+        var element = this.element;
+        var settings = this.getGrid().settings;
         // Destroy handlers.
         this._dragPlaceholder.destroy();
         this._dragRelease.destroy();
@@ -5682,8 +5632,8 @@ function createPackerProcessor(isWorker) {
                 }
                 else {
                     item = items[i];
-                    slotWidth = item._width + (item._marginLeft || 0) + (item._marginRight || 0);
-                    slotHeight = item._height + (item._marginTop || 0) + (item._marginBottom || 0);
+                    slotWidth = item.width + (item.marginLeft || 0) + (item.marginRight || 0);
+                    slotHeight = item.height + (item.marginTop || 0) + (item.marginBottom || 0);
                 }
                 // If rounding is enabled let's round the item's width and height to
                 // make the layout algorithm a bit more stable. This has a performance
@@ -6174,19 +6124,10 @@ var Packer = /** @class */ (function () {
         }
         this._settings = fillGaps | horizontal | alignRight | alignBottom | rounding;
     };
-    Packer.prototype.createLayout = function (grid, layoutId, items, width, height, callback) {
+    Packer.prototype.createLayout = function (layoutId, items, containerData, callback) {
         if (this._layoutWorkerData.has(layoutId)) {
             throw new Error('A layout with the provided id is currently being processed.');
         }
-        var containerData = {
-            width: width,
-            height: height,
-            borderLeft: grid._borderLeft,
-            borderRight: grid._borderRight,
-            borderTop: grid._borderTop,
-            borderBottom: grid._borderBottom,
-            boxSizing: grid._boxSizing,
-        };
         var useSyncProcessing = !this._asyncMode || !items.length;
         var isHorizontal = this._settings & HORIZONTAL;
         var layout = {
@@ -6217,8 +6158,8 @@ var Packer = /** @class */ (function () {
         var j = PACKET_HEADER_SLOTS - 1;
         for (; i < items.length; i++) {
             var item = items[i];
-            packet[++j] = item._width + (item._marginLeft || 0) + (item._marginRight || 0);
-            packet[++j] = item._height + (item._marginTop || 0) + (item._marginBottom || 0);
+            packet[++j] = item.width + (item.marginLeft || 0) + (item.marginRight || 0);
+            packet[++j] = item.height + (item.marginTop || 0) + (item.marginBottom || 0);
         }
         // Store the layout data and add it to worker queue.
         this._layoutWorkerQueue.push(layoutId);
@@ -6479,35 +6420,6 @@ function getInitialGridElements(gridElement, elements) {
     return [];
 }
 /**
- * Bind grid's resize handler to window.
- *
- * @param {Grid} grid
- * @param {(number|boolean)} delay
- */
-function bindLayoutOnResize(grid, delay) {
-    if (typeof delay !== 'number') {
-        delay = delay === true ? 0 : -1;
-    }
-    if (delay >= 0) {
-        grid._resizeHandler = debounce(function () {
-            grid.refreshItems().layout();
-        }, delay);
-        window.addEventListener('resize', grid._resizeHandler);
-    }
-}
-/**
- * Unbind grid's resize handler from window.
- *
- * @param {Grid} grid
- */
-function unbindLayoutOnResize(grid) {
-    if (grid._resizeHandler) {
-        grid._resizeHandler(true);
-        window.removeEventListener('resize', grid._resizeHandler);
-        grid._resizeHandler = null;
-    }
-}
-/**
  * Normalize style declaration object, returns a normalized (new) styles object
  * (prefixed properties and invalid properties removed).
  *
@@ -6540,7 +6452,7 @@ function createIndexMap(items) {
     var result = {};
     var i = 0;
     for (; i < items.length; i++) {
-        result[items[i]._id] = i;
+        result[items[i].id] = i;
     }
     return result;
 }
@@ -6553,8 +6465,8 @@ function createIndexMap(items) {
  * @returns {number}
  */
 function compareIndexMap(indexMap, itemA, itemB) {
-    var indexA = indexMap[itemA._id];
-    var indexB = indexMap[itemB._id];
+    var indexA = indexMap[itemA.id];
+    var indexB = indexMap[itemB.id];
     return indexA - indexB;
 }
 /**
@@ -6673,24 +6585,17 @@ var Grid = /** @class */ (function () {
         var settings = createSettings(Grid.defaultOptions, options);
         settings.visibleStyles = normalizeStyles(settings.visibleStyles);
         settings.hiddenStyles = normalizeStyles(settings.hiddenStyles);
-        this._id = createUid();
-        this._element = element;
-        this._settings = settings;
-        this._items = [];
+        this.id = createUid();
+        this.element = element;
+        this.settings = settings;
+        this.items = [];
         this._isDestroyed = false;
-        this._width = 0;
-        this._height = 0;
-        this._left = 0;
-        this._top = 0;
-        this._right = 0;
-        this._bottom = 0;
+        this._rect = { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
         this._borderLeft = 0;
         this._borderRight = 0;
         this._borderTop = 0;
         this._borderBottom = 0;
         this._boxSizing = '';
-        this._itemLayoutNeedsDimensionRefresh = false;
-        this._itemVisibilityNeedsDimensionRefresh = false;
         this._layout = {
             id: 0,
             items: [],
@@ -6700,14 +6605,13 @@ var Grid = /** @class */ (function () {
         this._nextLayoutData = null;
         this._resizeHandler = null;
         this._emitter = new Emitter();
-        this._onLayoutDataReceived = this._onLayoutDataReceived.bind(this);
         // Store grid instance to the grid instances collection.
-        GRID_INSTANCES.set(this._id, this);
+        GRID_INSTANCES.set(this.id, this);
         // Add container element's class name.
         addClass(element, settings.containerClass);
         // If layoutOnResize option is a valid number sanitize it and bind the resize
         // handler.
-        bindLayoutOnResize(this, settings.layoutOnResize);
+        this._bindLayoutOnResize(settings.layoutOnResize);
         // Add initial items.
         this.add(getInitialGridElements(element, settings.items), { layout: false });
         // Layout on init if necessary.
@@ -6718,7 +6622,7 @@ var Grid = /** @class */ (function () {
     /**
      * Emit a grid event.
      *
-     * @private
+     * @protected
      * @param {string} event
      * @param {...*} [args]
      */
@@ -6735,7 +6639,7 @@ var Grid = /** @class */ (function () {
     /**
      * Check if there are any events listeners for an event.
      *
-     * @private
+     * @protected
      * @param {string} event
      * @returns {boolean}
      */
@@ -6747,29 +6651,22 @@ var Grid = /** @class */ (function () {
     /**
      * Update container's width, height and offsets.
      *
-     * @private
+     * @protected
      */
     Grid.prototype._updateBoundingRect = function () {
-        var element = this._element;
-        var rect = element.getBoundingClientRect();
-        this._width = rect.width;
-        this._height = rect.height;
-        this._left = rect.left;
-        this._top = rect.top;
-        this._right = rect.right;
-        this._bottom = rect.bottom;
+        this._rect = __assign({}, this.element.getBoundingClientRect());
     };
     /**
      * Update container's border sizes.
      *
-     * @private
+     * @protected
      * @param {boolean} left
      * @param {boolean} right
      * @param {boolean} top
      * @param {boolean} bottom
      */
     Grid.prototype._updateBorders = function (left, right, top, bottom) {
-        var element = this._element;
+        var element = this.element;
         if (left)
             this._borderLeft = getStyleAsFloat(element, 'border-left-width');
         if (right)
@@ -6782,17 +6679,48 @@ var Grid = /** @class */ (function () {
     /**
      * Refresh all of container's internal dimensions and offsets.
      *
-     * @private
+     * @protected
      */
     Grid.prototype._updateDimensions = function () {
         this._updateBoundingRect();
         this._updateBorders(true, true, true, true);
-        this._boxSizing = getStyle(this._element, 'box-sizing');
+        this._boxSizing = getStyle(this.element, 'box-sizing');
+    };
+    /**
+     * Bind grid's resize handler to window.
+     *
+     * @param {(number|boolean)} delay
+     */
+    Grid.prototype._bindLayoutOnResize = function (delay) {
+        var _this = this;
+        if (typeof delay !== 'number') {
+            delay = delay === true ? 0 : -1;
+        }
+        if (delay >= 0) {
+            this._resizeHandler = debounce(function () {
+                _this.refreshItems().layout();
+            }, delay);
+            window.addEventListener('resize', this._resizeHandler);
+        }
+    };
+    /**
+     * Unbind grid's resize handler from window.
+     * @todo move into prototype
+     *
+     * @param {Grid} grid
+     */
+    Grid.prototype._unbindLayoutOnResize = function () {
+        var _resizeHandler = this._resizeHandler;
+        if (isFunction(_resizeHandler)) {
+            _resizeHandler(true);
+            window.removeEventListener('resize', this._resizeHandler);
+            this._resizeHandler = null;
+        }
     };
     /**
      * Calculate and apply item positions.
      *
-     * @private
+     * @protected
      * @param {Object} layout
      */
     Grid.prototype._onLayoutDataReceived = function (layout) {
@@ -6835,8 +6763,8 @@ var Grid = /** @class */ (function () {
                 continue;
             }
             // Update the item's position.
-            item._left = left;
-            item._top = top;
+            item.left = left;
+            item.top = top;
             // Only active non-dragged items need to be moved.
             if (item.isActive() && !item.isDragging()) {
                 itemsToLayout.push(item);
@@ -6847,7 +6775,7 @@ var Grid = /** @class */ (function () {
         }
         // Set layout styles to the grid element.
         if (layout.styles) {
-            setStyles(this._element, layout.styles);
+            setStyles(this.element, layout.styles);
         }
         // layoutStart event is intentionally emitted after the container element's
         // dimensions are set, because otherwise there would be no hook for reacting
@@ -6876,7 +6804,7 @@ var Grid = /** @class */ (function () {
         };
         if (!itemsToLayout.length) {
             tryFinish();
-            return this;
+            return;
         }
         this._isLayoutFinished = false;
         for (i = 0; i < itemsToLayout.length; i++) {
@@ -6884,12 +6812,12 @@ var Grid = /** @class */ (function () {
                 break;
             itemsToLayout[i]._layout.start(instant, tryFinish);
         }
-        return this;
+        return;
     };
     /**
      * Show or hide Grid instance's items.
      *
-     * @private
+     * @protected
      * @param {Item[]} items
      * @param {boolean} toVisible
      * @param {Object} [options]
@@ -6925,12 +6853,12 @@ var Grid = /** @class */ (function () {
             item = targetItems[i];
             // If inactive item is shown or active item is hidden we need to do
             // layout.
-            if ((toVisible && !item._isActive) || (!toVisible && item._isActive)) {
+            if ((toVisible && !item.isActive()) || (!toVisible && item.isActive())) {
                 needsLayout = true;
             }
             // If inactive item is shown we also need to do a little hack to make the
             // item not animate it's next positioning (layout).
-            item._layout._skipNextAnimation = !!(toVisible && !item._isActive);
+            item._layout._skipNextAnimation = !!(toVisible && !item.isActive());
             // If a hidden item is being shown we need to refresh the item's
             // dimensions.
             if (toVisible && !item.isVisible() && !item.isHiding()) {
@@ -6964,9 +6892,10 @@ var Grid = /** @class */ (function () {
                 _this._emit(startEvent, targetItems.slice(0));
             }
             for (i = 0; i < targetItems.length; i++) {
+                item = targetItems[i];
                 // Make sure the item is still in the original grid. There is a chance
                 // that the item starts migrating before tiggerVisibilityChange is called.
-                if (targetItems[i]._gridId !== _this._id) {
+                if (item._gridId !== _this.id) {
                     if (--counter < 1) {
                         if (isFunction(callback))
                             callback(completedItems.slice(0));
@@ -6975,7 +6904,7 @@ var Grid = /** @class */ (function () {
                     }
                     continue;
                 }
-                targetItems[i]._visibility[method](isInstant, function (interrupted, item) {
+                item._visibility[method](isInstant, function (interrupted, item) {
                     // If the current item's animation was not interrupted add it to the
                     // completedItems array.
                     if (!interrupted)
@@ -7028,13 +6957,13 @@ var Grid = /** @class */ (function () {
         return this;
     };
     /**
-     * Get the container element.
+     * Check if the grid is destroyed.
      *
      * @public
-     * @returns {HTMLElement}
+     * @returns {Boolean}
      */
-    Grid.prototype.getElement = function () {
-        return this._element;
+    Grid.prototype.isDestroyed = function () {
+        return this._isDestroyed;
     };
     /**
      * Get instance's item by element or by index. Target can also be an Item
@@ -7042,7 +6971,7 @@ var Grid = /** @class */ (function () {
      * related Grid instance. If nothing is found with the provided target, null
      * is returned.
      *
-     * @private
+     * @public
      * @param {(HTMLElement|Item|number)} [target]
      * @returns {?Item}
      */
@@ -7055,18 +6984,18 @@ var Grid = /** @class */ (function () {
         // than zero look for the item starting from the end of the items array. For
         // example -1 for the last item, -2 for the second last item, etc.
         if (typeof target === 'number') {
-            return this._items[target > -1 ? target : this._items.length + target] || null;
+            return this.items[target > -1 ? target : this.items.length + target] || null;
         }
         // If the target is an instance of Item return it if it is attached to this
         // Grid instance, otherwise return null.
         if (target instanceof Item) {
-            return target._gridId === this._id ? target : null;
+            return target._gridId === this.id ? target : null;
         }
         // In other cases let's assume that the target is an element, so let's try
         // to find an item that matches the element and return it. If item is not
         // found return null.
         var item = ITEM_ELEMENT_MAP.get(target);
-        return item && item._gridId === this._id ? item : null;
+        return item && item._gridId === this.id ? item : null;
     };
     /**
      * Get all items. Optionally you can provide specific targets (elements,
@@ -7081,7 +7010,7 @@ var Grid = /** @class */ (function () {
         // Return all items immediately if no targets were provided or if the
         // instance is destroyed.
         if (this._isDestroyed || targets === undefined) {
-            return this._items.slice(0);
+            return this.items.slice(0);
         }
         var items = [];
         if (Array.isArray(targets) || isNodeListOrHTMLCollection(targets)) {
@@ -7110,8 +7039,7 @@ var Grid = /** @class */ (function () {
     Grid.prototype.updateSettings = function (options) {
         if (this._isDestroyed || !options)
             return this;
-        var settings = this._settings;
-        var items = this._items;
+        var _a = this, settings = _a.settings, items = _a.items;
         var itemClasses = [];
         var dragEnabledChanged = false;
         var dragHandleChanged = false;
@@ -7124,7 +7052,7 @@ var Grid = /** @class */ (function () {
         nextSettings.visibleStyles = normalizeStyles(nextSettings.visibleStyles);
         nextSettings.hiddenStyles = normalizeStyles(nextSettings.hiddenStyles);
         // Update internal settings object.
-        this._settings = nextSettings;
+        this.settings = nextSettings;
         // Handle all options that need special care.
         for (var option in options) {
             switch (option) {
@@ -7154,15 +7082,15 @@ var Grid = /** @class */ (function () {
                 }
                 case 'layoutOnResize': {
                     if (settings[option] !== nextSettings[option]) {
-                        unbindLayoutOnResize(this);
-                        bindLayoutOnResize(this, nextSettings[option]);
+                        this._unbindLayoutOnResize();
+                        this._bindLayoutOnResize(nextSettings[option]);
                     }
                     break;
                 }
                 case 'containerClass': {
                     if (settings[option] !== nextSettings[option]) {
-                        removeClass(this._element, settings[option]);
-                        addClass(this._element, nextSettings[option]);
+                        removeClass(this.element, settings[option]);
+                        addClass(this.element, nextSettings[option]);
                     }
                     break;
                 }
@@ -7231,8 +7159,8 @@ var Grid = /** @class */ (function () {
                         }
                     }
                     if (switchClass) {
-                        removeClass(item._element, currentValue);
-                        addClass(item._element, nextValue);
+                        removeClass(item.element, currentValue);
+                        addClass(item.element, nextValue);
                     }
                 }
                 // Handle visibleStyles/hiddenStyles change.
@@ -7296,7 +7224,7 @@ var Grid = /** @class */ (function () {
         if (force === void 0) { force = false; }
         if (this._isDestroyed)
             return this;
-        var targets = items || this._items;
+        var targets = (items || this.items);
         var i;
         var item;
         var style;
@@ -7306,7 +7234,7 @@ var Grid = /** @class */ (function () {
             for (i = 0; i < targets.length; i++) {
                 item = targets[i];
                 if (!item.isVisible() && !item.isHiding()) {
-                    style = item.getElement().style;
+                    style = item.element.style;
                     style.visibility = 'hidden';
                     style.display = '';
                     hiddenItemStyles.push(style);
@@ -7338,7 +7266,7 @@ var Grid = /** @class */ (function () {
     Grid.prototype.refreshSortData = function (items) {
         if (this._isDestroyed)
             return this;
-        var targets = items || this._items;
+        var targets = (items || this.items);
         var i = 0;
         for (; i < targets.length; i++) {
             targets[i]._updateSortData();
@@ -7358,15 +7286,15 @@ var Grid = /** @class */ (function () {
     Grid.prototype.synchronize = function () {
         if (this._isDestroyed)
             return this;
-        var items = this._items;
+        var items = this.items;
         if (!items.length)
             return this;
         var fragment;
         var element;
         var i = 0;
         for (; i < items.length; i++) {
-            element = items[i]._element;
-            if (element.parentNode === this._element) {
+            element = items[i].element;
+            if (element.parentNode === this.element) {
                 if (!fragment)
                     fragment = document.createDocumentFragment();
                 fragment.appendChild(element);
@@ -7374,7 +7302,7 @@ var Grid = /** @class */ (function () {
         }
         if (!fragment)
             return this;
-        this._element.appendChild(fragment);
+        this.element.appendChild(fragment);
         this._emit(EVENT_SYNCHRONIZE);
         return this;
     };
@@ -7387,6 +7315,7 @@ var Grid = /** @class */ (function () {
      * @returns {Grid}
      */
     Grid.prototype.layout = function (instant, onFinish) {
+        var _this = this;
         if (instant === void 0) { instant = false; }
         if (this._isDestroyed)
             return this;
@@ -7405,28 +7334,39 @@ var Grid = /** @class */ (function () {
             cancel: null,
         };
         // Collect layout items (all active grid items).
-        var items = this._items;
+        var items = this.items;
         var layoutItems = [];
         var i = 0;
         for (; i < items.length; i++) {
-            if (items[i]._isActive)
+            if (items[i].isActive())
                 layoutItems.push(items[i]);
         }
-        // Compute new layout.
         // TODO: This causes forced reflows. As we already have async layout system
         // Maybe we could always postpone this to the next tick's read queue and
         // then start the layout process in the write tick?
         this._updateDimensions();
-        var gridWidth = this._width - this._borderLeft - this._borderRight;
-        var gridHeight = this._height - this._borderTop - this._borderBottom;
-        var layoutSettings = this._settings.layout;
+        var containerData = {
+            width: this._rect.width - this._borderLeft - this._borderRight,
+            height: this._rect.height - this._borderTop - this._borderBottom,
+            borderLeft: this._borderLeft,
+            borderRight: this._borderRight,
+            borderTop: this._borderTop,
+            borderBottom: this._borderBottom,
+            boxSizing: this._boxSizing,
+        };
+        var layout = this.settings.layout;
         var cancelLayout;
-        if (isFunction(layoutSettings)) {
-            cancelLayout = layoutSettings(this, nextLayoutId, layoutItems, gridWidth, gridHeight, this._onLayoutDataReceived);
+        // Compute new layout.
+        if (isFunction(layout)) {
+            cancelLayout = layout(nextLayoutId, this, layoutItems, containerData, function (layoutData) {
+                _this._onLayoutDataReceived(layoutData);
+            });
         }
         else {
-            Grid.defaultPacker.updateSettings(layoutSettings);
-            cancelLayout = Grid.defaultPacker.createLayout(this, nextLayoutId, layoutItems, gridWidth, gridHeight, this._onLayoutDataReceived);
+            Grid.defaultPacker.updateSettings(layout);
+            cancelLayout = Grid.defaultPacker.createLayout(nextLayoutId, layoutItems, containerData, function (layoutData) {
+                _this._onLayoutDataReceived(__assign(__assign({}, layoutData), { items: layoutItems }));
+            });
         }
         // Store layout cancel method if available.
         if (isFunction(cancelLayout) &&
@@ -7465,7 +7405,7 @@ var Grid = /** @class */ (function () {
         if (!newElements.length)
             return [];
         var layout = options.layout ? options.layout : options.layout === undefined;
-        var items = this._items;
+        var items = this.items;
         var needsLayout = false;
         var fragment;
         var element;
@@ -7475,7 +7415,7 @@ var Grid = /** @class */ (function () {
         // document fragment.
         for (i = 0; i < newElements.length; i++) {
             element = newElements[i];
-            if (element.parentNode !== this._element) {
+            if (element.parentNode !== this.element) {
                 fragment = fragment || document.createDocumentFragment();
                 fragment.appendChild(element);
             }
@@ -7484,7 +7424,7 @@ var Grid = /** @class */ (function () {
         // not do this and the `new Item()` instantiation would handle this for us,
         // but this way we can add the elements into the DOM a bit faster.
         if (fragment) {
-            this._element.appendChild(fragment);
+            this.element.appendChild(fragment);
         }
         // Map provided elements into new grid items.
         var newItems = [];
@@ -7496,7 +7436,7 @@ var Grid = /** @class */ (function () {
             // position instantly (without animation) during the next layout. Without
             // the hack the item would animate to it's new position from the northwest
             // corner of the grid, which feels a bit buggy (imho).
-            if (item._isActive) {
+            if (item.isActive()) {
                 needsLayout = true;
                 item._layout._skipNextAnimation = true;
             }
@@ -7545,17 +7485,17 @@ var Grid = /** @class */ (function () {
         // Remove the individual items.
         for (i = 0; i < items.length; i++) {
             item = items[i];
-            if (item._isDestroyed)
+            if (item.isDestroyed())
                 continue;
-            index = this._items.indexOf(item);
+            index = this.items.indexOf(item);
             if (index === -1)
                 continue;
-            if (item._isActive)
+            if (item.isActive())
                 needsLayout = true;
             targetItems.push(item);
             indices.push(allItems.indexOf(item));
             item._destroy(options.removeElements);
-            this._items.splice(index, 1);
+            this.items.splice(index, 1);
         }
         // Emit remove event.
         if (this._hasListeners(EVENT_REMOVE)) {
@@ -7626,7 +7566,7 @@ var Grid = /** @class */ (function () {
      */
     Grid.prototype.filter = function (predicate, options) {
         if (options === void 0) { options = {}; }
-        if (this._isDestroyed || !this._items.length)
+        if (this._isDestroyed || !this.items.length)
             return this;
         // Check which items need to be shown and which hidden.
         var itemsToShow = [];
@@ -7634,9 +7574,9 @@ var Grid = /** @class */ (function () {
         if (isFunction(predicate) || typeof predicate === 'string') {
             var item = void 0;
             var i = void 0;
-            for (i = 0; i < this._items.length; i++) {
-                item = this._items[i];
-                if (isFunction(predicate) ? predicate(item) : elementMatches(item._element, predicate)) {
+            for (i = 0; i < this.items.length; i++) {
+                item = this.items[i];
+                if (isFunction(predicate) ? predicate(item) : elementMatches(item.element, predicate)) {
                     itemsToShow.push(item);
                 }
                 else {
@@ -7714,9 +7654,9 @@ var Grid = /** @class */ (function () {
      */
     Grid.prototype.sort = function (comparer, options) {
         if (options === void 0) { options = {}; }
-        if (this._isDestroyed || this._items.length < 2)
+        if (this._isDestroyed || this.items.length < 2)
             return this;
-        var items = this._items;
+        var items = this.items;
         var origItems = items.slice(0);
         var layout = options.layout ? options.layout : options.layout === undefined;
         var isDescending = !!options.descending;
@@ -7780,7 +7720,9 @@ var Grid = /** @class */ (function () {
                 if (!result) {
                     if (!indexMap)
                         indexMap = createIndexMap(origItems);
-                    result = isDescending ? compareIndexMap(indexMap, b, a) : compareIndexMap(indexMap, a, b);
+                    result = isDescending
+                        ? compareIndexMap(indexMap, b, a)
+                        : compareIndexMap(indexMap, a, b);
                 }
                 return result;
             });
@@ -7820,9 +7762,9 @@ var Grid = /** @class */ (function () {
      */
     Grid.prototype.move = function (item, position, options) {
         if (options === void 0) { options = {}; }
-        if (this._isDestroyed || this._items.length < 2)
+        if (this._isDestroyed || this.items.length < 2)
             return this;
-        var items = this._items;
+        var items = this.items;
         var layout = options.layout ? options.layout : options.layout === undefined;
         var isSwap = options.action === ACTION_SWAP;
         var action = isSwap ? ACTION_SWAP : ACTION_MOVE;
@@ -7881,7 +7823,7 @@ var Grid = /** @class */ (function () {
         targetItem._migrate.start(targetGrid, position, options.appendTo || document.body);
         // If migration was started successfully and the item is active, let's layout
         // the grids.
-        if (targetItem._migrate._isActive && targetItem._isActive) {
+        if (targetItem._migrate._isActive && targetItem.isActive()) {
             var layoutSender = options.layoutSender
                 ? options.layoutSender
                 : options.layoutSender === undefined;
@@ -7908,23 +7850,23 @@ var Grid = /** @class */ (function () {
         if (removeElements === void 0) { removeElements = false; }
         if (this._isDestroyed)
             return this;
-        var container = this._element;
+        var container = this.element;
         var items = this.getItems();
         var layoutStyles = (this._layout && this._layout.styles) || {};
         // Unbind window resize event listener.
-        unbindLayoutOnResize(this);
+        this._unbindLayoutOnResize();
         // Destroy items.
         var i = 0;
         for (; i < items.length; i++)
             items[i]._destroy(removeElements);
-        this._items.length = 0;
+        this.items.length = 0;
         // Restore container.
-        removeClass(container, this._settings.containerClass);
+        removeClass(container, this.settings.containerClass);
         var prop;
         for (prop in layoutStyles)
             container.style[prop] = '';
         // Remove reference from the grid instances collection.
-        GRID_INSTANCES.delete(this._id);
+        GRID_INSTANCES.delete(this.id);
         // Flag instance as destroyed. It's important to set this to `true` before
         // emitting the destroy event to avoid potential infinite loop.
         this._isDestroyed = true;

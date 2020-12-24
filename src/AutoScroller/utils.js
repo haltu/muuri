@@ -116,7 +116,7 @@ export function prepareItemScrollSync(item) {
  * @param {Item} item
  */
 export function applyItemScrollSync(item) {
-  if (!item._drag || !item._isActive) return;
+  if (!item._drag || !item.isActive()) return;
   var drag = item._drag;
   drag._scrollDiffX = drag._scrollDiffY = 0;
   item._setTranslate(drag._translateX, drag._translateY);

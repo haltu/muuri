@@ -8,8 +8,8 @@ import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END, HAS_PASSIVE_EVENTS } 
 
 import { addReleaseScrollTick, cancelReleaseScrollTick } from '../ticker';
 
-import Grid from '../Grid/Grid';
-import Item from './Item';
+import Grid, { GridInternal } from '../Grid/Grid';
+import Item, { ItemInternal } from './Item';
 
 import addClass from '../utils/addClass';
 import getOffsetDiff from '../utils/getOffsetDiff';
@@ -27,13 +27,13 @@ const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: t
  * @param {Item} item
  */
 class ItemDragRelease {
-  _item: Item;
+  _item: ItemInternal;
   _isActive: boolean;
   _isDestroyed: boolean;
   _isPositioningStarted: boolean;
 
   constructor(item: Item) {
-    this._item = item;
+    this._item = (item as any) as ItemInternal;
     this._isActive = false;
     this._isDestroyed = false;
     this._isPositioningStarted = false;
@@ -49,20 +49,20 @@ class ItemDragRelease {
     if (this._isDestroyed || this._isActive) return;
 
     const item = this._item;
-    const grid = item.getGrid() as Grid;
-    const settings = grid._settings;
+    const grid = (item.getGrid() as any) as GridInternal;
+    const { settings } = grid;
 
     this._isActive = true;
 
-    addClass(item._element, settings.itemReleasingClass);
+    addClass(item.element, settings.itemReleasingClass);
 
     if (!settings.dragRelease.useDragContainer) {
       this._placeToGrid();
-    } else if (item._element.parentNode !== grid._element) {
+    } else if (item.element.parentNode !== grid.element) {
       window.addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
     }
 
-    grid._emit(EVENT_DRAG_RELEASE_START, item);
+    grid._emit(EVENT_DRAG_RELEASE_START, (item as any) as Item);
 
     // Let's start layout manually _only_ if there is no unfinished layout
     // about to finish.
@@ -89,14 +89,19 @@ class ItemDragRelease {
     const item = this._item;
 
     if (!abort && (left === undefined || top === undefined)) {
-      left = item._left;
-      top = item._top;
+      left = item.left;
+      top = item.top;
     }
 
     const didReparent = this._placeToGrid(left, top);
     this._reset(didReparent);
 
-    if (!abort) (item.getGrid() as Grid)._emit(EVENT_DRAG_RELEASE_END, item);
+    if (!abort) {
+      ((item.getGrid() as any) as GridInternal)._emit(
+        EVENT_DRAG_RELEASE_END,
+        (item as any) as Item
+      );
+    }
   }
 
   isJustReleased() {
@@ -132,17 +137,17 @@ class ItemDragRelease {
     if (this._isDestroyed) return didReparent;
 
     const item = this._item;
-    const element = item._element;
-    const container = (item.getGrid() as Grid)._element;
+    const element = item.element;
+    const gridElement = (item.getGrid() as Grid).element;
 
-    if (container && element.parentNode !== container) {
+    if (element.parentNode !== gridElement) {
       if (left === undefined || top === undefined) {
         const { x, y } = item._getTranslate();
         left = x - item._containerDiffX;
         top = y - item._containerDiffY;
       }
 
-      container.appendChild(element);
+      gridElement.appendChild(element);
       item._setTranslate(left, top);
       item._containerDiffX = 0;
       item._containerDiffY = 0;
@@ -162,20 +167,20 @@ class ItemDragRelease {
     if (this._isDestroyed) return;
 
     const item = this._item;
-    const releasingClass = (item.getGrid() as Grid)._settings.itemReleasingClass;
+    const { itemReleasingClass } = (item.getGrid() as Grid).settings;
 
     this._isActive = false;
     this._isPositioningStarted = false;
 
-    cancelReleaseScrollTick(item._id);
+    cancelReleaseScrollTick(item.id);
     window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
 
     // If the element was just reparented we need to do a forced reflow to remove
     // the class gracefully.
-    if (releasingClass) {
+    if (itemReleasingClass) {
       // eslint-disable-next-line
-      if (needsReflow) item._element.clientWidth;
-      removeClass(item._element, releasingClass);
+      if (needsReflow) item.element.clientWidth;
+      removeClass(item.element, itemReleasingClass);
     }
   }
 
@@ -190,14 +195,14 @@ class ItemDragRelease {
     let diffY = 0;
 
     addReleaseScrollTick(
-      item._id,
+      item.id,
       () => {
         if (!this._isActive) return;
 
-        const itemContainer = item._element.parentNode as HTMLElement | null;
-        const gridContainer = (item.getGrid() as Grid)._element;
-        if (itemContainer && gridContainer) {
-          const { left, top } = getOffsetDiff(itemContainer, gridContainer, true);
+        const itemContainer = item.element.parentNode as HTMLElement | null;
+        if (itemContainer) {
+          const gridElement = (item.getGrid() as Grid).element;
+          const { left, top } = getOffsetDiff(itemContainer, gridElement, true);
           diffX = left;
           diffY = top;
         }
@@ -212,8 +217,8 @@ class ItemDragRelease {
           item._containerDiffX = diffX;
           item._containerDiffY = diffY;
           if (item._dragPlaceholder) item._dragPlaceholder.reset();
-          item._layout.stop(true, item._left, item._top);
-          this.stop(false, item._left, item._top);
+          item._layout.stop(true, item.left, item.top);
+          this.stop(false, item.left, item.top);
         }
       }
     );

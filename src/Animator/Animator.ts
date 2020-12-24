@@ -9,6 +9,8 @@ import isFunction from '../utils/isFunction';
 import isNative from '../utils/isNative';
 import setStyles from '../utils/setStyles';
 
+import { Writeable } from '../types';
+
 export interface AnimationProperties {
   [key: string]: string;
 }
@@ -35,9 +37,9 @@ function createKeyframe(props: AnimationProperties, prefix: boolean) {
  * Item animation handler powered by Web Animations API.
  */
 export default class Animator {
-  element: HTMLElement | null;
-  animation: Animation | null;
-  _finishCallback: Function | null;
+  readonly element: HTMLElement | null;
+  readonly animation: Animation | null;
+  private _finishCallback: Function | null;
 
   constructor(element?: HTMLElement) {
     this.element = element || null;
@@ -49,9 +51,9 @@ export default class Animator {
   /**
    * Animation end handler.
    */
-  _onFinish() {
+  private _onFinish() {
     const { _finishCallback } = this;
-    this.animation = this._finishCallback = null;
+    (this as Writeable<Animator>).animation = this._finishCallback = null;
     _finishCallback && _finishCallback();
   }
 
@@ -79,7 +81,7 @@ export default class Animator {
     // Start the animation. We need to provide unprefixed property names to the
     // Web Animations polyfill if it is being used. If we have native Web
     // Animations available we need to provide prefixed properties instead.
-    this.animation = element.animate(
+    (this as Writeable<Animator>).animation = element.animate(
       [
         createKeyframe(propsFrom, HAS_NATIVE_WEB_ANIMATIONS),
         createKeyframe(propsTo, HAS_NATIVE_WEB_ANIMATIONS),
@@ -92,7 +94,7 @@ export default class Animator {
 
     // Set animation finish callback.
     this._finishCallback = isFunction(onFinish) ? onFinish : null;
-    this.animation.onfinish = this._onFinish;
+    (this.animation as Animation).onfinish = this._onFinish;
 
     // Set the end styles. This makes sure that the element stays at the end
     // values after animation is finished.
@@ -105,7 +107,7 @@ export default class Animator {
   stop() {
     if (!this.element || !this.animation) return;
     this.animation.cancel();
-    this.animation = this._finishCallback = null;
+    (this as Writeable<Animator>).animation = this._finishCallback = null;
   }
 
   /**
@@ -121,6 +123,6 @@ export default class Animator {
   destroy() {
     if (!this.element) return;
     this.stop();
-    this.element = null;
+    (this as Writeable<Animator>).element = null;
   }
 }

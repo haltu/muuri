@@ -1,6 +1,8 @@
 import { DragAutoScrollSpeed, DragAutoScrollHandle } from './Grid/Grid';
 import Item from './Item/Item';
 
+export type Writeable<T> = { -readonly [P in keyof T]: T[P] };
+
 export interface Rect {
   left: number;
   top: number;

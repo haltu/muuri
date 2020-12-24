@@ -5,17 +5,24 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-import Grid, { LayoutOptions } from '../Grid/Grid';
-import Item from '../Item/Item';
 import createPackerProcessor, {
   LayoutData as ProcessorLayoutData,
   LayoutSettingsMasks,
   LayoutPacket,
+  LayoutItem,
 } from './createPackerProcessor';
 
 import { StyleDeclaration } from '../types';
 
 import { createWorkerProcessors, destroyWorkerProcessors } from './workerUtils';
+
+export interface LayoutOptions {
+  fillGaps?: boolean;
+  horizontal?: boolean;
+  alignRight?: boolean;
+  alignBottom?: boolean;
+  rounding?: boolean;
+}
 
 interface ContainerData {
   width: number;
@@ -34,7 +41,7 @@ type LayoutCallback = (layout: LayoutData) => any;
 interface LayoutData extends ProcessorLayoutData {
   id: LayoutId;
   styles: StyleDeclaration;
-  items: Item[];
+  items: LayoutItem[];
 }
 
 interface LayoutWorkerData extends LayoutData {
@@ -178,26 +185,14 @@ export default class Packer {
   }
 
   createLayout(
-    grid: Grid,
     layoutId: LayoutId,
-    items: Item[],
-    width: number,
-    height: number,
+    items: LayoutItem[],
+    containerData: ContainerData,
     callback: LayoutCallback
   ) {
     if (this._layoutWorkerData.has(layoutId)) {
       throw new Error('A layout with the provided id is currently being processed.');
     }
-
-    const containerData: ContainerData = {
-      width: width,
-      height: height,
-      borderLeft: grid._borderLeft,
-      borderRight: grid._borderRight,
-      borderTop: grid._borderTop,
-      borderBottom: grid._borderBottom,
-      boxSizing: grid._boxSizing,
-    };
 
     const useSyncProcessing = !this._asyncMode || !items.length;
     const isHorizontal = this._settings & HORIZONTAL;
@@ -232,8 +227,8 @@ export default class Packer {
     let j = PACKET_HEADER_SLOTS - 1;
     for (; i < items.length; i++) {
       const item = items[i];
-      packet[++j] = item._width + (item._marginLeft || 0) + (item._marginRight || 0);
-      packet[++j] = item._height + (item._marginTop || 0) + (item._marginBottom || 0);
+      packet[++j] = item.width + (item.marginLeft || 0) + (item.marginRight || 0);
+      packet[++j] = item.height + (item.marginTop || 0) + (item.marginBottom || 0);
     }
 
     // Store the layout data and add it to worker queue.

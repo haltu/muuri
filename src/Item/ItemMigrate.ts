@@ -6,8 +6,8 @@
 
 import { EVENT_BEFORE_SEND, EVENT_BEFORE_RECEIVE, EVENT_SEND, EVENT_RECEIVE } from '../constants';
 
-import Grid from '../Grid/Grid';
-import Item from './Item';
+import Grid, { GridInternal } from '../Grid/Grid';
+import Item, { ItemInternal } from './Item';
 import ItemDrag from './ItemDrag';
 
 import addClass from '../utils/addClass';
@@ -23,13 +23,13 @@ import removeClass from '../utils/removeClass';
  * @param {Item} item
  */
 class ItemMigrate {
-  _item: Item;
+  _item: ItemInternal;
   _isActive: boolean;
   _isDestroyed: boolean;
   _container: HTMLElement | null;
 
   constructor(item: Item) {
-    this._item = item;
+    this._item = (item as any) as ItemInternal;
     this._isActive = false;
     this._isDestroyed = false;
     this._container = null;
@@ -39,25 +39,23 @@ class ItemMigrate {
    * Start the migrate process of an item.
    *
    * @public
-   * @param {Grid} targetGrid
+   * @param {Grid} nextGrid
    * @param {(HTMLElement|Number|Item)} position
    * @param {HTMLElement} [container]
    */
   start(targetGrid: Grid, position: HTMLElement | number | Item, container?: HTMLElement) {
-    if (this._isDestroyed) return;
-
-    const targetElement = targetGrid._element;
-    if (!targetElement) return;
+    if (this._isDestroyed || targetGrid.isDestroyed()) return;
 
     const item = this._item;
     const grid = item.getGrid() as Grid;
-    const element = item._element;
+    const element = item.element;
     const isActive = item.isActive();
     const isVisible = item.isVisible();
-    const settings = grid._settings;
-    const currentIndex = grid._items.indexOf(item);
-    const targetSettings = targetGrid._settings;
-    const targetItems = targetGrid._items;
+    const settings = grid.settings;
+    const currentIndex = grid.items.indexOf((item as any) as Item);
+    const targetElement = targetGrid.element;
+    const targetSettings = targetGrid.settings;
+    const targetItems = targetGrid.items;
     const targetContainer = container || document.body;
 
     // Get target index.
@@ -95,30 +93,30 @@ class ItemMigrate {
     item._visibility.stop(true);
 
     // Emit beforeSend event.
-    if (grid._hasListeners(EVENT_BEFORE_SEND)) {
-      grid._emit(EVENT_BEFORE_SEND, {
-        item: item,
-        fromGrid: grid,
+    if (((grid as any) as GridInternal)._hasListeners(EVENT_BEFORE_SEND)) {
+      ((grid as any) as GridInternal)._emit(EVENT_BEFORE_SEND, {
+        item: (item as any) as Item,
+        fromGrid: (grid as any) as Grid,
         fromIndex: currentIndex,
-        toGrid: targetGrid,
+        toGrid: (targetGrid as any) as Grid,
         toIndex: targetIndex,
       });
     }
 
     // Emit beforeReceive event.
-    if (targetGrid._hasListeners(EVENT_BEFORE_RECEIVE)) {
-      targetGrid._emit(EVENT_BEFORE_RECEIVE, {
-        item: item,
-        fromGrid: grid,
+    if (((targetGrid as any) as GridInternal)._hasListeners(EVENT_BEFORE_RECEIVE)) {
+      ((targetGrid as any) as GridInternal)._emit(EVENT_BEFORE_RECEIVE, {
+        item: (item as any) as Item,
+        fromGrid: (grid as any) as Grid,
         fromIndex: currentIndex,
-        toGrid: targetGrid,
+        toGrid: (targetGrid as any) as Grid,
         toIndex: targetIndex,
       });
     }
 
     // Let's make sure that the item and both grids are not destroyed after
     // we have emitted the events.
-    if (item._isDestroyed || grid._isDestroyed || targetGrid._isDestroyed) {
+    if (item.isDestroyed() || grid.isDestroyed() || targetGrid.isDestroyed()) {
       return;
     }
 
@@ -145,11 +143,11 @@ class ItemMigrate {
     }
 
     // Move item instance from current grid to target grid.
-    grid._items.splice(currentIndex, 1);
+    grid.items.splice(currentIndex, 1);
     arrayInsert(targetItems, item, targetIndex);
 
     // Update item's grid id reference.
-    item._gridId = targetGrid._id;
+    item._gridId = targetGrid.id;
 
     // If item is active we need to move the item inside the target container for
     // the duration of the (potential) animation if it's different than the
@@ -188,7 +186,7 @@ class ItemMigrate {
 
     // Create new drag handler.
     if (targetSettings.dragEnabled) {
-      item._drag = new ItemDrag(item);
+      item._drag = new ItemDrag((item as any) as Item);
     }
 
     // Setup migration data.
@@ -201,23 +199,23 @@ class ItemMigrate {
     }
 
     // Emit send event.
-    if (grid._hasListeners(EVENT_SEND)) {
-      grid._emit(EVENT_SEND, {
-        item: item,
-        fromGrid: grid,
+    if (((grid as any) as GridInternal)._hasListeners(EVENT_SEND)) {
+      ((grid as any) as GridInternal)._emit(EVENT_SEND, {
+        item: (item as any) as Item,
+        fromGrid: (grid as any) as Grid,
         fromIndex: currentIndex,
-        toGrid: targetGrid,
+        toGrid: (targetGrid as any) as Grid,
         toIndex: targetIndex,
       });
     }
 
     // Emit receive event.
-    if (targetGrid._hasListeners(EVENT_RECEIVE)) {
-      targetGrid._emit(EVENT_RECEIVE, {
-        item: item,
-        fromGrid: grid,
+    if (((targetGrid as any) as GridInternal)._hasListeners(EVENT_RECEIVE)) {
+      ((targetGrid as any) as GridInternal)._emit(EVENT_RECEIVE, {
+        item: (item as any) as Item,
+        fromGrid: (grid as any) as Grid,
         fromIndex: currentIndex,
-        toGrid: targetGrid,
+        toGrid: (targetGrid as any) as Grid,
         toIndex: targetIndex,
       });
     }
@@ -239,23 +237,21 @@ class ItemMigrate {
     if (this._isDestroyed || !this._isActive) return;
 
     const item = this._item;
-    const gridElement = (item.getGrid() as Grid)._element;
+    const grid = item.getGrid() as Grid;
 
-    if (!gridElement) return;
-
-    if (this._container !== gridElement) {
+    if (this._container !== grid.element) {
       if (left === undefined || top === undefined) {
         if (abort) {
           const t = item._getTranslate();
           left = t.x - item._containerDiffX;
           top = t.y - item._containerDiffY;
         } else {
-          left = item._left;
-          top = item._top;
+          left = item.left;
+          top = item.top;
         }
       }
 
-      gridElement.appendChild(item._element);
+      grid.element.appendChild(item.element);
       item._setTranslate(left, top);
       item._containerDiffX = 0;
       item._containerDiffY = 0;

@@ -5,13 +5,22 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-import Item from '../Item/Item';
 import { Rect } from '../types';
+
+export interface LayoutItem {
+  width: number;
+  height: number;
+  marginLeft?: number;
+  marginRight?: number;
+  marginTop?: number;
+  marginBottom?: number;
+  [key: string]: any;
+}
 
 export interface LayoutData {
   width: number;
   height: number;
-  items: Float32Array | Item[];
+  items: Float32Array | LayoutItem[];
   slots: Float32Array;
 }
 
@@ -108,7 +117,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
       let slotWidth = 0;
       let slotHeight = 0;
       let slot: Rect;
-      let item: Item;
+      let item: LayoutItem;
 
       // Compute slots for the items.
       for (i = 0; i < items.length; i += bump) {
@@ -119,9 +128,9 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
           slotWidth = items[i] as number;
           slotHeight = items[i + 1] as number;
         } else {
-          item = items[i] as Item;
-          slotWidth = item._width + (item._marginLeft || 0) + (item._marginRight || 0);
-          slotHeight = item._height + (item._marginTop || 0) + (item._marginBottom || 0);
+          item = items[i] as LayoutItem;
+          slotWidth = item.width + (item.marginLeft || 0) + (item.marginRight || 0);
+          slotHeight = item.height + (item.marginTop || 0) + (item.marginBottom || 0);
         }
 
         // If rounding is enabled let's round the item's width and height to

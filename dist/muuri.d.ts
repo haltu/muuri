@@ -267,6 +267,20 @@ declare class Dragger {
     destroy(): void;
 }
 
+type Writeable<T> = { -readonly [P in keyof T]: T[P] };
+
+interface Rect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface RectExtended extends Rect {
+  right: number;
+  bottom: number;
+}
+
 interface StyleDeclaration {
   [prop: string]: string;
 }
@@ -317,7 +331,7 @@ declare class AutoScroller {
  * @param {Item} item
  */
 declare class ItemDrag {
-    _item: Item;
+    _item: ItemInternal;
     _rootGridId: number;
     _isDestroyed: boolean;
     _isMigrated: boolean;
@@ -341,8 +355,8 @@ declare class ItemDrag {
     _containingBlock: HTMLElement | Document | null;
     _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
     _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
-    _dragMoveEvent: DraggerStartEvent | DraggerMoveEvent | null;
-    _dragPrevMoveEvent: DraggerStartEvent | DraggerMoveEvent | null;
+    _dragMoveEvent: DraggerMoveEvent | null;
+    _dragPrevMoveEvent: DraggerMoveEvent | null;
     _scrollEvent: ScrollEvent | null;
     _translateX: number;
     _translateY: number;
@@ -587,14 +601,14 @@ interface AnimationOptions {
  * Item animation handler powered by Web Animations API.
  */
 declare class Animator {
-    element: HTMLElement | null;
-    animation: Animation | null;
-    _finishCallback: Function | null;
+    readonly element: HTMLElement | null;
+    readonly animation: Animation | null;
+    private _finishCallback;
     constructor(element?: HTMLElement);
     /**
      * Animation end handler.
      */
-    _onFinish(): void;
+    private _onFinish;
     /**
      * Start instance's animation. Automatically stops current animation if it is
      * running.
@@ -628,7 +642,7 @@ declare class Animator {
  */
 declare class ItemDragPlaceholder {
     _item: Item;
-    _animation: Animator;
+    _animator: Animator;
     _element: HTMLElement | null;
     _className: string;
     _didMigrate: boolean;
@@ -773,7 +787,7 @@ declare class ItemDragPlaceholder {
  * @param {Item} item
  */
 declare class ItemDragRelease {
-    _item: Item;
+    _item: ItemInternal;
     _isActive: boolean;
     _isDestroyed: boolean;
     _isPositioningStarted: boolean;
@@ -845,7 +859,7 @@ declare class ItemDragRelease {
  * @param {Item} item
  */
 declare class ItemLayout {
-    _item: Item;
+    _item: ItemInternal;
     _isActive: boolean;
     _isDestroyed: boolean;
     _isInterrupted: boolean;
@@ -913,7 +927,7 @@ declare class ItemLayout {
  * @param {Item} item
  */
 declare class ItemMigrate {
-    _item: Item;
+    _item: ItemInternal;
     _isActive: boolean;
     _isDestroyed: boolean;
     _container: HTMLElement | null;
@@ -922,7 +936,7 @@ declare class ItemMigrate {
      * Start the migrate process of an item.
      *
      * @public
-     * @param {Grid} targetGrid
+     * @param {Grid} nextGrid
      * @param {(HTMLElement|Number|Item)} position
      * @param {HTMLElement} [container]
      */
@@ -961,7 +975,7 @@ declare class ItemMigrate {
  * @param {Item} item
  */
 declare class ItemVisibility {
-    _item: Item;
+    _item: ItemInternal;
     _isDestroyed: boolean;
     _isHidden: boolean;
     _isHiding: boolean;
@@ -1054,33 +1068,33 @@ declare class ItemVisibility {
  * @param {boolean} [isActive]
  */
 declare class Item {
-    _id: number;
-    _gridId: number;
-    _element: HTMLElement;
-    _isActive: boolean;
-    _isDestroyed: boolean;
-    _left: number;
-    _top: number;
-    _width: number;
-    _height: number;
-    _marginLeft: number;
-    _marginRight: number;
-    _marginTop: number;
-    _marginBottom: number;
-    _translateX?: number;
-    _translateY?: number;
-    _containerDiffX: number;
-    _containerDiffY: number;
-    _sortData: {
+    readonly id: number;
+    readonly element: HTMLElement;
+    readonly left: number;
+    readonly top: number;
+    readonly width: number;
+    readonly height: number;
+    readonly marginLeft: number;
+    readonly marginRight: number;
+    readonly marginTop: number;
+    readonly marginBottom: number;
+    protected _gridId: number;
+    protected _isActive: boolean;
+    protected _isDestroyed: boolean;
+    protected _translateX?: number;
+    protected _translateY?: number;
+    protected _containerDiffX: number;
+    protected _containerDiffY: number;
+    protected _sortData: {
         [key: string]: any;
     } | null;
-    _emitter: Emitter;
-    _visibility: ItemVisibility;
-    _layout: ItemLayout;
-    _migrate: ItemMigrate;
-    _drag: ItemDrag | null;
-    _dragRelease: ItemDragRelease;
-    _dragPlaceholder: ItemDragPlaceholder;
+    protected _emitter: Emitter;
+    protected _visibility: ItemVisibility;
+    protected _layout: ItemLayout;
+    protected _migrate: ItemMigrate;
+    protected _drag: ItemDrag | null;
+    protected _dragRelease: ItemDragRelease;
+    protected _dragPlaceholder: ItemDragPlaceholder;
     constructor(grid: Grid, element: HTMLElement, isActive?: boolean);
     /**
      * Get the instance grid reference.
@@ -1089,49 +1103,6 @@ declare class Item {
      * @returns {?Grid}
      */
     getGrid(): Grid | null;
-    /**
-     * Get the instance element.
-     *
-     * @public
-     * @returns {HTMLElement}
-     */
-    getElement(): HTMLElement;
-    /**
-     * Get instance element's cached width.
-     *
-     * @public
-     * @returns {number}
-     */
-    getWidth(): number;
-    /**
-     * Get instance element's cached height.
-     *
-     * @public
-     * @returns {number}
-     */
-    getHeight(): number;
-    /**
-     * Get instance element's cached margins.
-     *
-     * @public
-     * @returns {Object}
-     */
-    getMargin(): {
-        left: number;
-        right: number;
-        top: number;
-        bottom: number;
-    };
-    /**
-     * Get instance element's cached position.
-     *
-     * @public
-     * @returns {Object}
-     */
-    getPosition(): {
-        left: number;
-        top: number;
-    };
     /**
      * Is the item active?
      *
@@ -1191,59 +1162,59 @@ declare class Item {
     /**
      * Recalculate item's dimensions.
      *
-     * @private
+     * @protected
      * @param {boolean} [force=false]
      */
-    _updateDimensions(force?: boolean): void;
+    protected _updateDimensions(force?: boolean): void;
     /**
      * Fetch and store item's sort data.
      *
-     * @private
+     * @protected
      */
-    _updateSortData(): void;
+    protected _updateSortData(): void;
     /**
      * Add item to layout.
      *
-     * @private
+     * @protected
      * @param {number} [left=0]
      * @param {number} [top=0]
      */
-    _addToLayout(left?: number, top?: number): void;
+    protected _addToLayout(left?: number, top?: number): void;
     /**
      * Remove item from layout.
      *
-     * @private
+     * @protected
      */
-    _removeFromLayout(): void;
+    protected _removeFromLayout(): void;
     /**
      * Check if the layout procedure can be skipped for the item.
      *
-     * @private
+     * @protected
      * @param {number} left
      * @param {number} top
      * @returns {boolean}
      */
-    _canSkipLayout(left: number, top: number): boolean;
+    protected _canSkipLayout(left: number, top: number): boolean;
     /**
      * Set the provided left and top arguments as the item element's translate
      * values in the DOM. This method keeps track of the currently applied
      * translate values and skips the update operation if the provided values are
      * identical to the currently applied values.
      *
-     * @private
+     * @protected
      * @param {number} x
      * @param {number} y
      */
-    _setTranslate(x: number, y: number): void;
+    protected _setTranslate(x: number, y: number): void;
     /**
      * Get the item's current translate values. If they can't be detected from cache
      * we will read them from the DOM (so try to use this only when it is safe
      * to query the DOM without causing a forced reflow).
      *
-     * @private
+     * @protected
      * @returns {Object}
      */
-    _getTranslate(): {
+    protected _getTranslate(): {
         x: number;
         y: number;
     };
@@ -1254,10 +1225,10 @@ declare class Item {
      * zero. Note that this method uses the cached dimensions of grid, so it is up
      * to the user to update those when necessary before using this method.
      *
-     * @private
+     * @protected
      * @returns {Object}
      */
-    _getClientRootPosition(): {
+    protected _getClientRootPosition(): {
         left: number;
         top: number;
     };
@@ -1265,20 +1236,47 @@ declare class Item {
      * Check if item will be in viewport with the provided coordinates. The third
      * argument allows defining extra padding for the viewport.
      *
-     * @private
+     * @protected
      * @param {number} x
      * @param {number} y
      * @param {number} [viewportThreshold=0]
      * @returns {boolean}
      */
-    _isInViewport(x: number, y: number, viewportThreshold?: number): boolean;
+    protected _isInViewport(x: number, y: number, viewportThreshold?: number): boolean;
     /**
      * Destroy item instance.
      *
-     * @private
+     * @protected
      * @param {boolean} [removeElement=false]
      */
-    _destroy(removeElement?: boolean): void;
+    protected _destroy(removeElement?: boolean): void;
+}
+interface ItemInternal extends Writeable<Item> {
+    _gridId: Item['_gridId'];
+    _isActive: Item['_isActive'];
+    _isDestroyed: Item['_isDestroyed'];
+    _translateX: Item['_translateX'];
+    _translateY: Item['_translateY'];
+    _containerDiffX: Item['_containerDiffX'];
+    _containerDiffY: Item['_containerDiffY'];
+    _sortData: Item['_sortData'];
+    _emitter: Item['_emitter'];
+    _visibility: Item['_visibility'];
+    _layout: Item['_layout'];
+    _migrate: Item['_migrate'];
+    _drag: Item['_drag'];
+    _dragRelease: Item['_dragRelease'];
+    _dragPlaceholder: Item['_dragPlaceholder'];
+    _updateDimensions: Item['_updateDimensions'];
+    _updateSortData: Item['_updateSortData'];
+    _addToLayout: Item['_addToLayout'];
+    _removeFromLayout: Item['_removeFromLayout'];
+    _canSkipLayout: Item['_canSkipLayout'];
+    _setTranslate: Item['_setTranslate'];
+    _getTranslate: Item['_getTranslate'];
+    _getClientRootPosition: Item['_getClientRootPosition'];
+    _isInViewport: Item['_isInViewport'];
+    _destroy: Item['_destroy'];
 }
 
 /**
@@ -1297,11 +1295,19 @@ declare const INSTANT_LAYOUT = "instant";
  * Released under the MIT license
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
-
+interface LayoutItem {
+    width: number;
+    height: number;
+    marginLeft?: number;
+    marginRight?: number;
+    marginTop?: number;
+    marginBottom?: number;
+    [key: string]: any;
+}
 interface LayoutData {
     width: number;
     height: number;
-    items: Float32Array | Item[];
+    items: Float32Array | LayoutItem[];
     slots: Float32Array;
 }
 
@@ -1312,6 +1318,13 @@ interface LayoutData {
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
+interface LayoutOptions {
+    fillGaps?: boolean;
+    horizontal?: boolean;
+    alignRight?: boolean;
+    alignBottom?: boolean;
+    rounding?: boolean;
+}
 interface ContainerData {
     width: number;
     height: number;
@@ -1326,7 +1339,7 @@ declare type LayoutCallback = (layout: LayoutData$1) => any;
 interface LayoutData$1 extends LayoutData {
     id: LayoutId;
     styles: StyleDeclaration;
-    items: Item[];
+    items: LayoutItem[];
 }
 interface LayoutWorkerData extends LayoutData$1 {
     container: ContainerData;
@@ -1350,7 +1363,7 @@ declare class Packer {
     }): void;
     _setContainerStyles(layout: LayoutData$1, containerData: ContainerData, settings: number): void;
     updateSettings(options: LayoutOptions): void;
-    createLayout(grid: Grid, layoutId: LayoutId, items: Item[], width: number, height: number, callback: LayoutCallback): (() => void) | undefined;
+    createLayout(layoutId: LayoutId, items: LayoutItem[], containerData: ContainerData, callback: LayoutCallback): (() => void) | undefined;
     cancelLayout(layoutId: LayoutId): void;
     destroy(): void;
 }
@@ -1437,13 +1450,6 @@ interface GridEvents {
     dragReleaseEnd(item: Item): any;
     destroy(): any;
 }
-interface LayoutOptions {
-    fillGaps?: boolean;
-    horizontal?: boolean;
-    alignRight?: boolean;
-    alignBottom?: boolean;
-    rounding?: boolean;
-}
 interface LayoutData$2 {
     id: number;
     items: Item[];
@@ -1454,13 +1460,21 @@ interface LayoutData$2 {
 declare type LayoutOnFinish = (items: Item[], isAborted: boolean) => any;
 declare type LayoutCallback$1 = (layout: LayoutData$2) => any;
 declare type LayoutCancel = (...args: any[]) => any;
-declare type LayoutFunction = (grid: Grid, id: number, items: Item[], gridWidth: number, gridHeight: number, callback: LayoutCallback$1) => void | undefined | LayoutCancel;
+declare type LayoutFunction = (layoutId: number, grid: Grid, items: Item[], containerData: {
+    width: number;
+    height: number;
+    borderLeft: number;
+    borderRight: number;
+    borderTop: number;
+    borderBottom: number;
+    boxSizing: 'border-box' | 'content-box' | '';
+}, callback: LayoutCallback$1) => void | undefined | LayoutCancel;
 declare type DragStartPredicate = (item: Item, event: DraggerStartEvent | DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent) => boolean | undefined;
 interface DragStartPredicateOptions {
     distance?: number;
     delay?: number;
 }
-declare type DragSortGetter = (this: Grid, item: Item) => Grid[] | null | void | undefined;
+declare type DragSortGetter = (item: Item) => Grid[] | null | void | undefined;
 interface DragSortHeuristicsOptions {
     sortInterval?: number;
     minDragDistance?: number;
@@ -1658,34 +1672,27 @@ interface GridOptions extends Partial<Omit<GridSettings, 'items' | 'layoutOnInit
  * @param {boolean} [options._animationWindowing=false]
  */
 declare class Grid {
-    _id: number;
-    _element: HTMLElement;
-    _settings: GridSettings;
-    _isDestroyed: boolean;
-    _items: Item[];
-    _width: number;
-    _height: number;
-    _left: number;
-    _top: number;
-    _right: number;
-    _bottom: number;
-    _borderLeft: number;
-    _borderRight: number;
-    _borderTop: number;
-    _borderBottom: number;
-    _boxSizing: 'content-box' | 'border-box' | '';
-    _itemLayoutNeedsDimensionRefresh: boolean;
-    _itemVisibilityNeedsDimensionRefresh: boolean;
-    _layout: LayoutData$2;
-    _isLayoutFinished: boolean;
-    _nextLayoutData: {
+    readonly id: number;
+    readonly element: HTMLElement;
+    readonly settings: GridSettings;
+    readonly items: Item[];
+    protected _isDestroyed: boolean;
+    protected _rect: RectExtended;
+    protected _borderLeft: number;
+    protected _borderRight: number;
+    protected _borderTop: number;
+    protected _borderBottom: number;
+    protected _boxSizing: 'content-box' | 'border-box' | '';
+    protected _layout: LayoutData$2;
+    protected _isLayoutFinished: boolean;
+    protected _nextLayoutData: {
         id: number;
         instant: boolean;
         onFinish?: LayoutOnFinish;
         cancel?: LayoutCancel | null;
     } | null;
-    _resizeHandler: ReturnType<typeof debounce> | null;
-    _emitter: Emitter;
+    protected _resizeHandler: ReturnType<typeof debounce> | null;
+    protected _emitter: Emitter;
     constructor(element: string | HTMLElement, options?: GridInitOptions);
     static Item: typeof Item;
     static ItemLayout: typeof ItemLayout;
@@ -1704,52 +1711,65 @@ declare class Grid {
     /**
      * Emit a grid event.
      *
-     * @private
+     * @protected
      * @param {string} event
      * @param {...*} [args]
      */
-    _emit(event: EventName, ...args: any[]): void;
+    protected _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>): void;
     /**
      * Check if there are any events listeners for an event.
      *
-     * @private
+     * @protected
      * @param {string} event
      * @returns {boolean}
      */
-    _hasListeners(event: EventName): boolean;
+    protected _hasListeners<T extends keyof GridEvents>(event: T): boolean;
     /**
      * Update container's width, height and offsets.
      *
-     * @private
+     * @protected
      */
-    _updateBoundingRect(): void;
+    protected _updateBoundingRect(): void;
     /**
      * Update container's border sizes.
      *
-     * @private
+     * @protected
      * @param {boolean} left
      * @param {boolean} right
      * @param {boolean} top
      * @param {boolean} bottom
      */
-    _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean): void;
+    protected _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean): void;
     /**
      * Refresh all of container's internal dimensions and offsets.
      *
-     * @private
+     * @protected
      */
-    _updateDimensions(): void;
+    protected _updateDimensions(): void;
+    /**
+     * Bind grid's resize handler to window.
+     *
+     * @param {(number|boolean)} delay
+     */
+    protected _bindLayoutOnResize(delay: number | boolean): void;
+    /**
+     * Unbind grid's resize handler from window.
+     * @todo move into prototype
+     *
+     * @param {Grid} grid
+     */
+    protected _unbindLayoutOnResize(): void;
     /**
      * Calculate and apply item positions.
      *
-     * @private
+     * @protected
      * @param {Object} layout
      */
-    _onLayoutDataReceived(layout: LayoutData$2): this | undefined;
+    protected _onLayoutDataReceived(layout: LayoutData$2): void;
     /**
      * Show or hide Grid instance's items.
      *
-     * @private
+     * @protected
      * @param {Item[]} items
      * @param {boolean} toVisible
      * @param {Object} [options]
@@ -1758,7 +1778,7 @@ declare class Grid {
      * @param {Function} [options.onFinish]
      * @param {(boolean|Function|string)} [options.layout=true]
      */
-    _setItemsVisibility(items: Item[], toVisible: boolean, options?: {
+    protected _setItemsVisibility(items: Item[], toVisible: boolean, options?: {
         instant?: boolean;
         syncWithLayout?: boolean;
         onFinish?: (items: Item[]) => void;
@@ -1783,19 +1803,19 @@ declare class Grid {
      */
     off<T extends keyof GridEvents>(event: T, listener: GridEvents[T]): this;
     /**
-     * Get the container element.
+     * Check if the grid is destroyed.
      *
      * @public
-     * @returns {HTMLElement}
+     * @returns {Boolean}
      */
-    getElement(): HTMLElement;
+    isDestroyed(): boolean;
     /**
      * Get instance's item by element or by index. Target can also be an Item
      * instance in which case the function returns the item if it exists within
      * related Grid instance. If nothing is found with the provided target, null
      * is returned.
      *
-     * @private
+     * @public
      * @param {(HTMLElement|Item|number)} [target]
      * @returns {?Item}
      */

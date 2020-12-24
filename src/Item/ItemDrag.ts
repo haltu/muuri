@@ -23,11 +23,12 @@ import {
 } from '../constants';
 
 import Grid, {
+  GridInternal,
   DragStartPredicateOptions,
   DragSortPredicateOptions,
   DragSortPredicateResult,
 } from '../Grid/Grid';
-import Item from './Item';
+import Item, { ItemInternal } from './Item';
 import Dragger, {
   DraggerStartEvent,
   DraggerMoveEvent,
@@ -91,7 +92,7 @@ const defaultStartPredicate = function (
 ) {
   if (event.isFinal) return;
 
-  const drag = item._drag as ItemDrag;
+  const drag = ((item as any) as ItemInternal)._drag as ItemDrag;
 
   // Reject the predicate if left button is not pressed on mouse during first
   // event.
@@ -119,7 +120,8 @@ const defaultStartPredicate = function (
   let predicate = drag._startPredicateData;
   if (!predicate) {
     predicate = drag._startPredicateData = { distance: 0, delay: 0 };
-    const config = options || (item.getGrid() as Grid)._settings.dragStartPredicate;
+    const { dragStartPredicate } = (item.getGrid() as Grid).settings;
+    const config = options || dragStartPredicate;
     if (typeof config == 'object') {
       predicate.distance = Math.max(config.distance || 0, 0);
       predicate.delay = Math.max(config.delay || 0, 0);
@@ -171,13 +173,8 @@ const defaultStartPredicate = function (
 
 const getTargetGrid = function (item: Item, threshold: number) {
   const itemGrid = item.getGrid() as Grid;
-  const dragSort = itemGrid._settings.dragSort;
-  const grids =
-    dragSort === true
-      ? [itemGrid]
-      : isFunction(dragSort)
-      ? dragSort.call(itemGrid, item)
-      : undefined;
+  const { dragSort } = itemGrid.settings;
+  const grids = dragSort === true ? [itemGrid] : isFunction(dragSort) ? dragSort(item) : undefined;
 
   let target: Grid | null = null;
 
@@ -191,7 +188,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
 
   let bestScore = -1;
   let gridScore = 0;
-  let grid: Grid;
+  let grid: GridInternal;
   let container: HTMLElement | Document | null = null;
   let containerRect: RectExtended;
   let left = 0;
@@ -201,14 +198,15 @@ const getTargetGrid = function (item: Item, threshold: number) {
   let i = 0;
 
   // Set up item rect data for comparing against grids.
-  itemRect.width = item._width;
-  itemRect.height = item._height;
-  itemRect.left = (item._drag as ItemDrag)._clientX;
-  itemRect.top = (item._drag as ItemDrag)._clientY;
+  const drag = ((item as any) as ItemInternal)._drag as ItemDrag;
+  itemRect.width = item.width;
+  itemRect.height = item.height;
+  itemRect.left = drag._clientX;
+  itemRect.top = drag._clientY;
 
   // Loop through the grids and get the best match.
   for (; i < grids.length; i++) {
-    grid = grids[i];
+    grid = (grids[i] as any) as GridInternal;
 
     // Filter out all destroyed grids.
     if (grid._isDestroyed) continue;
@@ -216,15 +214,15 @@ const getTargetGrid = function (item: Item, threshold: number) {
     // Compute the grid's client rect an clamp the initial boundaries to
     // viewport dimensions.
     grid._updateBoundingRect();
-    left = Math.max(0, grid._left);
-    top = Math.max(0, grid._top);
-    right = Math.min(window.innerWidth, grid._right);
-    bottom = Math.min(window.innerHeight, grid._bottom);
+    left = Math.max(0, grid._rect.left);
+    top = Math.max(0, grid._rect.top);
+    right = Math.min(window.innerWidth, grid._rect.right);
+    bottom = Math.min(window.innerHeight, grid._rect.bottom);
 
     // The grid might be inside one or more elements that clip it's visibility
     // (e.g overflow scroll/hidden) so we want to find out the visible portion
     // of the grid in the viewport and use that in our calculations.
-    container = grid._element.parentNode as HTMLElement | Document | null;
+    container = grid.element.parentNode as HTMLElement | Document | null;
     while (
       container &&
       container !== document &&
@@ -264,7 +262,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
     // Check if this grid is the best match so far.
     if (gridScore > threshold && gridScore > bestScore) {
       bestScore = gridScore;
-      target = grid;
+      target = (grid as any) as Grid;
     }
   }
 
@@ -284,7 +282,7 @@ const defaultSortPredicate = function (
   item: Item,
   options?: DragSortPredicateOptions
 ): DragSortPredicateResult {
-  const drag = item._drag as ItemDrag;
+  const drag = ((item as any) as ItemInternal)._drag as ItemDrag;
 
   const sortAction = (options && options.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE) as
     | typeof ACTION_MOVE
@@ -303,23 +301,25 @@ const defaultSortPredicate = function (
   );
 
   // Get the target grid.
-  const grid = getTargetGrid(item, sortThreshold);
+  const grid = getTargetGrid(item, sortThreshold) as GridInternal | null;
   if (!grid) return null;
 
-  const isMigration = item.getGrid() !== grid;
+  const isMigration = (item.getGrid() as GridInternal | null) !== grid;
   const itemRect = RECT_A;
   const targetRect = RECT_B;
 
   // Set item rect for comparing against grid items.
-  itemRect.width = item._width;
-  itemRect.height = item._height;
+  itemRect.width = item.width;
+  itemRect.height = item.height;
   if (isMigration) {
     grid._updateBorders(true, false, true, false);
-    itemRect.left = drag._clientX - (grid._left + grid._borderLeft);
-    itemRect.top = drag._clientY - (grid._top + grid._borderTop);
+    itemRect.left = drag._clientX - (grid._rect.left + grid._borderLeft);
+    itemRect.top = drag._clientY - (grid._rect.top + grid._borderTop);
   } else {
-    itemRect.left = drag._translateX - item._containerDiffX + item._marginLeft;
-    itemRect.top = drag._translateY - item._containerDiffY + item._marginTop;
+    itemRect.left =
+      drag._translateX - ((item as any) as ItemInternal)._containerDiffX + item.marginLeft;
+    itemRect.top =
+      drag._translateY - ((item as any) as ItemInternal)._containerDiffY + item.marginTop;
   }
 
   let matchScore = 0;
@@ -327,12 +327,12 @@ const defaultSortPredicate = function (
   let hasValidTargets = false;
 
   // Loop through the target grid items and try to find the best match.
-  for (let i = 0; i < grid._items.length; i++) {
-    const target = grid._items[i];
+  for (let i = 0; i < grid.items.length; i++) {
+    const target = grid.items[i];
 
     // If the target item is not active or the target item is the dragged
     // item let's skip to the next item.
-    if (!target._isActive || target === item) {
+    if (!target.isActive() || target === item) {
       continue;
     }
 
@@ -340,10 +340,10 @@ const defaultSortPredicate = function (
     hasValidTargets = true;
 
     // Calculate the target's overlap score with the dragged item.
-    targetRect.width = target._width;
-    targetRect.height = target._height;
-    targetRect.left = target._left + target._marginLeft;
-    targetRect.top = target._top + target._marginTop;
+    targetRect.width = target.width;
+    targetRect.height = target.height;
+    targetRect.left = target.left + target.marginLeft;
+    targetRect.top = target.top + target.marginTop;
     const score = getIntersectionScore(itemRect, targetRect);
 
     // Update best match index and score if the target's overlap score with
@@ -371,7 +371,7 @@ const defaultSortPredicate = function (
   // Check if the best match overlaps enough to justify a placement switch.
   if (matchScore >= sortThreshold) {
     return {
-      grid: grid,
+      grid: (grid as any) as Grid,
       index: matchIndex,
       action: isMigration ? migrateAction : sortAction,
     };
@@ -387,7 +387,7 @@ const defaultSortPredicate = function (
  * @param {Item} item
  */
 class ItemDrag {
-  _item: Item;
+  _item: ItemInternal;
   _rootGridId: number;
   _isDestroyed: boolean;
   _isMigrated: boolean;
@@ -411,8 +411,8 @@ class ItemDrag {
   _containingBlock: HTMLElement | Document | null;
   _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
   _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
-  _dragMoveEvent: DraggerStartEvent | DraggerMoveEvent | null;
-  _dragPrevMoveEvent: DraggerStartEvent | DraggerMoveEvent | null;
+  _dragMoveEvent: DraggerMoveEvent | null;
+  _dragPrevMoveEvent: DraggerMoveEvent | null;
   _scrollEvent: ScrollEvent | null;
   _translateX: number;
   _translateY: number;
@@ -427,12 +427,12 @@ class ItemDrag {
   _dragger: Dragger;
 
   constructor(item: Item) {
-    const element = item._element;
+    const element = item.element;
     const grid = item.getGrid() as Grid;
-    const settings = grid._settings;
+    const { settings } = grid;
 
-    this._item = item;
-    this._rootGridId = grid._id;
+    this._item = (item as any) as ItemInternal;
+    this._rootGridId = grid.id;
     this._isDestroyed = false;
     this._isMigrated = false;
     this._isActive = false;
@@ -563,20 +563,20 @@ class ItemDrag {
     const item = this._item;
 
     // Stop auto-scroll.
-    ItemDrag.autoScroller.removeItem(item);
+    ItemDrag.autoScroller.removeItem((item as any) as Item);
 
     // Cancel queued ticks.
-    cancelDragStartTick(item._id);
-    cancelDragMoveTick(item._id);
-    cancelDragScrollTick(item._id);
+    cancelDragStartTick(item.id);
+    cancelDragMoveTick(item.id);
+    cancelDragScrollTick(item.id);
 
     // Cancel sort procedure.
     this._cancelSort();
 
     if (this._isStarted) {
-      const element = item._element;
+      const element = item.element;
       const grid = item.getGrid() as Grid;
-      const draggingClass = grid._settings.itemDraggingClass;
+      const { itemDraggingClass } = grid.settings;
 
       // Remove scroll listeners.
       this._unbindScrollHandler();
@@ -584,8 +584,8 @@ class ItemDrag {
       // Append item element to it's current grid's container element if it's
       // not there already. Also make sure the translate values are adjusted to
       // account for the DOM shift.
-      if (element.parentNode !== grid._element) {
-        grid._element.appendChild(element);
+      if (element.parentNode !== grid.element) {
+        grid.element.appendChild(element);
         item._setTranslate(
           this._translateX - item._containerDiffX,
           this._translateY - item._containerDiffY
@@ -596,11 +596,11 @@ class ItemDrag {
         // We need to do forced reflow to make sure the dragging class is
         // removed gracefully.
         // eslint-disable-next-line
-        if (draggingClass) element.clientWidth;
+        if (itemDraggingClass) element.clientWidth;
       }
 
       // Remove dragging class.
-      removeClass(element, draggingClass);
+      removeClass(element, itemDraggingClass);
     }
 
     // Reset drag data.
@@ -617,11 +617,11 @@ class ItemDrag {
    */
   sort(force = false) {
     const item = this._item;
-    if (this._isActive && item._isActive && this._dragMoveEvent) {
+    if (this._isActive && item.isActive() && this._dragMoveEvent) {
       if (force) {
         this._handleSort();
       } else {
-        addDragSortTick(item._id, this._handleSort);
+        addDragSortTick(item.id, this._handleSort);
       }
     }
   }
@@ -651,9 +651,9 @@ class ItemDrag {
    * @returns {(boolean|undefined)}
    */
   _startPredicate(item: Item, event: DraggerAnyEvent) {
-    const predicate = (item.getGrid() as Grid)._settings.dragStartPredicate;
-    return isFunction(predicate)
-      ? predicate(item, event)
+    const { dragStartPredicate } = (item.getGrid() as Grid).settings;
+    return isFunction(dragStartPredicate)
+      ? dragStartPredicate(item, event)
       : ItemDrag.defaultStartPredicate(item, event);
   }
 
@@ -725,8 +725,8 @@ class ItemDrag {
    * @returns {boolean}
    */
   _checkHeuristics(x: number, y: number) {
-    const grid = this._item.getGrid() as Grid;
-    const { minDragDistance, minBounceBackAngle } = grid._settings.dragSortHeuristics;
+    const { settings } = this._item.getGrid() as Grid;
+    const { minDragDistance, minBounceBackAngle } = settings.dragSortHeuristics;
 
     // Skip heuristics if not needed.
     if (minDragDistance <= 0) {
@@ -774,7 +774,7 @@ class ItemDrag {
    * @private
    */
   _resetDefaultStartPredicate() {
-    const predicate = this._startPredicateData;
+    const { _startPredicateData: predicate } = this;
     if (predicate) {
       if (predicate.delayTimer) {
         predicate.delayTimer = void window.clearTimeout(predicate.delayTimer);
@@ -793,14 +793,15 @@ class ItemDrag {
     if (!this._isActive) return;
 
     const item = this._item;
-    const { dragSort, dragSortHeuristics, dragAutoScroll } = (item.getGrid() as Grid)._settings;
+    const { dragSort, dragSortHeuristics, dragAutoScroll } = (item.getGrid() as Grid).settings;
 
     // No sorting when drag sort is disabled. Also, account for the scenario where
     // dragSort is temporarily disabled during drag procedure so we need to reset
     // sort timer heuristics state too.
     if (
       !dragSort ||
-      (!dragAutoScroll.sortDuringScroll && ItemDrag.autoScroller.isItemScrolling(item))
+      (!dragAutoScroll.sortDuringScroll &&
+        ItemDrag.autoScroller.isItemScrolling((item as any) as Item))
     ) {
       this._sortX1 = this._sortX2 = this._translateX - item._containerDiffX;
       this._sortY1 = this._sortY2 = this._translateY - item._containerDiffY;
@@ -845,7 +846,7 @@ class ItemDrag {
   _handleSortDelayed() {
     this._isSortNeeded = true;
     this._sortTimer = undefined;
-    addDragSortTick(this._item._id, this._handleSort);
+    addDragSortTick(this._item.id, this._handleSort);
   }
 
   /**
@@ -858,7 +859,7 @@ class ItemDrag {
     if (this._sortTimer !== undefined) {
       this._sortTimer = void window.clearTimeout(this._sortTimer);
     }
-    cancelDragSortTick(this._item._id);
+    cancelDragSortTick(this._item.id);
   }
 
   /**
@@ -867,12 +868,11 @@ class ItemDrag {
    * @private
    */
   _finishSort() {
-    const isSortEnabled = (this._item.getGrid() as Grid)._settings.dragSort;
-    const needsFinalMoveCheck =
-      isSortEnabled && (this._isSortNeeded || this._sortTimer !== undefined);
+    const { dragSort } = (this._item.getGrid() as Grid).settings;
+    const needsFinalCheck = dragSort && (this._isSortNeeded || this._sortTimer !== undefined);
     this._cancelSort();
-    if (needsFinalMoveCheck) this._checkOverlap();
-    if (isSortEnabled) this._checkOverlap(true);
+    if (needsFinalCheck) this._checkOverlap();
+    if (dragSort) this._checkOverlap(true);
   }
 
   /**
@@ -886,33 +886,33 @@ class ItemDrag {
     if (!this._isActive) return;
 
     const item = this._item;
-    const element = item._element;
-    const settings = (item.getGrid() as Grid)._settings;
+    const element = item.element;
+    const currentGrid = item.getGrid() as Grid;
+    const { settings } = currentGrid;
 
     // Get overlap check result.
     let result: DragSortPredicateResult = null;
     if (isFunction(settings.dragSortPredicate)) {
       result = settings.dragSortPredicate(
-        item,
+        (item as any) as Item,
         (isDrop ? this._dragEndEvent : this._dragMoveEvent) as
           | DraggerMoveEvent
           | DraggerCancelEvent
           | DraggerEndEvent
       );
     } else if (!isDrop) {
-      result = ItemDrag.defaultSortPredicate(item, settings.dragSortPredicate);
+      result = ItemDrag.defaultSortPredicate((item as any) as Item, settings.dragSortPredicate);
     }
 
     // Let's make sure the result object has a valid index before going further.
     if (!result || typeof result.index !== 'number') return;
 
     const sortAction = result.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
-    const currentGrid = item.getGrid() as Grid;
     const targetGrid = result.grid || currentGrid;
     const isMigration = currentGrid !== targetGrid;
-    const currentIndex = currentGrid._items.indexOf(item);
+    const currentIndex = currentGrid.items.indexOf((item as any) as Item);
     const targetIndex = normalizeArrayIndex(
-      targetGrid._items,
+      targetGrid.items,
       result.index,
       isMigration && sortAction === ACTION_MOVE ? 1 : 0
     );
@@ -930,15 +930,15 @@ class ItemDrag {
 
         // Do the sort.
         (sortAction === ACTION_SWAP ? arraySwap : arrayMove)(
-          currentGrid._items,
+          currentGrid.items,
           currentIndex,
           targetIndex
         );
 
         // Emit move event.
-        if (currentGrid._hasListeners(EVENT_MOVE)) {
-          currentGrid._emit(EVENT_MOVE, {
-            item: item,
+        if (((currentGrid as any) as GridInternal)._hasListeners(EVENT_MOVE)) {
+          ((currentGrid as any) as GridInternal)._emit(EVENT_MOVE, {
+            item: (item as any) as Item,
             fromIndex: currentIndex,
             toIndex: targetIndex,
             action: sortAction,
@@ -955,13 +955,13 @@ class ItemDrag {
       this._blockedSortIndex = null;
 
       // Let's fetch the target item when it's still in it's original index.
-      const targetItem = targetGrid._items[targetIndex];
-      const targetSettings = targetGrid._settings;
+      const targetItem = targetGrid.items[targetIndex];
+      const targetSettings = targetGrid.settings;
 
       // Emit beforeSend event.
-      if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {
-        currentGrid._emit(EVENT_BEFORE_SEND, {
-          item: item,
+      if (((currentGrid as any) as GridInternal)._hasListeners(EVENT_BEFORE_SEND)) {
+        ((currentGrid as any) as GridInternal)._emit(EVENT_BEFORE_SEND, {
+          item: (item as any) as Item,
           fromGrid: currentGrid,
           fromIndex: currentIndex,
           toGrid: targetGrid,
@@ -970,9 +970,9 @@ class ItemDrag {
       }
 
       // Emit beforeReceive event.
-      if (targetGrid._hasListeners(EVENT_BEFORE_RECEIVE)) {
-        targetGrid._emit(EVENT_BEFORE_RECEIVE, {
-          item: item,
+      if (((targetGrid as any) as GridInternal)._hasListeners(EVENT_BEFORE_RECEIVE)) {
+        ((targetGrid as any) as GridInternal)._emit(EVENT_BEFORE_RECEIVE, {
+          item: (item as any) as Item,
           fromGrid: currentGrid,
           fromIndex: currentIndex,
           toGrid: targetGrid,
@@ -982,34 +982,33 @@ class ItemDrag {
 
       // If the drag is not active anymore after the events or either of the
       // grids got destroyed during the emitted events, let's abort the process.
-      if (!this._isActive || currentGrid._isDestroyed || targetGrid._isDestroyed) {
+      if (!this._isActive || currentGrid.isDestroyed() || targetGrid.isDestroyed()) {
         return;
       }
 
       // Update item's grid id reference.
-      item._gridId = targetGrid._id;
+      item._gridId = targetGrid.id;
 
       // Update migrating indicator.
       this._isMigrated = item._gridId !== this._rootGridId;
 
       // Move item instance from current grid to target grid.
-      currentGrid._items.splice(currentIndex, 1);
-      arrayInsert(targetGrid._items, item, targetIndex);
+      currentGrid.items.splice(currentIndex, 1);
+      arrayInsert(targetGrid.items, item, targetIndex);
 
       // Reset sort data.
       item._sortData = null;
 
       // Get the next drag container.
       const currentDragContainer = this._container as HTMLElement;
-      const targetDragContainer = (targetSettings.dragContainer ||
-        targetGrid._element) as HTMLElement;
+      const targetDragContainer = targetSettings.dragContainer || targetGrid.element;
 
       // Update item's container offset so we can keep computing the item's
       // current translate position relative to it's current grid element. It's
       // important to keep this synced so that we can feed correct data to the
       // drag sort heuristics and easily compute the item's position within it's
       // current grid element.
-      let offsetDiff = getOffsetDiff(targetDragContainer, targetGrid._element, true);
+      let offsetDiff = getOffsetDiff(targetDragContainer, targetGrid.element, true);
       item._containerDiffX = this._containerDiffX = offsetDiff.left;
       item._containerDiffY = this._containerDiffY = offsetDiff.top;
 
@@ -1039,7 +1038,7 @@ class ItemDrag {
       }
 
       // Update visibility styles/class.
-      if (item._isActive) {
+      if (item.isActive()) {
         if (settings.itemVisibleClass !== targetSettings.itemVisibleClass) {
           removeClass(element, settings.itemVisibleClass);
           addClass(element, targetSettings.itemVisibleClass);
@@ -1064,23 +1063,23 @@ class ItemDrag {
       item._updateDimensions();
 
       // Emit send event.
-      if (currentGrid._hasListeners(EVENT_SEND)) {
-        currentGrid._emit(EVENT_SEND, {
-          item: item,
-          fromGrid: currentGrid,
+      if (((currentGrid as any) as GridInternal)._hasListeners(EVENT_SEND)) {
+        ((currentGrid as any) as GridInternal)._emit(EVENT_SEND, {
+          item: (item as any) as Item,
+          fromGrid: (currentGrid as any) as Grid,
           fromIndex: currentIndex,
-          toGrid: targetGrid,
+          toGrid: (targetGrid as any) as Grid,
           toIndex: targetIndex,
         });
       }
 
       // Emit receive event.
-      if (targetGrid._hasListeners(EVENT_RECEIVE)) {
-        targetGrid._emit(EVENT_RECEIVE, {
-          item: item,
-          fromGrid: currentGrid,
+      if (((targetGrid as any) as GridInternal)._hasListeners(EVENT_RECEIVE)) {
+        ((targetGrid as any) as GridInternal)._emit(EVENT_RECEIVE, {
+          item: (item as any) as Item,
+          fromGrid: (currentGrid as any) as Grid,
           fromIndex: currentIndex,
-          toGrid: targetGrid,
+          toGrid: (targetGrid as any) as Grid,
           toIndex: targetIndex,
         });
       }
@@ -1093,8 +1092,8 @@ class ItemDrag {
       if (sortAction === ACTION_SWAP && targetItem && targetItem.isActive()) {
         // Sanity check to make sure that the target item is still part of the
         // target grid. It could have been manipulated in the event handlers.
-        if (targetGrid._items.indexOf(targetItem) > -1) {
-          targetGrid.send(targetItem, currentGrid, currentIndex, {
+        if (targetGrid.items.indexOf(targetItem) > -1) {
+          targetGrid.send(targetItem, (currentGrid as any) as Grid, currentIndex, {
             appendTo: currentDragContainer || document.body,
             layoutSender: false,
             layoutReceiver: false,
@@ -1115,11 +1114,11 @@ class ItemDrag {
    */
   _finishMigration() {
     const item = this._item;
-    const { dragEnabled } = (item.getGrid() as Grid)._settings;
+    const { dragEnabled } = (item.getGrid() as Grid).settings;
 
     this.destroy();
 
-    item._drag = dragEnabled ? new ItemDrag(item) : null;
+    item._drag = dragEnabled ? new ItemDrag((item as any) as Item) : null;
     item._dragRelease.start();
   }
 
@@ -1137,7 +1136,7 @@ class ItemDrag {
 
     // If predicate is pending try to resolve it.
     if (this._startPredicateState === START_PREDICATE_PENDING) {
-      const shouldStart = this._startPredicate(this._item, event);
+      const shouldStart = this._startPredicate((this._item as any) as Item, event);
       if (shouldStart === true) {
         this._startPredicateState = START_PREDICATE_RESOLVED;
         this._onStart(event);
@@ -1165,7 +1164,7 @@ class ItemDrag {
     // Do final predicate check to allow user to unbind stuff for the current
     // drag procedure within the predicate callback. The return value of this
     // check will have no effect to the state of the predicate.
-    this._startPredicate(this._item, event);
+    this._startPredicate((this._item as any) as Item, event);
 
     // Let's automatically reset the default start predicate (even if it is not
     // used) to make sure it is ready for next round.
@@ -1190,13 +1189,13 @@ class ItemDrag {
    */
   _onStart(event: DraggerStartEvent | DraggerMoveEvent) {
     const item = this._item;
-    if (!item._isActive) return;
+    if (!item.isActive()) return;
 
     this._isActive = true;
     this._dragStartEvent = event;
-    ItemDrag.autoScroller.addItem(item);
+    ItemDrag.autoScroller.addItem((item as any) as Item);
 
-    addDragStartTick(item._id, this._prepareStart, this._applyStart);
+    addDragStartTick(item.id, this._prepareStart, this._applyStart);
   }
 
   /**
@@ -1206,12 +1205,11 @@ class ItemDrag {
     if (!this._isActive) return;
 
     const item = this._item;
-    if (!item._isActive) return;
+    if (!item.isActive()) return;
 
-    const element = item._element;
+    const element = item.element;
     const grid = item.getGrid() as Grid;
-    const settings = grid._settings;
-    const dragContainer = (settings.dragContainer || grid._element) as HTMLElement;
+    const dragContainer = grid.settings.dragContainer || grid.element;
     const containingBlock = getContainingBlock(dragContainer);
     const translate = item._getTranslate();
     const elementRect = element.getBoundingClientRect();
@@ -1226,8 +1224,8 @@ class ItemDrag {
     this._moveDiffX = this._moveDiffY = 0;
     this._containerDiffX = this._containerDiffY = 0;
 
-    if (dragContainer !== grid._element) {
-      const { left, top } = getOffsetDiff(containingBlock, grid._element);
+    if (dragContainer !== grid.element) {
+      const { left, top } = getOffsetDiff(containingBlock, grid.element);
       this._containerDiffX = left;
       this._containerDiffY = top;
     }
@@ -1245,7 +1243,7 @@ class ItemDrag {
     if (!this._isActive) return;
 
     const item = this._item;
-    if (!item._isActive) return;
+    if (!item.isActive()) return;
 
     if (item.isPositioning()) {
       item._layout.stop(true, this._translateX, this._translateY);
@@ -1264,15 +1262,21 @@ class ItemDrag {
     }
 
     const grid = item.getGrid() as Grid;
-    const element = item._element;
+    const element = item.element;
 
-    if (grid._settings.dragPlaceholder.enabled) {
+    if (grid.settings.dragPlaceholder.enabled) {
       item._dragPlaceholder.create();
     }
 
     this._isStarted = true;
 
-    grid._emit(EVENT_DRAG_INIT, item, this._dragStartEvent);
+    if (this._dragStartEvent) {
+      ((grid as any) as GridInternal)._emit(
+        EVENT_DRAG_INIT,
+        (item as any) as Item,
+        this._dragStartEvent
+      );
+    }
 
     // If the dragged element is not a child of the drag container we need to
     // append the element inside the correct container, setup the actual drag
@@ -1289,9 +1293,16 @@ class ItemDrag {
     item._containerDiffX = this._containerDiffX;
     item._containerDiffY = this._containerDiffY;
 
-    addClass(element, grid._settings.itemDraggingClass);
+    addClass(element, grid.settings.itemDraggingClass);
     this._bindScrollHandler();
-    grid._emit(EVENT_DRAG_START, item, this._dragStartEvent);
+
+    if (this._dragStartEvent) {
+      ((grid as any) as GridInternal)._emit(
+        EVENT_DRAG_START,
+        (item as any) as Item,
+        this._dragStartEvent
+      );
+    }
   }
 
   /**
@@ -1303,14 +1314,14 @@ class ItemDrag {
   _onMove(event: DraggerMoveEvent) {
     const item = this._item;
 
-    if (!item._isActive) {
+    if (!item.isActive()) {
       this.stop();
       return;
     }
 
     this._dragMoveEvent = event;
-    addDragMoveTick(item._id, this._prepareMove, this._applyMove);
-    addDragSortTick(item._id, this._handleSort);
+    addDragMoveTick(item.id, this._prepareMove, this._applyMove);
+    addDragSortTick(item.id, this._handleSort);
   }
 
   /**
@@ -1322,16 +1333,16 @@ class ItemDrag {
     if (!this._isActive) return;
 
     const item = this._item;
-    if (!item._isActive) return;
+    if (!item.isActive()) return;
 
-    const axis = (item.getGrid() as Grid)._settings.dragAxis;
+    const { dragAxis } = (item.getGrid() as Grid).settings;
     const nextEvent = this._dragMoveEvent as DraggerStartEvent | DraggerMoveEvent;
     const prevEvent = (this._dragPrevMoveEvent || this._dragStartEvent || nextEvent) as
       | DraggerStartEvent
       | DraggerMoveEvent;
 
     // Update horizontal position data.
-    if (axis !== 'y') {
+    if (dragAxis !== 'y') {
       const moveDiffX = nextEvent.clientX - prevEvent.clientX;
       this._translateX = this._translateX - this._moveDiffX + moveDiffX;
       this._clientX = this._clientX - this._moveDiffX + moveDiffX;
@@ -1339,14 +1350,14 @@ class ItemDrag {
     }
 
     // Update vertical position data.
-    if (axis !== 'x') {
+    if (dragAxis !== 'x') {
       const moveDiffY = nextEvent.clientY - prevEvent.clientY;
       this._translateY = this._translateY - this._moveDiffY + moveDiffY;
       this._clientY = this._clientY - this._moveDiffY + moveDiffY;
       this._moveDiffY = moveDiffY;
     }
 
-    this._dragPrevMoveEvent = nextEvent;
+    this._dragPrevMoveEvent = nextEvent as DraggerMoveEvent;
   }
 
   /**
@@ -1358,12 +1369,16 @@ class ItemDrag {
     if (!this._isActive) return;
 
     const item = this._item;
-    if (!item._isActive) return;
+    if (!item.isActive()) return;
+
+    const grid = (item.getGrid() as any) as GridInternal;
 
     this._moveDiffX = this._moveDiffY = 0;
     item._setTranslate(this._translateX, this._translateY);
-    (item.getGrid() as Grid)._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
-    ItemDrag.autoScroller.updateItem(item);
+    if (this._dragMoveEvent) {
+      grid._emit(EVENT_DRAG_MOVE, (item as any) as Item, this._dragMoveEvent);
+    }
+    ItemDrag.autoScroller.updateItem((item as any) as Item);
   }
 
   /**
@@ -1375,14 +1390,14 @@ class ItemDrag {
   _onScroll(event: Event) {
     const item = this._item;
 
-    if (!item._isActive) {
+    if (!item.isActive()) {
       this.stop();
       return;
     }
 
     this._scrollEvent = event as ScrollEvent;
-    addDragScrollTick(item._id, this._prepareScroll, this._applyScroll);
-    addDragSortTick(item._id, this._handleSort);
+    addDragScrollTick(item.id, this._prepareScroll, this._applyScroll);
+    addDragSortTick(item.id, this._handleSort);
   }
 
   /**
@@ -1395,22 +1410,22 @@ class ItemDrag {
 
     // If item is not active do nothing.
     const item = this._item;
-    if (!item._isActive) return;
+    if (!item.isActive()) return;
 
-    const element = item._element;
+    const element = item.element;
     const grid = item.getGrid() as Grid;
 
     // Update container diff.
-    if (this._container !== grid._element) {
+    if (this._container !== grid.element) {
       const { left, top } = getOffsetDiff(
         this._containingBlock as HTMLElement | Document,
-        grid._element
+        grid.element
       );
       item._containerDiffX = this._containerDiffX = left;
       item._containerDiffY = this._containerDiffY = top;
     }
 
-    const { dragAxis } = grid._settings;
+    const { dragAxis } = grid.settings;
     const { left, top } = element.getBoundingClientRect();
 
     // Update horizontal position data.
@@ -1437,11 +1452,14 @@ class ItemDrag {
     if (!this._isActive) return;
 
     const item = this._item;
-    if (!item._isActive) return;
+    if (!item.isActive()) return;
 
+    const grid = (item.getGrid() as any) as GridInternal;
     this._scrollDiffX = this._scrollDiffY = 0;
     item._setTranslate(this._translateX, this._translateY);
-    (item.getGrid() as Grid)._emit(EVENT_DRAG_SCROLL, item, this._scrollEvent);
+    if (this._scrollEvent) {
+      grid._emit(EVENT_DRAG_SCROLL, (item as any) as Item, this._scrollEvent);
+    }
   }
 
   /**
@@ -1454,7 +1472,7 @@ class ItemDrag {
     const item = this._item;
 
     // If item is not active, reset drag.
-    if (!item._isActive) {
+    if (!item.isActive()) {
       this.stop();
       return;
     }
@@ -1464,9 +1482,9 @@ class ItemDrag {
     this._dragEndEvent = event;
 
     // Cancel queued ticks.
-    cancelDragStartTick(item._id);
-    cancelDragMoveTick(item._id);
-    cancelDragScrollTick(item._id);
+    cancelDragStartTick(item.id);
+    cancelDragMoveTick(item.id);
+    cancelDragScrollTick(item.id);
 
     // Finish sort procedure (does final overlap check if needed).
     this._finishSort();
@@ -1478,13 +1496,13 @@ class ItemDrag {
     this._reset();
 
     // Remove dragging class from element.
-    removeClass(item._element, grid._settings.itemDraggingClass);
+    removeClass(item.element, grid.settings.itemDraggingClass);
 
     // Stop auto-scroll.
-    ItemDrag.autoScroller.removeItem(item);
+    ItemDrag.autoScroller.removeItem((item as any) as Item);
 
     // Emit dragEnd event.
-    grid._emit(EVENT_DRAG_END, item, event);
+    ((grid as any) as GridInternal)._emit(EVENT_DRAG_END, (item as any) as Item, event);
 
     // Finish up the migration process or start the release process.
     this._isMigrated ? this._finishMigration() : item._dragRelease.start();

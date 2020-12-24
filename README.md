@@ -22,8 +22,10 @@ Muuri is a JavaScript layout engine that allows you to build all kinds of layout
 - [API](#api)
   - [Grid constructor](#grid-constructor)
   - [Grid options](#grid-options)
+  - [Grid properties](#grid-properties)
   - [Grid methods](#grid-methods)
   - [Grid events](#grid-events)
+  - [Item properties](#item-properties)
   - [Item methods](#item-methods)
 - [Credits](#credits)
 - [License](#license)
@@ -96,9 +98,7 @@ Or link directly:
   <div class="item">
     <div class="item-content">
       <!-- Safe zone, enter your custom markup -->
-      <div class="my-custom-content">
-        Yippee!
-      </div>
+      <div class="my-custom-content">Yippee!</div>
       <!-- Safe zone ends -->
     </div>
   </div>
@@ -521,16 +521,27 @@ When you provide a custom layout function Muuri calls it whenever calculation of
 
 The layout function always receives the following arguments:
 
-- **grid** &nbsp;&mdash;&nbsp; _Muuri_
-  - The grid instance that requested the layout.
 - **layoutId** &nbsp;&mdash;&nbsp; _number_
   - Automatically generated unique id for the layout which is used to keep track of the layout requests and to make sure that the correct layout gets applied at correct time.
+- **grid** &nbsp;&mdash;&nbsp; _Muuri_
+  - The grid instance that requested the layout.
 - **items** &nbsp;&mdash;&nbsp; _array_
-  - Array of `Muuri.Item` instances. A new array instance is created for each layout so there's no harm in manipulating this if you need to (or using it as is for the layout data object).
-- **width** &nbsp;&mdash;&nbsp; _number_
-  - Current width (in pixels) of the grid element (excluding borders, but including padding).
-- **height** &nbsp;&mdash;&nbsp; _number_
-  - Current height (in pixels) of the grid element (excluding borders, but including padding).
+  - An array of `Muuri.Item` instances. A new array instance is created for each layout so there's no harm in manipulating this if you need to (or using it as is for the layout data object).
+- **containerData** &nbsp;&mdash;&nbsp; _object_
+- **containerData.width** &nbsp;&mdash;&nbsp; _number_
+  - Grid element's current width (in pixels, excluding borders, including padding).
+- **containerData.height** &nbsp;&mdash;&nbsp; _number_
+  - Grid element's current height (in pixels, excluding borders, including padding).
+- **containerData.borderLeft** &nbsp;&mdash;&nbsp; _number_
+  - Grid element's current left border width (in pixels).
+- **containerData.borderRight** &nbsp;&mdash;&nbsp; _number_
+  - Grid element's current right border width (in pixels).
+- **containerData.borderTop** &nbsp;&mdash;&nbsp; _number_
+  - Grid element's current top border width (in pixels).
+- **containerData.borderBottom** &nbsp;&mdash;&nbsp; _number_
+  - Grid element's current bottom border width (in pixels).
+- **containerData.boxSizing** &nbsp;&mdash;&nbsp; _string_
+  - Grid element's current [box-sizing](https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing) value.
 - **callback** &nbsp;&mdash;&nbsp; _function_
   - When the layout is calculated and ready to be applied you need to call this callback function and provide a _layout object_ as it's argument. Note that if another layout is requesteded while the current layout is still being calculated (asynchronously) this layout will be ignored.
 
@@ -554,7 +565,7 @@ Note that you can add additional properties to the layout object if you wish, e.
 
 ```javascript
 // Customize the default layout algorithm.
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   layout: {
     fillGaps: true,
     horizontal: true,
@@ -572,7 +583,7 @@ var grid = new Muuri(elem, {
 // multiple layouts simultaneously without blocking the main thread. Async
 // packer is recommended only for situations where the layout calculations are
 // starting to block the main thread too much (subjective matter).
-var asyncPacker = new Muuri.Packer(2, {
+const asyncPacker = new Muuri.Packer(2, {
   fillGaps: true,
   horizontal: true,
   alignRight: true,
@@ -580,26 +591,22 @@ var asyncPacker = new Muuri.Packer(2, {
   rounding: true,
 });
 
-// You can then feed the packer's `createLayout` method to grid's layout
-// option.
-var gridA = new Muuri(elemA, {
-  layout: function () {
-    return asyncPacker.createLayout.apply(asyncPacker, arguments);
-  },
-});
-var gridB = new Muuri(elemA, {
-  layout: function () {
-    return asyncPacker.createLayout.apply(asyncPacker, arguments);
-  },
-});
-
 // You can also dynamically update the packer's settings, but note that it will
-// affect on all grid's that use the packer.
+// affect on all grids that use this specific packer.
 asyncPacker.updateSettings({
   fillGaps: false,
 });
 
-// You can also an the async packer as the default packer and continue using
+// Create a custom layout method that uses the async packer.
+const asyncLayout = (layoutId, grid, items, containerData, callback) => {
+  return asyncPacker.createLayout(layoutId, items, containerData, callback);
+};
+
+// Provide the custom layout method to specific grids.
+const gridA = new Muuri(elemA, { layout: asyncLayout });
+const gridB = new Muuri(elemA, { layout: asyncLayout });
+
+// You can also set an async packer as the default packer and continue using
 // Muuri as if there never was a sync packer there in the first place.
 Muuri.defaultPacker.destroy();
 Muuri.defaultPacker = new Muuri.Packer(2);
@@ -607,7 +614,7 @@ Muuri.defaultPacker = new Muuri.Packer(2);
 // This grid will use the new default (async) packer. Note that Muuri always
 // automatically updates the default packer's options before starting layout so
 // it's fine to have different configurations per grid.
-var gridC = new Muuri(elemA, {
+const gridC = new Muuri(elemA, {
   layout: {
     fillGaps: true,
     horizontal: true,
@@ -620,56 +627,44 @@ var gridC = new Muuri(elemA, {
 
 ```javascript
 // Build your own layout algorithm.
-var grid = new Muuri(elem, {
-  layout: function (grid, layoutId, items, width, height, callback) {
-    var layout = {
+const grid = new Muuri(elem, {
+  layout(layoutId, grid, items, containerData, callback) {
+    const layoutData = {
       id: layoutId,
       items: items,
       slots: [],
-      styles: {},
+      styles: {
+        width: '0px',
+        height: '0px',
+      },
     };
 
-    // Calculate the slots asynchronously. Note that the timeout is here only
-    // as an example and does not help at all in the calculations. You should
-    // offload the calculations to web workers if you want real benefits.
-    // Also note that doing asynchronous layout is completely optional and you
-    // can call the callback function synchronously also.
-    var timerId = window.setTimeout(function () {
-      var item,
-        m,
-        x = 0,
-        y = 0,
-        w = 0,
-        h = 0;
+    let x = 0;
+    let y = 0;
+    let w = 0;
+    let h = 0;
 
-      for (var i = 0; i < items.length; i++) {
-        item = items[i];
-        x += w;
-        y += h;
-        m = item.getMargin();
-        w = item.getWidth() + m.left + m.right;
-        h = item.getHeight() + m.top + m.bottom;
-        layout.slots.push(x, y);
-      }
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      x += w;
+      y += h;
+      w = item.width + item.marginLeft + item.marginRight;
+      h = item.height + item.marginTop + item.marginBottom;
+      layoutData.slots.push(x, y);
+    }
 
-      w += x;
-      h += y;
+    w += x;
+    h += y;
 
-      // Set the CSS styles that should be applied to the grid element.
-      layout.styles.width = w + 'px';
-      layout.styles.height = h + 'px';
+    // Set the CSS styles that should be applied to the grid element.
+    layoutData.styles.width = w + 'px';
+    layoutData.styles.height = h + 'px';
 
-      // When the layout is fully computed let's call the callback function and
-      // provide the layout object as it's argument.
-      callback(layout);
-    }, 200);
-
-    // If you are doing an async layout you _can_ (if you want to) return a
-    // function that cancels this specific layout calculations if it's still
-    // processing/queueing when the next layout is requested.
-    return function () {
-      window.clearTimeout(timerId);
-    };
+    // When the layout is fully computed let's call the callback function and
+    // provide the layout object as it's argument. Note that we can call this
+    // method asynchronously too if we want to e.g. compute the layout in web
+    // workers.
+    callback(layoutData);
   },
 });
 ```
@@ -1573,6 +1568,33 @@ var grid = new Muuri(elem, {
   itemPlaceholderClass: 'foo-item-placeholder',
 });
 ```
+
+<h3><a id="grid-properties" href="#grid-properties" aria-hidden="true">#</a> Grid properties</h3>
+
+- [id](#grid-property-id)
+- [element](#grid-property-element)
+- [settings](#grid-property-settings)
+- [items](#grid-property-items)
+
+<h3><a id="grid-property-id" href="#grid-property-id" aria-hidden="true">#</a> grid.id</h3>
+
+- The grid's id (number).
+- Read-only (modify at your own risk).
+
+<h3><a id="grid-property-element" href="#grid-property-element" aria-hidden="true">#</a> grid.element</h3>
+
+- The HTML Element associated with the grid.
+- Read-only (modify at your own risk).
+
+<h3><a id="grid-property-settings" href="#grid-property-settings" aria-hidden="true">#</a> grid.settings</h3>
+
+- The grid's current settings (object).
+- Read-only (modify at your own risk).
+
+<h3><a id="grid-property-items" href="#grid-property-items" aria-hidden="true">#</a> grid.items</h3>
+
+- The grid's current items (array of grid items).
+- Read-only (modify at your own risk).
 
 <h3><a id="grid-methods" href="#grid-methods" aria-hidden="true">#</a> Grid methods</h3>
 
@@ -2754,14 +2776,72 @@ grid.on('destroy', function () {
 });
 ```
 
+<h3><a id="item-properties" href="#item-properties" aria-hidden="true">#</a> Item properties</h3>
+
+- [id](#item-property-id)
+- [element](#item-property-element)
+- [width](#item-property-width)
+- [height](#item-property-height)
+- [left](#item-property-left)
+- [top](#item-property-top)
+- [marginLeft](#item-property-marginleft)
+- [marginRight](#item-property-marginright)
+- [marginTop](#item-property-margintop)
+- [marginBottom](#item-property-marginbottom)
+
+<h3><a id="item-property-id" href="#item-property-id" aria-hidden="true">#</a> item.id</h3>
+
+- The item's id (number).
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-element" href="#item-property-element" aria-hidden="true">#</a> item.element</h3>
+
+- The HTML Element associated with the item.
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-width" href="#item-property-width" aria-hidden="true">#</a> item.width</h3>
+
+- The item element's cached width (in pixels), includes the element's paddings and borders.
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-height" href="#item-property-height" aria-hidden="true">#</a> item.height</h3>
+
+- The item element's cached height (in pixels), includes the element's paddings and borders.
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-left" href="#item-property-left" aria-hidden="true">#</a> item.left</h3>
+
+- The item element's current x-coordinate (in pixels) in the grid layout. This matches the item element's current `translateX` value _if_ the item is not being animated or dragged currently.
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-top" href="#item-property-top" aria-hidden="true">#</a> item.top</h3>
+
+- The item element's current y-coordinate (in pixels) in the grid layout. This matches the item element's current `translateY` value _if_ the item is not being animated or dragged currently.
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-marginleft" href="#item-property-marginleft" aria-hidden="true">#</a> item.marginLeft</h3>
+
+- The item element's cached left margin (in pixels).
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-marginright" href="#item-property-marginright" aria-hidden="true">#</a> item.marginRight</h3>
+
+- The item element's cached right margin (in pixels).
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-margintop" href="#item-property-margintop" aria-hidden="true">#</a> item.marginTop</h3>
+
+- The item element's cached top margin (in pixels).
+- Read-only (modify at your own risk).
+
+<h3><a id="item-property-marginbottom" href="#item-property-marginbottom" aria-hidden="true">#</a> item.marginBottom</h3>
+
+- The item element's cached bottom margin (in pixels).
+- Read-only (modify at your own risk).
+
 <h3><a id="item-methods" href="#item-methods" aria-hidden="true">#</a> Item methods</h3>
 
 - [getGrid](#item-method-getgrid)
-- [getElement](#item-method-getelement)
-- [getWidth](#item-method-getwidth)
-- [getHeight](#item-method-getheight)
-- [getMargin](#item-method-getmargin)
-- [getPosition](#item-method-getposition)
 - [isActive](#item-method-isactive)
 - [isVisible](#item-method-isvisible)
 - [isShowing](#item-method-isshowing)
@@ -2781,74 +2861,6 @@ Get the grid instance the item belongs to.
 
 ```javascript
 var grid = item.getGrid();
-```
-
-<h3><a id="item-method-getelement" href="#item-method-getelement" aria-hidden="true">#</a> item.getElement()</h3>
-
-Get the item element.
-
-**Returns** &nbsp;&mdash;&nbsp; _element_
-
-**Examples**
-
-```javascript
-var elem = item.getElement();
-```
-
-<h3><a id="item-method-getwidth" href="#item-method-getwidth" aria-hidden="true">#</a> item.getWidth()</h3>
-
-Get item element's cached width (in pixels). The returned value includes the element's paddings and borders.
-
-**Returns** &nbsp;&mdash;&nbsp; _number_
-
-**Examples**
-
-```javascript
-var width = item.getWidth();
-```
-
-<h3><a id="item-method-getheight" href="#item-method-getheight" aria-hidden="true">#</a> item.getHeight()</h3>
-
-Get item element's cached height (in pixels). The returned value includes the element's paddings and borders.
-
-**Returns** &nbsp;&mdash;&nbsp; _number_
-
-**Examples**
-
-```javascript
-var height = item.getHeight();
-```
-
-<h3><a id="item-method-getmargin" href="#item-method-getmargin" aria-hidden="true">#</a> item.getMargin()</h3>
-
-Get item element's cached margins (in pixels).
-
-**Returns** &nbsp;&mdash;&nbsp; _object_
-
-- **obj.left** &nbsp;&mdash;&nbsp; _number_
-- **obj.right** &nbsp;&mdash;&nbsp; _number_
-- **obj.top** &nbsp;&mdash;&nbsp; _number_
-- **obj.bottom** &nbsp;&mdash;&nbsp; _number_
-
-**Examples**
-
-```javascript
-var margin = item.getMargin();
-```
-
-<h3><a id="item-method-getposition" href="#item-method-getposition" aria-hidden="true">#</a> item.getPosition()</h3>
-
-Get item element's cached position (in pixels, relative to the grid element).
-
-**Returns** &nbsp;&mdash;&nbsp; _object_
-
-- **obj.left** &nbsp;&mdash;&nbsp; _number_
-- **obj.top** &nbsp;&mdash;&nbsp; _number_
-
-**Examples**
-
-```javascript
-var position = item.getPosition();
 ```
 
 <h3><a id="item-method-isactive" href="#item-method-isactive" aria-hidden="true">#</a> item.isActive()</h3>

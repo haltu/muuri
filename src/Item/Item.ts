@@ -6,7 +6,7 @@
 
 import { GRID_INSTANCES, ITEM_ELEMENT_MAP } from '../constants';
 
-import Grid from '../Grid/Grid';
+import Grid, { GridInternal } from '../Grid/Grid';
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';
 import ItemDragRelease from './ItemDragRelease';
@@ -25,6 +25,8 @@ import isInViewport from '../utils/isInViewport';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
+import { Writeable } from '../types';
+
 const _getTranslateResult = { x: 0, y: 0 };
 const _getClientRootPositionResult = { left: 0, top: 0 };
 
@@ -36,35 +38,35 @@ const _getClientRootPositionResult = { left: 0, top: 0 };
  * @param {HTMLElement} element
  * @param {boolean} [isActive]
  */
-class Item {
-  _id: number;
-  _gridId: number;
-  _element: HTMLElement;
-  _isActive: boolean;
-  _isDestroyed: boolean;
-  _left: number;
-  _top: number;
-  _width: number;
-  _height: number;
-  _marginLeft: number;
-  _marginRight: number;
-  _marginTop: number;
-  _marginBottom: number;
-  _translateX?: number;
-  _translateY?: number;
-  _containerDiffX: number;
-  _containerDiffY: number;
-  _sortData: { [key: string]: any } | null;
-  _emitter: Emitter;
-  _visibility: ItemVisibility;
-  _layout: ItemLayout;
-  _migrate: ItemMigrate;
-  _drag: ItemDrag | null;
-  _dragRelease: ItemDragRelease;
-  _dragPlaceholder: ItemDragPlaceholder;
+export default class Item {
+  readonly id: number;
+  readonly element: HTMLElement;
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+  readonly marginLeft: number;
+  readonly marginRight: number;
+  readonly marginTop: number;
+  readonly marginBottom: number;
+  protected _gridId: number;
+  protected _isActive: boolean;
+  protected _isDestroyed: boolean;
+  protected _translateX?: number;
+  protected _translateY?: number;
+  protected _containerDiffX: number;
+  protected _containerDiffY: number;
+  protected _sortData: { [key: string]: any } | null;
+  protected _emitter: Emitter;
+  protected _visibility: ItemVisibility;
+  protected _layout: ItemLayout;
+  protected _migrate: ItemMigrate;
+  protected _drag: ItemDrag | null;
+  protected _dragRelease: ItemDragRelease;
+  protected _dragPlaceholder: ItemDragPlaceholder;
 
   constructor(grid: Grid, element: HTMLElement, isActive?: boolean) {
-    const settings = grid._settings;
+    const { settings, element: gridElement, id: gridId } = grid;
 
     // Store item/element pair to a map (for faster item querying by element).
     if (ITEM_ELEMENT_MAP) {
@@ -75,18 +77,19 @@ class Item {
       }
     }
 
-    this._id = createUid();
-    this._gridId = grid._id;
-    this._element = element;
+    this.id = createUid();
+    this.element = element;
+    this.left = 0;
+    this.top = 0;
+    this.width = 0;
+    this.height = 0;
+    this.marginLeft = 0;
+    this.marginRight = 0;
+    this.marginTop = 0;
+    this.marginBottom = 0;
+
+    this._gridId = gridId;
     this._isDestroyed = false;
-    this._left = 0;
-    this._top = 0;
-    this._width = 0;
-    this._height = 0;
-    this._marginLeft = 0;
-    this._marginRight = 0;
-    this._marginTop = 0;
-    this._marginBottom = 0;
     this._translateX = undefined;
     this._translateY = undefined;
     this._containerDiffX = 0;
@@ -97,8 +100,8 @@ class Item {
     // If the provided item element is not a direct child of the grid container
     // element, append it to the grid container. Note, we are indeed reading the
     // DOM here but it's a property that does not cause reflowing.
-    if (grid._element && element.parentNode !== grid._element) {
-      grid._element.appendChild(element);
+    if (gridElement && element.parentNode !== gridElement) {
+      gridElement.appendChild(element);
     }
 
     // Set item class.
@@ -156,64 +159,6 @@ class Item {
   }
 
   /**
-   * Get the instance element.
-   *
-   * @public
-   * @returns {HTMLElement}
-   */
-  getElement() {
-    return this._element;
-  }
-
-  /**
-   * Get instance element's cached width.
-   *
-   * @public
-   * @returns {number}
-   */
-  getWidth() {
-    return this._width;
-  }
-
-  /**
-   * Get instance element's cached height.
-   *
-   * @public
-   * @returns {number}
-   */
-  getHeight() {
-    return this._height;
-  }
-
-  /**
-   * Get instance element's cached margins.
-   *
-   * @public
-   * @returns {Object}
-   */
-  getMargin() {
-    return {
-      left: this._marginLeft,
-      right: this._marginRight,
-      top: this._marginTop,
-      bottom: this._marginBottom,
-    };
-  }
-
-  /**
-   * Get instance element's cached position.
-   *
-   * @public
-   * @returns {Object}
-   */
-  getPosition() {
-    return {
-      left: this._left,
-      top: this._top,
-    };
-  }
-
-  /**
    * Is the item active?
    *
    * @public
@@ -230,7 +175,7 @@ class Item {
    * @returns {boolean}
    */
   isVisible() {
-    return !!this._visibility && !this._visibility._isHidden;
+    return !this._visibility._isHidden;
   }
 
   /**
@@ -240,7 +185,7 @@ class Item {
    * @returns {boolean}
    */
   isShowing() {
-    return !!(this._visibility && this._visibility._isShowing);
+    return !!this._visibility._isShowing;
   }
 
   /**
@@ -250,7 +195,7 @@ class Item {
    * @returns {boolean}
    */
   isHiding() {
-    return !!(this._visibility && this._visibility._isHiding);
+    return !!this._visibility._isHiding;
   }
 
   /**
@@ -260,7 +205,7 @@ class Item {
    * @returns {boolean}
    */
   isPositioning() {
-    return !!(this._layout && this._layout._isActive);
+    return !!this._layout._isActive;
   }
 
   /**
@@ -280,7 +225,7 @@ class Item {
    * @returns {boolean}
    */
   isReleasing() {
-    return !!(this._dragRelease && this._dragRelease._isActive);
+    return !!this._dragRelease._isActive;
   }
 
   /**
@@ -296,25 +241,25 @@ class Item {
   /**
    * Recalculate item's dimensions.
    *
-   * @private
+   * @protected
    * @param {boolean} [force=false]
    */
-  _updateDimensions(force?: boolean) {
+  protected _updateDimensions(force?: boolean) {
     if (this._isDestroyed) return;
     if (force !== true && !this.isVisible() && !this.isHiding()) return;
 
-    const element = this._element;
+    const element = this.element;
 
     // Calculate width and height.
     const rect = element.getBoundingClientRect();
-    this._width = rect.width;
-    this._height = rect.height;
+    (this as Writeable<Item>).width = rect.width;
+    (this as Writeable<Item>).height = rect.height;
 
     // Calculate margins (ignore negative margins).
-    this._marginLeft = Math.max(0, getStyleAsFloat(element, 'margin-left'));
-    this._marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
-    this._marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
-    this._marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
+    (this as Writeable<Item>).marginLeft = Math.max(0, getStyleAsFloat(element, 'margin-left'));
+    (this as Writeable<Item>).marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
+    (this as Writeable<Item>).marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
+    (this as Writeable<Item>).marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
 
     // Keep drag placeholder's dimensions synced with the item's.
     const dragPlaceholder = this._dragPlaceholder;
@@ -324,17 +269,19 @@ class Item {
   /**
    * Fetch and store item's sort data.
    *
-   * @private
+   * @protected
    */
-  _updateSortData() {
+  protected _updateSortData() {
     if (this._isDestroyed) return;
 
+    const { settings } = this.getGrid() as Grid;
+    const { sortData } = settings;
+
     this._sortData = {};
-    const getters = (this.getGrid() as Grid)._settings.sortData;
-    if (getters) {
+    if (sortData) {
       let prop: string;
-      for (prop in getters) {
-        this._sortData[prop] = getters[prop](this, this._element);
+      for (prop in sortData) {
+        this._sortData[prop] = sortData[prop](this, this.element);
       }
     }
   }
@@ -342,41 +289,41 @@ class Item {
   /**
    * Add item to layout.
    *
-   * @private
+   * @protected
    * @param {number} [left=0]
    * @param {number} [top=0]
    */
-  _addToLayout(left = 0, top = 0) {
+  protected _addToLayout(left = 0, top = 0) {
     if (this._isActive) return;
     this._isActive = true;
-    this._left = left;
-    this._top = top;
+    (this as Writeable<Item>).left = left;
+    (this as Writeable<Item>).top = top;
   }
 
   /**
    * Remove item from layout.
    *
-   * @private
+   * @protected
    */
-  _removeFromLayout() {
+  protected _removeFromLayout() {
     if (!this._isActive) return;
     this._isActive = false;
-    this._left = 0;
-    this._top = 0;
+    (this as Writeable<Item>).left = 0;
+    (this as Writeable<Item>).top = 0;
   }
 
   /**
    * Check if the layout procedure can be skipped for the item.
    *
-   * @private
+   * @protected
    * @param {number} left
    * @param {number} top
    * @returns {boolean}
    */
-  _canSkipLayout(left: number, top: number) {
+  protected _canSkipLayout(left: number, top: number) {
     return (
-      this._left === left &&
-      this._top === top &&
+      this.left === left &&
+      this.top === top &&
       !this._migrate._isActive &&
       !this._dragRelease._isActive &&
       !this._layout._skipNextAnimation
@@ -389,15 +336,15 @@ class Item {
    * translate values and skips the update operation if the provided values are
    * identical to the currently applied values.
    *
-   * @private
+   * @protected
    * @param {number} x
    * @param {number} y
    */
-  _setTranslate(x: number, y: number) {
+  protected _setTranslate(x: number, y: number) {
     if (this._translateX === x && this._translateY === y) return;
     this._translateX = x;
     this._translateY = y;
-    this._element.style[transformProp as 'transform'] = getTranslateString(x, y);
+    this.element.style[transformProp as 'transform'] = getTranslateString(x, y);
   }
 
   /**
@@ -405,12 +352,12 @@ class Item {
    * we will read them from the DOM (so try to use this only when it is safe
    * to query the DOM without causing a forced reflow).
    *
-   * @private
+   * @protected
    * @returns {Object}
    */
-  _getTranslate() {
+  protected _getTranslate() {
     if (this._translateX === undefined || this._translateY === undefined) {
-      const translate = getTranslate(this._element);
+      const translate = getTranslate(this.element);
       _getTranslateResult.x = translate.x;
       _getTranslateResult.y = translate.y;
     } else {
@@ -427,13 +374,13 @@ class Item {
    * zero. Note that this method uses the cached dimensions of grid, so it is up
    * to the user to update those when necessary before using this method.
    *
-   * @private
+   * @protected
    * @returns {Object}
    */
-  _getClientRootPosition() {
-    const grid = this.getGrid() as Grid;
-    _getClientRootPositionResult.left = grid._left + grid._borderLeft - this._containerDiffX;
-    _getClientRootPositionResult.top = grid._top + grid._borderTop - this._containerDiffY;
+  protected _getClientRootPosition() {
+    const grid = (this.getGrid() as any) as GridInternal;
+    _getClientRootPositionResult.left = grid._rect.left + grid._borderLeft - this._containerDiffX;
+    _getClientRootPositionResult.top = grid._rect.top + grid._borderTop - this._containerDiffY;
     return _getClientRootPositionResult;
   }
 
@@ -441,19 +388,19 @@ class Item {
    * Check if item will be in viewport with the provided coordinates. The third
    * argument allows defining extra padding for the viewport.
    *
-   * @private
+   * @protected
    * @param {number} x
    * @param {number} y
    * @param {number} [viewportThreshold=0]
    * @returns {boolean}
    */
-  _isInViewport(x: number, y: number, viewportThreshold = 0) {
+  protected _isInViewport(x: number, y: number, viewportThreshold = 0) {
     const rootPosition = this._getClientRootPosition();
     return isInViewport(
-      this._width,
-      this._height,
-      rootPosition.left + this._marginLeft + x,
-      rootPosition.top + this._marginTop + y,
+      this.width,
+      this.height,
+      rootPosition.left + this.marginLeft + x,
+      rootPosition.top + this.marginTop + y,
       viewportThreshold || 0
     );
   }
@@ -461,15 +408,14 @@ class Item {
   /**
    * Destroy item instance.
    *
-   * @private
+   * @protected
    * @param {boolean} [removeElement=false]
    */
-  _destroy(removeElement = false) {
+  protected _destroy(removeElement = false) {
     if (this._isDestroyed) return;
 
-    const element = this._element;
-    const grid = this.getGrid() as Grid;
-    const settings = grid._settings;
+    const element = this.element;
+    const { settings } = this.getGrid() as Grid;
 
     // Destroy handlers.
     this._dragPlaceholder.destroy();
@@ -497,4 +443,30 @@ class Item {
   }
 }
 
-export default Item;
+export interface ItemInternal extends Writeable<Item> {
+  _gridId: Item['_gridId'];
+  _isActive: Item['_isActive'];
+  _isDestroyed: Item['_isDestroyed'];
+  _translateX: Item['_translateX'];
+  _translateY: Item['_translateY'];
+  _containerDiffX: Item['_containerDiffX'];
+  _containerDiffY: Item['_containerDiffY'];
+  _sortData: Item['_sortData'];
+  _emitter: Item['_emitter'];
+  _visibility: Item['_visibility'];
+  _layout: Item['_layout'];
+  _migrate: Item['_migrate'];
+  _drag: Item['_drag'];
+  _dragRelease: Item['_dragRelease'];
+  _dragPlaceholder: Item['_dragPlaceholder'];
+  _updateDimensions: Item['_updateDimensions'];
+  _updateSortData: Item['_updateSortData'];
+  _addToLayout: Item['_addToLayout'];
+  _removeFromLayout: Item['_removeFromLayout'];
+  _canSkipLayout: Item['_canSkipLayout'];
+  _setTranslate: Item['_setTranslate'];
+  _getTranslate: Item['_getTranslate'];
+  _getClientRootPosition: Item['_getClientRootPosition'];
+  _isInViewport: Item['_isInViewport'];
+  _destroy: Item['_destroy'];
+}

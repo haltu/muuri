@@ -8,8 +8,8 @@ import { VIEWPORT_THRESHOLD } from '../constants';
 
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
 
-import Grid from '../Grid/Grid';
-import Item from './Item';
+import Grid, { GridInternal } from '../Grid/Grid';
+import Item, { ItemInternal } from './Item';
 import Animator from '../Animator/Animator';
 
 import addClass from '../utils/addClass';
@@ -20,6 +20,10 @@ import setStyles from '../utils/setStyles';
 
 import { StyleDeclaration } from '../types';
 
+interface GridPrivate extends GridInternal {
+  _itemVisibilityNeedsDimensionRefresh?: boolean;
+}
+
 /**
  * Visibility manager for Item instance, handles visibility of an item.
  *
@@ -27,7 +31,7 @@ import { StyleDeclaration } from '../types';
  * @param {Item} item
  */
 class ItemVisibility {
-  _item: Item;
+  _item: ItemInternal;
   _isDestroyed: boolean;
   _isHidden: boolean;
   _isHiding: boolean;
@@ -38,15 +42,15 @@ class ItemVisibility {
   _queue: string;
 
   constructor(item: Item) {
-    const isActive = item._isActive;
-    const element = item._element;
+    const isActive = item.isActive();
+    const element = item.element;
     const childElement = element.children[0] as HTMLElement | null;
 
     if (!childElement) {
       throw new Error('No valid child element found within item element.');
     }
 
-    this._item = item;
+    this._item = (item as any) as ItemInternal;
     this._isDestroyed = false;
     this._isHidden = !isActive;
     this._isHiding = false;
@@ -54,14 +58,14 @@ class ItemVisibility {
     this._childElement = childElement;
     this._currentStyleProps = [];
     this._animation = new Animator(childElement);
-    this._queue = 'visibility-' + item._id;
+    this._queue = 'visibility-' + item.id;
 
     this._finishShow = this._finishShow.bind(this);
     this._finishHide = this._finishHide.bind(this);
 
     element.style.display = isActive ? '' : 'none';
 
-    const settings = (item.getGrid() as Grid)._settings;
+    const { settings } = item.getGrid() as Grid;
     addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
     this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
   }
@@ -81,7 +85,7 @@ class ItemVisibility {
 
     // If item is visible call the callback and be done with it.
     if (!this._isShowing && !this._isHidden) {
-      callback && callback(false, item);
+      callback && callback(false, (item as any) as Item);
       return;
     }
 
@@ -97,8 +101,8 @@ class ItemVisibility {
     // to block if necessary.
     if (!this._isShowing) {
       item._emitter.burst(this._queue, true, item);
-      const element = item._element;
-      const settings = (item.getGrid() as Grid)._settings;
+      const element = item.element;
+      const { settings } = item.getGrid() as Grid;
       if (settings) {
         removeClass(element, settings.itemHiddenClass);
         addClass(element, settings.itemVisibleClass);
@@ -132,7 +136,7 @@ class ItemVisibility {
 
     // If item is already hidden call the callback and be done with it.
     if (!this._isHiding && this._isHidden) {
-      callback && callback(false, item);
+      callback && callback(false, (item as any) as Item);
       return;
     }
 
@@ -148,12 +152,10 @@ class ItemVisibility {
     // to block if necessary.
     if (!this._isHiding) {
       item._emitter.burst(this._queue, true, item);
-      const element = item._element;
-      const settings = (item.getGrid() as Grid)._settings;
-      if (settings) {
-        addClass(element, settings.itemHiddenClass);
-        removeClass(element, settings.itemVisibleClass);
-      }
+      const element = item.element;
+      const { settings } = item.getGrid() as Grid;
+      addClass(element, settings.itemHiddenClass);
+      removeClass(element, settings.itemVisibleClass);
     }
 
     // Push callback to the callback queue.
@@ -179,7 +181,7 @@ class ItemVisibility {
 
     const item = this._item;
 
-    cancelVisibilityTick(item._id);
+    cancelVisibilityTick(item.id);
     this._animation.stop();
     if (processCallbackQueue) {
       item._emitter.burst(this._queue, true, item);
@@ -215,8 +217,8 @@ class ItemVisibility {
     if (this._isDestroyed) return;
 
     const item = this._item;
-    const element = item._element;
-    const settings = (item.getGrid() as Grid)._settings;
+    const element = item.element;
+    const { settings } = item.getGrid() as Grid;
 
     this.stop(true);
     item._emitter.clear(this._queue);
@@ -245,10 +247,10 @@ class ItemVisibility {
     if (this._isDestroyed) return;
 
     const item = this._item;
-    const grid = item.getGrid() as Grid;
+    const grid = (item.getGrid() as any) as GridPrivate;
     const animation = this._animation;
     const childElement = this._childElement;
-    const settings = grid._settings;
+    const { settings } = grid;
     const targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
     const duration = toVisible ? settings.showDuration : settings.hideDuration;
     const easing = toVisible ? settings.showEasing : settings.hideEasing;
@@ -262,7 +264,7 @@ class ItemVisibility {
     }
 
     // Cancel queued visibility tick.
-    cancelVisibilityTick(item._id);
+    cancelVisibilityTick(item.id);
 
     // If we need to apply the styles instantly without animation.
     if (isInstant) {
@@ -286,7 +288,7 @@ class ItemVisibility {
     // Start the animation in the next tick (to avoid layout thrashing).
     grid._itemVisibilityNeedsDimensionRefresh = true;
     addVisibilityTick(
-      item._id,
+      item.id,
       () => {
         // Make sure the item is still in hiding/showing.
         if (this._isDestroyed || (toVisible ? !this._isShowing : !this._isHiding)) return;
@@ -312,8 +314,8 @@ class ItemVisibility {
           if (
             !item.isActive() ||
             !item._isInViewport(
-              item._left + item._containerDiffX,
-              item._top + item._containerDiffY,
+              item.left + item._containerDiffX,
+              item.top + item._containerDiffY,
               VIEWPORT_THRESHOLD
             )
           ) {
@@ -356,7 +358,7 @@ class ItemVisibility {
     const item = this._item;
     this._isHiding = false;
     item._layout.stop(true, 0, 0);
-    item._element.style.display = 'none';
+    item.element.style.display = 'none';
     item._emitter.burst(this._queue, false, item);
   }
 

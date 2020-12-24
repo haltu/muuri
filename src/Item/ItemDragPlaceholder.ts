@@ -30,7 +30,7 @@ import setStyles from '../utils/setStyles';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
-import { StyleDeclaration } from '../types';
+import { StyleDeclaration, Writeable } from '../types';
 
 const CURRENT_STYLES: StyleDeclaration = {};
 const TARGET_STYLES: StyleDeclaration = {};
@@ -43,7 +43,7 @@ const TARGET_STYLES: StyleDeclaration = {};
  */
 class ItemDragPlaceholder {
   _item: Item;
-  _animation: Animator;
+  _animator: Animator;
   _element: HTMLElement | null;
   _className: string;
   _didMigrate: boolean;
@@ -57,7 +57,7 @@ class ItemDragPlaceholder {
 
   constructor(item: Item) {
     this._item = item;
-    this._animation = new Animator();
+    this._animator = new Animator();
     this._element = null;
     this._className = '';
     this._didMigrate = false;
@@ -91,8 +91,8 @@ class ItemDragPlaceholder {
     if (!this._element) return;
 
     setStyles(this._element, {
-      width: this._item._width + 'px',
-      height: this._item._height + 'px',
+      width: this._item.width + 'px',
+      height: this._item.height + 'px',
     });
   }
 
@@ -114,8 +114,8 @@ class ItemDragPlaceholder {
       return;
     }
 
-    const nextLeft = item._left;
-    const nextTop = item._top;
+    const nextLeft = item.left;
+    const nextTop = item.top;
     const currentLeft = this._left;
     const currentTop = this._top;
 
@@ -132,24 +132,24 @@ class ItemDragPlaceholder {
     // Slots data is calculated with item margins added to them so we need to
     // add item's left and top margin to the slot data to get the placeholder's
     // next position.
-    const nextX = nextLeft + item._marginLeft;
-    const nextY = nextTop + item._marginTop;
+    const nextX = nextLeft + item.marginLeft;
+    const nextY = nextTop + item.marginTop;
 
     // Just snap to new position without any animations if no animation is
     // required or if placeholder moves between grids.
     const grid = item.getGrid() as Grid;
-    const animEnabled = !isInstant && grid._settings.layoutDuration > 0;
+    const animEnabled = !isInstant && grid.settings.layoutDuration > 0;
     if (!animEnabled || this._didMigrate) {
       // Cancel potential (queued) layout tick.
-      cancelPlaceholderLayoutTick(item._id);
+      cancelPlaceholderLayoutTick(item.id);
 
       // Snap placeholder to correct position.
       this._element.style[transformProp as 'transform'] = getTranslateString(nextX, nextY);
-      this._animation.stop();
+      this._animator.stop();
 
       // Move placeholder inside correct container after migration.
       if (this._didMigrate) {
-        grid.getElement().appendChild(this._element);
+        grid.element.appendChild(this._element);
         this._didMigrate = false;
       }
 
@@ -159,15 +159,15 @@ class ItemDragPlaceholder {
     // Let's make sure an ongoing animation's callback is cancelled before going
     // further. Without this there's a chance that the animation will finish
     // before the next tick and mess up our logic.
-    if (this._animation.animation) {
-      this._animation.animation.onfinish = null;
+    if (this._animator.animation) {
+      this._animator.animation.onfinish = null;
     }
 
     // Start the placeholder's layout animation in the next tick. We do this to
     // avoid layout thrashing.
     this._nextTransX = nextX;
     this._nextTransY = nextY;
-    addPlaceholderLayoutTick(item._id, this._setupAnimation, this._startAnimation);
+    addPlaceholderLayoutTick(item.id, this._setupAnimation, this._startAnimation);
   }
 
   /**
@@ -191,7 +191,7 @@ class ItemDragPlaceholder {
   _startAnimation() {
     if (!this._element) return;
 
-    const animation = this._animation;
+    const animation = this._animator;
     const currentX = this._transX;
     const currentY = this._transY;
     const nextX = this._nextTransX;
@@ -208,7 +208,7 @@ class ItemDragPlaceholder {
     }
 
     // Otherwise let's start the animation.
-    const { layoutDuration, layoutEasing } = (this._item.getGrid() as Grid)._settings;
+    const { layoutDuration, layoutEasing } = (this._item.getGrid() as Grid).settings;
     CURRENT_STYLES[transformProp] = getTranslateString(currentX, currentY);
     TARGET_STYLES[transformProp] = getTranslateString(nextX, nextY);
     animation.start(CURRENT_STYLES, TARGET_STYLES, {
@@ -237,9 +237,9 @@ class ItemDragPlaceholder {
    * @param {Item} item
    */
   _onReleaseEnd(item: Item) {
-    if (item._id === this._item._id) {
+    if (item.id === this._item.id) {
       // If the placeholder is not animating anymore we can safely reset it.
-      if (!this._animation.isAnimating()) {
+      if (!this._animator.isAnimating()) {
         this.reset();
         return;
       }
@@ -316,11 +316,11 @@ class ItemDragPlaceholder {
 
     const item = this._item;
     const grid = item.getGrid() as Grid;
-    const settings = grid._settings;
+    const { settings } = grid;
 
     // Keep track of layout position.
-    this._left = item._left;
-    this._top = item._top;
+    this._left = item.left;
+    this._top = item.top;
 
     // Create placeholder element.
     if (isFunction(settings.dragPlaceholder.createElement)) {
@@ -331,7 +331,7 @@ class ItemDragPlaceholder {
     const element = this._element;
 
     // Update element to animation instance.
-    this._animation.element = element;
+    (this._animator as Writeable<Animator>).element = element;
 
     // Add placeholder class to the placeholder element.
     this._className = settings.itemPlaceholderClass || '';
@@ -344,14 +344,14 @@ class ItemDragPlaceholder {
       position: 'absolute',
       left: '0px',
       top: '0px',
-      width: item._width + 'px',
-      height: item._height + 'px',
+      width: item.width + 'px',
+      height: item.height + 'px',
     });
 
     // Set initial position.
     element.style[transformProp as 'transform'] = getTranslateString(
-      item._left + item._marginLeft,
-      item._top + item._marginTop
+      item.left + item.marginLeft,
+      item.top + item.marginTop
     );
 
     // Bind event listeners.
@@ -366,7 +366,7 @@ class ItemDragPlaceholder {
     }
 
     // Insert the placeholder element to the grid.
-    grid.getElement().appendChild(element);
+    grid.element.appendChild(element);
   }
 
   /**
@@ -385,11 +385,11 @@ class ItemDragPlaceholder {
     this._resetAfterLayout = false;
 
     // Cancel potential (queued) layout tick.
-    cancelPlaceholderLayoutTick(item._id);
-    cancelPlaceholderResizeTick(item._id);
+    cancelPlaceholderLayoutTick(item.id);
+    cancelPlaceholderResizeTick(item.id);
 
     // Reset animation instance.
-    const animation = this._animation;
+    const animation = this._animator as Writeable<Animator>;
     animation.stop();
     animation.element = null;
 
@@ -412,7 +412,7 @@ class ItemDragPlaceholder {
     // onRemove hook. Note that here we use the current grid's onRemove callback
     // so if the item has migrated during drag the onRemove method will not be
     // the originating grid's method.
-    const { onRemove } = grid._settings.dragPlaceholder;
+    const { onRemove } = grid.settings.dragPlaceholder;
     if (isFunction(onRemove)) onRemove(item, element);
   }
 
@@ -445,7 +445,7 @@ class ItemDragPlaceholder {
    */
   updateDimensions() {
     if (!this.isActive()) return;
-    addPlaceholderResizeTick(this._item._id, this._updateDimensions);
+    addPlaceholderResizeTick(this._item.id, this._updateDimensions);
   }
 
   /**
@@ -468,7 +468,7 @@ class ItemDragPlaceholder {
    */
   destroy() {
     this.reset();
-    this._animation && this._animation.destroy();
+    this._animator && this._animator.destroy();
   }
 }
 

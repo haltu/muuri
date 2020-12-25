@@ -27,10 +27,10 @@ const waitDuration = 100;
  * @param {Dragger} dragger
  */
 export default class EdgeHack {
-  _dragger: Dragger;
-  _timeout: number | null;
-  _outEvent: PointerEvent | TouchEvent | MouseEvent | null;
-  _isActive: boolean;
+  protected _dragger: Dragger;
+  protected _timeout: number | null;
+  protected _outEvent: PointerEvent | TouchEvent | MouseEvent | null;
+  protected _isActive: boolean;
 
   constructor(dragger: Dragger) {
     this._dragger = dragger;
@@ -48,7 +48,12 @@ export default class EdgeHack {
     this._dragger.on('start', this._onStart);
   }
 
-  _addBehaviour() {
+  destroy() {
+    this._dragger.off('start', this._onStart);
+    this._removeBehaviour();
+  }
+
+  protected _addBehaviour() {
     if (this._isActive) return;
     this._isActive = true;
     this._dragger.on('move', this._resetData);
@@ -57,7 +62,7 @@ export default class EdgeHack {
     window.addEventListener(pointerOut, this._onOut);
   }
 
-  _removeBehaviour() {
+  protected _removeBehaviour() {
     if (!this._isActive) return;
     this._dragger.off('move', this._resetData);
     this._dragger.off('cancel', this._removeBehaviour);
@@ -67,7 +72,7 @@ export default class EdgeHack {
     this._isActive = false;
   }
 
-  _resetData() {
+  protected _resetData() {
     if (this._timeout !== null) {
       window.clearTimeout(this._timeout);
       this._timeout = null;
@@ -75,26 +80,21 @@ export default class EdgeHack {
     this._outEvent = null;
   }
 
-  _onStart(e: DraggerStartEvent) {
+  protected _onStart(e: DraggerStartEvent) {
     if (e.pointerType === 'mouse') return;
     this._addBehaviour();
   }
 
-  _onOut(e: PointerEvent | TouchEvent | MouseEvent) {
+  protected _onOut(e: PointerEvent | TouchEvent | MouseEvent) {
     if (!this._dragger.getTrackedTouch(e)) return;
     this._resetData();
     this._outEvent = e;
     this._timeout = window.setTimeout(this._onTimeout, waitDuration);
   }
 
-  _onTimeout() {
+  protected _onTimeout() {
     const outEvent = this._outEvent;
     this._resetData();
     if (outEvent && this._dragger.isActive()) this._dragger.onCancel(outEvent);
-  }
-
-  destroy() {
-    this._dragger.off('start', this._onStart);
-    this._removeBehaviour();
   }
 }

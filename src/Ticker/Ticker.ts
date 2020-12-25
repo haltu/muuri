@@ -14,9 +14,9 @@ export type TickCallback = (time: number) => any;
  * A lane for ticker.
  */
 class TickerLane {
-  _queue: (TickId | undefined)[];
-  _indices: Map<TickId, number>;
-  _callbacks: Map<TickId, TickCallback>;
+  protected _queue: (TickId | undefined)[];
+  protected _indices: Map<TickId, number>;
+  protected _callbacks: Map<TickId, TickCallback>;
 
   constructor() {
     this._queue = [];
@@ -64,10 +64,10 @@ class TickerLane {
  * A ticker system for handling DOM reads and writes in an efficient way.
  */
 export default class Ticker {
-  _nextStep: number | null;
-  _lanes: TickerLane[];
-  _stepQueue: TickId[];
-  _stepCallbacks: Map<TickId, TickCallback>;
+  protected _nextStep: number | null;
+  protected _lanes: TickerLane[];
+  protected _stepQueue: TickId[];
+  protected _stepCallbacks: Map<TickId, TickCallback>;
 
   constructor(numLanes = 1) {
     this._nextStep = null;
@@ -83,7 +83,20 @@ export default class Ticker {
     }
   }
 
-  _step(time: number) {
+  add(laneIndex: number, id: string, callback: TickCallback) {
+    const lane = this._lanes[laneIndex];
+    if (lane) {
+      lane.add(id, callback);
+      if (!this._nextStep) this._nextStep = raf(this._step);
+    }
+  }
+
+  remove(laneIndex: number, id: string) {
+    const lane = this._lanes[laneIndex];
+    if (lane) lane.remove(id);
+  }
+
+  protected _step(time: number) {
     const { _lanes, _stepQueue, _stepCallbacks } = this;
     let i = 0;
 
@@ -99,18 +112,5 @@ export default class Ticker {
 
     _stepQueue.length = 0;
     _stepCallbacks.clear();
-  }
-
-  add(laneIndex: number, id: string, callback: TickCallback) {
-    const lane = this._lanes[laneIndex];
-    if (lane) {
-      lane.add(id, callback);
-      if (!this._nextStep) this._nextStep = raf(this._step);
-    }
-  }
-
-  remove(laneIndex: number, id: string) {
-    const lane = this._lanes[laneIndex];
-    if (lane) lane.remove(id);
   }
 }

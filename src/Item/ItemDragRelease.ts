@@ -15,6 +15,8 @@ import addClass from '../utils/addClass';
 import getOffsetDiff from '../utils/getOffsetDiff';
 import removeClass from '../utils/removeClass';
 
+import { Writeable } from '../types';
+
 const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: true } : true;
 
 /**
@@ -26,18 +28,48 @@ const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: t
  * @class
  * @param {Item} item
  */
-class ItemDragRelease {
-  _item: ItemInternal;
-  _isActive: boolean;
-  _isDestroyed: boolean;
-  _isPositioningStarted: boolean;
+export default class ItemDragRelease {
+  readonly item: ItemInternal;
+  protected _isActive: boolean;
+  protected _isPositioning: boolean;
+  protected _isDestroyed: boolean;
 
   constructor(item: Item) {
-    this._item = (item as any) as ItemInternal;
+    this.item = (item as any) as ItemInternal;
     this._isActive = false;
+    this._isPositioning = false;
     this._isDestroyed = false;
-    this._isPositioningStarted = false;
     this._onScroll = this._onScroll.bind(this);
+  }
+
+  /**
+   * Is item's drag release process active?
+   *
+   * @public
+   * @returns {boolean}
+   */
+  isActive() {
+    return this._isActive;
+  }
+
+  /**
+   * Is item's drag release positioning started?
+   *
+   * @public
+   * @returns {boolean}
+   */
+  isPositioning() {
+    return this._isPositioning;
+  }
+
+  /**
+   * Is instance destroyed?
+   *
+   * @public
+   * @returns {boolean}
+   */
+  isDestroyed() {
+    return this._isDestroyed;
   }
 
   /**
@@ -48,7 +80,7 @@ class ItemDragRelease {
   start() {
     if (this._isDestroyed || this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     const grid = (item.getGrid() as any) as GridInternal;
     const { settings } = grid;
 
@@ -86,7 +118,7 @@ class ItemDragRelease {
   stop(abort = false, left?: number, top?: number) {
     if (this._isDestroyed || !this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
 
     if (!abort && (left === undefined || top === undefined)) {
       left = item.left;
@@ -94,7 +126,7 @@ class ItemDragRelease {
     }
 
     const didReparent = this._placeToGrid(left, top);
-    this._reset(didReparent);
+    this.reset(didReparent);
 
     if (!abort) {
       ((item.getGrid() as any) as GridInternal)._emit(
@@ -104,8 +136,31 @@ class ItemDragRelease {
     }
   }
 
-  isJustReleased() {
-    return this._isActive && this._isPositioningStarted === false;
+  /**
+   * Reset data and remove releasing class.
+   *
+   * @public
+   * @param {Boolean} [needsReflow=false]
+   */
+  reset(needsReflow = false) {
+    if (this._isDestroyed) return;
+
+    const { item } = this;
+    const { itemReleasingClass } = (item.getGrid() as Grid).settings;
+
+    this._isActive = false;
+    this._isPositioning = false;
+
+    cancelReleaseScrollTick(item.id);
+    window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
+
+    // If the element was just reparented we need to do a forced reflow to remove
+    // the class gracefully.
+    if (itemReleasingClass) {
+      // eslint-disable-next-line
+      if (needsReflow) item.element.clientWidth;
+      removeClass(item.element, itemReleasingClass);
+    }
   }
 
   /**
@@ -123,7 +178,7 @@ class ItemDragRelease {
    * Move the element back to the grid container element if it does not exist
    * there already.
    *
-   * @private
+   * @protected
    * @param {number} [left]
    *  - The element's current translateX value (optional).
    * @param {number} [top]
@@ -131,12 +186,12 @@ class ItemDragRelease {
    * @returns {boolean}
    *   - Returns `true` if the element was reparented, `false` otherwise.
    */
-  _placeToGrid(left?: number, top?: number) {
+  protected _placeToGrid(left?: number, top?: number) {
     let didReparent = false;
 
     if (this._isDestroyed) return didReparent;
 
-    const item = this._item;
+    const { item } = this;
     const element = item.element;
     const gridElement = (item.getGrid() as Grid).element;
 
@@ -158,39 +213,12 @@ class ItemDragRelease {
   }
 
   /**
-   * Reset data and remove releasing class.
-   *
-   * @private
-   * @param {Boolean} [needsReflow=false]
+   * @protected
    */
-  _reset(needsReflow = false) {
-    if (this._isDestroyed) return;
-
-    const item = this._item;
-    const { itemReleasingClass } = (item.getGrid() as Grid).settings;
-
-    this._isActive = false;
-    this._isPositioningStarted = false;
-
-    cancelReleaseScrollTick(item.id);
-    window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
-
-    // If the element was just reparented we need to do a forced reflow to remove
-    // the class gracefully.
-    if (itemReleasingClass) {
-      // eslint-disable-next-line
-      if (needsReflow) item.element.clientWidth;
-      removeClass(item.element, itemReleasingClass);
-    }
-  }
-
-  /**
-   * @private
-   */
-  _onScroll() {
+  protected _onScroll() {
     if (this._isDestroyed || !this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     let diffX = 0;
     let diffY = 0;
 
@@ -225,4 +253,10 @@ class ItemDragRelease {
   }
 }
 
-export default ItemDragRelease;
+export interface ItemDragReleaseInternal extends Writeable<ItemDragRelease> {
+  _isActive: ItemDragRelease['_isActive'];
+  _isPositioning: ItemDragRelease['_isPositioning'];
+  _isDestroyed: ItemDragRelease['_isDestroyed'];
+  _placeToGrid: ItemDragRelease['_placeToGrid'];
+  _onScroll: ItemDragRelease['_onScroll'];
+}

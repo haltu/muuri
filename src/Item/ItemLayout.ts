@@ -10,6 +10,7 @@ import { addLayoutTick, cancelLayoutTick } from '../ticker';
 
 import Grid, { GridInternal } from '../Grid/Grid';
 import Item, { ItemInternal } from './Item';
+import { ItemDragReleaseInternal } from './ItemDragRelease';
 import Animator, { AnimationOptions } from '../Animator/Animator';
 
 import addClass from '../utils/addClass';
@@ -19,7 +20,7 @@ import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 
-import { StyleDeclaration } from '../types';
+import { StyleDeclaration, Writeable } from '../types';
 
 interface GridPrivate extends GridInternal {
   _itemLayoutNeedsDimensionRefresh?: boolean;
@@ -40,25 +41,26 @@ const ANIM_OPTIONS: AnimationOptions = {
  * @class
  * @param {Item} item
  */
-class ItemLayout {
-  _item: ItemInternal;
-  _isActive: boolean;
-  _isDestroyed: boolean;
-  _isInterrupted: boolean;
-  _skipNextAnimation: boolean;
-  _easing: string;
-  _duration: number;
-  _tX: number;
-  _tY: number;
-  _animation: Animator;
-  _queue: string;
+export default class ItemLayout {
+  readonly item: ItemInternal;
+  protected _skipNextAnimation: boolean;
+  protected _isActive: boolean;
+  protected _isInterrupted: boolean;
+  protected _isDestroyed: boolean;
+  protected _easing: string;
+  protected _duration: number;
+  protected _tX: number;
+  protected _tY: number;
+  protected _animation: Animator;
+  protected _queue: string;
 
   constructor(item: Item) {
-    this._item = (item as any) as ItemInternal;
-    this._isActive = false;
-    this._isDestroyed = false;
-    this._isInterrupted = false;
+    this.item = (item as any) as ItemInternal;
+
     this._skipNextAnimation = false;
+    this._isActive = false;
+    this._isInterrupted = false;
+    this._isDestroyed = false;
     this._easing = '';
     this._duration = 0;
     this._tX = 0;
@@ -75,7 +77,23 @@ class ItemLayout {
     const { style } = item.element;
     style.left = '0px';
     style.top = '0px';
-    this._item._setTranslate(0, 0);
+    this.item._setTranslate(0, 0);
+  }
+
+  /**
+   * @public
+   * @returns {boolean}
+   */
+  isActive() {
+    return this._isActive;
+  }
+
+  /**
+   * @public
+   * @returns {boolean}
+   */
+  isDestroyed() {
+    return this._isDestroyed;
   }
 
   /**
@@ -88,12 +106,12 @@ class ItemLayout {
   start(instant: boolean, onFinish?: () => void) {
     if (this._isDestroyed) return;
 
-    const item = this._item;
+    const { item } = this;
     const grid = (item.getGrid() as any) as GridPrivate;
-    const release = item._dragRelease;
+    const release = (item._dragRelease as any) as ItemDragReleaseInternal;
     const { settings } = grid;
     const isPositioning = this._isActive;
-    const isJustReleased = release.isJustReleased();
+    const isJustReleased = release.isActive() && !release.isPositioning();
     const animation = this._animation;
     const animDuration = isJustReleased ? settings.dragRelease.duration : settings.layoutDuration;
     const animEasing = isJustReleased ? settings.dragRelease.easing : settings.layoutEasing;
@@ -107,7 +125,7 @@ class ItemLayout {
     }
 
     // Mark release positioning as started.
-    if (isJustReleased) release._isPositioningStarted = true;
+    if (isJustReleased) release._isPositioning = true;
 
     // Push the callback to the callback queue.
     if (onFinish && isFunction(onFinish)) {
@@ -152,7 +170,7 @@ class ItemLayout {
   stop(processCallbackQueue: boolean, left?: number, top?: number) {
     if (this._isDestroyed || !this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
 
     // Cancel animation init.
     cancelLayoutTick(item.id);
@@ -190,10 +208,10 @@ class ItemLayout {
     if (this._isDestroyed) return;
 
     this.stop(true, 0, 0);
-    this._item._emitter.clear(this._queue);
+    this.item._emitter.clear(this._queue);
     this._animation.destroy();
 
-    const { style } = this._item.element;
+    const { style } = this.item.element;
     style[transformProp as 'transform'] = '';
     style.left = '';
     style.top = '';
@@ -204,12 +222,12 @@ class ItemLayout {
   /**
    * Finish item layout procedure.
    *
-   * @private
+   * @protected
    */
-  _finish() {
+  protected _finish() {
     if (this._isDestroyed) return;
 
-    const item = this._item;
+    const { item } = this;
 
     // Update internal translate values.
     item._translateX = item.left + item._containerDiffX;
@@ -223,8 +241,8 @@ class ItemLayout {
     }
 
     // Finish up release and migration.
-    if (item._dragRelease._isActive) item._dragRelease.stop();
-    if (item._migrate._isActive) item._migrate.stop();
+    if (item._dragRelease.isActive()) item._dragRelease.stop();
+    if (item._migrate.isActive()) item._migrate.stop();
 
     // Process the callback queue.
     item._emitter.burst(this._queue, false, item);
@@ -233,12 +251,12 @@ class ItemLayout {
   /**
    * Prepare item for layout animation.
    *
-   * @private
+   * @protected
    */
-  _setupAnimation() {
+  protected _setupAnimation() {
     if (this._isDestroyed || !this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     const { x, y } = item._getTranslate();
 
     this._tX = x;
@@ -255,12 +273,12 @@ class ItemLayout {
   /**
    * Start layout animation.
    *
-   * @private
+   * @protected
    */
-  _startAnimation() {
+  protected _startAnimation() {
     if (this._isDestroyed || !this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     const { settings } = item.getGrid() as Grid;
     const isInstant = this._duration <= 0;
 
@@ -317,4 +335,18 @@ class ItemLayout {
   }
 }
 
-export default ItemLayout;
+export interface ItemLayoutInternal extends Writeable<ItemLayout> {
+  _skipNextAnimation: ItemLayout['_skipNextAnimation'];
+  _isActive: ItemLayout['_isActive'];
+  _isInterrupted: ItemLayout['_isInterrupted'];
+  _isDestroyed: ItemLayout['_isDestroyed'];
+  _easing: ItemLayout['_easing'];
+  _duration: ItemLayout['_duration'];
+  _tX: ItemLayout['_tX'];
+  _tY: ItemLayout['_tY'];
+  _animation: ItemLayout['_animation'];
+  _queue: ItemLayout['_queue'];
+  _finish: ItemLayout['_finish'];
+  _setupAnimation: ItemLayout['_setupAnimation'];
+  _startAnimation: ItemLayout['_startAnimation'];
+}

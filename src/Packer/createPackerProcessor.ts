@@ -66,17 +66,17 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
   }
 
   class PrivatePackerProcessor implements PackerProcessor {
-    _currentRects: RectId[];
-    _nextRects: RectId[];
-    _rectStore: number[];
-    _slotSizes: number[];
-    _shards: RectId[];
-    _rectTarget: Rect;
-    _tempRectA: Rect;
-    _tempRectB: Rect;
-    _rectId: RectId;
-    _slotIndex: number;
-    _slot: Rect;
+    protected _currentRects: RectId[];
+    protected _nextRects: RectId[];
+    protected _rectStore: number[];
+    protected _slotSizes: number[];
+    protected _shards: RectId[];
+    protected _rectTarget: Rect;
+    protected _tempRectA: Rect;
+    protected _tempRectB: Rect;
+    protected _rectId: RectId;
+    protected _slotIndex: number;
+    protected _slot: Rect;
 
     constructor() {
       this._currentRects = [];
@@ -194,7 +194,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
      * Calculate next slot in the layout. Returns a slot object with position
      * and dimensions data. The returned object is reused between calls.
      */
-    _computeNextSlot(
+    protected _computeNextSlot(
       layout: LayoutData,
       slotWidth: number,
       slotHeight: number,
@@ -355,7 +355,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
      * Add a new rectangle to the rectangle store. Returns the id of the new
      * rectangle.
      */
-    _addRect(left: number, top: number, width: number, height: number) {
+    protected _addRect(left: number, top: number, width: number, height: number) {
       const rectId = ++this._rectId;
       this._rectStore[rectId] = left || 0;
       this._rectStore[++this._rectId] = top || 0;
@@ -369,7 +369,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
      * provide a target object where the rectangle data will be written in. By
      * default an internal object is reused as a target object.
      */
-    _getRect(id: RectId, target?: Rect) {
+    protected _getRect(id: RectId, target?: Rect) {
       target = target || this._rectTarget;
       target.left = this._rectStore[id] || 0;
       target.top = this._rectStore[++id] || 0;
@@ -381,7 +381,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
     /**
      * Punch a hole into a rectangle and return the shards (1-4).
      */
-    _splitRect(rect: Rect, hole: Rect): RectId[] {
+    protected _splitRect(rect: Rect, hole: Rect): RectId[] {
       const { _shards: shards } = this;
       let width = 0;
       let height = 0;
@@ -432,7 +432,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
     /**
      * Check if a rectangle is fully within another rectangle.
      */
-    _isRectAWithinRectB(a: Rect, b: Rect) {
+    protected _isRectAWithinRectB(a: Rect, b: Rect) {
       return (
         a.left + EPS >= b.left &&
         a.top + EPS >= b.top &&
@@ -446,7 +446,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
      * within another rectangle in the array. Resetting in this case means that
      * the rectangle id value is replaced with zero.
      */
-    _purgeRects(rectIds: number[]) {
+    protected _purgeRects(rectIds: number[]) {
       const { _tempRectA: a, _tempRectB: b } = this;
       let i = rectIds.length;
       let j = 0;
@@ -471,7 +471,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
     /**
      * Sort rectangles with top-left gravity.
      */
-    _sortRectsTopLeft(aId: number, bId: number) {
+    protected _sortRectsTopLeft(aId: number, bId: number) {
       const { _tempRectA: a, _tempRectB: b } = this;
       this._getRect(aId, a);
       this._getRect(bId, b);
@@ -489,7 +489,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
     /**
      * Sort rectangles with left-top gravity.
      */
-    _sortRectsLeftTop(aId: number, bId: number) {
+    protected _sortRectsLeftTop(aId: number, bId: number) {
       const { _tempRectA: a, _tempRectB: b } = this;
       this._getRect(aId, a);
       this._getRect(bId, b);

@@ -68,12 +68,12 @@ const PACKET_HEADER_SLOTS: LayoutPacket['slots'] = 4;
 const PACKER_PROCESSOR = createPackerProcessor();
 
 export default class Packer {
-  _settings: number;
-  _asyncMode: boolean;
-  _layoutWorkerQueue: LayoutId[];
-  _layoutsProcessing: Set<LayoutId>;
-  _layoutWorkerData: Map<LayoutId, LayoutWorkerData>;
-  _workers: Worker[];
+  protected _settings: number;
+  protected _asyncMode: boolean;
+  protected _layoutWorkerQueue: LayoutId[];
+  protected _layoutsProcessing: Set<LayoutId>;
+  protected _layoutWorkerData: Map<LayoutId, LayoutWorkerData>;
+  protected _workers: Worker[];
 
   constructor(numWorkers = 0, options?: LayoutOptions) {
     this._settings = 0;
@@ -92,67 +92,6 @@ export default class Packer {
       this._workers = createWorkerProcessors(numWorkers, this._onWorkerMessage);
       this._asyncMode = !!this._workers.length;
     } catch (e) {}
-  }
-
-  _sendToWorker() {
-    if (!this._layoutWorkerQueue.length || !this._workers.length) return;
-
-    const worker = this._workers.pop() as Worker;
-    const layoutId = this._layoutWorkerQueue.shift() as LayoutId;
-    const workerData = this._layoutWorkerData.get(layoutId) as LayoutWorkerData;
-
-    workerData.worker = worker;
-    this._layoutsProcessing.add(layoutId);
-
-    const { buffer } = workerData.packet;
-    worker.postMessage(buffer, [buffer]);
-  }
-
-  _onWorkerMessage(msg: { data: ArrayBufferLike }) {
-    const data = new Float32Array(msg.data);
-    const layoutId = data[PACKET_INDEX_ID] as LayoutId;
-    const layoutData = this._layoutWorkerData.get(layoutId);
-
-    // Delete internal references.
-    this._layoutWorkerData.delete(layoutId);
-    this._layoutsProcessing.delete(layoutId);
-
-    // If we don't have layout data for some reason, there's nothing we can do.
-    if (!layoutData) return;
-
-    // Return worker to the pool.
-    const { worker } = layoutData;
-    if (worker) this._workers.push(worker);
-
-    // If layout has not been aborted let's finish things up.
-    if (!layoutData.aborted) {
-      const layout: LayoutData = {
-        id: layoutId,
-        items: layoutData.items,
-        slots: data.subarray(PACKET_HEADER_SLOTS, data.length),
-        width: data[PACKET_INDEX_WIDTH],
-        height: data[PACKET_INDEX_HEIGHT],
-        styles: {},
-      };
-      this._setContainerStyles(layout, layoutData.container, layoutData.settings);
-      layoutData.callback(layout);
-    }
-
-    // Finally try to process the next layout in the queue.
-    if (worker) this._sendToWorker();
-  }
-
-  _setContainerStyles(layout: LayoutData, containerData: ContainerData, settings: number) {
-    const isHorizontal = !!(settings & HORIZONTAL);
-    const isBorderBox = containerData.boxSizing === 'border-box';
-    const { borderLeft = 0, borderRight = 0, borderTop = 0, borderBottom = 0 } = containerData;
-    const { styles, width, height } = layout;
-
-    if (isHorizontal) {
-      styles.width = (isBorderBox ? width + borderLeft + borderRight : width) + 'px';
-    } else {
-      styles.height = (isBorderBox ? height + borderTop + borderBottom : height) + 'px';
-    }
   }
 
   updateSettings(options: LayoutOptions) {
@@ -280,5 +219,70 @@ export default class Packer {
     // Destroy all workers.
     destroyWorkerProcessors(this._workers);
     this._workers.length = 0;
+  }
+
+  protected _sendToWorker() {
+    if (!this._layoutWorkerQueue.length || !this._workers.length) return;
+
+    const worker = this._workers.pop() as Worker;
+    const layoutId = this._layoutWorkerQueue.shift() as LayoutId;
+    const workerData = this._layoutWorkerData.get(layoutId) as LayoutWorkerData;
+
+    workerData.worker = worker;
+    this._layoutsProcessing.add(layoutId);
+
+    const { buffer } = workerData.packet;
+    worker.postMessage(buffer, [buffer]);
+  }
+
+  protected _onWorkerMessage(msg: { data: ArrayBufferLike }) {
+    const data = new Float32Array(msg.data);
+    const layoutId = data[PACKET_INDEX_ID] as LayoutId;
+    const layoutData = this._layoutWorkerData.get(layoutId);
+
+    // Delete internal references.
+    this._layoutWorkerData.delete(layoutId);
+    this._layoutsProcessing.delete(layoutId);
+
+    // If we don't have layout data for some reason, there's nothing we can do.
+    if (!layoutData) return;
+
+    // Return worker to the pool.
+    const { worker } = layoutData;
+    if (worker) this._workers.push(worker);
+
+    // If layout has not been aborted let's finish things up.
+    if (!layoutData.aborted) {
+      const layout: LayoutData = {
+        id: layoutId,
+        items: layoutData.items,
+        slots: data.subarray(PACKET_HEADER_SLOTS, data.length),
+        width: data[PACKET_INDEX_WIDTH],
+        height: data[PACKET_INDEX_HEIGHT],
+        styles: {},
+      };
+      this._setContainerStyles(layout, layoutData.container, layoutData.settings);
+      layoutData.callback(layout);
+    }
+
+    // Finally try to process the next layout in the queue.
+    if (worker) this._sendToWorker();
+  }
+
+  protected _setContainerStyles(
+    layout: LayoutData,
+    containerData: ContainerData,
+    settings: number
+  ) {
+    const isHorizontal = !!(settings & HORIZONTAL);
+    const isBorderBox = containerData.boxSizing === 'border-box';
+    const { borderLeft = 0, borderRight = 0, borderTop = 0, borderBottom = 0 } = containerData;
+    const { styles, width, height } = layout;
+
+    if (isHorizontal) {
+      styles.width = (isBorderBox ? width + borderLeft + borderRight : width) + 'px';
+    } else {
+      styles.height = (isBorderBox ? height + borderTop + borderBottom : height) + 'px';
+    }
   }
 }

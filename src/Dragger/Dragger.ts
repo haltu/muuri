@@ -20,6 +20,8 @@ import EdgeHack from './EdgeHack';
 
 import getPrefixedPropName from '../utils/getPrefixedPropName';
 
+import { Writeable } from '../types';
+
 type ListenerType = 0 | 1 | 2 | 3;
 
 export type DraggerTouchAction = string;
@@ -227,9 +229,9 @@ function getTouchById(
  * dragger instances.
  */
 class DragProxy {
-  _emitter: Emitter;
-  _listenerOptions: ReturnType<typeof getListenerOptions>;
-  _draggers: Set<Dragger>;
+  protected _emitter: Emitter;
+  protected _listenerOptions: ReturnType<typeof getListenerOptions>;
+  protected _draggers: Set<Dragger>;
 
   constructor(listenerType: ListenerType) {
     this._emitter = new Emitter();
@@ -238,34 +240,6 @@ class DragProxy {
     this._onMove = this._onMove.bind(this);
     this._onCancel = this._onCancel.bind(this);
     this._onEnd = this._onEnd.bind(this);
-  }
-
-  _activate() {
-    window.addEventListener(SOURCE_EVENTS.move, this._onMove, this._listenerOptions);
-    window.addEventListener(SOURCE_EVENTS.end, this._onEnd, this._listenerOptions);
-    if (SOURCE_EVENTS.cancel) {
-      window.addEventListener(SOURCE_EVENTS.cancel, this._onCancel, this._listenerOptions);
-    }
-  }
-
-  _deactivate() {
-    window.removeEventListener(SOURCE_EVENTS.move, this._onMove, this._listenerOptions);
-    window.removeEventListener(SOURCE_EVENTS.end, this._onEnd, this._listenerOptions);
-    if (SOURCE_EVENTS.cancel) {
-      window.removeEventListener(SOURCE_EVENTS.cancel, this._onCancel, this._listenerOptions);
-    }
-  }
-
-  _onMove(e: PointerEvent | TouchEvent | MouseEvent) {
-    this._emitter.emit(DRAGGER_EVENTS.move, e);
-  }
-
-  _onCancel(e: PointerEvent | TouchEvent | MouseEvent) {
-    this._emitter.emit(DRAGGER_EVENTS.cancel, e);
-  }
-
-  _onEnd(e: PointerEvent | TouchEvent | MouseEvent) {
-    this._emitter.emit(DRAGGER_EVENTS.end, e);
   }
 
   hasDragger(dragger: Dragger) {
@@ -303,6 +277,34 @@ class DragProxy {
     this._draggers.clear();
     this._emitter.destroy();
   }
+
+  protected _activate() {
+    window.addEventListener(SOURCE_EVENTS.move, this._onMove, this._listenerOptions);
+    window.addEventListener(SOURCE_EVENTS.end, this._onEnd, this._listenerOptions);
+    if (SOURCE_EVENTS.cancel) {
+      window.addEventListener(SOURCE_EVENTS.cancel, this._onCancel, this._listenerOptions);
+    }
+  }
+
+  protected _deactivate() {
+    window.removeEventListener(SOURCE_EVENTS.move, this._onMove, this._listenerOptions);
+    window.removeEventListener(SOURCE_EVENTS.end, this._onEnd, this._listenerOptions);
+    if (SOURCE_EVENTS.cancel) {
+      window.removeEventListener(SOURCE_EVENTS.cancel, this._onCancel, this._listenerOptions);
+    }
+  }
+
+  protected _onMove(e: PointerEvent | TouchEvent | MouseEvent) {
+    this._emitter.emit(DRAGGER_EVENTS.move, e);
+  }
+
+  protected _onCancel(e: PointerEvent | TouchEvent | MouseEvent) {
+    this._emitter.emit(DRAGGER_EVENTS.cancel, e);
+  }
+
+  protected _onEnd(e: PointerEvent | TouchEvent | MouseEvent) {
+    this._emitter.emit(DRAGGER_EVENTS.end, e);
+  }
 }
 
 const dragProxies: DragProxy[] = [new DragProxy(0), new DragProxy(1)];
@@ -312,19 +314,19 @@ if (HAS_PASSIVE_EVENTS) dragProxies.push(new DragProxy(2), new DragProxy(3));
  * Creates a new Dragger instance for an element.
  */
 export default class Dragger {
-  _element: HTMLElement | null;
-  _emitter: Emitter;
-  _cssProps: { [key: string]: string };
-  _touchAction: DraggerTouchAction;
-  _listenerType: ListenerType;
-  _isActive: boolean;
-  _pointerId: number | null;
-  _startTime: number;
-  _startX: number;
-  _startY: number;
-  _currentX: number;
-  _currentY: number;
-  _edgeHack: EdgeHack | null;
+  readonly element: HTMLElement | null;
+  protected _emitter: Emitter;
+  protected _cssProps: { [key: string]: string };
+  protected _touchAction: DraggerTouchAction;
+  protected _listenerType: ListenerType;
+  protected _isActive: boolean;
+  protected _pointerId: number | null;
+  protected _startTime: number;
+  protected _startX: number;
+  protected _startY: number;
+  protected _currentX: number;
+  protected _currentY: number;
+  protected _edgeHack: EdgeHack | null;
 
   constructor(
     element: HTMLElement,
@@ -333,7 +335,7 @@ export default class Dragger {
   ) {
     const { capture = true, passive = true } = listenerOptions;
 
-    this._element = element;
+    this.element = element;
     this._emitter = new Emitter();
     this._cssProps = {};
     this._touchAction = '';
@@ -375,45 +377,6 @@ export default class Dragger {
   }
 
   /**
-   * Create a custom dragger event from a raw event.
-   */
-  _createEvent(
-    type: DraggerEventType,
-    e: PointerEvent | TouchEvent | MouseEvent
-  ): DraggerEvent | null {
-    const touch = this.getTrackedTouch(e);
-    if (!touch || !this._pointerId) return null;
-    return {
-      // Hammer.js compatibility interface.
-      type: type,
-      srcEvent: e,
-      distance: this.getDistance(),
-      deltaX: this.getDeltaX(),
-      deltaY: this.getDeltaY(),
-      deltaTime: type === DRAGGER_EVENTS.start ? 0 : this.getDeltaTime(),
-      isFirst: type === DRAGGER_EVENTS.start,
-      isFinal: type === DRAGGER_EVENTS.end || type === DRAGGER_EVENTS.cancel,
-      pointerType: getPointerType(e),
-      // Partial Touch API interface.
-      identifier: this._pointerId,
-      screenX: touch.screenX,
-      screenY: touch.screenY,
-      clientX: touch.clientX,
-      clientY: touch.clientY,
-      pageX: touch.pageX,
-      pageY: touch.pageY,
-      target: touch.target,
-    };
-  }
-
-  /**
-   * Emit a raw event as dragger event internally.
-   */
-  _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent) {
-    this._emitter.emit(type, this._createEvent(type, e));
-  }
-
-  /**
    * If the provided event is a PointerEvent this method will return it if it has
    * the same pointerId as the instance. If the provided event is a TouchEvent
    * this method will try to look for a Touch instance in the changedTouches that
@@ -432,7 +395,7 @@ export default class Dragger {
    * Handler for start event.
    */
   onStart(e: PointerEvent | TouchEvent | MouseEvent) {
-    if (!this._element) return;
+    if (!this.element) return;
 
     // If pointer id is already assigned let's return early.
     if (this._pointerId !== null) return;
@@ -500,7 +463,7 @@ export default class Dragger {
    * Set element's touch-action CSS property.
    */
   setTouchAction(value: DraggerTouchAction) {
-    if (!this._element || !value) return;
+    if (!this.element || !value) return;
 
     // Store unmodified touch action value (we trust user input here).
     this._touchAction = value;
@@ -508,7 +471,7 @@ export default class Dragger {
     // Set touch-action style.
     if (TA_PROP_PREFIXED) {
       this._cssProps[TA_PROP_PREFIXED] = '';
-      this._element.style[TA_PROP_PREFIXED as any] = value;
+      this.element.style[TA_PROP_PREFIXED as any] = value;
     }
 
     // If we have an unsupported touch-action value let's add a special listener
@@ -519,12 +482,12 @@ export default class Dragger {
     // touch-action does not work properly if the dragged element is moved in the
     // the DOM tree on touchstart.
     if (HAS_TOUCH_EVENTS) {
-      this._element.removeEventListener(TOUCH_EVENTS.start, preventDefault, true);
+      this.element.removeEventListener(TOUCH_EVENTS.start, preventDefault, true);
       if (
         value !== TA_AUTO &&
-        (this._element.style[TA_PROP_PREFIXED as any] !== value || (IS_FIREFOX && IS_ANDROID))
+        (this.element.style[TA_PROP_PREFIXED as any] !== value || (IS_FIREFOX && IS_ANDROID))
       ) {
-        this._element.addEventListener(TOUCH_EVENTS.start, preventDefault, true);
+        this.element.addEventListener(TOUCH_EVENTS.start, preventDefault, true);
       }
     }
   }
@@ -534,10 +497,10 @@ export default class Dragger {
    * props with value pairs as it's first argument.
    */
   setCssProps(newProps: DraggerCssPropsOptions) {
-    if (!this._element) return;
+    if (!this.element) return;
 
     const currentProps = this._cssProps;
-    const element = this._element;
+    const { element } = this;
 
     // Reset current props.
     let currentProp = '';
@@ -573,7 +536,7 @@ export default class Dragger {
    * Update the instance's event listener options.
    */
   setListenerOptions(options: DraggerListenerOptions) {
-    if (!this._element) return;
+    if (!this.element) return;
 
     const { capture = true, passive = true } = options;
     const current = this._listenerType;
@@ -582,7 +545,7 @@ export default class Dragger {
     // If we need to update event listeners.
     if (current !== next) {
       // Unbind start listener.
-      this._element.removeEventListener(
+      this.element.removeEventListener(
         SOURCE_EVENTS.start,
         this.onStart,
         getListenerOptions(this._listenerType)
@@ -597,7 +560,7 @@ export default class Dragger {
       this._listenerType = next;
 
       // Rebind start listener with new listener options.
-      this._element.addEventListener(
+      this.element.addEventListener(
         SOURCE_EVENTS.start,
         this.onStart,
         getListenerOptions(this._listenerType)
@@ -677,7 +640,7 @@ export default class Dragger {
    * Destroy the instance and unbind all drag event listeners.
    */
   destroy() {
-    const element = this._element;
+    const { element } = this;
     if (!element) return;
 
     if (this._edgeHack) this._edgeHack.destroy();
@@ -705,6 +668,45 @@ export default class Dragger {
 
     // Reset data.
     this._cssProps = {};
-    this._element = null;
+    (this as Writeable<Dragger>).element = null;
+  }
+
+  /**
+   * Create a custom dragger event from a raw event.
+   */
+  protected _createEvent(
+    type: DraggerEventType,
+    e: PointerEvent | TouchEvent | MouseEvent
+  ): DraggerEvent | null {
+    const touch = this.getTrackedTouch(e);
+    if (!touch || !this._pointerId) return null;
+    return {
+      // Hammer.js compatibility interface.
+      type: type,
+      srcEvent: e,
+      distance: this.getDistance(),
+      deltaX: this.getDeltaX(),
+      deltaY: this.getDeltaY(),
+      deltaTime: type === DRAGGER_EVENTS.start ? 0 : this.getDeltaTime(),
+      isFirst: type === DRAGGER_EVENTS.start,
+      isFinal: type === DRAGGER_EVENTS.end || type === DRAGGER_EVENTS.cancel,
+      pointerType: getPointerType(e),
+      // Partial Touch API interface.
+      identifier: this._pointerId,
+      screenX: touch.screenX,
+      screenY: touch.screenY,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      pageX: touch.pageX,
+      pageY: touch.pageY,
+      target: touch.target,
+    };
+  }
+
+  /**
+   * Emit a raw event as dragger event internally.
+   */
+  protected _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent) {
+    this._emitter.emit(type, this._createEvent(type, e));
   }
 }

@@ -16,23 +16,45 @@ import arrayInsert from '../utils/arrayInsert';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 
+import { Writeable } from '../types';
+
 /**
  * The migrate process handler constructor.
  *
  * @class
  * @param {Item} item
  */
-class ItemMigrate {
-  _item: ItemInternal;
-  _isActive: boolean;
-  _isDestroyed: boolean;
-  _container: HTMLElement | null;
+export default class ItemMigrate {
+  readonly item: ItemInternal;
+  readonly container: HTMLElement | null;
+  protected _isActive: boolean;
+  protected _isDestroyed: boolean;
 
   constructor(item: Item) {
-    this._item = (item as any) as ItemInternal;
+    this.item = (item as any) as ItemInternal;
+    this.container = null;
     this._isActive = false;
     this._isDestroyed = false;
-    this._container = null;
+  }
+
+  /**
+   * Is migration in process?
+   *
+   * @public
+   * @returns {boolean}
+   */
+  isActive() {
+    return this._isActive;
+  }
+
+  /**
+   * Is instance destroyed?
+   *
+   * @public
+   * @returns {boolean}
+   */
+  isDestroyed() {
+    return this._isDestroyed;
   }
 
   /**
@@ -44,9 +66,9 @@ class ItemMigrate {
    * @param {HTMLElement} [container]
    */
   start(targetGrid: Grid, position: HTMLElement | number | Item, container?: HTMLElement) {
-    if (this._isDestroyed || targetGrid.isDestroyed()) return;
+    if (this.isDestroyed || targetGrid.isDestroyed()) return;
 
-    const item = this._item;
+    const item = this.item;
     const grid = item.getGrid() as Grid;
     const element = item.element;
     const isActive = item.isActive();
@@ -72,7 +94,7 @@ class ItemMigrate {
     if (item._drag) item._drag.stop();
 
     // Abort current positioning/migration/releasing.
-    if (this._isActive || item.isPositioning() || item.isReleasing()) {
+    if (this.isActive || item.isPositioning() || item.isReleasing()) {
       let { x, y } = item._getTranslate();
 
       if (item.isPositioning()) {
@@ -82,7 +104,7 @@ class ItemMigrate {
       x -= item._containerDiffX;
       y -= item._containerDiffY;
 
-      if (this._isActive) {
+      if (this.isActive()) {
         this.stop(true, x, y);
       } else if (item.isReleasing()) {
         item._dragRelease.stop(true, x, y);
@@ -192,10 +214,10 @@ class ItemMigrate {
     // Setup migration data.
     if (isActive) {
       this._isActive = true;
-      this._container = targetContainer;
+      (this as Writeable<ItemMigrate>).container = targetContainer;
     } else {
       this._isActive = false;
-      this._container = null;
+      (this as Writeable<ItemMigrate>).container = null;
     }
 
     // Emit send event.
@@ -234,12 +256,12 @@ class ItemMigrate {
    *  - The element's current translateY value (optional).
    */
   stop(abort = false, left?: number, top?: number) {
-    if (this._isDestroyed || !this._isActive) return;
+    if (this.isDestroyed || !this.isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     const grid = item.getGrid() as Grid;
 
-    if (this._container !== grid.element) {
+    if (this.container !== grid.element) {
       if (left === undefined || top === undefined) {
         if (abort) {
           const t = item._getTranslate();
@@ -258,7 +280,7 @@ class ItemMigrate {
     }
 
     this._isActive = false;
-    this._container = null;
+    (this as Writeable<ItemMigrate>).container = null;
   }
 
   /**
@@ -267,10 +289,13 @@ class ItemMigrate {
    * @public
    */
   destroy() {
-    if (this._isDestroyed) return;
+    if (this.isDestroyed()) return;
     this.stop(true);
     this._isDestroyed = true;
   }
 }
 
-export default ItemMigrate;
+export interface ItemMigrateInternal extends Writeable<ItemMigrate> {
+  _isActive: ItemMigrate['_isActive'];
+  _isDestroyed: ItemMigrate['_isDestroyed'];
+}

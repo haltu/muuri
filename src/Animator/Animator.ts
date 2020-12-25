@@ -39,22 +39,13 @@ function createKeyframe(props: AnimationProperties, prefix: boolean) {
 export default class Animator {
   readonly element: HTMLElement | null;
   readonly animation: Animation | null;
-  private _finishCallback: Function | null;
+  protected _finishCallback: Function | null;
 
   constructor(element?: HTMLElement) {
     this.element = element || null;
     this.animation = null;
     this._finishCallback = null;
     this._onFinish = this._onFinish.bind(this);
-  }
-
-  /**
-   * Animation end handler.
-   */
-  private _onFinish() {
-    const { _finishCallback } = this;
-    (this as Writeable<Animator>).animation = this._finishCallback = null;
-    _finishCallback && _finishCallback();
   }
 
   /**
@@ -124,5 +115,14 @@ export default class Animator {
     if (!this.element) return;
     this.stop();
     (this as Writeable<Animator>).element = null;
+  }
+
+  /**
+   * Animation end handler.
+   */
+  protected _onFinish() {
+    const { _finishCallback } = this;
+    (this as Writeable<Animator>).animation = this._finishCallback = null;
+    _finishCallback && _finishCallback();
   }
 }

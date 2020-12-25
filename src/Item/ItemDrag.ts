@@ -61,7 +61,7 @@ import isFunction from '../utils/isFunction';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
 
-import { ScrollEvent, Rect, RectExtended } from '../types';
+import { ScrollEvent, Rect, RectExtended, Writeable } from '../types';
 
 const START_PREDICATE_INACTIVE = 0;
 const START_PREDICATE_PENDING = 1;
@@ -92,7 +92,7 @@ const defaultStartPredicate = function (
 ) {
   if (event.isFinal) return;
 
-  const drag = ((item as any) as ItemInternal)._drag as ItemDrag;
+  const drag = (((item as any) as ItemInternal)._drag as any) as ItemDragInternal;
 
   // Reject the predicate if left button is not pressed on mouse during first
   // event.
@@ -198,7 +198,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
   let i = 0;
 
   // Set up item rect data for comparing against grids.
-  const drag = ((item as any) as ItemInternal)._drag as ItemDrag;
+  const drag = (((item as any) as ItemInternal)._drag as any) as ItemDragInternal;
   itemRect.width = item.width;
   itemRect.height = item.height;
   itemRect.left = drag._clientX;
@@ -282,7 +282,7 @@ const defaultSortPredicate = function (
   item: Item,
   options?: DragSortPredicateOptions
 ): DragSortPredicateResult {
-  const drag = ((item as any) as ItemInternal)._drag as ItemDrag;
+  const drag = (((item as any) as ItemInternal)._drag as any) as ItemDragInternal;
 
   const sortAction = (options && options.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE) as
     | typeof ACTION_MOVE
@@ -386,52 +386,52 @@ const defaultSortPredicate = function (
  * @class
  * @param {Item} item
  */
-class ItemDrag {
-  _item: ItemInternal;
-  _rootGridId: number;
-  _isDestroyed: boolean;
-  _isMigrated: boolean;
-  _isActive: boolean;
-  _isStarted: boolean;
-  _startPredicateState: number;
-  _startPredicateData: {
+export default class ItemDrag {
+  readonly item: ItemInternal;
+  readonly dragger: Dragger;
+  protected _rootGridId: number;
+  protected _isDestroyed: boolean;
+  protected _isMigrated: boolean;
+  protected _isActive: boolean;
+  protected _isStarted: boolean;
+  protected _startPredicateState: number;
+  protected _startPredicateData: {
     distance: number;
     delay: number;
     event?: DraggerAnyEvent;
     delayTimer?: number;
   } | null;
-  _isSortNeeded: boolean;
-  _sortTimer?: number;
-  _blockedSortIndex: number | null;
-  _sortX1: number;
-  _sortX2: number;
-  _sortY1: number;
-  _sortY2: number;
-  _container: HTMLElement | null;
-  _containingBlock: HTMLElement | Document | null;
-  _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
-  _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
-  _dragMoveEvent: DraggerMoveEvent | null;
-  _dragPrevMoveEvent: DraggerMoveEvent | null;
-  _scrollEvent: ScrollEvent | null;
-  _translateX: number;
-  _translateY: number;
-  _clientX: number;
-  _clientY: number;
-  _scrollDiffX: number;
-  _scrollDiffY: number;
-  _moveDiffX: number;
-  _moveDiffY: number;
-  _containerDiffX: number;
-  _containerDiffY: number;
-  _dragger: Dragger;
+  protected _isSortNeeded: boolean;
+  protected _sortTimer?: number;
+  protected _blockedSortIndex: number | null;
+  protected _sortX1: number;
+  protected _sortX2: number;
+  protected _sortY1: number;
+  protected _sortY2: number;
+  protected _container: HTMLElement | null;
+  protected _containingBlock: HTMLElement | Document | null;
+  protected _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
+  protected _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
+  protected _dragMoveEvent: DraggerMoveEvent | null;
+  protected _dragPrevMoveEvent: DraggerMoveEvent | null;
+  protected _scrollEvent: ScrollEvent | null;
+  protected _translateX: number;
+  protected _translateY: number;
+  protected _clientX: number;
+  protected _clientY: number;
+  protected _scrollDiffX: number;
+  protected _scrollDiffY: number;
+  protected _moveDiffX: number;
+  protected _moveDiffY: number;
+  protected _containerDiffX: number;
+  protected _containerDiffY: number;
 
   constructor(item: Item) {
     const element = item.element;
     const grid = item.getGrid() as Grid;
     const { settings } = grid;
 
-    this._item = (item as any) as ItemInternal;
+    this.item = (item as any) as ItemInternal;
     this._rootGridId = grid.id;
     this._isDestroyed = false;
     this._isMigrated = false;
@@ -499,16 +499,16 @@ class ItemDrag {
     this._handleSortDelayed = this._handleSortDelayed.bind(this);
 
     // Init dragger.
-    this._dragger = new Dragger(
+    this.dragger = new Dragger(
       (typeof settings.dragHandle === 'string' && element.querySelector(settings.dragHandle)) ||
         element,
       settings.dragCssProps,
       settings.dragEventListenerOptions
     );
-    this._dragger.on('start', this._preStartCheck);
-    this._dragger.on('move', this._preStartCheck);
-    this._dragger.on('cancel', this._preEndCheck);
-    this._dragger.on('end', this._preEndCheck);
+    this.dragger.on('start', this._preStartCheck);
+    this.dragger.on('move', this._preStartCheck);
+    this.dragger.on('cancel', this._preEndCheck);
+    this.dragger.on('end', this._preEndCheck);
   }
 
   /**
@@ -533,6 +533,26 @@ class ItemDrag {
    * @type {defaultSortPredicate}
    */
   static defaultSortPredicate = defaultSortPredicate;
+
+  /**
+   * Is item being dragged currently?
+   *
+   * @public
+   * @returns {boolean}
+   */
+  isActive() {
+    return this._isActive;
+  }
+
+  /**
+   * Is drag instance destroyed?
+   *
+   * @public
+   * @returns {boolean}
+   */
+  isDestroyed() {
+    return this._isDestroyed;
+  }
 
   /**
    * Get Grid instance.
@@ -560,7 +580,7 @@ class ItemDrag {
       return;
     }
 
-    const item = this._item;
+    const { item } = this;
 
     // Stop auto-scroll.
     ItemDrag.autoScroller.removeItem((item as any) as Item);
@@ -616,7 +636,7 @@ class ItemDrag {
    * @param {boolean} [force=false]
    */
   sort(force = false) {
-    const item = this._item;
+    const { item } = this;
     if (this._isActive && item.isActive() && this._dragMoveEvent) {
       if (force) {
         this._handleSort();
@@ -638,19 +658,19 @@ class ItemDrag {
     // no need.
     this._isMigrated = false;
     this.stop();
-    this._dragger.destroy();
+    this.dragger.destroy();
     this._isDestroyed = true;
   }
 
   /**
    * Start predicate.
    *
-   * @private
+   * @protected
    * @param {Item} item
    * @param {Object} event
    * @returns {(boolean|undefined)}
    */
-  _startPredicate(item: Item, event: DraggerAnyEvent) {
+  protected _startPredicate(item: Item, event: DraggerAnyEvent) {
     const { dragStartPredicate } = (item.getGrid() as Grid).settings;
     return isFunction(dragStartPredicate)
       ? dragStartPredicate(item, event)
@@ -660,9 +680,9 @@ class ItemDrag {
   /**
    * Setup/reset drag data.
    *
-   * @private
+   * @protected
    */
-  _reset() {
+  protected _reset() {
     this._isActive = false;
     this._isStarted = false;
     this._container = null;
@@ -687,29 +707,29 @@ class ItemDrag {
   /**
    * Bind drag scroll handlers.
    *
-   * @private
+   * @protected
    */
-  _bindScrollHandler() {
+  protected _bindScrollHandler() {
     window.addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
   }
 
   /**
    * Unbind currently bound drag scroll handlers.
    *
-   * @private
+   * @protected
    */
-  _unbindScrollHandler() {
+  protected _unbindScrollHandler() {
     window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
   }
 
   /**
    * Reset drag sort heuristics.
    *
-   * @private
+   * @protected
    * @param {number} x
    * @param {number} y
    */
-  _resetHeuristics(x: number, y: number) {
+  protected _resetHeuristics(x: number, y: number) {
     this._blockedSortIndex = null;
     this._sortX1 = this._sortX2 = x;
     this._sortY1 = this._sortY2 = y;
@@ -719,13 +739,13 @@ class ItemDrag {
    * Run heuristics and return true if overlap check can be performed, and false
    * if it can not.
    *
-   * @private
+   * @protected
    * @param {number} x
    * @param {number} y
    * @returns {boolean}
    */
-  _checkHeuristics(x: number, y: number) {
-    const { settings } = this._item.getGrid() as Grid;
+  protected _checkHeuristics(x: number, y: number) {
+    const { settings } = this.item.getGrid() as Grid;
     const { minDragDistance, minBounceBackAngle } = settings.dragSortHeuristics;
 
     // Skip heuristics if not needed.
@@ -771,9 +791,9 @@ class ItemDrag {
   /**
    * Reset default drag start predicate data.
    *
-   * @private
+   * @protected
    */
-  _resetDefaultStartPredicate() {
+  protected _resetDefaultStartPredicate() {
     const { _startPredicateData: predicate } = this;
     if (predicate) {
       if (predicate.delayTimer) {
@@ -787,12 +807,12 @@ class ItemDrag {
    * Handle the sorting procedure. Manage drag sort heuristics/interval and
    * check overlap when necessary.
    *
-   * @private
+   * @protected
    */
-  _handleSort() {
+  protected _handleSort() {
     if (!this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     const { dragSort, dragSortHeuristics, dragAutoScroll } = (item.getGrid() as Grid).settings;
 
     // No sorting when drag sort is disabled. Also, account for the scenario where
@@ -841,34 +861,34 @@ class ItemDrag {
   /**
    * Delayed sort handler.
    *
-   * @private
+   * @protected
    */
-  _handleSortDelayed() {
+  protected _handleSortDelayed() {
     this._isSortNeeded = true;
     this._sortTimer = undefined;
-    addDragSortTick(this._item.id, this._handleSort);
+    addDragSortTick(this.item.id, this._handleSort);
   }
 
   /**
    * Cancel and reset sort procedure.
    *
-   * @private
+   * @protected
    */
-  _cancelSort() {
+  protected _cancelSort() {
     this._isSortNeeded = false;
     if (this._sortTimer !== undefined) {
       this._sortTimer = void window.clearTimeout(this._sortTimer);
     }
-    cancelDragSortTick(this._item.id);
+    cancelDragSortTick(this.item.id);
   }
 
   /**
    * Handle the ending of the drag procedure for sorting.
    *
-   * @private
+   * @protected
    */
-  _finishSort() {
-    const { dragSort } = (this._item.getGrid() as Grid).settings;
+  protected _finishSort() {
+    const { dragSort } = (this.item.getGrid() as Grid).settings;
     const needsFinalCheck = dragSort && (this._isSortNeeded || this._sortTimer !== undefined);
     this._cancelSort();
     if (needsFinalCheck) this._checkOverlap();
@@ -879,13 +899,13 @@ class ItemDrag {
    * Check (during drag) if an item is overlapping other items based on
    * the configuration layout the items.
    *
-   * @private
+   * @protected
    * @param {Boolean} [isDrop=false]
    */
-  _checkOverlap(isDrop = false) {
+  protected _checkOverlap(isDrop = false) {
     if (!this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     const element = item.element;
     const currentGrid = item.getGrid() as Grid;
     const { settings } = currentGrid;
@@ -1110,10 +1130,10 @@ class ItemDrag {
   /**
    * If item is dragged into another grid, finish the migration process.
    *
-   * @private
+   * @protected
    */
-  _finishMigration() {
-    const item = this._item;
+  protected _finishMigration() {
+    const { item } = this;
     const { dragEnabled } = (item.getGrid() as Grid).settings;
 
     this.destroy();
@@ -1125,10 +1145,10 @@ class ItemDrag {
   /**
    * Drag pre-start handler.
    *
-   * @private
+   * @protected
    * @param {Object} event
    */
-  _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent) {
+  protected _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent) {
     // Let's activate drag start predicate state.
     if (this._startPredicateState === START_PREDICATE_INACTIVE) {
       this._startPredicateState = START_PREDICATE_PENDING;
@@ -1136,13 +1156,13 @@ class ItemDrag {
 
     // If predicate is pending try to resolve it.
     if (this._startPredicateState === START_PREDICATE_PENDING) {
-      const shouldStart = this._startPredicate((this._item as any) as Item, event);
+      const shouldStart = this._startPredicate((this.item as any) as Item, event);
       if (shouldStart === true) {
         this._startPredicateState = START_PREDICATE_RESOLVED;
         this._onStart(event);
       } else if (shouldStart === false) {
         this._startPredicateState = START_PREDICATE_INACTIVE;
-        this._dragger.reset();
+        this.dragger.reset();
       }
     }
 
@@ -1155,16 +1175,16 @@ class ItemDrag {
   /**
    * Drag pre-end handler.
    *
-   * @private
+   * @protected
    * @param {Object} event
    */
-  _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent) {
+  protected _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent) {
     const isResolved = this._startPredicateState === START_PREDICATE_RESOLVED;
 
     // Do final predicate check to allow user to unbind stuff for the current
     // drag procedure within the predicate callback. The return value of this
     // check will have no effect to the state of the predicate.
-    this._startPredicate((this._item as any) as Item, event);
+    this._startPredicate((this.item as any) as Item, event);
 
     // Let's automatically reset the default start predicate (even if it is not
     // used) to make sure it is ready for next round.
@@ -1184,11 +1204,11 @@ class ItemDrag {
   /**
    * Drag start handler.
    *
-   * @private
+   * @protected
    * @param {Object} event
    */
-  _onStart(event: DraggerStartEvent | DraggerMoveEvent) {
-    const item = this._item;
+  protected _onStart(event: DraggerStartEvent | DraggerMoveEvent) {
+    const item = this.item;
     if (!item.isActive()) return;
 
     this._isActive = true;
@@ -1199,12 +1219,12 @@ class ItemDrag {
   }
 
   /**
-   * @private
+   * @protected
    */
-  _prepareStart() {
+  protected _prepareStart() {
     if (!this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     if (!item.isActive()) return;
 
     const element = item.element;
@@ -1237,12 +1257,12 @@ class ItemDrag {
   }
 
   /**
-   * @private
+   * @protected
    */
-  _applyStart() {
+  protected _applyStart() {
     if (!this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     if (!item.isActive()) return;
 
     if (item.isPositioning()) {
@@ -1250,16 +1270,14 @@ class ItemDrag {
     }
 
     const migrate = item._migrate;
-    if (migrate._isActive) {
+    if (migrate.isActive()) {
       this._translateX -= item._containerDiffX;
       this._translateY -= item._containerDiffY;
       migrate.stop(true, this._translateX, this._translateY);
     }
 
     const release = item._dragRelease;
-    if (item.isReleasing()) {
-      release._reset();
-    }
+    if (item.isReleasing()) release.reset();
 
     const grid = item.getGrid() as Grid;
     const element = item.element;
@@ -1308,11 +1326,11 @@ class ItemDrag {
   /**
    * Drag move handler.
    *
-   * @private
+   * @protected
    * @param {Object} event
    */
-  _onMove(event: DraggerMoveEvent) {
-    const item = this._item;
+  protected _onMove(event: DraggerMoveEvent) {
+    const { item } = this;
 
     if (!item.isActive()) {
       this.stop();
@@ -1327,12 +1345,12 @@ class ItemDrag {
   /**
    * Prepare dragged item for moving.
    *
-   * @private
+   * @protected
    */
-  _prepareMove() {
+  protected _prepareMove() {
     if (!this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     if (!item.isActive()) return;
 
     const { dragAxis } = (item.getGrid() as Grid).settings;
@@ -1363,12 +1381,12 @@ class ItemDrag {
   /**
    * Apply movement to dragged item.
    *
-   * @private
+   * @protected
    */
-  _applyMove() {
+  protected _applyMove() {
     if (!this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     if (!item.isActive()) return;
 
     const grid = (item.getGrid() as any) as GridInternal;
@@ -1384,11 +1402,11 @@ class ItemDrag {
   /**
    * Drag scroll handler.
    *
-   * @private
+   * @protected
    * @param {Object} event
    */
-  _onScroll(event: Event) {
-    const item = this._item;
+  protected _onScroll(event: Event) {
+    const { item } = this;
 
     if (!item.isActive()) {
       this.stop();
@@ -1403,13 +1421,13 @@ class ItemDrag {
   /**
    * Prepare dragged item for scrolling.
    *
-   * @private
+   * @protected
    */
-  _prepareScroll() {
+  protected _prepareScroll() {
     if (!this._isActive) return;
 
     // If item is not active do nothing.
-    const item = this._item;
+    const { item } = this;
     if (!item.isActive()) return;
 
     const element = item.element;
@@ -1446,12 +1464,12 @@ class ItemDrag {
   /**
    * Apply scroll to dragged item.
    *
-   * @private
+   * @protected
    */
-  _applyScroll() {
+  protected _applyScroll() {
     if (!this._isActive) return;
 
-    const item = this._item;
+    const { item } = this;
     if (!item.isActive()) return;
 
     const grid = (item.getGrid() as any) as GridInternal;
@@ -1465,11 +1483,11 @@ class ItemDrag {
   /**
    * Drag end handler.
    *
-   * @private
+   * @protected
    * @param {Object} event
    */
-  _onEnd(event: DraggerEndEvent | DraggerCancelEvent) {
-    const item = this._item;
+  protected _onEnd(event: DraggerEndEvent | DraggerCancelEvent) {
+    const { item } = this;
 
     // If item is not active, reset drag.
     if (!item.isActive()) {
@@ -1509,4 +1527,61 @@ class ItemDrag {
   }
 }
 
-export default ItemDrag;
+export interface ItemDragInternal extends Writeable<ItemDrag> {
+  _rootGridId: ItemDrag['_rootGridId'];
+  _isDestroyed: ItemDrag['_isDestroyed'];
+  _isMigrated: ItemDrag['_isMigrated'];
+  _isActive: ItemDrag['_isActive'];
+  _isStarted: ItemDrag['_isStarted'];
+  _startPredicateState: ItemDrag['_startPredicateState'];
+  _startPredicateData: ItemDrag['_startPredicateData'];
+  _isSortNeeded: ItemDrag['_isSortNeeded'];
+  _sortTimer: ItemDrag['_sortTimer'];
+  _blockedSortIndex: ItemDrag['_blockedSortIndex'];
+  _sortX1: ItemDrag['_sortX1'];
+  _sortX2: ItemDrag['_sortX2'];
+  _sortY1: ItemDrag['_sortY1'];
+  _sortY2: ItemDrag['_sortY2'];
+  _container: ItemDrag['_container'];
+  _containingBlock: ItemDrag['_containingBlock'];
+  _dragStartEvent: ItemDrag['_dragStartEvent'];
+  _dragEndEvent: ItemDrag['_dragEndEvent'];
+  _dragMoveEvent: ItemDrag['_dragMoveEvent'];
+  _dragPrevMoveEvent: ItemDrag['_dragPrevMoveEvent'];
+  _scrollEvent: ItemDrag['_scrollEvent'];
+  _translateX: ItemDrag['_translateX'];
+  _translateY: ItemDrag['_translateY'];
+  _clientX: ItemDrag['_clientX'];
+  _clientY: ItemDrag['_clientY'];
+  _scrollDiffX: ItemDrag['_scrollDiffX'];
+  _scrollDiffY: ItemDrag['_scrollDiffY'];
+  _moveDiffX: ItemDrag['_moveDiffX'];
+  _moveDiffY: ItemDrag['_moveDiffY'];
+  _containerDiffX: ItemDrag['_containerDiffX'];
+  _containerDiffY: ItemDrag['_containerDiffY'];
+  _startPredicate: ItemDrag['_startPredicate'];
+  _reset: ItemDrag['_reset'];
+  _bindScrollHandler: ItemDrag['_bindScrollHandler'];
+  _unbindScrollHandler: ItemDrag['_unbindScrollHandler'];
+  _resetHeuristics: ItemDrag['_resetHeuristics'];
+  _checkHeuristics: ItemDrag['_checkHeuristics'];
+  _resetDefaultStartPredicate: ItemDrag['_resetDefaultStartPredicate'];
+  _handleSort: ItemDrag['_handleSort'];
+  _handleSortDelayed: ItemDrag['_handleSortDelayed'];
+  _cancelSort: ItemDrag['_cancelSort'];
+  _finishSort: ItemDrag['_finishSort'];
+  _checkOverlap: ItemDrag['_checkOverlap'];
+  _finishMigration: ItemDrag['_finishMigration'];
+  _preStartCheck: ItemDrag['_preStartCheck'];
+  _preEndCheck: ItemDrag['_preEndCheck'];
+  _onStart: ItemDrag['_onStart'];
+  _prepareStart: ItemDrag['_prepareStart'];
+  _applyStart: ItemDrag['_applyStart'];
+  _onMove: ItemDrag['_onMove'];
+  _prepareMove: ItemDrag['_prepareMove'];
+  _applyMove: ItemDrag['_applyMove'];
+  _onScroll: ItemDrag['_onScroll'];
+  _prepareScroll: ItemDrag['_prepareScroll'];
+  _applyScroll: ItemDrag['_applyScroll'];
+  _onEnd: ItemDrag['_onEnd'];
+}

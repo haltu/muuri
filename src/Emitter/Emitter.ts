@@ -12,10 +12,10 @@ export type EventListener = Function;
  * Event emitter.
  */
 export default class Emitter {
-  _events: { [event: string]: EventListener[] } | null;
-  _queue: EventListener[];
-  _counter: number;
-  _clearOnEmit: boolean;
+  protected _events: { [event: string]: EventListener[] } | null;
+  protected _queue: EventListener[];
+  protected _counter: number;
+  protected _clearOnEmit: boolean;
 
   constructor() {
     this._events = {};

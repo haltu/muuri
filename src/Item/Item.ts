@@ -10,7 +10,7 @@ import Grid, { GridInternal } from '../Grid/Grid';
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';
 import ItemDragRelease from './ItemDragRelease';
-import ItemLayout from './ItemLayout';
+import ItemLayout, { ItemLayoutInternal } from './ItemLayout';
 import ItemMigrate from './ItemMigrate';
 import ItemVisibility from './ItemVisibility';
 import Emitter from '../Emitter/Emitter';
@@ -175,7 +175,7 @@ export default class Item {
    * @returns {boolean}
    */
   isVisible() {
-    return !this._visibility._isHidden;
+    return !this._visibility.isHidden();
   }
 
   /**
@@ -185,7 +185,7 @@ export default class Item {
    * @returns {boolean}
    */
   isShowing() {
-    return !!this._visibility._isShowing;
+    return !!this._visibility.isShowing();
   }
 
   /**
@@ -195,7 +195,7 @@ export default class Item {
    * @returns {boolean}
    */
   isHiding() {
-    return !!this._visibility._isHiding;
+    return !!this._visibility.isHiding();
   }
 
   /**
@@ -205,7 +205,7 @@ export default class Item {
    * @returns {boolean}
    */
   isPositioning() {
-    return !!this._layout._isActive;
+    return !!this._layout.isActive();
   }
 
   /**
@@ -215,7 +215,7 @@ export default class Item {
    * @returns {boolean}
    */
   isDragging() {
-    return !!(this._drag && this._drag._isActive);
+    return !!this._drag?.isActive();
   }
 
   /**
@@ -225,7 +225,7 @@ export default class Item {
    * @returns {boolean}
    */
   isReleasing() {
-    return !!this._dragRelease._isActive;
+    return !!this._dragRelease.isActive();
   }
 
   /**
@@ -324,9 +324,9 @@ export default class Item {
     return (
       this.left === left &&
       this.top === top &&
-      !this._migrate._isActive &&
-      !this._dragRelease._isActive &&
-      !this._layout._skipNextAnimation
+      !this._migrate.isActive() &&
+      !this._dragRelease.isActive() &&
+      !((this._layout as any) as ItemLayoutInternal)._skipNextAnimation
     );
   }
 

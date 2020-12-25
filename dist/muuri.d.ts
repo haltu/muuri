@@ -10,12 +10,12 @@ declare type EventListener = Function;
  * Event emitter.
  */
 declare class Emitter {
-    _events: {
+    protected _events: {
         [event: string]: EventListener[];
     } | null;
-    _queue: EventListener[];
-    _counter: number;
-    _clearOnEmit: boolean;
+    protected _queue: EventListener[];
+    protected _counter: number;
+    protected _clearOnEmit: boolean;
     constructor();
     /**
      * Bind an event listener.
@@ -74,18 +74,18 @@ declare class Emitter {
  * @param {Dragger} dragger
  */
 declare class EdgeHack {
-    _dragger: Dragger;
-    _timeout: number | null;
-    _outEvent: PointerEvent | TouchEvent | MouseEvent | null;
-    _isActive: boolean;
+    protected _dragger: Dragger;
+    protected _timeout: number | null;
+    protected _outEvent: PointerEvent | TouchEvent | MouseEvent | null;
+    protected _isActive: boolean;
     constructor(dragger: Dragger);
-    _addBehaviour(): void;
-    _removeBehaviour(): void;
-    _resetData(): void;
-    _onStart(e: DraggerStartEvent): void;
-    _onOut(e: PointerEvent | TouchEvent | MouseEvent): void;
-    _onTimeout(): void;
     destroy(): void;
+    protected _addBehaviour(): void;
+    protected _removeBehaviour(): void;
+    protected _resetData(): void;
+    protected _onStart(e: DraggerStartEvent): void;
+    protected _onOut(e: PointerEvent | TouchEvent | MouseEvent): void;
+    protected _onTimeout(): void;
 }
 
 /**
@@ -165,30 +165,22 @@ interface DraggerEvents {
  * Creates a new Dragger instance for an element.
  */
 declare class Dragger {
-    _element: HTMLElement | null;
-    _emitter: Emitter;
-    _cssProps: {
+    readonly element: HTMLElement | null;
+    protected _emitter: Emitter;
+    protected _cssProps: {
         [key: string]: string;
     };
-    _touchAction: DraggerTouchAction;
-    _listenerType: ListenerType;
-    _isActive: boolean;
-    _pointerId: number | null;
-    _startTime: number;
-    _startX: number;
-    _startY: number;
-    _currentX: number;
-    _currentY: number;
-    _edgeHack: EdgeHack | null;
+    protected _touchAction: DraggerTouchAction;
+    protected _listenerType: ListenerType;
+    protected _isActive: boolean;
+    protected _pointerId: number | null;
+    protected _startTime: number;
+    protected _startX: number;
+    protected _startY: number;
+    protected _currentX: number;
+    protected _currentY: number;
+    protected _edgeHack: EdgeHack | null;
     constructor(element: HTMLElement, cssProps?: DraggerCssPropsOptions, listenerOptions?: DraggerListenerOptions);
-    /**
-     * Create a custom dragger event from a raw event.
-     */
-    _createEvent(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent): DraggerEvent | null;
-    /**
-     * Emit a raw event as dragger event internally.
-     */
-    _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent): void;
     /**
      * If the provided event is a PointerEvent this method will return it if it has
      * the same pointerId as the instance. If the provided event is a TouchEvent
@@ -265,6 +257,14 @@ declare class Dragger {
      * Destroy the instance and unbind all drag event listeners.
      */
     destroy(): void;
+    /**
+     * Create a custom dragger event from a raw event.
+     */
+    protected _createEvent(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent): DraggerEvent | null;
+    /**
+     * Emit a raw event as dragger event internally.
+     */
+    protected _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent): void;
 }
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
@@ -331,44 +331,44 @@ declare class AutoScroller {
  * @param {Item} item
  */
 declare class ItemDrag {
-    _item: ItemInternal;
-    _rootGridId: number;
-    _isDestroyed: boolean;
-    _isMigrated: boolean;
-    _isActive: boolean;
-    _isStarted: boolean;
-    _startPredicateState: number;
-    _startPredicateData: {
+    readonly item: ItemInternal;
+    readonly dragger: Dragger;
+    protected _rootGridId: number;
+    protected _isDestroyed: boolean;
+    protected _isMigrated: boolean;
+    protected _isActive: boolean;
+    protected _isStarted: boolean;
+    protected _startPredicateState: number;
+    protected _startPredicateData: {
         distance: number;
         delay: number;
         event?: DraggerAnyEvent;
         delayTimer?: number;
     } | null;
-    _isSortNeeded: boolean;
-    _sortTimer?: number;
-    _blockedSortIndex: number | null;
-    _sortX1: number;
-    _sortX2: number;
-    _sortY1: number;
-    _sortY2: number;
-    _container: HTMLElement | null;
-    _containingBlock: HTMLElement | Document | null;
-    _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
-    _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
-    _dragMoveEvent: DraggerMoveEvent | null;
-    _dragPrevMoveEvent: DraggerMoveEvent | null;
-    _scrollEvent: ScrollEvent | null;
-    _translateX: number;
-    _translateY: number;
-    _clientX: number;
-    _clientY: number;
-    _scrollDiffX: number;
-    _scrollDiffY: number;
-    _moveDiffX: number;
-    _moveDiffY: number;
-    _containerDiffX: number;
-    _containerDiffY: number;
-    _dragger: Dragger;
+    protected _isSortNeeded: boolean;
+    protected _sortTimer?: number;
+    protected _blockedSortIndex: number | null;
+    protected _sortX1: number;
+    protected _sortX2: number;
+    protected _sortY1: number;
+    protected _sortY2: number;
+    protected _container: HTMLElement | null;
+    protected _containingBlock: HTMLElement | Document | null;
+    protected _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
+    protected _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
+    protected _dragMoveEvent: DraggerMoveEvent | null;
+    protected _dragPrevMoveEvent: DraggerMoveEvent | null;
+    protected _scrollEvent: ScrollEvent | null;
+    protected _translateX: number;
+    protected _translateY: number;
+    protected _clientX: number;
+    protected _clientY: number;
+    protected _scrollDiffX: number;
+    protected _scrollDiffY: number;
+    protected _moveDiffX: number;
+    protected _moveDiffY: number;
+    protected _containerDiffX: number;
+    protected _containerDiffY: number;
     constructor(item: Item);
     /**
      * @public
@@ -390,6 +390,20 @@ declare class ItemDrag {
      * @type {defaultSortPredicate}
      */
     static defaultSortPredicate: (item: Item, options?: DragSortPredicateOptions | undefined) => DragSortPredicateResult;
+    /**
+     * Is item being dragged currently?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isActive(): boolean;
+    /**
+     * Is drag instance destroyed?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isDestroyed(): boolean;
     /**
      * Get Grid instance.
      *
@@ -421,167 +435,167 @@ declare class ItemDrag {
     /**
      * Start predicate.
      *
-     * @private
+     * @protected
      * @param {Item} item
      * @param {Object} event
      * @returns {(boolean|undefined)}
      */
-    _startPredicate(item: Item, event: DraggerAnyEvent): boolean | undefined;
+    protected _startPredicate(item: Item, event: DraggerAnyEvent): boolean | undefined;
     /**
      * Setup/reset drag data.
      *
-     * @private
+     * @protected
      */
-    _reset(): void;
+    protected _reset(): void;
     /**
      * Bind drag scroll handlers.
      *
-     * @private
+     * @protected
      */
-    _bindScrollHandler(): void;
+    protected _bindScrollHandler(): void;
     /**
      * Unbind currently bound drag scroll handlers.
      *
-     * @private
+     * @protected
      */
-    _unbindScrollHandler(): void;
+    protected _unbindScrollHandler(): void;
     /**
      * Reset drag sort heuristics.
      *
-     * @private
+     * @protected
      * @param {number} x
      * @param {number} y
      */
-    _resetHeuristics(x: number, y: number): void;
+    protected _resetHeuristics(x: number, y: number): void;
     /**
      * Run heuristics and return true if overlap check can be performed, and false
      * if it can not.
      *
-     * @private
+     * @protected
      * @param {number} x
      * @param {number} y
      * @returns {boolean}
      */
-    _checkHeuristics(x: number, y: number): boolean;
+    protected _checkHeuristics(x: number, y: number): boolean;
     /**
      * Reset default drag start predicate data.
      *
-     * @private
+     * @protected
      */
-    _resetDefaultStartPredicate(): void;
+    protected _resetDefaultStartPredicate(): void;
     /**
      * Handle the sorting procedure. Manage drag sort heuristics/interval and
      * check overlap when necessary.
      *
-     * @private
+     * @protected
      */
-    _handleSort(): void;
+    protected _handleSort(): void;
     /**
      * Delayed sort handler.
      *
-     * @private
+     * @protected
      */
-    _handleSortDelayed(): void;
+    protected _handleSortDelayed(): void;
     /**
      * Cancel and reset sort procedure.
      *
-     * @private
+     * @protected
      */
-    _cancelSort(): void;
+    protected _cancelSort(): void;
     /**
      * Handle the ending of the drag procedure for sorting.
      *
-     * @private
+     * @protected
      */
-    _finishSort(): void;
+    protected _finishSort(): void;
     /**
      * Check (during drag) if an item is overlapping other items based on
      * the configuration layout the items.
      *
-     * @private
+     * @protected
      * @param {Boolean} [isDrop=false]
      */
-    _checkOverlap(isDrop?: boolean): void;
+    protected _checkOverlap(isDrop?: boolean): void;
     /**
      * If item is dragged into another grid, finish the migration process.
      *
-     * @private
+     * @protected
      */
-    _finishMigration(): void;
+    protected _finishMigration(): void;
     /**
      * Drag pre-start handler.
      *
-     * @private
+     * @protected
      * @param {Object} event
      */
-    _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent): void;
+    protected _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent): void;
     /**
      * Drag pre-end handler.
      *
-     * @private
+     * @protected
      * @param {Object} event
      */
-    _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent): void;
+    protected _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent): void;
     /**
      * Drag start handler.
      *
-     * @private
+     * @protected
      * @param {Object} event
      */
-    _onStart(event: DraggerStartEvent | DraggerMoveEvent): void;
+    protected _onStart(event: DraggerStartEvent | DraggerMoveEvent): void;
     /**
-     * @private
+     * @protected
      */
-    _prepareStart(): void;
+    protected _prepareStart(): void;
     /**
-     * @private
+     * @protected
      */
-    _applyStart(): void;
+    protected _applyStart(): void;
     /**
      * Drag move handler.
      *
-     * @private
+     * @protected
      * @param {Object} event
      */
-    _onMove(event: DraggerMoveEvent): void;
+    protected _onMove(event: DraggerMoveEvent): void;
     /**
      * Prepare dragged item for moving.
      *
-     * @private
+     * @protected
      */
-    _prepareMove(): void;
+    protected _prepareMove(): void;
     /**
      * Apply movement to dragged item.
      *
-     * @private
+     * @protected
      */
-    _applyMove(): void;
+    protected _applyMove(): void;
     /**
      * Drag scroll handler.
      *
-     * @private
+     * @protected
      * @param {Object} event
      */
-    _onScroll(event: Event): void;
+    protected _onScroll(event: Event): void;
     /**
      * Prepare dragged item for scrolling.
      *
-     * @private
+     * @protected
      */
-    _prepareScroll(): void;
+    protected _prepareScroll(): void;
     /**
      * Apply scroll to dragged item.
      *
-     * @private
+     * @protected
      */
-    _applyScroll(): void;
+    protected _applyScroll(): void;
     /**
      * Drag end handler.
      *
-     * @private
+     * @protected
      * @param {Object} event
      */
-    _onEnd(event: DraggerEndEvent | DraggerCancelEvent): void;
+    protected _onEnd(event: DraggerEndEvent | DraggerCancelEvent): void;
 }
 
 /**
@@ -603,12 +617,8 @@ interface AnimationOptions {
 declare class Animator {
     readonly element: HTMLElement | null;
     readonly animation: Animation | null;
-    private _finishCallback;
+    protected _finishCallback: Function | null;
     constructor(element?: HTMLElement);
-    /**
-     * Animation end handler.
-     */
-    private _onFinish;
     /**
      * Start instance's animation. Automatically stops current animation if it is
      * running.
@@ -626,6 +636,10 @@ declare class Animator {
      * Destroy the instance and stop current animation if it is running.
      */
     destroy(): void;
+    /**
+     * Animation end handler.
+     */
+    protected _onFinish(): void;
 }
 
 /**
@@ -654,6 +668,55 @@ declare class ItemDragPlaceholder {
     _nextTransX: number;
     _nextTransY: number;
     constructor(item: Item);
+    /**
+     * Create placeholder. Note that this method only writes to DOM and does not
+     * read anything from DOM so it should not cause any additional layout
+     * thrashing when it's called at the end of the drag start procedure.
+     *
+     * @public
+     */
+    create(): void;
+    /**
+     * Reset placeholder data.
+     *
+     * @public
+     */
+    reset(): void;
+    /**
+     * Check if placeholder is currently active (visible).
+     *
+     * @public
+     * @returns {Boolean}
+     */
+    isActive(): boolean;
+    /**
+     * Get placeholder element.
+     *
+     * @public
+     * @returns {?HTMLElement}
+     */
+    getElement(): HTMLElement | null;
+    /**
+     * Update placeholder's dimensions to match the item's dimensions. Note that
+     * the updating is done asynchronously in the next tick to avoid layout
+     * thrashing.
+     *
+     * @public
+     */
+    updateDimensions(): void;
+    /**
+     * Update placeholder's class name.
+     *
+     * @public
+     * @param {string} className
+     */
+    updateClassName(className: string): void;
+    /**
+     * Destroy placeholder instance.
+     *
+     * @public
+     */
+    destroy(): void;
     /**
      * Update placeholder's dimensions to match the item's dimensions.
      *
@@ -720,55 +783,6 @@ declare class ItemDragPlaceholder {
      * @param {Item[]} items
      */
     _onHide(items: Item[]): void;
-    /**
-     * Create placeholder. Note that this method only writes to DOM and does not
-     * read anything from DOM so it should not cause any additional layout
-     * thrashing when it's called at the end of the drag start procedure.
-     *
-     * @public
-     */
-    create(): void;
-    /**
-     * Reset placeholder data.
-     *
-     * @public
-     */
-    reset(): void;
-    /**
-     * Check if placeholder is currently active (visible).
-     *
-     * @public
-     * @returns {Boolean}
-     */
-    isActive(): boolean;
-    /**
-     * Get placeholder element.
-     *
-     * @public
-     * @returns {?HTMLElement}
-     */
-    getElement(): HTMLElement | null;
-    /**
-     * Update placeholder's dimensions to match the item's dimensions. Note that
-     * the updating is done asynchronously in the next tick to avoid layout
-     * thrashing.
-     *
-     * @public
-     */
-    updateDimensions(): void;
-    /**
-     * Update placeholder's class name.
-     *
-     * @public
-     * @param {string} className
-     */
-    updateClassName(className: string): void;
-    /**
-     * Destroy placeholder instance.
-     *
-     * @public
-     */
-    destroy(): void;
 }
 
 /**
@@ -787,11 +801,32 @@ declare class ItemDragPlaceholder {
  * @param {Item} item
  */
 declare class ItemDragRelease {
-    _item: ItemInternal;
-    _isActive: boolean;
-    _isDestroyed: boolean;
-    _isPositioningStarted: boolean;
+    readonly item: ItemInternal;
+    protected _isActive: boolean;
+    protected _isPositioning: boolean;
+    protected _isDestroyed: boolean;
     constructor(item: Item);
+    /**
+     * Is item's drag release process active?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isActive(): boolean;
+    /**
+     * Is item's drag release positioning started?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isPositioning(): boolean;
+    /**
+     * Is instance destroyed?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isDestroyed(): boolean;
     /**
      * Start the release process of an item.
      *
@@ -813,7 +848,13 @@ declare class ItemDragRelease {
      *  - The element's current translateY value (optional).
      */
     stop(abort?: boolean, left?: number, top?: number): void;
-    isJustReleased(): boolean;
+    /**
+     * Reset data and remove releasing class.
+     *
+     * @public
+     * @param {Boolean} [needsReflow=false]
+     */
+    reset(needsReflow?: boolean): void;
     /**
      * Destroy instance.
      *
@@ -824,7 +865,7 @@ declare class ItemDragRelease {
      * Move the element back to the grid container element if it does not exist
      * there already.
      *
-     * @private
+     * @protected
      * @param {number} [left]
      *  - The element's current translateX value (optional).
      * @param {number} [top]
@@ -832,18 +873,11 @@ declare class ItemDragRelease {
      * @returns {boolean}
      *   - Returns `true` if the element was reparented, `false` otherwise.
      */
-    _placeToGrid(left?: number, top?: number): boolean;
+    protected _placeToGrid(left?: number, top?: number): boolean;
     /**
-     * Reset data and remove releasing class.
-     *
-     * @private
-     * @param {Boolean} [needsReflow=false]
+     * @protected
      */
-    _reset(needsReflow?: boolean): void;
-    /**
-     * @private
-     */
-    _onScroll(): void;
+    protected _onScroll(): void;
 }
 
 /**
@@ -859,18 +893,28 @@ declare class ItemDragRelease {
  * @param {Item} item
  */
 declare class ItemLayout {
-    _item: ItemInternal;
-    _isActive: boolean;
-    _isDestroyed: boolean;
-    _isInterrupted: boolean;
-    _skipNextAnimation: boolean;
-    _easing: string;
-    _duration: number;
-    _tX: number;
-    _tY: number;
-    _animation: Animator;
-    _queue: string;
+    readonly item: ItemInternal;
+    protected _skipNextAnimation: boolean;
+    protected _isActive: boolean;
+    protected _isInterrupted: boolean;
+    protected _isDestroyed: boolean;
+    protected _easing: string;
+    protected _duration: number;
+    protected _tX: number;
+    protected _tY: number;
+    protected _animation: Animator;
+    protected _queue: string;
     constructor(item: Item);
+    /**
+     * @public
+     * @returns {boolean}
+     */
+    isActive(): boolean;
+    /**
+     * @public
+     * @returns {boolean}
+     */
+    isDestroyed(): boolean;
     /**
      * Start item layout based on it's current data.
      *
@@ -897,21 +941,21 @@ declare class ItemLayout {
     /**
      * Finish item layout procedure.
      *
-     * @private
+     * @protected
      */
-    _finish(): void;
+    protected _finish(): void;
     /**
      * Prepare item for layout animation.
      *
-     * @private
+     * @protected
      */
-    _setupAnimation(): void;
+    protected _setupAnimation(): void;
     /**
      * Start layout animation.
      *
-     * @private
+     * @protected
      */
-    _startAnimation(): void;
+    protected _startAnimation(): void;
 }
 
 /**
@@ -927,11 +971,25 @@ declare class ItemLayout {
  * @param {Item} item
  */
 declare class ItemMigrate {
-    _item: ItemInternal;
-    _isActive: boolean;
-    _isDestroyed: boolean;
-    _container: HTMLElement | null;
+    readonly item: ItemInternal;
+    readonly container: HTMLElement | null;
+    protected _isActive: boolean;
+    protected _isDestroyed: boolean;
     constructor(item: Item);
+    /**
+     * Is migration in process?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isActive(): boolean;
+    /**
+     * Is instance destroyed?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isDestroyed(): boolean;
     /**
      * Start the migrate process of an item.
      *
@@ -975,16 +1033,44 @@ declare class ItemMigrate {
  * @param {Item} item
  */
 declare class ItemVisibility {
-    _item: ItemInternal;
-    _isDestroyed: boolean;
-    _isHidden: boolean;
-    _isHiding: boolean;
-    _isShowing: boolean;
-    _childElement: HTMLElement;
-    _currentStyleProps: string[];
-    _animation: Animator;
-    _queue: string;
+    readonly item: ItemInternal;
+    readonly childElement: HTMLElement;
+    protected _isHidden: boolean;
+    protected _isHiding: boolean;
+    protected _isShowing: boolean;
+    protected _isDestroyed: boolean;
+    protected _currentStyleProps: string[];
+    protected _animator: Animator;
+    protected _queue: string;
     constructor(item: Item);
+    /**
+     * Is item hidden currently?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isHidden(): boolean;
+    /**
+     * Is item hiding currently?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isHiding(): boolean;
+    /**
+     * Is item showing currently?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isShowing(): boolean;
+    /**
+     * Is visibility handler destroyed?
+     *
+     * @public
+     * @returns {boolean}
+     */
+    isDestroyed(): boolean;
     /**
      * Show item.
      *
@@ -1027,30 +1113,30 @@ declare class ItemVisibility {
     /**
      * Start visibility animation.
      *
-     * @private
+     * @protected
      * @param {boolean} toVisible
      * @param {boolean} instant
      * @param {Function} [onFinish]
      */
-    _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void): void;
+    protected _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void): void;
     /**
      * Finish show procedure.
      *
-     * @private
+     * @protected
      */
-    _finishShow(): void;
+    protected _finishShow(): void;
     /**
      * Finish hide procedure.
      *
-     * @private
+     * @protected
      */
-    _finishHide(): void;
+    protected _finishHide(): void;
     /**
      * Remove currently applied visibility related inline style properties.
      *
-     * @private
+     * @protected
      */
-    _removeCurrentStyles(): void;
+    protected _removeCurrentStyles(): void;
 }
 
 /**
@@ -1350,22 +1436,22 @@ interface LayoutWorkerData extends LayoutData$1 {
     worker?: Worker;
 }
 declare class Packer {
-    _settings: number;
-    _asyncMode: boolean;
-    _layoutWorkerQueue: LayoutId[];
-    _layoutsProcessing: Set<LayoutId>;
-    _layoutWorkerData: Map<LayoutId, LayoutWorkerData>;
-    _workers: Worker[];
+    protected _settings: number;
+    protected _asyncMode: boolean;
+    protected _layoutWorkerQueue: LayoutId[];
+    protected _layoutsProcessing: Set<LayoutId>;
+    protected _layoutWorkerData: Map<LayoutId, LayoutWorkerData>;
+    protected _workers: Worker[];
     constructor(numWorkers?: number, options?: LayoutOptions);
-    _sendToWorker(): void;
-    _onWorkerMessage(msg: {
-        data: ArrayBufferLike;
-    }): void;
-    _setContainerStyles(layout: LayoutData$1, containerData: ContainerData, settings: number): void;
     updateSettings(options: LayoutOptions): void;
     createLayout(layoutId: LayoutId, items: LayoutItem[], containerData: ContainerData, callback: LayoutCallback): (() => void) | undefined;
     cancelLayout(layoutId: LayoutId): void;
     destroy(): void;
+    protected _sendToWorker(): void;
+    protected _onWorkerMessage(msg: {
+        data: ArrayBufferLike;
+    }): void;
+    protected _setContainerStyles(layout: LayoutData$1, containerData: ContainerData, settings: number): void;
 }
 
 /**
@@ -1709,82 +1795,6 @@ declare class Grid {
     static defaultPacker: Packer;
     static defaultOptions: GridSettings;
     /**
-     * Emit a grid event.
-     *
-     * @protected
-     * @param {string} event
-     * @param {...*} [args]
-     */
-    protected _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>): void;
-    /**
-     * Check if there are any events listeners for an event.
-     *
-     * @protected
-     * @param {string} event
-     * @returns {boolean}
-     */
-    protected _hasListeners<T extends keyof GridEvents>(event: T): boolean;
-    /**
-     * Update container's width, height and offsets.
-     *
-     * @protected
-     */
-    protected _updateBoundingRect(): void;
-    /**
-     * Update container's border sizes.
-     *
-     * @protected
-     * @param {boolean} left
-     * @param {boolean} right
-     * @param {boolean} top
-     * @param {boolean} bottom
-     */
-    protected _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean): void;
-    /**
-     * Refresh all of container's internal dimensions and offsets.
-     *
-     * @protected
-     */
-    protected _updateDimensions(): void;
-    /**
-     * Bind grid's resize handler to window.
-     *
-     * @param {(number|boolean)} delay
-     */
-    protected _bindLayoutOnResize(delay: number | boolean): void;
-    /**
-     * Unbind grid's resize handler from window.
-     * @todo move into prototype
-     *
-     * @param {Grid} grid
-     */
-    protected _unbindLayoutOnResize(): void;
-    /**
-     * Calculate and apply item positions.
-     *
-     * @protected
-     * @param {Object} layout
-     */
-    protected _onLayoutDataReceived(layout: LayoutData$2): void;
-    /**
-     * Show or hide Grid instance's items.
-     *
-     * @protected
-     * @param {Item[]} items
-     * @param {boolean} toVisible
-     * @param {Object} [options]
-     * @param {boolean} [options.instant=false]
-     * @param {boolean} [options.syncWithLayout=true]
-     * @param {Function} [options.onFinish]
-     * @param {(boolean|Function|string)} [options.layout=true]
-     */
-    protected _setItemsVisibility(items: Item[], toVisible: boolean, options?: {
-        instant?: boolean;
-        syncWithLayout?: boolean;
-        onFinish?: (items: Item[]) => void;
-        layout?: boolean | InstantLayout | LayoutOnFinish;
-    }): void;
-    /**
      * Bind an event listener.
      *
      * @public
@@ -2046,6 +2056,83 @@ declare class Grid {
      * @returns {Grid}
      */
     destroy(removeElements?: boolean): this;
+    /**
+     * Emit a grid event.
+     *
+     * @protected
+     * @param {string} event
+     * @param {...*} [args]
+     */
+    protected _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>): void;
+    /**
+     * Check if there are any events listeners for an event.
+     *
+     * @protected
+     * @param {string} event
+     * @returns {boolean}
+     */
+    protected _hasListeners<T extends keyof GridEvents>(event: T): boolean;
+    /**
+     * Update container's width, height and offsets.
+     *
+     * @protected
+     */
+    protected _updateBoundingRect(): void;
+    /**
+     * Update container's border sizes.
+     *
+     * @protected
+     * @param {boolean} left
+     * @param {boolean} right
+     * @param {boolean} top
+     * @param {boolean} bottom
+     */
+    protected _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean): void;
+    /**
+     * Refresh all of container's internal dimensions and offsets.
+     *
+     * @protected
+     */
+    protected _updateDimensions(): void;
+    /**
+     * Bind grid's resize handler to window.
+     *
+     * @protected
+     * @param {(number|boolean)} delay
+     */
+    protected _bindLayoutOnResize(delay: number | boolean): void;
+    /**
+     * Unbind grid's resize handler from window.
+     *
+     * @protected
+     * @param {Grid} grid
+     */
+    protected _unbindLayoutOnResize(): void;
+    /**
+     * Calculate and apply item positions.
+     *
+     * @protected
+     * @param {Object} layout
+     */
+    protected _onLayoutDataReceived(layout: LayoutData$2): void;
+    /**
+     * Show or hide Grid instance's items.
+     *
+     * @protected
+     * @param {Item[]} items
+     * @param {boolean} toVisible
+     * @param {Object} [options]
+     * @param {boolean} [options.instant=false]
+     * @param {boolean} [options.syncWithLayout=true]
+     * @param {Function} [options.onFinish]
+     * @param {(boolean|Function|string)} [options.layout=true]
+     */
+    protected _setItemsVisibility(items: Item[], toVisible: boolean, options?: {
+        instant?: boolean;
+        syncWithLayout?: boolean;
+        onFinish?: (items: Item[]) => void;
+        layout?: boolean | InstantLayout | LayoutOnFinish;
+    }): void;
 }
 
 export default Grid;

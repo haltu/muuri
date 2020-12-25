@@ -41,7 +41,7 @@ const TARGET_STYLES: StyleDeclaration = {};
  * @class
  * @param {Item} item
  */
-class ItemDragPlaceholder {
+export default class ItemDragPlaceholder {
   _item: Item;
   _animator: Animator;
   _element: HTMLElement | null;
@@ -80,6 +80,177 @@ class ItemDragPlaceholder {
     this._onReleaseEnd = this._onReleaseEnd.bind(this);
     this._onMigrate = this._onMigrate.bind(this);
     this._onHide = this._onHide.bind(this);
+  }
+
+  /**
+   * Create placeholder. Note that this method only writes to DOM and does not
+   * read anything from DOM so it should not cause any additional layout
+   * thrashing when it's called at the end of the drag start procedure.
+   *
+   * @public
+   */
+  create() {
+    // If we already have placeholder set up we can skip the initiation logic.
+    if (this._element) {
+      this._resetAfterLayout = false;
+      return;
+    }
+
+    const item = this._item;
+    const grid = item.getGrid() as Grid;
+    const { settings } = grid;
+
+    // Keep track of layout position.
+    this._left = item.left;
+    this._top = item.top;
+
+    // Create placeholder element.
+    if (isFunction(settings.dragPlaceholder.createElement)) {
+      this._element = settings.dragPlaceholder.createElement(item);
+    } else {
+      this._element = document.createElement('div');
+    }
+    const element = this._element;
+
+    // Update element to animation instance.
+    (this._animator as Writeable<Animator>).element = element;
+
+    // Add placeholder class to the placeholder element.
+    this._className = settings.itemPlaceholderClass || '';
+    if (this._className) {
+      addClass(element, this._className);
+    }
+
+    // Set initial styles.
+    setStyles(element, {
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: item.width + 'px',
+      height: item.height + 'px',
+    });
+
+    // Set initial position.
+    element.style[transformProp as 'transform'] = getTranslateString(
+      item.left + item.marginLeft,
+      item.top + item.marginTop
+    );
+
+    // Bind event listeners.
+    grid.on(EVENT_LAYOUT_START, this._onLayoutStart);
+    grid.on(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+    grid.on(EVENT_BEFORE_SEND, this._onMigrate);
+    grid.on(EVENT_HIDE_START, this._onHide);
+
+    // onCreate hook.
+    if (isFunction(settings.dragPlaceholder.onCreate)) {
+      settings.dragPlaceholder.onCreate(item, element);
+    }
+
+    // Insert the placeholder element to the grid.
+    grid.element.appendChild(element);
+  }
+
+  /**
+   * Reset placeholder data.
+   *
+   * @public
+   */
+  reset() {
+    if (!this._element) return;
+
+    const element = this._element;
+    const item = this._item;
+    const grid = item.getGrid() as Grid;
+
+    // Reset flag.
+    this._resetAfterLayout = false;
+
+    // Cancel potential (queued) layout tick.
+    cancelPlaceholderLayoutTick(item.id);
+    cancelPlaceholderResizeTick(item.id);
+
+    // Reset animation instance.
+    const animation = this._animator as Writeable<Animator>;
+    animation.stop();
+    animation.element = null;
+
+    // Unbind event listeners.
+    grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
+    grid.off(EVENT_LAYOUT_START, this._onLayoutStart);
+    grid.off(EVENT_BEFORE_SEND, this._onMigrate);
+    grid.off(EVENT_HIDE_START, this._onHide);
+
+    // Remove placeholder class from the placeholder element.
+    if (this._className) {
+      removeClass(element, this._className);
+      this._className = '';
+    }
+
+    // Remove element.
+    element.parentNode?.removeChild(element);
+    this._element = null;
+
+    // onRemove hook. Note that here we use the current grid's onRemove callback
+    // so if the item has migrated during drag the onRemove method will not be
+    // the originating grid's method.
+    const { onRemove } = grid.settings.dragPlaceholder;
+    if (isFunction(onRemove)) onRemove(item, element);
+  }
+
+  /**
+   * Check if placeholder is currently active (visible).
+   *
+   * @public
+   * @returns {Boolean}
+   */
+  isActive() {
+    return !!this._element;
+  }
+
+  /**
+   * Get placeholder element.
+   *
+   * @public
+   * @returns {?HTMLElement}
+   */
+  getElement() {
+    return this._element;
+  }
+
+  /**
+   * Update placeholder's dimensions to match the item's dimensions. Note that
+   * the updating is done asynchronously in the next tick to avoid layout
+   * thrashing.
+   *
+   * @public
+   */
+  updateDimensions() {
+    if (!this.isActive()) return;
+    addPlaceholderResizeTick(this._item.id, this._updateDimensions);
+  }
+
+  /**
+   * Update placeholder's class name.
+   *
+   * @public
+   * @param {string} className
+   */
+  updateClassName(className: string) {
+    if (!this._element) return;
+    removeClass(this._element, this._className);
+    this._className = className;
+    addClass(this._element, className);
+  }
+
+  /**
+   * Destroy placeholder instance.
+   *
+   * @public
+   */
+  destroy() {
+    this.reset();
+    this._animator && this._animator.destroy();
   }
 
   /**
@@ -299,177 +470,4 @@ class ItemDragPlaceholder {
   _onHide(items: Item[]) {
     if (items.indexOf(this._item) > -1) this.reset();
   }
-
-  /**
-   * Create placeholder. Note that this method only writes to DOM and does not
-   * read anything from DOM so it should not cause any additional layout
-   * thrashing when it's called at the end of the drag start procedure.
-   *
-   * @public
-   */
-  create() {
-    // If we already have placeholder set up we can skip the initiation logic.
-    if (this._element) {
-      this._resetAfterLayout = false;
-      return;
-    }
-
-    const item = this._item;
-    const grid = item.getGrid() as Grid;
-    const { settings } = grid;
-
-    // Keep track of layout position.
-    this._left = item.left;
-    this._top = item.top;
-
-    // Create placeholder element.
-    if (isFunction(settings.dragPlaceholder.createElement)) {
-      this._element = settings.dragPlaceholder.createElement(item);
-    } else {
-      this._element = document.createElement('div');
-    }
-    const element = this._element;
-
-    // Update element to animation instance.
-    (this._animator as Writeable<Animator>).element = element;
-
-    // Add placeholder class to the placeholder element.
-    this._className = settings.itemPlaceholderClass || '';
-    if (this._className) {
-      addClass(element, this._className);
-    }
-
-    // Set initial styles.
-    setStyles(element, {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: item.width + 'px',
-      height: item.height + 'px',
-    });
-
-    // Set initial position.
-    element.style[transformProp as 'transform'] = getTranslateString(
-      item.left + item.marginLeft,
-      item.top + item.marginTop
-    );
-
-    // Bind event listeners.
-    grid.on(EVENT_LAYOUT_START, this._onLayoutStart);
-    grid.on(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
-    grid.on(EVENT_BEFORE_SEND, this._onMigrate);
-    grid.on(EVENT_HIDE_START, this._onHide);
-
-    // onCreate hook.
-    if (isFunction(settings.dragPlaceholder.onCreate)) {
-      settings.dragPlaceholder.onCreate(item, element);
-    }
-
-    // Insert the placeholder element to the grid.
-    grid.element.appendChild(element);
-  }
-
-  /**
-   * Reset placeholder data.
-   *
-   * @public
-   */
-  reset() {
-    if (!this._element) return;
-
-    const element = this._element;
-    const item = this._item;
-    const grid = item.getGrid() as Grid;
-
-    // Reset flag.
-    this._resetAfterLayout = false;
-
-    // Cancel potential (queued) layout tick.
-    cancelPlaceholderLayoutTick(item.id);
-    cancelPlaceholderResizeTick(item.id);
-
-    // Reset animation instance.
-    const animation = this._animator as Writeable<Animator>;
-    animation.stop();
-    animation.element = null;
-
-    // Unbind event listeners.
-    grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
-    grid.off(EVENT_LAYOUT_START, this._onLayoutStart);
-    grid.off(EVENT_BEFORE_SEND, this._onMigrate);
-    grid.off(EVENT_HIDE_START, this._onHide);
-
-    // Remove placeholder class from the placeholder element.
-    if (this._className) {
-      removeClass(element, this._className);
-      this._className = '';
-    }
-
-    // Remove element.
-    element.parentNode?.removeChild(element);
-    this._element = null;
-
-    // onRemove hook. Note that here we use the current grid's onRemove callback
-    // so if the item has migrated during drag the onRemove method will not be
-    // the originating grid's method.
-    const { onRemove } = grid.settings.dragPlaceholder;
-    if (isFunction(onRemove)) onRemove(item, element);
-  }
-
-  /**
-   * Check if placeholder is currently active (visible).
-   *
-   * @public
-   * @returns {Boolean}
-   */
-  isActive() {
-    return !!this._element;
-  }
-
-  /**
-   * Get placeholder element.
-   *
-   * @public
-   * @returns {?HTMLElement}
-   */
-  getElement() {
-    return this._element;
-  }
-
-  /**
-   * Update placeholder's dimensions to match the item's dimensions. Note that
-   * the updating is done asynchronously in the next tick to avoid layout
-   * thrashing.
-   *
-   * @public
-   */
-  updateDimensions() {
-    if (!this.isActive()) return;
-    addPlaceholderResizeTick(this._item.id, this._updateDimensions);
-  }
-
-  /**
-   * Update placeholder's class name.
-   *
-   * @public
-   * @param {string} className
-   */
-  updateClassName(className: string) {
-    if (!this._element) return;
-    removeClass(this._element, this._className);
-    this._className = className;
-    addClass(this._element, className);
-  }
-
-  /**
-   * Destroy placeholder instance.
-   *
-   * @public
-   */
-  destroy() {
-    this.reset();
-    this._animator && this._animator.destroy();
-  }
 }
-
-export default ItemDragPlaceholder;

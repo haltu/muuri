@@ -30,7 +30,7 @@ import {
 import Item, { ItemInternal } from '../Item/Item';
 import ItemDrag from '../Item/ItemDrag';
 import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
-import ItemLayout from '../Item/ItemLayout';
+import ItemLayout, { ItemLayoutInternal } from '../Item/ItemLayout';
 import ItemMigrate from '../Item/ItemMigrate';
 import ItemDragRelease from '../Item/ItemDragRelease';
 import ItemVisibility from '../Item/ItemVisibility';
@@ -807,347 +807,6 @@ export default class Grid {
   };
 
   /**
-   * Emit a grid event.
-   *
-   * @protected
-   * @param {string} event
-   * @param {...*} [args]
-   */
-  protected _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>) {
-    if (this._isDestroyed) return;
-    this._emitter.emit(event, ...args);
-  }
-
-  /**
-   * Check if there are any events listeners for an event.
-   *
-   * @protected
-   * @param {string} event
-   * @returns {boolean}
-   */
-  protected _hasListeners<T extends keyof GridEvents>(event: T) {
-    if (this._isDestroyed) return false;
-    return this._emitter.countListeners(event) > 0;
-  }
-
-  /**
-   * Update container's width, height and offsets.
-   *
-   * @protected
-   */
-  protected _updateBoundingRect() {
-    this._rect = { ...this.element.getBoundingClientRect() };
-  }
-
-  /**
-   * Update container's border sizes.
-   *
-   * @protected
-   * @param {boolean} left
-   * @param {boolean} right
-   * @param {boolean} top
-   * @param {boolean} bottom
-   */
-  protected _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean) {
-    const { element } = this;
-    if (left) this._borderLeft = getStyleAsFloat(element, 'border-left-width');
-    if (right) this._borderRight = getStyleAsFloat(element, 'border-right-width');
-    if (top) this._borderTop = getStyleAsFloat(element, 'border-top-width');
-    if (bottom) this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
-  }
-
-  /**
-   * Refresh all of container's internal dimensions and offsets.
-   *
-   * @protected
-   */
-  protected _updateDimensions() {
-    this._updateBoundingRect();
-    this._updateBorders(true, true, true, true);
-    this._boxSizing = getStyle(this.element, 'box-sizing') as 'border-box' | 'content-box' | '';
-  }
-
-  /**
-   * Bind grid's resize handler to window.
-   *
-   * @param {(number|boolean)} delay
-   */
-  protected _bindLayoutOnResize(delay: number | boolean) {
-    if (typeof delay !== 'number') {
-      delay = delay === true ? 0 : -1;
-    }
-
-    if (delay >= 0) {
-      this._resizeHandler = debounce(() => {
-        this.refreshItems().layout();
-      }, delay);
-
-      window.addEventListener('resize', this._resizeHandler as () => void);
-    }
-  }
-
-  /**
-   * Unbind grid's resize handler from window.
-   * @todo move into prototype
-   *
-   * @param {Grid} grid
-   */
-  protected _unbindLayoutOnResize() {
-    const { _resizeHandler } = this;
-    if (isFunction(_resizeHandler)) {
-      _resizeHandler(true);
-      window.removeEventListener('resize', this._resizeHandler as () => void);
-      this._resizeHandler = null;
-    }
-  }
-
-  /**
-   * Calculate and apply item positions.
-   *
-   * @protected
-   * @param {Object} layout
-   */
-  protected _onLayoutDataReceived(layout: LayoutData) {
-    if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
-
-    const instant = this._nextLayoutData.instant;
-    const onFinish = this._nextLayoutData.onFinish;
-    const numItems = layout.items.length;
-    let counter = numItems;
-    let item: Item;
-    let left: number;
-    let top: number;
-    let i: number;
-
-    // Reset next layout data.
-    this._nextLayoutData = null;
-
-    if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
-      this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
-    }
-
-    // Update the layout reference.
-    this._layout = layout;
-
-    // Update the item positions and collect all items that need to be laid
-    // out. It is critical that we update the item position _before_ the
-    // layoutStart event as the new data might be needed in the callback.
-    const itemsToLayout = [];
-    for (i = 0; i < numItems; i++) {
-      item = layout.items[i];
-
-      // Make sure we have a matching item.
-      if (!item) {
-        --counter;
-        continue;
-      }
-
-      // Get the item's new left and top values.
-      left = layout.slots[i * 2];
-      top = layout.slots[i * 2 + 1];
-
-      // Let's skip the layout process if we can. Possibly avoids a lot of DOM
-      // operations which saves us some CPU cycles.
-      if (((item as any) as ItemInternal)._canSkipLayout(left, top)) {
-        --counter;
-        continue;
-      }
-
-      // Update the item's position.
-      (item as Writeable<Item>).left = left;
-      (item as Writeable<Item>).top = top;
-
-      // Only active non-dragged items need to be moved.
-      if (item.isActive() && !item.isDragging()) {
-        itemsToLayout.push(item);
-      } else {
-        --counter;
-      }
-    }
-
-    // Set layout styles to the grid element.
-    if (layout.styles) {
-      setStyles(this.element, layout.styles);
-    }
-
-    // layoutStart event is intentionally emitted after the container element's
-    // dimensions are set, because otherwise there would be no hook for reacting
-    // to container dimension changes.
-    if (this._hasListeners(EVENT_LAYOUT_START)) {
-      this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant);
-      // Let's make sure that the current layout process has not been overridden
-      // in the layoutStart event, and if so, let's stop processing the aborted
-      // layout.
-      if (this._layout.id !== layout.id) return;
-    }
-
-    const tryFinish = () => {
-      if (--counter > 0) return;
-
-      const isAborted = this._layout.id !== layout.id;
-
-      if (!isAborted) {
-        this._isLayoutFinished = true;
-      }
-
-      if (isFunction(onFinish)) {
-        onFinish(layout.items.slice(0), isAborted);
-      }
-
-      if (!isAborted && this._hasListeners(EVENT_LAYOUT_END)) {
-        this._emit(EVENT_LAYOUT_END, layout.items.slice(0));
-      }
-    };
-
-    if (!itemsToLayout.length) {
-      tryFinish();
-      return;
-    }
-
-    this._isLayoutFinished = false;
-
-    for (i = 0; i < itemsToLayout.length; i++) {
-      if (this._layout.id !== layout.id) break;
-      ((itemsToLayout[i] as any) as ItemInternal)._layout.start(instant, tryFinish);
-    }
-
-    return;
-  }
-
-  /**
-   * Show or hide Grid instance's items.
-   *
-   * @protected
-   * @param {Item[]} items
-   * @param {boolean} toVisible
-   * @param {Object} [options]
-   * @param {boolean} [options.instant=false]
-   * @param {boolean} [options.syncWithLayout=true]
-   * @param {Function} [options.onFinish]
-   * @param {(boolean|Function|string)} [options.layout=true]
-   */
-  protected _setItemsVisibility(
-    items: Item[],
-    toVisible: boolean,
-    options: {
-      instant?: boolean;
-      syncWithLayout?: boolean;
-      onFinish?: (items: Item[]) => void;
-      layout?: boolean | InstantLayout | LayoutOnFinish;
-    } = {}
-  ) {
-    const targetItems = items.slice(0);
-    const isInstant = options.instant === true;
-    const callback = options.onFinish;
-    const layout = options.layout ? options.layout : options.layout === undefined;
-    const startEvent = toVisible ? EVENT_SHOW_START : EVENT_HIDE_START;
-    const endEvent = toVisible ? EVENT_SHOW_END : EVENT_HIDE_END;
-    const method = toVisible ? 'show' : 'hide';
-    const completedItems: Item[] = [];
-    const hiddenItems: Item[] = [];
-
-    let needsLayout = false;
-    let counter = targetItems.length;
-    let item: ItemInternal;
-    let i: number;
-
-    // If there are no items call the callback, but don't emit any events.
-    if (!counter) {
-      if (isFunction(callback)) callback(targetItems);
-      return;
-    }
-
-    // Prepare the items.
-    for (i = 0; i < targetItems.length; i++) {
-      item = (targetItems[i] as any) as ItemInternal;
-
-      // If inactive item is shown or active item is hidden we need to do
-      // layout.
-      if ((toVisible && !item.isActive()) || (!toVisible && item.isActive())) {
-        needsLayout = true;
-      }
-
-      // If inactive item is shown we also need to do a little hack to make the
-      // item not animate it's next positioning (layout).
-      item._layout._skipNextAnimation = !!(toVisible && !item.isActive());
-
-      // If a hidden item is being shown we need to refresh the item's
-      // dimensions.
-      if (toVisible && !item.isVisible() && !item.isHiding()) {
-        hiddenItems.push((item as any) as Item);
-      }
-
-      // Add item to layout or remove it from layout.
-      if (toVisible) {
-        item._addToLayout();
-      } else {
-        item._removeFromLayout();
-      }
-    }
-
-    // Force refresh the dimensions of all hidden items.
-    // TODO: How can we avoid this?
-    //       - 1. Set item visibility: 'hidden' and display: ''
-    //       - 2. Read the dimensions in the next read tick.
-    //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
-    //       - 4. Continue with the normal flow. To make this simpler we could always do this
-    //            one tick delay.
-    if (hiddenItems.length) {
-      this.refreshItems(hiddenItems, true);
-      hiddenItems.length = 0;
-    }
-
-    // Show the items in sync with the next layout.
-    const triggerVisibilityChange = () => {
-      if (needsLayout && options.syncWithLayout !== false) {
-        this.off(EVENT_LAYOUT_START, triggerVisibilityChange);
-      }
-
-      if (this._hasListeners(startEvent)) {
-        this._emit(startEvent, targetItems.slice(0));
-      }
-
-      for (i = 0; i < targetItems.length; i++) {
-        item = (targetItems[i] as any) as ItemInternal;
-        // Make sure the item is still in the original grid. There is a chance
-        // that the item starts migrating before tiggerVisibilityChange is called.
-        if (item._gridId !== this.id) {
-          if (--counter < 1) {
-            if (isFunction(callback)) callback(completedItems.slice(0));
-            if (this._hasListeners(endEvent)) this._emit(endEvent, completedItems.slice(0));
-          }
-          continue;
-        }
-
-        item._visibility[method](isInstant, (interrupted, item) => {
-          // If the current item's animation was not interrupted add it to the
-          // completedItems array.
-          if (!interrupted) completedItems.push(item);
-
-          // If all items have finished their animations call the callback
-          // and emit showEnd/hideEnd event.
-          if (--counter < 1) {
-            if (isFunction(callback)) callback(completedItems.slice(0));
-            if (this._hasListeners(endEvent)) this._emit(endEvent, completedItems.slice(0));
-          }
-        });
-      }
-    };
-
-    // Trigger the visibility change, either async with layout or instantly.
-    if (needsLayout && options.syncWithLayout !== false) {
-      this.on(EVENT_LAYOUT_START, triggerVisibilityChange);
-    } else {
-      triggerVisibilityChange();
-    }
-
-    // Trigger layout if needed.
-    if (needsLayout && layout) {
-      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
-    }
-  }
-
-  /**
    * Bind an event listener.
    *
    * @public
@@ -1438,10 +1097,10 @@ export default class Grid {
           if (item._drag) {
             if (item._drag.getRootGrid() === this) {
               if (dragCssPropsChanged) {
-                item._drag._dragger.setCssProps(nextSettings.dragCssProps);
+                item._drag.dragger.setCssProps(nextSettings.dragCssProps);
               }
               if (dragEventListenerOptionsChanged) {
-                item._drag._dragger.setListenerOptions(nextSettings.dragEventListenerOptions);
+                item._drag.dragger.setListenerOptions(nextSettings.dragEventListenerOptions);
               }
             }
           } else {
@@ -1725,7 +1384,8 @@ export default class Grid {
       // corner of the grid, which feels a bit buggy (imho).
       if (item.isActive()) {
         needsLayout = true;
-        ((item as any) as ItemInternal)._layout._skipNextAnimation = true;
+        ((((item as any) as ItemInternal)
+          ._layout as any) as ItemLayoutInternal)._skipNextAnimation = true;
       }
     }
 
@@ -2184,7 +1844,7 @@ export default class Grid {
 
     // If migration was started successfully and the item is active, let's layout
     // the grids.
-    if (targetItem._migrate._isActive && targetItem.isActive()) {
+    if (targetItem._migrate.isActive() && targetItem.isActive()) {
       const layoutSender = options.layoutSender
         ? options.layoutSender
         : options.layoutSender === undefined;
@@ -2252,6 +1912,350 @@ export default class Grid {
     this._emitter.destroy();
 
     return this;
+  }
+
+  /**
+   * Emit a grid event.
+   *
+   * @protected
+   * @param {string} event
+   * @param {...*} [args]
+   */
+  protected _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>) {
+    if (this._isDestroyed) return;
+    this._emitter.emit(event, ...args);
+  }
+
+  /**
+   * Check if there are any events listeners for an event.
+   *
+   * @protected
+   * @param {string} event
+   * @returns {boolean}
+   */
+  protected _hasListeners<T extends keyof GridEvents>(event: T) {
+    if (this._isDestroyed) return false;
+    return this._emitter.countListeners(event) > 0;
+  }
+
+  /**
+   * Update container's width, height and offsets.
+   *
+   * @protected
+   */
+  protected _updateBoundingRect() {
+    this._rect = { ...this.element.getBoundingClientRect() };
+  }
+
+  /**
+   * Update container's border sizes.
+   *
+   * @protected
+   * @param {boolean} left
+   * @param {boolean} right
+   * @param {boolean} top
+   * @param {boolean} bottom
+   */
+  protected _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean) {
+    const { element } = this;
+    if (left) this._borderLeft = getStyleAsFloat(element, 'border-left-width');
+    if (right) this._borderRight = getStyleAsFloat(element, 'border-right-width');
+    if (top) this._borderTop = getStyleAsFloat(element, 'border-top-width');
+    if (bottom) this._borderBottom = getStyleAsFloat(element, 'border-bottom-width');
+  }
+
+  /**
+   * Refresh all of container's internal dimensions and offsets.
+   *
+   * @protected
+   */
+  protected _updateDimensions() {
+    this._updateBoundingRect();
+    this._updateBorders(true, true, true, true);
+    this._boxSizing = getStyle(this.element, 'box-sizing') as 'border-box' | 'content-box' | '';
+  }
+
+  /**
+   * Bind grid's resize handler to window.
+   *
+   * @protected
+   * @param {(number|boolean)} delay
+   */
+  protected _bindLayoutOnResize(delay: number | boolean) {
+    if (typeof delay !== 'number') {
+      delay = delay === true ? 0 : -1;
+    }
+
+    if (delay >= 0) {
+      this._resizeHandler = debounce(() => {
+        this.refreshItems().layout();
+      }, delay);
+
+      window.addEventListener('resize', this._resizeHandler as () => void);
+    }
+  }
+
+  /**
+   * Unbind grid's resize handler from window.
+   *
+   * @protected
+   * @param {Grid} grid
+   */
+  protected _unbindLayoutOnResize() {
+    const { _resizeHandler } = this;
+    if (isFunction(_resizeHandler)) {
+      _resizeHandler(true);
+      window.removeEventListener('resize', this._resizeHandler as () => void);
+      this._resizeHandler = null;
+    }
+  }
+
+  /**
+   * Calculate and apply item positions.
+   *
+   * @protected
+   * @param {Object} layout
+   */
+  protected _onLayoutDataReceived(layout: LayoutData) {
+    if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
+
+    const instant = this._nextLayoutData.instant;
+    const onFinish = this._nextLayoutData.onFinish;
+    const numItems = layout.items.length;
+    let counter = numItems;
+    let item: Item;
+    let left: number;
+    let top: number;
+    let i: number;
+
+    // Reset next layout data.
+    this._nextLayoutData = null;
+
+    if (!this._isLayoutFinished && this._hasListeners(EVENT_LAYOUT_ABORT)) {
+      this._emit(EVENT_LAYOUT_ABORT, this._layout.items.slice(0));
+    }
+
+    // Update the layout reference.
+    this._layout = layout;
+
+    // Update the item positions and collect all items that need to be laid
+    // out. It is critical that we update the item position _before_ the
+    // layoutStart event as the new data might be needed in the callback.
+    const itemsToLayout = [];
+    for (i = 0; i < numItems; i++) {
+      item = layout.items[i];
+
+      // Make sure we have a matching item.
+      if (!item) {
+        --counter;
+        continue;
+      }
+
+      // Get the item's new left and top values.
+      left = layout.slots[i * 2];
+      top = layout.slots[i * 2 + 1];
+
+      // Let's skip the layout process if we can. Possibly avoids a lot of DOM
+      // operations which saves us some CPU cycles.
+      if (((item as any) as ItemInternal)._canSkipLayout(left, top)) {
+        --counter;
+        continue;
+      }
+
+      // Update the item's position.
+      (item as Writeable<Item>).left = left;
+      (item as Writeable<Item>).top = top;
+
+      // Only active non-dragged items need to be moved.
+      if (item.isActive() && !item.isDragging()) {
+        itemsToLayout.push(item);
+      } else {
+        --counter;
+      }
+    }
+
+    // Set layout styles to the grid element.
+    if (layout.styles) {
+      setStyles(this.element, layout.styles);
+    }
+
+    // layoutStart event is intentionally emitted after the container element's
+    // dimensions are set, because otherwise there would be no hook for reacting
+    // to container dimension changes.
+    if (this._hasListeners(EVENT_LAYOUT_START)) {
+      this._emit(EVENT_LAYOUT_START, layout.items.slice(0), instant);
+      // Let's make sure that the current layout process has not been overridden
+      // in the layoutStart event, and if so, let's stop processing the aborted
+      // layout.
+      if (this._layout.id !== layout.id) return;
+    }
+
+    const tryFinish = () => {
+      if (--counter > 0) return;
+
+      const isAborted = this._layout.id !== layout.id;
+
+      if (!isAborted) {
+        this._isLayoutFinished = true;
+      }
+
+      if (isFunction(onFinish)) {
+        onFinish(layout.items.slice(0), isAborted);
+      }
+
+      if (!isAborted && this._hasListeners(EVENT_LAYOUT_END)) {
+        this._emit(EVENT_LAYOUT_END, layout.items.slice(0));
+      }
+    };
+
+    if (!itemsToLayout.length) {
+      tryFinish();
+      return;
+    }
+
+    this._isLayoutFinished = false;
+
+    for (i = 0; i < itemsToLayout.length; i++) {
+      if (this._layout.id !== layout.id) break;
+      ((itemsToLayout[i] as any) as ItemInternal)._layout.start(instant, tryFinish);
+    }
+
+    return;
+  }
+
+  /**
+   * Show or hide Grid instance's items.
+   *
+   * @protected
+   * @param {Item[]} items
+   * @param {boolean} toVisible
+   * @param {Object} [options]
+   * @param {boolean} [options.instant=false]
+   * @param {boolean} [options.syncWithLayout=true]
+   * @param {Function} [options.onFinish]
+   * @param {(boolean|Function|string)} [options.layout=true]
+   */
+  protected _setItemsVisibility(
+    items: Item[],
+    toVisible: boolean,
+    options: {
+      instant?: boolean;
+      syncWithLayout?: boolean;
+      onFinish?: (items: Item[]) => void;
+      layout?: boolean | InstantLayout | LayoutOnFinish;
+    } = {}
+  ) {
+    const targetItems = items.slice(0);
+    const isInstant = options.instant === true;
+    const callback = options.onFinish;
+    const layout = options.layout ? options.layout : options.layout === undefined;
+    const startEvent = toVisible ? EVENT_SHOW_START : EVENT_HIDE_START;
+    const endEvent = toVisible ? EVENT_SHOW_END : EVENT_HIDE_END;
+    const method = toVisible ? 'show' : 'hide';
+    const completedItems: Item[] = [];
+    const hiddenItems: Item[] = [];
+
+    let needsLayout = false;
+    let counter = targetItems.length;
+    let item: ItemInternal;
+    let i: number;
+
+    // If there are no items call the callback, but don't emit any events.
+    if (!counter) {
+      if (isFunction(callback)) callback(targetItems);
+      return;
+    }
+
+    // Prepare the items.
+    for (i = 0; i < targetItems.length; i++) {
+      item = (targetItems[i] as any) as ItemInternal;
+
+      // If inactive item is shown or active item is hidden we need to do
+      // layout.
+      if ((toVisible && !item.isActive()) || (!toVisible && item.isActive())) {
+        needsLayout = true;
+      }
+
+      // If inactive item is shown we also need to do a little hack to make the
+      // item not animate it's next positioning (layout).
+      ((item._layout as any) as ItemLayoutInternal)._skipNextAnimation = !!(
+        toVisible && !item.isActive()
+      );
+
+      // If a hidden item is being shown we need to refresh the item's
+      // dimensions.
+      if (toVisible && !item.isVisible() && !item.isHiding()) {
+        hiddenItems.push((item as any) as Item);
+      }
+
+      // Add item to layout or remove it from layout.
+      if (toVisible) {
+        item._addToLayout();
+      } else {
+        item._removeFromLayout();
+      }
+    }
+
+    // Force refresh the dimensions of all hidden items.
+    // TODO: How can we avoid this?
+    //       - 1. Set item visibility: 'hidden' and display: ''
+    //       - 2. Read the dimensions in the next read tick.
+    //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
+    //       - 4. Continue with the normal flow. To make this simpler we could always do this
+    //            one tick delay.
+    if (hiddenItems.length) {
+      this.refreshItems(hiddenItems, true);
+      hiddenItems.length = 0;
+    }
+
+    // Show the items in sync with the next layout.
+    const triggerVisibilityChange = () => {
+      if (needsLayout && options.syncWithLayout !== false) {
+        this.off(EVENT_LAYOUT_START, triggerVisibilityChange);
+      }
+
+      if (this._hasListeners(startEvent)) {
+        this._emit(startEvent, targetItems.slice(0));
+      }
+
+      for (i = 0; i < targetItems.length; i++) {
+        item = (targetItems[i] as any) as ItemInternal;
+        // Make sure the item is still in the original grid. There is a chance
+        // that the item starts migrating before tiggerVisibilityChange is called.
+        if (item._gridId !== this.id) {
+          if (--counter < 1) {
+            if (isFunction(callback)) callback(completedItems.slice(0));
+            if (this._hasListeners(endEvent)) this._emit(endEvent, completedItems.slice(0));
+          }
+          continue;
+        }
+
+        item._visibility[method](isInstant, (interrupted, item) => {
+          // If the current item's animation was not interrupted add it to the
+          // completedItems array.
+          if (!interrupted) completedItems.push(item);
+
+          // If all items have finished their animations call the callback
+          // and emit showEnd/hideEnd event.
+          if (--counter < 1) {
+            if (isFunction(callback)) callback(completedItems.slice(0));
+            if (this._hasListeners(endEvent)) this._emit(endEvent, completedItems.slice(0));
+          }
+        });
+      }
+    };
+
+    // Trigger the visibility change, either async with layout or instantly.
+    if (needsLayout && options.syncWithLayout !== false) {
+      this.on(EVENT_LAYOUT_START, triggerVisibilityChange);
+    } else {
+      triggerVisibilityChange();
+    }
+
+    // Trigger layout if needed.
+    if (needsLayout && layout) {
+      this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
+    }
   }
 }
 

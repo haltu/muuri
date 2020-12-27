@@ -30,6 +30,12 @@ import {
 import Item, { ItemInternal } from '../Item/Item';
 import ItemDrag from '../Item/ItemDrag';
 import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
+import ItemDragAutoScroll, {
+  ScrollSpeedCallback,
+  ScrollTarget,
+  ScrollHandleCallback,
+  ScrollEventCallback,
+} from '../Item/ItemDragAutoScroll';
 import ItemLayout, { ItemLayoutInternal } from '../Item/ItemLayout';
 import ItemMigrate from '../Item/ItemMigrate';
 import ItemDragRelease from '../Item/ItemDragRelease';
@@ -45,7 +51,6 @@ import Dragger, {
   DraggerEndEvent,
   DraggerCancelEvent,
 } from '../Dragger/Dragger';
-import AutoScroller from '../AutoScroller/AutoScroller';
 
 import addClass from '../utils/addClass';
 import arrayInsert from '../utils/arrayInsert';
@@ -194,70 +199,16 @@ export interface DragPlaceholderOptions {
   onRemove?: ((item: Item, placeholderElement: HTMLElement) => any) | null;
 }
 
-export interface DragAutoScrollTarget {
-  element: Window | HTMLElement;
-  axis?: number;
-  priority?: number;
-  threshold?: number;
-}
-
-export type DragAutoScrollTargets = Array<Window | HTMLElement | DragAutoScrollTarget>;
-
-export type DragAutoScrollTargetsGetter = (item: Item) => DragAutoScrollTargets;
-
-export type DragAutoScrollOnStart = (
-  item: Item,
-  scrollElement: Window | HTMLElement,
-  scrollDirection: number
-) => any;
-
-export type DragAutoScrollOnStop = (
-  item: Item,
-  scrollElement: Window | HTMLElement,
-  scrollDirection: number
-) => any;
-
-export type DragAutoScrollHandle = (
-  item: Item,
-  itemClientX: number,
-  itemClientY: number,
-  itemWidth: number,
-  itemHeight: number,
-  pointerClientX: number,
-  pointerClientY: number
-) => {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
-export type DragAutoScrollSpeed = (
-  item: Item,
-  scrollElement: Window | HTMLElement,
-  scrollData: {
-    direction: number;
-    threshold: number;
-    distance: number;
-    value: number;
-    maxValue: number;
-    duration: number;
-    speed: number;
-    deltaTime: number;
-    isEnding: boolean;
-  }
-) => number;
-
 export interface DragAutoScrollOptions {
-  targets?: DragAutoScrollTargets | DragAutoScrollTargetsGetter;
-  handle?: DragAutoScrollHandle | null;
+  targets?: ScrollTarget[] | ((item: Item) => ScrollTarget[]);
+  handle?: ScrollHandleCallback | null;
   threshold?: number;
   safeZone?: number;
-  speed?: number | DragAutoScrollSpeed;
+  speed?: number | ScrollSpeedCallback;
   sortDuringScroll?: boolean;
   smoothStop?: boolean;
-  onStart?: DragAutoScrollOnStart | null;
-  onStop?: DragAutoScrollOnStop | null;
+  onStart?: ScrollEventCallback | null;
+  onStop?: ScrollEventCallback | null;
 }
 
 export interface GridSettings {
@@ -692,11 +643,11 @@ export default class Grid {
   static ItemDrag = ItemDrag;
   static ItemDragRelease = ItemDragRelease;
   static ItemDragPlaceholder = ItemDragPlaceholder;
+  static ItemDragAutoScroll = ItemDragAutoScroll;
   static Emitter = Emitter;
   static Animator = Animator;
   static Dragger = Dragger;
   static Packer = Packer;
-  static AutoScroller = AutoScroller;
   static defaultPacker: Packer = new Packer();
   static defaultOptions: GridSettings = {
     // Initial item elements
@@ -784,7 +735,7 @@ export default class Grid {
       handle: null,
       threshold: 50,
       safeZone: 0.2,
-      speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
+      speed: ItemDragAutoScroll.smoothSpeed(1000, 2000, 2500),
       sortDuringScroll: true,
       smoothStop: false,
       onStart: null,
@@ -1120,13 +1071,13 @@ export default class Grid {
 
   /**
    * Update the cached dimensions of the instance's items. By default all the
-   * items are refreshed, but you can also provide an array of target items as the
-   * first argument if you want to refresh specific items. Note that all hidden
-   * items are not refreshed by default since their "display" property is "none"
-   * and their dimensions are therefore not readable from the DOM. However, if you
-   * do want to force update hidden item dimensions too you can provide `true`
-   * as the second argument, which makes the elements temporarily visible while
-   * their dimensions are being read.
+   * items are refreshed, but you can also provide an array of target items as
+   * the first argument if you want to refresh specific items. Note that all
+   * hidden items are not refreshed by default since their "display" property is
+   * "none" and their dimensions are therefore not readable from the DOM.
+   * However, if you do want to force update hidden item dimensions too you can
+   * provide `true` as the second argument, which makes the elements temporarily
+   * visible while their dimensions are being read.
    *
    * @public
    * @param {Item[]} [items]
@@ -1265,9 +1216,6 @@ export default class Grid {
       if (items[i].isActive()) layoutItems.push(items[i]);
     }
 
-    // TODO: This causes forced reflows. As we already have async layout system
-    // Maybe we could always postpone this to the next tick's read queue and
-    // then start the layout process in the write tick?
     this._updateDimensions();
 
     const containerData = {
@@ -1692,29 +1640,31 @@ export default class Grid {
           const criteriaName = sortCriteria[i][0];
           const criteriaOrder = sortCriteria[i][1];
 
-          // Get items' cached sort values for the criteria. If the item has no sort
-          // data let's update the items sort data (this is a lazy load mechanism).
+          // Get items' cached sort values for the criteria. If the item has no
+          // sort data let's update the items sort data (this is a lazy load
+          // mechanism).
           if (a._sortData === null) a._updateSortData();
           if (b._sortData === null) b._updateSortData();
           const valA = (a._sortData as { [key: string]: any })[criteriaName];
           const valB = (b._sortData as { [key: string]: any })[criteriaName];
 
-          // Sort the items in descending order if defined so explicitly. Otherwise
-          // sort items in ascending order.
+          // Sort the items in descending order if defined so explicitly.
+          // Otherwise sort items in ascending order.
           if (criteriaOrder === 'desc' || (!criteriaOrder && isDescending)) {
             result = valB < valA ? -1 : valB > valA ? 1 : 0;
           } else {
             result = valA < valB ? -1 : valA > valB ? 1 : 0;
           }
 
-          // If we have -1 or 1 as the return value, let's return it immediately.
+          // If we have -1 or 1 as the return value, let's return it
+          // immediately.
           if (result) return result;
         }
 
         // If values are equal let's compare the item indices to make sure we
-        // have a stable sort. Note that this is not necessary in evergreen browsers
-        // because Array.sort() is nowadays stable. However, in order to guarantee
-        // same results in older browsers we need this.
+        // have a stable sort. Note that this is not necessary in evergreen
+        // browsers because Array.sort() is nowadays stable. However, in order
+        // to guarantee same results in older browsers we need this.
         if (!result) {
           if (!indexMap) indexMap = createIndexMap(origItems);
           result = isDescending
@@ -1842,8 +1792,8 @@ export default class Grid {
     // Start the migration process.
     targetItem._migrate.start(targetGrid, position, options.appendTo || document.body);
 
-    // If migration was started successfully and the item is active, let's layout
-    // the grids.
+    // If migration was started successfully and the item is active, let's
+    // layout the grids.
     if (targetItem._migrate.isActive() && targetItem.isActive()) {
       const layoutSender = options.layoutSender
         ? options.layoutSender
@@ -2019,8 +1969,7 @@ export default class Grid {
   protected _onLayoutDataReceived(layout: LayoutData) {
     if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
 
-    const instant = this._nextLayoutData.instant;
-    const onFinish = this._nextLayoutData.onFinish;
+    const { instant, onFinish } = this._nextLayoutData;
     const numItems = layout.items.length;
     let counter = numItems;
     let item: Item;
@@ -2197,12 +2146,6 @@ export default class Grid {
     }
 
     // Force refresh the dimensions of all hidden items.
-    // TODO: How can we avoid this?
-    //       - 1. Set item visibility: 'hidden' and display: ''
-    //       - 2. Read the dimensions in the next read tick.
-    //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
-    //       - 4. Continue with the normal flow. To make this simpler we could always do this
-    //            one tick delay.
     if (hiddenItems.length) {
       this.refreshItems(hiddenItems, true);
       hiddenItems.length = 0;

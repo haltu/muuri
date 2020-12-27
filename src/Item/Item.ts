@@ -130,20 +130,20 @@ export default class Item {
     // Set up drag handler.
     this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
 
-    // Set up release handler. Note that although this is fully linked to dragging
-    // this still needs to be always instantiated to handle migration scenarios
-    // correctly.
-    this._dragRelease = new ItemDragRelease(this);
-
-    // Set up drag placeholder handler. Note that although this is fully linked to
+    // Set up release handler. Note that although this is fully linked to
     // dragging this still needs to be always instantiated to handle migration
     // scenarios correctly.
+    this._dragRelease = new ItemDragRelease(this);
+
+    // Set up drag placeholder handler. Note that although this is fully linked
+    // to dragging this still needs to be always instantiated to handle
+    // migration scenarios correctly.
     this._dragPlaceholder = new ItemDragPlaceholder(this);
 
     // Note! You must call the following methods before you start using the
     // instance. They are deliberately not called in the end as it would cause
-    // potentially a massive amount of reflows if multiple items were instantiated
-    // in a loop.
+    // potentially a massive amount of reflows if multiple items were
+    // instantiated in a loop.
     // this._updateDimensions();
     // this._updateSortData();
   }
@@ -251,9 +251,9 @@ export default class Item {
     const element = this.element;
 
     // Calculate width and height.
-    const rect = element.getBoundingClientRect();
-    (this as Writeable<Item>).width = rect.width;
-    (this as Writeable<Item>).height = rect.height;
+    const { width, height } = element.getBoundingClientRect();
+    (this as Writeable<Item>).width = width;
+    (this as Writeable<Item>).height = height;
 
     // Calculate margins (ignore negative margins).
     (this as Writeable<Item>).marginLeft = Math.max(0, getStyleAsFloat(element, 'margin-left'));
@@ -348,9 +348,9 @@ export default class Item {
   }
 
   /**
-   * Get the item's current translate values. If they can't be detected from cache
-   * we will read them from the DOM (so try to use this only when it is safe
-   * to query the DOM without causing a forced reflow).
+   * Get the item's current translate values. If they can't be detected from
+   * cache we will read them from the DOM (so try to use this only when it is
+   * safe to query the DOM without causing a forced reflow).
    *
    * @protected
    * @returns {Object}
@@ -369,10 +369,11 @@ export default class Item {
 
   /**
    * Returns the current container's position relative to the client (viewport)
-   * with borders excluded from the container. This equals to the client position
-   * where the item will be if it is not transformed and it's left/top position at
-   * zero. Note that this method uses the cached dimensions of grid, so it is up
-   * to the user to update those when necessary before using this method.
+   * with borders excluded from the container. This equals to the client
+   * position where the item will be if it is not transformed and it's left/top
+   * position at zero. Note that this method uses the cached dimensions of grid,
+   * so it is up to the user to update those when necessary before using this
+   * method.
    *
    * @protected
    * @returns {Object}

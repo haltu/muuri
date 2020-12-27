@@ -33,12 +33,12 @@ interface GridPrivate extends GridInternal {
 export default class ItemVisibility {
   readonly item: ItemInternal;
   readonly childElement: HTMLElement;
+  readonly animator: Animator;
   protected _isHidden: boolean;
   protected _isHiding: boolean;
   protected _isShowing: boolean;
   protected _isDestroyed: boolean;
   protected _currentStyleProps: string[];
-  protected _animator: Animator;
   protected _queue: string;
 
   constructor(item: Item) {
@@ -52,12 +52,13 @@ export default class ItemVisibility {
 
     this.item = (item as any) as ItemInternal;
     this.childElement = childElement;
+    this.animator = new Animator(childElement);
+
     this._isHidden = !isActive;
     this._isHiding = false;
     this._isShowing = false;
     this._isDestroyed = false;
     this._currentStyleProps = [];
-    this._animator = new Animator(childElement);
     this._queue = 'visibility-' + item.id;
 
     this._finishShow = this._finishShow.bind(this);
@@ -222,7 +223,7 @@ export default class ItemVisibility {
     const { item } = this;
 
     cancelVisibilityTick(item.id);
-    this._animator.stop();
+    this.animator.stop();
     if (processCallbackQueue) {
       item._emitter.burst(this._queue, true, item);
     }
@@ -261,7 +262,7 @@ export default class ItemVisibility {
 
     this.stop(true);
     item._emitter.clear(this._queue);
-    this._animator.destroy();
+    this.animator.destroy();
     this._removeCurrentStyles();
     if (settings) {
       removeClass(element, settings.itemVisibleClass);
@@ -285,7 +286,7 @@ export default class ItemVisibility {
   protected _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void) {
     if (this._isDestroyed) return;
 
-    const { item, childElement, _animator } = this;
+    const { item, childElement, animator } = this;
     const grid = (item.getGrid() as any) as GridPrivate;
     const { settings } = grid;
     const targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
@@ -295,7 +296,7 @@ export default class ItemVisibility {
 
     // No target styles? Let's quit early.
     if (!targetStyles) {
-      _animator.stop();
+      animator.stop();
       onFinish && onFinish();
       return;
     }
@@ -306,7 +307,7 @@ export default class ItemVisibility {
     // If we need to apply the styles instantly without animation.
     if (isInstant) {
       setStyles(childElement, targetStyles);
-      _animator.stop();
+      animator.stop();
       onFinish && onFinish();
       return;
     }
@@ -314,8 +315,8 @@ export default class ItemVisibility {
     // Let's make sure an ongoing animation's callback is cancelled before going
     // further. Without this there's a chance that the animation will finish
     // before the next tick and mess up our logic.
-    if (_animator.animation) {
-      _animator.animation.onfinish = null;
+    if (animator.animation) {
+      animator.animation.onfinish = null;
     }
 
     let currentStyles: StyleDeclaration | undefined;
@@ -357,14 +358,14 @@ export default class ItemVisibility {
             )
           ) {
             setStyles(childElement, targetStyles);
-            _animator.stop();
+            animator.stop();
             onFinish && onFinish();
             return;
           }
         }
 
         if (currentStyles) {
-          _animator.start(currentStyles, targetStyles, {
+          animator.start(currentStyles, targetStyles, {
             duration: duration,
             easing: easing,
             onFinish: onFinish,
@@ -422,7 +423,6 @@ export interface ItemVisibilityInternal extends Writeable<ItemVisibility> {
   _isShowing: ItemVisibility['_isShowing'];
   _isDestroyed: ItemVisibility['_isDestroyed'];
   _currentStyleProps: ItemVisibility['_currentStyleProps'];
-  _animator: ItemVisibility['_animator'];
   _queue: ItemVisibility['_queue'];
   _startAnimation: ItemVisibility['_startAnimation'];
   _finishShow: ItemVisibility['_finishShow'];

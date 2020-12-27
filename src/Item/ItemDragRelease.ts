@@ -154,8 +154,8 @@ export default class ItemDragRelease {
     cancelReleaseScrollTick(item.id);
     window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
 
-    // If the element was just reparented we need to do a forced reflow to remove
-    // the class gracefully.
+    // If the element was just reparented we need to do a forced reflow to
+    // remove the class gracefully.
     if (itemReleasingClass) {
       // eslint-disable-next-line
       if (needsReflow) item.element.clientWidth;

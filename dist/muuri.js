@@ -1,5 +1,5 @@
 /**
-* Muuri v0.10.0
+* Muuri v1.0.0-alpha.0
 * https://muuri.dev/
 * Copyright (c) 2015-present, Haltu Oy
 * Released under the MIT license
@@ -116,6 +116,1188 @@
         catch (e) { }
         return isPassiveEventsSupported;
     })();
+
+    /**
+     * @param {Function} callback
+     * @returns {number}
+     */
+    var raf = (window.requestAnimationFrame ||
+        window.webkitRequestAnimationFrame ||
+        // @ts-ignore
+        window.mozRequestAnimationFrame ||
+        // @ts-ignore
+        window.msRequestAnimationFrame).bind(window);
+
+    /**
+     * A lane for ticker.
+     */
+    var TickerLane = /** @class */ (function () {
+        function TickerLane() {
+            this._queue = [];
+            this._indices = new Map();
+            this._callbacks = new Map();
+        }
+        TickerLane.prototype.add = function (id, callback) {
+            var _a = this, _queue = _a._queue, _indices = _a._indices, _callbacks = _a._callbacks;
+            var index = _indices.get(id);
+            if (index !== undefined)
+                _queue[index] = undefined;
+            _queue.push(id);
+            _callbacks.set(id, callback);
+            _indices.set(id, _queue.length - 1);
+        };
+        TickerLane.prototype.remove = function (id) {
+            var _a = this, _queue = _a._queue, _indices = _a._indices, _callbacks = _a._callbacks;
+            var index = _indices.get(id);
+            if (index === undefined)
+                return;
+            _queue[index] = undefined;
+            _callbacks.delete(id);
+            _indices.delete(id);
+        };
+        TickerLane.prototype.flush = function (targetQueue, targetCallbacks) {
+            var _a = this, _queue = _a._queue, _callbacks = _a._callbacks, _indices = _a._indices;
+            var id;
+            var i = 0;
+            for (; i < _queue.length; i++) {
+                id = _queue[i];
+                if (!id || targetCallbacks.has(id))
+                    continue;
+                targetQueue.push(id);
+                targetCallbacks.set(id, _callbacks.get(id));
+            }
+            _queue.length = 0;
+            _callbacks.clear();
+            _indices.clear();
+        };
+        return TickerLane;
+    }());
+    /**
+     * A ticker system for handling DOM reads and writes in an efficient way.
+     */
+    var Ticker = /** @class */ (function () {
+        function Ticker(numLanes) {
+            if (numLanes === void 0) { numLanes = 1; }
+            this._nextStep = null;
+            this._lanes = [];
+            this._stepQueue = [];
+            this._stepCallbacks = new Map();
+            this._step = this._step.bind(this);
+            var i = 0;
+            for (; i < numLanes; i++) {
+                this._lanes.push(new TickerLane());
+            }
+        }
+        Ticker.prototype.add = function (laneIndex, id, callback) {
+            var lane = this._lanes[laneIndex];
+            if (lane) {
+                lane.add(id, callback);
+                if (!this._nextStep)
+                    this._nextStep = raf(this._step);
+            }
+        };
+        Ticker.prototype.remove = function (laneIndex, id) {
+            var lane = this._lanes[laneIndex];
+            if (lane)
+                lane.remove(id);
+        };
+        Ticker.prototype._step = function (time) {
+            var _a = this, _lanes = _a._lanes, _stepQueue = _a._stepQueue, _stepCallbacks = _a._stepCallbacks;
+            var i = 0;
+            this._nextStep = null;
+            for (i = 0; i < _lanes.length; i++) {
+                _lanes[i].flush(_stepQueue, _stepCallbacks);
+            }
+            for (i = 0; i < _stepQueue.length; i++) {
+                _stepCallbacks.get(_stepQueue[i])(time);
+            }
+            _stepQueue.length = 0;
+            _stepCallbacks.clear();
+        };
+        return Ticker;
+    }());
+
+    var LAYOUT_READ = 'layoutRead';
+    var LAYOUT_WRITE = 'layoutWrite';
+    var VISIBILITY_READ = 'visibilityRead';
+    var VISIBILITY_WRITE = 'visibilityWrite';
+    var DRAG_START_READ = 'dragStartRead';
+    var DRAG_START_WRITE = 'dragStartWrite';
+    var DRAG_MOVE_READ = 'dragMoveRead';
+    var DRAG_MOVE_WRITE = 'dragMoveWrite';
+    var DRAG_SCROLL_READ = 'dragScrollRead';
+    var DRAG_SCROLL_WRITE = 'dragScrollWrite';
+    var DRAG_SORT_READ = 'dragSortRead';
+    var RELEASE_SCROLL_READ = 'releaseScrollRead';
+    var RELEASE_SCROLL_WRITE = 'releaseScrollWrite';
+    var PLACEHOLDER_LAYOUT_READ = 'placeholderLayoutRead';
+    var PLACEHOLDER_LAYOUT_WRITE = 'placeholderLayoutWrite';
+    var PLACEHOLDER_RESIZE_WRITE = 'placeholderResizeWrite';
+    var AUTO_SCROLL_READ = 'autoScrollRead';
+    var AUTO_SCROLL_WRITE = 'autoScrollWrite';
+    var DEBOUNCE_READ = 'debounceRead';
+    var LANE_READ = 0;
+    var LANE_READ_TAIL = 1;
+    var LANE_WRITE = 2;
+    var ticker = new Ticker(3);
+    function addLayoutTick(itemId, read, write) {
+        ticker.add(LANE_READ, LAYOUT_READ + itemId, read);
+        ticker.add(LANE_WRITE, LAYOUT_WRITE + itemId, write);
+    }
+    function cancelLayoutTick(itemId) {
+        ticker.remove(LANE_READ, LAYOUT_READ + itemId);
+        ticker.remove(LANE_WRITE, LAYOUT_WRITE + itemId);
+    }
+    function addVisibilityTick(itemId, read, write) {
+        ticker.add(LANE_READ, VISIBILITY_READ + itemId, read);
+        ticker.add(LANE_WRITE, VISIBILITY_WRITE + itemId, write);
+    }
+    function cancelVisibilityTick(itemId) {
+        ticker.remove(LANE_READ, VISIBILITY_READ + itemId);
+        ticker.remove(LANE_WRITE, VISIBILITY_WRITE + itemId);
+    }
+    function addDragStartTick(itemId, read, write) {
+        ticker.add(LANE_READ, DRAG_START_READ + itemId, read);
+        ticker.add(LANE_WRITE, DRAG_START_WRITE + itemId, write);
+    }
+    function cancelDragStartTick(itemId) {
+        ticker.remove(LANE_READ, DRAG_START_READ + itemId);
+        ticker.remove(LANE_WRITE, DRAG_START_WRITE + itemId);
+    }
+    function addDragMoveTick(itemId, read, write) {
+        ticker.add(LANE_READ, DRAG_MOVE_READ + itemId, read);
+        ticker.add(LANE_WRITE, DRAG_MOVE_WRITE + itemId, write);
+    }
+    function cancelDragMoveTick(itemId) {
+        ticker.remove(LANE_READ, DRAG_MOVE_READ + itemId);
+        ticker.remove(LANE_WRITE, DRAG_MOVE_WRITE + itemId);
+    }
+    function addDragScrollTick(itemId, read, write) {
+        ticker.add(LANE_READ, DRAG_SCROLL_READ + itemId, read);
+        ticker.add(LANE_WRITE, DRAG_SCROLL_WRITE + itemId, write);
+    }
+    function cancelDragScrollTick(itemId) {
+        ticker.remove(LANE_READ, DRAG_SCROLL_READ + itemId);
+        ticker.remove(LANE_WRITE, DRAG_SCROLL_WRITE + itemId);
+    }
+    function addDragSortTick(itemId, read) {
+        ticker.add(LANE_READ_TAIL, DRAG_SORT_READ + itemId, read);
+    }
+    function cancelDragSortTick(itemId) {
+        ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
+    }
+    function addReleaseScrollTick(itemId, read, write) {
+        ticker.add(LANE_READ, RELEASE_SCROLL_READ + itemId, read);
+        ticker.add(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId, write);
+    }
+    function cancelReleaseScrollTick(itemId) {
+        ticker.remove(LANE_READ, RELEASE_SCROLL_READ + itemId);
+        ticker.remove(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId);
+    }
+    function addPlaceholderLayoutTick(itemId, read, write) {
+        ticker.add(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId, read);
+        ticker.add(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId, write);
+    }
+    function cancelPlaceholderLayoutTick(itemId) {
+        ticker.remove(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId);
+        ticker.remove(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId);
+    }
+    function addPlaceholderResizeTick(itemId, write) {
+        ticker.add(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId, write);
+    }
+    function cancelPlaceholderResizeTick(itemId) {
+        ticker.remove(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId);
+    }
+    function addAutoScrollTick(read, write) {
+        ticker.add(LANE_READ, AUTO_SCROLL_READ, read);
+        ticker.add(LANE_WRITE, AUTO_SCROLL_WRITE, write);
+    }
+    function cancelAutoScrollTick() {
+        ticker.remove(LANE_READ, AUTO_SCROLL_READ);
+        ticker.remove(LANE_WRITE, AUTO_SCROLL_WRITE);
+    }
+    function addDebounceTick(debounceId, read) {
+        ticker.add(LANE_READ, DEBOUNCE_READ + debounceId, read);
+    }
+    function cancelDebounceTick(debounceId) {
+        ticker.remove(LANE_READ, DEBOUNCE_READ + debounceId);
+    }
+
+    /**
+     * Check if two rectangles are overlapping.
+     *
+     * @param {Object} a
+     * @param {Object} b
+     * @returns {boolean}
+     */
+    function isOverlapping(a, b) {
+        return !(a.left + a.width <= b.left ||
+            b.left + b.width <= a.left ||
+            a.top + a.height <= b.top ||
+            b.top + b.height <= a.top);
+    }
+
+    /**
+     * Calculate intersection area between two rectangle.
+     *
+     * @param {Object} a
+     * @param {Object} b
+     * @returns {number}
+     */
+    function getIntersectionArea(a, b) {
+        if (!isOverlapping(a, b))
+            return 0;
+        var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+        var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+        return width * height;
+    }
+
+    /**
+     * Calculate how many percent the intersection area of two rectangles is from
+     * the maximum potential intersection area between the rectangles.
+     *
+     * @param {Object} a
+     * @param {Object} b
+     * @returns {number}
+     */
+    function getIntersectionScore(a, b) {
+        var area = getIntersectionArea(a, b);
+        if (!area)
+            return 0;
+        var maxArea = Math.min(a.width, b.width) * Math.min(a.height, b.height);
+        return (area / maxArea) * 100;
+    }
+
+    var cache = new WeakMap();
+    var cacheTimer = null;
+    var canClearCache = true;
+    var cacheTime = 1000;
+    var clearCache = function () {
+        if (canClearCache) {
+            canClearCache = true;
+            return;
+        }
+        if (cacheTimer !== null) {
+            window.clearInterval(cacheTimer);
+            cacheTimer = null;
+        }
+        cache = new WeakMap();
+    };
+    /**
+     * Returns the computed value of an element's style property as a string.
+     *
+     * @param {HTMLElement} element
+     * @param {string} prop
+     */
+    function getStyle(element, prop) {
+        if (!prop)
+            return '';
+        var styles = cache.get(element);
+        if (!styles) {
+            styles = window.getComputedStyle(element, null);
+            cache.set(element, styles);
+        }
+        if (!cacheTimer) {
+            cacheTimer = window.setInterval(clearCache, cacheTime);
+        }
+        else {
+            canClearCache = false;
+        }
+        return styles.getPropertyValue(prop);
+    }
+
+    /**
+     * Returns the computed value of an element's style property transformed into
+     * a float value.
+     *
+     * @param {HTMLElement} el
+     * @param {string} style
+     * @returns {number}
+     */
+    function getStyleAsFloat(el, styleProp) {
+        return parseFloat(getStyle(el, styleProp)) || 0;
+    }
+
+    /**
+     * Check if a value is a function.
+     *
+     * @param {*} val
+     * @returns {boolean}
+     */
+    function isFunction(val) {
+        return typeof val === 'function';
+    }
+
+    //
+    // Constants
+    //
+    var R1 = {
+        width: 0,
+        height: 0,
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+    };
+    var R2 = __assign({}, R1);
+    var SPEED_DATA = {
+        direction: 0,
+        threshold: 0,
+        distance: 0,
+        value: 0,
+        maxValue: 0,
+        duration: 0,
+        speed: 0,
+        deltaTime: 0,
+        isEnding: false,
+    };
+    var AXIS_X = 1;
+    var AXIS_Y = 2;
+    var FORWARD = 4;
+    var BACKWARD = 8;
+    var DIR_LEFT = (AXIS_X | BACKWARD);
+    var DIR_RIGHT = (AXIS_X | FORWARD);
+    var DIR_UP = (AXIS_Y | BACKWARD);
+    var DIR_DOWN = (AXIS_Y | FORWARD);
+    //
+    // Utils
+    //
+    function pointerHandle(pointerSize) {
+        var rect = { left: 0, top: 0, width: 0, height: 0 };
+        var size = pointerSize || 1;
+        return function (_item, _x, _y, _w, _h, pX, pY) {
+            rect.left = pX - size * 0.5;
+            rect.top = pY - size * 0.5;
+            rect.width = size;
+            rect.height = size;
+            return rect;
+        };
+    }
+    function smoothSpeed(maxSpeed, acceleration, deceleration) {
+        return function (_item, _element, data) {
+            var targetSpeed = 0;
+            if (!data.isEnding) {
+                if (data.threshold > 0) {
+                    var factor = data.threshold - Math.max(0, data.distance);
+                    targetSpeed = (maxSpeed / data.threshold) * factor;
+                }
+                else {
+                    targetSpeed = maxSpeed;
+                }
+            }
+            var currentSpeed = data.speed;
+            if (currentSpeed === targetSpeed)
+                return targetSpeed;
+            var nextSpeed = targetSpeed;
+            if (currentSpeed < targetSpeed) {
+                nextSpeed = currentSpeed + acceleration * (data.deltaTime / 1000);
+                return Math.min(targetSpeed, nextSpeed);
+            }
+            else {
+                nextSpeed = currentSpeed - deceleration * (data.deltaTime / 1000);
+                return Math.max(targetSpeed, nextSpeed);
+            }
+        };
+    }
+    function isWindow(value) {
+        return value === window;
+    }
+    function getScrollElement(element) {
+        if (isWindow(element) || element === document.documentElement || element === document.body) {
+            return window;
+        }
+        else {
+            return element;
+        }
+    }
+    function getScrollLeft(element) {
+        return isWindow(element) ? element.pageXOffset : element.scrollLeft;
+    }
+    function getScrollTop(element) {
+        return isWindow(element) ? element.pageYOffset : element.scrollTop;
+    }
+    function getScrollLeftMax(element) {
+        if (isWindow(element)) {
+            return document.documentElement.scrollWidth - document.documentElement.clientWidth;
+        }
+        else {
+            return element.scrollWidth - element.clientWidth;
+        }
+    }
+    function getScrollTopMax(element) {
+        if (isWindow(element)) {
+            return document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        }
+        else {
+            return element.scrollHeight - element.clientHeight;
+        }
+    }
+    /**
+     * Get window's or element's client rectangle data relative to the element's
+     * content dimensions (includes inner size + padding, excludes scrollbars,
+     * borders and margins).
+     */
+    function getContentRect(element, result) {
+        if (result === void 0) { result = { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 }; }
+        if (isWindow(element)) {
+            result.width = document.documentElement.clientWidth;
+            result.height = document.documentElement.clientHeight;
+            result.left = 0;
+            result.right = result.width;
+            result.top = 0;
+            result.bottom = result.height;
+        }
+        else {
+            var _a = element.getBoundingClientRect(), left = _a.left, top_1 = _a.top;
+            var borderLeft = element.clientLeft || getStyleAsFloat(element, 'border-left-width');
+            var borderTop = element.clientTop || getStyleAsFloat(element, 'border-top-width');
+            result.width = element.clientWidth;
+            result.height = element.clientHeight;
+            result.left = left + borderLeft;
+            result.right = result.left + result.width;
+            result.top = top_1 + borderTop;
+            result.bottom = result.top + result.height;
+        }
+        return result;
+    }
+    function getItemAutoScrollSettings(item) {
+        return item.getGrid().settings.dragAutoScroll;
+    }
+    function prepareItemScrollSync(item) {
+        var drag = item._drag;
+        if (drag)
+            drag._prepareScroll();
+    }
+    function applyItemScrollSync(item) {
+        if (!item.isActive())
+            return;
+        var drag = item._drag;
+        if (!drag)
+            return;
+        drag._scrollDiffX = drag._scrollDiffY = 0;
+        item._setTranslate(drag._translateX, drag._translateY);
+    }
+    function computeThreshold(idealThreshold, targetSize) {
+        return Math.min(targetSize / 2, idealThreshold);
+    }
+    function computeEdgeOffset(threshold, safeZone, itemSize, targetSize) {
+        return Math.max(0, itemSize + threshold * 2 + targetSize * safeZone - targetSize) / 2;
+    }
+    //
+    // ObjectPool
+    //
+    var ObjectPool = /** @class */ (function () {
+        function ObjectPool(createObject, onRelease) {
+            this._pool = [];
+            this._createObject = createObject;
+            this._onRelease = onRelease;
+        }
+        ObjectPool.prototype.pick = function () {
+            return this._pool.pop() || this._createObject();
+        };
+        ObjectPool.prototype.release = function (object) {
+            if (this._pool.indexOf(object) !== -1)
+                return;
+            this._onRelease && this._onRelease(object);
+            this._pool.push(object);
+        };
+        ObjectPool.prototype.reset = function () {
+            this._pool.length = 0;
+        };
+        return ObjectPool;
+    }());
+    //
+    // ScrollAction
+    //
+    var ScrollAction = /** @class */ (function () {
+        function ScrollAction() {
+            this.element = null;
+            this.requestX = null;
+            this.requestY = null;
+            this.scrollLeft = 0;
+            this.scrollTop = 0;
+        }
+        ScrollAction.prototype.reset = function () {
+            if (this.requestX)
+                this.requestX.action = null;
+            if (this.requestY)
+                this.requestY.action = null;
+            this.element = null;
+            this.requestX = null;
+            this.requestY = null;
+            this.scrollLeft = 0;
+            this.scrollTop = 0;
+        };
+        ScrollAction.prototype.addRequest = function (request) {
+            if (AXIS_X & request.direction) {
+                this.removeRequest(this.requestX);
+                this.requestX = request;
+            }
+            else {
+                this.removeRequest(this.requestY);
+                this.requestY = request;
+            }
+            request.action = this;
+        };
+        ScrollAction.prototype.removeRequest = function (request) {
+            if (!request)
+                return;
+            if (this.requestX === request) {
+                this.requestX = null;
+                request.action = null;
+            }
+            else if (this.requestY === request) {
+                this.requestY = null;
+                request.action = null;
+            }
+        };
+        ScrollAction.prototype.computeScrollValues = function () {
+            if (!this.element)
+                return;
+            this.scrollLeft = this.requestX ? this.requestX.value : getScrollLeft(this.element);
+            this.scrollTop = this.requestY ? this.requestY.value : getScrollTop(this.element);
+        };
+        ScrollAction.prototype.scroll = function () {
+            if (!this.element)
+                return;
+            if (this.element.scrollTo) {
+                this.element.scrollTo(this.scrollLeft, this.scrollTop);
+            }
+            else {
+                this.element.scrollLeft = this.scrollLeft;
+                this.element.scrollTop = this.scrollTop;
+            }
+        };
+        return ScrollAction;
+    }());
+    //
+    // ScrollRequest
+    //
+    var ScrollRequest = /** @class */ (function () {
+        function ScrollRequest() {
+            this.item = null;
+            this.element = null;
+            this.isActive = false;
+            this.isEnding = false;
+            this.direction = 0;
+            this.value = NaN;
+            this.maxValue = 0;
+            this.threshold = 0;
+            this.distance = 0;
+            this.deltaTime = 0;
+            this.speed = 0;
+            this.duration = 0;
+            this.action = null;
+        }
+        ScrollRequest.prototype.reset = function () {
+            if (this.isActive)
+                this.onStop();
+            this.item = null;
+            this.element = null;
+            this.isActive = false;
+            this.isEnding = false;
+            this.direction = 0;
+            this.value = NaN;
+            this.maxValue = 0;
+            this.threshold = 0;
+            this.distance = 0;
+            this.deltaTime = 0;
+            this.speed = 0;
+            this.duration = 0;
+            this.action = null;
+        };
+        ScrollRequest.prototype.hasReachedEnd = function () {
+            return FORWARD & this.direction ? this.value >= this.maxValue : this.value <= 0;
+        };
+        ScrollRequest.prototype.computeCurrentScrollValue = function () {
+            if (!this.element)
+                return 0;
+            if (this.value !== this.value) {
+                return AXIS_X & this.direction ? getScrollLeft(this.element) : getScrollTop(this.element);
+            }
+            return Math.max(0, Math.min(this.value, this.maxValue));
+        };
+        ScrollRequest.prototype.computeNextScrollValue = function () {
+            var delta = this.speed * (this.deltaTime / 1000);
+            var nextValue = FORWARD & this.direction ? this.value + delta : this.value - delta;
+            return Math.max(0, Math.min(nextValue, this.maxValue));
+        };
+        ScrollRequest.prototype.computeSpeed = function () {
+            if (!this.item || !this.element)
+                return 0;
+            var speed = getItemAutoScrollSettings(this.item).speed;
+            if (isFunction(speed)) {
+                SPEED_DATA.direction = this.direction;
+                SPEED_DATA.threshold = this.threshold;
+                SPEED_DATA.distance = this.distance;
+                SPEED_DATA.value = this.value;
+                SPEED_DATA.maxValue = this.maxValue;
+                SPEED_DATA.duration = this.duration;
+                SPEED_DATA.speed = this.speed;
+                SPEED_DATA.deltaTime = this.deltaTime;
+                SPEED_DATA.isEnding = this.isEnding;
+                return speed(this.item, this.element, SPEED_DATA);
+            }
+            else {
+                return speed;
+            }
+        };
+        ScrollRequest.prototype.tick = function (deltaTime) {
+            if (!this.isActive) {
+                this.isActive = true;
+                this.onStart();
+            }
+            this.deltaTime = deltaTime;
+            this.value = this.computeCurrentScrollValue();
+            this.speed = this.computeSpeed();
+            this.value = this.computeNextScrollValue();
+            this.duration += deltaTime;
+            return this.value;
+        };
+        ScrollRequest.prototype.onStart = function () {
+            if (!this.item || !this.element)
+                return;
+            var onStart = getItemAutoScrollSettings(this.item).onStart;
+            if (isFunction(onStart))
+                onStart(this.item, this.element, this.direction);
+        };
+        ScrollRequest.prototype.onStop = function () {
+            if (!this.item || !this.element)
+                return;
+            var onStop = getItemAutoScrollSettings(this.item).onStop;
+            if (isFunction(onStop))
+                onStop(this.item, this.element, this.direction);
+            // Manually nudge sort to happen. There's a good chance that the item is
+            // still after the scroll stops which means that the next sort will be
+            // triggered only after the item is moved or it's parent scrolled.
+            var drag = this.item._drag;
+            if (drag)
+                drag.sort();
+        };
+        return ScrollRequest;
+    }());
+    //
+    // ItemDragAutoScroll
+    //
+    var ItemDragAutoScroll = /** @class */ (function () {
+        function ItemDragAutoScroll() {
+            var _a;
+            this._isDestroyed = false;
+            this._isTicking = false;
+            this._tickTime = 0;
+            this._tickDeltaTime = 0;
+            this._items = [];
+            this._actions = [];
+            this._requests = (_a = {},
+                _a[AXIS_X] = new Map(),
+                _a[AXIS_Y] = new Map(),
+                _a);
+            this._requestOverlapCheck = new Map();
+            this._dragPositions = new Map();
+            this._dragDirections = new Map();
+            this._overlapCheckInterval = 150;
+            this._requestPool = new ObjectPool(function () { return new ScrollRequest(); }, function (request) { return request.reset(); });
+            this._actionPool = new ObjectPool(function () { return new ScrollAction(); }, function (action) { return action.reset(); });
+            this._readTick = this._readTick.bind(this);
+            this._writeTick = this._writeTick.bind(this);
+        }
+        ItemDragAutoScroll.prototype.isDestroyed = function () {
+            return this._isDestroyed;
+        };
+        ItemDragAutoScroll.prototype.addItem = function (item, posX, posY) {
+            if (this._isDestroyed)
+                return;
+            var index = this._items.indexOf(item);
+            if (index === -1) {
+                this._items.push(item);
+                this._requestOverlapCheck.set(item.id, this._tickTime);
+                this._dragDirections.set(item.id, [0, 0]);
+                this._dragPositions.set(item.id, [posX, posY]);
+                if (!this._isTicking)
+                    this._startTicking();
+            }
+        };
+        ItemDragAutoScroll.prototype.updateItem = function (item, posX, posY) {
+            if (this._isDestroyed)
+                return;
+            // Make sure the item still exists in the auto-scroller.
+            var dragPositions = this._dragPositions.get(item.id);
+            var dragDirections = this._dragDirections.get(item.id);
+            if (!dragPositions || !dragDirections)
+                return;
+            // Update direction.
+            var prevX = dragPositions[0];
+            var prevY = dragPositions[1];
+            dragDirections[0] = posX > prevX ? DIR_RIGHT : posX < prevX ? DIR_LEFT : dragDirections[0] || 0;
+            dragDirections[1] = posY > prevY ? DIR_DOWN : posY < prevY ? DIR_UP : dragDirections[1] || 0;
+            // Update overlap check.
+            this._requestOverlapCheck.set(item.id, this._requestOverlapCheck.get(item.id) || this._tickTime);
+        };
+        ItemDragAutoScroll.prototype.removeItem = function (item) {
+            if (this._isDestroyed)
+                return;
+            var index = this._items.indexOf(item);
+            if (index === -1)
+                return;
+            var itemId = item.id;
+            var reqX = this._requests[AXIS_X].get(itemId);
+            if (reqX) {
+                this._cancelItemScroll(item, AXIS_X);
+                this._requests[AXIS_X].delete(itemId);
+            }
+            var reqY = this._requests[AXIS_Y].get(itemId);
+            if (reqY) {
+                this._cancelItemScroll(item, AXIS_Y);
+                this._requests[AXIS_Y].delete(itemId);
+            }
+            this._requestOverlapCheck.delete(itemId);
+            this._dragPositions.delete(itemId);
+            this._dragDirections.delete(itemId);
+            this._items.splice(index, 1);
+            if (this._isTicking && !this._items.length) {
+                this._stopTicking();
+            }
+        };
+        ItemDragAutoScroll.prototype.isItemScrollingX = function (item) {
+            var reqX = this._requests[AXIS_X].get(item.id);
+            return !!(reqX && reqX.isActive);
+        };
+        ItemDragAutoScroll.prototype.isItemScrollingY = function (item) {
+            var reqY = this._requests[AXIS_Y].get(item.id);
+            return !!(reqY && reqY.isActive);
+        };
+        ItemDragAutoScroll.prototype.isItemScrolling = function (item) {
+            return this.isItemScrollingX(item) || this.isItemScrollingY(item);
+        };
+        ItemDragAutoScroll.prototype.destroy = function () {
+            if (this._isDestroyed)
+                return;
+            var items = this._items.slice(0);
+            for (var i = 0; i < items.length; i++) {
+                this.removeItem(items[i]);
+            }
+            this._actions.length = 0;
+            this._requestPool.reset();
+            this._actionPool.reset();
+            this._isDestroyed = true;
+        };
+        ItemDragAutoScroll.prototype._readTick = function (time) {
+            if (this._isDestroyed)
+                return;
+            if (time && this._tickTime) {
+                this._tickDeltaTime = time - this._tickTime;
+                this._tickTime = time;
+                this._updateRequests();
+                this._updateActions();
+            }
+            else {
+                this._tickTime = time;
+                this._tickDeltaTime = 0;
+            }
+        };
+        ItemDragAutoScroll.prototype._writeTick = function () {
+            if (this._isDestroyed)
+                return;
+            this._applyActions();
+            addAutoScrollTick(this._readTick, this._writeTick);
+        };
+        ItemDragAutoScroll.prototype._startTicking = function () {
+            this._isTicking = true;
+            addAutoScrollTick(this._readTick, this._writeTick);
+        };
+        ItemDragAutoScroll.prototype._stopTicking = function () {
+            this._isTicking = false;
+            this._tickTime = 0;
+            this._tickDeltaTime = 0;
+            cancelAutoScrollTick();
+        };
+        ItemDragAutoScroll.prototype._getItemHandleRect = function (item, handle, rect) {
+            if (rect === void 0) { rect = { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 }; }
+            var drag = item._drag;
+            if (handle) {
+                var ev = (drag._dragMoveEvent || drag._dragStartEvent);
+                var data = handle(item, drag._clientX, drag._clientY, item.width, item.height, ev.clientX, ev.clientY);
+                rect.left = data.left;
+                rect.top = data.top;
+                rect.width = data.width;
+                rect.height = data.height;
+            }
+            else {
+                rect.left = drag._clientX;
+                rect.top = drag._clientY;
+                rect.width = item.width;
+                rect.height = item.height;
+            }
+            rect.right = rect.left + rect.width;
+            rect.bottom = rect.top + rect.height;
+            return rect;
+        };
+        ItemDragAutoScroll.prototype._requestItemScroll = function (item, axis, element, direction, threshold, distance, maxValue) {
+            var reqMap = this._requests[axis];
+            var request = reqMap.get(item.id);
+            if (request) {
+                if (request.element !== element || request.direction !== direction) {
+                    request.reset();
+                }
+            }
+            else {
+                request = this._requestPool.pick();
+            }
+            request.item = item;
+            request.element = element;
+            request.direction = direction;
+            request.threshold = threshold;
+            request.distance = distance;
+            request.maxValue = maxValue;
+            reqMap.set(item.id, request);
+        };
+        ItemDragAutoScroll.prototype._cancelItemScroll = function (item, axis) {
+            var reqMap = this._requests[axis];
+            var request = reqMap.get(item.id);
+            if (!request)
+                return;
+            if (request.action)
+                request.action.removeRequest(request);
+            this._requestPool.release(request);
+            reqMap.delete(item.id);
+        };
+        ItemDragAutoScroll.prototype._checkItemOverlap = function (item, checkX, checkY) {
+            var settings = getItemAutoScrollSettings(item);
+            var threshold = settings.threshold, safeZone = settings.safeZone, handle = settings.handle, _targets = settings.targets;
+            var targets = typeof _targets === 'function' ? _targets(item) : _targets;
+            if (!targets || !targets.length) {
+                checkX && this._cancelItemScroll(item, AXIS_X);
+                checkY && this._cancelItemScroll(item, AXIS_Y);
+                return;
+            }
+            var dragDirections = this._dragDirections.get(item.id);
+            var dragDirectionX = (dragDirections && dragDirections[0]) || 0;
+            var dragDirectionY = (dragDirections && dragDirections[1]) || 0;
+            if (!dragDirectionX && !dragDirectionY) {
+                checkX && this._cancelItemScroll(item, AXIS_X);
+                checkY && this._cancelItemScroll(item, AXIS_Y);
+                return;
+            }
+            var itemRect = this._getItemHandleRect(item, handle, R1);
+            var xElement = null;
+            var xPriority = -Infinity;
+            var xThreshold = 0;
+            var xScore = 0;
+            var xDirection = 0;
+            var xDistance = 0;
+            var xMaxScroll = 0;
+            var yElement = null;
+            var yPriority = -Infinity;
+            var yThreshold = 0;
+            var yScore = 0;
+            var yDirection = 0;
+            var yDistance = 0;
+            var yMaxScroll = 0;
+            for (var i = 0; i < targets.length; i++) {
+                var target = targets[i];
+                var targetThreshold = target.threshold || threshold;
+                var testAxisX = !!(checkX && dragDirectionX && target.axis !== AXIS_Y);
+                var testAxisY = !!(checkY && dragDirectionY && target.axis !== AXIS_X);
+                var testPriority = target.priority || 0;
+                // Ignore this item if it's x-axis and y-axis priority is lower than
+                // the currently matching item's.
+                if ((!testAxisX || testPriority < xPriority) && (!testAxisY || testPriority < yPriority)) {
+                    continue;
+                }
+                var testElement = getScrollElement(target.element || target);
+                var testMaxScrollX = testAxisX ? getScrollLeftMax(testElement) : -1;
+                var testMaxScrollY = testAxisY ? getScrollTopMax(testElement) : -1;
+                // Ignore this item if there is no possibility to scroll.
+                if (!testMaxScrollX && !testMaxScrollY)
+                    continue;
+                var testRect = getContentRect(testElement, R2);
+                var testScore = getIntersectionScore(itemRect, testRect);
+                // Ignore this item if it's not overlapping at all with the dragged item.
+                if (testScore <= 0)
+                    continue;
+                // Test x-axis.
+                if (testAxisX &&
+                    testPriority >= xPriority &&
+                    testMaxScrollX > 0 &&
+                    (testPriority > xPriority || testScore > xScore)) {
+                    var testDistance = 0;
+                    var testDirection = 0;
+                    var testThreshold = computeThreshold(targetThreshold, testRect.width);
+                    var testEdgeOffset = computeEdgeOffset(testThreshold, safeZone, itemRect.width, testRect.width);
+                    if (dragDirectionX === DIR_RIGHT) {
+                        testDistance = testRect.right + testEdgeOffset - itemRect.right;
+                        if (testDistance <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
+                            testDirection = DIR_RIGHT;
+                        }
+                    }
+                    else if (dragDirectionX === DIR_LEFT) {
+                        testDistance = itemRect.left - (testRect.left - testEdgeOffset);
+                        if (testDistance <= testThreshold && getScrollLeft(testElement) > 0) {
+                            testDirection = DIR_LEFT;
+                        }
+                    }
+                    if (testDirection) {
+                        xElement = testElement;
+                        xPriority = testPriority;
+                        xThreshold = testThreshold;
+                        xScore = testScore;
+                        xDirection = testDirection;
+                        xDistance = testDistance;
+                        xMaxScroll = testMaxScrollX;
+                    }
+                }
+                // Test y-axis.
+                if (testAxisY &&
+                    testPriority >= yPriority &&
+                    testMaxScrollY > 0 &&
+                    (testPriority > yPriority || testScore > yScore)) {
+                    var testDistance = 0;
+                    var testDirection = 0;
+                    var testThreshold = computeThreshold(targetThreshold, testRect.height);
+                    var testEdgeOffset = computeEdgeOffset(testThreshold, safeZone, itemRect.height, testRect.height);
+                    if (dragDirectionY === DIR_DOWN) {
+                        testDistance = testRect.bottom + testEdgeOffset - itemRect.bottom;
+                        if (testDistance <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
+                            testDirection = DIR_DOWN;
+                        }
+                    }
+                    else if (dragDirectionY === DIR_UP) {
+                        testDistance = itemRect.top - (testRect.top - testEdgeOffset);
+                        if (testDistance <= testThreshold && getScrollTop(testElement) > 0) {
+                            testDirection = DIR_UP;
+                        }
+                    }
+                    if (testDirection) {
+                        yElement = testElement;
+                        yPriority = testPriority;
+                        yThreshold = testThreshold;
+                        yScore = testScore;
+                        yDirection = testDirection;
+                        yDistance = testDistance;
+                        yMaxScroll = testMaxScrollY;
+                    }
+                }
+            }
+            // Request or cancel x-axis scroll.
+            if (checkX) {
+                if (xElement && xDirection) {
+                    this._requestItemScroll(item, AXIS_X, xElement, xDirection, xThreshold, xDistance, xMaxScroll);
+                }
+                else {
+                    this._cancelItemScroll(item, AXIS_X);
+                }
+            }
+            // Request or cancel y-axis scroll.
+            if (checkY) {
+                if (yElement && yDirection) {
+                    this._requestItemScroll(item, AXIS_Y, yElement, yDirection, yThreshold, yDistance, yMaxScroll);
+                }
+                else {
+                    this._cancelItemScroll(item, AXIS_Y);
+                }
+            }
+        };
+        ItemDragAutoScroll.prototype._updateScrollRequest = function (scrollRequest) {
+            var item = scrollRequest.item;
+            var _a = getItemAutoScrollSettings(item), threshold = _a.threshold, safeZone = _a.safeZone, smoothStop = _a.smoothStop, handle = _a.handle, _targets = _a.targets;
+            var targets = typeof _targets === 'function' ? _targets(item) : _targets;
+            var targetCount = (targets && targets.length) || 0;
+            var itemRect = this._getItemHandleRect(item, handle, R1);
+            var hasReachedEnd = null;
+            for (var i = 0; i < targetCount; i++) {
+                var target = targets[i];
+                // Make sure we have a matching element.
+                var testElement = getScrollElement(target.element || target);
+                if (testElement !== scrollRequest.element)
+                    continue;
+                // Make sure we have a matching axis.
+                var testIsAxisX = !!(AXIS_X & scrollRequest.direction);
+                if (testIsAxisX) {
+                    if (target.axis === AXIS_Y)
+                        continue;
+                }
+                else {
+                    if (target.axis === AXIS_X)
+                        continue;
+                }
+                // Stop scrolling if there is no room to scroll anymore.
+                var testMaxScroll = testIsAxisX
+                    ? getScrollLeftMax(testElement)
+                    : getScrollTopMax(testElement);
+                if (testMaxScroll <= 0) {
+                    break;
+                }
+                var testRect = getContentRect(testElement, R2);
+                var testScore = getIntersectionScore(itemRect, testRect);
+                // Stop scrolling if dragged item is not overlapping with the scroll
+                // element anymore.
+                if (testScore <= 0) {
+                    break;
+                }
+                // Compute threshold.
+                var targetThreshold = typeof target.threshold === 'number' ? target.threshold : threshold;
+                var testThreshold = computeThreshold(targetThreshold, testIsAxisX ? testRect.width : testRect.height);
+                // Compute edge offset.
+                var testEdgeOffset = computeEdgeOffset(testThreshold, safeZone, testIsAxisX ? itemRect.width : itemRect.height, testIsAxisX ? testRect.width : testRect.height);
+                // Compute distance (based on current direction).
+                var testDistance = 0;
+                if (scrollRequest.direction === DIR_LEFT) {
+                    testDistance = itemRect.left - (testRect.left - testEdgeOffset);
+                }
+                else if (scrollRequest.direction === DIR_RIGHT) {
+                    testDistance = testRect.right + testEdgeOffset - itemRect.right;
+                }
+                else if (scrollRequest.direction === DIR_UP) {
+                    testDistance = itemRect.top - (testRect.top - testEdgeOffset);
+                }
+                else {
+                    testDistance = testRect.bottom + testEdgeOffset - itemRect.bottom;
+                }
+                // Stop scrolling if threshold is not exceeded.
+                if (testDistance > testThreshold) {
+                    break;
+                }
+                // Stop scrolling if we have reached the end of the scroll value.
+                var testScroll = testIsAxisX ? getScrollLeft(testElement) : getScrollTop(testElement);
+                hasReachedEnd =
+                    FORWARD & scrollRequest.direction ? testScroll >= testMaxScroll : testScroll <= 0;
+                if (hasReachedEnd) {
+                    break;
+                }
+                // Scrolling can continue, let's update the values.
+                scrollRequest.maxValue = testMaxScroll;
+                scrollRequest.threshold = testThreshold;
+                scrollRequest.distance = testDistance;
+                scrollRequest.isEnding = false;
+                return true;
+            }
+            // Before we end the request, let's see if we need to stop the scrolling
+            // smoothly or immediately.
+            if (smoothStop === true && scrollRequest.speed > 0) {
+                if (hasReachedEnd === null)
+                    hasReachedEnd = scrollRequest.hasReachedEnd();
+                scrollRequest.isEnding = hasReachedEnd ? false : true;
+            }
+            else {
+                scrollRequest.isEnding = false;
+            }
+            return scrollRequest.isEnding;
+        };
+        ItemDragAutoScroll.prototype._updateRequests = function () {
+            var items = this._items;
+            var requestsX = this._requests[AXIS_X];
+            var requestsY = this._requests[AXIS_Y];
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                var checkTime = this._requestOverlapCheck.get(item.id) || 0;
+                var needsCheck = checkTime > 0 && this._tickTime - checkTime > this._overlapCheckInterval;
+                var checkX = true;
+                var reqX = requestsX.get(item.id);
+                if (reqX && reqX.isActive) {
+                    checkX = !this._updateScrollRequest(reqX);
+                    if (checkX) {
+                        needsCheck = true;
+                        this._cancelItemScroll(item, AXIS_X);
+                    }
+                }
+                var checkY = true;
+                var reqY = requestsY.get(item.id);
+                if (reqY && reqY.isActive) {
+                    checkY = !this._updateScrollRequest(reqY);
+                    if (checkY) {
+                        needsCheck = true;
+                        this._cancelItemScroll(item, AXIS_Y);
+                    }
+                }
+                if (needsCheck) {
+                    this._requestOverlapCheck.set(item.id, 0);
+                    this._checkItemOverlap(item, checkX, checkY);
+                }
+            }
+        };
+        ItemDragAutoScroll.prototype._requestAction = function (request, axis) {
+            var actions = this._actions;
+            var isAxisX = axis === AXIS_X;
+            var action = null;
+            var i = 0;
+            for (; i < actions.length; i++) {
+                action = actions[i];
+                // If the action's request does not match the request's -> skip.
+                if (request.element !== action.element) {
+                    action = null;
+                    continue;
+                }
+                // If the request and action share the same element, but the request slot
+                // for the requested axis is already reserved let's ignore and cancel this
+                // request.
+                if (isAxisX ? action.requestX : action.requestY) {
+                    this._cancelItemScroll(request.item, axis);
+                    return;
+                }
+                // Seems like we have found our action, let's break the loop.
+                break;
+            }
+            if (!action)
+                action = this._actionPool.pick();
+            action.element = request.element;
+            action.addRequest(request);
+            request.tick(this._tickDeltaTime);
+            actions.push(action);
+        };
+        ItemDragAutoScroll.prototype._updateActions = function () {
+            var items = this._items;
+            var requests = this._requests;
+            var actions = this._actions;
+            var i = 0;
+            // Generate actions.
+            for (i = 0; i < items.length; i++) {
+                var reqX = requests[AXIS_X].get(items[i].id);
+                var reqY = requests[AXIS_Y].get(items[i].id);
+                if (reqX)
+                    this._requestAction(reqX, AXIS_X);
+                if (reqY)
+                    this._requestAction(reqY, AXIS_Y);
+            }
+            // Compute scroll values.
+            for (i = 0; i < actions.length; i++) {
+                actions[i].computeScrollValues();
+            }
+        };
+        ItemDragAutoScroll.prototype._applyActions = function () {
+            var actions = this._actions;
+            // No actions -> no scrolling.
+            if (!actions.length)
+                return;
+            var i = 0;
+            // Scroll all the required elements.
+            for (i = 0; i < actions.length; i++) {
+                actions[i].scroll();
+                this._actionPool.release(actions[i]);
+            }
+            // Reset actions.
+            actions.length = 0;
+            // Sync the item position immediately after all the auto-scrolling business
+            // is finished. Without this procedure the items will jitter during
+            // auto-scroll (in some cases at least) since the drag scroll handler is
+            // async (bound to raf tick). Note that this procedure should not emit any
+            // dragScroll events, because otherwise they would be emitted twice for the
+            // same event.
+            var items = this._items;
+            for (i = 0; i < items.length; i++)
+                prepareItemScrollSync(items[i]);
+            for (i = 0; i < items.length; i++)
+                applyItemScrollSync(items[i]);
+        };
+        ItemDragAutoScroll.AXIS_X = AXIS_X;
+        ItemDragAutoScroll.AXIS_Y = AXIS_Y;
+        ItemDragAutoScroll.DIR_LEFT = DIR_LEFT;
+        ItemDragAutoScroll.DIR_RIGHT = DIR_RIGHT;
+        ItemDragAutoScroll.DIR_UP = DIR_UP;
+        ItemDragAutoScroll.DIR_DOWN = DIR_DOWN;
+        ItemDragAutoScroll.smoothSpeed = smoothSpeed;
+        ItemDragAutoScroll.pointerHandle = pointerHandle;
+        return ItemDragAutoScroll;
+    }());
 
     /**
      * Event emitter.
@@ -344,7 +1526,7 @@
 
     // Playing it safe here, test all potential prefixes capitalized and lowercase.
     var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
-    var cache = new Map();
+    var cache$1 = new Map();
     /**
      * Get prefixed CSS property name when given a non-prefixed CSS property name.
      * Returns null if the property is not supported at all.
@@ -354,7 +1536,7 @@
      * @returns {string}
      */
     function getPrefixedPropName(style, styleProp) {
-        var prefixedProp = cache.get(styleProp);
+        var prefixedProp = cache$1.get(styleProp);
         if (prefixedProp)
             return prefixedProp;
         var camelProp = styleProp[0].toUpperCase() + styleProp.slice(1);
@@ -362,7 +1544,7 @@
         while (i < vendorPrefixes.length) {
             prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : styleProp;
             if (prefixedProp in style) {
-                cache.set(styleProp, prefixedProp);
+                cache$1.set(styleProp, prefixedProp);
                 return prefixedProp;
             }
             ++i;
@@ -855,1346 +2037,6 @@
         };
         return Dragger;
     }());
-
-    /**
-     * @param {Function} callback
-     * @returns {number}
-     */
-    var raf = (window.requestAnimationFrame ||
-        window.webkitRequestAnimationFrame ||
-        // @ts-ignore
-        window.mozRequestAnimationFrame ||
-        // @ts-ignore
-        window.msRequestAnimationFrame).bind(window);
-
-    /**
-     * A lane for ticker.
-     */
-    var TickerLane = /** @class */ (function () {
-        function TickerLane() {
-            this._queue = [];
-            this._indices = new Map();
-            this._callbacks = new Map();
-        }
-        TickerLane.prototype.add = function (id, callback) {
-            var _a = this, _queue = _a._queue, _indices = _a._indices, _callbacks = _a._callbacks;
-            var index = _indices.get(id);
-            if (index !== undefined)
-                _queue[index] = undefined;
-            _queue.push(id);
-            _callbacks.set(id, callback);
-            _indices.set(id, _queue.length - 1);
-        };
-        TickerLane.prototype.remove = function (id) {
-            var _a = this, _queue = _a._queue, _indices = _a._indices, _callbacks = _a._callbacks;
-            var index = _indices.get(id);
-            if (index === undefined)
-                return;
-            _queue[index] = undefined;
-            _callbacks.delete(id);
-            _indices.delete(id);
-        };
-        TickerLane.prototype.flush = function (targetQueue, targetCallbacks) {
-            var _a = this, _queue = _a._queue, _callbacks = _a._callbacks, _indices = _a._indices;
-            var id;
-            var i = 0;
-            for (; i < _queue.length; i++) {
-                id = _queue[i];
-                if (!id || targetCallbacks.has(id))
-                    continue;
-                targetQueue.push(id);
-                targetCallbacks.set(id, _callbacks.get(id));
-            }
-            _queue.length = 0;
-            _callbacks.clear();
-            _indices.clear();
-        };
-        return TickerLane;
-    }());
-    /**
-     * A ticker system for handling DOM reads and writes in an efficient way.
-     */
-    var Ticker = /** @class */ (function () {
-        function Ticker(numLanes) {
-            if (numLanes === void 0) { numLanes = 1; }
-            this._nextStep = null;
-            this._lanes = [];
-            this._stepQueue = [];
-            this._stepCallbacks = new Map();
-            this._step = this._step.bind(this);
-            var i = 0;
-            for (; i < numLanes; i++) {
-                this._lanes.push(new TickerLane());
-            }
-        }
-        Ticker.prototype.add = function (laneIndex, id, callback) {
-            var lane = this._lanes[laneIndex];
-            if (lane) {
-                lane.add(id, callback);
-                if (!this._nextStep)
-                    this._nextStep = raf(this._step);
-            }
-        };
-        Ticker.prototype.remove = function (laneIndex, id) {
-            var lane = this._lanes[laneIndex];
-            if (lane)
-                lane.remove(id);
-        };
-        Ticker.prototype._step = function (time) {
-            var _a = this, _lanes = _a._lanes, _stepQueue = _a._stepQueue, _stepCallbacks = _a._stepCallbacks;
-            var i = 0;
-            this._nextStep = null;
-            for (i = 0; i < _lanes.length; i++) {
-                _lanes[i].flush(_stepQueue, _stepCallbacks);
-            }
-            for (i = 0; i < _stepQueue.length; i++) {
-                _stepCallbacks.get(_stepQueue[i])(time);
-            }
-            _stepQueue.length = 0;
-            _stepCallbacks.clear();
-        };
-        return Ticker;
-    }());
-
-    var LAYOUT_READ = 'layoutRead';
-    var LAYOUT_WRITE = 'layoutWrite';
-    var VISIBILITY_READ = 'visibilityRead';
-    var VISIBILITY_WRITE = 'visibilityWrite';
-    var DRAG_START_READ = 'dragStartRead';
-    var DRAG_START_WRITE = 'dragStartWrite';
-    var DRAG_MOVE_READ = 'dragMoveRead';
-    var DRAG_MOVE_WRITE = 'dragMoveWrite';
-    var DRAG_SCROLL_READ = 'dragScrollRead';
-    var DRAG_SCROLL_WRITE = 'dragScrollWrite';
-    var DRAG_SORT_READ = 'dragSortRead';
-    var RELEASE_SCROLL_READ = 'releaseScrollRead';
-    var RELEASE_SCROLL_WRITE = 'releaseScrollWrite';
-    var PLACEHOLDER_LAYOUT_READ = 'placeholderLayoutRead';
-    var PLACEHOLDER_LAYOUT_WRITE = 'placeholderLayoutWrite';
-    var PLACEHOLDER_RESIZE_WRITE = 'placeholderResizeWrite';
-    var AUTO_SCROLL_READ = 'autoScrollRead';
-    var AUTO_SCROLL_WRITE = 'autoScrollWrite';
-    var DEBOUNCE_READ = 'debounceRead';
-    var LANE_READ = 0;
-    var LANE_READ_TAIL = 1;
-    var LANE_WRITE = 2;
-    var ticker = new Ticker(3);
-    function addLayoutTick(itemId, read, write) {
-        ticker.add(LANE_READ, LAYOUT_READ + itemId, read);
-        ticker.add(LANE_WRITE, LAYOUT_WRITE + itemId, write);
-    }
-    function cancelLayoutTick(itemId) {
-        ticker.remove(LANE_READ, LAYOUT_READ + itemId);
-        ticker.remove(LANE_WRITE, LAYOUT_WRITE + itemId);
-    }
-    function addVisibilityTick(itemId, read, write) {
-        ticker.add(LANE_READ, VISIBILITY_READ + itemId, read);
-        ticker.add(LANE_WRITE, VISIBILITY_WRITE + itemId, write);
-    }
-    function cancelVisibilityTick(itemId) {
-        ticker.remove(LANE_READ, VISIBILITY_READ + itemId);
-        ticker.remove(LANE_WRITE, VISIBILITY_WRITE + itemId);
-    }
-    function addDragStartTick(itemId, read, write) {
-        ticker.add(LANE_READ, DRAG_START_READ + itemId, read);
-        ticker.add(LANE_WRITE, DRAG_START_WRITE + itemId, write);
-    }
-    function cancelDragStartTick(itemId) {
-        ticker.remove(LANE_READ, DRAG_START_READ + itemId);
-        ticker.remove(LANE_WRITE, DRAG_START_WRITE + itemId);
-    }
-    function addDragMoveTick(itemId, read, write) {
-        ticker.add(LANE_READ, DRAG_MOVE_READ + itemId, read);
-        ticker.add(LANE_WRITE, DRAG_MOVE_WRITE + itemId, write);
-    }
-    function cancelDragMoveTick(itemId) {
-        ticker.remove(LANE_READ, DRAG_MOVE_READ + itemId);
-        ticker.remove(LANE_WRITE, DRAG_MOVE_WRITE + itemId);
-    }
-    function addDragScrollTick(itemId, read, write) {
-        ticker.add(LANE_READ, DRAG_SCROLL_READ + itemId, read);
-        ticker.add(LANE_WRITE, DRAG_SCROLL_WRITE + itemId, write);
-    }
-    function cancelDragScrollTick(itemId) {
-        ticker.remove(LANE_READ, DRAG_SCROLL_READ + itemId);
-        ticker.remove(LANE_WRITE, DRAG_SCROLL_WRITE + itemId);
-    }
-    function addDragSortTick(itemId, read) {
-        ticker.add(LANE_READ_TAIL, DRAG_SORT_READ + itemId, read);
-    }
-    function cancelDragSortTick(itemId) {
-        ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
-    }
-    function addReleaseScrollTick(itemId, read, write) {
-        ticker.add(LANE_READ, RELEASE_SCROLL_READ + itemId, read);
-        ticker.add(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId, write);
-    }
-    function cancelReleaseScrollTick(itemId) {
-        ticker.remove(LANE_READ, RELEASE_SCROLL_READ + itemId);
-        ticker.remove(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId);
-    }
-    function addPlaceholderLayoutTick(itemId, read, write) {
-        ticker.add(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId, read);
-        ticker.add(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId, write);
-    }
-    function cancelPlaceholderLayoutTick(itemId) {
-        ticker.remove(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId);
-        ticker.remove(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId);
-    }
-    function addPlaceholderResizeTick(itemId, write) {
-        ticker.add(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId, write);
-    }
-    function cancelPlaceholderResizeTick(itemId) {
-        ticker.remove(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId);
-    }
-    function addAutoScrollTick(read, write) {
-        ticker.add(LANE_READ, AUTO_SCROLL_READ, read);
-        ticker.add(LANE_WRITE, AUTO_SCROLL_WRITE, write);
-    }
-    function cancelAutoScrollTick() {
-        ticker.remove(LANE_READ, AUTO_SCROLL_READ);
-        ticker.remove(LANE_WRITE, AUTO_SCROLL_WRITE);
-    }
-    function addDebounceTick(debounceId, read) {
-        ticker.add(LANE_READ, DEBOUNCE_READ + debounceId, read);
-    }
-    function cancelDebounceTick(debounceId) {
-        ticker.remove(LANE_READ, DEBOUNCE_READ + debounceId);
-    }
-
-    var AXIS_X = 1;
-    var AXIS_Y = 2;
-    var FORWARD = 4;
-    var BACKWARD = 8;
-    var LEFT = AXIS_X | BACKWARD;
-    var RIGHT = AXIS_X | FORWARD;
-    var UP = AXIS_Y | BACKWARD;
-    var DOWN = AXIS_Y | FORWARD;
-
-    /**
-     * Check if a value is a function.
-     *
-     * @param {*} val
-     * @returns {boolean}
-     */
-    function isFunction(val) {
-        return typeof val === 'function';
-    }
-
-    var cache$1 = new WeakMap();
-    var cacheTimer = null;
-    var canClearCache = true;
-    var cacheTime = 1000;
-    var clearCache = function () {
-        if (canClearCache) {
-            canClearCache = true;
-            return;
-        }
-        if (cacheTimer !== null) {
-            window.clearInterval(cacheTimer);
-            cacheTimer = null;
-        }
-        cache$1 = new WeakMap();
-    };
-    /**
-     * Returns the computed value of an element's style property as a string.
-     *
-     * @param {HTMLElement} element
-     * @param {string} prop
-     */
-    function getStyle(element, prop) {
-        if (!prop)
-            return '';
-        var styles = cache$1.get(element);
-        if (!styles) {
-            styles = window.getComputedStyle(element, null);
-            cache$1.set(element, styles);
-        }
-        if (!cacheTimer) {
-            cacheTimer = window.setInterval(clearCache, cacheTime);
-        }
-        else {
-            canClearCache = false;
-        }
-        return styles.getPropertyValue(prop);
-    }
-
-    /**
-     * Returns the computed value of an element's style property transformed into
-     * a float value.
-     *
-     * @param {HTMLElement} el
-     * @param {string} style
-     * @returns {number}
-     */
-    function getStyleAsFloat(el, styleProp) {
-        return parseFloat(getStyle(el, styleProp)) || 0;
-    }
-
-    var DOC_ELEM = document.documentElement;
-    var BODY = document.body;
-    var THRESHOLD_DATA = { value: 0, offset: 0 };
-
-    /**
-     * @param {HTMLElement|Window} element
-     * @returns {HTMLElement|Window}
-     */
-    function getScrollElement(element) {
-      if (element === window || element === DOC_ELEM || element === BODY) {
-        return window;
-      } else {
-        return element;
-      }
-    }
-
-    /**
-     * @param {HTMLElement|Window} element
-     * @returns {Number}
-     */
-    function getScrollLeft(element) {
-      return element === window ? element.pageXOffset : element.scrollLeft;
-    }
-
-    /**
-     * @param {HTMLElement|Window} element
-     * @returns {Number}
-     */
-    function getScrollTop(element) {
-      return element === window ? element.pageYOffset : element.scrollTop;
-    }
-
-    /**
-     * @param {HTMLElement|Window} element
-     * @returns {Number}
-     */
-    function getScrollLeftMax(element) {
-      if (element === window) {
-        return DOC_ELEM.scrollWidth - DOC_ELEM.clientWidth;
-      } else {
-        return element.scrollWidth - element.clientWidth;
-      }
-    }
-
-    /**
-     * @param {HTMLElement|Window} element
-     * @returns {Number}
-     */
-    function getScrollTopMax(element) {
-      if (element === window) {
-        return DOC_ELEM.scrollHeight - DOC_ELEM.clientHeight;
-      } else {
-        return element.scrollHeight - element.clientHeight;
-      }
-    }
-
-    /**
-     * Get window's or element's client rectangle data relative to the element's
-     * content dimensions (includes inner size + padding, excludes scrollbars,
-     * borders and margins).
-     *
-     * @param {HTMLElement|Window} element
-     * @returns {Rectangle}
-     */
-    function getContentRect(element, result) {
-      result = result || {};
-
-      if (element === window) {
-        result.width = DOC_ELEM.clientWidth;
-        result.height = DOC_ELEM.clientHeight;
-        result.left = 0;
-        result.right = result.width;
-        result.top = 0;
-        result.bottom = result.height;
-      } else {
-        var bcr = element.getBoundingClientRect();
-        var borderLeft = element.clientLeft || getStyleAsFloat(element, 'border-left-width');
-        var borderTop = element.clientTop || getStyleAsFloat(element, 'border-top-width');
-        result.width = element.clientWidth;
-        result.height = element.clientHeight;
-        result.left = bcr.left + borderLeft;
-        result.right = result.left + result.width;
-        result.top = bcr.top + borderTop;
-        result.bottom = result.top + result.height;
-      }
-
-      return result;
-    }
-
-    /**
-     * @param {Item} item
-     * @returns {Object}
-     */
-    function getItemAutoScrollSettings(item) {
-      return item.getGrid()._settings.dragAutoScroll;
-    }
-
-    /**
-     * @param {Item} item
-     */
-    function prepareItemScrollSync(item) {
-      if (!item._drag) return;
-      item._drag._prepareScroll();
-    }
-
-    /**
-     * @param {Item} item
-     */
-    function applyItemScrollSync(item) {
-      if (!item._drag || !item.isActive()) return;
-      var drag = item._drag;
-      drag._scrollDiffX = drag._scrollDiffY = 0;
-      item._setTranslate(drag._translateX, drag._translateY);
-    }
-
-    /**
-     * Compute threshold value and edge offset.
-     *
-     * @param {Number} threshold
-     * @param {Number} safeZone
-     * @param {Number} itemSize
-     * @param {Number} targetSize
-     * @returns {Object}
-     */
-    function computeThreshold(threshold, safeZone, itemSize, targetSize) {
-      THRESHOLD_DATA.value = Math.min(targetSize / 2, threshold);
-      THRESHOLD_DATA.offset =
-        Math.max(0, itemSize + THRESHOLD_DATA.value * 2 + targetSize * safeZone - targetSize) / 2;
-      return THRESHOLD_DATA;
-    }
-
-    function ScrollRequest() {
-      this.reset();
-    }
-
-    ScrollRequest.prototype.reset = function () {
-      if (this.isActive) this.onStop();
-      this.item = null;
-      this.element = null;
-      this.isActive = false;
-      this.isEnding = false;
-      this.direction = null;
-      this.value = null;
-      this.maxValue = 0;
-      this.threshold = 0;
-      this.distance = 0;
-      this.speed = 0;
-      this.duration = 0;
-      this.action = null;
-    };
-
-    ScrollRequest.prototype.hasReachedEnd = function () {
-      return FORWARD & this.direction ? this.value >= this.maxValue : this.value <= 0;
-    };
-
-    ScrollRequest.prototype.computeCurrentScrollValue = function () {
-      if (this.value === null) {
-        return AXIS_X & this.direction ? getScrollLeft(this.element) : getScrollTop(this.element);
-      }
-      return Math.max(0, Math.min(this.value, this.maxValue));
-    };
-
-    ScrollRequest.prototype.computeNextScrollValue = function (deltaTime) {
-      var delta = this.speed * (deltaTime / 1000);
-      var nextValue = FORWARD & this.direction ? this.value + delta : this.value - delta;
-      return Math.max(0, Math.min(nextValue, this.maxValue));
-    };
-
-    ScrollRequest.prototype.computeSpeed = (function () {
-      var data = {
-        direction: null,
-        threshold: 0,
-        distance: 0,
-        value: 0,
-        maxValue: 0,
-        deltaTime: 0,
-        duration: 0,
-        isEnding: false,
-      };
-
-      return function (deltaTime) {
-        var item = this.item;
-        var speed = getItemAutoScrollSettings(item).speed;
-
-        if (isFunction(speed)) {
-          data.direction = this.direction;
-          data.threshold = this.threshold;
-          data.distance = this.distance;
-          data.value = this.value;
-          data.maxValue = this.maxValue;
-          data.duration = this.duration;
-          data.speed = this.speed;
-          data.deltaTime = deltaTime;
-          data.isEnding = this.isEnding;
-          return speed(item, this.element, data);
-        } else {
-          return speed;
-        }
-      };
-    })();
-
-    ScrollRequest.prototype.tick = function (deltaTime) {
-      if (!this.isActive) {
-        this.isActive = true;
-        this.onStart();
-      }
-      this.value = this.computeCurrentScrollValue();
-      this.speed = this.computeSpeed(deltaTime);
-      this.value = this.computeNextScrollValue(deltaTime);
-      this.duration += deltaTime;
-      return this.value;
-    };
-
-    ScrollRequest.prototype.onStart = function () {
-      var item = this.item;
-      var onStart = getItemAutoScrollSettings(item).onStart;
-      if (isFunction(onStart)) onStart(item, this.element, this.direction);
-    };
-
-    ScrollRequest.prototype.onStop = function () {
-      var item = this.item;
-      var onStop = getItemAutoScrollSettings(item).onStop;
-      if (isFunction(onStop)) onStop(item, this.element, this.direction);
-      // Manually nudge sort to happen. There's a good chance that the item is still
-      // after the scroll stops which means that the next sort will be triggered
-      // only after the item is moved or it's parent scrolled.
-      if (item._drag) item._drag.sort();
-    };
-
-    function ScrollAction() {
-      this.element = null;
-      this.requestX = null;
-      this.requestY = null;
-      this.scrollLeft = 0;
-      this.scrollTop = 0;
-    }
-
-    ScrollAction.prototype.reset = function () {
-      if (this.requestX) this.requestX.action = null;
-      if (this.requestY) this.requestY.action = null;
-      this.element = null;
-      this.requestX = null;
-      this.requestY = null;
-      this.scrollLeft = 0;
-      this.scrollTop = 0;
-    };
-
-    ScrollAction.prototype.addRequest = function (request) {
-      if (AXIS_X & request.direction) {
-        this.removeRequest(this.requestX);
-        this.requestX = request;
-      } else {
-        this.removeRequest(this.requestY);
-        this.requestY = request;
-      }
-      request.action = this;
-    };
-
-    ScrollAction.prototype.removeRequest = function (request) {
-      if (!request) return;
-      if (this.requestX === request) {
-        this.requestX = null;
-        request.action = null;
-      } else if (this.requestY === request) {
-        this.requestY = null;
-        request.action = null;
-      }
-    };
-
-    ScrollAction.prototype.computeScrollValues = function () {
-      this.scrollLeft = this.requestX ? this.requestX.value : getScrollLeft(this.element);
-      this.scrollTop = this.requestY ? this.requestY.value : getScrollTop(this.element);
-    };
-
-    ScrollAction.prototype.scroll = function () {
-      var element = this.element;
-      if (!element) return;
-
-      if (element.scrollTo) {
-        element.scrollTo(this.scrollLeft, this.scrollTop);
-      } else {
-        element.scrollLeft = this.scrollLeft;
-        element.scrollTop = this.scrollTop;
-      }
-    };
-
-    function Pool(createItem, releaseItem) {
-      this.pool = [];
-      this.createItem = createItem;
-      this.releaseItem = releaseItem;
-    }
-
-    Pool.prototype.pick = function () {
-      return this.pool.pop() || this.createItem();
-    };
-
-    Pool.prototype.release = function (item) {
-      this.releaseItem(item);
-      if (this.pool.indexOf(item) !== -1) return;
-      this.pool.push(item);
-    };
-
-    Pool.prototype.reset = function () {
-      this.pool.length = 0;
-    };
-
-    /**
-     * Check if two rectangles are overlapping.
-     *
-     * @param {Object} a
-     * @param {Object} b
-     * @returns {boolean}
-     */
-    function isOverlapping(a, b) {
-        return !(a.left + a.width <= b.left ||
-            b.left + b.width <= a.left ||
-            a.top + a.height <= b.top ||
-            b.top + b.height <= a.top);
-    }
-
-    /**
-     * Calculate intersection area between two rectangle.
-     *
-     * @param {Object} a
-     * @param {Object} b
-     * @returns {number}
-     */
-    function getIntersectionArea(a, b) {
-        if (!isOverlapping(a, b))
-            return 0;
-        var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
-        var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-        return width * height;
-    }
-
-    /**
-     * Calculate how many percent the intersection area of two rectangles is from
-     * the maximum potential intersection area between the rectangles.
-     *
-     * @param {Object} a
-     * @param {Object} b
-     * @returns {number}
-     */
-    function getIntersectionScore(a, b) {
-        var area = getIntersectionArea(a, b);
-        if (!area)
-            return 0;
-        var maxArea = Math.min(a.width, b.width) * Math.min(a.height, b.height);
-        return (area / maxArea) * 100;
-    }
-
-    var RECT_1 = {
-      width: 0,
-      height: 0,
-      left: 0,
-      right: 0,
-      top: 0,
-      bottom: 0,
-    };
-
-    var RECT_2 = {
-      width: 0,
-      height: 0,
-      left: 0,
-      right: 0,
-      top: 0,
-      bottom: 0,
-    };
-
-    function AutoScroller() {
-      this._isDestroyed = false;
-      this._isTicking = false;
-      this._tickTime = 0;
-      this._tickDeltaTime = 0;
-      this._items = [];
-      this._actions = [];
-      this._requests = {};
-      this._requests[AXIS_X] = {};
-      this._requests[AXIS_Y] = {};
-      this._requestOverlapCheck = {};
-      this._dragPositions = {};
-      this._dragDirections = {};
-      this._overlapCheckInterval = 150;
-
-      this._requestPool = new Pool(
-        function () {
-          return new ScrollRequest();
-        },
-        function (request) {
-          request.reset();
-        }
-      );
-
-      this._actionPool = new Pool(
-        function () {
-          return new ScrollAction();
-        },
-        function (action) {
-          action.reset();
-        }
-      );
-
-      this._readTick = this._readTick.bind(this);
-      this._writeTick = this._writeTick.bind(this);
-    }
-
-    AutoScroller.AXIS_X = AXIS_X;
-    AutoScroller.AXIS_Y = AXIS_Y;
-    AutoScroller.FORWARD = FORWARD;
-    AutoScroller.BACKWARD = BACKWARD;
-    AutoScroller.LEFT = LEFT;
-    AutoScroller.RIGHT = RIGHT;
-    AutoScroller.UP = UP;
-    AutoScroller.DOWN = DOWN;
-
-    AutoScroller.smoothSpeed = function (maxSpeed, acceleration, deceleration) {
-      return function (item, element, data) {
-        var targetSpeed = 0;
-        if (!data.isEnding) {
-          if (data.threshold > 0) {
-            var factor = data.threshold - Math.max(0, data.distance);
-            targetSpeed = (maxSpeed / data.threshold) * factor;
-          } else {
-            targetSpeed = maxSpeed;
-          }
-        }
-
-        var currentSpeed = data.speed;
-        var nextSpeed = targetSpeed;
-
-        if (currentSpeed === targetSpeed) {
-          return nextSpeed;
-        }
-
-        if (currentSpeed < targetSpeed) {
-          nextSpeed = currentSpeed + acceleration * (data.deltaTime / 1000);
-          return Math.min(targetSpeed, nextSpeed);
-        } else {
-          nextSpeed = currentSpeed - deceleration * (data.deltaTime / 1000);
-          return Math.max(targetSpeed, nextSpeed);
-        }
-      };
-    };
-
-    AutoScroller.pointerHandle = function (pointerSize) {
-      var rect = { left: 0, top: 0, width: 0, height: 0 };
-      var size = pointerSize || 1;
-      return function (item, x, y, w, h, pX, pY) {
-        rect.left = pX - size * 0.5;
-        rect.top = pY - size * 0.5;
-        rect.width = size;
-        rect.height = size;
-        return rect;
-      };
-    };
-
-    AutoScroller.prototype._readTick = function (time) {
-      if (this._isDestroyed) return;
-      if (time && this._tickTime) {
-        this._tickDeltaTime = time - this._tickTime;
-        this._tickTime = time;
-        this._updateRequests();
-        this._updateActions();
-      } else {
-        this._tickTime = time;
-        this._tickDeltaTime = 0;
-      }
-    };
-
-    AutoScroller.prototype._writeTick = function () {
-      if (this._isDestroyed) return;
-      this._applyActions();
-      addAutoScrollTick(this._readTick, this._writeTick);
-    };
-
-    AutoScroller.prototype._startTicking = function () {
-      this._isTicking = true;
-      addAutoScrollTick(this._readTick, this._writeTick);
-    };
-
-    AutoScroller.prototype._stopTicking = function () {
-      this._isTicking = false;
-      this._tickTime = 0;
-      this._tickDeltaTime = 0;
-      cancelAutoScrollTick();
-    };
-
-    AutoScroller.prototype._getItemHandleRect = function (item, handle, rect) {
-      var itemDrag = item._drag;
-
-      if (handle) {
-        var ev = itemDrag._dragMoveEvent || itemDrag._dragStartEvent;
-        var data = handle(
-          item,
-          itemDrag._clientX,
-          itemDrag._clientY,
-          item._width,
-          item._height,
-          ev.clientX,
-          ev.clientY
-        );
-        rect.left = data.left;
-        rect.top = data.top;
-        rect.width = data.width;
-        rect.height = data.height;
-      } else {
-        rect.left = itemDrag._clientX;
-        rect.top = itemDrag._clientY;
-        rect.width = item._width;
-        rect.height = item._height;
-      }
-
-      rect.right = rect.left + rect.width;
-      rect.bottom = rect.top + rect.height;
-
-      return rect;
-    };
-
-    AutoScroller.prototype._requestItemScroll = function (
-      item,
-      axis,
-      element,
-      direction,
-      threshold,
-      distance,
-      maxValue
-    ) {
-      var reqMap = this._requests[axis];
-      var request = reqMap[item._id];
-
-      if (request) {
-        if (request.element !== element || request.direction !== direction) {
-          request.reset();
-        }
-      } else {
-        request = this._requestPool.pick();
-      }
-
-      request.item = item;
-      request.element = element;
-      request.direction = direction;
-      request.threshold = threshold;
-      request.distance = distance;
-      request.maxValue = maxValue;
-      reqMap[item._id] = request;
-    };
-
-    AutoScroller.prototype._cancelItemScroll = function (item, axis) {
-      var reqMap = this._requests[axis];
-      var request = reqMap[item._id];
-      if (!request) return;
-      if (request.action) request.action.removeRequest(request);
-      this._requestPool.release(request);
-      delete reqMap[item._id];
-    };
-
-    AutoScroller.prototype._checkItemOverlap = function (item, checkX, checkY) {
-      var settings = getItemAutoScrollSettings(item);
-      var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
-      var threshold = settings.threshold;
-      var safeZone = settings.safeZone;
-
-      if (!targets || !targets.length) {
-        checkX && this._cancelItemScroll(item, AXIS_X);
-        checkY && this._cancelItemScroll(item, AXIS_Y);
-        return;
-      }
-
-      var dragDirections = this._dragDirections[item._id];
-      var dragDirectionX = dragDirections[0];
-      var dragDirectionY = dragDirections[1];
-
-      if (!dragDirectionX && !dragDirectionY) {
-        checkX && this._cancelItemScroll(item, AXIS_X);
-        checkY && this._cancelItemScroll(item, AXIS_Y);
-        return;
-      }
-
-      var itemRect = this._getItemHandleRect(item, settings.handle, RECT_1);
-      var testRect = RECT_2;
-
-      var target = null;
-      var testElement = null;
-      var testAxisX = true;
-      var testAxisY = true;
-      var testScore = 0;
-      var testPriority = 0;
-      var testThreshold = null;
-      var testDirection = null;
-      var testDistance = 0;
-      var testMaxScrollX = 0;
-      var testMaxScrollY = 0;
-
-      var xElement = null;
-      var xPriority = -Infinity;
-      var xThreshold = 0;
-      var xScore = 0;
-      var xDirection = null;
-      var xDistance = 0;
-      var xMaxScroll = 0;
-
-      var yElement = null;
-      var yPriority = -Infinity;
-      var yThreshold = 0;
-      var yScore = 0;
-      var yDirection = null;
-      var yDistance = 0;
-      var yMaxScroll = 0;
-
-      for (var i = 0; i < targets.length; i++) {
-        target = targets[i];
-        testAxisX = checkX && dragDirectionX && target.axis !== AXIS_Y;
-        testAxisY = checkY && dragDirectionY && target.axis !== AXIS_X;
-        testPriority = target.priority || 0;
-
-        // Ignore this item if it's x-axis and y-axis priority is lower than
-        // the currently matching item's.
-        if ((!testAxisX || testPriority < xPriority) && (!testAxisY || testPriority < yPriority)) {
-          continue;
-        }
-
-        testElement = getScrollElement(target.element || target);
-        testMaxScrollX = testAxisX ? getScrollLeftMax(testElement) : -1;
-        testMaxScrollY = testAxisY ? getScrollTopMax(testElement) : -1;
-
-        // Ignore this item if there is no possibility to scroll.
-        if (!testMaxScrollX && !testMaxScrollY) continue;
-
-        testRect = getContentRect(testElement, testRect);
-        testScore = getIntersectionScore(itemRect, testRect);
-
-        // Ignore this item if it's not overlapping at all with the dragged item.
-        if (testScore <= 0) continue;
-
-        // Test x-axis.
-        if (
-          testAxisX &&
-          testPriority >= xPriority &&
-          testMaxScrollX > 0 &&
-          (testPriority > xPriority || testScore > xScore)
-        ) {
-          testDirection = null;
-          testThreshold = computeThreshold(
-            typeof target.threshold === 'number' ? target.threshold : threshold,
-            safeZone,
-            itemRect.width,
-            testRect.width
-          );
-          if (dragDirectionX === RIGHT) {
-            testDistance = testRect.right + testThreshold.offset - itemRect.right;
-            if (testDistance <= testThreshold.value && getScrollLeft(testElement) < testMaxScrollX) {
-              testDirection = RIGHT;
-            }
-          } else if (dragDirectionX === LEFT) {
-            testDistance = itemRect.left - (testRect.left - testThreshold.offset);
-            if (testDistance <= testThreshold.value && getScrollLeft(testElement) > 0) {
-              testDirection = LEFT;
-            }
-          }
-
-          if (testDirection !== null) {
-            xElement = testElement;
-            xPriority = testPriority;
-            xThreshold = testThreshold.value;
-            xScore = testScore;
-            xDirection = testDirection;
-            xDistance = testDistance;
-            xMaxScroll = testMaxScrollX;
-          }
-        }
-
-        // Test y-axis.
-        if (
-          testAxisY &&
-          testPriority >= yPriority &&
-          testMaxScrollY > 0 &&
-          (testPriority > yPriority || testScore > yScore)
-        ) {
-          testDirection = null;
-          testThreshold = computeThreshold(
-            typeof target.threshold === 'number' ? target.threshold : threshold,
-            safeZone,
-            itemRect.height,
-            testRect.height
-          );
-          if (dragDirectionY === DOWN) {
-            testDistance = testRect.bottom + testThreshold.offset - itemRect.bottom;
-            if (testDistance <= testThreshold.value && getScrollTop(testElement) < testMaxScrollY) {
-              testDirection = DOWN;
-            }
-          } else if (dragDirectionY === UP) {
-            testDistance = itemRect.top - (testRect.top - testThreshold.offset);
-            if (testDistance <= testThreshold.value && getScrollTop(testElement) > 0) {
-              testDirection = UP;
-            }
-          }
-
-          if (testDirection !== null) {
-            yElement = testElement;
-            yPriority = testPriority;
-            yThreshold = testThreshold.value;
-            yScore = testScore;
-            yDirection = testDirection;
-            yDistance = testDistance;
-            yMaxScroll = testMaxScrollY;
-          }
-        }
-      }
-
-      // Request or cancel x-axis scroll.
-      if (checkX) {
-        if (xElement) {
-          this._requestItemScroll(
-            item,
-            AXIS_X,
-            xElement,
-            xDirection,
-            xThreshold,
-            xDistance,
-            xMaxScroll
-          );
-        } else {
-          this._cancelItemScroll(item, AXIS_X);
-        }
-      }
-
-      // Request or cancel y-axis scroll.
-      if (checkY) {
-        if (yElement) {
-          this._requestItemScroll(
-            item,
-            AXIS_Y,
-            yElement,
-            yDirection,
-            yThreshold,
-            yDistance,
-            yMaxScroll
-          );
-        } else {
-          this._cancelItemScroll(item, AXIS_Y);
-        }
-      }
-    };
-
-    AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
-      var item = scrollRequest.item;
-      var settings = getItemAutoScrollSettings(item);
-      var targets = isFunction(settings.targets) ? settings.targets(item) : settings.targets;
-      var targetCount = (targets && targets.length) || 0;
-      var threshold = settings.threshold;
-      var safeZone = settings.safeZone;
-      var itemRect = this._getItemHandleRect(item, settings.handle, RECT_1);
-      var testRect = RECT_2;
-      var target = null;
-      var testElement = null;
-      var testIsAxisX = false;
-      var testScore = null;
-      var testThreshold = null;
-      var testDistance = null;
-      var testScroll = null;
-      var testMaxScroll = null;
-      var hasReachedEnd = null;
-
-      for (var i = 0; i < targetCount; i++) {
-        target = targets[i];
-
-        // Make sure we have a matching element.
-        testElement = getScrollElement(target.element || target);
-        if (testElement !== scrollRequest.element) continue;
-
-        // Make sure we have a matching axis.
-        testIsAxisX = !!(AXIS_X & scrollRequest.direction);
-        if (testIsAxisX) {
-          if (target.axis === AXIS_Y) continue;
-        } else {
-          if (target.axis === AXIS_X) continue;
-        }
-
-        // Stop scrolling if there is no room to scroll anymore.
-        testMaxScroll = testIsAxisX ? getScrollLeftMax(testElement) : getScrollTopMax(testElement);
-        if (testMaxScroll <= 0) {
-          break;
-        }
-
-        testRect = getContentRect(testElement, testRect);
-        testScore = getIntersectionScore(itemRect, testRect);
-
-        // Stop scrolling if dragged item is not overlapping with the scroll
-        // element anymore.
-        if (testScore <= 0) {
-          break;
-        }
-
-        // Compute threshold and edge offset.
-        testThreshold = computeThreshold(
-          typeof target.threshold === 'number' ? target.threshold : threshold,
-          safeZone,
-          testIsAxisX ? itemRect.width : itemRect.height,
-          testIsAxisX ? testRect.width : testRect.height
-        );
-
-        // Compute distance (based on current direction).
-        if (scrollRequest.direction === LEFT) {
-          testDistance = itemRect.left - (testRect.left - testThreshold.offset);
-        } else if (scrollRequest.direction === RIGHT) {
-          testDistance = testRect.right + testThreshold.offset - itemRect.right;
-        } else if (scrollRequest.direction === UP) {
-          testDistance = itemRect.top - (testRect.top - testThreshold.offset);
-        } else {
-          testDistance = testRect.bottom + testThreshold.offset - itemRect.bottom;
-        }
-
-        // Stop scrolling if threshold is not exceeded.
-        if (testDistance > testThreshold.value) {
-          break;
-        }
-
-        // Stop scrolling if we have reached the end of the scroll value.
-        testScroll = testIsAxisX ? getScrollLeft(testElement) : getScrollTop(testElement);
-        hasReachedEnd =
-          FORWARD & scrollRequest.direction ? testScroll >= testMaxScroll : testScroll <= 0;
-        if (hasReachedEnd) {
-          break;
-        }
-
-        // Scrolling can continue, let's update the values.
-        scrollRequest.maxValue = testMaxScroll;
-        scrollRequest.threshold = testThreshold.value;
-        scrollRequest.distance = testDistance;
-        scrollRequest.isEnding = false;
-        return true;
-      }
-
-      // Before we end the request, let's see if we need to stop the scrolling
-      // smoothly or immediately.
-      if (settings.smoothStop === true && scrollRequest.speed > 0) {
-        if (hasReachedEnd === null) hasReachedEnd = scrollRequest.hasReachedEnd();
-        scrollRequest.isEnding = hasReachedEnd ? false : true;
-      } else {
-        scrollRequest.isEnding = false;
-      }
-
-      return scrollRequest.isEnding;
-    };
-
-    AutoScroller.prototype._updateRequests = function () {
-      var items = this._items;
-      var requestsX = this._requests[AXIS_X];
-      var requestsY = this._requests[AXIS_Y];
-      var item, reqX, reqY, checkTime, needsCheck, checkX, checkY;
-
-      for (var i = 0; i < items.length; i++) {
-        item = items[i];
-        checkTime = this._requestOverlapCheck[item._id];
-        needsCheck = checkTime > 0 && this._tickTime - checkTime > this._overlapCheckInterval;
-
-        checkX = true;
-        reqX = requestsX[item._id];
-        if (reqX && reqX.isActive) {
-          checkX = !this._updateScrollRequest(reqX);
-          if (checkX) {
-            needsCheck = true;
-            this._cancelItemScroll(item, AXIS_X);
-          }
-        }
-
-        checkY = true;
-        reqY = requestsY[item._id];
-        if (reqY && reqY.isActive) {
-          checkY = !this._updateScrollRequest(reqY);
-          if (checkY) {
-            needsCheck = true;
-            this._cancelItemScroll(item, AXIS_Y);
-          }
-        }
-
-        if (needsCheck) {
-          this._requestOverlapCheck[item._id] = 0;
-          this._checkItemOverlap(item, checkX, checkY);
-        }
-      }
-    };
-
-    AutoScroller.prototype._requestAction = function (request, axis) {
-      var actions = this._actions;
-      var isAxisX = axis === AXIS_X;
-      var action = null;
-
-      for (var i = 0; i < actions.length; i++) {
-        action = actions[i];
-
-        // If the action's request does not match the request's -> skip.
-        if (request.element !== action.element) {
-          action = null;
-          continue;
-        }
-
-        // If the request and action share the same element, but the request slot
-        // for the requested axis is already reserved let's ignore and cancel this
-        // request.
-        if (isAxisX ? action.requestX : action.requestY) {
-          this._cancelItemScroll(request.item, axis);
-          return;
-        }
-
-        // Seems like we have found our action, let's break the loop.
-        break;
-      }
-
-      if (!action) action = this._actionPool.pick();
-      action.element = request.element;
-      action.addRequest(request);
-
-      request.tick(this._tickDeltaTime);
-      actions.push(action);
-    };
-
-    AutoScroller.prototype._updateActions = function () {
-      var items = this._items;
-      var requests = this._requests;
-      var actions = this._actions;
-      var itemId;
-      var reqX;
-      var reqY;
-      var i;
-
-      // Generate actions.
-      for (i = 0; i < items.length; i++) {
-        itemId = items[i]._id;
-        reqX = requests[AXIS_X][itemId];
-        reqY = requests[AXIS_Y][itemId];
-        if (reqX) this._requestAction(reqX, AXIS_X);
-        if (reqY) this._requestAction(reqY, AXIS_Y);
-      }
-
-      // Compute actions' scroll values.
-      for (i = 0; i < actions.length; i++) {
-        actions[i].computeScrollValues();
-      }
-    };
-
-    AutoScroller.prototype._applyActions = function () {
-      var actions = this._actions;
-      var items = this._items;
-      var i;
-
-      // No actions -> no scrolling.
-      if (!actions.length) return;
-
-      // Scroll all the required elements.
-      for (i = 0; i < actions.length; i++) {
-        actions[i].scroll();
-        this._actionPool.release(actions[i]);
-      }
-
-      // Reset actions.
-      actions.length = 0;
-
-      // Sync the item position immediately after all the auto-scrolling business is
-      // finished. Without this procedure the items will jitter during auto-scroll
-      // (in some cases at least) since the drag scroll handler is async (bound to
-      // raf tick). Note that this procedure should not emit any dragScroll events,
-      // because otherwise they would be emitted twice for the same event.
-      for (i = 0; i < items.length; i++) prepareItemScrollSync(items[i]);
-      for (i = 0; i < items.length; i++) applyItemScrollSync(items[i]);
-    };
-
-    AutoScroller.prototype._updateDragDirection = function (item) {
-      var dragPositions = this._dragPositions[item._id];
-      var dragDirections = this._dragDirections[item._id];
-      var x1 = item._drag._translateX;
-      var y1 = item._drag._translateY;
-      if (dragPositions.length) {
-        var x2 = dragPositions[0];
-        var y2 = dragPositions[1];
-        dragDirections[0] = x1 > x2 ? RIGHT : x1 < x2 ? LEFT : dragDirections[0] || 0;
-        dragDirections[1] = y1 > y2 ? DOWN : y1 < y2 ? UP : dragDirections[1] || 0;
-      }
-      dragPositions[0] = x1;
-      dragPositions[1] = y1;
-    };
-
-    AutoScroller.prototype.addItem = function (item) {
-      if (this._isDestroyed) return;
-      var index = this._items.indexOf(item);
-      if (index === -1) {
-        this._items.push(item);
-        this._requestOverlapCheck[item._id] = this._tickTime;
-        this._dragDirections[item._id] = [0, 0];
-        this._dragPositions[item._id] = [];
-        if (!this._isTicking) this._startTicking();
-      }
-    };
-
-    AutoScroller.prototype.updateItem = function (item) {
-      if (this._isDestroyed) return;
-
-      // Make sure the item still exists in the auto-scroller.
-      if (!this._dragDirections[item._id]) return;
-
-      this._updateDragDirection(item);
-      if (!this._requestOverlapCheck[item._id]) {
-        this._requestOverlapCheck[item._id] = this._tickTime;
-      }
-    };
-
-    AutoScroller.prototype.removeItem = function (item) {
-      if (this._isDestroyed) return;
-
-      var index = this._items.indexOf(item);
-      if (index === -1) return;
-
-      var itemId = item._id;
-
-      var reqX = this._requests[AXIS_X][itemId];
-      if (reqX) {
-        this._cancelItemScroll(item, AXIS_X);
-        delete this._requests[AXIS_X][itemId];
-      }
-
-      var reqY = this._requests[AXIS_Y][itemId];
-      if (reqY) {
-        this._cancelItemScroll(item, AXIS_Y);
-        delete this._requests[AXIS_Y][itemId];
-      }
-
-      delete this._requestOverlapCheck[itemId];
-      delete this._dragPositions[itemId];
-      delete this._dragDirections[itemId];
-      this._items.splice(index, 1);
-
-      if (this._isTicking && !this._items.length) {
-        this._stopTicking();
-      }
-    };
-
-    AutoScroller.prototype.isItemScrollingX = function (item) {
-      var reqX = this._requests[AXIS_X][item._id];
-      return !!(reqX && reqX.isActive);
-    };
-
-    AutoScroller.prototype.isItemScrollingY = function (item) {
-      var reqY = this._requests[AXIS_Y][item._id];
-      return !!(reqY && reqY.isActive);
-    };
-
-    AutoScroller.prototype.isItemScrolling = function (item) {
-      return this.isItemScrollingX(item) || this.isItemScrollingY(item);
-    };
-
-    AutoScroller.prototype.destroy = function () {
-      if (this._isDestroyed) return;
-
-      var items = this._items.slice(0);
-      for (var i = 0; i < items.length; i++) {
-        this.removeItem(items[i]);
-      }
-
-      this._actions.length = 0;
-      this._requestPool.reset();
-      this._actionPool.reset();
-
-      this._isDestroyed = true;
-    };
 
     /**
      * Add class to an element.
@@ -2753,9 +2595,9 @@
             this._moveDiffY = 0;
             // Keep track of the container diff between grid element and drag container.
             // Note that these are only used for the start phase to store the initial
-            // container diff between the item's grid element and drag container element.
-            // To get always get the latest applied container diff you should read it
-            // from item._containerDiffX/Y.
+            // container diff between the item's grid element and drag container
+            // element. To get always get the latest applied container diff you should
+            // read it from item._containerDiffX/Y.
             this._containerDiffX = 0;
             this._containerDiffY = 0;
             // Bind the methods that needs binding.
@@ -2822,7 +2664,7 @@
             }
             var item = this.item;
             // Stop auto-scroll.
-            ItemDrag.autoScroller.removeItem(item);
+            ItemDrag.autoScroll.removeItem(item);
             // Cancel queued ticks.
             cancelDragStartTick(item.id);
             cancelDragMoveTick(item.id);
@@ -3029,12 +2871,12 @@
                 return;
             var item = this.item;
             var _a = item.getGrid().settings, dragSort = _a.dragSort, dragSortHeuristics = _a.dragSortHeuristics, dragAutoScroll = _a.dragAutoScroll;
-            // No sorting when drag sort is disabled. Also, account for the scenario where
-            // dragSort is temporarily disabled during drag procedure so we need to reset
-            // sort timer heuristics state too.
+            // No sorting when drag sort is disabled. Also, account for the scenario
+            // where dragSort is temporarily disabled during drag procedure so we need
+            // to reset sort timer heuristics state too.
             if (!dragSort ||
                 (!dragAutoScroll.sortDuringScroll &&
-                    ItemDrag.autoScroller.isItemScrolling(item))) {
+                    ItemDrag.autoScroll.isItemScrolling(item))) {
                 this._sortX1 = this._sortX2 = this._translateX - item._containerDiffX;
                 this._sortY1 = this._sortY2 = this._translateY - item._containerDiffY;
                 // We set this to true intentionally so that overlap check would be
@@ -3370,7 +3212,7 @@
                 return;
             this._isActive = true;
             this._dragStartEvent = event;
-            ItemDrag.autoScroller.addItem(item);
+            ItemDrag.autoScroll.addItem(item, this._translateX, this._translateY);
             addDragStartTick(item.id, this._prepareStart, this._applyStart);
         };
         /**
@@ -3516,7 +3358,7 @@
             if (this._dragMoveEvent) {
                 grid._emit(EVENT_DRAG_MOVE, item, this._dragMoveEvent);
             }
-            ItemDrag.autoScroller.updateItem(item);
+            ItemDrag.autoScroll.updateItem(item, this._translateX, this._translateY);
         };
         /**
          * Drag scroll handler.
@@ -3615,31 +3457,14 @@
             // Remove dragging class from element.
             removeClass(item.element, grid.settings.itemDraggingClass);
             // Stop auto-scroll.
-            ItemDrag.autoScroller.removeItem(item);
+            ItemDrag.autoScroll.removeItem(item);
             // Emit dragEnd event.
             grid._emit(EVENT_DRAG_END, item, event);
             // Finish up the migration process or start the release process.
             this._isMigrated ? this._finishMigration() : item._dragRelease.start();
         };
-        /**
-         * @public
-         * @static
-         * @type {AutoScroller}
-         */
-        ItemDrag.autoScroller = new AutoScroller();
-        /**
-         * @public
-         * @static
-         * @type {defaultStartPredicate}
-         */
+        ItemDrag.autoScroll = new ItemDragAutoScroll();
         ItemDrag.defaultStartPredicate = defaultStartPredicate;
-        /**
-         * Default drag sort predicate.
-         *
-         * @public
-         * @static
-         * @type {defaultSortPredicate}
-         */
         ItemDrag.defaultSortPredicate = defaultSortPredicate;
         return ItemDrag;
     }());
@@ -3835,14 +3660,14 @@
      */
     var ItemDragPlaceholder = /** @class */ (function () {
         function ItemDragPlaceholder(item) {
-            this._item = item;
-            this._animator = new Animator();
-            this._element = null;
+            this.item = item;
+            this.element = null;
+            this.animator = new Animator();
+            this.left = 0;
+            this.top = 0;
             this._className = '';
             this._didMigrate = false;
             this._resetAfterLayout = false;
-            this._left = 0;
-            this._top = 0;
             this._transX = 0;
             this._transY = 0;
             this._nextTransX = 0;
@@ -3867,26 +3692,27 @@
          */
         ItemDragPlaceholder.prototype.create = function () {
             // If we already have placeholder set up we can skip the initiation logic.
-            if (this._element) {
+            if (this.element) {
                 this._resetAfterLayout = false;
                 return;
             }
-            var item = this._item;
+            var item = this.item;
             var grid = item.getGrid();
             var settings = grid.settings;
             // Keep track of layout position.
-            this._left = item.left;
-            this._top = item.top;
+            this.left = item.left;
+            this.top = item.top;
             // Create placeholder element.
+            var element;
             if (isFunction(settings.dragPlaceholder.createElement)) {
-                this._element = settings.dragPlaceholder.createElement(item);
+                element = settings.dragPlaceholder.createElement(item);
             }
             else {
-                this._element = document.createElement('div');
+                element = document.createElement('div');
             }
-            var element = this._element;
-            // Update element to animation instance.
-            this._animator.element = element;
+            // Update element to instance and animation instance.
+            this.element = element;
+            this.animator.element = element;
             // Add placeholder class to the placeholder element.
             this._className = settings.itemPlaceholderClass || '';
             if (this._className) {
@@ -3921,10 +3747,9 @@
          */
         ItemDragPlaceholder.prototype.reset = function () {
             var _a;
-            if (!this._element)
+            if (!this.element)
                 return;
-            var element = this._element;
-            var item = this._item;
+            var _b = this, item = _b.item, element = _b.element, animator = _b.animator;
             var grid = item.getGrid();
             // Reset flag.
             this._resetAfterLayout = false;
@@ -3932,9 +3757,8 @@
             cancelPlaceholderLayoutTick(item.id);
             cancelPlaceholderResizeTick(item.id);
             // Reset animation instance.
-            var animation = this._animator;
-            animation.stop();
-            animation.element = null;
+            animator.stop();
+            animator.element = null;
             // Unbind event listeners.
             grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
             grid.off(EVENT_LAYOUT_START, this._onLayoutStart);
@@ -3947,7 +3771,7 @@
             }
             // Remove element.
             (_a = element.parentNode) === null || _a === void 0 ? void 0 : _a.removeChild(element);
-            this._element = null;
+            this.element = null;
             // onRemove hook. Note that here we use the current grid's onRemove callback
             // so if the item has migrated during drag the onRemove method will not be
             // the originating grid's method.
@@ -3962,16 +3786,7 @@
          * @returns {Boolean}
          */
         ItemDragPlaceholder.prototype.isActive = function () {
-            return !!this._element;
-        };
-        /**
-         * Get placeholder element.
-         *
-         * @public
-         * @returns {?HTMLElement}
-         */
-        ItemDragPlaceholder.prototype.getElement = function () {
-            return this._element;
+            return !!this.element;
         };
         /**
          * Update placeholder's dimensions to match the item's dimensions. Note that
@@ -3983,7 +3798,7 @@
         ItemDragPlaceholder.prototype.updateDimensions = function () {
             if (!this.isActive())
                 return;
-            addPlaceholderResizeTick(this._item.id, this._updateDimensions);
+            addPlaceholderResizeTick(this.item.id, this._updateDimensions);
         };
         /**
          * Update placeholder's class name.
@@ -3992,11 +3807,11 @@
          * @param {string} className
          */
         ItemDragPlaceholder.prototype.updateClassName = function (className) {
-            if (!this._element)
+            if (!this.element)
                 return;
-            removeClass(this._element, this._className);
+            removeClass(this.element, this._className);
             this._className = className;
-            addClass(this._element, className);
+            addClass(this.element, className);
         };
         /**
          * Destroy placeholder instance.
@@ -4005,32 +3820,32 @@
          */
         ItemDragPlaceholder.prototype.destroy = function () {
             this.reset();
-            this._animator && this._animator.destroy();
+            this.animator && this.animator.destroy();
         };
         /**
          * Update placeholder's dimensions to match the item's dimensions.
          *
-         * @private
+         * @protected
          */
         ItemDragPlaceholder.prototype._updateDimensions = function () {
-            if (!this._element)
+            if (!this.element)
                 return;
-            setStyles(this._element, {
-                width: this._item.width + 'px',
-                height: this._item.height + 'px',
+            setStyles(this.element, {
+                width: this.item.width + 'px',
+                height: this.item.height + 'px',
             });
         };
         /**
          * Move placeholder to a new position.
          *
-         * @private
+         * @protected
          * @param {Item[]} items
          * @param {boolean} isInstant
          */
         ItemDragPlaceholder.prototype._onLayoutStart = function (items, isInstant) {
-            if (!this._element)
+            if (!this.element)
                 return;
-            var item = this._item;
+            var item = this.item;
             // If the item is not part of the layout anymore reset placeholder.
             if (items.indexOf(item) === -1) {
                 this.reset();
@@ -4038,11 +3853,11 @@
             }
             var nextLeft = item.left;
             var nextTop = item.top;
-            var currentLeft = this._left;
-            var currentTop = this._top;
+            var currentLeft = this.left;
+            var currentTop = this.top;
             // Keep track of item layout position.
-            this._left = nextLeft;
-            this._top = nextTop;
+            this.left = nextLeft;
+            this.top = nextTop;
             // If item's position did not change, and the item did not migrate and the
             // layout is not instant and we can safely skip layout.
             if (!isInstant && !this._didMigrate && currentLeft === nextLeft && currentTop === nextTop) {
@@ -4061,11 +3876,11 @@
                 // Cancel potential (queued) layout tick.
                 cancelPlaceholderLayoutTick(item.id);
                 // Snap placeholder to correct position.
-                this._element.style[transformProp] = getTranslateString(nextX, nextY);
-                this._animator.stop();
+                this.element.style[transformProp] = getTranslateString(nextX, nextY);
+                this.animator.stop();
                 // Move placeholder inside correct container after migration.
                 if (this._didMigrate) {
-                    grid.element.appendChild(this._element);
+                    grid.element.appendChild(this.element);
                     this._didMigrate = false;
                 }
                 return;
@@ -4073,8 +3888,8 @@
             // Let's make sure an ongoing animation's callback is cancelled before going
             // further. Without this there's a chance that the animation will finish
             // before the next tick and mess up our logic.
-            if (this._animator.animation) {
-                this._animator.animation.onfinish = null;
+            if (this.animator.animation) {
+                this.animator.animation.onfinish = null;
             }
             // Start the placeholder's layout animation in the next tick. We do this to
             // avoid layout thrashing.
@@ -4085,24 +3900,24 @@
         /**
          * Prepare placeholder for layout animation.
          *
-         * @private
+         * @protected
          */
         ItemDragPlaceholder.prototype._setupAnimation = function () {
-            if (!this._element)
+            if (!this.element)
                 return;
-            var _a = getTranslate(this._element), x = _a.x, y = _a.y;
+            var _a = getTranslate(this.element), x = _a.x, y = _a.y;
             this._transX = x;
             this._transY = y;
         };
         /**
          * Start layout animation.
          *
-         * @private
+         * @protected
          */
         ItemDragPlaceholder.prototype._startAnimation = function () {
-            if (!this._element)
+            if (!this.element)
                 return;
-            var animation = this._animator;
+            var animator = this.animator;
             var currentX = this._transX;
             var currentY = this._transY;
             var nextX = this._nextTransX;
@@ -4110,17 +3925,17 @@
             // If placeholder is already in correct position let's just stop animation
             // and be done with it.
             if (currentX === nextX && currentY === nextY) {
-                if (animation.isAnimating()) {
-                    this._element.style[transformProp] = getTranslateString(nextX, nextY);
-                    animation.stop();
+                if (animator.isAnimating()) {
+                    this.element.style[transformProp] = getTranslateString(nextX, nextY);
+                    animator.stop();
                 }
                 return;
             }
             // Otherwise let's start the animation.
-            var _a = this._item.getGrid().settings, layoutDuration = _a.layoutDuration, layoutEasing = _a.layoutEasing;
+            var _a = this.item.getGrid().settings, layoutDuration = _a.layoutDuration, layoutEasing = _a.layoutEasing;
             CURRENT_STYLES[transformProp] = getTranslateString(currentX, currentY);
             TARGET_STYLES[transformProp] = getTranslateString(nextX, nextY);
-            animation.start(CURRENT_STYLES, TARGET_STYLES, {
+            animator.start(CURRENT_STYLES, TARGET_STYLES, {
                 duration: layoutDuration,
                 easing: layoutEasing,
                 onFinish: this._onLayoutEnd,
@@ -4129,7 +3944,7 @@
         /**
          * Layout end handler.
          *
-         * @private
+         * @protected
          */
         ItemDragPlaceholder.prototype._onLayoutEnd = function () {
             if (this._resetAfterLayout) {
@@ -4140,13 +3955,13 @@
          * Drag end handler. This handler is called when dragReleaseEnd event is
          * emitted and receives the event data as it's argument.
          *
-         * @private
+         * @protected
          * @param {Item} item
          */
         ItemDragPlaceholder.prototype._onReleaseEnd = function (item) {
-            if (item.id === this._item.id) {
+            if (item.id === this.item.id) {
                 // If the placeholder is not animating anymore we can safely reset it.
-                if (!this._animator.isAnimating()) {
+                if (!this.animator.isAnimating()) {
                     this.reset();
                     return;
                 }
@@ -4159,7 +3974,7 @@
          * Migration start handler. This handler is called when beforeSend event is
          * emitted and receives the event data as it's argument.
          *
-         * @private
+         * @protected
          * @param {Object} data
          * @param {Item} data.item
          * @param {Grid} data.fromGrid
@@ -4169,10 +3984,10 @@
          */
         ItemDragPlaceholder.prototype._onMigrate = function (data) {
             // Make sure we have a matching item.
-            if (data.item !== this._item)
+            if (data.item !== this.item)
                 return;
             // Unbind listeners from current grid.
-            var grid = this._item.getGrid();
+            var grid = this.item.getGrid();
             grid.off(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
             grid.off(EVENT_LAYOUT_START, this._onLayoutStart);
             grid.off(EVENT_BEFORE_SEND, this._onMigrate);
@@ -4189,11 +4004,11 @@
         /**
          * Reset placeholder if the associated item is hidden.
          *
-         * @private
+         * @protected
          * @param {Item[]} items
          */
         ItemDragPlaceholder.prototype._onHide = function (items) {
-            if (items.indexOf(this._item) > -1)
+            if (items.indexOf(this.item) > -1)
                 this.reset();
         };
         return ItemDragPlaceholder;
@@ -4314,8 +4129,8 @@
             this._isPositioning = false;
             cancelReleaseScrollTick(item.id);
             window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS$1);
-            // If the element was just reparented we need to do a forced reflow to remove
-            // the class gracefully.
+            // If the element was just reparented we need to do a forced reflow to
+            // remove the class gracefully.
             if (itemReleasingClass) {
                 // eslint-disable-next-line
                 if (needsReflow)
@@ -4421,6 +4236,7 @@
     var ItemLayout = /** @class */ (function () {
         function ItemLayout(item) {
             this.item = item;
+            this.animator = new Animator(item.element);
             this._skipNextAnimation = false;
             this._isActive = false;
             this._isInterrupted = false;
@@ -4429,7 +4245,6 @@
             this._duration = 0;
             this._tX = 0;
             this._tY = 0;
-            this._animation = new Animator(item.element);
             this._queue = 'layout-' + item.id;
             // Bind animation handlers.
             this._setupAnimation = this._setupAnimation.bind(this);
@@ -4465,13 +4280,12 @@
         ItemLayout.prototype.start = function (instant, onFinish) {
             if (this._isDestroyed)
                 return;
-            var item = this.item;
+            var _a = this, item = _a.item, animator = _a.animator;
             var grid = item.getGrid();
             var release = item._dragRelease;
             var settings = grid.settings;
             var isPositioning = this._isActive;
             var isJustReleased = release.isActive() && !release.isPositioning();
-            var animation = this._animation;
             var animDuration = isJustReleased ? settings.dragRelease.duration : settings.layoutDuration;
             var animEasing = isJustReleased ? settings.dragRelease.easing : settings.layoutEasing;
             var animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
@@ -4493,15 +4307,15 @@
             // If no animations are needed, easy peasy!
             if (!animEnabled) {
                 item._setTranslate(item.left + item._containerDiffX, item.top + item._containerDiffY);
-                animation.stop();
+                animator.stop();
                 this._finish();
                 return;
             }
             // Let's make sure an ongoing animation's callback is cancelled before going
             // further. Without this there's a chance that the animation will finish
             // before the next tick and mess up our logic.
-            if (animation.animation) {
-                animation.animation.onfinish = null;
+            if (animator.animation) {
+                animator.animation.onfinish = null;
             }
             // Kick off animation to be started in the next tick.
             grid._itemLayoutNeedsDimensionRefresh = true;
@@ -4526,7 +4340,7 @@
             // Cancel animation init.
             cancelLayoutTick(item.id);
             // Stop animation.
-            if (this._animation.isAnimating()) {
+            if (this.animator.isAnimating()) {
                 if (left === undefined || top === undefined) {
                     var _a = getTranslate(item.element), x = _a.x, y = _a.y;
                     item._setTranslate(x, y);
@@ -4534,7 +4348,7 @@
                 else {
                     item._setTranslate(left, top);
                 }
-                this._animation.stop();
+                this.animator.stop();
             }
             // Remove positioning class.
             var itemPositioningClass = item.getGrid().settings.itemPositioningClass;
@@ -4556,7 +4370,7 @@
                 return;
             this.stop(true, 0, 0);
             this.item._emitter.clear(this._queue);
-            this._animation.destroy();
+            this.animator.destroy();
             var style = this.item.element.style;
             style[transformProp] = '';
             style.left = '';
@@ -4622,7 +4436,8 @@
             // Calculate next translate values.
             var nextLeft = item.left + item._containerDiffX;
             var nextTop = item.top + item._containerDiffY;
-            // Check if we can skip the animation and just snap the element to it's place.
+            // Check if we can skip the animation and just snap the element to it's
+            // place.
             var xDiff = Math.abs(item.left - (this._tX - item._containerDiffX));
             var yDiff = Math.abs(item.top - (this._tY - item._containerDiffY));
             if (isInstant ||
@@ -4633,7 +4448,7 @@
                 if (this._isInterrupted || xDiff > 0.1 || yDiff > 0.1) {
                     item._setTranslate(nextLeft, nextTop);
                 }
-                this._animation.stop();
+                this.animator.stop();
                 this._finish();
                 return;
             }
@@ -4654,11 +4469,11 @@
             item._translateX = item._translateY = undefined;
             // Start animation.
             // NOTE: If item is being released or migrated when this is called we might
-            // want to check if the item is still positioning towards the same position as
-            // the layout skipping omits released and migrated items. If the item is
-            // indeed positioning towards the same position we should probably just change
-            // the finish callback and that's it, or not. Food for thought...
-            this._animation.start(CURRENT_STYLES$1, TARGET_STYLES$1, ANIM_OPTIONS);
+            // want to check if the item is still positioning towards the same position
+            // as the layout skipping omits released and migrated items. If the item is
+            // indeed positioning towards the same position we should probably just
+            // change the finish callback and that's it, or not. Food for thought...
+            this.animator.start(CURRENT_STYLES$1, TARGET_STYLES$1, ANIM_OPTIONS);
             // Unreference callback to avoid mem leaks.
             ANIM_OPTIONS.onFinish = undefined;
         };
@@ -4953,12 +4768,12 @@
             }
             this.item = item;
             this.childElement = childElement;
+            this.animator = new Animator(childElement);
             this._isHidden = !isActive;
             this._isHiding = false;
             this._isShowing = false;
             this._isDestroyed = false;
             this._currentStyleProps = [];
-            this._animator = new Animator(childElement);
             this._queue = 'visibility-' + item.id;
             this._finishShow = this._finishShow.bind(this);
             this._finishHide = this._finishHide.bind(this);
@@ -5102,7 +4917,7 @@
                 return;
             var item = this.item;
             cancelVisibilityTick(item.id);
-            this._animator.stop();
+            this.animator.stop();
             if (processCallbackQueue) {
                 item._emitter.burst(this._queue, true, item);
             }
@@ -5138,7 +4953,7 @@
             var settings = item.getGrid().settings;
             this.stop(true);
             item._emitter.clear(this._queue);
-            this._animator.destroy();
+            this.animator.destroy();
             this._removeCurrentStyles();
             if (settings) {
                 removeClass(element, settings.itemVisibleClass);
@@ -5161,7 +4976,7 @@
             var _this = this;
             if (this._isDestroyed)
                 return;
-            var _a = this, item = _a.item, childElement = _a.childElement, _animator = _a._animator;
+            var _a = this, item = _a.item, childElement = _a.childElement, animator = _a.animator;
             var grid = item.getGrid();
             var settings = grid.settings;
             var targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
@@ -5170,7 +4985,7 @@
             var isInstant = instant || duration <= 0;
             // No target styles? Let's quit early.
             if (!targetStyles) {
-                _animator.stop();
+                animator.stop();
                 onFinish && onFinish();
                 return;
             }
@@ -5179,15 +4994,15 @@
             // If we need to apply the styles instantly without animation.
             if (isInstant) {
                 setStyles(childElement, targetStyles);
-                _animator.stop();
+                animator.stop();
                 onFinish && onFinish();
                 return;
             }
             // Let's make sure an ongoing animation's callback is cancelled before going
             // further. Without this there's a chance that the animation will finish
             // before the next tick and mess up our logic.
-            if (_animator.animation) {
-                _animator.animation.onfinish = null;
+            if (animator.animation) {
+                animator.animation.onfinish = null;
             }
             var currentStyles;
             var tX = 0;
@@ -5216,13 +5031,13 @@
                     if (!item.isActive() ||
                         !item._isInViewport(item.left + item._containerDiffX, item.top + item._containerDiffY, VIEWPORT_THRESHOLD)) {
                         setStyles(childElement, targetStyles);
-                        _animator.stop();
+                        animator.stop();
                         onFinish && onFinish();
                         return;
                     }
                 }
                 if (currentStyles) {
-                    _animator.start(currentStyles, targetStyles, {
+                    animator.start(currentStyles, targetStyles, {
                         duration: duration,
                         easing: easing,
                         onFinish: onFinish,
@@ -5389,18 +5204,18 @@
             this._migrate = new ItemMigrate(this);
             // Set up drag handler.
             this._drag = settings.dragEnabled ? new ItemDrag(this) : null;
-            // Set up release handler. Note that although this is fully linked to dragging
-            // this still needs to be always instantiated to handle migration scenarios
-            // correctly.
-            this._dragRelease = new ItemDragRelease(this);
-            // Set up drag placeholder handler. Note that although this is fully linked to
+            // Set up release handler. Note that although this is fully linked to
             // dragging this still needs to be always instantiated to handle migration
             // scenarios correctly.
+            this._dragRelease = new ItemDragRelease(this);
+            // Set up drag placeholder handler. Note that although this is fully linked
+            // to dragging this still needs to be always instantiated to handle
+            // migration scenarios correctly.
             this._dragPlaceholder = new ItemDragPlaceholder(this);
             // Note! You must call the following methods before you start using the
             // instance. They are deliberately not called in the end as it would cause
-            // potentially a massive amount of reflows if multiple items were instantiated
-            // in a loop.
+            // potentially a massive amount of reflows if multiple items were
+            // instantiated in a loop.
             // this._updateDimensions();
             // this._updateSortData();
         }
@@ -5499,9 +5314,9 @@
                 return;
             var element = this.element;
             // Calculate width and height.
-            var rect = element.getBoundingClientRect();
-            this.width = rect.width;
-            this.height = rect.height;
+            var _a = element.getBoundingClientRect(), width = _a.width, height = _a.height;
+            this.width = width;
+            this.height = height;
             // Calculate margins (ignore negative margins).
             this.marginLeft = Math.max(0, getStyleAsFloat(element, 'margin-left'));
             this.marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
@@ -5591,9 +5406,9 @@
             this.element.style[transformProp] = getTranslateString(x, y);
         };
         /**
-         * Get the item's current translate values. If they can't be detected from cache
-         * we will read them from the DOM (so try to use this only when it is safe
-         * to query the DOM without causing a forced reflow).
+         * Get the item's current translate values. If they can't be detected from
+         * cache we will read them from the DOM (so try to use this only when it is
+         * safe to query the DOM without causing a forced reflow).
          *
          * @protected
          * @returns {Object}
@@ -5612,10 +5427,11 @@
         };
         /**
          * Returns the current container's position relative to the client (viewport)
-         * with borders excluded from the container. This equals to the client position
-         * where the item will be if it is not transformed and it's left/top position at
-         * zero. Note that this method uses the cached dimensions of grid, so it is up
-         * to the user to update those when necessary before using this method.
+         * with borders excluded from the container. This equals to the client
+         * position where the item will be if it is not transformed and it's left/top
+         * position at zero. Note that this method uses the cached dimensions of grid,
+         * so it is up to the user to update those when necessary before using this
+         * method.
          *
          * @protected
          * @returns {Object}
@@ -7006,13 +6822,13 @@
         };
         /**
          * Update the cached dimensions of the instance's items. By default all the
-         * items are refreshed, but you can also provide an array of target items as the
-         * first argument if you want to refresh specific items. Note that all hidden
-         * items are not refreshed by default since their "display" property is "none"
-         * and their dimensions are therefore not readable from the DOM. However, if you
-         * do want to force update hidden item dimensions too you can provide `true`
-         * as the second argument, which makes the elements temporarily visible while
-         * their dimensions are being read.
+         * items are refreshed, but you can also provide an array of target items as
+         * the first argument if you want to refresh specific items. Note that all
+         * hidden items are not refreshed by default since their "display" property is
+         * "none" and their dimensions are therefore not readable from the DOM.
+         * However, if you do want to force update hidden item dimensions too you can
+         * provide `true` as the second argument, which makes the elements temporarily
+         * visible while their dimensions are being read.
          *
          * @public
          * @param {Item[]} [items]
@@ -7140,9 +6956,6 @@
                 if (items[i].isActive())
                     layoutItems.push(items[i]);
             }
-            // TODO: This causes forced reflows. As we already have async layout system
-            // Maybe we could always postpone this to the next tick's read queue and
-            // then start the layout process in the write tick?
             this._updateDimensions();
             var containerData = {
                 width: this._rect.width - this._borderLeft - this._borderRight,
@@ -7493,30 +7306,32 @@
                         // Get the criteria name, which should match an item's sort data key.
                         var criteriaName = sortCriteria_1[i][0];
                         var criteriaOrder = sortCriteria_1[i][1];
-                        // Get items' cached sort values for the criteria. If the item has no sort
-                        // data let's update the items sort data (this is a lazy load mechanism).
+                        // Get items' cached sort values for the criteria. If the item has no
+                        // sort data let's update the items sort data (this is a lazy load
+                        // mechanism).
                         if (a._sortData === null)
                             a._updateSortData();
                         if (b._sortData === null)
                             b._updateSortData();
                         var valA = a._sortData[criteriaName];
                         var valB = b._sortData[criteriaName];
-                        // Sort the items in descending order if defined so explicitly. Otherwise
-                        // sort items in ascending order.
+                        // Sort the items in descending order if defined so explicitly.
+                        // Otherwise sort items in ascending order.
                         if (criteriaOrder === 'desc' || (!criteriaOrder && isDescending)) {
                             result = valB < valA ? -1 : valB > valA ? 1 : 0;
                         }
                         else {
                             result = valA < valB ? -1 : valA > valB ? 1 : 0;
                         }
-                        // If we have -1 or 1 as the return value, let's return it immediately.
+                        // If we have -1 or 1 as the return value, let's return it
+                        // immediately.
                         if (result)
                             return result;
                     }
                     // If values are equal let's compare the item indices to make sure we
-                    // have a stable sort. Note that this is not necessary in evergreen browsers
-                    // because Array.sort() is nowadays stable. However, in order to guarantee
-                    // same results in older browsers we need this.
+                    // have a stable sort. Note that this is not necessary in evergreen
+                    // browsers because Array.sort() is nowadays stable. However, in order
+                    // to guarantee same results in older browsers we need this.
                     if (!result) {
                         if (!indexMap)
                             indexMap = createIndexMap(origItems);
@@ -7621,8 +7436,8 @@
                 return this;
             // Start the migration process.
             targetItem._migrate.start(targetGrid, position, options.appendTo || document.body);
-            // If migration was started successfully and the item is active, let's layout
-            // the grids.
+            // If migration was started successfully and the item is active, let's
+            // layout the grids.
             if (targetItem._migrate.isActive() && targetItem.isActive()) {
                 var layoutSender = options.layoutSender
                     ? options.layoutSender
@@ -7786,8 +7601,7 @@
             var _this = this;
             if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id)
                 return;
-            var instant = this._nextLayoutData.instant;
-            var onFinish = this._nextLayoutData.onFinish;
+            var _a = this._nextLayoutData, instant = _a.instant, onFinish = _a.onFinish;
             var numItems = layout.items.length;
             var counter = numItems;
             var item;
@@ -7932,12 +7746,6 @@
                 }
             }
             // Force refresh the dimensions of all hidden items.
-            // TODO: How can we avoid this?
-            //       - 1. Set item visibility: 'hidden' and display: ''
-            //       - 2. Read the dimensions in the next read tick.
-            //       - 3. Set item visibility: '' and display: 'none' in the following write tick or maybe just continue the flow there already.
-            //       - 4. Continue with the normal flow. To make this simpler we could always do this
-            //            one tick delay.
             if (hiddenItems.length) {
                 this.refreshItems(hiddenItems, true);
                 hiddenItems.length = 0;
@@ -7998,11 +7806,11 @@
         Grid.ItemDrag = ItemDrag;
         Grid.ItemDragRelease = ItemDragRelease;
         Grid.ItemDragPlaceholder = ItemDragPlaceholder;
+        Grid.ItemDragAutoScroll = ItemDragAutoScroll;
         Grid.Emitter = Emitter;
         Grid.Animator = Animator;
         Grid.Dragger = Dragger;
         Grid.Packer = Packer;
-        Grid.AutoScroller = AutoScroller;
         Grid.defaultPacker = new Packer();
         Grid.defaultOptions = {
             // Initial item elements
@@ -8084,7 +7892,7 @@
                 handle: null,
                 threshold: 50,
                 safeZone: 0.2,
-                speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
+                speed: ItemDragAutoScroll.smoothSpeed(1000, 2000, 2500),
                 sortDuringScroll: true,
                 smoothStop: false,
                 onStart: null,

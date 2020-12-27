@@ -1,6 +1,6 @@
 {
   "name": "muuri",
-  "version": "0.10.0",
+  "version": "1.0.0-alpha.0",
   "description": "Responsive, sortable, filterable and draggable layouts",
   "keywords": [
     "grid",
@@ -23,7 +23,7 @@
   },
   "main": "dist/muuri.js",
   "module": "dist/muuri.module.js",
-  "types": "src/index.d.ts",
+  "types": "dist/muuri.d.ts",
   "files": [
     "package.json",
     "src",
@@ -44,9 +44,9 @@
     "build": "$(npm bin)/gulp build",
     "ts-build": "$(npm bin)/tsc",
     "lint": "$(npm bin)/gulp lint",
-    "format": "$(npm bin)/prettier --write ./src/**/*.{js,ts}",
+    "format": "$(npm bin)/prettier --write ./src/**/*.ts",
     "format-tests": "$(npm bin)/prettier --write ./tests/**/*.{js,ts}",
-    "validate-formatting": "$(npm bin)/prettier --list-different ./src/**/*.{js,ts}",
+    "validate-formatting": "$(npm bin)/prettier --list-different ./src/**/*.ts",
     "size": "$(npm bin)/gulp size",
     "pre-commit-hook": "$(npm bin)/gulp pre-commit"
   },
@@ -78,7 +78,6 @@
     "rollup": "^2.35.1",
     "rollup-plugin-dts": "^2.0.1",
     "terser": "^5.5.1",
-    "tslib": "^2.0.3",
     "typescript": "^4.1.3",
     "web-animations-js": "^2.3.2"
   }

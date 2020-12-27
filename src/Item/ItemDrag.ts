@@ -29,6 +29,7 @@ import Grid, {
   DragSortPredicateResult,
 } from '../Grid/Grid';
 import Item, { ItemInternal } from './Item';
+import ItemDragAutoScroll from './ItemDragAutoScroll';
 import Dragger, {
   DraggerStartEvent,
   DraggerMoveEvent,
@@ -36,7 +37,6 @@ import Dragger, {
   DraggerCancelEvent,
   DraggerAnyEvent,
 } from '../Dragger/Dragger';
-import AutoScroller from '../AutoScroller/AutoScroller';
 
 import {
   addDragStartTick,
@@ -479,9 +479,9 @@ export default class ItemDrag {
 
     // Keep track of the container diff between grid element and drag container.
     // Note that these are only used for the start phase to store the initial
-    // container diff between the item's grid element and drag container element.
-    // To get always get the latest applied container diff you should read it
-    // from item._containerDiffX/Y.
+    // container diff between the item's grid element and drag container
+    // element. To get always get the latest applied container diff you should
+    // read it from item._containerDiffX/Y.
     this._containerDiffX = 0;
     this._containerDiffY = 0;
 
@@ -511,27 +511,8 @@ export default class ItemDrag {
     this.dragger.on('end', this._preEndCheck);
   }
 
-  /**
-   * @public
-   * @static
-   * @type {AutoScroller}
-   */
-  static autoScroller = new AutoScroller();
-
-  /**
-   * @public
-   * @static
-   * @type {defaultStartPredicate}
-   */
+  static autoScroll = new ItemDragAutoScroll();
   static defaultStartPredicate = defaultStartPredicate;
-
-  /**
-   * Default drag sort predicate.
-   *
-   * @public
-   * @static
-   * @type {defaultSortPredicate}
-   */
   static defaultSortPredicate = defaultSortPredicate;
 
   /**
@@ -583,7 +564,7 @@ export default class ItemDrag {
     const { item } = this;
 
     // Stop auto-scroll.
-    ItemDrag.autoScroller.removeItem((item as any) as Item);
+    ItemDrag.autoScroll.removeItem((item as any) as Item);
 
     // Cancel queued ticks.
     cancelDragStartTick(item.id);
@@ -815,13 +796,13 @@ export default class ItemDrag {
     const { item } = this;
     const { dragSort, dragSortHeuristics, dragAutoScroll } = (item.getGrid() as Grid).settings;
 
-    // No sorting when drag sort is disabled. Also, account for the scenario where
-    // dragSort is temporarily disabled during drag procedure so we need to reset
-    // sort timer heuristics state too.
+    // No sorting when drag sort is disabled. Also, account for the scenario
+    // where dragSort is temporarily disabled during drag procedure so we need
+    // to reset sort timer heuristics state too.
     if (
       !dragSort ||
       (!dragAutoScroll.sortDuringScroll &&
-        ItemDrag.autoScroller.isItemScrolling((item as any) as Item))
+        ItemDrag.autoScroll.isItemScrolling((item as any) as Item))
     ) {
       this._sortX1 = this._sortX2 = this._translateX - item._containerDiffX;
       this._sortY1 = this._sortY2 = this._translateY - item._containerDiffY;
@@ -1213,7 +1194,7 @@ export default class ItemDrag {
 
     this._isActive = true;
     this._dragStartEvent = event;
-    ItemDrag.autoScroller.addItem((item as any) as Item);
+    ItemDrag.autoScroll.addItem((item as any) as Item, this._translateX, this._translateY);
 
     addDragStartTick(item.id, this._prepareStart, this._applyStart);
   }
@@ -1396,7 +1377,7 @@ export default class ItemDrag {
     if (this._dragMoveEvent) {
       grid._emit(EVENT_DRAG_MOVE, (item as any) as Item, this._dragMoveEvent);
     }
-    ItemDrag.autoScroller.updateItem((item as any) as Item);
+    ItemDrag.autoScroll.updateItem((item as any) as Item, this._translateX, this._translateY);
   }
 
   /**
@@ -1517,7 +1498,7 @@ export default class ItemDrag {
     removeClass(item.element, grid.settings.itemDraggingClass);
 
     // Stop auto-scroll.
-    ItemDrag.autoScroller.removeItem((item as any) as Item);
+    ItemDrag.autoScroll.removeItem((item as any) as Item);
 
     // Emit dragEnd event.
     ((grid as any) as GridInternal)._emit(EVENT_DRAG_END, (item as any) as Item, event);

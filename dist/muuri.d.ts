@@ -1,3 +1,176 @@
+type Writeable<T> = { -readonly [P in keyof T]: T[P] };
+
+interface Rect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface RectExtended extends Rect {
+  right: number;
+  bottom: number;
+}
+
+interface StyleDeclaration {
+  [prop: string]: string;
+}
+
+interface ScrollEvent extends Event {
+  type: 'scroll';
+}
+
+/**
+ * Muuri AutoScroller
+ * Copyright (c) 2019-present, Niklas Rämö <inramo@gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+declare const AXIS_X = 1;
+declare const AXIS_Y = 2;
+declare const DIR_LEFT: 9;
+declare const DIR_RIGHT: 5;
+declare const DIR_UP: 10;
+declare const DIR_DOWN: 6;
+declare type ScrollAxis = typeof AXIS_X | typeof AXIS_Y;
+declare type ScrollDirectionX = typeof DIR_LEFT | typeof DIR_RIGHT;
+declare type ScrollDirectionY = typeof DIR_UP | typeof DIR_DOWN;
+declare type ScrollDirection = ScrollDirectionX | ScrollDirectionY;
+interface ScrollTarget {
+    element: Window | HTMLElement;
+    axis?: number;
+    priority?: number;
+    threshold?: number;
+}
+declare type ScrollEventCallback = (item: Item, scrollElement: Window | HTMLElement, scrollDirection: number) => any;
+declare type ScrollHandleCallback = (item: Item, itemClientX: number, itemClientY: number, itemWidth: number, itemHeight: number, pointerClientX: number, pointerClientY: number) => Rect;
+interface ScrollSpeedData {
+    direction: ScrollDirection | 0;
+    threshold: number;
+    distance: number;
+    value: number;
+    maxValue: number;
+    duration: number;
+    speed: number;
+    deltaTime: number;
+    isEnding: boolean;
+}
+declare type ScrollSpeedCallback = (item: Item, scrollElement: Window | HTMLElement, scrollData: ScrollSpeedData) => number;
+declare type ItemId = number | string;
+declare function pointerHandle(pointerSize: number): ScrollHandleCallback;
+declare function smoothSpeed(maxSpeed: number, acceleration: number, deceleration: number): ScrollSpeedCallback;
+declare class ObjectPool<T> {
+    protected _pool: T[];
+    protected _createObject: () => T;
+    protected _onRelease: ((object: T) => void) | undefined;
+    constructor(createObject: () => T, onRelease?: (object: T) => void);
+    pick(): T;
+    release(object: T): void;
+    reset(): void;
+}
+declare class ScrollAction {
+    element: HTMLElement | Window | null;
+    requestX: ScrollRequest | null;
+    requestY: ScrollRequest | null;
+    scrollLeft: number;
+    scrollTop: number;
+    constructor();
+    reset(): void;
+    addRequest(request: ScrollRequest): void;
+    removeRequest(request: ScrollRequest | null): void;
+    computeScrollValues(): void;
+    scroll(): void;
+}
+declare class ScrollRequest {
+    item: Item | null;
+    element: HTMLElement | Window | null;
+    isActive: boolean;
+    isEnding: boolean;
+    direction: ScrollDirection | 0;
+    value: number;
+    maxValue: number;
+    threshold: number;
+    distance: number;
+    deltaTime: number;
+    speed: number;
+    duration: number;
+    action: ScrollAction | null;
+    constructor();
+    reset(): void;
+    hasReachedEnd(): boolean;
+    computeCurrentScrollValue(): number;
+    computeNextScrollValue(): number;
+    computeSpeed(): number;
+    tick(deltaTime: number): number;
+    onStart(): void;
+    onStop(): void;
+}
+declare class ItemDragAutoScroll {
+    protected _isDestroyed: boolean;
+    protected _isTicking: boolean;
+    protected _tickTime: number;
+    protected _tickDeltaTime: number;
+    protected _items: Item[];
+    protected _actions: ScrollAction[];
+    protected _requests: {
+        [AXIS_X]: Map<ItemId, ScrollRequest>;
+        [AXIS_Y]: Map<ItemId, ScrollRequest>;
+    };
+    protected _requestOverlapCheck: Map<ItemId, number>;
+    protected _dragPositions: Map<ItemId, [number, number]>;
+    protected _dragDirections: Map<ItemId, [ScrollDirectionX | 0, ScrollDirectionY | 0]>;
+    protected _overlapCheckInterval: number;
+    protected _requestPool: ObjectPool<ScrollRequest>;
+    protected _actionPool: ObjectPool<ScrollAction>;
+    constructor();
+    static AXIS_X: number;
+    static AXIS_Y: number;
+    static DIR_LEFT: 9;
+    static DIR_RIGHT: 5;
+    static DIR_UP: 10;
+    static DIR_DOWN: 6;
+    static smoothSpeed: typeof smoothSpeed;
+    static pointerHandle: typeof pointerHandle;
+    isDestroyed(): boolean;
+    addItem(item: Item, posX: number, posY: number): void;
+    updateItem(item: Item, posX: number, posY: number): void;
+    removeItem(item: Item): void;
+    isItemScrollingX(item: Item): boolean;
+    isItemScrollingY(item: Item): boolean;
+    isItemScrolling(item: Item): boolean;
+    destroy(): void;
+    protected _readTick(time: number): void;
+    protected _writeTick(): void;
+    protected _startTicking(): void;
+    protected _stopTicking(): void;
+    protected _getItemHandleRect(item: Item, handle: ScrollHandleCallback | null, rect?: RectExtended): RectExtended;
+    protected _requestItemScroll(item: Item, axis: ScrollAxis, element: Window | HTMLElement, direction: ScrollDirection, threshold: number, distance: number, maxValue: number): void;
+    protected _cancelItemScroll(item: Item, axis: ScrollAxis): void;
+    protected _checkItemOverlap(item: Item, checkX: boolean, checkY: boolean): void;
+    protected _updateScrollRequest(scrollRequest: ScrollRequest): boolean;
+    protected _updateRequests(): void;
+    protected _requestAction(request: ScrollRequest, axis: ScrollAxis): void;
+    protected _updateActions(): void;
+    protected _applyActions(): void;
+}
+
 /**
  * Muuri Emitter
  * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
@@ -267,57 +440,6 @@ declare class Dragger {
     protected _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent): void;
 }
 
-type Writeable<T> = { -readonly [P in keyof T]: T[P] };
-
-interface Rect {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
-interface RectExtended extends Rect {
-  right: number;
-  bottom: number;
-}
-
-interface StyleDeclaration {
-  [prop: string]: string;
-}
-
-interface ScrollEvent extends Event {
-  type: 'scroll';
-}
-
-//
-// CLASSES
-//
-
-declare class AutoScroller {
-  constructor();
-  static AXIS_X: 1;
-  static AXIS_Y: 2;
-  static FORWARD: 4;
-  static BACKWARD: 8;
-  static LEFT: 9;
-  static RIGHT: 5;
-  static UP: 10;
-  static DOWN: 6;
-  static smoothSpeed(
-    maxSpeed: number,
-    acceleration: number,
-    deceleration: number
-  ): DragAutoScrollSpeed;
-  static pointerHandle(pointerSize: number): DragAutoScrollHandle;
-  addItem(item: Item): void;
-  updateItem(item: Item): void;
-  removeItem(item: Item): void;
-  isItemScrollingX(item: Item): boolean;
-  isItemScrollingY(item: Item): boolean;
-  isItemScrolling(item: Item): boolean;
-  destroy(): void;
-}
-
 /**
  * Copyright (c) 2015-present, Haltu Oy
  * Released under the MIT license
@@ -370,25 +492,8 @@ declare class ItemDrag {
     protected _containerDiffX: number;
     protected _containerDiffY: number;
     constructor(item: Item);
-    /**
-     * @public
-     * @static
-     * @type {AutoScroller}
-     */
-    static autoScroller: AutoScroller;
-    /**
-     * @public
-     * @static
-     * @type {defaultStartPredicate}
-     */
+    static autoScroll: ItemDragAutoScroll;
     static defaultStartPredicate: (item: Item, event: DraggerAnyEvent, options?: DragStartPredicateOptions | undefined) => boolean | undefined;
-    /**
-     * Default drag sort predicate.
-     *
-     * @public
-     * @static
-     * @type {defaultSortPredicate}
-     */
     static defaultSortPredicate: (item: Item, options?: DragSortPredicateOptions | undefined) => DragSortPredicateResult;
     /**
      * Is item being dragged currently?
@@ -655,18 +760,18 @@ declare class Animator {
  * @param {Item} item
  */
 declare class ItemDragPlaceholder {
-    _item: Item;
-    _animator: Animator;
-    _element: HTMLElement | null;
-    _className: string;
-    _didMigrate: boolean;
-    _resetAfterLayout: boolean;
-    _left: number;
-    _top: number;
-    _transX: number;
-    _transY: number;
-    _nextTransX: number;
-    _nextTransY: number;
+    readonly item: Item;
+    readonly element: HTMLElement | null;
+    readonly animator: Animator;
+    readonly left: number;
+    readonly top: number;
+    protected _className: string;
+    protected _didMigrate: boolean;
+    protected _resetAfterLayout: boolean;
+    protected _transX: number;
+    protected _transY: number;
+    protected _nextTransX: number;
+    protected _nextTransY: number;
     constructor(item: Item);
     /**
      * Create placeholder. Note that this method only writes to DOM and does not
@@ -689,13 +794,6 @@ declare class ItemDragPlaceholder {
      * @returns {Boolean}
      */
     isActive(): boolean;
-    /**
-     * Get placeholder element.
-     *
-     * @public
-     * @returns {?HTMLElement}
-     */
-    getElement(): HTMLElement | null;
     /**
      * Update placeholder's dimensions to match the item's dimensions. Note that
      * the updating is done asynchronously in the next tick to avoid layout
@@ -720,48 +818,48 @@ declare class ItemDragPlaceholder {
     /**
      * Update placeholder's dimensions to match the item's dimensions.
      *
-     * @private
+     * @protected
      */
-    _updateDimensions(): void;
+    protected _updateDimensions(): void;
     /**
      * Move placeholder to a new position.
      *
-     * @private
+     * @protected
      * @param {Item[]} items
      * @param {boolean} isInstant
      */
-    _onLayoutStart(items: Item[], isInstant: boolean): void;
+    protected _onLayoutStart(items: Item[], isInstant: boolean): void;
     /**
      * Prepare placeholder for layout animation.
      *
-     * @private
+     * @protected
      */
-    _setupAnimation(): void;
+    protected _setupAnimation(): void;
     /**
      * Start layout animation.
      *
-     * @private
+     * @protected
      */
-    _startAnimation(): void;
+    protected _startAnimation(): void;
     /**
      * Layout end handler.
      *
-     * @private
+     * @protected
      */
-    _onLayoutEnd(): void;
+    protected _onLayoutEnd(): void;
     /**
      * Drag end handler. This handler is called when dragReleaseEnd event is
      * emitted and receives the event data as it's argument.
      *
-     * @private
+     * @protected
      * @param {Item} item
      */
-    _onReleaseEnd(item: Item): void;
+    protected _onReleaseEnd(item: Item): void;
     /**
      * Migration start handler. This handler is called when beforeSend event is
      * emitted and receives the event data as it's argument.
      *
-     * @private
+     * @protected
      * @param {Object} data
      * @param {Item} data.item
      * @param {Grid} data.fromGrid
@@ -769,7 +867,7 @@ declare class ItemDragPlaceholder {
      * @param {Grid} data.toGrid
      * @param {number} data.toIndex
      */
-    _onMigrate(data: {
+    protected _onMigrate(data: {
         item: Item;
         fromGrid: Grid;
         fromIndex: number;
@@ -779,10 +877,10 @@ declare class ItemDragPlaceholder {
     /**
      * Reset placeholder if the associated item is hidden.
      *
-     * @private
+     * @protected
      * @param {Item[]} items
      */
-    _onHide(items: Item[]): void;
+    protected _onHide(items: Item[]): void;
 }
 
 /**
@@ -894,6 +992,7 @@ declare class ItemDragRelease {
  */
 declare class ItemLayout {
     readonly item: ItemInternal;
+    readonly animator: Animator;
     protected _skipNextAnimation: boolean;
     protected _isActive: boolean;
     protected _isInterrupted: boolean;
@@ -902,7 +1001,6 @@ declare class ItemLayout {
     protected _duration: number;
     protected _tX: number;
     protected _tY: number;
-    protected _animation: Animator;
     protected _queue: string;
     constructor(item: Item);
     /**
@@ -1035,12 +1133,12 @@ declare class ItemMigrate {
 declare class ItemVisibility {
     readonly item: ItemInternal;
     readonly childElement: HTMLElement;
+    readonly animator: Animator;
     protected _isHidden: boolean;
     protected _isHiding: boolean;
     protected _isShowing: boolean;
     protected _isDestroyed: boolean;
     protected _currentStyleProps: string[];
-    protected _animator: Animator;
     protected _queue: string;
     constructor(item: Item);
     /**
@@ -1293,9 +1391,9 @@ declare class Item {
      */
     protected _setTranslate(x: number, y: number): void;
     /**
-     * Get the item's current translate values. If they can't be detected from cache
-     * we will read them from the DOM (so try to use this only when it is safe
-     * to query the DOM without causing a forced reflow).
+     * Get the item's current translate values. If they can't be detected from
+     * cache we will read them from the DOM (so try to use this only when it is
+     * safe to query the DOM without causing a forced reflow).
      *
      * @protected
      * @returns {Object}
@@ -1306,10 +1404,11 @@ declare class Item {
     };
     /**
      * Returns the current container's position relative to the client (viewport)
-     * with borders excluded from the container. This equals to the client position
-     * where the item will be if it is not transformed and it's left/top position at
-     * zero. Note that this method uses the cached dimensions of grid, so it is up
-     * to the user to update those when necessary before using this method.
+     * with borders excluded from the container. This equals to the client
+     * position where the item will be if it is not transformed and it's left/top
+     * position at zero. Note that this method uses the cached dimensions of grid,
+     * so it is up to the user to update those when necessary before using this
+     * method.
      *
      * @protected
      * @returns {Object}
@@ -1588,43 +1687,16 @@ interface DragPlaceholderOptions {
     onCreate?: ((item: Item, placeholderElement: HTMLElement) => any) | null;
     onRemove?: ((item: Item, placeholderElement: HTMLElement) => any) | null;
 }
-interface DragAutoScrollTarget {
-    element: Window | HTMLElement;
-    axis?: number;
-    priority?: number;
-    threshold?: number;
-}
-declare type DragAutoScrollTargets = Array<Window | HTMLElement | DragAutoScrollTarget>;
-declare type DragAutoScrollTargetsGetter = (item: Item) => DragAutoScrollTargets;
-declare type DragAutoScrollOnStart = (item: Item, scrollElement: Window | HTMLElement, scrollDirection: number) => any;
-declare type DragAutoScrollOnStop = (item: Item, scrollElement: Window | HTMLElement, scrollDirection: number) => any;
-declare type DragAutoScrollHandle = (item: Item, itemClientX: number, itemClientY: number, itemWidth: number, itemHeight: number, pointerClientX: number, pointerClientY: number) => {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-};
-declare type DragAutoScrollSpeed = (item: Item, scrollElement: Window | HTMLElement, scrollData: {
-    direction: number;
-    threshold: number;
-    distance: number;
-    value: number;
-    maxValue: number;
-    duration: number;
-    speed: number;
-    deltaTime: number;
-    isEnding: boolean;
-}) => number;
 interface DragAutoScrollOptions {
-    targets?: DragAutoScrollTargets | DragAutoScrollTargetsGetter;
-    handle?: DragAutoScrollHandle | null;
+    targets?: ScrollTarget[] | ((item: Item) => ScrollTarget[]);
+    handle?: ScrollHandleCallback | null;
     threshold?: number;
     safeZone?: number;
-    speed?: number | DragAutoScrollSpeed;
+    speed?: number | ScrollSpeedCallback;
     sortDuringScroll?: boolean;
     smoothStop?: boolean;
-    onStart?: DragAutoScrollOnStart | null;
-    onStop?: DragAutoScrollOnStop | null;
+    onStart?: ScrollEventCallback | null;
+    onStop?: ScrollEventCallback | null;
 }
 interface GridSettings {
     items: HTMLElement[] | NodeList | HTMLCollection | string;
@@ -1787,11 +1859,11 @@ declare class Grid {
     static ItemDrag: typeof ItemDrag;
     static ItemDragRelease: typeof ItemDragRelease;
     static ItemDragPlaceholder: typeof ItemDragPlaceholder;
+    static ItemDragAutoScroll: typeof ItemDragAutoScroll;
     static Emitter: typeof Emitter;
     static Animator: typeof Animator;
     static Dragger: typeof Dragger;
     static Packer: typeof Packer;
-    static AutoScroller: typeof AutoScroller;
     static defaultPacker: Packer;
     static defaultOptions: GridSettings;
     /**
@@ -1850,13 +1922,13 @@ declare class Grid {
     updateSettings(options: GridOptions): this;
     /**
      * Update the cached dimensions of the instance's items. By default all the
-     * items are refreshed, but you can also provide an array of target items as the
-     * first argument if you want to refresh specific items. Note that all hidden
-     * items are not refreshed by default since their "display" property is "none"
-     * and their dimensions are therefore not readable from the DOM. However, if you
-     * do want to force update hidden item dimensions too you can provide `true`
-     * as the second argument, which makes the elements temporarily visible while
-     * their dimensions are being read.
+     * items are refreshed, but you can also provide an array of target items as
+     * the first argument if you want to refresh specific items. Note that all
+     * hidden items are not refreshed by default since their "display" property is
+     * "none" and their dimensions are therefore not readable from the DOM.
+     * However, if you do want to force update hidden item dimensions too you can
+     * provide `true` as the second argument, which makes the elements temporarily
+     * visible while their dimensions are being read.
      *
      * @public
      * @param {Item[]} [items]

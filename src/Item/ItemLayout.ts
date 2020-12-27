@@ -43,6 +43,7 @@ const ANIM_OPTIONS: AnimationOptions = {
  */
 export default class ItemLayout {
   readonly item: ItemInternal;
+  readonly animator: Animator;
   protected _skipNextAnimation: boolean;
   protected _isActive: boolean;
   protected _isInterrupted: boolean;
@@ -51,11 +52,11 @@ export default class ItemLayout {
   protected _duration: number;
   protected _tX: number;
   protected _tY: number;
-  protected _animation: Animator;
   protected _queue: string;
 
   constructor(item: Item) {
     this.item = (item as any) as ItemInternal;
+    this.animator = new Animator(item.element);
 
     this._skipNextAnimation = false;
     this._isActive = false;
@@ -65,7 +66,6 @@ export default class ItemLayout {
     this._duration = 0;
     this._tX = 0;
     this._tY = 0;
-    this._animation = new Animator(item.element);
     this._queue = 'layout-' + item.id;
 
     // Bind animation handlers.
@@ -106,13 +106,12 @@ export default class ItemLayout {
   start(instant: boolean, onFinish?: () => void) {
     if (this._isDestroyed) return;
 
-    const { item } = this;
+    const { item, animator } = this;
     const grid = (item.getGrid() as any) as GridPrivate;
     const release = (item._dragRelease as any) as ItemDragReleaseInternal;
     const { settings } = grid;
     const isPositioning = this._isActive;
     const isJustReleased = release.isActive() && !release.isPositioning();
-    const animation = this._animation;
     const animDuration = isJustReleased ? settings.dragRelease.duration : settings.layoutDuration;
     const animEasing = isJustReleased ? settings.dragRelease.easing : settings.layoutEasing;
     const animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
@@ -138,7 +137,7 @@ export default class ItemLayout {
     // If no animations are needed, easy peasy!
     if (!animEnabled) {
       item._setTranslate(item.left + item._containerDiffX, item.top + item._containerDiffY);
-      animation.stop();
+      animator.stop();
       this._finish();
       return;
     }
@@ -146,8 +145,8 @@ export default class ItemLayout {
     // Let's make sure an ongoing animation's callback is cancelled before going
     // further. Without this there's a chance that the animation will finish
     // before the next tick and mess up our logic.
-    if (animation.animation) {
-      animation.animation.onfinish = null;
+    if (animator.animation) {
+      animator.animation.onfinish = null;
     }
 
     // Kick off animation to be started in the next tick.
@@ -176,14 +175,14 @@ export default class ItemLayout {
     cancelLayoutTick(item.id);
 
     // Stop animation.
-    if (this._animation.isAnimating()) {
+    if (this.animator.isAnimating()) {
       if (left === undefined || top === undefined) {
         const { x, y } = getTranslate(item.element);
         item._setTranslate(x, y);
       } else {
         item._setTranslate(left, top);
       }
-      this._animation.stop();
+      this.animator.stop();
     }
 
     // Remove positioning class.
@@ -209,7 +208,7 @@ export default class ItemLayout {
 
     this.stop(true, 0, 0);
     this.item._emitter.clear(this._queue);
-    this._animation.destroy();
+    this.animator.destroy();
 
     const { style } = this.item.element;
     style[transformProp as 'transform'] = '';
@@ -286,7 +285,8 @@ export default class ItemLayout {
     const nextLeft = item.left + item._containerDiffX;
     const nextTop = item.top + item._containerDiffY;
 
-    // Check if we can skip the animation and just snap the element to it's place.
+    // Check if we can skip the animation and just snap the element to it's
+    // place.
     const xDiff = Math.abs(item.left - (this._tX - item._containerDiffX));
     const yDiff = Math.abs(item.top - (this._tY - item._containerDiffY));
     if (
@@ -299,7 +299,7 @@ export default class ItemLayout {
       if (this._isInterrupted || xDiff > 0.1 || yDiff > 0.1) {
         item._setTranslate(nextLeft, nextTop);
       }
-      this._animation.stop();
+      this.animator.stop();
       this._finish();
       return;
     }
@@ -324,11 +324,11 @@ export default class ItemLayout {
 
     // Start animation.
     // NOTE: If item is being released or migrated when this is called we might
-    // want to check if the item is still positioning towards the same position as
-    // the layout skipping omits released and migrated items. If the item is
-    // indeed positioning towards the same position we should probably just change
-    // the finish callback and that's it, or not. Food for thought...
-    this._animation.start(CURRENT_STYLES, TARGET_STYLES, ANIM_OPTIONS);
+    // want to check if the item is still positioning towards the same position
+    // as the layout skipping omits released and migrated items. If the item is
+    // indeed positioning towards the same position we should probably just
+    // change the finish callback and that's it, or not. Food for thought...
+    this.animator.start(CURRENT_STYLES, TARGET_STYLES, ANIM_OPTIONS);
 
     // Unreference callback to avoid mem leaks.
     ANIM_OPTIONS.onFinish = undefined;
@@ -344,7 +344,6 @@ export interface ItemLayoutInternal extends Writeable<ItemLayout> {
   _duration: ItemLayout['_duration'];
   _tX: ItemLayout['_tX'];
   _tY: ItemLayout['_tY'];
-  _animation: ItemLayout['_animation'];
   _queue: ItemLayout['_queue'];
   _finish: ItemLayout['_finish'];
   _setupAnimation: ItemLayout['_setupAnimation'];

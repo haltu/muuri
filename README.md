@@ -2,7 +2,7 @@
   <a id="muuri" href="#muuri" aria-hidden="true"><img src="https://muuri.dev/muuri-logo.svg" alt="Muuri" width="400" /></a>
 </h1>
 
-Muuri is a JavaScript layout engine that allows you to build all kinds of layouts (no kidding!) and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](https://muuri.dev/) on the website.
+Muuri is a JavaScript layout engine (written in TypeScript) that allows you to build all kinds of layouts (no kidding!) and make them responsive, sortable, filterable, draggable and/or animated. Comparing to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](https://muuri.dev/) on the website.
 
 **Features**
 
@@ -148,7 +148,7 @@ Or link directly:
 The bare minimum configuration is demonstrated below. You must always provide the grid element (or a selector so Muuri can fetch the element for you), everything else is optional.
 
 ```javascript
-var grid = new Muuri('.grid');
+const grid = new Muuri('.grid');
 ```
 
 You can view this little tutorial demo [here](https://codepen.io/niklasramo/pen/wpwNjK). After that you might want to check some [other demos](https://codepen.io/collection/AWopag/) as well.
@@ -262,7 +262,7 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
     handle: null,
     threshold: 50,
     safeZone: 0.2,
-    speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500),
+    speed: Muuri.ItemDragAutoScroll.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     smoothStop: false,
     onStart: null,
@@ -292,10 +292,10 @@ This is how you would use the options:
 
 ```javascript
 // Minimum configuration.
-var gridA = new Muuri('.grid-a');
+const gridA = new Muuri('.grid-a');
 
 // Providing some options.
-var gridB = new Muuri('.grid-b', {
+const gridB = new Muuri('.grid-b', {
   items: '.item',
 });
 ```
@@ -348,17 +348,17 @@ The initial item elements, which should be children of the grid element. All ele
 
 ```javascript
 // Use specific items.
-var grid = new Muuri(elem, {
+const gridA = new Muuri(elem, {
   items: [elemA, elemB, elemC],
 });
 
 // Use node list.
-var grid = new Muuri(elem, {
+const gridB = new Muuri(elem, {
   items: elem.querySelectorAll('.item'),
 });
 
 // Use selector.
-var grid = new Muuri(elem, {
+const gridC = new Muuri(elem, {
   items: '.item',
 });
 ```
@@ -373,7 +373,7 @@ Show animation duration in milliseconds. Set to `0` to disable show animation.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   showDuration: 600,
 });
 ```
@@ -388,7 +388,7 @@ Show animation easing. Accepts any valid [Animation easing](https://developer.mo
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   showEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
 });
 ```
@@ -403,7 +403,7 @@ Hide animation duration in milliseconds. Set to `0` to disable hide animation.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   hideDuration: 600,
 });
 ```
@@ -418,7 +418,7 @@ Hide animation easing. Accepts any valid [Animation easing](https://developer.mo
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   hideEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
 });
 ```
@@ -439,7 +439,7 @@ The styles that will be applied to all visible items. These styles are also used
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   visibleStyles: {
     opacity: 1,
     transform: 'rotate(45deg)',
@@ -467,7 +467,7 @@ The styles that will be applied to all hidden items. These styles are also used 
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   visibleStyles: {
     opacity: 1,
     transform: 'rotate(45deg)',
@@ -680,21 +680,21 @@ Should Muuri automatically trigger `layout` method on window resize? Set to `fal
 
 ```javascript
 // No layout on resize.
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   layoutOnResize: false,
 });
 ```
 
 ```javascript
 // Layout on resize (instantly).
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   layoutOnResize: true,
 });
 ```
 
 ```javascript
 // Layout on resize (with 200ms debounce).
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   layoutOnResize: 200,
 });
 ```
@@ -709,7 +709,7 @@ Should Muuri trigger `layout` method automatically on init?
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   layoutOnInit: false,
 });
 ```
@@ -724,7 +724,7 @@ The duration for item's layout animation in milliseconds. Set to `0` to disable.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   layoutDuration: 600,
 });
 ```
@@ -739,7 +739,7 @@ The easing for item's layout animation. Accepts any valid [Animation easing](htt
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   layoutEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
 });
 ```
@@ -754,12 +754,12 @@ The sort data getter functions. Provide an object where the key is the name of t
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   sortData: {
-    foo: function (item, element) {
+    foo(item, element) {
       return parseFloat(element.getAttribute('data-foo'));
     },
-    bar: function (item, element) {
+    bar(item, element) {
       return element.getAttribute('data-bar').toUpperCase();
     },
   },
@@ -780,7 +780,7 @@ Should items be draggable?
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragEnabled: true,
 });
 ```
@@ -795,7 +795,7 @@ The element the dragged item should be appended to for the duration of the drag.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragContainer: document.body,
 });
 ```
@@ -810,7 +810,7 @@ The element within the item element that should be used as the drag handle. This
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragHandle: '.handle',
 });
 ```
@@ -850,7 +850,7 @@ The predicate function receives two arguments:
 
 ```javascript
 // Configure the default predicate
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragStartPredicate: {
     distance: 10,
     delay: 100,
@@ -860,8 +860,8 @@ var grid = new Muuri(elem, {
 
 ```javascript
 // Provide your own predicate
-var grid = new Muuri(elem, {
-  dragStartPredicate: function (item, e) {
+const grid = new Muuri(elem, {
+  dragStartPredicate(item, e) {
     // Start moving the item after the item has been dragged for one second.
     if (e.deltaTime > 1000) {
       return true;
@@ -872,8 +872,8 @@ var grid = new Muuri(elem, {
 
 ```javascript
 // Pro tip: provide your own predicate and fall back to the default predicate.
-var grid = new Muuri(elem, {
-  dragStartPredicate: function (item, e) {
+const grid = new Muuri(elem, {
+  dragStartPredicate(item, e) {
     // If this is final event in the drag process, let's prepare the predicate
     // for the next round (do some resetting/teardown). The default predicate
     // always needs to be called during the final event if there's a chance it
@@ -907,14 +907,14 @@ Force items to be moved only vertically or horizontally when dragged. Set to `'x
 
 ```javascript
 // Move items only horizontally when dragged.
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragAxis: 'x',
 });
 ```
 
 ```javascript
 // Move items only vertically when dragged.
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragAxis: 'y',
 });
 ```
@@ -932,20 +932,19 @@ Alternatively you can do some advanced stuff and control within which grids a sp
 
 ```javascript
 // Disable drag sorting.
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragSort: false,
 });
 ```
 
 ```javascript
 // Multigrid drag sorting.
-var gridA = new Muuri(elemA, { dragSort: getAllGrids });
-var gridB = new Muuri(elemB, { dragSort: getAllGrids });
-var gridC = new Muuri(elemC, { dragSort: getAllGrids });
-
-function getAllGrids(item) {
-  return [gridA, gridB, gridC];
-}
+const grids = [];
+const getGrids = () => grids;
+const gridA = new Muuri(elemA, { dragSort: getGrids });
+const gridB = new Muuri(elemB, { dragSort: getGrids });
+const gridC = new Muuri(elemC, { dragSort: getGrids });
+grids.push(gridA, gridB, gridC);
 ```
 
 <h3><a id="grid-option-dragsortheuristics" href="#grid-option-dragsortheuristics" aria-hidden="true">#</a> <i>option</i>: dragSortHeuristics</h3>
@@ -977,7 +976,7 @@ You can define the following properties:
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragEnabled: true,
   dragSortHeuristics: {
     sortInterval: 10,
@@ -1041,7 +1040,7 @@ The callback should return a _falsy_ (e.g. `null`) value if sorting should not o
 
 ```javascript
 // Customize the default predicate.
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragSortPredicate: {
     threshold: 90,
     action: 'swap',
@@ -1051,8 +1050,8 @@ var grid = new Muuri(elem, {
 
 ```javascript
 // Provide your own predicate.
-var grid = new Muuri(elem, {
-  dragSortPredicate: function (item, e) {
+const grid = new Muuri(elem, {
+  dragSortPredicate(item, e) {
     if (e.type !== 'move') return null;
     if (e.deltaTime < 1000) return null;
     return {
@@ -1065,8 +1064,8 @@ var grid = new Muuri(elem, {
 
 ```javascript
 // Use the default predicate as fallback in your custom predicate.
-var grid = new Muuri(elem, {
-  dragSortPredicate: function (item, e) {
+const grid = new Muuri(elem, {
+  dragSortPredicate(item, e) {
     if (e.type !== 'move') return null;
     if (item.classList.contains('no-sort')) return null;
     return Muuri.ItemDrag.defaultSortPredicate(item, {
@@ -1079,8 +1078,8 @@ var grid = new Muuri(elem, {
 
 ```javascript
 // Only do sorting on drop.
-var grid = new Muuri(elem, {
-  dragSortPredicate: function (item, e) {
+const grid = new Muuri(elem, {
+  dragSortPredicate(item, e) {
     if (e.type === 'move') return null;
     return Muuri.ItemDrag.defaultSortPredicate(item, {
       action: 'move',
@@ -1117,7 +1116,7 @@ You can define the following properties:
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragRelease: {
     duration: 600,
     easing: 'ease-out',
@@ -1174,7 +1173,7 @@ You can define the following properties:
 ```javascript
 // Only set the required touch-action CSS property via the options if you for
 // example want to set the other props via CSS instead.
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragEnabled: true,
   dragCssProps: {
     touchAction: 'pan-y',
@@ -1217,7 +1216,7 @@ You can define the following properties:
 // calling `event.preventDefault()` within the dragStartPredicate at some point
 // then this is a must as you can't call `event.preventDefault()` on passive
 // events.
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragEnabled: true,
   dragEventListenerOptions: {
     passive: false,
@@ -1261,10 +1260,10 @@ You can define the following properties:
 ```javascript
 // This example showcases how to pool placeholder elements
 // for better performance and memory efficiency.
-var phPool = [];
-var phElem = document.createElement('div');
+const phPool = [];
+const phElem = document.createElement('div');
 
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragEnabled: true,
   dragPlaceholder: {
     enabled: true,
@@ -1293,7 +1292,7 @@ If you want to trigger scrolling on any element during dragging you can enable a
     targets: [],
     handle: null,
     threshold: 50,
-    speed: Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500),
+    speed: Muuri.ItemDragAutoScroll.smoothSpeed(1000, 2000, 2500),
     sortDuringScroll: true,
     smoothStop: false,
     onStart: null,
@@ -1306,15 +1305,15 @@ You can define the following properties:
 
 - **targets** &nbsp;&mdash;&nbsp; _array / function_
   - Default value: `[]`.
-  - Define the DOM elements that should be scrolled during drag. As long as this array is empty there will be no scrolling during drag. To keep it simple you can just provide an array of elements here, in which case Muuri attempts to scroll the elements both vertically and horizontally when possible. If you want more fine-grained control, e.g. scroll an element only on specific axis or prioritize some element over another (handy for cases when there are overlapping elements), you can provide an array of scroll targets (objects). Finally, you can also provide a function which receives the dragged `item` instance as it's argument and which should return an array of scroll targets (elements and/or objects). This way you can provide different configurations for different items.
+  - Define the _scroll targets_ that should be scrolled during drag. As long as this array is empty there will be no scrolling during drag. Additionally, you can also provide a function which receives the dragged `item` instance as it's argument and which should return an array of _scroll targets_. This way you can provide different configurations for different items.
   - **scrollTarget** &nbsp;&mdash;&nbsp; _object_
     - **element** &nbsp;&mdash;&nbsp; _element_ / _window_
       - The DOM element to scroll.
       - Required.
     - **axis** &nbsp;&mdash;&nbsp; _number_
-      - Optional. Defaults to scrolling both axes: `Muuri.AutoScroller.AXIS_X | Muuri.AutoScroller.AXIS_Y`.
-      - To scroll only x-axis: `Muuri.AutoScroller.AXIS_X`.
-      - To scroll only y-axis: `Muuri.AutoScroller.AXIS_Y`.
+      - Optional. Defaults to scrolling both axes: `Muuri.ItemDragAutoScroll.AXIS_X | Muuri.ItemDragAutoScroll.AXIS_Y`.
+      - To scroll only x-axis: `Muuri.ItemDragAutoScroll.AXIS_X`.
+      - To scroll only y-axis: `Muuri.ItemDragAutoScroll.AXIS_Y`.
     - **priority** &nbsp;&mdash;&nbsp; _number_
       - Default: `0`.
       - A dragged item can only scroll one element horizontally and one element vertically simultaneously. This is an artificial limit to fend off unnecesary complexity, and to avoid awkward situations. In the case where the dragged item overlaps multiple scrollable elements simultaneously and exceeds their scroll thresholds we pick the one that the dragged item overlaps most. However, that's not always the best choice. This is where `priority` comes in. Here you can manually tell Muuri which element to prefer over another in these scenarios. The element with highest priority _always_ wins the fight, in matches with equal priority we determine the winner by the amount of overlap.
@@ -1333,7 +1332,7 @@ You can define the following properties:
     - **itemHeight** &nbsp;&mdash;&nbsp; _number_
     - **pointerClientX** &nbsp;&mdash;&nbsp; _number_
     - **pointerClientY** &nbsp;&mdash;&nbsp; _number_
-  - Tip: Use `Muuri.AutoScroller.pointerHandle(pointerSize)` utility method if you want to use the pointer (instead of the element) as the handle.
+  - Tip: Use `Muuri.ItemDragAutoScroll.pointerHandle(pointerSize)` utility method if you want to use the pointer (instead of the element) as the handle.
 - **threshold** &nbsp;&mdash;&nbsp; _number_
   - Default value: `50`.
   - Defines the distance (in pixels) from the edge of the scrollable element when scrolling should start, in pixels. If this value is `0` the scrolling will start when the dragged element reaches the scrollable element's edge. Do note that Muuri dynamically adjusts the scroll element's _edge_ for the calculations (when needed).
@@ -1341,7 +1340,7 @@ You can define the following properties:
   - Default value: `0.2`.
   - Defines the size of the minimum "safe zone" space, an area in the center of the scrollable element that will be guaranteed not trigger scrolling regardless of threshold size and the dragged item's size. This value is a percentage of the scrollable element's size (width and/or height depending on the scroll axes), and should be something between `0` and `1`. So in practice, if you set this to e.g `0.5` the safe zone would be 50% of the scrollable element's width and/or height.
 - **speed** &nbsp;&mdash;&nbsp; _number / function_
-  - Default value: `Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500)`.
+  - Default value: `Muuri.ItemDragAutoScroll.smoothSpeed(1000, 2000, 2500)`.
   - Defines the scrolling speed in pixels per second. You can provide either static speed with a `number` or dynamic speed with a `function`. The function is called before every scroll operation and should return the speed (`number`, pixels per second) for the next scroll operation. The function receives three arguments:
     - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
       - The dragged `Muuri.Item` instance.
@@ -1349,11 +1348,11 @@ You can define the following properties:
       - The scrolled element.
     - **data** &nbsp;&mdash;&nbsp; _object_
       - **data.direction** &nbsp;&mdash;&nbsp; _number_
-        - The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
+        - The direction of the scroll, one of the following: `Muuri.ItemDragAutoScroll.DIR_LEFT`, `Muuri.ItemDragAutoScroll.DIR_RIGHT`, `Muuri.ItemDragAutoScroll.DIR_UP`, `Muuri.ItemDragAutoScroll.DIR_DOWN`.
       - **data.threshold** &nbsp;&mdash;&nbsp; _number_
         - The current threshold in pixels.
       - **data.distance** &nbsp;&mdash;&nbsp; _number_
-        - The handle rectangle's (as defined in `handle` option) current distance from the edge of the scroll element. E.g, if `direction` is `Muuri.AutoScroller.RIGHT` then distance is `scrollElement.getBoundingClientRect().right - handleRect.right`, and if `direction` is `Muuri.AutoScroller.LEFT` then distance is `handleRect.left - scrollElement.getBoundingClientRect().left`. Can be a negative value too.
+        - The handle rectangle's (as defined in `handle` option) current distance from the edge of the scroll element. E.g, if `direction` is `Muuri.ItemDragAutoScroll.DIR_RIGHT` then distance is `scrollElement.getBoundingClientRect().right - handleRect.right`, and if `direction` is `Muuri.ItemDragAutoScroll.DIR_LEFT` then distance is `handleRect.left - scrollElement.getBoundingClientRect().left`. Can be a negative value too.
       - **data.value** &nbsp;&mdash;&nbsp; _number_
         - The scroll element's current scroll value on the scrolled axis.
       - **data.maxValue** &nbsp;&mdash;&nbsp; _number_
@@ -1366,7 +1365,7 @@ You can define the following properties:
         - `requestAnimationFrame`'s delta time (in milliseconds).
       - **data.isEnding** &nbsp;&mdash;&nbsp; _boolean_
         - Is the scroll process ending? When this is `true` it means that the associated drag item does not satisfy the threshold anymore. You should now start decreasing the speed towards `0` to allow the item to come to rest smoothly.
-  - Pro tip: Use `Muuri.AutoScroller.smoothSpeed()` for dynamic speed that provides a smooth scrolling experience. When executed it creates and returns a speed function which you can directly provide for `speed` option. The method _requires_ three arguments (in the following order):
+  - Pro tip: Use `Muuri.ItemDragAutoScroll.smoothSpeed()` for dynamic speed that provides a smooth scrolling experience. When executed it creates and returns a speed function which you can directly provide for `speed` option. The method _requires_ three arguments (in the following order):
     - **maxSpeed** &nbsp;&mdash;&nbsp; _number_
       - The maximum speed (pixels per second) when the handle's distance to the scroll target's edge is `0` or less.
     - **acceleration** &nbsp;&mdash;&nbsp; _number_
@@ -1387,7 +1386,7 @@ You can define the following properties:
     - **scrollElement** &nbsp;&mdash;&nbsp; _element_ / _window_
       - The scrolled element.
     - **direction** &nbsp;&mdash;&nbsp; _number_
-      - The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
+      - The direction of the scroll, one of the following: `Muuri.ItemDragAutoScroll.DIR_LEFT`, `Muuri.ItemDragAutoScroll.DIR_RIGHT`, `Muuri.ItemDragAutoScroll.DIR_UP`, `Muuri.ItemDragAutoScroll.DIR_DOWN`.
 - **onStop** &nbsp;&mdash;&nbsp; _null / function_
   - Default value: `null`.
   - Optionally, you can provide a callback that will be called when an item stops auto-scrolling a scroll target. The callback function will receive the following arguments:
@@ -1396,21 +1395,21 @@ You can define the following properties:
     - **scrollElement** &nbsp;&mdash;&nbsp; _element_ / _window_
       - The scrolled element.
     - **direction** &nbsp;&mdash;&nbsp; _number_
-      - The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
+      - The direction of the scroll, one of the following: `Muuri.ItemDragAutoScroll.DIR_LEFT`, `Muuri.ItemDragAutoScroll.DIR_RIGHT`, `Muuri.ItemDragAutoScroll.DIR_UP`, `Muuri.ItemDragAutoScroll.DIR_DOWN`.
 
 **Examples**
 
 ```javascript
 // Create a fixed drag container for the dragged items, this is done with JS
 // just for example's purposes.
-var dragContainer = document.createElement('div');
+const dragContainer = document.createElement('div');
 dragContainer.style.position = 'fixed';
 dragContainer.style.left = '0px';
 dragContainer.style.top = '0px';
 dragContainer.style.zIndex = 1000;
 document.body.appendChild(dragContainer);
 
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   dragEnabled: true,
   dragContainer: dragContainer,
   dragAutoScroll: {
@@ -1419,7 +1418,7 @@ var grid = new Muuri(elem, {
       { element: window, priority: 0 },
       // Scroll scrollElement (can be any scrollable element) on y-axis only,
       // and prefer it over window in conflict scenarios.
-      { element: scrollElement, priority: 1, axis: Muuri.AutoScroller.AXIS_Y },
+      { element: scrollElement, priority: 1, axis: Muuri.ItemDragAutoScroll.AXIS_Y },
     ],
     // Let's use the dragged item element as the handle.
     handle: null,
@@ -1433,16 +1432,16 @@ var grid = new Muuri(elem, {
     // Max speed: 2000 pixels per second
     // Acceleration: 2700 pixels per second
     // Deceleration: 3200 pixels per second.
-    speed: Muuri.AutoScroller.smoothSpeed(2000, 2700, 3200),
+    speed: Muuri.ItemDragAutoScroll.smoothSpeed(2000, 2700, 3200),
     // Let's not sort during scroll.
     sortDuringScroll: false,
     // Enable smooth stop.
     smoothStop: true,
     // Finally let's log some data when auto-scroll starts and stops.
-    onStart: function (item, scrollElement, direction) {
+    onStart(item, scrollElement, direction) {
       console.log('AUTOSCROLL STARTED', item, scrollElement, direction);
     },
-    onStop: function (item, scrollElement, direction) {
+    onStop(item, scrollElement, direction) {
       console.log('AUTOSCROLL STOPPED', item, scrollElement, direction);
     },
   },
@@ -1459,7 +1458,7 @@ Grid element's class name.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   containerClass: 'foo',
 });
 ```
@@ -1474,7 +1473,7 @@ Item element's class name.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   itemClass: 'foo-item',
 });
 ```
@@ -1489,7 +1488,7 @@ Visible item's class name.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   itemVisibleClass: 'foo-item-shown',
 });
 ```
@@ -1504,7 +1503,7 @@ Hidden item's class name.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   itemHiddenClass: 'foo-item-hidden',
 });
 ```
@@ -1519,7 +1518,7 @@ This class name will be added to the item element for the duration of positionin
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   itemPositioningClass: 'foo-item-positioning',
 });
 ```
@@ -1534,7 +1533,7 @@ This class name will be added to the item element for the duration of drag.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   itemDraggingClass: 'foo-item-dragging',
 });
 ```
@@ -1549,7 +1548,7 @@ This class name will be added to the item element for the duration of release.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   itemReleasingClass: 'foo-item-releasing',
 });
 ```
@@ -1564,7 +1563,7 @@ This class name will be added to the drag placeholder element.
 **Examples**
 
 ```javascript
-var grid = new Muuri(elem, {
+const grid = new Muuri(elem, {
   itemPlaceholderClass: 'foo-item-placeholder',
 });
 ```
@@ -1598,7 +1597,6 @@ var grid = new Muuri(elem, {
 
 <h3><a id="grid-methods" href="#grid-methods" aria-hidden="true">#</a> Grid methods</h3>
 
-- [getElement](#grid-method-getelement)
 - [getItem](#grid-method-getitem)
 - [getItems](#grid-method-getitems)
 - [updateSettings](#grid-method-updatesettings)
@@ -1616,19 +1614,8 @@ var grid = new Muuri(elem, {
 - [send](#grid-method-send)
 - [on](#grid-method-on)
 - [off](#grid-method-off)
+- [isDestroyed](#grid-method-isdestroyed)
 - [destroy](#grid-method-destroy)
-
-<h3><a id="grid-method-getelement" href="#grid-method-getelement" aria-hidden="true">#</a> grid.getElement()</h3>
-
-Get the grid element.
-
-**Returns** &nbsp;&mdash;&nbsp; _element_
-
-**Examples**
-
-```javascript
-var elem = grid.getElement();
-```
 
 <h3><a id="grid-method-getitem" href="#grid-method-getitem" aria-hidden="true">#</a> grid.getItem( target )</h3>
 
@@ -1646,10 +1633,10 @@ Get a single grid item by element or by index. Target can also be a `Muuri.Item`
 
 ```javascript
 // Get first item in grid.
-var itemA = grid.getItem(0);
+const itemA = grid.getItem(0);
 
 // Get item by element reference.
-var itemB = grid.getItem(someElement);
+const itemB = grid.getItem(someElement);
 ```
 
 <h3><a id="grid-method-getitems" href="#grid-method-getitems" aria-hidden="true">#</a> grid.getItems( [targets] )</h3>
@@ -1670,23 +1657,19 @@ Get all items in the grid. Optionally you can provide specific targets (indices 
 
 ```javascript
 // Get all items, both active and inactive.
-var allItems = grid.getItems();
+const allItems = grid.getItems();
 
 // Get all active items.
-var activeItems = grid.getItems().filter(function (item) {
-  return item.isActive();
-});
+const activeItems = grid.getItems().filter((item) => item.isActive());
 
 // Get all positioning items.
-var positioningItems = grid.getItems().filter(function (item) {
-  return item.isPositioning();
-});
+const positioningItems = grid.getItems().filter((item) => item.isPositioning());
 
 // Get the first item.
-var firstItem = grid.getItems(0)[0];
+const firstItem = grid.getItems(0)[0];
 
 // Get specific items by their elements.
-var items = grid.getItems([elemA, elemB]);
+const items = grid.getItems([elemA, elemB]);
 ```
 
 <h3><a id="grid-method-updatesettings" href="#grid-method-updatesettings" aria-hidden="true">#</a> grid.updateSettings( settings )</h3>
@@ -1824,7 +1807,15 @@ grid.layout(true);
 
 // Layout all items and define a callback that will be called
 // after all items have been animated to their positions.
-grid.layout(function (items, hasLayoutChanged) {
+grid.layout(false, (items, hasLayoutChanged) => {
+  // If hasLayoutChanged is `true` it means that there has been another layout
+  // call before this layout had time to finish positioning all the items.
+  console.log('layout done!');
+});
+
+// Layout all items instantly and define a callback that will be called
+// after all items are positioned.
+grid.layout(true, (items, hasLayoutChanged) => {
   // If hasLayoutChanged is `true` it means that there has been another layout
   // call before this layout had time to finish positioning all the items.
   console.log('layout done!');
@@ -1860,13 +1851,13 @@ Add new items by providing the elements you wish to add to the grid and optional
 
 ```javascript
 // Add two new items to the end.
-var newItemsA = grid.add([elemA, elemB]);
+const newItemsA = grid.add([elemA, elemB]);
 
 // Add two new items to the beginning.
-var newItemsB = grid.add([elemA, elemB], { index: 0 });
+const newItemsB = grid.add([elemA, elemB], { index: 0 });
 
 // Skip the automatic layout.
-var newItemsC = grid.add([elemA, elemB], { layout: false });
+const newItemsC = grid.add([elemA, elemB], { layout: false });
 ```
 
 <h3><a id="grid-method-remove" href="#grid-method-remove" aria-hidden="true">#</a> grid.remove( items, [options] )</h3>
@@ -1894,13 +1885,13 @@ Remove items from the grid.
 
 ```javascript
 // Remove the first item, but keep the element in the DOM.
-var removedItemsA = grid.remove(grid.getItems(0));
+const removedItemsA = grid.remove(grid.getItems(0));
 
 // Remove items and the associated elements.
-var removedItemsB = grid.remove([itemA, itemB], { removeElements: true });
+const removedItemsB = grid.remove([itemA, itemB], { removeElements: true });
 
 // Skip the layout.
-var removedItemsC = grid.remove([itemA, itemB], { layout: false });
+const removedItemsC = grid.remove([itemA, itemB], { layout: false });
 ```
 
 <h3><a id="grid-method-show" href="#grid-method-show" aria-hidden="true">#</a> grid.show( items, [options] )</h3>
@@ -1942,7 +1933,7 @@ grid.show([itemA, itemB], { instant: true });
 
 // Show items with callback (and with animations if any).
 grid.show([itemA, itemB], {
-  onFinish: function (items) {
+  onFinish(items) {
     console.log('items shown!');
   },
 });
@@ -1988,7 +1979,7 @@ grid.hide([itemA, itemB], { instant: true });
 // Hide items and call the callback function after
 // all items are hidden.
 grid.hide([itemA, itemB], {
-  onFinish: function (items) {
+  onFinish(items) {
     console.log('items hidden!');
   },
 });
@@ -2026,9 +2017,7 @@ Filter items. Expects at least one argument, a predicate, which should be either
 
 ```javascript
 // Show all items that have the attribute "data-foo".
-grid.filter(function (item) {
-  return item.getElement().hasAttribute('data-foo');
-});
+grid.filter((item) => item.element.hasAttribute('data-foo'));
 
 // Or simply just...
 grid.filter('[data-foo]');
@@ -2044,7 +2033,7 @@ Sort items. There are three ways to sort the items. The first is simply by provi
 **Parameters**
 
 - **comparer** &nbsp;&mdash;&nbsp; _array / function / string_
-  - Provide a comparer function, sort data keys as a string (separated with space) or a pre-sorted array of items. When you provide a pre-sorted array of items you _must_ make sure that it contains _exactly_ the same item instances as exists currently in `grid._items` (retrievable safely via `grid.getItems()`), only change the order of items. Muuri does not validate the array of items you provide due to performance reasons.
+  - Provide a comparer function, sort data keys as a string (separated with space) or a pre-sorted array of items. When you provide a pre-sorted array of items you _must_ make sure that it contains _exactly_ the same item instances as exists currently in `grid.items`, only change the order of items. Muuri does not validate the array of items you provide due to performance reasons.
 - **options.descending** &nbsp;&mdash;&nbsp; _boolean_
   - By default the items are sorted in ascending order. If you want to sort them in descending order set this to `true`. Note that this option has no effect when you provide a pre-sorted array of items.
   - Default value: `false`.
@@ -2062,9 +2051,9 @@ Sort items. There are three ways to sort the items. The first is simply by provi
 
 ```javascript
 // Sort items by data-id attribute value (ascending).
-grid.sort(function (itemA, itemB) {
-  var aId = parseInt(itemA.getElement().getAttribute('data-id'));
-  var bId = parseInt(itemB.getElement().getAttribute('data-id'));
+grid.sort((itemA, itemB) => {
+  const aId = parseInt(itemA.element.getAttribute('data-id'));
+  const bId = parseInt(itemB.element.getAttribute('data-id'));
   return aId - bId;
 });
 
@@ -2167,10 +2156,10 @@ gridA.send(0, gridB, -1, {
 // Do something after the item has been sent and the layout
 // processes have finished.
 gridA.send(0, gridB, -1, {
-  layoutSender: function (isAborted, items) {
+  layoutSender(isAborted, items) {
     // Do your thing here...
   },
-  layoutReceiver: function (isAborted, items) {
+  layoutReceiver(isAborted, items) {
     // Do your other thing here...
   },
 });
@@ -2192,7 +2181,7 @@ Bind an event listener.
 **Examples**
 
 ```javascript
-grid.on('layoutEnd', function (items) {
+grid.on('layoutEnd', (items) => {
   console.log(items);
 });
 ```
@@ -2222,6 +2211,20 @@ grid.on('layoutEnd', onLayoutEnd);
 
 /// ...sometime later -> unbind listener.
 grid.off('layoutEnd', onLayoutEnd);
+```
+
+<h3><a id="grid-method-isdestroyed" href="#grid-method-isdestroyed" aria-hidden="true">#</a> grid.isDestroyed()</h3>
+
+Check if the grid is destroyed.
+
+**Returns** &nbsp;&mdash;&nbsp; _boolean_
+
+**Examples**
+
+```javascript
+if (!grid.isDestroyed()) {
+  console.lof('Still alive and kicking!');
+}
 ```
 
 <h3><a id="grid-method-destroy" href="#grid-method-destroy" aria-hidden="true">#</a> grid.destroy( [removeElements] )</h3>
@@ -2288,7 +2291,7 @@ Triggered after item elements are synchronized via `grid.synchronize()`.
 **Examples**
 
 ```javascript
-grid.on('synchronize', function () {
+grid.on('synchronize', () => {
   console.log('Synced!');
 });
 ```
@@ -2307,7 +2310,7 @@ Triggered when the the layout procedure begins. More specifically, this event is
 **Examples**
 
 ```javascript
-grid.on('layoutStart', function (items, isInstant) {
+grid.on('layoutStart', (items, isInstant) => {
   console.log(items, isInstant);
 });
 ```
@@ -2324,14 +2327,12 @@ Triggered after the layout procedure has finished, successfully. Note that if yo
 **Examples**
 
 ```javascript
-grid.on('layoutEnd', function (items) {
+grid.on('layoutEnd', (items) => {
   console.log(items);
   // For good measure you might want to filter out all the non-active items,
   // because it's techniclly possible that some of the items are
   // destroyed/hidden when we receive this event.
-  var activeItems = items.filter(function (item) {
-    return item.isActive();
-  });
+  const activeItems = items.filter((item) => item.isActive());
 });
 ```
 
@@ -2347,14 +2348,12 @@ Triggered if a new layout process is started before the current layout process i
 **Examples**
 
 ```javascript
-grid.on('layoutAbort', function (items) {
+grid.on('layoutAbort', (items) => {
   console.log(items);
   // For good measure you might want to filter out all the non-active items,
   // because it's techniclly possible that some of the items are destroyed or
   // hidden when we receive this event.
-  var activeItems = items.filter(function (item) {
-    return item.isActive();
-  });
+  const activeItems = items.filter((item) => item.isActive());
 });
 ```
 
@@ -2370,7 +2369,7 @@ Triggered after `grid.add()` is called.
 **Examples**
 
 ```javascript
-grid.on('add', function (items) {
+grid.on('add', (items) => {
   console.log(items);
 });
 ```
@@ -2389,7 +2388,7 @@ Triggered after `grid.remove()` is called.
 **Examples**
 
 ```javascript
-grid.on('remove', function (items, indices) {
+grid.on('remove', (items, indices) => {
   console.log(items, indices);
 });
 ```
@@ -2406,7 +2405,7 @@ Triggered after `grid.show()` is called, just before the items are shown.
 **Examples**
 
 ```javascript
-grid.on('showStart', function (items) {
+grid.on('showStart', (items) => {
   console.log(items);
 });
 ```
@@ -2423,7 +2422,7 @@ Triggered after `grid.show()` is called, after the items are shown.
 **Examples**
 
 ```javascript
-grid.on('showEnd', function (items) {
+grid.on('showEnd', (items) => {
   console.log(items);
 });
 ```
@@ -2440,7 +2439,7 @@ Triggered after `grid.hide()` is called, just before the items are hidden.
 **Examples**
 
 ```javascript
-grid.on('hideStart', function (items) {
+grid.on('hideStart', (items) => {
   console.log(items);
 });
 ```
@@ -2457,7 +2456,7 @@ Triggered after `grid.hide()` is called, after the items are hidden.
 **Examples**
 
 ```javascript
-grid.on('hideEnd', function (items) {
+grid.on('hideEnd', (items) => {
   console.log(items);
 });
 ```
@@ -2476,7 +2475,7 @@ Triggered after `grid.filter()` is called. Note that internally `grid.filter()` 
 **Examples**
 
 ```javascript
-grid.on('filter', function (shownItems, hiddenItems) {
+grid.on('filter', (shownItems, hiddenItems) => {
   console.log(shownItems);
   console.log(hiddenItems);
 });
@@ -2496,7 +2495,7 @@ Triggered after `grid.sort()` is called.
 **Examples**
 
 ```javascript
-grid.on('sort', function (currentOrder, previousOrder) {
+grid.on('sort', (currentOrder, previousOrder) => {
   console.log(currentOrder);
   console.log(previousOrder);
 });
@@ -2521,7 +2520,7 @@ Triggered after `grid.move()` is called or when the grid items are sorted during
 **Examples**
 
 ```javascript
-grid.on('move', function (data) {
+grid.on('move', (data) => {
   console.log(data);
 });
 ```
@@ -2547,7 +2546,7 @@ Triggered for the originating grid in the end of the _send process_ (after `grid
 **Examples**
 
 ```javascript
-grid.on('send', function (data) {
+grid.on('send', (data) => {
   console.log(data);
 });
 ```
@@ -2573,7 +2572,7 @@ Triggered for the originating grid in the beginning of the _send process_ (after
 **Examples**
 
 ```javascript
-grid.on('beforeSend', function (data) {
+grid.on('beforeSend', (data) => {
   console.log(data);
 });
 ```
@@ -2599,7 +2598,7 @@ Triggered for the receiving grid in the end of the _send process_ (after `grid.s
 **Examples**
 
 ```javascript
-grid.on('receive', function (data) {
+grid.on('receive', (data) => {
   console.log(data);
 });
 ```
@@ -2625,7 +2624,7 @@ Triggered for the receiving grid in the beginning of the _send process_ (after `
 **Examples**
 
 ```javascript
-grid.on('beforeReceive', function (data) {
+grid.on('beforeReceive', (data) => {
   console.log(data);
 });
 ```
@@ -2644,7 +2643,7 @@ Triggered in the beginning of the _drag start_ process when dragging of an item 
 **Examples**
 
 ```javascript
-grid.on('dragInit', function (item, event) {
+grid.on('dragInit', (item, event) => {
   console.log(event);
   console.log(item);
 });
@@ -2664,7 +2663,7 @@ Triggered in the end of the _drag start_ process when dragging of an item begins
 **Examples**
 
 ```javascript
-grid.on('dragStart', function (item, event) {
+grid.on('dragStart', (item, event) => {
   console.log(event);
   console.log(item);
 });
@@ -2684,7 +2683,7 @@ Triggered every time when a dragged item is moved on the _screen_ (not in the la
 **Examples**
 
 ```javascript
-grid.on('dragMove', function (item, event) {
+grid.on('dragMove', (item, event) => {
   console.log(event);
   console.log(item);
 });
@@ -2704,7 +2703,7 @@ Triggered when any of the scroll parents of a dragged item is scrolled.
 **Examples**
 
 ```javascript
-grid.on('dragScroll', function (item, event) {
+grid.on('dragScroll', (item, event) => {
   console.log(event);
   console.log(item);
 });
@@ -2724,7 +2723,7 @@ Triggered when dragged item is released and the drag process ends.
 **Examples**
 
 ```javascript
-grid.on('dragEnd', function (item, event) {
+grid.on('dragEnd', (item, event) => {
   console.log(event);
   console.log(item);
 });
@@ -2742,7 +2741,7 @@ Triggered when a dragged item is released (always after `dragEnd` event).
 **Examples**
 
 ```javascript
-grid.on('dragReleaseStart', function (item) {
+grid.on('dragReleaseStart', (item) => {
   console.log(item);
 });
 ```
@@ -2759,7 +2758,7 @@ Triggered after released item has finished it's position animation.
 **Examples**
 
 ```javascript
-grid.on('dragReleaseEnd', function (item) {
+grid.on('dragReleaseEnd', (item) => {
   console.log(item);
 });
 ```
@@ -2771,7 +2770,7 @@ Triggered after grid is destroyed.
 **Examples**
 
 ```javascript
-grid.on('destroy', function () {
+grid.on('destroy', () => {
   console.log('Muuri is no more...');
 });
 ```
@@ -2860,7 +2859,7 @@ Get the grid instance the item belongs to.
 **Examples**
 
 ```javascript
-var grid = item.getGrid();
+const grid = item.getGrid();
 ```
 
 <h3><a id="item-method-isactive" href="#item-method-isactive" aria-hidden="true">#</a> item.isActive()</h3>
@@ -2872,7 +2871,7 @@ Check if the item is currently _active_. Only active items are considered to be 
 **Examples**
 
 ```javascript
-var isActive = item.isActive();
+const isActive = item.isActive();
 ```
 
 <h3><a id="item-method-isvisible" href="#item-method-isvisible" aria-hidden="true">#</a> item.isVisible()</h3>
@@ -2884,7 +2883,7 @@ Check if the item is currently _visible_.
 **Examples**
 
 ```javascript
-var isVisible = item.isVisible();
+const isVisible = item.isVisible();
 ```
 
 <h3><a id="item-method-isshowing" href="#item-method-isshowing" aria-hidden="true">#</a> item.isShowing()</h3>
@@ -2896,7 +2895,7 @@ Check if the item is currently animating to visible.
 **Examples**
 
 ```javascript
-var isShowing = item.isShowing();
+const isShowing = item.isShowing();
 ```
 
 <h3><a id="item-method-ishiding" href="#item-method-ishiding" aria-hidden="true">#</a> item.isHiding()</h3>
@@ -2908,7 +2907,7 @@ Check if the item is currently animating to hidden.
 **Examples**
 
 ```javascript
-var isHiding = item.isHiding();
+const isHiding = item.isHiding();
 ```
 
 <h3><a id="item-method-ispositioning" href="#item-method-ispositioning" aria-hidden="true">#</a> item.isPositioning()</h3>
@@ -2920,7 +2919,7 @@ Check if the item is currently being positioned.
 **Examples**
 
 ```javascript
-var isPositioning = item.isPositioning();
+const isPositioning = item.isPositioning();
 ```
 
 <h3><a id="item-method-isdragging" href="#item-method-isdragging" aria-hidden="true">#</a> item.isDragging()</h3>
@@ -2932,7 +2931,7 @@ Check if the item is currently being dragged.
 **Examples**
 
 ```javascript
-var isDragging = item.isDragging();
+const isDragging = item.isDragging();
 ```
 
 <h3><a id="item-method-isreleasing" href="#item-method-isreleasing" aria-hidden="true">#</a> item.isReleasing()</h3>
@@ -2944,7 +2943,7 @@ Check if the item is currently being released.
 **Examples**
 
 ```javascript
-var isReleasing = item.isReleasing();
+const isReleasing = item.isReleasing();
 ```
 
 <h3><a id="item-method-isdestroyed" href="#item-method-isdestroyed" aria-hidden="true">#</a> item.isDestroyed()</h3>
@@ -2956,7 +2955,7 @@ Check if the item is destroyed.
 **Examples**
 
 ```javascript
-var isDestroyed = item.isDestroyed();
+const isDestroyed = item.isDestroyed();
 ```
 
 <h2><a id="credits" href="#credits" aria-hidden="true">#</a> Credits</h2>

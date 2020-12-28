@@ -679,7 +679,7 @@ export default class Dragger {
     e: PointerEvent | TouchEvent | MouseEvent
   ): DraggerEvent | null {
     const touch = this.getTrackedTouch(e);
-    if (!touch || !this._pointerId) return null;
+    if (!touch || this._pointerId === null) return null;
     return {
       // Hammer.js compatibility interface.
       type: type,

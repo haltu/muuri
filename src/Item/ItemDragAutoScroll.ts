@@ -345,17 +345,16 @@ class ScrollAction {
 
   addRequest(request: ScrollRequest) {
     if (AXIS_X & request.direction) {
-      this.removeRequest(this.requestX);
+      this.requestX && this.removeRequest(this.requestX);
       this.requestX = request;
     } else {
-      this.removeRequest(this.requestY);
+      this.requestY && this.removeRequest(this.requestY);
       this.requestY = request;
     }
     request.action = this;
   }
 
-  removeRequest(request: ScrollRequest | null) {
-    if (!request) return;
+  removeRequest(request: ScrollRequest) {
     if (this.requestX === request) {
       this.requestX = null;
       request.action = null;
@@ -588,11 +587,16 @@ export default class ItemDragAutoScroll {
     const dragDirections = this._dragDirections.get(item.id);
     if (!dragPositions || !dragDirections) return;
 
-    // Update direction.
     const prevX = dragPositions[0];
     const prevY = dragPositions[1];
+
+    // Update direction.
     dragDirections[0] = posX > prevX ? DIR_RIGHT : posX < prevX ? DIR_LEFT : dragDirections[0] || 0;
     dragDirections[1] = posY > prevY ? DIR_DOWN : posY < prevY ? DIR_UP : dragDirections[1] || 0;
+
+    // Update position.
+    dragPositions[0] = posX;
+    dragPositions[1] = posY;
 
     // Update overlap check.
     this._requestOverlapCheck.set(
@@ -649,7 +653,8 @@ export default class ItemDragAutoScroll {
     if (this._isDestroyed) return;
 
     const items = this._items.slice(0);
-    for (var i = 0; i < items.length; i++) {
+    let i = 0;
+    for (; i < items.length; i++) {
       this.removeItem(items[i]);
     }
 
@@ -808,7 +813,8 @@ export default class ItemDragAutoScroll {
     let yDistance = 0;
     let yMaxScroll = 0;
 
-    for (var i = 0; i < targets.length; i++) {
+    let i = 0;
+    for (; i < targets.length; i++) {
       const target = targets[i];
       const targetThreshold = target.threshold || threshold;
       const testAxisX = !!(checkX && dragDirectionX && target.axis !== AXIS_Y);
@@ -964,7 +970,8 @@ export default class ItemDragAutoScroll {
     const itemRect = this._getItemHandleRect(item, handle, R1);
     let hasReachedEnd = null;
 
-    for (var i = 0; i < targetCount; i++) {
+    let i = 0;
+    for (; i < targetCount; i++) {
       const target = targets[i];
 
       // Make sure we have a matching element.
@@ -1061,7 +1068,8 @@ export default class ItemDragAutoScroll {
     const requestsX = this._requests[AXIS_X];
     const requestsY = this._requests[AXIS_Y];
 
-    for (var i = 0; i < items.length; i++) {
+    let i = 0;
+    for (; i < items.length; i++) {
       const item = items[i];
       const checkTime = this._requestOverlapCheck.get(item.id) || 0;
       let needsCheck = checkTime > 0 && this._tickTime - checkTime > this._overlapCheckInterval;

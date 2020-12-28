@@ -624,18 +624,16 @@ var ScrollAction = /** @class */ (function () {
     };
     ScrollAction.prototype.addRequest = function (request) {
         if (AXIS_X & request.direction) {
-            this.removeRequest(this.requestX);
+            this.requestX && this.removeRequest(this.requestX);
             this.requestX = request;
         }
         else {
-            this.removeRequest(this.requestY);
+            this.requestY && this.removeRequest(this.requestY);
             this.requestY = request;
         }
         request.action = this;
     };
     ScrollAction.prototype.removeRequest = function (request) {
-        if (!request)
-            return;
         if (this.requestX === request) {
             this.requestX = null;
             request.action = null;
@@ -819,11 +817,14 @@ var ItemDragAutoScroll = /** @class */ (function () {
         var dragDirections = this._dragDirections.get(item.id);
         if (!dragPositions || !dragDirections)
             return;
-        // Update direction.
         var prevX = dragPositions[0];
         var prevY = dragPositions[1];
+        // Update direction.
         dragDirections[0] = posX > prevX ? DIR_RIGHT : posX < prevX ? DIR_LEFT : dragDirections[0] || 0;
         dragDirections[1] = posY > prevY ? DIR_DOWN : posY < prevY ? DIR_UP : dragDirections[1] || 0;
+        // Update position.
+        dragPositions[0] = posX;
+        dragPositions[1] = posY;
         // Update overlap check.
         this._requestOverlapCheck.set(item.id, this._requestOverlapCheck.get(item.id) || this._tickTime);
     };
@@ -867,7 +868,8 @@ var ItemDragAutoScroll = /** @class */ (function () {
         if (this._isDestroyed)
             return;
         var items = this._items.slice(0);
-        for (var i = 0; i < items.length; i++) {
+        var i = 0;
+        for (; i < items.length; i++) {
             this.removeItem(items[i]);
         }
         this._actions.length = 0;
@@ -987,7 +989,8 @@ var ItemDragAutoScroll = /** @class */ (function () {
         var yDirection = 0;
         var yDistance = 0;
         var yMaxScroll = 0;
-        for (var i = 0; i < targets.length; i++) {
+        var i = 0;
+        for (; i < targets.length; i++) {
             var target = targets[i];
             var targetThreshold = target.threshold || threshold;
             var testAxisX = !!(checkX && dragDirectionX && target.axis !== AXIS_Y);
@@ -1098,7 +1101,8 @@ var ItemDragAutoScroll = /** @class */ (function () {
         var targetCount = (targets && targets.length) || 0;
         var itemRect = this._getItemHandleRect(item, handle, R1);
         var hasReachedEnd = null;
-        for (var i = 0; i < targetCount; i++) {
+        var i = 0;
+        for (; i < targetCount; i++) {
             var target = targets[i];
             // Make sure we have a matching element.
             var testElement = getScrollElement(target.element || target);
@@ -1181,7 +1185,8 @@ var ItemDragAutoScroll = /** @class */ (function () {
         var items = this._items;
         var requestsX = this._requests[AXIS_X];
         var requestsY = this._requests[AXIS_Y];
-        for (var i = 0; i < items.length; i++) {
+        var i = 0;
+        for (; i < items.length; i++) {
             var item = items[i];
             var checkTime = this._requestOverlapCheck.get(item.id) || 0;
             var needsCheck = checkTime > 0 && this._tickTime - checkTime > this._overlapCheckInterval;
@@ -1999,7 +2004,7 @@ var Dragger = /** @class */ (function () {
      */
     Dragger.prototype._createEvent = function (type, e) {
         var touch = this.getTrackedTouch(e);
-        if (!touch || !this._pointerId)
+        if (!touch || this._pointerId === null)
             return null;
         return {
             // Hammer.js compatibility interface.
@@ -7521,7 +7526,14 @@ var Grid = /** @class */ (function () {
      * @protected
      */
     Grid.prototype._updateBoundingRect = function () {
-        this._rect = __assign({}, this.element.getBoundingClientRect());
+        var _rect = this._rect;
+        var _a = this.element.getBoundingClientRect(), width = _a.width, height = _a.height, left = _a.left, right = _a.right, top = _a.top, bottom = _a.bottom;
+        _rect.width = width;
+        _rect.height = height;
+        _rect.left = left;
+        _rect.right = right;
+        _rect.top = top;
+        _rect.bottom = bottom;
     };
     /**
      * Update container's border sizes.

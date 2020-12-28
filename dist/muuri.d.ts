@@ -94,7 +94,7 @@ declare class ScrollAction {
     constructor();
     reset(): void;
     addRequest(request: ScrollRequest): void;
-    removeRequest(request: ScrollRequest | null): void;
+    removeRequest(request: ScrollRequest): void;
     computeScrollValues(): void;
     scroll(): void;
 }

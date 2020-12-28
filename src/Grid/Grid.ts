@@ -1227,6 +1227,7 @@ export default class Grid {
       borderBottom: this._borderBottom,
       boxSizing: this._boxSizing,
     };
+
     const { layout } = this.settings;
     let cancelLayout: LayoutCancel | null | undefined | void;
 
@@ -1894,7 +1895,14 @@ export default class Grid {
    * @protected
    */
   protected _updateBoundingRect() {
-    this._rect = { ...this.element.getBoundingClientRect() };
+    const { _rect } = this;
+    const { width, height, left, right, top, bottom } = this.element.getBoundingClientRect();
+    _rect.width = width;
+    _rect.height = height;
+    _rect.left = left;
+    _rect.right = right;
+    _rect.top = top;
+    _rect.bottom = bottom;
   }
 
   /**

@@ -21,7 +21,6 @@ import {
   IS_IOS,
   HAS_PASSIVE_EVENTS,
 } from '../constants';
-
 import Grid, {
   GridInternal,
   DragStartPredicateOptions,
@@ -37,7 +36,6 @@ import Dragger, {
   DraggerCancelEvent,
   DraggerAnyEvent,
 } from '../Dragger/Dragger';
-
 import {
   addDragStartTick,
   cancelDragStartTick,
@@ -48,7 +46,6 @@ import {
   addDragSortTick,
   cancelDragSortTick,
 } from '../ticker';
-
 import addClass from '../utils/addClass';
 import arrayInsert from '../utils/arrayInsert';
 import arrayMove from '../utils/arrayMove';
@@ -60,7 +57,6 @@ import getStyle from '../utils/getStyle';
 import isFunction from '../utils/isFunction';
 import normalizeArrayIndex from '../utils/normalizeArrayIndex';
 import removeClass from '../utils/removeClass';
-
 import { ScrollEvent, Rect, RectExtended, Writeable } from '../types';
 
 const START_PREDICATE_INACTIVE = 0;
@@ -138,7 +134,7 @@ const defaultStartPredicate = function (
         if (drag._startPredicateData !== predicate) return;
 
         // If drag has been destroyed, let's clean things up and exit.
-        if (drag._isDestroyed) {
+        if (!drag.item) {
           drag._resetDefaultStartPredicate();
           return;
         }
@@ -209,7 +205,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
     grid = (grids[i] as any) as GridInternal;
 
     // Filter out all destroyed grids.
-    if (grid._isDestroyed) continue;
+    if (grid.isDestroyed()) continue;
 
     // Compute the grid's client rect an clamp the initial boundaries to
     // viewport dimensions.
@@ -387,10 +383,9 @@ const defaultSortPredicate = function (
  * @param {Item} item
  */
 export default class ItemDrag {
-  readonly item: ItemInternal;
+  readonly item: ItemInternal | null;
   readonly dragger: Dragger;
-  protected _rootGridId: number;
-  protected _isDestroyed: boolean;
+  protected _originGridId: number;
   protected _isMigrated: boolean;
   protected _isActive: boolean;
   protected _isStarted: boolean;
@@ -432,8 +427,7 @@ export default class ItemDrag {
     const { settings } = grid;
 
     this.item = (item as any) as ItemInternal;
-    this._rootGridId = grid.id;
-    this._isDestroyed = false;
+    this._originGridId = grid.id;
     this._isMigrated = false;
     this._isActive = false;
     this._isStarted = false;
@@ -526,23 +520,13 @@ export default class ItemDrag {
   }
 
   /**
-   * Is drag instance destroyed?
-   *
-   * @public
-   * @returns {boolean}
-   */
-  isDestroyed() {
-    return this._isDestroyed;
-  }
-
-  /**
    * Get Grid instance.
    *
    * @public
    * @returns {?Grid}
    */
-  getRootGrid() {
-    return GRID_INSTANCES.get(this._rootGridId) || null;
+  getOriginGrid() {
+    return GRID_INSTANCES.get(this._originGridId) || null;
   }
 
   /**
@@ -551,7 +535,7 @@ export default class ItemDrag {
    * @public
    */
   stop() {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     // If the item has been dropped into another grid, finish up the process and
     // and don't go any further here. The _finishMigration() method will destroy
@@ -617,12 +601,11 @@ export default class ItemDrag {
    * @param {boolean} [force=false]
    */
   sort(force = false) {
-    const { item } = this;
-    if (this._isActive && item.isActive() && this._dragMoveEvent) {
+    if (this.item && this.isActive() && this.item.isActive() && this._dragMoveEvent) {
       if (force) {
         this._handleSort();
       } else {
-        addDragSortTick(item.id, this._handleSort);
+        addDragSortTick(this.item.id, this._handleSort);
       }
     }
   }
@@ -633,14 +616,14 @@ export default class ItemDrag {
    * @public
    */
   destroy() {
-    if (this._isDestroyed) return;
+    if (!this.item) return;
     // It's important to always do the destroying as if migration did not happen
     // because otherwise the item's drag handler might be recreated when there's
     // no need.
     this._isMigrated = false;
     this.stop();
     this.dragger.destroy();
-    this._isDestroyed = true;
+    (this as Writeable<this>).item = null;
   }
 
   /**
@@ -726,6 +709,8 @@ export default class ItemDrag {
    * @returns {boolean}
    */
   protected _checkHeuristics(x: number, y: number) {
+    if (!this.item) return false;
+
     const { settings } = this.item.getGrid() as Grid;
     const { minDragDistance, minBounceBackAngle } = settings.dragSortHeuristics;
 
@@ -791,7 +776,7 @@ export default class ItemDrag {
    * @protected
    */
   protected _handleSort() {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     const { item } = this;
     const { dragSort, dragSortHeuristics, dragAutoScroll } = (item.getGrid() as Grid).settings;
@@ -845,6 +830,7 @@ export default class ItemDrag {
    * @protected
    */
   protected _handleSortDelayed() {
+    if (!this.item) return;
     this._isSortNeeded = true;
     this._sortTimer = undefined;
     addDragSortTick(this.item.id, this._handleSort);
@@ -856,6 +842,7 @@ export default class ItemDrag {
    * @protected
    */
   protected _cancelSort() {
+    if (!this.item) return;
     this._isSortNeeded = false;
     if (this._sortTimer !== undefined) {
       this._sortTimer = void window.clearTimeout(this._sortTimer);
@@ -869,6 +856,7 @@ export default class ItemDrag {
    * @protected
    */
   protected _finishSort() {
+    if (!this.item) return;
     const { dragSort } = (this.item.getGrid() as Grid).settings;
     const needsFinalCheck = dragSort && (this._isSortNeeded || this._sortTimer !== undefined);
     this._cancelSort();
@@ -881,10 +869,10 @@ export default class ItemDrag {
    * the configuration layout the items.
    *
    * @protected
-   * @param {Boolean} [isDrop=false]
+   * @param {boolean} [isDrop=false]
    */
   protected _checkOverlap(isDrop = false) {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     const { item } = this;
     const element = item.element;
@@ -983,7 +971,7 @@ export default class ItemDrag {
 
       // If the drag is not active anymore after the events or either of the
       // grids got destroyed during the emitted events, let's abort the process.
-      if (!this._isActive || currentGrid.isDestroyed() || targetGrid.isDestroyed()) {
+      if (!this.isActive() || currentGrid.isDestroyed() || targetGrid.isDestroyed()) {
         return;
       }
 
@@ -991,7 +979,7 @@ export default class ItemDrag {
       item._gridId = targetGrid.id;
 
       // Update migrating indicator.
-      this._isMigrated = item._gridId !== this._rootGridId;
+      this._isMigrated = item._gridId !== this._originGridId;
 
       // Move item instance from current grid to target grid.
       currentGrid.items.splice(currentIndex, 1);
@@ -1054,13 +1042,11 @@ export default class ItemDrag {
       }
 
       // Update placeholder class.
-      if (item._dragPlaceholder) {
-        item._dragPlaceholder.updateClassName(targetSettings.itemPlaceholderClass);
-      }
+      item._dragPlaceholder.updateClassName(targetSettings.itemPlaceholderClass);
 
       // Update item's cached dimensions.
       // NOTE: This should be only done if there's a chance that the DOM writes
-      // have cause this to change. Maybe this is not needed always?
+      // have caused this to change. Maybe this is not needed always?
       item._updateDimensions();
 
       // Emit send event.
@@ -1114,6 +1100,7 @@ export default class ItemDrag {
    * @protected
    */
   protected _finishMigration() {
+    if (!this.item) return;
     const { item } = this;
     const { dragEnabled } = (item.getGrid() as Grid).settings;
 
@@ -1148,7 +1135,7 @@ export default class ItemDrag {
     }
 
     // Otherwise if predicate is resolved and drag is active, move the item.
-    else if (this._startPredicateState === START_PREDICATE_RESOLVED && this._isActive) {
+    else if (this._startPredicateState === START_PREDICATE_RESOLVED && this.isActive()) {
       this._onMove(event as DraggerMoveEvent);
     }
   }
@@ -1173,7 +1160,7 @@ export default class ItemDrag {
 
     this._startPredicateState = START_PREDICATE_INACTIVE;
 
-    if (!isResolved || !this._isActive) return;
+    if (!isResolved || !this.isActive()) return;
 
     if (this._isStarted) {
       this._onEnd(event);
@@ -1189,25 +1176,21 @@ export default class ItemDrag {
    * @param {Object} event
    */
   protected _onStart(event: DraggerStartEvent | DraggerMoveEvent) {
-    const item = this.item;
-    if (!item.isActive()) return;
+    if (!this.item || !this.item.isActive()) return;
 
     this._isActive = true;
     this._dragStartEvent = event;
-    ItemDrag.autoScroll.addItem((item as any) as Item, this._translateX, this._translateY);
-
-    addDragStartTick(item.id, this._prepareStart, this._applyStart);
+    ItemDrag.autoScroll.addItem((this.item as any) as Item, this._translateX, this._translateY);
+    addDragStartTick(this.item.id, this._prepareStart, this._applyStart);
   }
 
   /**
    * @protected
    */
   protected _prepareStart() {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
     const { item } = this;
-    if (!item.isActive()) return;
-
     const element = item.element;
     const grid = item.getGrid() as Grid;
     const dragContainer = grid.settings.dragContainer || grid.element;
@@ -1241,7 +1224,7 @@ export default class ItemDrag {
    * @protected
    */
   protected _applyStart() {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     const { item } = this;
     if (!item.isActive()) return;
@@ -1311,16 +1294,17 @@ export default class ItemDrag {
    * @param {Object} event
    */
   protected _onMove(event: DraggerMoveEvent) {
-    const { item } = this;
+    if (!this.item) return;
 
-    if (!item.isActive()) {
+    if (!this.item.isActive()) {
       this.stop();
       return;
     }
 
+    const itemId = this.item.id;
     this._dragMoveEvent = event;
-    addDragMoveTick(item.id, this._prepareMove, this._applyMove);
-    addDragSortTick(item.id, this._handleSort);
+    addDragMoveTick(itemId, this._prepareMove, this._applyMove);
+    addDragSortTick(itemId, this._handleSort);
   }
 
   /**
@@ -1329,12 +1313,9 @@ export default class ItemDrag {
    * @protected
    */
   protected _prepareMove() {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
-    const { item } = this;
-    if (!item.isActive()) return;
-
-    const { dragAxis } = (item.getGrid() as Grid).settings;
+    const { dragAxis } = (this.item.getGrid() as Grid).settings;
     const nextEvent = this._dragMoveEvent as DraggerStartEvent | DraggerMoveEvent;
     const prevEvent = (this._dragPrevMoveEvent || this._dragStartEvent || nextEvent) as
       | DraggerStartEvent
@@ -1365,11 +1346,9 @@ export default class ItemDrag {
    * @protected
    */
   protected _applyMove() {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
     const { item } = this;
-    if (!item.isActive()) return;
-
     const grid = (item.getGrid() as any) as GridInternal;
 
     this._moveDiffX = this._moveDiffY = 0;
@@ -1387,16 +1366,17 @@ export default class ItemDrag {
    * @param {Object} event
    */
   protected _onScroll(event: Event) {
-    const { item } = this;
+    if (!this.item) return;
 
-    if (!item.isActive()) {
+    if (!this.item.isActive()) {
       this.stop();
       return;
     }
 
+    const itemId = this.item.id;
     this._scrollEvent = event as ScrollEvent;
-    addDragScrollTick(item.id, this._prepareScroll, this._applyScroll);
-    addDragSortTick(item.id, this._handleSort);
+    addDragScrollTick(itemId, this._prepareScroll, this._applyScroll);
+    addDragSortTick(itemId, this._handleSort);
   }
 
   /**
@@ -1405,13 +1385,9 @@ export default class ItemDrag {
    * @protected
    */
   protected _prepareScroll() {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
-    // If item is not active do nothing.
     const { item } = this;
-    if (!item.isActive()) return;
-
-    const element = item.element;
     const grid = item.getGrid() as Grid;
 
     // Update container diff.
@@ -1425,7 +1401,7 @@ export default class ItemDrag {
     }
 
     const { dragAxis } = grid.settings;
-    const { left, top } = element.getBoundingClientRect();
+    const { left, top } = item.element.getBoundingClientRect();
 
     // Update horizontal position data.
     if (dragAxis !== 'y') {
@@ -1448,12 +1424,11 @@ export default class ItemDrag {
    * @protected
    */
   protected _applyScroll() {
-    if (!this._isActive) return;
+    if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
     const { item } = this;
-    if (!item.isActive()) return;
-
     const grid = (item.getGrid() as any) as GridInternal;
+
     this._scrollDiffX = this._scrollDiffY = 0;
     item._setTranslate(this._translateX, this._translateY);
     if (this._scrollEvent) {
@@ -1468,9 +1443,10 @@ export default class ItemDrag {
    * @param {Object} event
    */
   protected _onEnd(event: DraggerEndEvent | DraggerCancelEvent) {
-    const { item } = this;
+    if (!this.item) return;
 
     // If item is not active, reset drag.
+    const { item } = this;
     if (!item.isActive()) {
       this.stop();
       return;
@@ -1509,8 +1485,7 @@ export default class ItemDrag {
 }
 
 export interface ItemDragInternal extends Writeable<ItemDrag> {
-  _rootGridId: ItemDrag['_rootGridId'];
-  _isDestroyed: ItemDrag['_isDestroyed'];
+  _originGridId: ItemDrag['_originGridId'];
   _isMigrated: ItemDrag['_isMigrated'];
   _isActive: ItemDrag['_isActive'];
   _isStarted: ItemDrag['_isStarted'];

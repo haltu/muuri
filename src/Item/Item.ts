@@ -5,7 +5,6 @@
  */
 
 import { GRID_INSTANCES, ITEM_ELEMENT_MAP } from '../constants';
-
 import Grid, { GridInternal } from '../Grid/Grid';
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';
@@ -14,7 +13,6 @@ import ItemLayout, { ItemLayoutInternal } from './ItemLayout';
 import ItemMigrate from './ItemMigrate';
 import ItemVisibility from './ItemVisibility';
 import Emitter from '../Emitter/Emitter';
-
 import addClass from '../utils/addClass';
 import createUid from '../utils/createUid';
 import getStyle from '../utils/getStyle';
@@ -24,7 +22,6 @@ import getTranslateString from '../utils/getTranslateString';
 import isInViewport from '../utils/isInViewport';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
-
 import { Writeable } from '../types';
 
 const _getTranslateResult = { x: 0, y: 0 };
@@ -252,18 +249,17 @@ export default class Item {
 
     // Calculate width and height.
     const { width, height } = element.getBoundingClientRect();
-    (this as Writeable<Item>).width = width;
-    (this as Writeable<Item>).height = height;
+    (this as Writeable<this>).width = width;
+    (this as Writeable<this>).height = height;
 
     // Calculate margins (ignore negative margins).
-    (this as Writeable<Item>).marginLeft = Math.max(0, getStyleAsFloat(element, 'margin-left'));
-    (this as Writeable<Item>).marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
-    (this as Writeable<Item>).marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
-    (this as Writeable<Item>).marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
+    (this as Writeable<this>).marginLeft = Math.max(0, getStyleAsFloat(element, 'margin-left'));
+    (this as Writeable<this>).marginRight = Math.max(0, getStyleAsFloat(element, 'margin-right'));
+    (this as Writeable<this>).marginTop = Math.max(0, getStyleAsFloat(element, 'margin-top'));
+    (this as Writeable<this>).marginBottom = Math.max(0, getStyleAsFloat(element, 'margin-bottom'));
 
     // Keep drag placeholder's dimensions synced with the item's.
-    const dragPlaceholder = this._dragPlaceholder;
-    if (dragPlaceholder) dragPlaceholder.updateDimensions();
+    this._dragPlaceholder.updateDimensions();
   }
 
   /**
@@ -294,10 +290,10 @@ export default class Item {
    * @param {number} [top=0]
    */
   protected _addToLayout(left = 0, top = 0) {
-    if (this._isActive) return;
+    if (this.isActive()) return;
     this._isActive = true;
-    (this as Writeable<Item>).left = left;
-    (this as Writeable<Item>).top = top;
+    (this as Writeable<this>).left = left;
+    (this as Writeable<this>).top = top;
   }
 
   /**
@@ -306,10 +302,10 @@ export default class Item {
    * @protected
    */
   protected _removeFromLayout() {
-    if (!this._isActive) return;
+    if (!this.isActive()) return;
     this._isActive = false;
-    (this as Writeable<Item>).left = 0;
-    (this as Writeable<Item>).top = 0;
+    (this as Writeable<this>).left = 0;
+    (this as Writeable<this>).top = 0;
   }
 
   /**

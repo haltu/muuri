@@ -20,6 +20,7 @@
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "removeComments": true
   }
 }

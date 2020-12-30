@@ -8,7 +8,7 @@
 import raf from '../utils/raf';
 
 export type TickId = string;
-export type TickCallback = (time: number) => any;
+export type TickCallback = (time: number) => void;
 
 /**
  * A lane for ticker.

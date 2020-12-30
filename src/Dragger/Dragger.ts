@@ -14,15 +14,12 @@ import {
   IS_FIREFOX,
   IS_ANDROID,
 } from '../constants';
-
 import Emitter from '../Emitter/Emitter';
 import EdgeHack from './EdgeHack';
-
 import getPrefixedPropName from '../utils/getPrefixedPropName';
-
 import { Writeable } from '../types';
 
-type ListenerType = 0 | 1 | 2 | 3;
+type DraggerListenerType = 0 | 1 | 2 | 3;
 
 export type DraggerTouchAction = string;
 
@@ -105,57 +102,37 @@ export interface DraggerEvents {
   cancel(event: DraggerCancelEvent): any;
 }
 
-export const POINTER_EVENTS: {
-  start: 'pointerdown';
-  move: 'pointermove';
-  cancel: 'pointercancel';
-  end: 'pointerup';
-} = {
+export const POINTER_EVENTS = {
   start: 'pointerdown',
   move: 'pointermove',
   cancel: 'pointercancel',
   end: 'pointerup',
-};
+} as const;
 
-export const TOUCH_EVENTS: {
-  start: 'touchstart';
-  move: 'touchmove';
-  cancel: 'touchcancel';
-  end: 'touchend';
-} = {
+export const TOUCH_EVENTS = {
   start: 'touchstart',
   move: 'touchmove',
   cancel: 'touchcancel',
   end: 'touchend',
-};
+} as const;
 
-export const MOUSE_EVENTS: {
-  start: 'mousedown';
-  move: 'mousemove';
-  cancel: '';
-  end: 'mouseup';
-} = {
+export const MOUSE_EVENTS = {
   start: 'mousedown',
   move: 'mousemove',
   cancel: '',
   end: 'mouseup',
-};
+} as const;
 
 export const SOURCE_EVENTS = {
   ...(HAS_TOUCH_EVENTS ? TOUCH_EVENTS : HAS_POINTER_EVENTS ? POINTER_EVENTS : MOUSE_EVENTS),
-};
+} as const;
 
-export const DRAGGER_EVENTS: {
-  start: 'start';
-  move: 'move';
-  cancel: 'cancel';
-  end: 'end';
-} = {
+export const DRAGGER_EVENTS = {
   start: 'start',
   move: 'move',
   cancel: 'cancel',
   end: 'end',
-};
+} as const;
 
 const CAPTURE = 1;
 const PASSIVE = 2;
@@ -168,10 +145,11 @@ function preventDefault(e: PointerEvent | TouchEvent | MouseEvent) {
 }
 
 function getListenerType(capture: boolean, passive: boolean) {
-  return ((capture ? CAPTURE : 0) | (HAS_PASSIVE_EVENTS && passive ? PASSIVE : 0)) as ListenerType;
+  return ((capture ? CAPTURE : 0) |
+    (HAS_PASSIVE_EVENTS && passive ? PASSIVE : 0)) as DraggerListenerType;
 }
 
-function getListenerOptions(listenerType: ListenerType) {
+function getListenerOptions(listenerType: DraggerListenerType) {
   return HAS_PASSIVE_EVENTS
     ? {
         capture: !!(CAPTURE & listenerType),
@@ -233,7 +211,7 @@ class DragProxy {
   protected _listenerOptions: ReturnType<typeof getListenerOptions>;
   protected _draggers: Set<Dragger>;
 
-  constructor(listenerType: ListenerType) {
+  constructor(listenerType: DraggerListenerType) {
     this._emitter = new Emitter();
     this._listenerOptions = getListenerOptions(listenerType);
     this._draggers = new Set();
@@ -318,7 +296,7 @@ export default class Dragger {
   protected _emitter: Emitter;
   protected _cssProps: { [key: string]: string };
   protected _touchAction: DraggerTouchAction;
-  protected _listenerType: ListenerType;
+  protected _listenerType: DraggerListenerType;
   protected _isActive: boolean;
   protected _pointerId: number | null;
   protected _startTime: number;
@@ -349,10 +327,7 @@ export default class Dragger {
     this._currentY = 0;
 
     // This hack should not exists. Let's remove it at earliest inconvenience.
-    this._edgeHack = null;
-    if ((IS_EDGE || IS_IE) && HAS_POINTER_EVENTS) {
-      this._edgeHack = new EdgeHack(this);
-    }
+    this._edgeHack = HAS_POINTER_EVENTS && (IS_EDGE || IS_IE) ? new EdgeHack(this) : null;
 
     this.onStart = this.onStart.bind(this);
     this.onMove = this.onMove.bind(this);
@@ -668,12 +643,9 @@ export default class Dragger {
 
     // Reset data.
     this._cssProps = {};
-    (this as Writeable<Dragger>).element = null;
+    (this as Writeable<this>).element = null;
   }
 
-  /**
-   * Create a custom dragger event from a raw event.
-   */
   protected _createEvent(
     type: DraggerEventType,
     e: PointerEvent | TouchEvent | MouseEvent
@@ -703,9 +675,6 @@ export default class Dragger {
     };
   }
 
-  /**
-   * Emit a raw event as dragger event internally.
-   */
   protected _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent) {
     this._emitter.emit(type, this._createEvent(type, e));
   }

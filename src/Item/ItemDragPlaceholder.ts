@@ -10,18 +10,15 @@ import {
   addPlaceholderResizeTick,
   cancelPlaceholderResizeTick,
 } from '../ticker';
-
 import {
   EVENT_BEFORE_SEND,
   EVENT_DRAG_RELEASE_END,
   EVENT_LAYOUT_START,
   EVENT_HIDE_START,
 } from '../constants';
-
 import Grid from '../Grid/Grid';
 import Item from './Item';
 import Animator from '../Animator/Animator';
-
 import addClass from '../utils/addClass';
 import getTranslateString from '../utils/getTranslateString';
 import getTranslate from '../utils/getTranslate';
@@ -29,7 +26,6 @@ import isFunction from '../utils/isFunction';
 import setStyles from '../utils/setStyles';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
-
 import { StyleDeclaration, Writeable } from '../types';
 
 const CURRENT_STYLES: StyleDeclaration = {};
@@ -42,7 +38,7 @@ const TARGET_STYLES: StyleDeclaration = {};
  * @param {Item} item
  */
 export default class ItemDragPlaceholder {
-  readonly item: Item;
+  readonly item: Item | null;
   readonly element: HTMLElement | null;
   readonly animator: Animator;
   readonly left: number;
@@ -91,6 +87,8 @@ export default class ItemDragPlaceholder {
    * @public
    */
   create() {
+    if (!this.item) return;
+
     // If we already have placeholder set up we can skip the initiation logic.
     if (this.element) {
       this._resetAfterLayout = false;
@@ -102,8 +100,8 @@ export default class ItemDragPlaceholder {
     const { settings } = grid;
 
     // Keep track of layout position.
-    (this as Writeable<ItemDragPlaceholder>).left = item.left;
-    (this as Writeable<ItemDragPlaceholder>).top = item.top;
+    (this as Writeable<this>).left = item.left;
+    (this as Writeable<this>).top = item.top;
 
     // Create placeholder element.
     let element: HTMLElement;
@@ -114,7 +112,7 @@ export default class ItemDragPlaceholder {
     }
 
     // Update element to instance and animation instance.
-    (this as Writeable<ItemDragPlaceholder>).element = element;
+    (this as Writeable<this>).element = element;
     (this.animator as Writeable<Animator>).element = element;
 
     // Add placeholder class to the placeholder element.
@@ -159,7 +157,7 @@ export default class ItemDragPlaceholder {
    * @public
    */
   reset() {
-    if (!this.element) return;
+    if (!this.item || !this.element) return;
 
     const { item, element, animator } = this;
     const grid = item.getGrid() as Grid;
@@ -189,7 +187,7 @@ export default class ItemDragPlaceholder {
 
     // Remove element.
     element.parentNode?.removeChild(element);
-    (this as Writeable<ItemDragPlaceholder>).element = null;
+    (this as Writeable<this>).element = null;
 
     // onRemove hook. Note that here we use the current grid's onRemove callback
     // so if the item has migrated during drag the onRemove method will not be
@@ -202,7 +200,7 @@ export default class ItemDragPlaceholder {
    * Check if placeholder is currently active (visible).
    *
    * @public
-   * @returns {Boolean}
+   * @returns {boolean}
    */
   isActive() {
     return !!this.element;
@@ -216,7 +214,7 @@ export default class ItemDragPlaceholder {
    * @public
    */
   updateDimensions() {
-    if (!this.isActive()) return;
+    if (!this.item || !this.isActive()) return;
     addPlaceholderResizeTick(this.item.id, this._updateDimensions);
   }
 
@@ -241,6 +239,7 @@ export default class ItemDragPlaceholder {
   destroy() {
     this.reset();
     this.animator && this.animator.destroy();
+    (this as Writeable<this>).item = null;
   }
 
   /**
@@ -249,7 +248,7 @@ export default class ItemDragPlaceholder {
    * @protected
    */
   protected _updateDimensions() {
-    if (!this.element) return;
+    if (!this.item || !this.element) return;
 
     setStyles(this.element, {
       width: this.item.width + 'px',
@@ -265,7 +264,7 @@ export default class ItemDragPlaceholder {
    * @param {boolean} isInstant
    */
   protected _onLayoutStart(items: Item[], isInstant: boolean) {
-    if (!this.element) return;
+    if (!this.item || !this.element) return;
 
     const { item } = this;
 
@@ -281,8 +280,8 @@ export default class ItemDragPlaceholder {
     const currentTop = this.top;
 
     // Keep track of item layout position.
-    (this as Writeable<ItemDragPlaceholder>).left = nextLeft;
-    (this as Writeable<ItemDragPlaceholder>).top = nextTop;
+    (this as Writeable<this>).left = nextLeft;
+    (this as Writeable<this>).top = nextTop;
 
     // If item's position did not change, and the item did not migrate and the
     // layout is not instant and we can safely skip layout.
@@ -350,7 +349,7 @@ export default class ItemDragPlaceholder {
    * @protected
    */
   protected _startAnimation() {
-    if (!this.element) return;
+    if (!this.item || !this.element) return;
 
     const { animator } = this;
     const currentX = this._transX;
@@ -398,7 +397,7 @@ export default class ItemDragPlaceholder {
    * @param {Item} item
    */
   protected _onReleaseEnd(item: Item) {
-    if (item.id === this.item.id) {
+    if (this.item && this.item.id === item.id) {
       // If the placeholder is not animating anymore we can safely reset it.
       if (!this.animator.isAnimating()) {
         this.reset();
@@ -431,7 +430,7 @@ export default class ItemDragPlaceholder {
     toIndex: number;
   }) {
     // Make sure we have a matching item.
-    if (data.item !== this.item) return;
+    if (!this.item || this.item !== data.item) return;
 
     // Unbind listeners from current grid.
     const grid = this.item.getGrid() as Grid;
@@ -458,6 +457,6 @@ export default class ItemDragPlaceholder {
    * @param {Item[]} items
    */
   protected _onHide(items: Item[]) {
-    if (items.indexOf(this.item) > -1) this.reset();
+    if (this.item && items.indexOf(this.item) > -1) this.reset();
   }
 }

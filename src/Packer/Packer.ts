@@ -5,18 +5,11 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-import createPackerProcessor, {
-  LayoutData as ProcessorLayoutData,
-  LayoutSettingsMasks,
-  LayoutPacket,
-  LayoutItem,
-} from './createPackerProcessor';
-
+import createPackerProcessor from './createPackerProcessor';
+import { createWorkerProcessors, destroyWorkerProcessors } from './workerUtils';
 import { StyleDeclaration } from '../types';
 
-import { createWorkerProcessors, destroyWorkerProcessors } from './workerUtils';
-
-export interface LayoutOptions {
+export interface PackerLayoutOptions {
   fillGaps?: boolean;
   horizontal?: boolean;
   alignRight?: boolean;
@@ -24,7 +17,23 @@ export interface LayoutOptions {
   rounding?: boolean;
 }
 
-interface ContainerData {
+export interface PackerLayoutSettingsMasks {
+  readonly fillGaps: 1;
+  readonly horizontal: 2;
+  readonly alignRight: 4;
+  readonly alignBottom: 8;
+  readonly rounding: 16;
+}
+
+export interface PackerLayoutPacket {
+  readonly id: 0;
+  readonly width: 1;
+  readonly height: 2;
+  readonly settings: 3;
+  readonly slots: 4;
+}
+
+export interface PackerContainerData {
   width: number;
   height: number;
   borderLeft?: number;
@@ -34,48 +43,65 @@ interface ContainerData {
   boxSizing?: 'content-box' | 'border-box' | '';
 }
 
-type LayoutId = number;
+export type PackerLayoutId = number;
 
-type LayoutCallback = (layout: LayoutData) => any;
+export type PackerLayoutCallback = (layout: PackerLayoutData) => void;
 
-interface LayoutData extends ProcessorLayoutData {
-  id: LayoutId;
-  styles: StyleDeclaration;
-  items: LayoutItem[];
+export interface PackerLayoutItem {
+  width: number;
+  height: number;
+  marginLeft?: number;
+  marginRight?: number;
+  marginTop?: number;
+  marginBottom?: number;
+  [key: string]: any;
 }
 
-interface LayoutWorkerData extends LayoutData {
-  container: ContainerData;
+export interface PackerLayoutData {
+  id: PackerLayoutId;
+  items: PackerLayoutItem[];
+  width: number;
+  height: number;
+  slots: Float32Array;
+  styles: StyleDeclaration;
+}
+
+interface PackerLayoutWorkerData extends PackerLayoutData {
+  container: PackerContainerData;
   settings: number;
-  callback: LayoutCallback;
+  callback: PackerLayoutCallback;
   packet: Float32Array;
   aborted: boolean;
   worker?: Worker;
 }
 
-const FILL_GAPS: LayoutSettingsMasks['fillGaps'] = 1;
-const HORIZONTAL: LayoutSettingsMasks['horizontal'] = 2;
-const ALIGN_RIGHT: LayoutSettingsMasks['alignRight'] = 4;
-const ALIGN_BOTTOM: LayoutSettingsMasks['alignBottom'] = 8;
-const ROUNDING: LayoutSettingsMasks['rounding'] = 16;
+const SETTINGS: PackerLayoutSettingsMasks = {
+  fillGaps: 1,
+  horizontal: 2,
+  alignRight: 4,
+  alignBottom: 8,
+  rounding: 16,
+};
 
-const PACKET_INDEX_ID: LayoutPacket['id'] = 0;
-const PACKET_INDEX_WIDTH: LayoutPacket['width'] = 1;
-const PACKET_INDEX_HEIGHT: LayoutPacket['height'] = 2;
-const PACKET_INDEX_SETTINGS: LayoutPacket['settings'] = 3;
-const PACKET_HEADER_SLOTS: LayoutPacket['slots'] = 4;
+const PACKET_INDEX: PackerLayoutPacket = {
+  id: 0,
+  width: 1,
+  height: 2,
+  settings: 3,
+  slots: 4,
+};
 
 const PACKER_PROCESSOR = createPackerProcessor();
 
 export default class Packer {
   protected _settings: number;
   protected _asyncMode: boolean;
-  protected _layoutWorkerQueue: LayoutId[];
-  protected _layoutsProcessing: Set<LayoutId>;
-  protected _layoutWorkerData: Map<LayoutId, LayoutWorkerData>;
+  protected _layoutWorkerQueue: PackerLayoutId[];
+  protected _layoutsProcessing: Set<PackerLayoutId>;
+  protected _layoutWorkerData: Map<PackerLayoutId, PackerLayoutWorkerData>;
   protected _workers: Worker[];
 
-  constructor(numWorkers = 0, options?: LayoutOptions) {
+  constructor(numWorkers = 0, options?: PackerLayoutOptions) {
     this._settings = 0;
     this._asyncMode = true;
     this._workers = [];
@@ -94,48 +120,48 @@ export default class Packer {
     } catch (e) {}
   }
 
-  updateSettings(options: LayoutOptions) {
-    let fillGaps = this._settings & FILL_GAPS;
+  updateSettings(options: PackerLayoutOptions) {
+    let fillGaps = this._settings & SETTINGS.fillGaps;
     if (typeof options.fillGaps === 'boolean') {
-      fillGaps = options.fillGaps ? FILL_GAPS : 0;
+      fillGaps = options.fillGaps ? SETTINGS.fillGaps : 0;
     }
 
-    let horizontal = this._settings & HORIZONTAL;
+    let horizontal = this._settings & SETTINGS.horizontal;
     if (typeof options.horizontal === 'boolean') {
-      horizontal = options.horizontal ? HORIZONTAL : 0;
+      horizontal = options.horizontal ? SETTINGS.horizontal : 0;
     }
 
-    let alignRight = this._settings & ALIGN_RIGHT;
+    let alignRight = this._settings & SETTINGS.alignRight;
     if (typeof options.alignRight === 'boolean') {
-      alignRight = options.alignRight ? ALIGN_RIGHT : 0;
+      alignRight = options.alignRight ? SETTINGS.alignRight : 0;
     }
 
-    let alignBottom = this._settings & ALIGN_BOTTOM;
+    let alignBottom = this._settings & SETTINGS.alignBottom;
     if (typeof options.alignBottom === 'boolean') {
-      alignBottom = options.alignBottom ? ALIGN_BOTTOM : 0;
+      alignBottom = options.alignBottom ? SETTINGS.alignBottom : 0;
     }
 
-    let rounding = this._settings & ROUNDING;
+    let rounding = this._settings & SETTINGS.rounding;
     if (typeof options.rounding === 'boolean') {
-      rounding = options.rounding ? ROUNDING : 0;
+      rounding = options.rounding ? SETTINGS.rounding : 0;
     }
 
     this._settings = fillGaps | horizontal | alignRight | alignBottom | rounding;
   }
 
   createLayout(
-    layoutId: LayoutId,
-    items: LayoutItem[],
-    containerData: ContainerData,
-    callback: LayoutCallback
+    layoutId: PackerLayoutId,
+    items: PackerLayoutItem[],
+    containerData: PackerContainerData,
+    callback: PackerLayoutCallback
   ) {
     if (this._layoutWorkerData.has(layoutId)) {
       throw new Error('A layout with the provided id is currently being processed.');
     }
 
     const useSyncProcessing = !this._asyncMode || !items.length;
-    const isHorizontal = this._settings & HORIZONTAL;
-    const layout: LayoutData = {
+    const isHorizontal = this._settings & SETTINGS.horizontal;
+    const layout: PackerLayoutData = {
       id: layoutId,
       items: items,
       slots: new Float32Array(useSyncProcessing ? items.length * 2 : 0),
@@ -153,17 +179,17 @@ export default class Packer {
     }
 
     // Create worker packet.
-    const packet = new Float32Array(PACKET_HEADER_SLOTS + items.length * 2);
+    const packet = new Float32Array(PACKET_INDEX.slots + items.length * 2);
 
     // Add headers to packet.
-    packet[PACKET_INDEX_ID] = layoutId;
-    packet[PACKET_INDEX_WIDTH] = layout.width;
-    packet[PACKET_INDEX_HEIGHT] = layout.height;
-    packet[PACKET_INDEX_SETTINGS] = this._settings;
+    packet[PACKET_INDEX.id] = layoutId;
+    packet[PACKET_INDEX.width] = layout.width;
+    packet[PACKET_INDEX.height] = layout.height;
+    packet[PACKET_INDEX.settings] = this._settings;
 
     // Add items packet.
     let i = 0;
-    let j = PACKET_HEADER_SLOTS - 1;
+    let j = PACKET_INDEX.slots - 1;
     for (; i < items.length; i++) {
       const item = items[i];
       packet[++j] = item.width + (item.marginLeft || 0) + (item.marginRight || 0);
@@ -188,7 +214,7 @@ export default class Packer {
     return this.cancelLayout.bind(this, layoutId);
   }
 
-  cancelLayout(layoutId: LayoutId) {
+  cancelLayout(layoutId: PackerLayoutId) {
     const data = this._layoutWorkerData.get(layoutId);
     if (!data || data.aborted) return;
 
@@ -225,8 +251,8 @@ export default class Packer {
     if (!this._layoutWorkerQueue.length || !this._workers.length) return;
 
     const worker = this._workers.pop() as Worker;
-    const layoutId = this._layoutWorkerQueue.shift() as LayoutId;
-    const workerData = this._layoutWorkerData.get(layoutId) as LayoutWorkerData;
+    const layoutId = this._layoutWorkerQueue.shift() as PackerLayoutId;
+    const workerData = this._layoutWorkerData.get(layoutId) as PackerLayoutWorkerData;
 
     workerData.worker = worker;
     this._layoutsProcessing.add(layoutId);
@@ -237,7 +263,7 @@ export default class Packer {
 
   protected _onWorkerMessage(msg: { data: ArrayBufferLike }) {
     const data = new Float32Array(msg.data);
-    const layoutId = data[PACKET_INDEX_ID] as LayoutId;
+    const layoutId = data[PACKET_INDEX.id] as PackerLayoutId;
     const layoutData = this._layoutWorkerData.get(layoutId);
 
     // Delete internal references.
@@ -253,12 +279,12 @@ export default class Packer {
 
     // If layout has not been aborted let's finish things up.
     if (!layoutData.aborted) {
-      const layout: LayoutData = {
+      const layout: PackerLayoutData = {
         id: layoutId,
         items: layoutData.items,
-        slots: data.subarray(PACKET_HEADER_SLOTS, data.length),
-        width: data[PACKET_INDEX_WIDTH],
-        height: data[PACKET_INDEX_HEIGHT],
+        slots: data.subarray(PACKET_INDEX.slots, data.length),
+        width: data[PACKET_INDEX.width],
+        height: data[PACKET_INDEX.height],
         styles: {},
       };
       this._setContainerStyles(layout, layoutData.container, layoutData.settings);
@@ -270,11 +296,11 @@ export default class Packer {
   }
 
   protected _setContainerStyles(
-    layout: LayoutData,
-    containerData: ContainerData,
+    layout: PackerLayoutData,
+    containerData: PackerContainerData,
     settings: number
   ) {
-    const isHorizontal = !!(settings & HORIZONTAL);
+    const isHorizontal = !!(settings & SETTINGS.horizontal);
     const isBorderBox = containerData.boxSizing === 'border-box';
     const { borderLeft = 0, borderRight = 0, borderTop = 0, borderBottom = 0 } = containerData;
     const { styles, width, height } = layout;

@@ -10,6 +10,6 @@
  * @param {*} val
  * @returns {boolean}
  */
-export default function isFunction(val: any): val is (...args: any) => any {
+export default function isFunction(val: any): val is Function {
   return typeof val === 'function';
 }

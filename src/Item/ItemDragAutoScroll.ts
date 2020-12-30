@@ -22,16 +22,13 @@
  */
 
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
-
 import Grid from '../Grid/Grid';
 import Item, { ItemInternal } from './Item';
 import { ItemDragInternal } from './ItemDrag';
 import { DraggerStartEvent, DraggerMoveEvent } from '../Dragger/Dragger';
-
 import getIntersectionScore from '../utils/getIntersectionScore';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
 import isFunction from '../utils/isFunction';
-
 import { Rect, RectExtended } from '../types';
 
 //
@@ -49,7 +46,7 @@ const R1: RectExtended = {
 
 const R2: RectExtended = { ...R1 };
 
-const SPEED_DATA: ScrollSpeedData = {
+const SPEED_DATA: AutoScrollSpeedData = {
   direction: 0,
   threshold: 0,
   distance: 0,
@@ -74,30 +71,17 @@ export const DIR_DOWN = (AXIS_Y | FORWARD) as 6;
 // Types
 //
 
-export type ScrollAxis = typeof AXIS_X | typeof AXIS_Y;
+type AutoScrollItemId = number | string;
 
-export type ScrollDirectionX = typeof DIR_LEFT | typeof DIR_RIGHT;
+export type AutoScrollAxis = typeof AXIS_X | typeof AXIS_Y;
 
-export type ScrollDirectionY = typeof DIR_UP | typeof DIR_DOWN;
+export type AutoScrollDirectionX = typeof DIR_LEFT | typeof DIR_RIGHT;
 
-export type ScrollDirection = ScrollDirectionX | ScrollDirectionY;
+export type AutoScrollDirectionY = typeof DIR_UP | typeof DIR_DOWN;
 
-export interface ScrollTarget {
-  element: Window | HTMLElement;
-  axis?: number;
-  priority?: number;
-  threshold?: number;
-}
+export type AutoScrollDirection = AutoScrollDirectionX | AutoScrollDirectionY;
 
-export type ScrollTargetsGetter = (item: Item) => ScrollTarget[];
-
-export type ScrollEventCallback = (
-  item: Item,
-  scrollElement: Window | HTMLElement,
-  scrollDirection: number
-) => any;
-
-export type ScrollHandleCallback = (
+export type AutoScrollHandleCallback = (
   item: Item,
   itemClientX: number,
   itemClientY: number,
@@ -107,8 +91,8 @@ export type ScrollHandleCallback = (
   pointerClientY: number
 ) => Rect;
 
-export interface ScrollSpeedData {
-  direction: ScrollDirection | 0;
+export interface AutoScrollSpeedData {
+  direction: AutoScrollDirection | 0;
   threshold: number;
   distance: number;
   value: number;
@@ -119,31 +103,30 @@ export interface ScrollSpeedData {
   isEnding: boolean;
 }
 
-export type ScrollSpeedCallback = (
+export type AutoScrollSpeedCallback = (
   item: Item,
   scrollElement: Window | HTMLElement,
-  scrollData: ScrollSpeedData
+  scrollData: AutoScrollSpeedData
 ) => number;
 
-export interface ScrollSettings {
-  targets: ScrollTarget[] | ScrollTargetsGetter;
-  handle: ScrollHandleCallback | null;
-  threshold: number;
-  safeZone: number;
-  speed: number | ScrollSpeedCallback;
-  sortDuringScroll: boolean;
-  smoothStop: boolean;
-  onStart: ScrollEventCallback | null;
-  onStop: ScrollEventCallback | null;
+export interface AutoScrollTarget {
+  element: Window | HTMLElement;
+  axis?: number;
+  priority?: number;
+  threshold?: number;
 }
 
-type ItemId = number | string;
+export type AutoScrollEventCallback = (
+  item: Item,
+  scrollElement: Window | HTMLElement,
+  scrollDirection: AutoScrollDirection | 0
+) => void;
 
 //
 // Utils
 //
 
-export function pointerHandle(pointerSize: number): ScrollHandleCallback {
+export function pointerHandle(pointerSize: number): AutoScrollHandleCallback {
   const rect = { left: 0, top: 0, width: 0, height: 0 };
   const size = pointerSize || 1;
   return function (_item, _x, _y, _w, _h, pX, pY) {
@@ -159,7 +142,7 @@ export function smoothSpeed(
   maxSpeed: number,
   acceleration: number,
   deceleration: number
-): ScrollSpeedCallback {
+): AutoScrollSpeedCallback {
   return function (_item, _element, data) {
     let targetSpeed = 0;
     if (!data.isEnding) {
@@ -391,7 +374,7 @@ class ScrollRequest {
   element: HTMLElement | Window | null;
   isActive: boolean;
   isEnding: boolean;
-  direction: ScrollDirection | 0;
+  direction: AutoScrollDirection | 0;
   value: number;
   maxValue: number;
   threshold: number;
@@ -516,12 +499,15 @@ export default class ItemDragAutoScroll {
   protected _items: Item[];
   protected _actions: ScrollAction[];
   protected _requests: {
-    [AXIS_X]: Map<ItemId, ScrollRequest>;
-    [AXIS_Y]: Map<ItemId, ScrollRequest>;
+    [AXIS_X]: Map<AutoScrollItemId, ScrollRequest>;
+    [AXIS_Y]: Map<AutoScrollItemId, ScrollRequest>;
   };
-  protected _requestOverlapCheck: Map<ItemId, number>;
-  protected _dragPositions: Map<ItemId, [number, number]>;
-  protected _dragDirections: Map<ItemId, [ScrollDirectionX | 0, ScrollDirectionY | 0]>;
+  protected _requestOverlapCheck: Map<AutoScrollItemId, number>;
+  protected _dragPositions: Map<AutoScrollItemId, [number, number]>;
+  protected _dragDirections: Map<
+    AutoScrollItemId,
+    [AutoScrollDirectionX | 0, AutoScrollDirectionY | 0]
+  >;
   protected _overlapCheckInterval: number;
   protected _requestPool: ObjectPool<ScrollRequest>;
   protected _actionPool: ObjectPool<ScrollAction>;
@@ -698,7 +684,7 @@ export default class ItemDragAutoScroll {
 
   protected _getItemHandleRect(
     item: Item,
-    handle: ScrollHandleCallback | null,
+    handle: AutoScrollHandleCallback | null,
     rect: RectExtended = { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 }
   ) {
     const drag = (((item as any) as ItemInternal)._drag as any) as ItemDragInternal;
@@ -737,9 +723,9 @@ export default class ItemDragAutoScroll {
 
   protected _requestItemScroll(
     item: Item,
-    axis: ScrollAxis,
+    axis: AutoScrollAxis,
     element: Window | HTMLElement,
-    direction: ScrollDirection,
+    direction: AutoScrollDirection,
     threshold: number,
     distance: number,
     maxValue: number
@@ -765,7 +751,7 @@ export default class ItemDragAutoScroll {
     reqMap.set(item.id, request);
   }
 
-  protected _cancelItemScroll(item: Item, axis: ScrollAxis) {
+  protected _cancelItemScroll(item: Item, axis: AutoScrollAxis) {
     const reqMap = this._requests[axis];
     const request = reqMap.get(item.id);
     if (!request) return;
@@ -801,7 +787,7 @@ export default class ItemDragAutoScroll {
     let xPriority = -Infinity;
     let xThreshold = 0;
     let xScore = 0;
-    let xDirection: ScrollDirectionX | 0 = 0;
+    let xDirection: AutoScrollDirectionX | 0 = 0;
     let xDistance = 0;
     let xMaxScroll = 0;
 
@@ -809,7 +795,7 @@ export default class ItemDragAutoScroll {
     let yPriority = -Infinity;
     let yThreshold = 0;
     let yScore = 0;
-    let yDirection: ScrollDirectionY | 0 = 0;
+    let yDirection: AutoScrollDirectionY | 0 = 0;
     let yDistance = 0;
     let yMaxScroll = 0;
 
@@ -848,7 +834,7 @@ export default class ItemDragAutoScroll {
         (testPriority > xPriority || testScore > xScore)
       ) {
         let testDistance = 0;
-        let testDirection: ScrollDirectionX | 0 = 0;
+        let testDirection: AutoScrollDirectionX | 0 = 0;
         const testThreshold = computeThreshold(targetThreshold, testRect.width);
         const testEdgeOffset = computeEdgeOffset(
           testThreshold,
@@ -888,7 +874,7 @@ export default class ItemDragAutoScroll {
         (testPriority > yPriority || testScore > yScore)
       ) {
         let testDistance = 0;
-        let testDirection: ScrollDirectionY | 0 = 0;
+        let testDirection: AutoScrollDirectionY | 0 = 0;
         const testThreshold = computeThreshold(targetThreshold, testRect.height);
         const testEdgeOffset = computeEdgeOffset(
           testThreshold,
@@ -1101,7 +1087,7 @@ export default class ItemDragAutoScroll {
     }
   }
 
-  protected _requestAction(request: ScrollRequest, axis: ScrollAxis) {
+  protected _requestAction(request: ScrollRequest, axis: AutoScrollAxis) {
     const actions = this._actions;
     const isAxisX = axis === AXIS_X;
     let action: ScrollAction | null = null;

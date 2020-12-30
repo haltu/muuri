@@ -7,8 +7,8 @@
 
 import Dragger, { DraggerStartEvent } from './Dragger';
 
-const pointerOut = 'pointerout';
-const waitDuration = 100;
+const POINTER_OUT_EVENT = 'pointerout';
+const WAIT_DURATION = 100;
 
 /**
  * If you happen to use Legacy Edge or IE on a touch capable device there is a
@@ -59,7 +59,7 @@ export default class EdgeHack {
     this._dragger.on('move', this._resetData);
     this._dragger.on('cancel', this._removeBehaviour);
     this._dragger.on('end', this._removeBehaviour);
-    window.addEventListener(pointerOut, this._onOut);
+    window.addEventListener(POINTER_OUT_EVENT, this._onOut);
   }
 
   protected _removeBehaviour() {
@@ -67,7 +67,7 @@ export default class EdgeHack {
     this._dragger.off('move', this._resetData);
     this._dragger.off('cancel', this._removeBehaviour);
     this._dragger.off('end', this._removeBehaviour);
-    window.removeEventListener(pointerOut, this._onOut);
+    window.removeEventListener(POINTER_OUT_EVENT, this._onOut);
     this._resetData();
     this._isActive = false;
   }
@@ -89,7 +89,7 @@ export default class EdgeHack {
     if (!this._dragger.getTrackedTouch(e)) return;
     this._resetData();
     this._outEvent = e;
-    this._timeout = window.setTimeout(this._onTimeout, waitDuration);
+    this._timeout = window.setTimeout(this._onTimeout, WAIT_DURATION);
   }
 
   protected _onTimeout() {

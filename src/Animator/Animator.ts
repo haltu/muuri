@@ -8,7 +8,6 @@ import getUnprefixedPropName from '../utils/getUnprefixedPropName';
 import isFunction from '../utils/isFunction';
 import isNative from '../utils/isNative';
 import setStyles from '../utils/setStyles';
-
 import { Writeable } from '../types';
 
 export interface AnimationProperties {
@@ -72,7 +71,7 @@ export default class Animator {
     // Start the animation. We need to provide unprefixed property names to the
     // Web Animations polyfill if it is being used. If we have native Web
     // Animations available we need to provide prefixed properties instead.
-    (this as Writeable<Animator>).animation = element.animate(
+    (this as Writeable<this>).animation = element.animate(
       [
         createKeyframe(propsFrom, HAS_NATIVE_WEB_ANIMATIONS),
         createKeyframe(propsTo, HAS_NATIVE_WEB_ANIMATIONS),
@@ -98,7 +97,7 @@ export default class Animator {
   stop() {
     if (!this.element || !this.animation) return;
     this.animation.cancel();
-    (this as Writeable<Animator>).animation = this._finishCallback = null;
+    (this as Writeable<this>).animation = this._finishCallback = null;
   }
 
   /**
@@ -114,7 +113,7 @@ export default class Animator {
   destroy() {
     if (!this.element) return;
     this.stop();
-    (this as Writeable<Animator>).element = null;
+    (this as Writeable<this>).element = null;
   }
 
   /**
@@ -122,7 +121,7 @@ export default class Animator {
    */
   protected _onFinish() {
     const { _finishCallback } = this;
-    (this as Writeable<Animator>).animation = this._finishCallback = null;
+    (this as Writeable<this>).animation = this._finishCallback = null;
     _finishCallback && _finishCallback();
   }
 }

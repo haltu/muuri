@@ -26,15 +26,14 @@ import {
   ITEM_ELEMENT_MAP,
   MAX_SAFE_FLOAT32_INTEGER,
 } from '../constants';
-
 import Item, { ItemInternal } from '../Item/Item';
 import ItemDrag from '../Item/ItemDrag';
 import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
 import ItemDragAutoScroll, {
-  ScrollSpeedCallback,
-  ScrollTarget,
-  ScrollHandleCallback,
-  ScrollEventCallback,
+  AutoScrollSpeedCallback,
+  AutoScrollHandleCallback,
+  AutoScrollTarget,
+  AutoScrollEventCallback,
 } from '../Item/ItemDragAutoScroll';
 import ItemLayout, { ItemLayoutInternal } from '../Item/ItemLayout';
 import ItemMigrate from '../Item/ItemMigrate';
@@ -42,7 +41,7 @@ import ItemDragRelease from '../Item/ItemDragRelease';
 import ItemVisibility from '../Item/ItemVisibility';
 import Emitter from '../Emitter/Emitter';
 import Animator from '../Animator/Animator';
-import Packer, { LayoutOptions } from '../Packer/Packer';
+import Packer, { PackerLayoutOptions } from '../Packer/Packer';
 import Dragger, {
   DraggerCssPropsOptions,
   DraggerListenerOptions,
@@ -51,7 +50,6 @@ import Dragger, {
   DraggerEndEvent,
   DraggerCancelEvent,
 } from '../Dragger/Dragger';
-
 import addClass from '../utils/addClass';
 import arrayInsert from '../utils/arrayInsert';
 import arrayMove from '../utils/arrayMove';
@@ -68,12 +66,99 @@ import isPlainObject from '../utils/isPlainObject';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 import toArray from '../utils/toArray';
-
 import { StyleDeclaration, ScrollEvent, Writeable, RectExtended } from '../types';
 
-export type InstantLayout = typeof INSTANT_LAYOUT;
+type InstantLayout = typeof INSTANT_LAYOUT;
 
-export type MoveAction = typeof ACTION_MOVE | typeof ACTION_SWAP;
+type MoveAction = typeof ACTION_MOVE | typeof ACTION_SWAP;
+
+type LayoutOnFinish = (items: Item[], isAborted: boolean) => void;
+
+type LayoutCancel = (...args: any[]) => void;
+
+export interface LayoutData {
+  id: number;
+  items: Item[];
+  slots: number[] | Float32Array;
+  styles?: StyleDeclaration | null;
+  [key: string]: any;
+}
+
+export type LayoutFunction = (
+  layoutId: number,
+  grid: Grid,
+  items: Item[],
+  containerData: {
+    width: number;
+    height: number;
+    borderLeft: number;
+    borderRight: number;
+    borderTop: number;
+    borderBottom: number;
+    boxSizing: 'border-box' | 'content-box' | '';
+  },
+  callback: (layout: LayoutData) => void
+) => LayoutCancel | undefined;
+
+export type DragStartPredicate = (
+  item: Item,
+  event: DraggerStartEvent | DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent
+) => boolean | undefined;
+
+export interface DragStartPredicateOptions {
+  distance?: number;
+  delay?: number;
+}
+
+export type DragSortGetter = (item: Item) => Grid[] | null;
+
+export interface DragSortHeuristicsOptions {
+  sortInterval?: number;
+  minDragDistance?: number;
+  minBounceBackAngle?: number;
+}
+
+export type DragSortPredicate = (
+  item: Item,
+  event: DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent
+) => DragSortPredicateResult;
+
+export type DragSortPredicateResult = {
+  grid: Grid;
+  index: number;
+  action: MoveAction;
+} | null;
+
+export interface DragSortPredicateOptions {
+  threshold?: number;
+  action?: MoveAction;
+  migrateAction?: MoveAction;
+}
+
+export interface DragReleaseOptions {
+  duration?: number;
+  easing?: string;
+  useDragContainer?: boolean;
+}
+
+export interface DragPlaceholderOptions {
+  enabled?: boolean;
+  createElement?: ((item: Item) => HTMLElement) | null;
+  onCreate?: ((item: Item, placeholderElement: HTMLElement) => void) | null;
+  onRemove?: ((item: Item, placeholderElement: HTMLElement) => void) | null;
+}
+
+export interface DragAutoScrollOptions {
+  targets?: AutoScrollTarget[] | ((item: Item) => AutoScrollTarget[]);
+  handle?: AutoScrollHandleCallback | null;
+  threshold?: number;
+  safeZone?: number;
+  speed?: number | AutoScrollSpeedCallback;
+  sortDuringScroll?: boolean;
+  smoothStop?: boolean;
+  onStart?: AutoScrollEventCallback | null;
+  onStop?: AutoScrollEventCallback | null;
+}
 
 export interface GridEvents {
   synchronize(): any;
@@ -121,96 +206,6 @@ export interface GridEvents {
   destroy(): any;
 }
 
-export interface LayoutData {
-  id: number;
-  items: Item[];
-  slots: number[] | Float32Array;
-  styles?: StyleDeclaration | null;
-  [key: string]: any;
-}
-
-export type LayoutOnFinish = (items: Item[], isAborted: boolean) => any;
-
-export type LayoutCallback = (layout: LayoutData) => any;
-
-export type LayoutCancel = (...args: any[]) => any;
-
-export type LayoutFunction = (
-  layoutId: number,
-  grid: Grid,
-  items: Item[],
-  containerData: {
-    width: number;
-    height: number;
-    borderLeft: number;
-    borderRight: number;
-    borderTop: number;
-    borderBottom: number;
-    boxSizing: 'border-box' | 'content-box' | '';
-  },
-  callback: LayoutCallback
-) => void | undefined | LayoutCancel;
-
-export type DragStartPredicate = (
-  item: Item,
-  event: DraggerStartEvent | DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent
-) => boolean | undefined;
-
-export interface DragStartPredicateOptions {
-  distance?: number;
-  delay?: number;
-}
-
-export type DragSortGetter = (item: Item) => Grid[] | null | void | undefined;
-
-export interface DragSortHeuristicsOptions {
-  sortInterval?: number;
-  minDragDistance?: number;
-  minBounceBackAngle?: number;
-}
-
-export type DragSortPredicateResult = {
-  grid: Grid;
-  index: number;
-  action: MoveAction;
-} | null;
-
-export type DragSortPredicate = (
-  item: Item,
-  event: DraggerMoveEvent | DraggerEndEvent | DraggerCancelEvent
-) => DragSortPredicateResult;
-
-export interface DragSortPredicateOptions {
-  threshold?: number;
-  action?: MoveAction;
-  migrateAction?: MoveAction;
-}
-
-export interface DragReleaseOptions {
-  duration?: number;
-  easing?: string;
-  useDragContainer?: boolean;
-}
-
-export interface DragPlaceholderOptions {
-  enabled?: boolean;
-  createElement?: ((item: Item) => HTMLElement) | null;
-  onCreate?: ((item: Item, placeholderElement: HTMLElement) => any) | null;
-  onRemove?: ((item: Item, placeholderElement: HTMLElement) => any) | null;
-}
-
-export interface DragAutoScrollOptions {
-  targets?: ScrollTarget[] | ((item: Item) => ScrollTarget[]);
-  handle?: ScrollHandleCallback | null;
-  threshold?: number;
-  safeZone?: number;
-  speed?: number | ScrollSpeedCallback;
-  sortDuringScroll?: boolean;
-  smoothStop?: boolean;
-  onStart?: ScrollEventCallback | null;
-  onStop?: ScrollEventCallback | null;
-}
-
 export interface GridSettings {
   items: HTMLElement[] | NodeList | HTMLCollection | string;
   layoutOnInit: boolean;
@@ -220,7 +215,7 @@ export interface GridSettings {
   hideDuration: number;
   hideEasing: string;
   hiddenStyles: StyleDeclaration;
-  layout: Required<LayoutOptions> | LayoutFunction;
+  layout: Required<PackerLayoutOptions> | LayoutFunction;
   layoutOnResize: boolean | number;
   layoutDuration: number;
   layoutEasing: string;
@@ -268,7 +263,7 @@ export interface GridOptions
       | 'dragAutoScroll'
     >
   > {
-  layout?: LayoutOptions | LayoutFunction;
+  layout?: PackerLayoutOptions | LayoutFunction;
   dragStartPredicate?: DragStartPredicateOptions | DragStartPredicate;
   dragSortHeuristics?: DragSortHeuristicsOptions;
   dragSortPredicate?: DragSortPredicateOptions | DragSortPredicate;
@@ -787,7 +782,7 @@ export default class Grid {
    * Check if the grid is destroyed.
    *
    * @public
-   * @returns {Boolean}
+   * @returns {boolean}
    */
   isDestroyed() {
     return this._isDestroyed;
@@ -896,7 +891,7 @@ export default class Grid {
     nextSettings.hiddenStyles = normalizeStyles(nextSettings.hiddenStyles);
 
     // Update internal settings object.
-    (this as Writeable<Grid>).settings = nextSettings;
+    (this as Writeable<this>).settings = nextSettings;
 
     // Handle all options that need special care.
     for (let option in options) {
@@ -1011,7 +1006,7 @@ export default class Grid {
               break;
             }
             case 'itemPlaceholderClass': {
-              if (item._dragPlaceholder) item._dragPlaceholder.updateClassName(nextValue);
+              item._dragPlaceholder.updateClassName(nextValue);
               break;
             }
           }
@@ -1038,7 +1033,7 @@ export default class Grid {
         if (
           (dragHandleChanged || dragEnabledChanged) &&
           item._drag &&
-          item._drag.getRootGrid() === this
+          item._drag.getOriginGrid() === this
         ) {
           item._drag.destroy();
           item._drag = null;
@@ -1046,7 +1041,7 @@ export default class Grid {
 
         if (nextSettings.dragEnabled) {
           if (item._drag) {
-            if (item._drag.getRootGrid() === this) {
+            if (item._drag.getOriginGrid() === this) {
               if (dragCssPropsChanged) {
                 item._drag.dragger.setCssProps(nextSettings.dragCssProps);
               }
@@ -1227,7 +1222,6 @@ export default class Grid {
       borderBottom: this._borderBottom,
       boxSizing: this._boxSizing,
     };
-
     const { layout } = this.settings;
     let cancelLayout: LayoutCancel | null | undefined | void;
 
@@ -1437,7 +1431,7 @@ export default class Grid {
     options: {
       instant?: boolean;
       syncWithLayout?: boolean;
-      onFinish?: (items: Item[]) => any;
+      onFinish?: (items: Item[]) => void;
       layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
@@ -1464,7 +1458,7 @@ export default class Grid {
     options: {
       instant?: boolean;
       syncWithLayout?: boolean;
-      onFinish?: (items: Item[]) => any;
+      onFinish?: (items: Item[]) => void;
       layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {
@@ -1498,7 +1492,7 @@ export default class Grid {
     options: {
       instant?: boolean;
       syncWithLayout?: boolean;
-      onFinish?: (shownItems: Item[], hiddenItems: Item[]) => any;
+      onFinish?: (shownItems: Item[], hiddenItems: Item[]) => void;
       layout?: boolean | InstantLayout | LayoutOnFinish;
     } = {}
   ) {

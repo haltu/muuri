@@ -6,55 +6,36 @@
  */
 
 import { Rect } from '../types';
+import {
+  PackerLayoutData,
+  PackerLayoutItem,
+  PackerLayoutPacket,
+  PackerLayoutSettingsMasks,
+} from './Packer';
 
-export interface LayoutItem {
-  width: number;
-  height: number;
-  marginLeft?: number;
-  marginRight?: number;
-  marginTop?: number;
-  marginBottom?: number;
-  [key: string]: any;
+interface PackerProcessorLayoutData extends Pick<PackerLayoutData, 'width' | 'height' | 'slots'> {
+  items: Float32Array | PackerLayoutItem[];
 }
 
-export interface LayoutData {
-  width: number;
-  height: number;
-  items: Float32Array | LayoutItem[];
-  slots: Float32Array;
-}
+type PackerRectId = number;
 
-export interface LayoutSettingsMasks {
-  fillGaps: 1;
-  horizontal: 2;
-  alignRight: 4;
-  alignBottom: 8;
-  rounding: 16;
-}
-
-export interface LayoutPacket {
-  id: 0;
-  width: 1;
-  height: 2;
-  settings: 3;
-  slots: 4;
-}
-
-type RectId = number;
-
-type LayoutSettings = number;
+type PackerLayoutSettings = number;
 
 interface PackerProcessor {
-  computeLayout(layout: LayoutData, settings: LayoutSettings): LayoutData;
+  computeLayout(
+    layout: PackerProcessorLayoutData,
+    settings: PackerLayoutSettings
+  ): PackerProcessorLayoutData;
 }
 
 export default function createPackerProcessor(isWorker = false): PackerProcessor {
-  const FILL_GAPS: LayoutSettingsMasks['fillGaps'] = 1;
-  const HORIZONTAL: LayoutSettingsMasks['horizontal'] = 2;
-  const ALIGN_RIGHT: LayoutSettingsMasks['alignRight'] = 4;
-  const ALIGN_BOTTOM: LayoutSettingsMasks['alignBottom'] = 8;
-  const ROUNDING: LayoutSettingsMasks['rounding'] = 16;
-
+  const SETTINGS: PackerLayoutSettingsMasks = {
+    fillGaps: 1,
+    horizontal: 2,
+    alignRight: 4,
+    alignBottom: 8,
+    rounding: 16,
+  };
   const EPS = 0.001;
   const MIN_SLOT_SIZE = 0.5;
 
@@ -66,15 +47,15 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
   }
 
   class PrivatePackerProcessor implements PackerProcessor {
-    protected _currentRects: RectId[];
-    protected _nextRects: RectId[];
+    protected _currentRects: PackerRectId[];
+    protected _nextRects: PackerRectId[];
     protected _rectStore: number[];
     protected _slotSizes: number[];
-    protected _shards: RectId[];
+    protected _shards: PackerRectId[];
     protected _rectTarget: Rect;
     protected _tempRectA: Rect;
     protected _tempRectB: Rect;
-    protected _rectId: RectId;
+    protected _rectId: PackerRectId;
     protected _slotIndex: number;
     protected _slot: Rect;
 
@@ -100,16 +81,16 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
      * The provided layout object's slots array is mutated as well as the width
      * and height properties.
      */
-    computeLayout(layout: LayoutData, settings: LayoutSettings) {
+    computeLayout(layout: PackerProcessorLayoutData, settings: PackerLayoutSettings) {
       const items = layout.items;
       if (!items.length) return layout;
 
       const slots = layout.slots;
-      const fillGaps = !!(settings & FILL_GAPS);
-      const horizontal = !!(settings & HORIZONTAL);
-      const alignRight = !!(settings & ALIGN_RIGHT);
-      const alignBottom = !!(settings & ALIGN_BOTTOM);
-      const rounding = !!(settings & ROUNDING);
+      const fillGaps = !!(settings & SETTINGS.fillGaps);
+      const horizontal = !!(settings & SETTINGS.horizontal);
+      const alignRight = !!(settings & SETTINGS.alignRight);
+      const alignBottom = !!(settings & SETTINGS.alignBottom);
+      const rounding = !!(settings & SETTINGS.rounding);
       const isPreProcessed = typeof items[0] === 'number';
       const bump = isPreProcessed ? 2 : 1;
 
@@ -117,7 +98,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
       let slotWidth = 0;
       let slotHeight = 0;
       let slot: Rect;
-      let item: LayoutItem;
+      let item: PackerLayoutItem;
 
       // Compute slots for the items.
       for (i = 0; i < items.length; i += bump) {
@@ -128,7 +109,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
           slotWidth = items[i] as number;
           slotHeight = items[i + 1] as number;
         } else {
-          item = items[i] as LayoutItem;
+          item = items[i] as PackerLayoutItem;
           slotWidth = item.width + (item.marginLeft || 0) + (item.marginRight || 0);
           slotHeight = item.height + (item.marginTop || 0) + (item.marginBottom || 0);
         }
@@ -195,7 +176,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
      * and dimensions data. The returned object is reused between calls.
      */
     protected _computeNextSlot(
-      layout: LayoutData,
+      layout: PackerProcessorLayoutData,
       slotWidth: number,
       slotHeight: number,
       fillGaps: boolean,
@@ -369,7 +350,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
      * provide a target object where the rectangle data will be written in. By
      * default an internal object is reused as a target object.
      */
-    protected _getRect(id: RectId, target?: Rect) {
+    protected _getRect(id: PackerRectId, target?: Rect) {
       target = target || this._rectTarget;
       target.left = this._rectStore[id] || 0;
       target.top = this._rectStore[++id] || 0;
@@ -381,7 +362,7 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
     /**
      * Punch a hole into a rectangle and return the shards (1-4).
      */
-    protected _splitRect(rect: Rect, hole: Rect): RectId[] {
+    protected _splitRect(rect: Rect, hole: Rect): PackerRectId[] {
       const { _shards: shards } = this;
       let width = 0;
       let height = 0;
@@ -509,17 +490,17 @@ export default function createPackerProcessor(isWorker = false): PackerProcessor
 
   if (isWorker) {
     const workerScope = self as DedicatedWorkerGlobalScope;
-    const PACKET_INDEX_WIDTH: LayoutPacket['width'] = 1;
-    const PACKET_INDEX_HEIGHT: LayoutPacket['height'] = 2;
-    const PACKET_INDEX_SETTINGS: LayoutPacket['settings'] = 3;
-    const PACKET_HEADER_SLOTS: LayoutPacket['slots'] = 4;
+    const PACKET_INDEX_WIDTH: PackerLayoutPacket['width'] = 1;
+    const PACKET_INDEX_HEIGHT: PackerLayoutPacket['height'] = 2;
+    const PACKET_INDEX_SETTINGS: PackerLayoutPacket['settings'] = 3;
+    const PACKET_HEADER_SLOTS: PackerLayoutPacket['slots'] = 4;
 
     workerScope.onmessage = function (msg: { data: Float32Array }) {
       const data = new Float32Array(msg.data);
       const items = data.subarray(PACKET_HEADER_SLOTS, data.length);
       const slots = new Float32Array(items.length);
-      const settings: LayoutSettings = data[PACKET_INDEX_SETTINGS];
-      const layout: LayoutData = {
+      const settings: PackerLayoutSettings = data[PACKET_INDEX_SETTINGS];
+      const layout: PackerProcessorLayoutData = {
         items: items,
         slots: slots,
         width: data[PACKET_INDEX_WIDTH],

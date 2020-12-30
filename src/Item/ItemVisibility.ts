@@ -5,19 +5,15 @@
  */
 
 import { VIEWPORT_THRESHOLD } from '../constants';
-
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
-
 import Grid, { GridInternal } from '../Grid/Grid';
 import Item, { ItemInternal } from './Item';
 import Animator from '../Animator/Animator';
-
 import addClass from '../utils/addClass';
 import getCurrentStyles from '../utils/getCurrentStyles';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
-
 import { StyleDeclaration, Writeable } from '../types';
 
 interface GridPrivate extends GridInternal {
@@ -31,43 +27,40 @@ interface GridPrivate extends GridInternal {
  * @param {Item} item
  */
 export default class ItemVisibility {
-  readonly item: ItemInternal;
-  readonly childElement: HTMLElement;
+  readonly item: ItemInternal | null;
+  readonly element: HTMLElement | null;
   readonly animator: Animator;
   protected _isHidden: boolean;
   protected _isHiding: boolean;
   protected _isShowing: boolean;
-  protected _isDestroyed: boolean;
   protected _currentStyleProps: string[];
   protected _queue: string;
 
   constructor(item: Item) {
-    const isActive = item.isActive();
-    const element = item.element;
-    const childElement = element.children[0] as HTMLElement | null;
-
-    if (!childElement) {
+    const element = item.element.children[0] as HTMLElement | null;
+    if (!element) {
       throw new Error('No valid child element found within item element.');
     }
 
+    const isActive = item.isActive();
+
     this.item = (item as any) as ItemInternal;
-    this.childElement = childElement;
-    this.animator = new Animator(childElement);
+    this.element = element;
+    this.animator = new Animator(element);
 
     this._isHidden = !isActive;
     this._isHiding = false;
     this._isShowing = false;
-    this._isDestroyed = false;
     this._currentStyleProps = [];
     this._queue = 'visibility-' + item.id;
 
     this._finishShow = this._finishShow.bind(this);
     this._finishHide = this._finishHide.bind(this);
 
-    element.style.display = isActive ? '' : 'none';
+    item.element.style.display = isActive ? '' : 'none';
 
     const { settings } = item.getGrid() as Grid;
-    addClass(element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
+    addClass(item.element, isActive ? settings.itemVisibleClass : settings.itemHiddenClass);
     this.setStyles(isActive ? settings.visibleStyles : settings.hiddenStyles);
   }
 
@@ -102,24 +95,14 @@ export default class ItemVisibility {
   }
 
   /**
-   * Is visibility handler destroyed?
-   *
-   * @public
-   * @returns {boolean}
-   */
-  isDestroyed() {
-    return this._isDestroyed;
-  }
-
-  /**
    * Show item.
    *
    * @public
    * @param {boolean} instant
    * @param {Function} [onFinish]
    */
-  show(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => any) {
-    if (this._isDestroyed) return;
+  show(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => void) {
+    if (!this.item) return;
 
     const { item } = this;
     const callback = isFunction(onFinish) ? onFinish : null;
@@ -142,13 +125,12 @@ export default class ItemVisibility {
     // to block if necessary.
     if (!this._isShowing) {
       item._emitter.burst(this._queue, true, item);
-      const element = item.element;
       const { settings } = item.getGrid() as Grid;
       if (settings) {
-        removeClass(element, settings.itemHiddenClass);
-        addClass(element, settings.itemVisibleClass);
+        removeClass(item.element, settings.itemHiddenClass);
+        addClass(item.element, settings.itemVisibleClass);
       }
-      if (!this._isHiding) element.style.display = '';
+      if (!this._isHiding) item.element.style.display = '';
     }
 
     // Push callback to the callback queue.
@@ -169,8 +151,8 @@ export default class ItemVisibility {
    * @param {boolean} instant
    * @param {Function} [onFinish]
    */
-  hide(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => any) {
-    if (this._isDestroyed) return;
+  hide(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => void) {
+    if (!this.item) return;
 
     const { item } = this;
     const callback = isFunction(onFinish) ? onFinish : null;
@@ -193,10 +175,9 @@ export default class ItemVisibility {
     // to block if necessary.
     if (!this._isHiding) {
       item._emitter.burst(this._queue, true, item);
-      const element = item.element;
       const { settings } = item.getGrid() as Grid;
-      addClass(element, settings.itemHiddenClass);
-      removeClass(element, settings.itemVisibleClass);
+      addClass(item.element, settings.itemHiddenClass);
+      removeClass(item.element, settings.itemVisibleClass);
     }
 
     // Push callback to the callback queue.
@@ -217,8 +198,7 @@ export default class ItemVisibility {
    * @param {boolean} processCallbackQueue
    */
   stop(processCallbackQueue: boolean) {
-    if (this._isDestroyed) return;
-    if (!this._isHiding && !this._isShowing) return;
+    if (!this.item || (!this._isHiding && !this._isShowing)) return;
 
     const { item } = this;
 
@@ -239,12 +219,16 @@ export default class ItemVisibility {
    * @param {Object} styles
    */
   setStyles(styles: StyleDeclaration) {
-    const { childElement, _currentStyleProps } = this;
+    if (!this.element) return;
+
+    const { element, _currentStyleProps } = this;
+
     this._removeCurrentStyles();
+
     let prop: string;
     for (prop in styles) {
       _currentStyleProps.push(prop);
-      childElement.style[prop as any] = styles[prop];
+      element.style[prop as any] = styles[prop];
     }
   }
 
@@ -254,10 +238,10 @@ export default class ItemVisibility {
    * @public
    */
   destroy() {
-    if (this._isDestroyed) return;
+    if (!this.item) return;
 
     const { item } = this;
-    const element = item.element;
+    const itemElement = item.element;
     const { settings } = item.getGrid() as Grid;
 
     this.stop(true);
@@ -265,14 +249,15 @@ export default class ItemVisibility {
     this.animator.destroy();
     this._removeCurrentStyles();
     if (settings) {
-      removeClass(element, settings.itemVisibleClass);
-      removeClass(element, settings.itemHiddenClass);
+      removeClass(itemElement, settings.itemVisibleClass);
+      removeClass(itemElement, settings.itemHiddenClass);
     }
-    element.style.display = '';
+    itemElement.style.display = '';
 
-    // Reset state.
     this._isHiding = this._isShowing = false;
-    this._isDestroyed = this._isHidden = true;
+    this._isHidden = true;
+
+    (this as Writeable<this>).item = null;
   }
 
   /**
@@ -284,9 +269,9 @@ export default class ItemVisibility {
    * @param {Function} [onFinish]
    */
   protected _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void) {
-    if (this._isDestroyed) return;
+    if (!this.item || !this.element) return;
 
-    const { item, childElement, animator } = this;
+    const { item, element, animator } = this;
     const grid = (item.getGrid() as any) as GridPrivate;
     const { settings } = grid;
     const targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
@@ -306,7 +291,7 @@ export default class ItemVisibility {
 
     // If we need to apply the styles instantly without animation.
     if (isInstant) {
-      setStyles(childElement, targetStyles);
+      setStyles(element, targetStyles);
       animator.stop();
       onFinish && onFinish();
       return;
@@ -329,9 +314,9 @@ export default class ItemVisibility {
       item.id,
       () => {
         // Make sure the item is still in hiding/showing.
-        if (this._isDestroyed || (toVisible ? !this._isShowing : !this._isHiding)) return;
+        if (!this.item || (toVisible ? !this._isShowing : !this._isHiding)) return;
 
-        currentStyles = getCurrentStyles(childElement, targetStyles);
+        currentStyles = getCurrentStyles(element, targetStyles);
 
         const { x, y } = item._getTranslate();
         tX = x;
@@ -345,7 +330,7 @@ export default class ItemVisibility {
       },
       () => {
         // Make sure the item is still in hiding/showing.
-        if (this._isDestroyed || (toVisible ? !this._isShowing : !this._isHiding)) return;
+        if (!this.item || (toVisible ? !this._isShowing : !this._isHiding)) return;
 
         // If item is not in the viewport let's skip the animation.
         if (settings._animationWindowing && !item._isInViewport(tX, tY, VIEWPORT_THRESHOLD)) {
@@ -357,7 +342,7 @@ export default class ItemVisibility {
               VIEWPORT_THRESHOLD
             )
           ) {
-            setStyles(childElement, targetStyles);
+            setStyles(element, targetStyles);
             animator.stop();
             onFinish && onFinish();
             return;
@@ -381,7 +366,7 @@ export default class ItemVisibility {
    * @protected
    */
   protected _finishShow() {
-    if (this._isHidden) return;
+    if (!this.item || this._isHidden) return;
     this._isShowing = false;
     this.item._emitter.burst(this._queue, false, this.item);
   }
@@ -392,7 +377,7 @@ export default class ItemVisibility {
    * @protected
    */
   protected _finishHide() {
-    if (!this._isHidden) return;
+    if (!this.item || !this._isHidden) return;
     const { item } = this;
     this._isHiding = false;
     item._layout.stop(true, 0, 0);
@@ -406,11 +391,13 @@ export default class ItemVisibility {
    * @protected
    */
   protected _removeCurrentStyles() {
-    const { childElement, _currentStyleProps } = this;
+    if (!this.element) return;
+
+    const { element, _currentStyleProps } = this;
 
     let i = 0;
     for (; i < _currentStyleProps.length; i++) {
-      childElement.style[_currentStyleProps[i] as any] = '';
+      element.style[_currentStyleProps[i] as any] = '';
     }
 
     _currentStyleProps.length = 0;
@@ -421,7 +408,6 @@ export interface ItemVisibilityInternal extends Writeable<ItemVisibility> {
   _isHidden: ItemVisibility['_isHidden'];
   _isHiding: ItemVisibility['_isHiding'];
   _isShowing: ItemVisibility['_isShowing'];
-  _isDestroyed: ItemVisibility['_isDestroyed'];
   _currentStyleProps: ItemVisibility['_currentStyleProps'];
   _queue: ItemVisibility['_queue'];
   _startAnimation: ItemVisibility['_startAnimation'];

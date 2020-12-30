@@ -1,6 +1,6 @@
-const typescript = require('@rollup/plugin-typescript');
-const dts = require('rollup-plugin-dts').default;
-const pkg = require('./package.json');
+import typescript from '@rollup/plugin-typescript';
+import dts from 'rollup-plugin-dts';
+import pkg from './package.json';
 
 const banner = `/**
 * Muuri v${pkg.version}

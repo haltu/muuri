@@ -5,15 +5,15 @@
  * https://github.com/haltu/muuri/blob/master/src/Emitter/LICENSE.md
  */
 
-export type EventName = string;
-export type EventListener = Function;
+export type EmitterEvent = string;
+export type EmitterListener = Function;
 
 /**
  * Event emitter.
  */
 export default class Emitter {
-  protected _events: { [event: string]: EventListener[] } | null;
-  protected _queue: EventListener[];
+  protected _events: { [event: string]: EmitterListener[] } | null;
+  protected _queue: EmitterListener[];
   protected _counter: number;
   protected _clearOnEmit: boolean;
 
@@ -27,7 +27,7 @@ export default class Emitter {
   /**
    * Bind an event listener.
    */
-  on(event: EventName, listener: EventListener): this {
+  on(event: EmitterEvent, listener: EmitterListener): this {
     if (!this._events) return this;
 
     // Get listeners queue and create it if it does not exist.
@@ -43,7 +43,7 @@ export default class Emitter {
   /**
    * Unbind all event listeners that match the provided listener function.
    */
-  off(event: EventName, listener: EventListener): this {
+  off(event: EmitterEvent, listener: EmitterListener): this {
     if (!this._events) return this;
 
     // Get listeners and return immediately if none is found.
@@ -62,7 +62,7 @@ export default class Emitter {
   /**
    * Unbind all listeners of the provided event.
    */
-  clear(event: EventName): this {
+  clear(event: EmitterEvent): this {
     if (!this._events) return this;
 
     const listeners = this._events[event];
@@ -77,7 +77,7 @@ export default class Emitter {
   /**
    * Emit all listeners in a specified event with the provided arguments.
    */
-  emit(event: EventName, ...args: any[]): this {
+  emit(event: EmitterEvent, ...args: any[]): this {
     if (!this._events) {
       this._clearOnEmit = false;
       return this;
@@ -135,7 +135,7 @@ export default class Emitter {
    * allows the emitter to serve as a queue where all listeners are called only
    * once.
    */
-  burst(event: EventName, ...args: any[]): this {
+  burst(event: EmitterEvent, ...args: any[]): this {
     if (!this._events) return this;
     this._clearOnEmit = true;
     return this.emit(event, ...args);
@@ -144,7 +144,7 @@ export default class Emitter {
   /**
    * Check how many listeners there are for a specific event.
    */
-  countListeners(event: EventName) {
+  countListeners(event: EmitterEvent) {
     if (!this._events) return 0;
     const listeners = this._events[event];
     return listeners ? listeners.length : 0;

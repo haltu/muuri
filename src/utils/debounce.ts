@@ -19,7 +19,7 @@ let debounceId = 0;
  * @param {number} durationMs
  * @returns {Function}
  */
-export default function debounce(fn: () => any, durationMs: number) {
+export default function debounce(fn: () => void, durationMs: number) {
   let id = ++debounceId;
   let timer = 0;
   let lastTime = 0;

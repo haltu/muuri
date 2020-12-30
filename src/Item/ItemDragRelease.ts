@@ -5,16 +5,12 @@
  */
 
 import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END, HAS_PASSIVE_EVENTS } from '../constants';
-
 import { addReleaseScrollTick, cancelReleaseScrollTick } from '../ticker';
-
 import Grid, { GridInternal } from '../Grid/Grid';
 import Item, { ItemInternal } from './Item';
-
 import addClass from '../utils/addClass';
 import getOffsetDiff from '../utils/getOffsetDiff';
 import removeClass from '../utils/removeClass';
-
 import { Writeable } from '../types';
 
 const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: true } : true;
@@ -29,16 +25,14 @@ const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: t
  * @param {Item} item
  */
 export default class ItemDragRelease {
-  readonly item: ItemInternal;
+  readonly item: ItemInternal | null;
   protected _isActive: boolean;
   protected _isPositioning: boolean;
-  protected _isDestroyed: boolean;
 
   constructor(item: Item) {
     this.item = (item as any) as ItemInternal;
     this._isActive = false;
     this._isPositioning = false;
-    this._isDestroyed = false;
     this._onScroll = this._onScroll.bind(this);
   }
 
@@ -63,22 +57,12 @@ export default class ItemDragRelease {
   }
 
   /**
-   * Is instance destroyed?
-   *
-   * @public
-   * @returns {boolean}
-   */
-  isDestroyed() {
-    return this._isDestroyed;
-  }
-
-  /**
    * Start the release process of an item.
    *
    * @public
    */
   start() {
-    if (this._isDestroyed || this._isActive) return;
+    if (!this.item || this.isActive()) return;
 
     const { item } = this;
     const grid = (item.getGrid() as any) as GridInternal;
@@ -106,7 +90,7 @@ export default class ItemDragRelease {
    * ongoing release process (animation) or finish the release process.
    *
    * @public
-   * @param {Boolean} [abort=false]
+   * @param {boolean} [abort=false]
    *  - Should the release be aborted? When true, the release end event won't be
    *    emitted. Set to true only when you need to abort the release process
    *    while the item is animating to it's position.
@@ -116,7 +100,7 @@ export default class ItemDragRelease {
    *  - The element's current translateY value (optional).
    */
   stop(abort = false, left?: number, top?: number) {
-    if (this._isDestroyed || !this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     const { item } = this;
 
@@ -140,10 +124,10 @@ export default class ItemDragRelease {
    * Reset data and remove releasing class.
    *
    * @public
-   * @param {Boolean} [needsReflow=false]
+   * @param {boolean} [needsReflow=false]
    */
   reset(needsReflow = false) {
-    if (this._isDestroyed) return;
+    if (!this.item) return;
 
     const { item } = this;
     const { itemReleasingClass } = (item.getGrid() as Grid).settings;
@@ -169,9 +153,9 @@ export default class ItemDragRelease {
    * @public
    */
   destroy() {
-    if (this._isDestroyed) return;
+    if (!this.item) return;
     this.stop(true);
-    this._isDestroyed = true;
+    (this as Writeable<this>).item = null;
   }
 
   /**
@@ -187,36 +171,33 @@ export default class ItemDragRelease {
    *   - Returns `true` if the element was reparented, `false` otherwise.
    */
   protected _placeToGrid(left?: number, top?: number) {
-    let didReparent = false;
-
-    if (this._isDestroyed) return didReparent;
+    if (!this.item) return false;
 
     const { item } = this;
-    const element = item.element;
     const gridElement = (item.getGrid() as Grid).element;
 
-    if (element.parentNode !== gridElement) {
+    if (item.element.parentNode !== gridElement) {
       if (left === undefined || top === undefined) {
         const { x, y } = item._getTranslate();
         left = x - item._containerDiffX;
         top = y - item._containerDiffY;
       }
 
-      gridElement.appendChild(element);
+      gridElement.appendChild(item.element);
       item._setTranslate(left, top);
       item._containerDiffX = 0;
       item._containerDiffY = 0;
-      didReparent = true;
+      return true;
     }
 
-    return didReparent;
+    return false;
   }
 
   /**
    * @protected
    */
   protected _onScroll() {
-    if (this._isDestroyed || !this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     const { item } = this;
     let diffX = 0;
@@ -225,7 +206,7 @@ export default class ItemDragRelease {
     addReleaseScrollTick(
       item.id,
       () => {
-        if (!this._isActive) return;
+        if (!this.isActive()) return;
 
         const itemContainer = item.element.parentNode as HTMLElement | null;
         if (itemContainer) {
@@ -236,7 +217,7 @@ export default class ItemDragRelease {
         }
       },
       () => {
-        if (!this._isActive) return;
+        if (!this.isActive()) return;
 
         if (
           Math.abs(diffX - item._containerDiffX) > 0.1 ||
@@ -244,7 +225,7 @@ export default class ItemDragRelease {
         ) {
           item._containerDiffX = diffX;
           item._containerDiffY = diffY;
-          if (item._dragPlaceholder) item._dragPlaceholder.reset();
+          item._dragPlaceholder.reset();
           item._layout.stop(true, item.left, item.top);
           this.stop(false, item.left, item.top);
         }
@@ -256,7 +237,6 @@ export default class ItemDragRelease {
 export interface ItemDragReleaseInternal extends Writeable<ItemDragRelease> {
   _isActive: ItemDragRelease['_isActive'];
   _isPositioning: ItemDragRelease['_isPositioning'];
-  _isDestroyed: ItemDragRelease['_isDestroyed'];
   _placeToGrid: ItemDragRelease['_placeToGrid'];
   _onScroll: ItemDragRelease['_onScroll'];
 }

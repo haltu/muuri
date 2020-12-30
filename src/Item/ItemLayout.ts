@@ -5,21 +5,17 @@
  */
 
 import { VIEWPORT_THRESHOLD } from '../constants';
-
 import { addLayoutTick, cancelLayoutTick } from '../ticker';
-
 import Grid, { GridInternal } from '../Grid/Grid';
 import Item, { ItemInternal } from './Item';
 import { ItemDragReleaseInternal } from './ItemDragRelease';
 import Animator, { AnimationOptions } from '../Animator/Animator';
-
 import addClass from '../utils/addClass';
 import getTranslate from '../utils/getTranslate';
 import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
-
 import { StyleDeclaration, Writeable } from '../types';
 
 interface GridPrivate extends GridInternal {
@@ -42,12 +38,11 @@ const ANIM_OPTIONS: AnimationOptions = {
  * @param {Item} item
  */
 export default class ItemLayout {
-  readonly item: ItemInternal;
+  readonly item: ItemInternal | null;
   readonly animator: Animator;
   protected _skipNextAnimation: boolean;
   protected _isActive: boolean;
   protected _isInterrupted: boolean;
-  protected _isDestroyed: boolean;
   protected _easing: string;
   protected _duration: number;
   protected _tX: number;
@@ -61,7 +56,6 @@ export default class ItemLayout {
     this._skipNextAnimation = false;
     this._isActive = false;
     this._isInterrupted = false;
-    this._isDestroyed = false;
     this._easing = '';
     this._duration = 0;
     this._tX = 0;
@@ -89,14 +83,6 @@ export default class ItemLayout {
   }
 
   /**
-   * @public
-   * @returns {boolean}
-   */
-  isDestroyed() {
-    return this._isDestroyed;
-  }
-
-  /**
    * Start item layout based on it's current data.
    *
    * @public
@@ -104,13 +90,13 @@ export default class ItemLayout {
    * @param {Function} [onFinish]
    */
   start(instant: boolean, onFinish?: () => void) {
-    if (this._isDestroyed) return;
+    if (!this.item) return;
 
     const { item, animator } = this;
     const grid = (item.getGrid() as any) as GridPrivate;
     const release = (item._dragRelease as any) as ItemDragReleaseInternal;
     const { settings } = grid;
-    const isPositioning = this._isActive;
+    const isPositioning = this.isActive();
     const isJustReleased = release.isActive() && !release.isPositioning();
     const animDuration = isJustReleased ? settings.dragRelease.duration : settings.layoutDuration;
     const animEasing = isJustReleased ? settings.dragRelease.easing : settings.layoutEasing;
@@ -167,7 +153,7 @@ export default class ItemLayout {
    * @param {number} [top]
    */
   stop(processCallbackQueue: boolean, left?: number, top?: number) {
-    if (this._isDestroyed || !this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     const { item } = this;
 
@@ -204,7 +190,7 @@ export default class ItemLayout {
    * @public
    */
   destroy() {
-    if (this._isDestroyed) return;
+    if (!this.item) return;
 
     this.stop(true, 0, 0);
     this.item._emitter.clear(this._queue);
@@ -215,7 +201,7 @@ export default class ItemLayout {
     style.left = '';
     style.top = '';
 
-    this._isDestroyed = true;
+    (this as Writeable<this>).item = null;
   }
 
   /**
@@ -224,7 +210,7 @@ export default class ItemLayout {
    * @protected
    */
   protected _finish() {
-    if (this._isDestroyed) return;
+    if (!this.item) return;
 
     const { item } = this;
 
@@ -233,7 +219,7 @@ export default class ItemLayout {
     item._translateY = item.top + item._containerDiffY;
 
     // Mark the item as inactive and remove positioning classes.
-    if (this._isActive) {
+    if (this.isActive()) {
       this._isActive = false;
       const { itemPositioningClass } = (item.getGrid() as Grid).settings;
       removeClass(item.element, itemPositioningClass);
@@ -253,7 +239,7 @@ export default class ItemLayout {
    * @protected
    */
   protected _setupAnimation() {
-    if (this._isDestroyed || !this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     const { item } = this;
     const { x, y } = item._getTranslate();
@@ -275,7 +261,7 @@ export default class ItemLayout {
    * @protected
    */
   protected _startAnimation() {
-    if (this._isDestroyed || !this._isActive) return;
+    if (!this.item || !this.isActive()) return;
 
     const { item } = this;
     const { settings } = item.getGrid() as Grid;
@@ -339,7 +325,6 @@ export interface ItemLayoutInternal extends Writeable<ItemLayout> {
   _skipNextAnimation: ItemLayout['_skipNextAnimation'];
   _isActive: ItemLayout['_isActive'];
   _isInterrupted: ItemLayout['_isInterrupted'];
-  _isDestroyed: ItemLayout['_isDestroyed'];
   _easing: ItemLayout['_easing'];
   _duration: ItemLayout['_duration'];
   _tX: ItemLayout['_tX'];

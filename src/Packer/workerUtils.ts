@@ -16,7 +16,7 @@ const allWorkers: Set<Worker> = new Set();
 
 export function createWorkerProcessors(
   amount: number,
-  onmessage: (e: { data: Float32Array }) => any
+  onmessage: (e: { data: Float32Array }) => void
 ) {
   const workers: Worker[] = [];
 

@@ -21,7 +21,7 @@
     });
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 70,
       y: 70,
       onFinished: teardown,
@@ -99,14 +99,14 @@
       var ph = item._dragPlaceholder;
       assert.strictEqual(ph.isActive(), true, 'placeholder should be active');
       assert.strictEqual(
-        ph.getElement(),
+        ph.element,
         phElem,
         'placeholder element should be the element returned from createElement method'
       );
     });
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 0,
       y: 70,
     });
@@ -128,8 +128,8 @@
       };
 
       grid.on('dragStart', function () {
-        var phElem = item._dragPlaceholder.getElement();
-        var itemElem = item.getElement();
+        var phElem = item._dragPlaceholder.element;
+        var itemElem = item.element;
         var phRect = phElem.getBoundingClientRect();
         var itemRect = itemElem.getBoundingClientRect();
 
@@ -150,8 +150,8 @@
       });
 
       grid.on('dragEnd', function () {
-        var phElem = item._dragPlaceholder.getElement();
-        var itemElem = item.getElement();
+        var phElem = item._dragPlaceholder.element;
+        var itemElem = item.element;
         var phRect = phElem.getBoundingClientRect();
         var itemRect = itemElem.getBoundingClientRect();
 
@@ -168,7 +168,7 @@
       });
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 70,
         onFinished: teardown,

@@ -22,17 +22,17 @@
       grid.move(0, -1, { action: 'swap' });
       utils.raf(function () {
         assert.strictEqual(
-          utils.matches(grid.getItems()[0].getElement(), '.foo'),
+          utils.matches(grid.getItems()[0].element, '.foo'),
           true,
           'first item should be positioning'
         );
         assert.strictEqual(
-          utils.matches(grid.getItems()[2].getElement(), '.foo'),
+          utils.matches(grid.getItems()[2].element, '.foo'),
           true,
           'last item should be positioning'
         );
         assert.strictEqual(
-          utils.matches(grid.getItems()[1].getElement(), '.foo'),
+          utils.matches(grid.getItems()[1].element, '.foo'),
           false,
           'second item should not be positioning'
         );

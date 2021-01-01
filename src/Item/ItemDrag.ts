@@ -28,7 +28,7 @@ import Grid, {
   DragSortPredicateResult,
 } from '../Grid/Grid';
 import Item, { ItemInternal } from './Item';
-import ItemDragAutoScroll from './ItemDragAutoScroll';
+import AutoScroller from '../AutoScroller/AutoScroller';
 import Dragger, {
   DraggerStartEvent,
   DraggerMoveEvent,
@@ -505,7 +505,7 @@ export default class ItemDrag {
     this.dragger.on('end', this._preEndCheck);
   }
 
-  static autoScroll = new ItemDragAutoScroll();
+  static autoScroll = new AutoScroller();
   static defaultStartPredicate = defaultStartPredicate;
   static defaultSortPredicate = defaultSortPredicate;
 

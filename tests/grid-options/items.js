@@ -15,7 +15,7 @@
 
     assert.deepEqual(
       grid.getItems().map(function (item) {
-        return item.getElement();
+        return item.element;
       }),
       [].slice.call(container.children)
     );
@@ -44,7 +44,7 @@
 
       assert.deepEqual(
         grid.getItems().map(function (item) {
-          return item.getElement();
+          return item.element;
         }),
         targets
       );
@@ -71,7 +71,7 @@
 
     assert.deepEqual(
       grid.getItems().map(function (item) {
-        return item.getElement();
+        return item.element;
       }),
       targets
     );
@@ -96,7 +96,7 @@
 
     assert.deepEqual(
       grid.getItems().map(function (item) {
-        return item.getElement();
+        return item.element;
       }),
       targets
     );

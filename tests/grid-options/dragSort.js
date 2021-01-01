@@ -28,7 +28,7 @@
     });
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 0,
       y: 70,
       onFinished: teardown,
@@ -61,7 +61,7 @@
     });
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 0,
       y: 70,
       onFinished: teardown,
@@ -122,7 +122,7 @@
     });
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 70,
       y: 0,
       onFinished: teardown,
@@ -194,7 +194,7 @@
       });
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 70,
         y: 0,
         onFinished: teardown,

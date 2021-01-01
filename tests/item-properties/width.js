@@ -1,10 +1,10 @@
 (function (window) {
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods');
+  QUnit.module('Item properties');
 
   QUnit.test(
-    'getWidth: should return the instance element`s cached width that includes paddings and borders',
+    'item.width: should be the instance element`s cached width that includes paddings and borders',
     function (assert) {
       assert.expect(2);
 
@@ -17,15 +17,15 @@
       };
 
       assert.strictEqual(
-        item.getWidth(),
+        item.width,
         50,
-        'The returned width is equal to the element`s content width + left/right paddings + left/right borders size'
+        'Width is equal to the element`s content width + left/right paddings + left/right borders size'
       );
-      item.getElement().style.padding = '0px';
+      item.element.style.padding = '0px';
       assert.strictEqual(
-        item.getWidth(),
+        item.width,
         50,
-        'The returned width is the cached width and not the element`s current width in DOM'
+        'Width is the cached width and not the element`s current width in DOM'
       );
       teardown();
     }

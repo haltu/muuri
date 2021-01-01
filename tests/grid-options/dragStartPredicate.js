@@ -39,7 +39,7 @@
       };
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 70,
         onFinished: teardown,
@@ -106,7 +106,7 @@
       .on('dragReleaseStart', onDragReleaseStart);
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 0,
       y: 70,
       onFinished: teardown,
@@ -150,7 +150,7 @@
       });
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 0,
       y: 70,
       onFinished: function () {
@@ -198,7 +198,7 @@
         });
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 70,
         onFinished: function () {
@@ -252,7 +252,7 @@
       }, 90);
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 0,
         onFinished: teardown,
@@ -288,7 +288,7 @@
       });
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 15,
         y: 15,
         onFinished: teardown,

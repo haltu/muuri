@@ -68,7 +68,7 @@
           'callback: the item should be included in the source grid'
         );
         assert.strictEqual(
-          data.item.getElement().parentNode,
+          data.item.element.parentNode,
           containerA,
           'callback: the item element should not be appended to the send container'
         );
@@ -196,7 +196,7 @@
       });
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 70,
         y: 0,
         onFinished: teardown,

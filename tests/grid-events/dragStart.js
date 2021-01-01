@@ -30,12 +30,12 @@
           'callback: first argument should be the dragged item'
         );
         assert.strictEqual(
-          utils.matches(draggedItem.getElement(), '.muuri-item-dragging'),
+          utils.matches(draggedItem.element, '.muuri-item-dragging'),
           true,
           'should be called after dragging classname is set'
         );
         assert.strictEqual(
-          draggedItem.getElement().parentNode,
+          draggedItem.element.parentNode,
           document.body,
           'should be called after dragged element is appended to it`s drag container'
         );
@@ -53,7 +53,7 @@
       });
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 100,
         y: 100,
         onFinished: function () {

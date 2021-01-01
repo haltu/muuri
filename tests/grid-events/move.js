@@ -106,7 +106,7 @@
     });
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 0,
       y: 70,
       onFinished: teardown,

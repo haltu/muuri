@@ -22,14 +22,14 @@ interface ScrollEvent extends Event {
 
 declare const AXIS_X = 1;
 declare const AXIS_Y = 2;
-declare const DIR_LEFT: 9;
-declare const DIR_RIGHT: 5;
-declare const DIR_UP: 10;
-declare const DIR_DOWN: 6;
+declare const LEFT: 9;
+declare const RIGHT: 5;
+declare const UP: 10;
+declare const DOWN: 6;
 declare type AutoScrollItemId = number | string;
 declare type AutoScrollAxis = typeof AXIS_X | typeof AXIS_Y;
-declare type AutoScrollDirectionX = typeof DIR_LEFT | typeof DIR_RIGHT;
-declare type AutoScrollDirectionY = typeof DIR_UP | typeof DIR_DOWN;
+declare type AutoScrollDirectionX = typeof LEFT | typeof RIGHT;
+declare type AutoScrollDirectionY = typeof UP | typeof DOWN;
 declare type AutoScrollDirection = AutoScrollDirectionX | AutoScrollDirectionY;
 declare type AutoScrollHandleCallback = (item: Item, itemClientX: number, itemClientY: number, itemWidth: number, itemHeight: number, pointerClientX: number, pointerClientY: number) => Rect;
 interface AutoScrollSpeedData {
@@ -99,7 +99,7 @@ declare class ScrollRequest {
     onStart(): void;
     onStop(): void;
 }
-declare class ItemDragAutoScroll {
+declare class AutoScroller {
     protected _isDestroyed: boolean;
     protected _isTicking: boolean;
     protected _tickTime: number;
@@ -122,10 +122,10 @@ declare class ItemDragAutoScroll {
     constructor();
     static AXIS_X: number;
     static AXIS_Y: number;
-    static DIR_LEFT: 9;
-    static DIR_RIGHT: 5;
-    static DIR_UP: 10;
-    static DIR_DOWN: 6;
+    static LEFT: 9;
+    static RIGHT: 5;
+    static UP: 10;
+    static DOWN: 6;
     static smoothSpeed: typeof smoothSpeed;
     static pointerHandle: typeof pointerHandle;
     isDestroyed(): boolean;
@@ -328,7 +328,7 @@ declare class ItemDrag {
     protected _containerDiffX: number;
     protected _containerDiffY: number;
     constructor(item: Item);
-    static autoScroll: ItemDragAutoScroll;
+    static autoScroll: AutoScroller;
     static defaultStartPredicate: (item: Item, event: DraggerAnyEvent, options?: DragStartPredicateOptions | undefined) => boolean | undefined;
     static defaultSortPredicate: (item: Item, options?: DragSortPredicateOptions | undefined) => DragSortPredicateResult;
     isActive(): boolean;
@@ -843,7 +843,7 @@ declare class Grid {
     static ItemDrag: typeof ItemDrag;
     static ItemDragRelease: typeof ItemDragRelease;
     static ItemDragPlaceholder: typeof ItemDragPlaceholder;
-    static ItemDragAutoScroll: typeof ItemDragAutoScroll;
+    static AutoScroller: typeof AutoScroller;
     static Emitter: typeof Emitter;
     static Animator: typeof Animator;
     static Dragger: typeof Dragger;

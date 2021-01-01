@@ -31,7 +31,7 @@
     grid.on('move', onMove);
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 0,
       y: 70,
       onFinished: teardown,
@@ -69,7 +69,7 @@
     grid.on('move', onMove);
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 0,
       y: 70,
       onFinished: teardown,
@@ -116,7 +116,7 @@
       };
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 70,
         onFinished: teardown,
@@ -157,7 +157,7 @@
       grid.on('move', onMove);
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 70,
         onFinished: teardown,
@@ -210,7 +210,7 @@
       grid.on('move', onMove);
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 70,
         onFinished: teardown,
@@ -255,7 +255,7 @@
       grid.on('move', onMove);
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 70,
         onFinished: teardown,
@@ -303,7 +303,7 @@
       grid.on('move', onMove);
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 0,
         y: 70,
         onFinished: teardown,

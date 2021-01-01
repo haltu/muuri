@@ -27,7 +27,7 @@
 
       grid.hide([item], {
         onFinish: function () {
-          var child = item.getElement().children[0];
+          var child = item.element.children[0];
           assert.strictEqual(child.style.fontSize, '10px', 'item has correct hidden styles');
           grid.show([item], {
             onFinish: function () {

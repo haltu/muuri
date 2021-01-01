@@ -29,12 +29,12 @@ import {
 import Item, { ItemInternal } from '../Item/Item';
 import ItemDrag from '../Item/ItemDrag';
 import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
-import ItemDragAutoScroll, {
+import AutoScroller, {
   AutoScrollSpeedCallback,
   AutoScrollHandleCallback,
   AutoScrollTarget,
   AutoScrollEventCallback,
-} from '../Item/ItemDragAutoScroll';
+} from '../AutoScroller/AutoScroller';
 import ItemLayout, { ItemLayoutInternal } from '../Item/ItemLayout';
 import ItemMigrate from '../Item/ItemMigrate';
 import ItemDragRelease from '../Item/ItemDragRelease';
@@ -638,7 +638,7 @@ export default class Grid {
   static ItemDrag = ItemDrag;
   static ItemDragRelease = ItemDragRelease;
   static ItemDragPlaceholder = ItemDragPlaceholder;
-  static ItemDragAutoScroll = ItemDragAutoScroll;
+  static AutoScroller = AutoScroller;
   static Emitter = Emitter;
   static Animator = Animator;
   static Dragger = Dragger;
@@ -730,7 +730,7 @@ export default class Grid {
       handle: null,
       threshold: 50,
       safeZone: 0.2,
-      speed: ItemDragAutoScroll.smoothSpeed(1000, 2000, 2500),
+      speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
       sortDuringScroll: true,
       smoothStop: false,
       onStart: null,

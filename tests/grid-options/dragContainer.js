@@ -19,11 +19,11 @@
     };
 
     grid.on('dragStart', function () {
-      assert.strictEqual(item.getElement().parentNode, container);
+      assert.strictEqual(item.element.parentNode, container);
     });
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 100,
       y: 100,
       onFinished: teardown,
@@ -49,11 +49,11 @@
       };
 
       grid.on('dragStart', function () {
-        assert.strictEqual(item.getElement().parentNode, document.body);
+        assert.strictEqual(item.element.parentNode, document.body);
       });
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 100,
         y: 100,
         onFinished: teardown,

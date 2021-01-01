@@ -10,7 +10,7 @@ module.exports = {
     'karma-safari-launcher',
     'karma-edge-launcher',
     'karma-sauce-launcher',
-    'karma-story-reporter'
+    'karma-story-reporter',
   ],
   files: [
     './node_modules/web-animations-js/web-animations.min.js',
@@ -21,9 +21,11 @@ module.exports = {
     './tests/utils.js',
     './tests/grid-constructor/*.js',
     './tests/grid-options/*.js',
+    './tests/grid-properties/*.js',
     './tests/grid-methods/*.js',
     './tests/grid-events/*.js',
-    './tests/item-methods/*.js'
+    './tests/item-methods/*.js',
+    './tests/item-properties/*.js',
   ],
   reporters: ['story', 'saucelabs'],
   colors: true,
@@ -32,32 +34,32 @@ module.exports = {
   singleRun: true,
   hostname: '127.0.0.1',
   sauceLabs: {
-    testName: pkg.name + ' - ' + pkg.version + ' - unit tests'
+    testName: pkg.name + ' - ' + pkg.version + ' - unit tests',
   },
   customLaunchers: {
     slChrome: {
       base: 'SauceLabs',
       browserName: 'chrome',
       platform: 'Windows 10',
-      version: 'latest'
+      version: 'latest',
     },
     slFirefox: {
       base: 'SauceLabs',
       browserName: 'firefox',
       platform: 'Windows 10',
-      version: 'latest'
+      version: 'latest',
     },
     slSafari: {
       base: 'SauceLabs',
       browserName: 'safari',
       platform: 'macOS 10.12',
-      version: 'latest'
+      version: 'latest',
     },
     slEdge: {
       base: 'SauceLabs',
       browserName: 'MicrosoftEdge',
       platform: 'Windows 10',
-      version: 'latest'
-    }
-  }
+      version: 'latest',
+    },
+  },
 };

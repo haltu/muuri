@@ -396,10 +396,10 @@
     var AXIS_Y = 2;
     var FORWARD = 4;
     var BACKWARD = 8;
-    var DIR_LEFT = (AXIS_X | BACKWARD);
-    var DIR_RIGHT = (AXIS_X | FORWARD);
-    var DIR_UP = (AXIS_Y | BACKWARD);
-    var DIR_DOWN = (AXIS_Y | FORWARD);
+    var LEFT = (AXIS_X | BACKWARD);
+    var RIGHT = (AXIS_X | FORWARD);
+    var UP = (AXIS_Y | BACKWARD);
+    var DOWN = (AXIS_Y | FORWARD);
     function pointerHandle(pointerSize) {
         var rect = { left: 0, top: 0, width: 0, height: 0 };
         var size = pointerSize || 1;
@@ -695,8 +695,8 @@
         };
         return ScrollRequest;
     }());
-    var ItemDragAutoScroll = (function () {
-        function ItemDragAutoScroll() {
+    var AutoScroller = (function () {
+        function AutoScroller() {
             var _a;
             this._isDestroyed = false;
             this._isTicking = false;
@@ -717,10 +717,10 @@
             this._readTick = this._readTick.bind(this);
             this._writeTick = this._writeTick.bind(this);
         }
-        ItemDragAutoScroll.prototype.isDestroyed = function () {
+        AutoScroller.prototype.isDestroyed = function () {
             return this._isDestroyed;
         };
-        ItemDragAutoScroll.prototype.addItem = function (item, posX, posY) {
+        AutoScroller.prototype.addItem = function (item, posX, posY) {
             if (this._isDestroyed)
                 return;
             var index = this._items.indexOf(item);
@@ -733,7 +733,7 @@
                     this._startTicking();
             }
         };
-        ItemDragAutoScroll.prototype.updateItem = function (item, posX, posY) {
+        AutoScroller.prototype.updateItem = function (item, posX, posY) {
             if (this._isDestroyed)
                 return;
             var dragPositions = this._dragPositions.get(item.id);
@@ -742,13 +742,13 @@
                 return;
             var prevX = dragPositions[0];
             var prevY = dragPositions[1];
-            dragDirections[0] = posX > prevX ? DIR_RIGHT : posX < prevX ? DIR_LEFT : dragDirections[0] || 0;
-            dragDirections[1] = posY > prevY ? DIR_DOWN : posY < prevY ? DIR_UP : dragDirections[1] || 0;
+            dragDirections[0] = posX > prevX ? RIGHT : posX < prevX ? LEFT : dragDirections[0] || 0;
+            dragDirections[1] = posY > prevY ? DOWN : posY < prevY ? UP : dragDirections[1] || 0;
             dragPositions[0] = posX;
             dragPositions[1] = posY;
             this._requestOverlapCheck.set(item.id, this._requestOverlapCheck.get(item.id) || this._tickTime);
         };
-        ItemDragAutoScroll.prototype.removeItem = function (item) {
+        AutoScroller.prototype.removeItem = function (item) {
             if (this._isDestroyed)
                 return;
             var index = this._items.indexOf(item);
@@ -773,18 +773,18 @@
                 this._stopTicking();
             }
         };
-        ItemDragAutoScroll.prototype.isItemScrollingX = function (item) {
+        AutoScroller.prototype.isItemScrollingX = function (item) {
             var reqX = this._requests[AXIS_X].get(item.id);
             return !!(reqX && reqX.isActive);
         };
-        ItemDragAutoScroll.prototype.isItemScrollingY = function (item) {
+        AutoScroller.prototype.isItemScrollingY = function (item) {
             var reqY = this._requests[AXIS_Y].get(item.id);
             return !!(reqY && reqY.isActive);
         };
-        ItemDragAutoScroll.prototype.isItemScrolling = function (item) {
+        AutoScroller.prototype.isItemScrolling = function (item) {
             return this.isItemScrollingX(item) || this.isItemScrollingY(item);
         };
-        ItemDragAutoScroll.prototype.destroy = function () {
+        AutoScroller.prototype.destroy = function () {
             if (this._isDestroyed)
                 return;
             var items = this._items.slice(0);
@@ -797,7 +797,7 @@
             this._actionPool.reset();
             this._isDestroyed = true;
         };
-        ItemDragAutoScroll.prototype._readTick = function (time) {
+        AutoScroller.prototype._readTick = function (time) {
             if (this._isDestroyed)
                 return;
             if (time && this._tickTime) {
@@ -811,23 +811,23 @@
                 this._tickDeltaTime = 0;
             }
         };
-        ItemDragAutoScroll.prototype._writeTick = function () {
+        AutoScroller.prototype._writeTick = function () {
             if (this._isDestroyed)
                 return;
             this._applyActions();
             addAutoScrollTick(this._readTick, this._writeTick);
         };
-        ItemDragAutoScroll.prototype._startTicking = function () {
+        AutoScroller.prototype._startTicking = function () {
             this._isTicking = true;
             addAutoScrollTick(this._readTick, this._writeTick);
         };
-        ItemDragAutoScroll.prototype._stopTicking = function () {
+        AutoScroller.prototype._stopTicking = function () {
             this._isTicking = false;
             this._tickTime = 0;
             this._tickDeltaTime = 0;
             cancelAutoScrollTick();
         };
-        ItemDragAutoScroll.prototype._getItemHandleRect = function (item, handle, rect) {
+        AutoScroller.prototype._getItemHandleRect = function (item, handle, rect) {
             if (rect === void 0) { rect = { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 }; }
             var drag = item._drag;
             if (handle) {
@@ -848,7 +848,7 @@
             rect.bottom = rect.top + rect.height;
             return rect;
         };
-        ItemDragAutoScroll.prototype._requestItemScroll = function (item, axis, element, direction, threshold, distance, maxValue) {
+        AutoScroller.prototype._requestItemScroll = function (item, axis, element, direction, threshold, distance, maxValue) {
             var reqMap = this._requests[axis];
             var request = reqMap.get(item.id);
             if (request) {
@@ -867,7 +867,7 @@
             request.maxValue = maxValue;
             reqMap.set(item.id, request);
         };
-        ItemDragAutoScroll.prototype._cancelItemScroll = function (item, axis) {
+        AutoScroller.prototype._cancelItemScroll = function (item, axis) {
             var reqMap = this._requests[axis];
             var request = reqMap.get(item.id);
             if (!request)
@@ -877,7 +877,7 @@
             this._requestPool.release(request);
             reqMap.delete(item.id);
         };
-        ItemDragAutoScroll.prototype._checkItemOverlap = function (item, checkX, checkY) {
+        AutoScroller.prototype._checkItemOverlap = function (item, checkX, checkY) {
             var settings = getItemAutoScrollSettings(item);
             var threshold = settings.threshold, safeZone = settings.safeZone, handle = settings.handle, _targets = settings.targets;
             var targets = typeof _targets === 'function' ? _targets(item) : _targets;
@@ -936,16 +936,16 @@
                     var testDirection = 0;
                     var testThreshold = computeThreshold(targetThreshold, testRect.width);
                     var testEdgeOffset = computeEdgeOffset(testThreshold, safeZone, itemRect.width, testRect.width);
-                    if (dragDirectionX === DIR_RIGHT) {
+                    if (dragDirectionX === RIGHT) {
                         testDistance = testRect.right + testEdgeOffset - itemRect.right;
                         if (testDistance <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
-                            testDirection = DIR_RIGHT;
+                            testDirection = RIGHT;
                         }
                     }
-                    else if (dragDirectionX === DIR_LEFT) {
+                    else if (dragDirectionX === LEFT) {
                         testDistance = itemRect.left - (testRect.left - testEdgeOffset);
                         if (testDistance <= testThreshold && getScrollLeft(testElement) > 0) {
-                            testDirection = DIR_LEFT;
+                            testDirection = LEFT;
                         }
                     }
                     if (testDirection) {
@@ -966,16 +966,16 @@
                     var testDirection = 0;
                     var testThreshold = computeThreshold(targetThreshold, testRect.height);
                     var testEdgeOffset = computeEdgeOffset(testThreshold, safeZone, itemRect.height, testRect.height);
-                    if (dragDirectionY === DIR_DOWN) {
+                    if (dragDirectionY === DOWN) {
                         testDistance = testRect.bottom + testEdgeOffset - itemRect.bottom;
                         if (testDistance <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
-                            testDirection = DIR_DOWN;
+                            testDirection = DOWN;
                         }
                     }
-                    else if (dragDirectionY === DIR_UP) {
+                    else if (dragDirectionY === UP) {
                         testDistance = itemRect.top - (testRect.top - testEdgeOffset);
                         if (testDistance <= testThreshold && getScrollTop(testElement) > 0) {
-                            testDirection = DIR_UP;
+                            testDirection = UP;
                         }
                     }
                     if (testDirection) {
@@ -1006,7 +1006,7 @@
                 }
             }
         };
-        ItemDragAutoScroll.prototype._updateScrollRequest = function (scrollRequest) {
+        AutoScroller.prototype._updateScrollRequest = function (scrollRequest) {
             var item = scrollRequest.item;
             var _a = getItemAutoScrollSettings(item), threshold = _a.threshold, safeZone = _a.safeZone, smoothStop = _a.smoothStop, handle = _a.handle, _targets = _a.targets;
             var targets = typeof _targets === 'function' ? _targets(item) : _targets;
@@ -1043,13 +1043,13 @@
                 var testThreshold = computeThreshold(targetThreshold, testIsAxisX ? testRect.width : testRect.height);
                 var testEdgeOffset = computeEdgeOffset(testThreshold, safeZone, testIsAxisX ? itemRect.width : itemRect.height, testIsAxisX ? testRect.width : testRect.height);
                 var testDistance = 0;
-                if (scrollRequest.direction === DIR_LEFT) {
+                if (scrollRequest.direction === LEFT) {
                     testDistance = itemRect.left - (testRect.left - testEdgeOffset);
                 }
-                else if (scrollRequest.direction === DIR_RIGHT) {
+                else if (scrollRequest.direction === RIGHT) {
                     testDistance = testRect.right + testEdgeOffset - itemRect.right;
                 }
-                else if (scrollRequest.direction === DIR_UP) {
+                else if (scrollRequest.direction === UP) {
                     testDistance = itemRect.top - (testRect.top - testEdgeOffset);
                 }
                 else {
@@ -1080,7 +1080,7 @@
             }
             return scrollRequest.isEnding;
         };
-        ItemDragAutoScroll.prototype._updateRequests = function () {
+        AutoScroller.prototype._updateRequests = function () {
             var items = this._items;
             var requestsX = this._requests[AXIS_X];
             var requestsY = this._requests[AXIS_Y];
@@ -1113,7 +1113,7 @@
                 }
             }
         };
-        ItemDragAutoScroll.prototype._requestAction = function (request, axis) {
+        AutoScroller.prototype._requestAction = function (request, axis) {
             var actions = this._actions;
             var isAxisX = axis === AXIS_X;
             var action = null;
@@ -1137,7 +1137,7 @@
             request.tick(this._tickDeltaTime);
             actions.push(action);
         };
-        ItemDragAutoScroll.prototype._updateActions = function () {
+        AutoScroller.prototype._updateActions = function () {
             var items = this._items;
             var requests = this._requests;
             var actions = this._actions;
@@ -1154,7 +1154,7 @@
                 actions[i].computeScrollValues();
             }
         };
-        ItemDragAutoScroll.prototype._applyActions = function () {
+        AutoScroller.prototype._applyActions = function () {
             var actions = this._actions;
             if (!actions.length)
                 return;
@@ -1170,15 +1170,15 @@
             for (i = 0; i < items.length; i++)
                 applyItemScrollSync(items[i]);
         };
-        ItemDragAutoScroll.AXIS_X = AXIS_X;
-        ItemDragAutoScroll.AXIS_Y = AXIS_Y;
-        ItemDragAutoScroll.DIR_LEFT = DIR_LEFT;
-        ItemDragAutoScroll.DIR_RIGHT = DIR_RIGHT;
-        ItemDragAutoScroll.DIR_UP = DIR_UP;
-        ItemDragAutoScroll.DIR_DOWN = DIR_DOWN;
-        ItemDragAutoScroll.smoothSpeed = smoothSpeed;
-        ItemDragAutoScroll.pointerHandle = pointerHandle;
-        return ItemDragAutoScroll;
+        AutoScroller.AXIS_X = AXIS_X;
+        AutoScroller.AXIS_Y = AXIS_Y;
+        AutoScroller.LEFT = LEFT;
+        AutoScroller.RIGHT = RIGHT;
+        AutoScroller.UP = UP;
+        AutoScroller.DOWN = DOWN;
+        AutoScroller.smoothSpeed = smoothSpeed;
+        AutoScroller.pointerHandle = pointerHandle;
+        return AutoScroller;
     }());
 
     var Emitter = (function () {
@@ -2649,7 +2649,7 @@
             grid._emit(EVENT_DRAG_END, item, event);
             this._isMigrated ? this._finishMigration() : item._dragRelease.start();
         };
-        ItemDrag.autoScroll = new ItemDragAutoScroll();
+        ItemDrag.autoScroll = new AutoScroller();
         ItemDrag.defaultStartPredicate = defaultStartPredicate;
         ItemDrag.defaultSortPredicate = defaultSortPredicate;
         return ItemDrag;
@@ -5516,7 +5516,7 @@
         Grid.ItemDrag = ItemDrag;
         Grid.ItemDragRelease = ItemDragRelease;
         Grid.ItemDragPlaceholder = ItemDragPlaceholder;
-        Grid.ItemDragAutoScroll = ItemDragAutoScroll;
+        Grid.AutoScroller = AutoScroller;
         Grid.Emitter = Emitter;
         Grid.Animator = Animator;
         Grid.Dragger = Dragger;
@@ -5595,7 +5595,7 @@
                 handle: null,
                 threshold: 50,
                 safeZone: 0.2,
-                speed: ItemDragAutoScroll.smoothSpeed(1000, 2000, 2500),
+                speed: AutoScroller.smoothSpeed(1000, 2000, 2500),
                 sortDuringScroll: true,
                 smoothStop: false,
                 onStart: null,

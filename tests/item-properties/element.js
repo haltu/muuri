@@ -1,9 +1,9 @@
 (function (window) {
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods');
+  QUnit.module('Item properties');
 
-  QUnit.test('getElement: should return the instance`s associated DOM element', function (assert) {
+  QUnit.test('item.element: should be the instance`s associated DOM element', function (assert) {
     assert.expect(1);
 
     var container = utils.createGridElements();
@@ -15,7 +15,7 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.strictEqual(item.getElement(), itemElement);
+    assert.strictEqual(item.element, itemElement);
     teardown();
   });
 })(this);

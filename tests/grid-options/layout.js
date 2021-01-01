@@ -27,10 +27,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 0, top: 0 });
-    assert.deepEqual(items[1].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 0, top: 140 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 0, top: 0 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 0, top: 140 });
 
     teardown();
   });
@@ -59,10 +59,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 0, top: 0 });
-    assert.deepEqual(items[1].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 90, top: 0 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 0, top: 0 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 90, top: 0 });
 
     teardown();
   });
@@ -91,10 +91,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 50, top: 0 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 90, top: 140 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 50, top: 0 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 90, top: 140 });
 
     teardown();
   });
@@ -123,10 +123,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 50, top: 0 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 0, top: 0 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 50, top: 0 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 0, top: 0 });
 
     teardown();
   });
@@ -155,10 +155,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 0, top: 140 });
-    assert.deepEqual(items[1].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 0, top: 0 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 0, top: 140 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 0, top: 0 });
 
     teardown();
   });
@@ -187,10 +187,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[1].getPosition(), { left: 0, top: 0 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[3].getPosition(), { left: 90, top: 70 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 0, top: 0 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 90, top: 70 });
 
     teardown();
   });
@@ -219,10 +219,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 50, top: 140 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 90, top: 0 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 50, top: 140 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 90, top: 0 });
 
     teardown();
   });
@@ -251,10 +251,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 50, top: 70 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[2].getPosition(), { left: 0, top: 0 });
-    assert.deepEqual(items[3].getPosition(), { left: 0, top: 70 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 50, top: 70 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 0, top: 0 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 0, top: 70 });
 
     teardown();
   });
@@ -283,10 +283,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 0, top: 0 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 140, top: 0 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 0, top: 0 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 140, top: 0 });
 
     teardown();
   });
@@ -315,10 +315,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 0, top: 0 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 0, top: 90 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 0, top: 0 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 0, top: 90 });
 
     teardown();
   });
@@ -347,10 +347,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 140, top: 0 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 0, top: 0 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 140, top: 0 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 0, top: 0 });
 
     teardown();
   });
@@ -379,10 +379,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[1].getPosition(), { left: 0, top: 0 });
-    assert.deepEqual(items[2].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[3].getPosition(), { left: 70, top: 90 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 0, top: 0 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 70, top: 90 });
 
     teardown();
   });
@@ -411,10 +411,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 0, top: 50 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[3].getPosition(), { left: 140, top: 90 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 0, top: 50 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 140, top: 90 });
 
     teardown();
   });
@@ -443,10 +443,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 0, top: 50 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[3].getPosition(), { left: 0, top: 0 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 0, top: 50 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 0, top: 0 });
 
     teardown();
   });
@@ -475,10 +475,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 140, top: 50 });
-    assert.deepEqual(items[1].getPosition(), { left: 70, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 70, top: 0 });
-    assert.deepEqual(items[3].getPosition(), { left: 0, top: 90 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 140, top: 50 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 70, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 70, top: 0 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 0, top: 90 });
 
     teardown();
   });
@@ -507,10 +507,10 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.deepEqual(items[0].getPosition(), { left: 70, top: 50 });
-    assert.deepEqual(items[1].getPosition(), { left: 0, top: 70 });
-    assert.deepEqual(items[2].getPosition(), { left: 0, top: 0 });
-    assert.deepEqual(items[3].getPosition(), { left: 70, top: 0 });
+    assert.deepEqual({ left: items[0].left, top: items[0].top }, { left: 70, top: 50 });
+    assert.deepEqual({ left: items[1].left, top: items[1].top }, { left: 0, top: 70 });
+    assert.deepEqual({ left: items[2].left, top: items[2].top }, { left: 0, top: 0 });
+    assert.deepEqual({ left: items[3].left, top: items[3].top }, { left: 70, top: 0 });
 
     teardown();
   });
@@ -532,7 +532,7 @@
       });
       var grid = new Muuri(container);
       var hasIncorrectPosition = grid.getItems().some(function (item) {
-        return item.getPosition().top !== 0;
+        return item.top !== 0;
       });
       var teardown = function () {
         grid.destroy();

@@ -42,10 +42,11 @@
     "bundle": "$(npm bin)/rollup -c",
     "minify": "$(npm bin)/terser ./dist/muuri.js -o ./dist/muuri.min.js --compress --mangle --comments false",
     "build": "$(npm bin)/gulp build",
-    "ts-build": "$(npm bin)/tsc",
+    "ts-check": "$(npm bin)/tsc --noEmit",
+    "ts-watch": "$(npm bin)/tsc --watch --noEmit",
     "lint": "$(npm bin)/gulp lint",
     "format": "$(npm bin)/prettier --write ./src/**/*.ts",
-    "format-tests": "$(npm bin)/prettier --write ./tests/**/*.{js,ts}",
+    "format-tests": "$(npm bin)/prettier --write ./tests/**/*.js",
     "validate-formatting": "$(npm bin)/prettier --list-different ./src/**/*.ts",
     "size": "$(npm bin)/gulp size",
     "pre-commit-hook": "$(npm bin)/gulp pre-commit"

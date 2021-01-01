@@ -75,7 +75,7 @@
     // Compute how much we need to drag the item and make sure that it is
     // possible to trigger auto-scroll.
     var item = grid.getItems()[0];
-    var itemRect = item.getElement().getBoundingClientRect();
+    var itemRect = item.element.getBoundingClientRect();
     var leftOffset = window.innerWidth - itemRect.right;
     var topOffset = window.innerHeight - itemRect.bottom;
     assert.ok(leftOffset > 0 && topOffset > 0, 'item can scroll the window');
@@ -94,7 +94,7 @@
 
     // Drag down right.
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: leftOffset,
       y: topOffset,
       holdDuration: 300,
@@ -117,13 +117,13 @@
         // Compute how much we need to drag the item to left and top so that
         // auto-scroll will be triggered.
         item = grid.getItems()[1];
-        itemRect = item.getElement().getBoundingClientRect();
+        itemRect = item.element.getBoundingClientRect();
         leftOffset = -itemRect.left;
         topOffset = -itemRect.top;
 
         // Drag up left.
         utils.dragElement({
-          element: item.getElement(),
+          element: item.element,
           x: leftOffset,
           y: topOffset,
           holdDuration: 300,

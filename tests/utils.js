@@ -98,14 +98,14 @@
 
   utils.idList = function (collection) {
     return collection.map(function (item) {
-      return item._id;
+      return item.id;
     });
   };
 
   utils.sortedIdList = function (items) {
     return utils.idList(
       items.sort(function (a, b) {
-        return a._id - b._id;
+        return a.id - b.id;
       })
     );
   };

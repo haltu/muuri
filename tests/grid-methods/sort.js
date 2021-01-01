@@ -32,8 +32,8 @@
     var newIndices = [1, 0, 3, 2, 5, 4, 7, 6, 9, 8];
     var newItems = [];
     var sortByFoo = function (itemA, itemB) {
-      var a = parseInt(itemA.getElement().getAttribute('data-foo'));
-      var b = parseInt(itemB.getElement().getAttribute('data-foo'));
+      var a = parseInt(itemA.element.getAttribute('data-foo'));
+      var b = parseInt(itemB.element.getAttribute('data-foo'));
       return a - b;
     };
     var teardown = function () {
@@ -43,7 +43,7 @@
 
     // Add new indices to item elements.
     items.forEach(function (item, i) {
-      item.getElement().setAttribute('data-foo', newIndices[i]);
+      item.element.setAttribute('data-foo', newIndices[i]);
       newItems[newIndices[i]] = item;
     });
 
@@ -66,60 +66,61 @@
     teardown();
   });
 
-  QUnit.test('sort: should accept a single sort property (string) as the first argument', function (
-    assert
-  ) {
-    assert.expect(3);
+  QUnit.test(
+    'sort: should accept a single sort property (string) as the first argument',
+    function (assert) {
+      assert.expect(3);
 
-    var container = utils.createGridElements();
-    var grid = new Muuri(container, {
-      sortData: {
-        foo: function (item, element) {
-          return parseFloat(element.getAttribute('data-foo'));
+      var container = utils.createGridElements();
+      var grid = new Muuri(container, {
+        sortData: {
+          foo: function (item, element) {
+            return parseFloat(element.getAttribute('data-foo'));
+          },
         },
-      },
-    });
-    var items = grid.getItems();
-    var newIndices = [1, 0, 3, 2, 5, 4, 7, 6, 9, 8];
-    var newItems = [];
-    var teardown = function () {
-      grid.destroy();
-      container.parentNode.removeChild(container);
-    };
+      });
+      var items = grid.getItems();
+      var newIndices = [1, 0, 3, 2, 5, 4, 7, 6, 9, 8];
+      var newItems = [];
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+      };
 
-    // Add foo data to elements and refresh sort data.
-    items.forEach(function (item, i) {
-      item.getElement().setAttribute('data-foo', newIndices[i]);
-      newItems[newIndices[i]] = item;
-    });
-    grid.refreshSortData();
+      // Add foo data to elements and refresh sort data.
+      items.forEach(function (item, i) {
+        item.element.setAttribute('data-foo', newIndices[i]);
+        newItems[newIndices[i]] = item;
+      });
+      grid.refreshSortData();
 
-    // Test the default ascending order.
-    grid.sort('foo');
-    assert.deepEqual(
-      idList(grid.getItems()),
-      idList(newItems.concat()),
-      'the items should be in ascending order by default'
-    );
+      // Test the default ascending order.
+      grid.sort('foo');
+      assert.deepEqual(
+        idList(grid.getItems()),
+        idList(newItems.concat()),
+        'the items should be in ascending order by default'
+      );
 
-    // Test property's descending flag.
-    grid.sort('foo:desc');
-    assert.deepEqual(
-      idList(grid.getItems()),
-      idList(newItems.concat().reverse()),
-      'the items should be in descending order when "desc" flag is added to the property'
-    );
+      // Test property's descending flag.
+      grid.sort('foo:desc');
+      assert.deepEqual(
+        idList(grid.getItems()),
+        idList(newItems.concat().reverse()),
+        'the items should be in descending order when "desc" flag is added to the property'
+      );
 
-    // Test property's descending flag.
-    grid.sort('foo', { descending: true });
-    assert.deepEqual(
-      idList(grid.getItems()),
-      idList(newItems.concat().reverse()),
-      'the items should be in descending order when descending option is true'
-    );
+      // Test property's descending flag.
+      grid.sort('foo', { descending: true });
+      assert.deepEqual(
+        idList(grid.getItems()),
+        idList(newItems.concat().reverse()),
+        'the items should be in descending order when descending option is true'
+      );
 
-    teardown();
-  });
+      teardown();
+    }
+  );
 
   QUnit.test(
     'sort: should accept multiple sort properties (string) as the first argument',
@@ -157,8 +158,8 @@
 
       // Add foo and bar data to elements and refresh sort data.
       items.forEach(function (item, i) {
-        item.getElement().setAttribute('data-foo', fooData[i]);
-        item.getElement().setAttribute('data-bar', barData[i]);
+        item.element.setAttribute('data-foo', fooData[i]);
+        item.element.setAttribute('data-bar', barData[i]);
         itemsFooBar[orderFooBar[i]] = item;
         itemsFooBarDesc[orderFooBarDesc[i]] = item;
         itemsBarFoo[orderBarFoo[i]] = item;

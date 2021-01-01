@@ -22,14 +22,14 @@
       };
 
       assert.strictEqual(
-        utils.matches(item.getElement(), '.foo'),
+        utils.matches(item.element, '.foo'),
         false,
         'the classname should not be applied before release starts'
       );
 
       grid.on('dragReleaseStart', function () {
         assert.strictEqual(
-          utils.matches(item.getElement(), '.foo'),
+          utils.matches(item.element, '.foo'),
           true,
           'the classname should be applied when release starts'
         );
@@ -37,7 +37,7 @@
 
       grid.on('dragReleaseEnd', function () {
         assert.strictEqual(
-          utils.matches(item.getElement(), '.foo'),
+          utils.matches(item.element, '.foo'),
           false,
           'the classname should be removed when release ends'
         );
@@ -45,7 +45,7 @@
       });
 
       utils.dragElement({
-        element: item.getElement(),
+        element: item.element,
         x: 100,
         y: 100,
       });

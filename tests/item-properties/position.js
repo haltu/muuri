@@ -1,10 +1,10 @@
 (function (window) {
   var Muuri = window.Muuri;
 
-  QUnit.module('Item methods');
+  QUnit.module('Item properties');
 
   QUnit.test(
-    'getPosition: should return the instance element`s cached position in the grid',
+    'item.left and item.top: should equal the instance element`s cached position in the grid',
     function (assert) {
       assert.expect(4);
 
@@ -25,10 +25,10 @@
         container.parentNode.removeChild(container);
       };
 
-      assert.deepEqual(itemA.getPosition(), { left: 0, top: 0 });
-      assert.deepEqual(itemB.getPosition(), { left: 70, top: 0 });
-      assert.deepEqual(itemC.getPosition(), { left: 0, top: 70 });
-      assert.deepEqual(itemD.getPosition(), { left: 70, top: 70 });
+      assert.deepEqual({ left: itemA.left, top: itemA.top }, { left: 0, top: 0 });
+      assert.deepEqual({ left: itemB.left, top: itemB.top }, { left: 70, top: 0 });
+      assert.deepEqual({ left: itemC.left, top: itemC.top }, { left: 0, top: 70 });
+      assert.deepEqual({ left: itemD.left, top: itemD.top }, { left: 70, top: 70 });
       teardown();
     }
   );

@@ -76,7 +76,7 @@
     );
 
     utils.dragElement({
-      element: item.getElement(),
+      element: item.element,
       x: 100,
       y: 100,
     });

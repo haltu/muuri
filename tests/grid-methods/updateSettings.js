@@ -136,13 +136,13 @@
     for (var option in newOptions) {
       if (utils.isPlainObject(newOptions[option])) {
         assert.deepEqual(
-          grid._settings[option],
+          grid.settings[option],
           newOptions[option],
           option + ': setting updated internally'
         );
       } else {
         assert.strictEqual(
-          grid._settings[option],
+          grid.settings[option],
           newOptions[option],
           option + ': setting updated internally'
         );
@@ -163,16 +163,16 @@
     };
 
     assert.strictEqual(
-      utils.matches(grid.getElement(), '.' + Muuri.defaultOptions.containerClass),
+      utils.matches(grid.element, '.' + Muuri.defaultOptions.containerClass),
       true
     );
 
     grid.updateSettings({ containerClass: 'foo' });
 
-    assert.strictEqual(utils.matches(grid.getElement(), '.foo'), true, 'new containerClass added');
+    assert.strictEqual(utils.matches(grid.element, '.foo'), true, 'new containerClass added');
 
     assert.strictEqual(
-      utils.matches(grid.getElement(), '.' + Muuri.defaultOptions.containerClass),
+      utils.matches(grid.element, '.' + Muuri.defaultOptions.containerClass),
       false,
       'old containerClass removed'
     );
@@ -191,17 +191,14 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.strictEqual(
-      utils.matches(item.getElement(), '.' + Muuri.defaultOptions.itemClass),
-      true
-    );
+    assert.strictEqual(utils.matches(item.element, '.' + Muuri.defaultOptions.itemClass), true);
 
     grid.updateSettings({ itemClass: 'foo' });
 
-    assert.strictEqual(utils.matches(item.getElement(), '.foo'), true, 'new itemClass added');
+    assert.strictEqual(utils.matches(item.element, '.foo'), true, 'new itemClass added');
 
     assert.strictEqual(
-      utils.matches(item.getElement(), '.' + Muuri.defaultOptions.itemClass),
+      utils.matches(item.element, '.' + Muuri.defaultOptions.itemClass),
       false,
       'old itemClass removed'
     );

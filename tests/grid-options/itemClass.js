@@ -15,7 +15,7 @@
       container.parentNode.removeChild(container);
     };
 
-    assert.strictEqual(utils.matches(grid.getItems()[0].getElement(), '.foo'), true);
+    assert.strictEqual(utils.matches(grid.getItems()[0].element, '.foo'), true);
     teardown();
   });
 })(this);

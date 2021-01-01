@@ -39,8 +39,8 @@
 
     grid.filter(function (item) {
       assert.strictEqual(
-        item._id,
-        items[i]._id,
+        item.id,
+        items[i].id,
         'predicate function should be called in ascending order for each item'
       );
       ++i;
@@ -69,7 +69,7 @@
       container.parentNode.removeChild(container);
     };
 
-    firstItem.getElement().classList.add('foo');
+    firstItem.element.classList.add('foo');
     grid.filter('.foo');
 
     assert.deepEqual(idList(utils.getVisibleItems(grid)), idList([firstItem]));
@@ -98,33 +98,34 @@
     teardown();
   });
 
-  QUnit.test('filter: should show/hide items instantly if instant option is true', function (
-    assert
-  ) {
-    assert.expect(4);
+  QUnit.test(
+    'filter: should show/hide items instantly if instant option is true',
+    function (assert) {
+      assert.expect(4);
 
-    var container = utils.createGridElements();
-    var grid = new Muuri(container);
-    var items = grid.getItems();
-    var teardown = function () {
-      grid.destroy();
-      container.parentNode.removeChild(container);
-    };
+      var container = utils.createGridElements();
+      var grid = new Muuri(container);
+      var items = grid.getItems();
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+      };
 
-    grid.hide(grid.getItems(0), { instant: true }).filter(
-      function (item) {
-        return item === items[0];
-      },
-      { instant: true }
-    );
+      grid.hide(grid.getItems(0), { instant: true }).filter(
+        function (item) {
+          return item === items[0];
+        },
+        { instant: true }
+      );
 
-    assert.strictEqual(utils.getShowingItems(grid).length, 0);
-    assert.strictEqual(utils.getHidingItems(grid).length, 0);
-    assert.deepEqual(idList(utils.getVisibleItems(grid)), idList(items.slice(0, 1)));
-    assert.deepEqual(idList(utils.getHiddenItems(grid)), idList(items.slice(1)));
+      assert.strictEqual(utils.getShowingItems(grid).length, 0);
+      assert.strictEqual(utils.getHidingItems(grid).length, 0);
+      assert.deepEqual(idList(utils.getVisibleItems(grid)), idList(items.slice(0, 1)));
+      assert.deepEqual(idList(utils.getHiddenItems(grid)), idList(items.slice(1)));
 
-    teardown();
-  });
+      teardown();
+    }
+  );
 
   QUnit.test(
     'filter: should call the onFinish callback once the animations are finished',

@@ -1,30 +1,14 @@
 /**
  * Muuri AutoScroller
  * Copyright (c) 2019-present, Niklas Rämö <inramo@gmail.com>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Released under the MIT license
+ * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
 import Grid from '../Grid/Grid';
-import Item, { ItemInternal } from './Item';
-import { ItemDragInternal } from './ItemDrag';
+import Item, { ItemInternal } from '../Item/Item';
+import { ItemDragInternal } from '../Item/ItemDrag';
 import { DraggerStartEvent, DraggerMoveEvent } from '../Dragger/Dragger';
 import getIntersectionScore from '../utils/getIntersectionScore';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
@@ -62,10 +46,10 @@ export const AXIS_X = 1;
 export const AXIS_Y = 2;
 export const FORWARD = 4;
 export const BACKWARD = 8;
-export const DIR_LEFT = (AXIS_X | BACKWARD) as 9;
-export const DIR_RIGHT = (AXIS_X | FORWARD) as 5;
-export const DIR_UP = (AXIS_Y | BACKWARD) as 10;
-export const DIR_DOWN = (AXIS_Y | FORWARD) as 6;
+export const LEFT = (AXIS_X | BACKWARD) as 9;
+export const RIGHT = (AXIS_X | FORWARD) as 5;
+export const UP = (AXIS_Y | BACKWARD) as 10;
+export const DOWN = (AXIS_Y | FORWARD) as 6;
 
 //
 // Types
@@ -75,9 +59,9 @@ type AutoScrollItemId = number | string;
 
 export type AutoScrollAxis = typeof AXIS_X | typeof AXIS_Y;
 
-export type AutoScrollDirectionX = typeof DIR_LEFT | typeof DIR_RIGHT;
+export type AutoScrollDirectionX = typeof LEFT | typeof RIGHT;
 
-export type AutoScrollDirectionY = typeof DIR_UP | typeof DIR_DOWN;
+export type AutoScrollDirectionY = typeof UP | typeof DOWN;
 
 export type AutoScrollDirection = AutoScrollDirectionX | AutoScrollDirectionY;
 
@@ -488,10 +472,10 @@ class ScrollRequest {
 }
 
 //
-// ItemDragAutoScroll
+// AutoScroller
 //
 
-export default class ItemDragAutoScroll {
+export default class AutoScroller {
   protected _isDestroyed: boolean;
   protected _isTicking: boolean;
   protected _tickTime: number;
@@ -542,10 +526,10 @@ export default class ItemDragAutoScroll {
 
   static AXIS_X = AXIS_X;
   static AXIS_Y = AXIS_Y;
-  static DIR_LEFT = DIR_LEFT;
-  static DIR_RIGHT = DIR_RIGHT;
-  static DIR_UP = DIR_UP;
-  static DIR_DOWN = DIR_DOWN;
+  static LEFT = LEFT;
+  static RIGHT = RIGHT;
+  static UP = UP;
+  static DOWN = DOWN;
   static smoothSpeed = smoothSpeed;
   static pointerHandle = pointerHandle;
 
@@ -577,8 +561,8 @@ export default class ItemDragAutoScroll {
     const prevY = dragPositions[1];
 
     // Update direction.
-    dragDirections[0] = posX > prevX ? DIR_RIGHT : posX < prevX ? DIR_LEFT : dragDirections[0] || 0;
-    dragDirections[1] = posY > prevY ? DIR_DOWN : posY < prevY ? DIR_UP : dragDirections[1] || 0;
+    dragDirections[0] = posX > prevX ? RIGHT : posX < prevX ? LEFT : dragDirections[0] || 0;
+    dragDirections[1] = posY > prevY ? DOWN : posY < prevY ? UP : dragDirections[1] || 0;
 
     // Update position.
     dragPositions[0] = posX;
@@ -843,15 +827,15 @@ export default class ItemDragAutoScroll {
           testRect.width
         );
 
-        if (dragDirectionX === DIR_RIGHT) {
+        if (dragDirectionX === RIGHT) {
           testDistance = testRect.right + testEdgeOffset - itemRect.right;
           if (testDistance <= testThreshold && getScrollLeft(testElement) < testMaxScrollX) {
-            testDirection = DIR_RIGHT;
+            testDirection = RIGHT;
           }
-        } else if (dragDirectionX === DIR_LEFT) {
+        } else if (dragDirectionX === LEFT) {
           testDistance = itemRect.left - (testRect.left - testEdgeOffset);
           if (testDistance <= testThreshold && getScrollLeft(testElement) > 0) {
-            testDirection = DIR_LEFT;
+            testDirection = LEFT;
           }
         }
 
@@ -883,15 +867,15 @@ export default class ItemDragAutoScroll {
           testRect.height
         );
 
-        if (dragDirectionY === DIR_DOWN) {
+        if (dragDirectionY === DOWN) {
           testDistance = testRect.bottom + testEdgeOffset - itemRect.bottom;
           if (testDistance <= testThreshold && getScrollTop(testElement) < testMaxScrollY) {
-            testDirection = DIR_DOWN;
+            testDirection = DOWN;
           }
-        } else if (dragDirectionY === DIR_UP) {
+        } else if (dragDirectionY === UP) {
           testDistance = itemRect.top - (testRect.top - testEdgeOffset);
           if (testDistance <= testThreshold && getScrollTop(testElement) > 0) {
-            testDirection = DIR_UP;
+            testDirection = UP;
           }
         }
 
@@ -1006,11 +990,11 @@ export default class ItemDragAutoScroll {
 
       // Compute distance (based on current direction).
       let testDistance = 0;
-      if (scrollRequest.direction === DIR_LEFT) {
+      if (scrollRequest.direction === LEFT) {
         testDistance = itemRect.left - (testRect.left - testEdgeOffset);
-      } else if (scrollRequest.direction === DIR_RIGHT) {
+      } else if (scrollRequest.direction === RIGHT) {
         testDistance = testRect.right + testEdgeOffset - itemRect.right;
-      } else if (scrollRequest.direction === DIR_UP) {
+      } else if (scrollRequest.direction === UP) {
         testDistance = itemRect.top - (testRect.top - testEdgeOffset);
       } else {
         testDistance = testRect.bottom + testEdgeOffset - itemRect.bottom;

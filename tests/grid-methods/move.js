@@ -38,7 +38,7 @@
       move(items, 0, 1);
       assert.deepEqual(idList(grid.getItems()), idList(items), 'should accept indices');
 
-      grid.move(items[0].getElement(), items[1].getElement());
+      grid.move(items[0].element, items[1].element);
       move(items, 0, 1);
       assert.deepEqual(idList(grid.getItems()), idList(items), 'should accept elements');
 

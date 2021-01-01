@@ -35,24 +35,25 @@
     teardown();
   });
 
-  QUnit.test('layout: should layout the items instantly if the first argument is true', function (
-    assert
-  ) {
-    assert.expect(1);
+  QUnit.test(
+    'layout: should layout the items instantly if the first argument is true',
+    function (assert) {
+      assert.expect(1);
 
-    var container = utils.createGridElements();
-    var grid = new Muuri(container);
-    var items = grid.getItems();
-    var teardown = function () {
-      grid.destroy();
-      container.parentNode.removeChild(container);
-    };
+      var container = utils.createGridElements();
+      var grid = new Muuri(container);
+      var items = grid.getItems();
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+      };
 
-    grid.move(0, -1, { layout: false });
-    grid.layout(true);
-    assert.strictEqual(items[0].isPositioning(), false);
-    teardown();
-  });
+      grid.move(0, -1, { layout: false });
+      grid.layout(true);
+      assert.strictEqual(items[0].isPositioning(), false);
+      teardown();
+    }
+  );
 
   QUnit.test(
     'layout: should call the provided callback function after layout is finished',
@@ -68,7 +69,7 @@
         done();
       };
 
-      grid.move(0, -1, { layout: false }).layout(function (items, isInterrupted) {
+      grid.move(0, -1, { layout: false }).layout(true, function (items, isInterrupted) {
         assert.strictEqual(arguments.length, 2, 'callback: should have two arguments');
         assert.deepEqual(
           idList(items),

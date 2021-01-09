@@ -777,6 +777,7 @@ interface GridSettings {
     sortData: {
         [key: string]: (item: Item, element: HTMLElement) => any;
     } | null;
+    translate3d: boolean;
     dragEnabled: boolean;
     dragHandle: string | null;
     dragContainer: HTMLElement | null;

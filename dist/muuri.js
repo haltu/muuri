@@ -95,6 +95,11 @@
     var IS_EDGE = UA.indexOf('edge') > -1;
     var IS_IE = UA.indexOf('trident') > -1;
     var IS_FIREFOX = UA.indexOf('firefox') > -1;
+    var IS_SAFARI = navigator.vendor &&
+        navigator.vendor.indexOf('Apple') > -1 &&
+        navigator.userAgent &&
+        navigator.userAgent.indexOf('CriOS') == -1 &&
+        navigator.userAgent.indexOf('FxiOS') == -1;
     var IS_ANDROID = UA.indexOf('android') > -1;
     var IS_IOS = /^(iPad|iPhone|iPod)/.test(window.navigator.platform) ||
         (/^Mac/.test(window.navigator.platform) && window.navigator.maxTouchPoints > 1);
@@ -1781,26 +1786,51 @@
 
     var transformStyle = getStyleName(transformProp);
 
-    var transformNone = 'none';
-    var displayInline = 'inline';
-    var displayNone = 'none';
-    var displayStyle = 'display';
-    function isTransformed(element) {
+    function isContainingBlock(element) {
+        if (getStyle(element, 'position') !== 'static') {
+            return true;
+        }
+        var display = getStyle(element, 'display');
+        if (display === 'inline' || display === 'none') {
+            return false;
+        }
         var transform = getStyle(element, transformStyle);
-        if (!transform || transform === transformNone)
-            return false;
-        var display = getStyle(element, displayStyle);
-        if (display === displayInline || display === displayNone)
-            return false;
-        return true;
+        if (transform && transform !== 'none') {
+            return true;
+        }
+        var perspective = getStyle(element, 'perspective');
+        if (perspective && perspective !== 'none') {
+            return true;
+        }
+        var contentVisibility = getStyle(element, 'content-visibility');
+        if (contentVisibility && (contentVisibility === 'auto' || contentVisibility === 'hidden')) {
+            return true;
+        }
+        var contain = getStyle(element, 'contain');
+        if (contain &&
+            (contain === 'strict' ||
+                contain === 'content' ||
+                contain.indexOf('paint') > -1 ||
+                contain.indexOf('layout') > -1)) {
+            return true;
+        }
+        if (!IS_SAFARI) {
+            var filter = getStyle(element, 'filter');
+            if (filter && filter !== 'none') {
+                return true;
+            }
+            var willChange = getStyle(element, 'will-change');
+            if (willChange &&
+                (willChange.indexOf('transform') > -1 || willChange.indexOf('perspective') > -1)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function getContainingBlock(element) {
         var res = element || document;
-        while (res &&
-            res !== document &&
-            getStyle(res, 'position') === 'static' &&
-            !isTransformed(res)) {
+        while (res && res !== document && !isContainingBlock(element)) {
             res = res.parentElement || document;
         }
         return res;
@@ -2353,14 +2383,16 @@
                 arrayInsert(targetGrid.items, item, targetIndex);
                 item._sortData = null;
                 var currentDragContainer = this._container;
+                var currentContainingBlock = this._containingBlock;
                 var targetDragContainer = targetSettings.dragContainer || targetGrid.element;
-                var offsetDiff = getOffsetDiff(targetDragContainer, targetGrid.element, true);
+                var targetContainingBlock = getContainingBlock(targetDragContainer);
+                var offsetDiff = getOffsetDiff(targetContainingBlock, getContainingBlock(targetGrid.element));
                 item._containerDiffX = this._containerDiffX = offsetDiff.left;
                 item._containerDiffY = this._containerDiffY = offsetDiff.top;
                 if (targetDragContainer !== currentDragContainer) {
-                    offsetDiff = getOffsetDiff(currentDragContainer, targetDragContainer, true);
-                    this._containingBlock = getContainingBlock(targetDragContainer);
+                    offsetDiff = getOffsetDiff(currentContainingBlock, targetContainingBlock);
                     this._container = targetDragContainer;
+                    this._containingBlock = targetContainingBlock;
                     this._translateX -= offsetDiff.left;
                     this._translateY -= offsetDiff.top;
                     targetDragContainer.appendChild(element);
@@ -2748,12 +2780,15 @@
         return Animator;
     }());
 
-    function getTranslateString(x, y) {
-        return 'translateX(' + x + 'px) translateY(' + y + 'px)';
+    function createTranslate(x, y, translate3d) {
+        if (translate3d === void 0) { translate3d = false; }
+        return translate3d
+            ? 'translate3d(' + x + 'px, ' + y + 'px, 0px)'
+            : 'translateX(' + x + 'px) translateY(' + y + 'px)';
     }
 
     var translateValue = { x: 0, y: 0 };
-    var transformNone$1 = 'none';
+    var transformNone = 'none';
     var rxMat3d = /^matrix3d/;
     var rxMatTx = /([^,]*,){4}/;
     var rxMat3dTx = /([^,]*,){12}/;
@@ -2762,7 +2797,7 @@
         translateValue.x = 0;
         translateValue.y = 0;
         var transform = getStyle(element, transformStyle);
-        if (!transform || transform === transformNone$1) {
+        if (!transform || transform === transformNone) {
             return translateValue;
         }
         var isMat3d = rxMat3d.test(transform);
@@ -2830,7 +2865,7 @@
                 width: item.width + 'px',
                 height: item.height + 'px',
             });
-            element.style[transformProp] = getTranslateString(item.left + item.marginLeft, item.top + item.marginTop);
+            element.style[transformProp] = createTranslate(item.left + item.marginLeft, item.top + item.marginTop, settings.translate3d);
             grid.on(EVENT_LAYOUT_START, this._onLayoutStart);
             grid.on(EVENT_DRAG_RELEASE_END, this._onReleaseEnd);
             grid.on(EVENT_BEFORE_SEND, this._onMigrate);
@@ -2916,7 +2951,7 @@
             var animEnabled = !isInstant && grid.settings.layoutDuration > 0;
             if (!animEnabled || this._didMigrate) {
                 cancelPlaceholderLayoutTick(item.id);
-                this.element.style[transformProp] = getTranslateString(nextX, nextY);
+                this.element.style[transformProp] = createTranslate(nextX, nextY, grid.settings.translate3d);
                 this.animator.stop();
                 if (this._didMigrate) {
                     grid.element.appendChild(this.element);
@@ -2946,16 +2981,16 @@
             var currentY = this._transY;
             var nextX = this._nextTransX;
             var nextY = this._nextTransY;
+            var _a = this.item.getGrid().settings, layoutDuration = _a.layoutDuration, layoutEasing = _a.layoutEasing, translate3d = _a.translate3d;
             if (currentX === nextX && currentY === nextY) {
                 if (animator.isAnimating()) {
-                    this.element.style[transformProp] = getTranslateString(nextX, nextY);
+                    this.element.style[transformProp] = createTranslate(nextX, nextY, translate3d);
                     animator.stop();
                 }
                 return;
             }
-            var _a = this.item.getGrid().settings, layoutDuration = _a.layoutDuration, layoutEasing = _a.layoutEasing;
-            CURRENT_STYLES[transformProp] = getTranslateString(currentX, currentY);
-            TARGET_STYLES[transformProp] = getTranslateString(nextX, nextY);
+            CURRENT_STYLES[transformProp] = createTranslate(currentX, currentY, translate3d);
+            TARGET_STYLES[transformProp] = createTranslate(nextX, nextY, translate3d);
             animator.start(CURRENT_STYLES, TARGET_STYLES, {
                 duration: layoutDuration,
                 easing: layoutEasing,
@@ -3278,8 +3313,8 @@
             if (!this._isInterrupted) {
                 addClass(item.element, settings.itemPositioningClass);
             }
-            CURRENT_STYLES$1[transformProp] = getTranslateString(this._tX, this._tY);
-            TARGET_STYLES$1[transformProp] = getTranslateString(nextLeft, nextTop);
+            CURRENT_STYLES$1[transformProp] = createTranslate(this._tX, this._tY, settings.translate3d);
+            TARGET_STYLES$1[transformProp] = createTranslate(nextLeft, nextTop, settings.translate3d);
             ANIM_OPTIONS.duration = this._duration;
             ANIM_OPTIONS.easing = this._easing;
             ANIM_OPTIONS.onFinish = this._finish;
@@ -3866,7 +3901,7 @@
                 return;
             this._translateX = x;
             this._translateY = y;
-            this.element.style[transformProp] = getTranslateString(x, y);
+            this.element.style[transformProp] = createTranslate(x, y, this.getGrid().settings.translate3d);
         };
         Item.prototype._getTranslate = function () {
             if (this._translateX === undefined || this._translateY === undefined) {
@@ -5548,6 +5583,7 @@
             layoutDuration: 300,
             layoutEasing: 'ease',
             sortData: null,
+            translate3d: false,
             dragEnabled: false,
             dragContainer: null,
             dragHandle: null,

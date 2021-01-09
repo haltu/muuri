@@ -11,8 +11,8 @@ import Item, { ItemInternal } from './Item';
 import { ItemDragReleaseInternal } from './ItemDragRelease';
 import Animator, { AnimationOptions } from '../Animator/Animator';
 import addClass from '../utils/addClass';
+import createTranslate from '../utils/createTranslate';
 import getTranslate from '../utils/getTranslate';
-import getTranslateString from '../utils/getTranslateString';
 import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
@@ -296,8 +296,8 @@ export default class ItemLayout {
     }
 
     // Get current/next styles for animation and provide animation options.
-    CURRENT_STYLES[transformProp] = getTranslateString(this._tX, this._tY);
-    TARGET_STYLES[transformProp] = getTranslateString(nextLeft, nextTop);
+    CURRENT_STYLES[transformProp] = createTranslate(this._tX, this._tY, settings.translate3d);
+    TARGET_STYLES[transformProp] = createTranslate(nextLeft, nextTop, settings.translate3d);
     ANIM_OPTIONS.duration = this._duration;
     ANIM_OPTIONS.easing = this._easing;
     ANIM_OPTIONS.onFinish = this._finish;

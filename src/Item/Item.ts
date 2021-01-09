@@ -14,11 +14,11 @@ import ItemMigrate from './ItemMigrate';
 import ItemVisibility from './ItemVisibility';
 import Emitter from '../Emitter/Emitter';
 import addClass from '../utils/addClass';
+import createTranslate from '../utils/createTranslate';
 import createUid from '../utils/createUid';
 import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
 import getTranslate from '../utils/getTranslate';
-import getTranslateString from '../utils/getTranslateString';
 import isInViewport from '../utils/isInViewport';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
@@ -340,7 +340,11 @@ export default class Item {
     if (this._translateX === x && this._translateY === y) return;
     this._translateX = x;
     this._translateY = y;
-    this.element.style[transformProp as 'transform'] = getTranslateString(x, y);
+    this.element.style[transformProp as 'transform'] = createTranslate(
+      x,
+      y,
+      (this.getGrid() as Grid).settings.translate3d
+    );
   }
 
   /**

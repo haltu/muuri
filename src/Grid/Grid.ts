@@ -220,6 +220,7 @@ export interface GridSettings {
   layoutDuration: number;
   layoutEasing: string;
   sortData: { [key: string]: (item: Item, element: HTMLElement) => any } | null;
+  translate3d: boolean;
   dragEnabled: boolean;
   dragHandle: string | null;
   dragContainer: HTMLElement | null;
@@ -681,6 +682,9 @@ export default class Grid {
 
     // Sorting
     sortData: null,
+
+    // Use translate3d() instead of translateX/Y()
+    translate3d: false,
 
     // Drag & Drop
     dragEnabled: false,

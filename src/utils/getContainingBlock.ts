@@ -4,8 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from './getStyle';
-import isTransformed from './isTransformed';
+import isContainingBlock from './isContainingBlock';
 
 /**
  * Returns an absolute positioned element's containing block, which is
@@ -21,12 +20,7 @@ export default function getContainingBlock(element: HTMLElement | Document) {
   // transformed, try to get the element's parent element and fallback to
   // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339
   let res: HTMLElement | Document = element || document;
-  while (
-    res &&
-    res !== document &&
-    getStyle(res as HTMLElement, 'position') === 'static' &&
-    !isTransformed(res as HTMLElement)
-  ) {
+  while (res && res !== document && !isContainingBlock(element as HTMLElement)) {
     res = res.parentElement || document;
   }
   return res;

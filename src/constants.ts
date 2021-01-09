@@ -47,6 +47,12 @@ export const UA = window.navigator.userAgent.toLowerCase();
 export const IS_EDGE = UA.indexOf('edge') > -1;
 export const IS_IE = UA.indexOf('trident') > -1;
 export const IS_FIREFOX = UA.indexOf('firefox') > -1;
+export const IS_SAFARI =
+  navigator.vendor &&
+  navigator.vendor.indexOf('Apple') > -1 &&
+  navigator.userAgent &&
+  navigator.userAgent.indexOf('CriOS') == -1 &&
+  navigator.userAgent.indexOf('FxiOS') == -1;
 export const IS_ANDROID = UA.indexOf('android') > -1;
 export const IS_IOS =
   /^(iPad|iPhone|iPod)/.test(window.navigator.platform) ||

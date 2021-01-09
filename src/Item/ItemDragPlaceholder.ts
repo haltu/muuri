@@ -20,7 +20,7 @@ import Grid from '../Grid/Grid';
 import Item from './Item';
 import Animator from '../Animator/Animator';
 import addClass from '../utils/addClass';
-import getTranslateString from '../utils/getTranslateString';
+import createTranslate from '../utils/createTranslate';
 import getTranslate from '../utils/getTranslate';
 import isFunction from '../utils/isFunction';
 import setStyles from '../utils/setStyles';
@@ -131,9 +131,10 @@ export default class ItemDragPlaceholder {
     });
 
     // Set initial position.
-    element.style[transformProp as 'transform'] = getTranslateString(
+    element.style[transformProp as 'transform'] = createTranslate(
       item.left + item.marginLeft,
-      item.top + item.marginTop
+      item.top + item.marginTop,
+      settings.translate3d
     );
 
     // Bind event listeners.
@@ -304,7 +305,11 @@ export default class ItemDragPlaceholder {
       cancelPlaceholderLayoutTick(item.id);
 
       // Snap placeholder to correct position.
-      this.element.style[transformProp as 'transform'] = getTranslateString(nextX, nextY);
+      this.element.style[transformProp as 'transform'] = createTranslate(
+        nextX,
+        nextY,
+        grid.settings.translate3d
+      );
       this.animator.stop();
 
       // Move placeholder inside correct container after migration.
@@ -356,21 +361,25 @@ export default class ItemDragPlaceholder {
     const currentY = this._transY;
     const nextX = this._nextTransX;
     const nextY = this._nextTransY;
+    const { layoutDuration, layoutEasing, translate3d } = (this.item.getGrid() as Grid).settings;
 
     // If placeholder is already in correct position let's just stop animation
     // and be done with it.
     if (currentX === nextX && currentY === nextY) {
       if (animator.isAnimating()) {
-        this.element.style[transformProp as 'transform'] = getTranslateString(nextX, nextY);
+        this.element.style[transformProp as 'transform'] = createTranslate(
+          nextX,
+          nextY,
+          translate3d
+        );
         animator.stop();
       }
       return;
     }
 
     // Otherwise let's start the animation.
-    const { layoutDuration, layoutEasing } = (this.item.getGrid() as Grid).settings;
-    CURRENT_STYLES[transformProp] = getTranslateString(currentX, currentY);
-    TARGET_STYLES[transformProp] = getTranslateString(nextX, nextY);
+    CURRENT_STYLES[transformProp] = createTranslate(currentX, currentY, translate3d);
+    TARGET_STYLES[transformProp] = createTranslate(nextX, nextY, translate3d);
     animator.start(CURRENT_STYLES, TARGET_STYLES, {
       duration: layoutDuration,
       easing: layoutEasing,

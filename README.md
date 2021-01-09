@@ -214,6 +214,9 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
   // Sorting
   sortData: null,
 
+  // Use translate3d() instead of translateX/Y()
+  translate3d: false,
+
   // Drag & Drop
   dragEnabled: false,
   dragContainer: null,
@@ -315,6 +318,7 @@ const gridB = new Muuri('.grid-b', {
 - [layoutDuration](#grid-option-layoutduration)
 - [layoutEasing](#grid-option-layouteasing)
 - [sortData](#grid-option-sortdata)
+- [translate3d](#grid-option-translate3d)
 - [dragEnabled](#grid-option-dragenabled)
 - [dragContainer](#grid-option-dragcontainer)
 - [dragHandle](#grid-option-draghandle)
@@ -768,6 +772,21 @@ const grid = new Muuri(elem, {
 grid.refreshSortData();
 // Sort the grid by foo and bar.
 grid.sort('foo bar');
+```
+
+<h3><a id="grid-option-translate3d" href="#grid-option-translate3d" aria-hidden="true">#</a> <i>option</i>: translate3d</h3>
+
+When `true`, `translate3d()` is used instead of `translateX()` and `translateY()` for item elements when positioning them. This might improve performance in some scenarios, but also degrade it in others. The best way is to test it and see for yourself.
+
+- Default value: `false`.
+- Accepted types: boolean.
+
+**Examples**
+
+```javascript
+const grid = new Muuri(elem, {
+  translate3d: true
+});
 ```
 
 <h3><a id="grid-option-dragenabled" href="#grid-option-dragenabled" aria-hidden="true">#</a> <i>option</i>: dragEnabled</h3>

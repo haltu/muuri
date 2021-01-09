@@ -990,23 +990,26 @@ export default class ItemDrag {
 
       // Get the next drag container.
       const currentDragContainer = this._container as HTMLElement;
+      const currentContainingBlock = this._containingBlock as HTMLElement | Document;
       const targetDragContainer = targetSettings.dragContainer || targetGrid.element;
+      const targetContainingBlock = getContainingBlock(targetDragContainer);
 
       // Update item's container offset so we can keep computing the item's
       // current translate position relative to it's current grid element. It's
       // important to keep this synced so that we can feed correct data to the
-      // drag sort heuristics and easily compute the item's position within it's
-      // current grid element.
-      let offsetDiff = getOffsetDiff(targetDragContainer, targetGrid.element, true);
+      // drag sort heuristics and can easily compute the item's position within
+      // it's current grid element.
+      let offsetDiff = getOffsetDiff(targetContainingBlock, getContainingBlock(targetGrid.element));
       item._containerDiffX = this._containerDiffX = offsetDiff.left;
       item._containerDiffY = this._containerDiffY = offsetDiff.top;
 
       // If drag container changed let's update containing block and move the
       // element to it's new container.
       if (targetDragContainer !== currentDragContainer) {
-        offsetDiff = getOffsetDiff(currentDragContainer, targetDragContainer, true);
-        this._containingBlock = getContainingBlock(targetDragContainer);
+        offsetDiff = getOffsetDiff(currentContainingBlock, targetContainingBlock);
+
         this._container = targetDragContainer;
+        this._containingBlock = targetContainingBlock;
         this._translateX -= offsetDiff.left;
         this._translateY -= offsetDiff.top;
 

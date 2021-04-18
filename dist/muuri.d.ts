@@ -803,7 +803,7 @@ interface GridSettings {
 }
 interface GridInitOptions extends Partial<GridSettings> {
 }
-interface GridOptions extends Partial<Omit<GridSettings, 'items' | 'layoutOnInit' | 'layout' | 'dragStartPredicate' | 'dragSortHeuristics' | 'dragSortPredicate' | 'dragRelease' | 'dragCssProps' | 'dragEventListenerOptions' | 'dragPlaceholder' | 'dragAutoScroll'>> {
+interface GridOptions extends Partial<Omit<GridSettings, 'items' | 'layoutOnInit' | 'translate3d' | 'layout' | 'dragStartPredicate' | 'dragSortHeuristics' | 'dragSortPredicate' | 'dragRelease' | 'dragCssProps' | 'dragEventListenerOptions' | 'dragPlaceholder' | 'dragAutoScroll'>> {
     layout?: PackerLayoutOptions | LayoutFunction;
     dragStartPredicate?: DragStartPredicateOptions | DragStartPredicate;
     dragSortHeuristics?: DragSortHeuristicsOptions;

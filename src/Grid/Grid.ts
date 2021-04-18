@@ -253,6 +253,7 @@ export interface GridOptions
       GridSettings,
       | 'items'
       | 'layoutOnInit'
+      | 'translate3d'
       | 'layout'
       | 'dragStartPredicate'
       | 'dragSortHeuristics'
@@ -578,10 +579,7 @@ export default class Grid {
 
     // Throw an error if the container element is not body element or does not
     // exist within the body element.
-    const isElementInDom = element.getRootNode
-      ? element.getRootNode({ composed: true }) === document
-      : document.body.contains(element);
-    if (!isElementInDom || element === document.documentElement) {
+    if (!element.isConnected || element === document.documentElement) {
       throw new Error('Container element must be an existing DOM element.');
     }
 

@@ -749,7 +749,7 @@ export default class AutoScroller {
     const settings = getItemAutoScrollSettings(item);
     const { threshold, safeZone, handle, targets: _targets } = settings;
 
-    const targets = typeof _targets === 'function' ? _targets(item) : _targets;
+    const targets = isFunction(_targets) ? _targets(item) : _targets;
     if (!targets || !targets.length) {
       checkX && this._cancelItemScroll(item, AXIS_X);
       checkY && this._cancelItemScroll(item, AXIS_Y);
@@ -935,7 +935,7 @@ export default class AutoScroller {
       handle,
       targets: _targets,
     } = getItemAutoScrollSettings(item);
-    const targets = typeof _targets === 'function' ? _targets(item) : _targets;
+    const targets = isFunction(_targets) ? _targets(item) : _targets;
     const targetCount = (targets && targets.length) || 0;
     const itemRect = this._getItemHandleRect(item, handle, R1);
     let hasReachedEnd = null;

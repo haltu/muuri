@@ -9,13 +9,10 @@ import {
   HAS_TOUCH_EVENTS,
   HAS_POINTER_EVENTS,
   HAS_PASSIVE_EVENTS,
-  IS_EDGE,
-  IS_IE,
   IS_FIREFOX,
   IS_ANDROID,
 } from '../constants';
 import Emitter from '../Emitter/Emitter';
-import EdgeHack from './EdgeHack';
 import getPrefixedPropName from '../utils/getPrefixedPropName';
 import { Writeable } from '../types';
 
@@ -304,7 +301,6 @@ export default class Dragger {
   protected _startY: number;
   protected _currentX: number;
   protected _currentY: number;
-  protected _edgeHack: EdgeHack | null;
 
   constructor(
     element: HTMLElement,
@@ -325,9 +321,6 @@ export default class Dragger {
     this._startY = 0;
     this._currentX = 0;
     this._currentY = 0;
-
-    // This hack should not exists. Let's remove it at earliest inconvenience.
-    this._edgeHack = HAS_POINTER_EVENTS && (IS_EDGE || IS_IE) ? new EdgeHack(this) : null;
 
     this.onStart = this.onStart.bind(this);
     this.onMove = this.onMove.bind(this);
@@ -617,8 +610,6 @@ export default class Dragger {
   destroy() {
     const { element } = this;
     if (!element) return;
-
-    if (this._edgeHack) this._edgeHack.destroy();
 
     // Reset data and deactivate the instance.
     this.reset();

@@ -44,8 +44,6 @@ export const HAS_TOUCH_EVENTS = 'ontouchstart' in window;
 export const HAS_POINTER_EVENTS = !!window.PointerEvent;
 
 export const UA = window.navigator.userAgent.toLowerCase();
-export const IS_EDGE = UA.indexOf('edge') > -1;
-export const IS_IE = UA.indexOf('trident') > -1;
 export const IS_FIREFOX = UA.indexOf('firefox') > -1;
 export const IS_SAFARI =
   navigator.vendor &&

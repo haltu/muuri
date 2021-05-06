@@ -58,8 +58,6 @@
     const HAS_TOUCH_EVENTS = 'ontouchstart' in window;
     const HAS_POINTER_EVENTS = !!window.PointerEvent;
     const UA = window.navigator.userAgent.toLowerCase();
-    const IS_EDGE = UA.indexOf('edge') > -1;
-    const IS_IE = UA.indexOf('trident') > -1;
     const IS_FIREFOX = UA.indexOf('firefox') > -1;
     const IS_SAFARI = navigator.vendor &&
         navigator.vendor.indexOf('Apple') > -1 &&
@@ -1230,72 +1228,6 @@
         }
     }
 
-    const POINTER_OUT_EVENT = 'pointerout';
-    const WAIT_DURATION = 100;
-    class EdgeHack {
-        constructor(dragger) {
-            this._dragger = dragger;
-            this._timeout = null;
-            this._outEvent = null;
-            this._isActive = false;
-            this._addBehaviour = this._addBehaviour.bind(this);
-            this._removeBehaviour = this._removeBehaviour.bind(this);
-            this._onTimeout = this._onTimeout.bind(this);
-            this._resetData = this._resetData.bind(this);
-            this._onStart = this._onStart.bind(this);
-            this._onOut = this._onOut.bind(this);
-            this._dragger.on('start', this._onStart);
-        }
-        destroy() {
-            this._dragger.off('start', this._onStart);
-            this._removeBehaviour();
-        }
-        _addBehaviour() {
-            if (this._isActive)
-                return;
-            this._isActive = true;
-            this._dragger.on('move', this._resetData);
-            this._dragger.on('cancel', this._removeBehaviour);
-            this._dragger.on('end', this._removeBehaviour);
-            window.addEventListener(POINTER_OUT_EVENT, this._onOut);
-        }
-        _removeBehaviour() {
-            if (!this._isActive)
-                return;
-            this._dragger.off('move', this._resetData);
-            this._dragger.off('cancel', this._removeBehaviour);
-            this._dragger.off('end', this._removeBehaviour);
-            window.removeEventListener(POINTER_OUT_EVENT, this._onOut);
-            this._resetData();
-            this._isActive = false;
-        }
-        _resetData() {
-            if (this._timeout !== null) {
-                window.clearTimeout(this._timeout);
-                this._timeout = null;
-            }
-            this._outEvent = null;
-        }
-        _onStart(e) {
-            if (e.pointerType === 'mouse')
-                return;
-            this._addBehaviour();
-        }
-        _onOut(e) {
-            if (!this._dragger.getTrackedTouch(e))
-                return;
-            this._resetData();
-            this._outEvent = e;
-            this._timeout = window.setTimeout(this._onTimeout, WAIT_DURATION);
-        }
-        _onTimeout() {
-            const outEvent = this._outEvent;
-            this._resetData();
-            if (outEvent && this._dragger.isActive())
-                this._dragger.onCancel(outEvent);
-        }
-    }
-
     const vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
     const cache$1 = new Map();
     function getPrefixedPropName(style, styleProp) {
@@ -1472,7 +1404,6 @@
             this._startY = 0;
             this._currentX = 0;
             this._currentY = 0;
-            this._edgeHack = HAS_POINTER_EVENTS && (IS_EDGE || IS_IE) ? new EdgeHack(this) : null;
             this.onStart = this.onStart.bind(this);
             this.onMove = this.onMove.bind(this);
             this.onCancel = this.onCancel.bind(this);
@@ -1633,8 +1564,6 @@
             const { element } = this;
             if (!element)
                 return;
-            if (this._edgeHack)
-                this._edgeHack.destroy();
             this.reset();
             this._emitter.destroy();
             element.removeEventListener(SOURCE_EVENTS.start, this.onStart, getListenerOptions(this._listenerType));

@@ -170,21 +170,6 @@ declare class Emitter {
     destroy(): this;
 }
 
-declare class EdgeHack {
-    protected _dragger: Dragger;
-    protected _timeout: number | null;
-    protected _outEvent: PointerEvent | TouchEvent | MouseEvent | null;
-    protected _isActive: boolean;
-    constructor(dragger: Dragger);
-    destroy(): void;
-    protected _addBehaviour(): void;
-    protected _removeBehaviour(): void;
-    protected _resetData(): void;
-    protected _onStart(e: DraggerStartEvent): void;
-    protected _onOut(e: PointerEvent | TouchEvent | MouseEvent): void;
-    protected _onTimeout(): void;
-}
-
 declare type DraggerListenerType = 0 | 1 | 2 | 3;
 declare type DraggerTouchAction = string;
 interface DraggerCssPropsOptions {
@@ -266,7 +251,6 @@ declare class Dragger {
     protected _startY: number;
     protected _currentX: number;
     protected _currentY: number;
-    protected _edgeHack: EdgeHack | null;
     constructor(element: HTMLElement, cssProps?: DraggerCssPropsOptions, listenerOptions?: DraggerListenerOptions);
     getTrackedTouch(e: PointerEvent | TouchEvent | MouseEvent): PointerEvent | MouseEvent | Touch | null;
     onStart(e: PointerEvent | TouchEvent | MouseEvent): void;

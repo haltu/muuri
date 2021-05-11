@@ -10,11 +10,6 @@ const exec = require('child_process').exec;
 const pkg = require('./package.json');
 const karmaDefaults = require('./karma.defaults.js');
 
-function hasArg(arg) {
-  const args = JSON.parse(process.env.npm_config_argv).original;
-  return args.indexOf(arg) > -1;
-}
-
 if (fs.existsSync('./.env')) dotenv.config();
 
 gulp.task('lint', () => {
@@ -34,7 +29,7 @@ gulp.task('size', () => {
     .pipe(
       size({
         showFiles: true,
-        showTotal: false
+        showTotal: false,
       })
     )
     .pipe(
@@ -42,49 +37,39 @@ gulp.task('size', () => {
         showFiles: true,
         showTotal: false,
         title: 'gzipped',
-        gzip: true
+        gzip: true,
       })
     );
 });
 
-gulp.task('clean', cb => {
+gulp.task('clean', (cb) => {
   rimraf('./*.log', cb);
 });
 
-gulp.task('test-local', done => {
+gulp.task('test-local', (done) => {
   // Setup browsers.
-  const browsers = [];
-  hasArg('--chrome') && browsers.push('Chrome');
-  hasArg('--firefox') && browsers.push('Firefox');
-  hasArg('--safari') && browsers.push('Safari');
-  hasArg('--edge') && browsers.push('Edge');
-  if (!browsers.length) browsers.push('Chrome');
+  const browsers = ['Chrome'];
 
   new karma.Server(
     {
       configFile: __dirname + '/karma.conf.js',
       action: 'run',
-      browsers
+      browsers,
     },
-    exitCode => {
+    (exitCode) => {
       done(exitCode);
     }
   ).start();
 });
 
-gulp.task('test-local-min', done => {
+gulp.task('test-local-min', (done) => {
   // Setup browsers.
-  const browsers = [];
-  hasArg('--chrome') && browsers.push('Chrome');
-  hasArg('--firefox') && browsers.push('Firefox');
-  hasArg('--safari') && browsers.push('Safari');
-  hasArg('--edge') && browsers.push('Edge');
-  if (!browsers.length) browsers.push('Chrome');
+  const browsers = ['Chrome'];
 
   // Replace main file with minified version.
   const mainPath = './' + pkg.main;
   const minifiedPath = mainPath.replace('.js', '.min.js');
-  const files = karmaDefaults.files.map(path => {
+  const files = karmaDefaults.files.map((path) => {
     if (path === mainPath) return minifiedPath;
     return path;
   });
@@ -94,48 +79,38 @@ gulp.task('test-local-min', done => {
       configFile: __dirname + '/karma.conf.js',
       action: 'run',
       browsers,
-      files
+      files,
     },
-    exitCode => {
+    (exitCode) => {
       done(exitCode);
     }
   ).start();
 });
 
-gulp.task('test-sauce', done => {
+gulp.task('test-sauce', (done) => {
   // Setup browsers.
-  const browsers = [];
-  hasArg('--chrome') && browsers.push('slChrome');
-  hasArg('--firefox') && browsers.push('slFirefox');
-  hasArg('--safari') && browsers.push('slSafari');
-  hasArg('--edge') && browsers.push('slEdge');
-  if (!browsers.length) browsers.push('slChrome', 'slFirefox', 'slSafari');
+  const browsers = ['slChrome', 'slFirefox', 'slSafari'];
 
   new karma.Server(
     {
       configFile: __dirname + '/karma.conf.js',
       action: 'run',
-      browsers
+      browsers,
     },
-    exitCode => {
+    (exitCode) => {
       done(exitCode);
     }
   ).start();
 });
 
-gulp.task('test-sauce-min', done => {
+gulp.task('test-sauce-min', (done) => {
   // Setup browsers.
-  const browsers = [];
-  hasArg('--chrome') && browsers.push('slChrome');
-  hasArg('--firefox') && browsers.push('slFirefox');
-  hasArg('--safari') && browsers.push('slSafari');
-  hasArg('--edge') && browsers.push('slEdge');
-  if (!browsers.length) browsers.push('slChrome', 'slFirefox', 'slSafari');
+  const browsers = ['slChrome', 'slFirefox', 'slSafari'];
 
   // Replace main file with minified version.
   const mainPath = './' + pkg.main;
   const minifiedPath = mainPath.replace('.js', '.min.js');
-  const files = karmaDefaults.files.map(path => {
+  const files = karmaDefaults.files.map((path) => {
     if (path === mainPath) return minifiedPath;
     return path;
   });
@@ -145,15 +120,15 @@ gulp.task('test-sauce-min', done => {
       configFile: __dirname + '/karma.conf.js',
       action: 'run',
       browsers,
-      files
+      files,
     },
-    exitCode => {
+    (exitCode) => {
       done(exitCode);
     }
   ).start();
 });
 
-gulp.task('validate-formatting', cb => {
+gulp.task('validate-formatting', (cb) => {
   exec('npm run validate-formatting', (err, stdout, stderr) => {
     console.log(stdout);
     console.log(stderr);
@@ -161,7 +136,7 @@ gulp.task('validate-formatting', cb => {
   });
 });
 
-gulp.task('bundle', cb => {
+gulp.task('bundle', (cb) => {
   exec('npm run bundle', (err, stdout, stderr) => {
     console.log(stdout);
     console.log(stderr);
@@ -169,7 +144,7 @@ gulp.task('bundle', cb => {
   });
 });
 
-gulp.task('minify', cb => {
+gulp.task('minify', (cb) => {
   exec('npm run minify', (err, stdout, stderr) => {
     console.log(stdout);
     console.log(stderr);
@@ -179,21 +154,21 @@ gulp.task('minify', cb => {
 
 gulp.task(
   'build',
-  gulp.series('bundle', 'minify', done => {
+  gulp.series('bundle', 'minify', (done) => {
     done();
   })
 );
 
 gulp.task(
   'pre-commit',
-  gulp.series('lint', 'validate-formatting', done => {
+  gulp.series('lint', 'validate-formatting', (done) => {
     done();
   })
 );
 
 gulp.task(
   'test',
-  gulp.series('lint', 'validate-formatting', 'test-sauce', 'test-sauce-min', 'clean', done => {
+  gulp.series('lint', 'validate-formatting', 'test-sauce', 'test-sauce-min', 'clean', (done) => {
     done();
   })
 );

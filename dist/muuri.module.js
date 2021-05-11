@@ -3133,11 +3133,13 @@ ItemDrag.prototype.stop = function () {
     return;
   }
 
+  var item = this._item;
+  var itemId = item._id;
+
   // Stop auto-scroll.
-  ItemDrag.autoScroller.removeItem(this._item);
+  ItemDrag.autoScroller.removeItem(item);
 
   // Cancel queued ticks.
-  var itemId = this._item._id;
   cancelDragStartTick(itemId);
   cancelDragMoveTick(itemId);
   cancelDragScrollTick(itemId);

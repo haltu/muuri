@@ -48,13 +48,13 @@ npm install muuri
 
 Or download:
 
-- [muuri.js](https://cdn.jsdelivr.net/npm/muuri@0.9.3/dist/muuri.js) - for development (not minified, with comments).
-- [muuri.min.js](https://cdn.jsdelivr.net/npm/muuri@0.9.3/dist/muuri.min.js) - for production (minified, no comments).
+- [muuri.js](https://cdn.jsdelivr.net/npm/muuri@0.9.4/dist/muuri.js) - for development (not minified, with comments).
+- [muuri.min.js](https://cdn.jsdelivr.net/npm/muuri@0.9.4/dist/muuri.min.js) - for production (minified, no comments).
 
 Or link directly:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/muuri@0.9.3/dist/muuri.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/muuri@0.9.4/dist/muuri.min.js"></script>
 ```
 
 <h3><a id="getting-started-2" href="#getting-started-2" aria-hidden="true">#</a> 2. Get Web Animations Polyfill (if needed)</h3>

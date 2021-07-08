@@ -1384,9 +1384,6 @@ ItemDrag.prototype._prepareScroll = function () {
   var element = item._element;
   var grid = this._getGrid();
   var gridContainer = grid._element;
-  var axis = grid._settings.dragAxis;
-  var moveX = axis !== 'y';
-  var moveY = axis !== 'x';
   var rect = element.getBoundingClientRect();
 
   // Update container diff.
@@ -1397,18 +1394,14 @@ ItemDrag.prototype._prepareScroll = function () {
   }
 
   // Update horizontal position data.
-  if (moveX) {
-    var scrollDiffX = this._clientX - this._moveDiffX - this._scrollDiffX - rect.left;
-    this._left = this._left - this._scrollDiffX + scrollDiffX;
-    this._scrollDiffX = scrollDiffX;
-  }
+  var scrollDiffX = this._clientX - this._moveDiffX - rect.left;
+  this._left = this._left - this._scrollDiffX + scrollDiffX;
+  this._scrollDiffX = scrollDiffX;
 
   // Update vertical position data.
-  if (moveY) {
-    var scrollDiffY = this._clientY - this._moveDiffY - this._scrollDiffY - rect.top;
-    this._top = this._top - this._scrollDiffY + scrollDiffY;
-    this._scrollDiffY = scrollDiffY;
-  }
+  var scrollDiffY = this._clientY - this._moveDiffY - rect.top;
+  this._top = this._top - this._scrollDiffY + scrollDiffY;
+  this._scrollDiffY = scrollDiffY;
 
   // Update grid position.
   this._gridX = this._left - this._containerDiffX;

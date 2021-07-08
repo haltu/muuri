@@ -1,5 +1,5 @@
 /**
-* Muuri v0.9.3
+* Muuri v0.9.5
 * https://muuri.dev/
 * Copyright (c) 2015-present, Haltu Oy
 * Released under the MIT license
@@ -368,7 +368,7 @@ EdgeHack.prototype.destroy = function () {
 
 // Playing it safe here, test all potential prefixes capitalized and lowercase.
 var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
-var cache = {};
+var cache$2 = {};
 
 /**
  * Get prefixed CSS property name when given a non-prefixed CSS property name.
@@ -379,7 +379,7 @@ var cache = {};
  * @returns {String}
  */
 function getPrefixedPropName(style, prop) {
-  var prefixedProp = cache[prop] || '';
+  var prefixedProp = cache$2[prop] || '';
   if (prefixedProp) return prefixedProp;
 
   var camelProp = prop[0].toUpperCase() + prop.slice(1);
@@ -387,7 +387,7 @@ function getPrefixedPropName(style, prop) {
   while (i < vendorPrefixes.length) {
     prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : prop;
     if (prefixedProp in style) {
-      cache[prop] = prefixedProp;
+      cache$2[prop] = prefixedProp;
       return prefixedProp;
     }
     ++i;
@@ -2488,7 +2488,7 @@ function getStyleName(property) {
 
 var transformStyle = getStyleName(transformProp);
 
-var transformNone = 'none';
+var transformNone$1 = 'none';
 var displayInline = 'inline';
 var displayNone = 'none';
 var displayStyle = 'display';
@@ -2507,7 +2507,7 @@ var displayStyle = 'display';
  */
 function isTransformed(element) {
   var transform = getStyle(element, transformStyle);
-  if (!transform || transform === transformNone) return false;
+  if (!transform || transform === transformNone$1) return false;
 
   var display = getStyle(element, displayStyle);
   if (display === displayInline || display === displayNone) return false;
@@ -2678,7 +2678,7 @@ function getScrollableAncestors(element, result) {
 }
 
 var translateValue = {};
-var transformNone$1 = 'none';
+var transformNone = 'none';
 var rxMat3d = /^matrix3d/;
 var rxMatTx = /([^,]*,){4}/;
 var rxMat3dTx = /([^,]*,){12}/;
@@ -2697,7 +2697,7 @@ function getTranslate(element) {
   translateValue.y = 0;
 
   var transform = getStyle(element, transformStyle);
-  if (!transform || transform === transformNone$1) {
+  if (!transform || transform === transformNone) {
     return translateValue;
   }
 
@@ -4217,7 +4217,7 @@ function getCurrentStyles(element, styles) {
 }
 
 var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
-var cache$2 = {};
+var cache = {};
 
 /**
  * Remove any potential vendor prefixes from a property name.
@@ -4226,7 +4226,7 @@ var cache$2 = {};
  * @returns {String}
  */
 function getUnprefixedPropName(prop) {
-  var result = cache$2[prop];
+  var result = cache[prop];
   if (result) return result;
 
   result = prop.replace(unprefixRegEx, '');
@@ -4235,7 +4235,7 @@ function getUnprefixedPropName(prop) {
     result = result[0].toLowerCase() + result.slice(1);
   }
 
-  cache$2[prop] = result;
+  cache[prop] = result;
 
   return result;
 }

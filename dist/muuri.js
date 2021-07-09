@@ -1,5 +1,5 @@
 /**
-* Muuri v0.9.3
+* Muuri v0.9.5
 * https://muuri.dev/
 * Copyright (c) 2015-present, Haltu Oy
 * Released under the MIT license
@@ -374,7 +374,7 @@
 
   // Playing it safe here, test all potential prefixes capitalized and lowercase.
   var vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
-  var cache = {};
+  var cache$2 = {};
 
   /**
    * Get prefixed CSS property name when given a non-prefixed CSS property name.
@@ -385,7 +385,7 @@
    * @returns {String}
    */
   function getPrefixedPropName(style, prop) {
-    var prefixedProp = cache[prop] || '';
+    var prefixedProp = cache$2[prop] || '';
     if (prefixedProp) return prefixedProp;
 
     var camelProp = prop[0].toUpperCase() + prop.slice(1);
@@ -393,7 +393,7 @@
     while (i < vendorPrefixes.length) {
       prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : prop;
       if (prefixedProp in style) {
-        cache[prop] = prefixedProp;
+        cache$2[prop] = prefixedProp;
         return prefixedProp;
       }
       ++i;
@@ -1220,19 +1220,7 @@
     return typeof val === functionType;
   }
 
-  var isWeakMapSupported = typeof WeakMap === 'function';
-  var cache$1 = isWeakMapSupported ? new WeakMap() : null;
-  var cacheInterval = 3000;
-  var cacheTimer;
-  var canClearCache = true;
-  var clearCache = function () {
-    if (canClearCache) {
-      cacheTimer = window.clearInterval(cacheTimer);
-      cache$1 = isWeakMapSupported ? new WeakMap() : null;
-    } else {
-      canClearCache = true;
-    }
-  };
+  var cache$1 = typeof WeakMap === 'function' ? new WeakMap() : null;
 
   /**
    * Returns the computed value of an element's style property as a string.
@@ -1247,14 +1235,6 @@
     if (!styles) {
       styles = window.getComputedStyle(element, null);
       if (cache$1) cache$1.set(element, styles);
-    }
-
-    if (cache$1) {
-      if (!cacheTimer) {
-        cacheTimer = window.setInterval(clearCache, cacheInterval);
-      } else {
-        canClearCache = false;
-      }
     }
 
     return styles.getPropertyValue(style);
@@ -2494,7 +2474,7 @@
 
   var transformStyle = getStyleName(transformProp);
 
-  var transformNone = 'none';
+  var transformNone$1 = 'none';
   var displayInline = 'inline';
   var displayNone = 'none';
   var displayStyle = 'display';
@@ -2513,7 +2493,7 @@
    */
   function isTransformed(element) {
     var transform = getStyle(element, transformStyle);
-    if (!transform || transform === transformNone) return false;
+    if (!transform || transform === transformNone$1) return false;
 
     var display = getStyle(element, displayStyle);
     if (display === displayInline || display === displayNone) return false;
@@ -2684,7 +2664,7 @@
   }
 
   var translateValue = {};
-  var transformNone$1 = 'none';
+  var transformNone = 'none';
   var rxMat3d = /^matrix3d/;
   var rxMatTx = /([^,]*,){4}/;
   var rxMat3dTx = /([^,]*,){12}/;
@@ -2703,7 +2683,7 @@
     translateValue.y = 0;
 
     var transform = getStyle(element, transformStyle);
-    if (!transform || transform === transformNone$1) {
+    if (!transform || transform === transformNone) {
       return translateValue;
     }
 
@@ -4073,9 +4053,6 @@
     var element = item._element;
     var grid = this._getGrid();
     var gridContainer = grid._element;
-    var axis = grid._settings.dragAxis;
-    var moveX = axis !== 'y';
-    var moveY = axis !== 'x';
     var rect = element.getBoundingClientRect();
 
     // Update container diff.
@@ -4086,18 +4063,14 @@
     }
 
     // Update horizontal position data.
-    if (moveX) {
-      var scrollDiffX = this._clientX - this._moveDiffX - this._scrollDiffX - rect.left;
-      this._left = this._left - this._scrollDiffX + scrollDiffX;
-      this._scrollDiffX = scrollDiffX;
-    }
+    var scrollDiffX = this._clientX - this._moveDiffX - rect.left;
+    this._left = this._left - this._scrollDiffX + scrollDiffX;
+    this._scrollDiffX = scrollDiffX;
 
     // Update vertical position data.
-    if (moveY) {
-      var scrollDiffY = this._clientY - this._moveDiffY - this._scrollDiffY - rect.top;
-      this._top = this._top - this._scrollDiffY + scrollDiffY;
-      this._scrollDiffY = scrollDiffY;
-    }
+    var scrollDiffY = this._clientY - this._moveDiffY - rect.top;
+    this._top = this._top - this._scrollDiffY + scrollDiffY;
+    this._scrollDiffY = scrollDiffY;
 
     // Update grid position.
     this._gridX = this._left - this._containerDiffX;
@@ -4223,7 +4196,7 @@
   }
 
   var unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
-  var cache$2 = {};
+  var cache = {};
 
   /**
    * Remove any potential vendor prefixes from a property name.
@@ -4232,7 +4205,7 @@
    * @returns {String}
    */
   function getUnprefixedPropName(prop) {
-    var result = cache$2[prop];
+    var result = cache[prop];
     if (result) return result;
 
     result = prop.replace(unprefixRegEx, '');
@@ -4241,7 +4214,7 @@
       result = result[0].toLowerCase() + result.slice(1);
     }
 
-    cache$2[prop] = result;
+    cache[prop] = result;
 
     return result;
   }
@@ -6481,6 +6454,7 @@
       this.slotSizes.length = 0;
       this.currentRects.length = 0;
       this.nextRects.length = 0;
+      this.rectStore.length = 0;
       this.rectId = 0;
       this.slotIndex = -1;
 
@@ -7003,7 +6977,7 @@
     var callback = this._layoutCallbacks[layoutId];
     var worker = this._layoutWorkers[layoutId];
 
-    if (layout) delete this._layoutCallbacks[layoutId];
+    if (layout) delete this._layouts[layoutId];
     if (callback) delete this._layoutCallbacks[layoutId];
     if (worker) delete this._layoutWorkers[layoutId];
 

@@ -139,6 +139,7 @@ function createPackerProcessor(isWorker) {
     this.slotSizes.length = 0;
     this.currentRects.length = 0;
     this.nextRects.length = 0;
+    this.rectStore.length = 0;
     this.rectId = 0;
     this.slotIndex = -1;
 

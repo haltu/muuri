@@ -78,7 +78,7 @@ Packer.prototype._onWorkerMessage = function (msg) {
   var callback = this._layoutCallbacks[layoutId];
   var worker = this._layoutWorkers[layoutId];
 
-  if (layout) delete this._layoutCallbacks[layoutId];
+  if (layout) delete this._layouts[layoutId];
   if (callback) delete this._layoutCallbacks[layoutId];
   if (worker) delete this._layoutWorkers[layoutId];
 

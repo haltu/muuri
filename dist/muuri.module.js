@@ -1214,19 +1214,7 @@ function isFunction(val) {
   return typeof val === functionType;
 }
 
-var isWeakMapSupported = typeof WeakMap === 'function';
-var cache$1 = isWeakMapSupported ? new WeakMap() : null;
-var cacheInterval = 3000;
-var cacheTimer;
-var canClearCache = true;
-var clearCache = function () {
-  if (canClearCache) {
-    cacheTimer = window.clearInterval(cacheTimer);
-    cache$1 = isWeakMapSupported ? new WeakMap() : null;
-  } else {
-    canClearCache = true;
-  }
-};
+var cache$1 = typeof WeakMap === 'function' ? new WeakMap() : null;
 
 /**
  * Returns the computed value of an element's style property as a string.
@@ -1241,14 +1229,6 @@ function getStyle(element, style) {
   if (!styles) {
     styles = window.getComputedStyle(element, null);
     if (cache$1) cache$1.set(element, styles);
-  }
-
-  if (cache$1) {
-    if (!cacheTimer) {
-      cacheTimer = window.setInterval(clearCache, cacheInterval);
-    } else {
-      canClearCache = false;
-    }
   }
 
   return styles.getPropertyValue(style);
@@ -6468,6 +6448,7 @@ function createPackerProcessor(isWorker) {
     this.slotSizes.length = 0;
     this.currentRects.length = 0;
     this.nextRects.length = 0;
+    this.rectStore.length = 0;
     this.rectId = 0;
     this.slotIndex = -1;
 

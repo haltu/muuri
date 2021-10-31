@@ -11,7 +11,7 @@ import getStyleName from './getStyleName';
  * Get current values of the provided styles definition object or array.
  *
  * @param {HTMLElement} element
- * @param {(Object|Array} styles
+ * @param {(Object|Array)} styles
  * @return {Object}
  */
 export default function getCurrentStyles(element, styles) {

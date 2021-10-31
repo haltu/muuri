@@ -1175,7 +1175,6 @@ ItemDrag.prototype._onStart = function (event) {
  * Prepare item to be dragged.
  *
  * @private
- *  ItemDrag.prototype
  */
 ItemDrag.prototype._prepareStart = function () {
   if (!this._isActive) return;

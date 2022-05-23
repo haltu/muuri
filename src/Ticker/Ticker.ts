@@ -5,8 +5,6 @@
  * https://github.com/haltu/muuri/blob/master/src/Ticker/LICENSE.md
  */
 
-import raf from '../utils/raf';
-
 export type TickId = string;
 export type TickCallback = (time: number) => void;
 
@@ -87,7 +85,7 @@ export default class Ticker {
     const lane = this._lanes[laneIndex];
     if (lane) {
       lane.add(id, callback);
-      if (!this._nextStep) this._nextStep = raf(this._step);
+      if (!this._nextStep) this._nextStep = window.requestAnimationFrame(this._step);
     }
   }
 

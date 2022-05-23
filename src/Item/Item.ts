@@ -5,11 +5,11 @@
  */
 
 import { GRID_INSTANCES, ITEM_ELEMENT_MAP } from '../constants';
-import Grid, { GridInternal } from '../Grid/Grid';
+import Grid from '../Grid/Grid';
 import ItemDrag from './ItemDrag';
 import ItemDragPlaceholder from './ItemDragPlaceholder';
 import ItemDragRelease from './ItemDragRelease';
-import ItemLayout, { ItemLayoutInternal } from './ItemLayout';
+import ItemLayout from './ItemLayout';
 import ItemMigrate from './ItemMigrate';
 import ItemVisibility from './ItemVisibility';
 import Emitter from '../Emitter/Emitter';
@@ -46,21 +46,21 @@ export default class Item {
   readonly marginRight: number;
   readonly marginTop: number;
   readonly marginBottom: number;
-  protected _gridId: number;
-  protected _isActive: boolean;
-  protected _isDestroyed: boolean;
-  protected _translateX?: number;
-  protected _translateY?: number;
-  protected _containerDiffX: number;
-  protected _containerDiffY: number;
-  protected _sortData: { [key: string]: any } | null;
-  protected _emitter: Emitter;
-  protected _visibility: ItemVisibility;
-  protected _layout: ItemLayout;
-  protected _migrate: ItemMigrate;
-  protected _drag: ItemDrag | null;
-  protected _dragRelease: ItemDragRelease;
-  protected _dragPlaceholder: ItemDragPlaceholder;
+  _gridId: number;
+  _isActive: boolean;
+  _isDestroyed: boolean;
+  _translateX?: number;
+  _translateY?: number;
+  _containerDiffX: number;
+  _containerDiffY: number;
+  _sortData: { [key: string]: any } | null;
+  _emitter: Emitter;
+  _visibility: ItemVisibility;
+  _layout: ItemLayout;
+  _migrate: ItemMigrate;
+  _drag: ItemDrag | null;
+  _dragRelease: ItemDragRelease;
+  _dragPlaceholder: ItemDragPlaceholder;
 
   constructor(grid: Grid, element: HTMLElement, isActive?: boolean) {
     const { settings, element: gridElement, id: gridId } = grid;
@@ -238,10 +238,9 @@ export default class Item {
   /**
    * Recalculate item's dimensions.
    *
-   * @protected
    * @param {boolean} [force=false]
    */
-  protected _updateDimensions(force?: boolean) {
+  _updateDimensions(force?: boolean) {
     if (this._isDestroyed) return;
     if (force !== true && !this.isVisible() && !this.isHiding()) return;
 
@@ -264,10 +263,8 @@ export default class Item {
 
   /**
    * Fetch and store item's sort data.
-   *
-   * @protected
    */
-  protected _updateSortData() {
+  _updateSortData() {
     if (this._isDestroyed) return;
 
     const { settings } = this.getGrid() as Grid;
@@ -285,11 +282,10 @@ export default class Item {
   /**
    * Add item to layout.
    *
-   * @protected
    * @param {number} [left=0]
    * @param {number} [top=0]
    */
-  protected _addToLayout(left = 0, top = 0) {
+  _addToLayout(left = 0, top = 0) {
     if (this.isActive()) return;
     this._isActive = true;
     (this as Writeable<this>).left = left;
@@ -299,9 +295,8 @@ export default class Item {
   /**
    * Remove item from layout.
    *
-   * @protected
    */
-  protected _removeFromLayout() {
+  _removeFromLayout() {
     if (!this.isActive()) return;
     this._isActive = false;
     (this as Writeable<this>).left = 0;
@@ -311,18 +306,17 @@ export default class Item {
   /**
    * Check if the layout procedure can be skipped for the item.
    *
-   * @protected
    * @param {number} left
    * @param {number} top
    * @returns {boolean}
    */
-  protected _canSkipLayout(left: number, top: number) {
+  _canSkipLayout(left: number, top: number) {
     return (
       this.left === left &&
       this.top === top &&
       !this._migrate.isActive() &&
       !this._dragRelease.isActive() &&
-      !((this._layout as any) as ItemLayoutInternal)._skipNextAnimation
+      !this._layout._skipNextAnimation
     );
   }
 
@@ -332,11 +326,10 @@ export default class Item {
    * translate values and skips the update operation if the provided values are
    * identical to the currently applied values.
    *
-   * @protected
    * @param {number} x
    * @param {number} y
    */
-  protected _setTranslate(x: number, y: number) {
+  _setTranslate(x: number, y: number) {
     if (this._translateX === x && this._translateY === y) return;
     this._translateX = x;
     this._translateY = y;
@@ -352,10 +345,9 @@ export default class Item {
    * cache we will read them from the DOM (so try to use this only when it is
    * safe to query the DOM without causing a forced reflow).
    *
-   * @protected
    * @returns {Object}
    */
-  protected _getTranslate() {
+  _getTranslate() {
     if (this._translateX === undefined || this._translateY === undefined) {
       const translate = getTranslate(this.element);
       _getTranslateResult.x = translate.x;
@@ -375,11 +367,10 @@ export default class Item {
    * so it is up to the user to update those when necessary before using this
    * method.
    *
-   * @protected
    * @returns {Object}
    */
-  protected _getClientRootPosition() {
-    const grid = (this.getGrid() as any) as GridInternal;
+  _getClientRootPosition() {
+    const grid = this.getGrid() as Grid;
     _getClientRootPositionResult.left = grid._rect.left + grid._borderLeft - this._containerDiffX;
     _getClientRootPositionResult.top = grid._rect.top + grid._borderTop - this._containerDiffY;
     return _getClientRootPositionResult;
@@ -389,13 +380,12 @@ export default class Item {
    * Check if item will be in viewport with the provided coordinates. The third
    * argument allows defining extra padding for the viewport.
    *
-   * @protected
    * @param {number} x
    * @param {number} y
    * @param {number} [viewportThreshold=0]
    * @returns {boolean}
    */
-  protected _isInViewport(x: number, y: number, viewportThreshold = 0) {
+  _isInViewport(x: number, y: number, viewportThreshold = 0) {
     const rootPosition = this._getClientRootPosition();
     return isInViewport(
       this.width,
@@ -409,10 +399,9 @@ export default class Item {
   /**
    * Destroy item instance.
    *
-   * @protected
    * @param {boolean} [removeElement=false]
    */
-  protected _destroy(removeElement = false) {
+  _destroy(removeElement = false) {
     if (this._isDestroyed) return;
 
     const element = this.element;
@@ -442,32 +431,4 @@ export default class Item {
     this._isActive = false;
     this._isDestroyed = true;
   }
-}
-
-export interface ItemInternal extends Writeable<Item> {
-  _gridId: Item['_gridId'];
-  _isActive: Item['_isActive'];
-  _isDestroyed: Item['_isDestroyed'];
-  _translateX: Item['_translateX'];
-  _translateY: Item['_translateY'];
-  _containerDiffX: Item['_containerDiffX'];
-  _containerDiffY: Item['_containerDiffY'];
-  _sortData: Item['_sortData'];
-  _emitter: Item['_emitter'];
-  _visibility: Item['_visibility'];
-  _layout: Item['_layout'];
-  _migrate: Item['_migrate'];
-  _drag: Item['_drag'];
-  _dragRelease: Item['_dragRelease'];
-  _dragPlaceholder: Item['_dragPlaceholder'];
-  _updateDimensions: Item['_updateDimensions'];
-  _updateSortData: Item['_updateSortData'];
-  _addToLayout: Item['_addToLayout'];
-  _removeFromLayout: Item['_removeFromLayout'];
-  _canSkipLayout: Item['_canSkipLayout'];
-  _setTranslate: Item['_setTranslate'];
-  _getTranslate: Item['_getTranslate'];
-  _getClientRootPosition: Item['_getClientRootPosition'];
-  _isInViewport: Item['_isInViewport'];
-  _destroy: Item['_destroy'];
 }

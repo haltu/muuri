@@ -7,8 +7,8 @@
 
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
 import Grid from '../Grid/Grid';
-import Item, { ItemInternal } from '../Item/Item';
-import { ItemDragInternal } from '../Item/ItemDrag';
+import Item from '../Item/Item';
+import ItemDrag from '~Item/ItemDrag';
 import { DraggerStartEvent, DraggerMoveEvent } from '../Dragger/Dragger';
 import getIntersectionScore from '../utils/getIntersectionScore';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
@@ -224,18 +224,18 @@ function getItemAutoScrollSettings(item: Item) {
 }
 
 function prepareItemScrollSync(item: Item) {
-  const drag = ((item as any) as ItemInternal)._drag as ItemDragInternal | null;
+  const drag = item._drag;
   if (drag) drag._prepareScroll();
 }
 
 function applyItemScrollSync(item: Item) {
   if (!item.isActive()) return;
 
-  const drag = ((item as any) as ItemInternal)._drag as ItemDragInternal | null;
+  const drag = item._drag;
   if (!drag) return;
 
   drag._scrollDiffX = drag._scrollDiffY = 0;
-  ((item as any) as ItemInternal)._setTranslate(drag._translateX, drag._translateY);
+  item._setTranslate(drag._translateX, drag._translateY);
 }
 
 function computeThreshold(idealThreshold: number, targetSize: number) {
@@ -466,7 +466,7 @@ class ScrollRequest {
     // Manually nudge sort to happen. There's a good chance that the item is
     // still after the scroll stops which means that the next sort will be
     // triggered only after the item is moved or it's parent scrolled.
-    const drag = ((this.item as any) as ItemInternal)._drag;
+    const drag = this.item._drag;
     if (drag) drag.sort();
   }
 }
@@ -671,7 +671,7 @@ export default class AutoScroller {
     handle: AutoScrollHandleCallback | null,
     rect: RectExtended = { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 }
   ) {
-    const drag = (((item as any) as ItemInternal)._drag as any) as ItemDragInternal;
+    const drag = item._drag as ItemDrag;
 
     if (handle) {
       const ev = (drag._dragMoveEvent || drag._dragStartEvent) as

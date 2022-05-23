@@ -6,9 +6,8 @@
 
 import { VIEWPORT_THRESHOLD } from '../constants';
 import { addLayoutTick, cancelLayoutTick } from '../ticker';
-import Grid, { GridInternal } from '../Grid/Grid';
-import Item, { ItemInternal } from './Item';
-import { ItemDragReleaseInternal } from './ItemDragRelease';
+import Grid from '../Grid/Grid';
+import Item from './Item';
 import Animator, { AnimationOptions } from '../Animator/Animator';
 import addClass from '../utils/addClass';
 import createTranslate from '../utils/createTranslate';
@@ -17,10 +16,6 @@ import isFunction from '../utils/isFunction';
 import removeClass from '../utils/removeClass';
 import transformProp from '../utils/transformProp';
 import { StyleDeclaration, Writeable } from '../types';
-
-interface GridPrivate extends GridInternal {
-  _itemLayoutNeedsDimensionRefresh?: boolean;
-}
 
 const MIN_ANIMATION_DISTANCE = 2;
 const CURRENT_STYLES: StyleDeclaration = {};
@@ -38,19 +33,19 @@ const ANIM_OPTIONS: AnimationOptions = {
  * @param {Item} item
  */
 export default class ItemLayout {
-  readonly item: ItemInternal | null;
+  readonly item: Item | null;
   readonly animator: Animator;
-  protected _skipNextAnimation: boolean;
-  protected _isActive: boolean;
-  protected _isInterrupted: boolean;
-  protected _easing: string;
-  protected _duration: number;
-  protected _tX: number;
-  protected _tY: number;
-  protected _queue: string;
+  _skipNextAnimation: boolean;
+  _isActive: boolean;
+  _isInterrupted: boolean;
+  _easing: string;
+  _duration: number;
+  _tX: number;
+  _tY: number;
+  _queue: string;
 
   constructor(item: Item) {
-    this.item = (item as any) as ItemInternal;
+    this.item = item;
     this.animator = new Animator(item.element);
 
     this._skipNextAnimation = false;
@@ -93,8 +88,8 @@ export default class ItemLayout {
     if (!this.item) return;
 
     const { item, animator } = this;
-    const grid = (item.getGrid() as any) as GridPrivate;
-    const release = (item._dragRelease as any) as ItemDragReleaseInternal;
+    const grid = item.getGrid() as Grid;
+    const release = item._dragRelease;
     const { settings } = grid;
     const isPositioning = this.isActive();
     const isJustReleased = release.isActive() && !release.isPositioning();
@@ -136,7 +131,7 @@ export default class ItemLayout {
     }
 
     // Kick off animation to be started in the next tick.
-    grid._itemLayoutNeedsDimensionRefresh = true;
+    grid._layoutNeedsDimensionsRefresh = true;
     this._isActive = true;
     this._easing = animEasing;
     this._duration = animDuration;
@@ -206,10 +201,8 @@ export default class ItemLayout {
 
   /**
    * Finish item layout procedure.
-   *
-   * @protected
    */
-  protected _finish() {
+  _finish() {
     if (!this.item) return;
 
     const { item } = this;
@@ -235,10 +228,8 @@ export default class ItemLayout {
 
   /**
    * Prepare item for layout animation.
-   *
-   * @protected
    */
-  protected _setupAnimation() {
+  _setupAnimation() {
     if (!this.item || !this.isActive()) return;
 
     const { item } = this;
@@ -247,9 +238,9 @@ export default class ItemLayout {
     this._tX = x;
     this._tY = y;
 
-    const grid = (item.getGrid() as any) as GridPrivate;
-    if (grid.settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
-      grid._itemLayoutNeedsDimensionRefresh = false;
+    const grid = item.getGrid() as Grid;
+    if (grid.settings._animationWindowing && grid._layoutNeedsDimensionsRefresh) {
+      grid._layoutNeedsDimensionsRefresh = false;
       grid._updateBoundingRect();
       grid._updateBorders(true, false, true, false);
     }
@@ -257,10 +248,8 @@ export default class ItemLayout {
 
   /**
    * Start layout animation.
-   *
-   * @protected
    */
-  protected _startAnimation() {
+  _startAnimation() {
     if (!this.item || !this.isActive()) return;
 
     const { item } = this;
@@ -319,18 +308,4 @@ export default class ItemLayout {
     // Unreference callback to avoid mem leaks.
     ANIM_OPTIONS.onFinish = undefined;
   }
-}
-
-export interface ItemLayoutInternal extends Writeable<ItemLayout> {
-  _skipNextAnimation: ItemLayout['_skipNextAnimation'];
-  _isActive: ItemLayout['_isActive'];
-  _isInterrupted: ItemLayout['_isInterrupted'];
-  _easing: ItemLayout['_easing'];
-  _duration: ItemLayout['_duration'];
-  _tX: ItemLayout['_tX'];
-  _tY: ItemLayout['_tY'];
-  _queue: ItemLayout['_queue'];
-  _finish: ItemLayout['_finish'];
-  _setupAnimation: ItemLayout['_setupAnimation'];
-  _startAnimation: ItemLayout['_startAnimation'];
 }

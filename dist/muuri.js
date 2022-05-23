@@ -23,7 +23,7 @@
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
     typeof define === 'function' && define.amd ? define(factory) :
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Muuri = factory());
-}(this, (function () { 'use strict';
+})(this, (function () { 'use strict';
 
     const GRID_INSTANCES = new Map();
     const ITEM_ELEMENT_MAP = new Map();
@@ -84,11 +84,6 @@
         return isPassiveEventsSupported;
     })();
 
-    const raf = (window.requestAnimationFrame ||
-        window.webkitRequestAnimationFrame ||
-        window.mozRequestAnimationFrame ||
-        window.msRequestAnimationFrame).bind(window);
-
     class TickerLane {
         constructor() {
             this._queue = [];
@@ -146,7 +141,7 @@
             if (lane) {
                 lane.add(id, callback);
                 if (!this._nextStep)
-                    this._nextStep = raf(this._step);
+                    this._nextStep = window.requestAnimationFrame(this._step);
             }
         }
         remove(laneIndex, id) {
@@ -298,7 +293,7 @@
         return (area / maxArea) * 100;
     }
 
-    let cache$2 = new WeakMap();
+    let cache$1 = new WeakMap();
     let cacheTimer = null;
     let canClearCache = true;
     const cacheTime = 1000;
@@ -311,15 +306,15 @@
             window.clearInterval(cacheTimer);
             cacheTimer = null;
         }
-        cache$2 = new WeakMap();
+        cache$1 = new WeakMap();
     };
     function getStyle(element, prop) {
         if (!prop)
             return '';
-        let styles = cache$2.get(element);
+        let styles = cache$1.get(element);
         if (!styles) {
             styles = window.getComputedStyle(element, null);
-            cache$2.set(element, styles);
+            cache$1.set(element, styles);
         }
         if (!cacheTimer) {
             cacheTimer = window.setInterval(clearCache, cacheTime);
@@ -1229,9 +1224,9 @@
     }
 
     const vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
-    const cache$1 = new Map();
+    const cache = new Map();
     function getPrefixedPropName(style, styleProp) {
-        let prefixedProp = cache$1.get(styleProp);
+        let prefixedProp = cache.get(styleProp);
         if (prefixedProp)
             return prefixedProp;
         const camelProp = styleProp[0].toUpperCase() + styleProp.slice(1);
@@ -1239,7 +1234,7 @@
         while (i < vendorPrefixes.length) {
             prefixedProp = vendorPrefixes[i] ? vendorPrefixes[i] + camelProp : styleProp;
             if (prefixedProp in style) {
-                cache$1.set(styleProp, prefixedProp);
+                cache.set(styleProp, prefixedProp);
                 return prefixedProp;
             }
             ++i;
@@ -1879,9 +1874,7 @@
     const defaultSortPredicate = function (item, options) {
         const drag = item._drag;
         const sortAction = (options && options.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE);
-        const migrateAction = (options && options.migrateAction === ACTION_SWAP
-            ? ACTION_SWAP
-            : ACTION_MOVE);
+        const migrateAction = (options && options.migrateAction === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE);
         const sortThreshold = Math.min(Math.max(options && typeof options.threshold === 'number' ? options.threshold : 50, 1), 100);
         const grid = getTargetGrid(item, sortThreshold);
         if (!grid)
@@ -1897,10 +1890,8 @@
             itemRect.top = drag._clientY - (grid._rect.top + grid._borderTop);
         }
         else {
-            itemRect.left =
-                drag._translateX - item._containerDiffX + item.marginLeft;
-            itemRect.top =
-                drag._translateY - item._containerDiffY + item.marginTop;
+            itemRect.left = drag._translateX - item._containerDiffX + item.marginLeft;
+            itemRect.top = drag._translateY - item._containerDiffY + item.marginTop;
         }
         let matchScore = 0;
         let matchIndex = -1;
@@ -2127,8 +2118,7 @@
             const { item } = this;
             const { dragSort, dragSortHeuristics, dragAutoScroll } = item.getGrid().settings;
             if (!dragSort ||
-                (!dragAutoScroll.sortDuringScroll &&
-                    ItemDrag.autoScroll.isItemScrolling(item))) {
+                (!dragAutoScroll.sortDuringScroll && ItemDrag.autoScroll.isItemScrolling(item))) {
                 this._sortX1 = this._sortX2 = this._translateX - item._containerDiffX;
                 this._sortY1 = this._sortY2 = this._translateY - item._containerDiffY;
                 this._isSortNeeded = true;
@@ -2552,20 +2542,6 @@
     ItemDrag.defaultStartPredicate = defaultStartPredicate;
     ItemDrag.defaultSortPredicate = defaultSortPredicate;
 
-    const unprefixRegEx = /^(webkit|moz|ms|o|Webkit|Moz|MS|O)(?=[A-Z])/;
-    const cache = new Map();
-    function getUnprefixedPropName(prop) {
-        let result = cache.get(prop);
-        if (result)
-            return result;
-        result = prop.replace(unprefixRegEx, '');
-        if (result !== prop) {
-            result = result[0].toLowerCase() + result.slice(1);
-        }
-        cache.set(prop, result);
-        return result;
-    }
-
     const nativeCode = '[native code]';
     function isNative(feat) {
         return !!(feat &&
@@ -2581,16 +2557,7 @@
         }
     }
 
-    const HAS_WEB_ANIMATIONS = isFunction(Element.prototype.animate);
-    const HAS_NATIVE_WEB_ANIMATIONS = isNative(Element.prototype.animate);
-    function createKeyframe(props, prefix) {
-        const keyframe = {};
-        let prop;
-        for (prop in props) {
-            keyframe[prefix ? prop : getUnprefixedPropName(prop)] = props[prop];
-        }
-        return keyframe;
-    }
+    const HAS_WEB_ANIMATIONS = isNative(Element.prototype.animate);
     class Animator {
         constructor(element) {
             this.element = element || null;
@@ -2611,10 +2578,7 @@
             }
             if (this.animation)
                 this.animation.cancel();
-            this.animation = element.animate([
-                createKeyframe(propsFrom, HAS_NATIVE_WEB_ANIMATIONS),
-                createKeyframe(propsTo, HAS_NATIVE_WEB_ANIMATIONS),
-            ], {
+            this.animation = element.animate([Object.assign({}, propsFrom), Object.assign({}, propsTo)], {
                 duration: duration || 300,
                 easing: easing || 'ease',
             });
@@ -2938,7 +2902,8 @@
             const didReparent = this._placeToGrid(left, top);
             this.reset(didReparent);
             if (!abort) {
-                item.getGrid()._emit(EVENT_DRAG_RELEASE_END, item);
+                const grid = item.getGrid();
+                grid._emit(EVENT_DRAG_RELEASE_END, item);
             }
         }
         reset(needsReflow = false) {
@@ -3074,7 +3039,7 @@
             if (animator.animation) {
                 animator.animation.onfinish = null;
             }
-            grid._itemLayoutNeedsDimensionRefresh = true;
+            grid._layoutNeedsDimensionsRefresh = true;
             this._isActive = true;
             this._easing = animEasing;
             this._duration = animDuration;
@@ -3140,8 +3105,8 @@
             this._tX = x;
             this._tY = y;
             const grid = item.getGrid();
-            if (grid.settings._animationWindowing && grid._itemLayoutNeedsDimensionRefresh) {
-                grid._itemLayoutNeedsDimensionRefresh = false;
+            if (grid.settings._animationWindowing && grid._layoutNeedsDimensionsRefresh) {
+                grid._layoutNeedsDimensionsRefresh = false;
                 grid._updateBoundingRect();
                 grid._updateBorders(true, false, true, false);
             }
@@ -3524,7 +3489,7 @@
             let currentStyles;
             let tX = 0;
             let tY = 0;
-            grid._itemVisibilityNeedsDimensionRefresh = true;
+            grid._visibilityNeedsDimensionsRefresh = true;
             addVisibilityTick(item.id, () => {
                 if (!this.item || (toVisible ? !this._isShowing : !this._isHiding))
                     return;
@@ -3532,8 +3497,8 @@
                 const { x, y } = item._getTranslate();
                 tX = x;
                 tY = y;
-                if (settings._animationWindowing && grid._itemVisibilityNeedsDimensionRefresh) {
-                    grid._itemVisibilityNeedsDimensionRefresh = false;
+                if (settings._animationWindowing && grid._visibilityNeedsDimensionsRefresh) {
+                    grid._visibilityNeedsDimensionsRefresh = false;
                     grid._updateBoundingRect();
                     grid._updateBorders(true, false, true, false);
                 }
@@ -4358,16 +4323,6 @@
         };
     }
 
-    const matches = Element.prototype.matches ||
-        Element.prototype.webkitMatchesSelector ||
-        Element.prototype.msMatchesSelector ||
-        function () {
-            return false;
-        };
-    function elementMatches(el, selector) {
-        return matches.call(el, selector);
-    }
-
     const htmlCollectionType = '[object HTMLCollection]';
     const nodeListType = '[object NodeList]';
     function isNodeListOrHTMLCollection(val) {
@@ -4436,7 +4391,7 @@
             const children = gridElement.children;
             let i = 0;
             for (; i < children.length; i++) {
-                if (elementMatches(children[i], elements)) {
+                if (children[i].matches(elements)) {
                     result.push(children[i]);
                 }
             }
@@ -4502,6 +4457,8 @@
             this.settings = settings;
             this.items = [];
             this._isDestroyed = false;
+            this._layoutNeedsDimensionsRefresh = false;
+            this._visibilityNeedsDimensionsRefresh = false;
             this._rect = { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
             this._borderLeft = 0;
             this._borderRight = 0;
@@ -4733,7 +4690,7 @@
         refreshItems(items, force = false) {
             if (this._isDestroyed)
                 return this;
-            const targets = (items || this.items);
+            const targets = items || this.items;
             let i;
             let item;
             let style;
@@ -4766,7 +4723,7 @@
         refreshSortData(items) {
             if (this._isDestroyed)
                 return this;
-            const targets = (items || this.items);
+            const targets = items || this.items;
             let i = 0;
             for (; i < targets.length; i++) {
                 targets[i]._updateSortData();
@@ -4876,8 +4833,7 @@
                 item = newItems[i] = new Item(this, element, options.active);
                 if (item.isActive()) {
                     needsLayout = true;
-                    item
-                        ._layout._skipNextAnimation = true;
+                    item._layout._skipNextAnimation = true;
                 }
             }
             for (i = 0; i < newItems.length; i++) {
@@ -4949,7 +4905,7 @@
                 let i;
                 for (i = 0; i < this.items.length; i++) {
                     item = this.items[i];
-                    if (isFunction(predicate) ? predicate(item) : elementMatches(item.element, predicate)) {
+                    if (isFunction(predicate) ? predicate(item) : item.element.matches(predicate)) {
                         itemsToShow.push(item);
                     }
                     else {
@@ -5467,4 +5423,4 @@
 
     return Grid;
 
-})));
+}));

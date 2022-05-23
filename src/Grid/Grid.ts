@@ -26,7 +26,7 @@ import {
   ITEM_ELEMENT_MAP,
   MAX_SAFE_FLOAT32_INTEGER,
 } from '../constants';
-import Item, { ItemInternal } from '../Item/Item';
+import Item from '../Item/Item';
 import ItemDrag from '../Item/ItemDrag';
 import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
 import AutoScroller, {
@@ -35,7 +35,7 @@ import AutoScroller, {
   AutoScrollTarget,
   AutoScrollEventCallback,
 } from '../AutoScroller/AutoScroller';
-import ItemLayout, { ItemLayoutInternal } from '../Item/ItemLayout';
+import ItemLayout from '../Item/ItemLayout';
 import ItemMigrate from '../Item/ItemMigrate';
 import ItemDragRelease from '../Item/ItemDragRelease';
 import ItemVisibility from '../Item/ItemVisibility';
@@ -56,7 +56,6 @@ import arrayMove from '../utils/arrayMove';
 import arraySwap from '../utils/arraySwap';
 import createUid from '../utils/createUid';
 import debounce from '../utils/debounce';
-import elementMatches from '../utils/elementMatches';
 import getPrefixedPropName from '../utils/getPrefixedPropName';
 import getStyle from '../utils/getStyle';
 import getStyleAsFloat from '../utils/getStyleAsFloat';
@@ -383,7 +382,7 @@ function getInitialGridElements(
     const children = gridElement.children;
     let i = 0;
     for (; i < children.length; i++) {
-      if (elementMatches(children[i] as HTMLElement, elements)) {
+      if (children[i].matches(elements)) {
         result.push(children[i] as HTMLElement);
       }
     }
@@ -551,23 +550,25 @@ export default class Grid {
   readonly element: HTMLElement;
   readonly settings: GridSettings;
   readonly items: Item[];
-  protected _isDestroyed: boolean;
-  protected _rect: RectExtended;
-  protected _borderLeft: number;
-  protected _borderRight: number;
-  protected _borderTop: number;
-  protected _borderBottom: number;
-  protected _boxSizing: 'content-box' | 'border-box' | '';
-  protected _layout: LayoutData;
-  protected _isLayoutFinished: boolean;
-  protected _nextLayoutData: {
+  _isDestroyed: boolean;
+  _layoutNeedsDimensionsRefresh: boolean;
+  _visibilityNeedsDimensionsRefresh: boolean;
+  _rect: RectExtended;
+  _borderLeft: number;
+  _borderRight: number;
+  _borderTop: number;
+  _borderBottom: number;
+  _boxSizing: 'content-box' | 'border-box' | '';
+  _layout: LayoutData;
+  _isLayoutFinished: boolean;
+  _nextLayoutData: {
     id: number;
     instant: boolean;
     onFinish?: LayoutOnFinish;
     cancel?: LayoutCancel | null;
   } | null;
-  protected _resizeHandler: ReturnType<typeof debounce> | null;
-  protected _emitter: Emitter;
+  _resizeHandler: ReturnType<typeof debounce> | null;
+  _emitter: Emitter;
 
   constructor(element: string | HTMLElement, options: GridInitOptions = {}) {
     // Allow passing element as selector string
@@ -594,6 +595,8 @@ export default class Grid {
     this.items = [];
 
     this._isDestroyed = false;
+    this._layoutNeedsDimensionsRefresh = false;
+    this._visibilityNeedsDimensionsRefresh = false;
     this._rect = { width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
     this._borderLeft = 0;
     this._borderRight = 0;
@@ -816,14 +819,14 @@ export default class Grid {
     // If the target is an instance of Item return it if it is attached to this
     // Grid instance, otherwise return null.
     if (target instanceof Item) {
-      return ((target as any) as ItemInternal)._gridId === this.id ? target : null;
+      return target._gridId === this.id ? target : null;
     }
 
     // In other cases let's assume that the target is an element, so let's try
     // to find an item that matches the element and return it. If item is not
     // found return null.
     const item = ITEM_ELEMENT_MAP.get(target);
-    return item && ((item as any) as ItemInternal)._gridId === this.id ? item : null;
+    return item && item._gridId === this.id ? item : null;
   }
 
   /**
@@ -973,7 +976,7 @@ export default class Grid {
       let i: number;
       let j: number;
       for (i = 0; i < items.length; i++) {
-        const item = (items[i] as any) as ItemInternal;
+        const item = items[i];
 
         // Handle item class name changes.
         for (j = 0; j < itemClasses.length; j += 3) {
@@ -1052,7 +1055,7 @@ export default class Grid {
               }
             }
           } else {
-            item._drag = new ItemDrag((item as any) as Item);
+            item._drag = new ItemDrag(item as any as Item);
           }
         }
       }
@@ -1084,10 +1087,10 @@ export default class Grid {
   refreshItems(items?: Item[], force = false) {
     if (this._isDestroyed) return this;
 
-    const targets = ((items || this.items) as any) as ItemInternal[];
+    const targets = items || this.items;
 
     let i: number;
-    let item: ItemInternal;
+    let item: Item;
     let style: CSSStyleDeclaration;
     let hiddenItemStyles: CSSStyleDeclaration[] | undefined;
 
@@ -1132,7 +1135,7 @@ export default class Grid {
   refreshSortData(items?: Item[]) {
     if (this._isDestroyed) return this;
 
-    const targets = ((items || this.items) as any) as ItemInternal[];
+    const targets = items || this.items;
     let i = 0;
     for (; i < targets.length; i++) {
       targets[i]._updateSortData();
@@ -1329,8 +1332,7 @@ export default class Grid {
       // corner of the grid, which feels a bit buggy (imho).
       if (item.isActive()) {
         needsLayout = true;
-        ((((item as any) as ItemInternal)
-          ._layout as any) as ItemLayoutInternal)._skipNextAnimation = true;
+        item._layout._skipNextAnimation = true;
       }
     }
 
@@ -1338,8 +1340,8 @@ export default class Grid {
     // in a separate loop to avoid layout thrashing.
     for (i = 0; i < newItems.length; i++) {
       item = newItems[i];
-      ((item as any) as ItemInternal)._updateDimensions();
-      ((item as any) as ItemInternal)._updateSortData();
+      item._updateDimensions();
+      item._updateSortData();
     }
 
     // Add the new items to the items collection to correct index.
@@ -1399,7 +1401,7 @@ export default class Grid {
 
       targetItems.push(item);
       indices.push(allItems.indexOf(item));
-      ((item as any) as ItemInternal)._destroy(options.removeElements);
+      item._destroy(options.removeElements);
       this.items.splice(index, 1);
     }
 
@@ -1508,7 +1510,7 @@ export default class Grid {
       let i: number;
       for (i = 0; i < this.items.length; i++) {
         item = this.items[i];
-        if (isFunction(predicate) ? predicate(item) : elementMatches(item.element, predicate)) {
+        if (isFunction(predicate) ? predicate(item) : item.element.matches(predicate)) {
           itemsToShow.push(item);
         } else {
           itemsToHide.push(item);
@@ -1627,7 +1629,7 @@ export default class Grid {
           return val.split(':');
         });
 
-      ((items as any) as ItemInternal[]).sort((a: ItemInternal, b: ItemInternal) => {
+      items.sort((a, b) => {
         let result = 0;
         let i = 0;
 
@@ -1665,8 +1667,8 @@ export default class Grid {
         if (!result) {
           if (!indexMap) indexMap = createIndexMap(origItems);
           result = isDescending
-            ? compareIndexMap(indexMap, (b as any) as Item, (a as any) as Item)
-            : compareIndexMap(indexMap, (a as any) as Item, (b as any) as Item);
+            ? compareIndexMap(indexMap, b as any as Item, a as any as Item)
+            : compareIndexMap(indexMap, a as any as Item, b as any as Item);
         }
         return result;
       });
@@ -1783,7 +1785,7 @@ export default class Grid {
     if (this._isDestroyed || targetGrid._isDestroyed || this === targetGrid) return this;
 
     // Make sure we have a valid target item.
-    const targetItem = this.getItem(item) as ItemInternal | null;
+    const targetItem = this.getItem(item);
     if (!targetItem) return this;
 
     // Start the migration process.
@@ -1829,7 +1831,7 @@ export default class Grid {
     if (this._isDestroyed) return this;
 
     const container = this.element;
-    const items = (this.getItems() as any) as ItemInternal[];
+    const items = this.getItems();
     const layoutStyles = (this._layout && this._layout.styles) || {};
 
     // Unbind window resize event listener.
@@ -1864,11 +1866,10 @@ export default class Grid {
   /**
    * Emit a grid event.
    *
-   * @protected
    * @param {string} event
    * @param {...*} [args]
    */
-  protected _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>) {
+  _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>) {
     if (this._isDestroyed) return;
     this._emitter.emit(event, ...args);
   }
@@ -1876,21 +1877,18 @@ export default class Grid {
   /**
    * Check if there are any events listeners for an event.
    *
-   * @protected
    * @param {string} event
    * @returns {boolean}
    */
-  protected _hasListeners<T extends keyof GridEvents>(event: T) {
+  _hasListeners<T extends keyof GridEvents>(event: T) {
     if (this._isDestroyed) return false;
     return this._emitter.countListeners(event) > 0;
   }
 
   /**
    * Update container's width, height and offsets.
-   *
-   * @protected
    */
-  protected _updateBoundingRect() {
+  _updateBoundingRect() {
     const { _rect } = this;
     const { width, height, left, right, top, bottom } = this.element.getBoundingClientRect();
     _rect.width = width;
@@ -1904,13 +1902,12 @@ export default class Grid {
   /**
    * Update container's border sizes.
    *
-   * @protected
    * @param {boolean} left
    * @param {boolean} right
    * @param {boolean} top
    * @param {boolean} bottom
    */
-  protected _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean) {
+  _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean) {
     const { element } = this;
     if (left) this._borderLeft = getStyleAsFloat(element, 'border-left-width');
     if (right) this._borderRight = getStyleAsFloat(element, 'border-right-width');
@@ -1920,10 +1917,8 @@ export default class Grid {
 
   /**
    * Refresh all of container's internal dimensions and offsets.
-   *
-   * @protected
    */
-  protected _updateDimensions() {
+  _updateDimensions() {
     this._updateBoundingRect();
     this._updateBorders(true, true, true, true);
     this._boxSizing = getStyle(this.element, 'box-sizing') as 'border-box' | 'content-box' | '';
@@ -1932,10 +1927,9 @@ export default class Grid {
   /**
    * Bind grid's resize handler to window.
    *
-   * @protected
    * @param {(number|boolean)} delay
    */
-  protected _bindLayoutOnResize(delay: number | boolean) {
+  _bindLayoutOnResize(delay: number | boolean) {
     if (typeof delay !== 'number') {
       delay = delay === true ? 0 : -1;
     }
@@ -1952,10 +1946,9 @@ export default class Grid {
   /**
    * Unbind grid's resize handler from window.
    *
-   * @protected
    * @param {Grid} grid
    */
-  protected _unbindLayoutOnResize() {
+  _unbindLayoutOnResize() {
     const { _resizeHandler } = this;
     if (isFunction(_resizeHandler)) {
       _resizeHandler(true);
@@ -1967,10 +1960,9 @@ export default class Grid {
   /**
    * Calculate and apply item positions.
    *
-   * @protected
    * @param {Object} layout
    */
-  protected _onLayoutDataReceived(layout: LayoutData) {
+  _onLayoutDataReceived(layout: LayoutData) {
     if (this._isDestroyed || !this._nextLayoutData || this._nextLayoutData.id !== layout.id) return;
 
     const { instant, onFinish } = this._nextLayoutData;
@@ -2010,7 +2002,7 @@ export default class Grid {
 
       // Let's skip the layout process if we can. Possibly avoids a lot of DOM
       // operations which saves us some CPU cycles.
-      if (((item as any) as ItemInternal)._canSkipLayout(left, top)) {
+      if (item._canSkipLayout(left, top)) {
         --counter;
         continue;
       }
@@ -2070,7 +2062,7 @@ export default class Grid {
 
     for (i = 0; i < itemsToLayout.length; i++) {
       if (this._layout.id !== layout.id) break;
-      ((itemsToLayout[i] as any) as ItemInternal)._layout.start(instant, tryFinish);
+      itemsToLayout[i]._layout.start(instant, tryFinish);
     }
 
     return;
@@ -2079,7 +2071,6 @@ export default class Grid {
   /**
    * Show or hide Grid instance's items.
    *
-   * @protected
    * @param {Item[]} items
    * @param {boolean} toVisible
    * @param {Object} [options]
@@ -2088,7 +2079,7 @@ export default class Grid {
    * @param {Function} [options.onFinish]
    * @param {(boolean|Function|string)} [options.layout=true]
    */
-  protected _setItemsVisibility(
+  _setItemsVisibility(
     items: Item[],
     toVisible: boolean,
     options: {
@@ -2110,7 +2101,7 @@ export default class Grid {
 
     let needsLayout = false;
     let counter = targetItems.length;
-    let item: ItemInternal;
+    let item: Item;
     let i: number;
 
     // If there are no items call the callback, but don't emit any events.
@@ -2121,7 +2112,7 @@ export default class Grid {
 
     // Prepare the items.
     for (i = 0; i < targetItems.length; i++) {
-      item = (targetItems[i] as any) as ItemInternal;
+      item = targetItems[i];
 
       // If inactive item is shown or active item is hidden we need to do
       // layout.
@@ -2131,14 +2122,12 @@ export default class Grid {
 
       // If inactive item is shown we also need to do a little hack to make the
       // item not animate it's next positioning (layout).
-      ((item._layout as any) as ItemLayoutInternal)._skipNextAnimation = !!(
-        toVisible && !item.isActive()
-      );
+      item._layout._skipNextAnimation = !!(toVisible && !item.isActive());
 
       // If a hidden item is being shown we need to refresh the item's
       // dimensions.
       if (toVisible && !item.isVisible() && !item.isHiding()) {
-        hiddenItems.push((item as any) as Item);
+        hiddenItems.push(item as any as Item);
       }
 
       // Add item to layout or remove it from layout.
@@ -2166,7 +2155,7 @@ export default class Grid {
       }
 
       for (i = 0; i < targetItems.length; i++) {
-        item = (targetItems[i] as any) as ItemInternal;
+        item = targetItems[i];
         // Make sure the item is still in the original grid. There is a chance
         // that the item starts migrating before tiggerVisibilityChange is called.
         if (item._gridId !== this.id) {
@@ -2204,26 +2193,4 @@ export default class Grid {
       this.layout(layout === INSTANT_LAYOUT, isFunction(layout) ? layout : undefined);
     }
   }
-}
-
-export interface GridInternal extends Writeable<Grid> {
-  _isDestroyed: Grid['_isDestroyed'];
-  _rect: Grid['_rect'];
-  _borderLeft: Grid['_borderLeft'];
-  _borderRight: Grid['_borderRight'];
-  _borderTop: Grid['_borderTop'];
-  _borderBottom: Grid['_borderBottom'];
-  _boxSizing: Grid['_boxSizing'];
-  _layout: Grid['_layout'];
-  _isLayoutFinished: Grid['_isLayoutFinished'];
-  _nextLayoutData: Grid['_nextLayoutData'];
-  _resizeHandler: Grid['_resizeHandler'];
-  _emitter: Grid['_emitter'];
-  _emit: Grid['_emit'];
-  _hasListeners: Grid['_hasListeners'];
-  _updateBoundingRect: Grid['_updateBoundingRect'];
-  _updateBorders: Grid['_updateBorders'];
-  _updateDimensions: Grid['_updateDimensions'];
-  _onLayoutDataReceived: Grid['_onLayoutDataReceived'];
-  _setItemsVisibility: Grid['_setItemsVisibility'];
 }

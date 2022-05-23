@@ -6,8 +6,8 @@
 
 import { VIEWPORT_THRESHOLD } from '../constants';
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
-import Grid, { GridInternal } from '../Grid/Grid';
-import Item, { ItemInternal } from './Item';
+import Grid from '../Grid/Grid';
+import Item from './Item';
 import Animator from '../Animator/Animator';
 import addClass from '../utils/addClass';
 import getCurrentStyles from '../utils/getCurrentStyles';
@@ -16,10 +16,6 @@ import removeClass from '../utils/removeClass';
 import setStyles from '../utils/setStyles';
 import { StyleDeclaration, Writeable } from '../types';
 
-interface GridPrivate extends GridInternal {
-  _itemVisibilityNeedsDimensionRefresh?: boolean;
-}
-
 /**
  * Visibility manager for Item instance, handles visibility of an item.
  *
@@ -27,14 +23,14 @@ interface GridPrivate extends GridInternal {
  * @param {Item} item
  */
 export default class ItemVisibility {
-  readonly item: ItemInternal | null;
+  readonly item: Item | null;
   readonly element: HTMLElement | null;
   readonly animator: Animator;
-  protected _isHidden: boolean;
-  protected _isHiding: boolean;
-  protected _isShowing: boolean;
-  protected _currentStyleProps: string[];
-  protected _queue: string;
+  _isHidden: boolean;
+  _isHiding: boolean;
+  _isShowing: boolean;
+  _currentStyleProps: string[];
+  _queue: string;
 
   constructor(item: Item) {
     const element = item.element.children[0] as HTMLElement | null;
@@ -44,7 +40,7 @@ export default class ItemVisibility {
 
     const isActive = item.isActive();
 
-    this.item = (item as any) as ItemInternal;
+    this.item = item;
     this.element = element;
     this.animator = new Animator(element);
 
@@ -109,7 +105,7 @@ export default class ItemVisibility {
 
     // If item is visible call the callback and be done with it.
     if (!this._isShowing && !this._isHidden) {
-      callback && callback(false, (item as any) as Item);
+      callback && callback(false, item as any as Item);
       return;
     }
 
@@ -159,7 +155,7 @@ export default class ItemVisibility {
 
     // If item is already hidden call the callback and be done with it.
     if (!this._isHiding && this._isHidden) {
-      callback && callback(false, (item as any) as Item);
+      callback && callback(false, item as any as Item);
       return;
     }
 
@@ -263,16 +259,15 @@ export default class ItemVisibility {
   /**
    * Start visibility animation.
    *
-   * @protected
    * @param {boolean} toVisible
    * @param {boolean} instant
    * @param {Function} [onFinish]
    */
-  protected _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void) {
+  _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void) {
     if (!this.item || !this.element) return;
 
     const { item, element, animator } = this;
-    const grid = (item.getGrid() as any) as GridPrivate;
+    const grid = item.getGrid() as Grid;
     const { settings } = grid;
     const targetStyles = toVisible ? settings.visibleStyles : settings.hiddenStyles;
     const duration = toVisible ? settings.showDuration : settings.hideDuration;
@@ -309,7 +304,7 @@ export default class ItemVisibility {
     let tY = 0;
 
     // Start the animation in the next tick (to avoid layout thrashing).
-    grid._itemVisibilityNeedsDimensionRefresh = true;
+    grid._visibilityNeedsDimensionsRefresh = true;
     addVisibilityTick(
       item.id,
       () => {
@@ -322,8 +317,8 @@ export default class ItemVisibility {
         tX = x;
         tY = y;
 
-        if (settings._animationWindowing && grid._itemVisibilityNeedsDimensionRefresh) {
-          grid._itemVisibilityNeedsDimensionRefresh = false;
+        if (settings._animationWindowing && grid._visibilityNeedsDimensionsRefresh) {
+          grid._visibilityNeedsDimensionsRefresh = false;
           grid._updateBoundingRect();
           grid._updateBorders(true, false, true, false);
         }
@@ -362,10 +357,8 @@ export default class ItemVisibility {
 
   /**
    * Finish show procedure.
-   *
-   * @protected
    */
-  protected _finishShow() {
+  _finishShow() {
     if (!this.item || this._isHidden) return;
     this._isShowing = false;
     this.item._emitter.burst(this._queue, false, this.item);
@@ -373,10 +366,9 @@ export default class ItemVisibility {
 
   /**
    * Finish hide procedure.
-   *
-   * @protected
+
    */
-  protected _finishHide() {
+  _finishHide() {
     if (!this.item || !this._isHidden) return;
     const { item } = this;
     this._isHiding = false;
@@ -387,10 +379,8 @@ export default class ItemVisibility {
 
   /**
    * Remove currently applied visibility related inline style properties.
-   *
-   * @protected
    */
-  protected _removeCurrentStyles() {
+  _removeCurrentStyles() {
     if (!this.element) return;
 
     const { element, _currentStyleProps } = this;
@@ -402,16 +392,4 @@ export default class ItemVisibility {
 
     _currentStyleProps.length = 0;
   }
-}
-
-export interface ItemVisibilityInternal extends Writeable<ItemVisibility> {
-  _isHidden: ItemVisibility['_isHidden'];
-  _isHiding: ItemVisibility['_isHiding'];
-  _isShowing: ItemVisibility['_isShowing'];
-  _currentStyleProps: ItemVisibility['_currentStyleProps'];
-  _queue: ItemVisibility['_queue'];
-  _startAnimation: ItemVisibility['_startAnimation'];
-  _finishShow: ItemVisibility['_finishShow'];
-  _finishHide: ItemVisibility['_finishHide'];
-  _removeCurrentStyles: ItemVisibility['_removeCurrentStyles'];
 }

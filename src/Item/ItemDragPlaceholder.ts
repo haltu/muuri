@@ -43,13 +43,13 @@ export default class ItemDragPlaceholder {
   readonly animator: Animator;
   readonly left: number;
   readonly top: number;
-  protected _className: string;
-  protected _didMigrate: boolean;
-  protected _resetAfterLayout: boolean;
-  protected _transX: number;
-  protected _transY: number;
-  protected _nextTransX: number;
-  protected _nextTransY: number;
+  _className: string;
+  _didMigrate: boolean;
+  _resetAfterLayout: boolean;
+  _transX: number;
+  _transY: number;
+  _nextTransX: number;
+  _nextTransY: number;
 
   constructor(item: Item) {
     this.item = item;
@@ -245,10 +245,8 @@ export default class ItemDragPlaceholder {
 
   /**
    * Update placeholder's dimensions to match the item's dimensions.
-   *
-   * @protected
    */
-  protected _updateDimensions() {
+  _updateDimensions() {
     if (!this.item || !this.element) return;
 
     setStyles(this.element, {
@@ -260,11 +258,10 @@ export default class ItemDragPlaceholder {
   /**
    * Move placeholder to a new position.
    *
-   * @protected
    * @param {Item[]} items
    * @param {boolean} isInstant
    */
-  protected _onLayoutStart(items: Item[], isInstant: boolean) {
+  _onLayoutStart(items: Item[], isInstant: boolean) {
     if (!this.item || !this.element) return;
 
     const { item } = this;
@@ -337,10 +334,8 @@ export default class ItemDragPlaceholder {
 
   /**
    * Prepare placeholder for layout animation.
-   *
-   * @protected
    */
-  protected _setupAnimation() {
+  _setupAnimation() {
     if (!this.element) return;
 
     const { x, y } = getTranslate(this.element);
@@ -350,10 +345,8 @@ export default class ItemDragPlaceholder {
 
   /**
    * Start layout animation.
-   *
-   * @protected
    */
-  protected _startAnimation() {
+  _startAnimation() {
     if (!this.item || !this.element) return;
 
     const { animator } = this;
@@ -389,10 +382,8 @@ export default class ItemDragPlaceholder {
 
   /**
    * Layout end handler.
-   *
-   * @protected
    */
-  protected _onLayoutEnd() {
+  _onLayoutEnd() {
     if (this._resetAfterLayout) {
       this.reset();
     }
@@ -402,10 +393,9 @@ export default class ItemDragPlaceholder {
    * Drag end handler. This handler is called when dragReleaseEnd event is
    * emitted and receives the event data as it's argument.
    *
-   * @protected
    * @param {Item} item
    */
-  protected _onReleaseEnd(item: Item) {
+  _onReleaseEnd(item: Item) {
     if (this.item && this.item.id === item.id) {
       // If the placeholder is not animating anymore we can safely reset it.
       if (!this.animator.isAnimating()) {
@@ -423,7 +413,6 @@ export default class ItemDragPlaceholder {
    * Migration start handler. This handler is called when beforeSend event is
    * emitted and receives the event data as it's argument.
    *
-   * @protected
    * @param {Object} data
    * @param {Item} data.item
    * @param {Grid} data.fromGrid
@@ -431,7 +420,7 @@ export default class ItemDragPlaceholder {
    * @param {Grid} data.toGrid
    * @param {number} data.toIndex
    */
-  protected _onMigrate(data: {
+  _onMigrate(data: {
     item: Item;
     fromGrid: Grid;
     fromIndex: number;
@@ -462,10 +451,9 @@ export default class ItemDragPlaceholder {
   /**
    * Reset placeholder if the associated item is hidden.
    *
-   * @protected
    * @param {Item[]} items
    */
-  protected _onHide(items: Item[]) {
+  _onHide(items: Item[]) {
     if (this.item && items.indexOf(this.item) > -1) this.reset();
   }
 }

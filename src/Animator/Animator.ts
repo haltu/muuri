@@ -4,7 +4,6 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getUnprefixedPropName from '../utils/getUnprefixedPropName';
 import isFunction from '../utils/isFunction';
 import isNative from '../utils/isNative';
 import setStyles from '../utils/setStyles';
@@ -20,17 +19,7 @@ export interface AnimationOptions {
   onFinish?: Function;
 }
 
-const HAS_WEB_ANIMATIONS = isFunction(Element.prototype.animate);
-const HAS_NATIVE_WEB_ANIMATIONS = isNative(Element.prototype.animate);
-
-function createKeyframe(props: AnimationProperties, prefix: boolean) {
-  const keyframe: AnimationProperties = {};
-  let prop: string;
-  for (prop in props) {
-    keyframe[prefix ? prop : getUnprefixedPropName(prop)] = props[prop];
-  }
-  return keyframe;
-}
+const HAS_WEB_ANIMATIONS = isNative(Element.prototype.animate);
 
 /**
  * Item animation handler powered by Web Animations API.
@@ -71,16 +60,10 @@ export default class Animator {
     // Start the animation. We need to provide unprefixed property names to the
     // Web Animations polyfill if it is being used. If we have native Web
     // Animations available we need to provide prefixed properties instead.
-    (this as Writeable<this>).animation = element.animate(
-      [
-        createKeyframe(propsFrom, HAS_NATIVE_WEB_ANIMATIONS),
-        createKeyframe(propsTo, HAS_NATIVE_WEB_ANIMATIONS),
-      ],
-      {
-        duration: duration || 300,
-        easing: easing || 'ease',
-      }
-    );
+    (this as Writeable<this>).animation = element.animate([{ ...propsFrom }, { ...propsTo }], {
+      duration: duration || 300,
+      easing: easing || 'ease',
+    });
 
     // Set animation finish callback.
     this._finishCallback = isFunction(onFinish) ? onFinish : null;
@@ -118,6 +101,8 @@ export default class Animator {
 
   /**
    * Animation end handler.
+   *
+   * @protected
    */
   protected _onFinish() {
     const { _finishCallback } = this;

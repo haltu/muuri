@@ -22,12 +22,11 @@ import {
   HAS_PASSIVE_EVENTS,
 } from '../constants';
 import Grid, {
-  GridInternal,
   DragStartPredicateOptions,
   DragSortPredicateOptions,
   DragSortPredicateResult,
 } from '../Grid/Grid';
-import Item, { ItemInternal } from './Item';
+import Item from './Item';
 import AutoScroller from '../AutoScroller/AutoScroller';
 import Dragger, {
   DraggerStartEvent,
@@ -88,7 +87,7 @@ const defaultStartPredicate = function (
 ) {
   if (event.isFinal) return;
 
-  const drag = (((item as any) as ItemInternal)._drag as any) as ItemDragInternal;
+  const drag = item._drag as ItemDrag;
 
   // Reject the predicate if left button is not pressed on mouse during first
   // event.
@@ -184,7 +183,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
 
   let bestScore = -1;
   let gridScore = 0;
-  let grid: GridInternal;
+  let grid: Grid;
   let container: HTMLElement | Document | null = null;
   let containerRect: RectExtended;
   let left = 0;
@@ -194,7 +193,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
   let i = 0;
 
   // Set up item rect data for comparing against grids.
-  const drag = (((item as any) as ItemInternal)._drag as any) as ItemDragInternal;
+  const drag = item._drag as ItemDrag;
   itemRect.width = item.width;
   itemRect.height = item.height;
   itemRect.left = drag._clientX;
@@ -202,7 +201,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
 
   // Loop through the grids and get the best match.
   for (; i < grids.length; i++) {
-    grid = (grids[i] as any) as GridInternal;
+    grid = grids[i];
 
     // Filter out all destroyed grids.
     if (grid.isDestroyed()) continue;
@@ -258,7 +257,7 @@ const getTargetGrid = function (item: Item, threshold: number) {
     // Check if this grid is the best match so far.
     if (gridScore > threshold && gridScore > bestScore) {
       bestScore = gridScore;
-      target = (grid as any) as Grid;
+      target = grid as any as Grid;
     }
   }
 
@@ -278,15 +277,15 @@ const defaultSortPredicate = function (
   item: Item,
   options?: DragSortPredicateOptions
 ): DragSortPredicateResult {
-  const drag = (((item as any) as ItemInternal)._drag as any) as ItemDragInternal;
+  const drag = item._drag as ItemDrag;
 
   const sortAction = (options && options.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE) as
     | typeof ACTION_MOVE
     | typeof ACTION_SWAP;
 
-  const migrateAction = (options && options.migrateAction === ACTION_SWAP
-    ? ACTION_SWAP
-    : ACTION_MOVE) as typeof ACTION_MOVE | typeof ACTION_SWAP;
+  const migrateAction = (
+    options && options.migrateAction === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE
+  ) as typeof ACTION_MOVE | typeof ACTION_SWAP;
 
   // Sort threshold must be a positive number capped to a max value of 100. If
   // that's not the case this function will not work correctly. So let's clamp
@@ -297,10 +296,10 @@ const defaultSortPredicate = function (
   );
 
   // Get the target grid.
-  const grid = getTargetGrid(item, sortThreshold) as GridInternal | null;
+  const grid = getTargetGrid(item, sortThreshold);
   if (!grid) return null;
 
-  const isMigration = (item.getGrid() as GridInternal | null) !== grid;
+  const isMigration = item.getGrid() !== grid;
   const itemRect = RECT_A;
   const targetRect = RECT_B;
 
@@ -312,10 +311,8 @@ const defaultSortPredicate = function (
     itemRect.left = drag._clientX - (grid._rect.left + grid._borderLeft);
     itemRect.top = drag._clientY - (grid._rect.top + grid._borderTop);
   } else {
-    itemRect.left =
-      drag._translateX - ((item as any) as ItemInternal)._containerDiffX + item.marginLeft;
-    itemRect.top =
-      drag._translateY - ((item as any) as ItemInternal)._containerDiffY + item.marginTop;
+    itemRect.left = drag._translateX - item._containerDiffX + item.marginLeft;
+    itemRect.top = drag._translateY - item._containerDiffY + item.marginTop;
   }
 
   let matchScore = 0;
@@ -367,7 +364,7 @@ const defaultSortPredicate = function (
   // Check if the best match overlaps enough to justify a placement switch.
   if (matchScore >= sortThreshold) {
     return {
-      grid: (grid as any) as Grid,
+      grid: grid as any as Grid,
       index: matchIndex,
       action: isMigration ? migrateAction : sortAction,
     };
@@ -383,50 +380,50 @@ const defaultSortPredicate = function (
  * @param {Item} item
  */
 export default class ItemDrag {
-  readonly item: ItemInternal | null;
+  readonly item: Item | null;
   readonly dragger: Dragger;
-  protected _originGridId: number;
-  protected _isMigrated: boolean;
-  protected _isActive: boolean;
-  protected _isStarted: boolean;
-  protected _startPredicateState: number;
-  protected _startPredicateData: {
+  _originGridId: number;
+  _isMigrated: boolean;
+  _isActive: boolean;
+  _isStarted: boolean;
+  _startPredicateState: number;
+  _startPredicateData: {
     distance: number;
     delay: number;
     event?: DraggerAnyEvent;
     delayTimer?: number;
   } | null;
-  protected _isSortNeeded: boolean;
-  protected _sortTimer?: number;
-  protected _blockedSortIndex: number | null;
-  protected _sortX1: number;
-  protected _sortX2: number;
-  protected _sortY1: number;
-  protected _sortY2: number;
-  protected _container: HTMLElement | null;
-  protected _containingBlock: HTMLElement | Document | null;
-  protected _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
-  protected _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
-  protected _dragMoveEvent: DraggerMoveEvent | null;
-  protected _dragPrevMoveEvent: DraggerMoveEvent | null;
-  protected _scrollEvent: ScrollEvent | null;
-  protected _translateX: number;
-  protected _translateY: number;
-  protected _clientX: number;
-  protected _clientY: number;
-  protected _scrollDiffX: number;
-  protected _scrollDiffY: number;
-  protected _moveDiffX: number;
-  protected _moveDiffY: number;
-  protected _containerDiffX: number;
-  protected _containerDiffY: number;
+  _isSortNeeded: boolean;
+  _sortTimer?: number;
+  _blockedSortIndex: number | null;
+  _sortX1: number;
+  _sortX2: number;
+  _sortY1: number;
+  _sortY2: number;
+  _container: HTMLElement | null;
+  _containingBlock: HTMLElement | Document | null;
+  _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
+  _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
+  _dragMoveEvent: DraggerMoveEvent | null;
+  _dragPrevMoveEvent: DraggerMoveEvent | null;
+  _scrollEvent: ScrollEvent | null;
+  _translateX: number;
+  _translateY: number;
+  _clientX: number;
+  _clientY: number;
+  _scrollDiffX: number;
+  _scrollDiffY: number;
+  _moveDiffX: number;
+  _moveDiffY: number;
+  _containerDiffX: number;
+  _containerDiffY: number;
 
   constructor(item: Item) {
     const element = item.element;
     const grid = item.getGrid() as Grid;
     const { settings } = grid;
 
-    this.item = (item as any) as ItemInternal;
+    this.item = item;
     this._originGridId = grid.id;
     this._isMigrated = false;
     this._isActive = false;
@@ -548,7 +545,7 @@ export default class ItemDrag {
     const { item } = this;
 
     // Stop auto-scroll.
-    ItemDrag.autoScroll.removeItem((item as any) as Item);
+    ItemDrag.autoScroll.removeItem(item as any as Item);
 
     // Cancel queued ticks.
     cancelDragStartTick(item.id);
@@ -629,12 +626,11 @@ export default class ItemDrag {
   /**
    * Start predicate.
    *
-   * @protected
    * @param {Item} item
    * @param {Object} event
    * @returns {(boolean|undefined)}
    */
-  protected _startPredicate(item: Item, event: DraggerAnyEvent) {
+  _startPredicate(item: Item, event: DraggerAnyEvent) {
     const { dragStartPredicate } = (item.getGrid() as Grid).settings;
     return isFunction(dragStartPredicate)
       ? dragStartPredicate(item, event)
@@ -643,10 +639,8 @@ export default class ItemDrag {
 
   /**
    * Setup/reset drag data.
-   *
-   * @protected
    */
-  protected _reset() {
+  _reset() {
     this._isActive = false;
     this._isStarted = false;
     this._container = null;
@@ -670,30 +664,25 @@ export default class ItemDrag {
 
   /**
    * Bind drag scroll handlers.
-   *
-   * @protected
    */
-  protected _bindScrollHandler() {
+  _bindScrollHandler() {
     window.addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
   }
 
   /**
    * Unbind currently bound drag scroll handlers.
-   *
-   * @protected
    */
-  protected _unbindScrollHandler() {
+  _unbindScrollHandler() {
     window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
   }
 
   /**
    * Reset drag sort heuristics.
    *
-   * @protected
    * @param {number} x
    * @param {number} y
    */
-  protected _resetHeuristics(x: number, y: number) {
+  _resetHeuristics(x: number, y: number) {
     this._blockedSortIndex = null;
     this._sortX1 = this._sortX2 = x;
     this._sortY1 = this._sortY2 = y;
@@ -703,12 +692,11 @@ export default class ItemDrag {
    * Run heuristics and return true if overlap check can be performed, and false
    * if it can not.
    *
-   * @protected
    * @param {number} x
    * @param {number} y
    * @returns {boolean}
    */
-  protected _checkHeuristics(x: number, y: number) {
+  _checkHeuristics(x: number, y: number) {
     if (!this.item) return false;
 
     const { settings } = this.item.getGrid() as Grid;
@@ -756,10 +744,8 @@ export default class ItemDrag {
 
   /**
    * Reset default drag start predicate data.
-   *
-   * @protected
    */
-  protected _resetDefaultStartPredicate() {
+  _resetDefaultStartPredicate() {
     const { _startPredicateData: predicate } = this;
     if (predicate) {
       if (predicate.delayTimer) {
@@ -772,10 +758,8 @@ export default class ItemDrag {
   /**
    * Handle the sorting procedure. Manage drag sort heuristics/interval and
    * check overlap when necessary.
-   *
-   * @protected
    */
-  protected _handleSort() {
+  _handleSort() {
     if (!this.item || !this.isActive()) return;
 
     const { item } = this;
@@ -786,8 +770,7 @@ export default class ItemDrag {
     // to reset sort timer heuristics state too.
     if (
       !dragSort ||
-      (!dragAutoScroll.sortDuringScroll &&
-        ItemDrag.autoScroll.isItemScrolling((item as any) as Item))
+      (!dragAutoScroll.sortDuringScroll && ItemDrag.autoScroll.isItemScrolling(item as any as Item))
     ) {
       this._sortX1 = this._sortX2 = this._translateX - item._containerDiffX;
       this._sortY1 = this._sortY2 = this._translateY - item._containerDiffY;
@@ -826,10 +809,8 @@ export default class ItemDrag {
 
   /**
    * Delayed sort handler.
-   *
-   * @protected
    */
-  protected _handleSortDelayed() {
+  _handleSortDelayed() {
     if (!this.item) return;
     this._isSortNeeded = true;
     this._sortTimer = undefined;
@@ -838,10 +819,8 @@ export default class ItemDrag {
 
   /**
    * Cancel and reset sort procedure.
-   *
-   * @protected
    */
-  protected _cancelSort() {
+  _cancelSort() {
     if (!this.item) return;
     this._isSortNeeded = false;
     if (this._sortTimer !== undefined) {
@@ -852,10 +831,8 @@ export default class ItemDrag {
 
   /**
    * Handle the ending of the drag procedure for sorting.
-   *
-   * @protected
    */
-  protected _finishSort() {
+  _finishSort() {
     if (!this.item) return;
     const { dragSort } = (this.item.getGrid() as Grid).settings;
     const needsFinalCheck = dragSort && (this._isSortNeeded || this._sortTimer !== undefined);
@@ -868,10 +845,9 @@ export default class ItemDrag {
    * Check (during drag) if an item is overlapping other items based on
    * the configuration layout the items.
    *
-   * @protected
    * @param {boolean} [isDrop=false]
    */
-  protected _checkOverlap(isDrop = false) {
+  _checkOverlap(isDrop = false) {
     if (!this.item || !this.isActive()) return;
 
     const { item } = this;
@@ -883,14 +859,14 @@ export default class ItemDrag {
     let result: DragSortPredicateResult = null;
     if (isFunction(settings.dragSortPredicate)) {
       result = settings.dragSortPredicate(
-        (item as any) as Item,
+        item as any as Item,
         (isDrop ? this._dragEndEvent : this._dragMoveEvent) as
           | DraggerMoveEvent
           | DraggerCancelEvent
           | DraggerEndEvent
       );
     } else if (!isDrop) {
-      result = ItemDrag.defaultSortPredicate((item as any) as Item, settings.dragSortPredicate);
+      result = ItemDrag.defaultSortPredicate(item as any as Item, settings.dragSortPredicate);
     }
 
     // Let's make sure the result object has a valid index before going further.
@@ -899,7 +875,7 @@ export default class ItemDrag {
     const sortAction = result.action === ACTION_SWAP ? ACTION_SWAP : ACTION_MOVE;
     const targetGrid = result.grid || currentGrid;
     const isMigration = currentGrid !== targetGrid;
-    const currentIndex = currentGrid.items.indexOf((item as any) as Item);
+    const currentIndex = currentGrid.items.indexOf(item as any as Item);
     const targetIndex = normalizeArrayIndex(
       targetGrid.items,
       result.index,
@@ -925,9 +901,9 @@ export default class ItemDrag {
         );
 
         // Emit move event.
-        if (((currentGrid as any) as GridInternal)._hasListeners(EVENT_MOVE)) {
-          ((currentGrid as any) as GridInternal)._emit(EVENT_MOVE, {
-            item: (item as any) as Item,
+        if (currentGrid._hasListeners(EVENT_MOVE)) {
+          currentGrid._emit(EVENT_MOVE, {
+            item: item as any as Item,
             fromIndex: currentIndex,
             toIndex: targetIndex,
             action: sortAction,
@@ -948,9 +924,9 @@ export default class ItemDrag {
       const targetSettings = targetGrid.settings;
 
       // Emit beforeSend event.
-      if (((currentGrid as any) as GridInternal)._hasListeners(EVENT_BEFORE_SEND)) {
-        ((currentGrid as any) as GridInternal)._emit(EVENT_BEFORE_SEND, {
-          item: (item as any) as Item,
+      if (currentGrid._hasListeners(EVENT_BEFORE_SEND)) {
+        currentGrid._emit(EVENT_BEFORE_SEND, {
+          item: item as any as Item,
           fromGrid: currentGrid,
           fromIndex: currentIndex,
           toGrid: targetGrid,
@@ -959,9 +935,9 @@ export default class ItemDrag {
       }
 
       // Emit beforeReceive event.
-      if (((targetGrid as any) as GridInternal)._hasListeners(EVENT_BEFORE_RECEIVE)) {
-        ((targetGrid as any) as GridInternal)._emit(EVENT_BEFORE_RECEIVE, {
-          item: (item as any) as Item,
+      if (targetGrid._hasListeners(EVENT_BEFORE_RECEIVE)) {
+        targetGrid._emit(EVENT_BEFORE_RECEIVE, {
+          item: item as any as Item,
           fromGrid: currentGrid,
           fromIndex: currentIndex,
           toGrid: targetGrid,
@@ -1053,23 +1029,23 @@ export default class ItemDrag {
       item._updateDimensions();
 
       // Emit send event.
-      if (((currentGrid as any) as GridInternal)._hasListeners(EVENT_SEND)) {
-        ((currentGrid as any) as GridInternal)._emit(EVENT_SEND, {
-          item: (item as any) as Item,
-          fromGrid: (currentGrid as any) as Grid,
+      if (currentGrid._hasListeners(EVENT_SEND)) {
+        currentGrid._emit(EVENT_SEND, {
+          item: item as any as Item,
+          fromGrid: currentGrid as any as Grid,
           fromIndex: currentIndex,
-          toGrid: (targetGrid as any) as Grid,
+          toGrid: targetGrid as any as Grid,
           toIndex: targetIndex,
         });
       }
 
       // Emit receive event.
-      if (((targetGrid as any) as GridInternal)._hasListeners(EVENT_RECEIVE)) {
-        ((targetGrid as any) as GridInternal)._emit(EVENT_RECEIVE, {
-          item: (item as any) as Item,
-          fromGrid: (currentGrid as any) as Grid,
+      if (targetGrid._hasListeners(EVENT_RECEIVE)) {
+        targetGrid._emit(EVENT_RECEIVE, {
+          item: item as any as Item,
+          fromGrid: currentGrid as any as Grid,
           fromIndex: currentIndex,
-          toGrid: (targetGrid as any) as Grid,
+          toGrid: targetGrid as any as Grid,
           toIndex: targetIndex,
         });
       }
@@ -1083,7 +1059,7 @@ export default class ItemDrag {
         // Sanity check to make sure that the target item is still part of the
         // target grid. It could have been manipulated in the event handlers.
         if (targetGrid.items.indexOf(targetItem) > -1) {
-          targetGrid.send(targetItem, (currentGrid as any) as Grid, currentIndex, {
+          targetGrid.send(targetItem, currentGrid as any as Grid, currentIndex, {
             appendTo: currentDragContainer || document.body,
             layoutSender: false,
             layoutReceiver: false,
@@ -1099,27 +1075,24 @@ export default class ItemDrag {
 
   /**
    * If item is dragged into another grid, finish the migration process.
-   *
-   * @protected
    */
-  protected _finishMigration() {
+  _finishMigration() {
     if (!this.item) return;
     const { item } = this;
     const { dragEnabled } = (item.getGrid() as Grid).settings;
 
     this.destroy();
 
-    item._drag = dragEnabled ? new ItemDrag((item as any) as Item) : null;
+    item._drag = dragEnabled ? new ItemDrag(item as any as Item) : null;
     item._dragRelease.start();
   }
 
   /**
    * Drag pre-start handler.
    *
-   * @protected
    * @param {Object} event
    */
-  protected _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent) {
+  _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent) {
     // Let's activate drag start predicate state.
     if (this._startPredicateState === START_PREDICATE_INACTIVE) {
       this._startPredicateState = START_PREDICATE_PENDING;
@@ -1127,7 +1100,7 @@ export default class ItemDrag {
 
     // If predicate is pending try to resolve it.
     if (this._startPredicateState === START_PREDICATE_PENDING) {
-      const shouldStart = this._startPredicate((this.item as any) as Item, event);
+      const shouldStart = this._startPredicate(this.item as any as Item, event);
       if (shouldStart === true) {
         this._startPredicateState = START_PREDICATE_RESOLVED;
         this._onStart(event);
@@ -1146,16 +1119,15 @@ export default class ItemDrag {
   /**
    * Drag pre-end handler.
    *
-   * @protected
    * @param {Object} event
    */
-  protected _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent) {
+  _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent) {
     const isResolved = this._startPredicateState === START_PREDICATE_RESOLVED;
 
     // Do final predicate check to allow user to unbind stuff for the current
     // drag procedure within the predicate callback. The return value of this
     // check will have no effect to the state of the predicate.
-    this._startPredicate((this.item as any) as Item, event);
+    this._startPredicate(this.item as any as Item, event);
 
     // Let's automatically reset the default start predicate (even if it is not
     // used) to make sure it is ready for next round.
@@ -1175,22 +1147,21 @@ export default class ItemDrag {
   /**
    * Drag start handler.
    *
-   * @protected
    * @param {Object} event
    */
-  protected _onStart(event: DraggerStartEvent | DraggerMoveEvent) {
+  _onStart(event: DraggerStartEvent | DraggerMoveEvent) {
     if (!this.item || !this.item.isActive()) return;
 
     this._isActive = true;
     this._dragStartEvent = event;
-    ItemDrag.autoScroll.addItem((this.item as any) as Item, this._translateX, this._translateY);
+    ItemDrag.autoScroll.addItem(this.item as any as Item, this._translateX, this._translateY);
     addDragStartTick(this.item.id, this._prepareStart, this._applyStart);
   }
 
   /**
-   * @protected
+   * Prepare the start of a drag procedure.
    */
-  protected _prepareStart() {
+  _prepareStart() {
     if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
     const { item } = this;
@@ -1224,9 +1195,9 @@ export default class ItemDrag {
   }
 
   /**
-   * @protected
+   * Apply the start of a drag procedure.
    */
-  protected _applyStart() {
+  _applyStart() {
     if (!this.item || !this.isActive()) return;
 
     const { item } = this;
@@ -1256,11 +1227,7 @@ export default class ItemDrag {
     this._isStarted = true;
 
     if (this._dragStartEvent) {
-      ((grid as any) as GridInternal)._emit(
-        EVENT_DRAG_INIT,
-        (item as any) as Item,
-        this._dragStartEvent
-      );
+      grid._emit(EVENT_DRAG_INIT, item as any as Item, this._dragStartEvent);
     }
 
     // If the dragged element is not a child of the drag container we need to
@@ -1282,21 +1249,16 @@ export default class ItemDrag {
     this._bindScrollHandler();
 
     if (this._dragStartEvent) {
-      ((grid as any) as GridInternal)._emit(
-        EVENT_DRAG_START,
-        (item as any) as Item,
-        this._dragStartEvent
-      );
+      grid._emit(EVENT_DRAG_START, item as any as Item, this._dragStartEvent);
     }
   }
 
   /**
    * Drag move handler.
    *
-   * @protected
    * @param {Object} event
    */
-  protected _onMove(event: DraggerMoveEvent) {
+  _onMove(event: DraggerMoveEvent) {
     if (!this.item) return;
 
     if (!this.item.isActive()) {
@@ -1312,10 +1274,8 @@ export default class ItemDrag {
 
   /**
    * Prepare dragged item for moving.
-   *
-   * @protected
    */
-  protected _prepareMove() {
+  _prepareMove() {
     if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
     const { dragAxis } = (this.item.getGrid() as Grid).settings;
@@ -1345,30 +1305,27 @@ export default class ItemDrag {
 
   /**
    * Apply movement to dragged item.
-   *
-   * @protected
    */
-  protected _applyMove() {
+  _applyMove() {
     if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
     const { item } = this;
-    const grid = (item.getGrid() as any) as GridInternal;
+    const grid = item.getGrid() as Grid;
 
     this._moveDiffX = this._moveDiffY = 0;
     item._setTranslate(this._translateX, this._translateY);
     if (this._dragMoveEvent) {
-      grid._emit(EVENT_DRAG_MOVE, (item as any) as Item, this._dragMoveEvent);
+      grid._emit(EVENT_DRAG_MOVE, item as any as Item, this._dragMoveEvent);
     }
-    ItemDrag.autoScroll.updateItem((item as any) as Item, this._translateX, this._translateY);
+    ItemDrag.autoScroll.updateItem(item as any as Item, this._translateX, this._translateY);
   }
 
   /**
    * Drag scroll handler.
    *
-   * @protected
    * @param {Object} event
    */
-  protected _onScroll(event: Event) {
+  _onScroll(event: Event) {
     if (!this.item) return;
 
     if (!this.item.isActive()) {
@@ -1384,10 +1341,8 @@ export default class ItemDrag {
 
   /**
    * Prepare dragged item for scrolling.
-   *
-   * @protected
    */
-  protected _prepareScroll() {
+  _prepareScroll() {
     if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
     const { item } = this;
@@ -1423,29 +1378,26 @@ export default class ItemDrag {
 
   /**
    * Apply scroll to dragged item.
-   *
-   * @protected
    */
-  protected _applyScroll() {
+  _applyScroll() {
     if (!this.item || !this.isActive() || !this.item.isActive()) return;
 
     const { item } = this;
-    const grid = (item.getGrid() as any) as GridInternal;
+    const grid = item.getGrid() as Grid;
 
     this._scrollDiffX = this._scrollDiffY = 0;
     item._setTranslate(this._translateX, this._translateY);
     if (this._scrollEvent) {
-      grid._emit(EVENT_DRAG_SCROLL, (item as any) as Item, this._scrollEvent);
+      grid._emit(EVENT_DRAG_SCROLL, item as any as Item, this._scrollEvent);
     }
   }
 
   /**
    * Drag end handler.
    *
-   * @protected
    * @param {Object} event
    */
-  protected _onEnd(event: DraggerEndEvent | DraggerCancelEvent) {
+  _onEnd(event: DraggerEndEvent | DraggerCancelEvent) {
     if (!this.item) return;
 
     // If item is not active, reset drag.
@@ -1477,70 +1429,12 @@ export default class ItemDrag {
     removeClass(item.element, grid.settings.itemDraggingClass);
 
     // Stop auto-scroll.
-    ItemDrag.autoScroll.removeItem((item as any) as Item);
+    ItemDrag.autoScroll.removeItem(item as any as Item);
 
     // Emit dragEnd event.
-    ((grid as any) as GridInternal)._emit(EVENT_DRAG_END, (item as any) as Item, event);
+    grid._emit(EVENT_DRAG_END, item as any as Item, event);
 
     // Finish up the migration process or start the release process.
     this._isMigrated ? this._finishMigration() : item._dragRelease.start();
   }
-}
-
-export interface ItemDragInternal extends Writeable<ItemDrag> {
-  _originGridId: ItemDrag['_originGridId'];
-  _isMigrated: ItemDrag['_isMigrated'];
-  _isActive: ItemDrag['_isActive'];
-  _isStarted: ItemDrag['_isStarted'];
-  _startPredicateState: ItemDrag['_startPredicateState'];
-  _startPredicateData: ItemDrag['_startPredicateData'];
-  _isSortNeeded: ItemDrag['_isSortNeeded'];
-  _sortTimer: ItemDrag['_sortTimer'];
-  _blockedSortIndex: ItemDrag['_blockedSortIndex'];
-  _sortX1: ItemDrag['_sortX1'];
-  _sortX2: ItemDrag['_sortX2'];
-  _sortY1: ItemDrag['_sortY1'];
-  _sortY2: ItemDrag['_sortY2'];
-  _container: ItemDrag['_container'];
-  _containingBlock: ItemDrag['_containingBlock'];
-  _dragStartEvent: ItemDrag['_dragStartEvent'];
-  _dragEndEvent: ItemDrag['_dragEndEvent'];
-  _dragMoveEvent: ItemDrag['_dragMoveEvent'];
-  _dragPrevMoveEvent: ItemDrag['_dragPrevMoveEvent'];
-  _scrollEvent: ItemDrag['_scrollEvent'];
-  _translateX: ItemDrag['_translateX'];
-  _translateY: ItemDrag['_translateY'];
-  _clientX: ItemDrag['_clientX'];
-  _clientY: ItemDrag['_clientY'];
-  _scrollDiffX: ItemDrag['_scrollDiffX'];
-  _scrollDiffY: ItemDrag['_scrollDiffY'];
-  _moveDiffX: ItemDrag['_moveDiffX'];
-  _moveDiffY: ItemDrag['_moveDiffY'];
-  _containerDiffX: ItemDrag['_containerDiffX'];
-  _containerDiffY: ItemDrag['_containerDiffY'];
-  _startPredicate: ItemDrag['_startPredicate'];
-  _reset: ItemDrag['_reset'];
-  _bindScrollHandler: ItemDrag['_bindScrollHandler'];
-  _unbindScrollHandler: ItemDrag['_unbindScrollHandler'];
-  _resetHeuristics: ItemDrag['_resetHeuristics'];
-  _checkHeuristics: ItemDrag['_checkHeuristics'];
-  _resetDefaultStartPredicate: ItemDrag['_resetDefaultStartPredicate'];
-  _handleSort: ItemDrag['_handleSort'];
-  _handleSortDelayed: ItemDrag['_handleSortDelayed'];
-  _cancelSort: ItemDrag['_cancelSort'];
-  _finishSort: ItemDrag['_finishSort'];
-  _checkOverlap: ItemDrag['_checkOverlap'];
-  _finishMigration: ItemDrag['_finishMigration'];
-  _preStartCheck: ItemDrag['_preStartCheck'];
-  _preEndCheck: ItemDrag['_preEndCheck'];
-  _onStart: ItemDrag['_onStart'];
-  _prepareStart: ItemDrag['_prepareStart'];
-  _applyStart: ItemDrag['_applyStart'];
-  _onMove: ItemDrag['_onMove'];
-  _prepareMove: ItemDrag['_prepareMove'];
-  _applyMove: ItemDrag['_applyMove'];
-  _onScroll: ItemDrag['_onScroll'];
-  _prepareScroll: ItemDrag['_prepareScroll'];
-  _applyScroll: ItemDrag['_applyScroll'];
-  _onEnd: ItemDrag['_onEnd'];
 }

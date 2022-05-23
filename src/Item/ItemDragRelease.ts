@@ -6,8 +6,8 @@
 
 import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END, HAS_PASSIVE_EVENTS } from '../constants';
 import { addReleaseScrollTick, cancelReleaseScrollTick } from '../ticker';
-import Grid, { GridInternal } from '../Grid/Grid';
-import Item, { ItemInternal } from './Item';
+import Grid from '../Grid/Grid';
+import Item from './Item';
 import addClass from '../utils/addClass';
 import getOffsetDiff from '../utils/getOffsetDiff';
 import removeClass from '../utils/removeClass';
@@ -25,12 +25,12 @@ const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: t
  * @param {Item} item
  */
 export default class ItemDragRelease {
-  readonly item: ItemInternal | null;
-  protected _isActive: boolean;
-  protected _isPositioning: boolean;
+  readonly item: Item | null;
+  _isActive: boolean;
+  _isPositioning: boolean;
 
   constructor(item: Item) {
-    this.item = (item as any) as ItemInternal;
+    this.item = item;
     this._isActive = false;
     this._isPositioning = false;
     this._onScroll = this._onScroll.bind(this);
@@ -65,7 +65,7 @@ export default class ItemDragRelease {
     if (!this.item || this.isActive()) return;
 
     const { item } = this;
-    const grid = (item.getGrid() as any) as GridInternal;
+    const grid = item.getGrid() as Grid;
     const { settings } = grid;
 
     this._isActive = true;
@@ -78,7 +78,7 @@ export default class ItemDragRelease {
       window.addEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
     }
 
-    grid._emit(EVENT_DRAG_RELEASE_START, (item as any) as Item);
+    grid._emit(EVENT_DRAG_RELEASE_START, item as any as Item);
 
     // Let's start layout manually _only_ if there is no unfinished layout
     // about to finish.
@@ -113,10 +113,8 @@ export default class ItemDragRelease {
     this.reset(didReparent);
 
     if (!abort) {
-      ((item.getGrid() as any) as GridInternal)._emit(
-        EVENT_DRAG_RELEASE_END,
-        (item as any) as Item
-      );
+      const grid = item.getGrid() as Grid;
+      grid._emit(EVENT_DRAG_RELEASE_END, item as any as Item);
     }
   }
 
@@ -162,7 +160,6 @@ export default class ItemDragRelease {
    * Move the element back to the grid container element if it does not exist
    * there already.
    *
-   * @protected
    * @param {number} [left]
    *  - The element's current translateX value (optional).
    * @param {number} [top]
@@ -170,7 +167,7 @@ export default class ItemDragRelease {
    * @returns {boolean}
    *   - Returns `true` if the element was reparented, `false` otherwise.
    */
-  protected _placeToGrid(left?: number, top?: number) {
+  _placeToGrid(left?: number, top?: number) {
     if (!this.item) return false;
 
     const { item } = this;
@@ -193,10 +190,7 @@ export default class ItemDragRelease {
     return false;
   }
 
-  /**
-   * @protected
-   */
-  protected _onScroll() {
+  _onScroll() {
     if (!this.item || !this.isActive()) return;
 
     const { item } = this;
@@ -232,11 +226,4 @@ export default class ItemDragRelease {
       }
     );
   }
-}
-
-export interface ItemDragReleaseInternal extends Writeable<ItemDragRelease> {
-  _isActive: ItemDragRelease['_isActive'];
-  _isPositioning: ItemDragRelease['_isPositioning'];
-  _placeToGrid: ItemDragRelease['_placeToGrid'];
-  _onScroll: ItemDragRelease['_onScroll'];
 }

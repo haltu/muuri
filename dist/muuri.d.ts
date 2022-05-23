@@ -1,5 +1,3 @@
-type Writeable<T> = { -readonly [P in keyof T]: T[P] };
-
 interface Rect {
   left: number;
   top: number;
@@ -274,43 +272,43 @@ declare class Dragger {
 }
 
 declare class ItemDrag {
-    readonly item: ItemInternal | null;
+    readonly item: Item | null;
     readonly dragger: Dragger;
-    protected _originGridId: number;
-    protected _isMigrated: boolean;
-    protected _isActive: boolean;
-    protected _isStarted: boolean;
-    protected _startPredicateState: number;
-    protected _startPredicateData: {
+    _originGridId: number;
+    _isMigrated: boolean;
+    _isActive: boolean;
+    _isStarted: boolean;
+    _startPredicateState: number;
+    _startPredicateData: {
         distance: number;
         delay: number;
         event?: DraggerAnyEvent;
         delayTimer?: number;
     } | null;
-    protected _isSortNeeded: boolean;
-    protected _sortTimer?: number;
-    protected _blockedSortIndex: number | null;
-    protected _sortX1: number;
-    protected _sortX2: number;
-    protected _sortY1: number;
-    protected _sortY2: number;
-    protected _container: HTMLElement | null;
-    protected _containingBlock: HTMLElement | Document | null;
-    protected _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
-    protected _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
-    protected _dragMoveEvent: DraggerMoveEvent | null;
-    protected _dragPrevMoveEvent: DraggerMoveEvent | null;
-    protected _scrollEvent: ScrollEvent | null;
-    protected _translateX: number;
-    protected _translateY: number;
-    protected _clientX: number;
-    protected _clientY: number;
-    protected _scrollDiffX: number;
-    protected _scrollDiffY: number;
-    protected _moveDiffX: number;
-    protected _moveDiffY: number;
-    protected _containerDiffX: number;
-    protected _containerDiffY: number;
+    _isSortNeeded: boolean;
+    _sortTimer?: number;
+    _blockedSortIndex: number | null;
+    _sortX1: number;
+    _sortX2: number;
+    _sortY1: number;
+    _sortY2: number;
+    _container: HTMLElement | null;
+    _containingBlock: HTMLElement | Document | null;
+    _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
+    _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
+    _dragMoveEvent: DraggerMoveEvent | null;
+    _dragPrevMoveEvent: DraggerMoveEvent | null;
+    _scrollEvent: ScrollEvent | null;
+    _translateX: number;
+    _translateY: number;
+    _clientX: number;
+    _clientY: number;
+    _scrollDiffX: number;
+    _scrollDiffY: number;
+    _moveDiffX: number;
+    _moveDiffY: number;
+    _containerDiffX: number;
+    _containerDiffY: number;
     constructor(item: Item);
     static autoScroll: AutoScroller;
     static defaultStartPredicate: (item: Item, event: DraggerAnyEvent, options?: DragStartPredicateOptions | undefined) => boolean | undefined;
@@ -320,31 +318,31 @@ declare class ItemDrag {
     stop(): void;
     sort(force?: boolean): void;
     destroy(): void;
-    protected _startPredicate(item: Item, event: DraggerAnyEvent): boolean | undefined;
-    protected _reset(): void;
-    protected _bindScrollHandler(): void;
-    protected _unbindScrollHandler(): void;
-    protected _resetHeuristics(x: number, y: number): void;
-    protected _checkHeuristics(x: number, y: number): boolean;
-    protected _resetDefaultStartPredicate(): void;
-    protected _handleSort(): void;
-    protected _handleSortDelayed(): void;
-    protected _cancelSort(): void;
-    protected _finishSort(): void;
-    protected _checkOverlap(isDrop?: boolean): void;
-    protected _finishMigration(): void;
-    protected _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent): void;
-    protected _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent): void;
-    protected _onStart(event: DraggerStartEvent | DraggerMoveEvent): void;
-    protected _prepareStart(): void;
-    protected _applyStart(): void;
-    protected _onMove(event: DraggerMoveEvent): void;
-    protected _prepareMove(): void;
-    protected _applyMove(): void;
-    protected _onScroll(event: Event): void;
-    protected _prepareScroll(): void;
-    protected _applyScroll(): void;
-    protected _onEnd(event: DraggerEndEvent | DraggerCancelEvent): void;
+    _startPredicate(item: Item, event: DraggerAnyEvent): boolean | undefined;
+    _reset(): void;
+    _bindScrollHandler(): void;
+    _unbindScrollHandler(): void;
+    _resetHeuristics(x: number, y: number): void;
+    _checkHeuristics(x: number, y: number): boolean;
+    _resetDefaultStartPredicate(): void;
+    _handleSort(): void;
+    _handleSortDelayed(): void;
+    _cancelSort(): void;
+    _finishSort(): void;
+    _checkOverlap(isDrop?: boolean): void;
+    _finishMigration(): void;
+    _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent): void;
+    _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent): void;
+    _onStart(event: DraggerStartEvent | DraggerMoveEvent): void;
+    _prepareStart(): void;
+    _applyStart(): void;
+    _onMove(event: DraggerMoveEvent): void;
+    _prepareMove(): void;
+    _applyMove(): void;
+    _onScroll(event: Event): void;
+    _prepareScroll(): void;
+    _applyScroll(): void;
+    _onEnd(event: DraggerEndEvent | DraggerCancelEvent): void;
 }
 
 interface AnimationProperties {
@@ -373,13 +371,13 @@ declare class ItemDragPlaceholder {
     readonly animator: Animator;
     readonly left: number;
     readonly top: number;
-    protected _className: string;
-    protected _didMigrate: boolean;
-    protected _resetAfterLayout: boolean;
-    protected _transX: number;
-    protected _transY: number;
-    protected _nextTransX: number;
-    protected _nextTransY: number;
+    _className: string;
+    _didMigrate: boolean;
+    _resetAfterLayout: boolean;
+    _transX: number;
+    _transY: number;
+    _nextTransX: number;
+    _nextTransY: number;
     constructor(item: Item);
     create(): void;
     reset(): void;
@@ -387,26 +385,26 @@ declare class ItemDragPlaceholder {
     updateDimensions(): void;
     updateClassName(className: string): void;
     destroy(): void;
-    protected _updateDimensions(): void;
-    protected _onLayoutStart(items: Item[], isInstant: boolean): void;
-    protected _setupAnimation(): void;
-    protected _startAnimation(): void;
-    protected _onLayoutEnd(): void;
-    protected _onReleaseEnd(item: Item): void;
-    protected _onMigrate(data: {
+    _updateDimensions(): void;
+    _onLayoutStart(items: Item[], isInstant: boolean): void;
+    _setupAnimation(): void;
+    _startAnimation(): void;
+    _onLayoutEnd(): void;
+    _onReleaseEnd(item: Item): void;
+    _onMigrate(data: {
         item: Item;
         fromGrid: Grid;
         fromIndex: number;
         toGrid: Grid;
         toIndex: number;
     }): void;
-    protected _onHide(items: Item[]): void;
+    _onHide(items: Item[]): void;
 }
 
 declare class ItemDragRelease {
-    readonly item: ItemInternal | null;
-    protected _isActive: boolean;
-    protected _isPositioning: boolean;
+    readonly item: Item | null;
+    _isActive: boolean;
+    _isPositioning: boolean;
     constructor(item: Item);
     isActive(): boolean;
     isPositioning(): boolean;
@@ -414,35 +412,35 @@ declare class ItemDragRelease {
     stop(abort?: boolean, left?: number, top?: number): void;
     reset(needsReflow?: boolean): void;
     destroy(): void;
-    protected _placeToGrid(left?: number, top?: number): boolean;
-    protected _onScroll(): void;
+    _placeToGrid(left?: number, top?: number): boolean;
+    _onScroll(): void;
 }
 
 declare class ItemLayout {
-    readonly item: ItemInternal | null;
+    readonly item: Item | null;
     readonly animator: Animator;
-    protected _skipNextAnimation: boolean;
-    protected _isActive: boolean;
-    protected _isInterrupted: boolean;
-    protected _easing: string;
-    protected _duration: number;
-    protected _tX: number;
-    protected _tY: number;
-    protected _queue: string;
+    _skipNextAnimation: boolean;
+    _isActive: boolean;
+    _isInterrupted: boolean;
+    _easing: string;
+    _duration: number;
+    _tX: number;
+    _tY: number;
+    _queue: string;
     constructor(item: Item);
     isActive(): boolean;
     start(instant: boolean, onFinish?: () => void): void;
     stop(processCallbackQueue: boolean, left?: number, top?: number): void;
     destroy(): void;
-    protected _finish(): void;
-    protected _setupAnimation(): void;
-    protected _startAnimation(): void;
+    _finish(): void;
+    _setupAnimation(): void;
+    _startAnimation(): void;
 }
 
 declare class ItemMigrate {
-    readonly item: ItemInternal | null;
+    readonly item: Item | null;
     readonly container: HTMLElement | null;
-    protected _isActive: boolean;
+    _isActive: boolean;
     constructor(item: Item);
     isActive(): boolean;
     start(targetGrid: Grid, position: HTMLElement | number | Item, container?: HTMLElement): void;
@@ -451,14 +449,14 @@ declare class ItemMigrate {
 }
 
 declare class ItemVisibility {
-    readonly item: ItemInternal | null;
+    readonly item: Item | null;
     readonly element: HTMLElement | null;
     readonly animator: Animator;
-    protected _isHidden: boolean;
-    protected _isHiding: boolean;
-    protected _isShowing: boolean;
-    protected _currentStyleProps: string[];
-    protected _queue: string;
+    _isHidden: boolean;
+    _isHiding: boolean;
+    _isShowing: boolean;
+    _currentStyleProps: string[];
+    _queue: string;
     constructor(item: Item);
     isHidden(): boolean;
     isHiding(): boolean;
@@ -468,10 +466,10 @@ declare class ItemVisibility {
     stop(processCallbackQueue: boolean): void;
     setStyles(styles: StyleDeclaration): void;
     destroy(): void;
-    protected _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void): void;
-    protected _finishShow(): void;
-    protected _finishHide(): void;
-    protected _removeCurrentStyles(): void;
+    _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void): void;
+    _finishShow(): void;
+    _finishHide(): void;
+    _removeCurrentStyles(): void;
 }
 
 declare class Item {
@@ -485,23 +483,23 @@ declare class Item {
     readonly marginRight: number;
     readonly marginTop: number;
     readonly marginBottom: number;
-    protected _gridId: number;
-    protected _isActive: boolean;
-    protected _isDestroyed: boolean;
-    protected _translateX?: number;
-    protected _translateY?: number;
-    protected _containerDiffX: number;
-    protected _containerDiffY: number;
-    protected _sortData: {
+    _gridId: number;
+    _isActive: boolean;
+    _isDestroyed: boolean;
+    _translateX?: number;
+    _translateY?: number;
+    _containerDiffX: number;
+    _containerDiffY: number;
+    _sortData: {
         [key: string]: any;
     } | null;
-    protected _emitter: Emitter;
-    protected _visibility: ItemVisibility;
-    protected _layout: ItemLayout;
-    protected _migrate: ItemMigrate;
-    protected _drag: ItemDrag | null;
-    protected _dragRelease: ItemDragRelease;
-    protected _dragPlaceholder: ItemDragPlaceholder;
+    _emitter: Emitter;
+    _visibility: ItemVisibility;
+    _layout: ItemLayout;
+    _migrate: ItemMigrate;
+    _drag: ItemDrag | null;
+    _dragRelease: ItemDragRelease;
+    _dragPlaceholder: ItemDragPlaceholder;
     constructor(grid: Grid, element: HTMLElement, isActive?: boolean);
     getGrid(): Grid | null;
     isActive(): boolean;
@@ -512,49 +510,22 @@ declare class Item {
     isDragging(): boolean;
     isReleasing(): boolean;
     isDestroyed(): boolean;
-    protected _updateDimensions(force?: boolean): void;
-    protected _updateSortData(): void;
-    protected _addToLayout(left?: number, top?: number): void;
-    protected _removeFromLayout(): void;
-    protected _canSkipLayout(left: number, top: number): boolean;
-    protected _setTranslate(x: number, y: number): void;
-    protected _getTranslate(): {
+    _updateDimensions(force?: boolean): void;
+    _updateSortData(): void;
+    _addToLayout(left?: number, top?: number): void;
+    _removeFromLayout(): void;
+    _canSkipLayout(left: number, top: number): boolean;
+    _setTranslate(x: number, y: number): void;
+    _getTranslate(): {
         x: number;
         y: number;
     };
-    protected _getClientRootPosition(): {
+    _getClientRootPosition(): {
         left: number;
         top: number;
     };
-    protected _isInViewport(x: number, y: number, viewportThreshold?: number): boolean;
-    protected _destroy(removeElement?: boolean): void;
-}
-interface ItemInternal extends Writeable<Item> {
-    _gridId: Item['_gridId'];
-    _isActive: Item['_isActive'];
-    _isDestroyed: Item['_isDestroyed'];
-    _translateX: Item['_translateX'];
-    _translateY: Item['_translateY'];
-    _containerDiffX: Item['_containerDiffX'];
-    _containerDiffY: Item['_containerDiffY'];
-    _sortData: Item['_sortData'];
-    _emitter: Item['_emitter'];
-    _visibility: Item['_visibility'];
-    _layout: Item['_layout'];
-    _migrate: Item['_migrate'];
-    _drag: Item['_drag'];
-    _dragRelease: Item['_dragRelease'];
-    _dragPlaceholder: Item['_dragPlaceholder'];
-    _updateDimensions: Item['_updateDimensions'];
-    _updateSortData: Item['_updateSortData'];
-    _addToLayout: Item['_addToLayout'];
-    _removeFromLayout: Item['_removeFromLayout'];
-    _canSkipLayout: Item['_canSkipLayout'];
-    _setTranslate: Item['_setTranslate'];
-    _getTranslate: Item['_getTranslate'];
-    _getClientRootPosition: Item['_getClientRootPosition'];
-    _isInViewport: Item['_isInViewport'];
-    _destroy: Item['_destroy'];
+    _isInViewport(x: number, y: number, viewportThreshold?: number): boolean;
+    _destroy(removeElement?: boolean): void;
 }
 
 declare const ACTION_SWAP = "swap";
@@ -803,23 +774,25 @@ declare class Grid {
     readonly element: HTMLElement;
     readonly settings: GridSettings;
     readonly items: Item[];
-    protected _isDestroyed: boolean;
-    protected _rect: RectExtended;
-    protected _borderLeft: number;
-    protected _borderRight: number;
-    protected _borderTop: number;
-    protected _borderBottom: number;
-    protected _boxSizing: 'content-box' | 'border-box' | '';
-    protected _layout: LayoutData;
-    protected _isLayoutFinished: boolean;
-    protected _nextLayoutData: {
+    _isDestroyed: boolean;
+    _layoutNeedsDimensionsRefresh: boolean;
+    _visibilityNeedsDimensionsRefresh: boolean;
+    _rect: RectExtended;
+    _borderLeft: number;
+    _borderRight: number;
+    _borderTop: number;
+    _borderBottom: number;
+    _boxSizing: 'content-box' | 'border-box' | '';
+    _layout: LayoutData;
+    _isLayoutFinished: boolean;
+    _nextLayoutData: {
         id: number;
         instant: boolean;
         onFinish?: LayoutOnFinish;
         cancel?: LayoutCancel | null;
     } | null;
-    protected _resizeHandler: ReturnType<typeof debounce> | null;
-    protected _emitter: Emitter;
+    _resizeHandler: ReturnType<typeof debounce> | null;
+    _emitter: Emitter;
     constructor(element: string | HTMLElement, options?: GridInitOptions);
     static Item: typeof Item;
     static ItemLayout: typeof ItemLayout;
@@ -886,15 +859,15 @@ declare class Grid {
         layoutReceiver?: boolean | InstantLayout | LayoutOnFinish;
     }): this;
     destroy(removeElements?: boolean): this;
-    protected _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>): void;
-    protected _hasListeners<T extends keyof GridEvents>(event: T): boolean;
-    protected _updateBoundingRect(): void;
-    protected _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean): void;
-    protected _updateDimensions(): void;
-    protected _bindLayoutOnResize(delay: number | boolean): void;
-    protected _unbindLayoutOnResize(): void;
-    protected _onLayoutDataReceived(layout: LayoutData): void;
-    protected _setItemsVisibility(items: Item[], toVisible: boolean, options?: {
+    _emit<T extends keyof GridEvents>(event: T, ...args: Parameters<GridEvents[T]>): void;
+    _hasListeners<T extends keyof GridEvents>(event: T): boolean;
+    _updateBoundingRect(): void;
+    _updateBorders(left: boolean, right: boolean, top: boolean, bottom: boolean): void;
+    _updateDimensions(): void;
+    _bindLayoutOnResize(delay: number | boolean): void;
+    _unbindLayoutOnResize(): void;
+    _onLayoutDataReceived(layout: LayoutData): void;
+    _setItemsVisibility(items: Item[], toVisible: boolean, options?: {
         instant?: boolean;
         syncWithLayout?: boolean;
         onFinish?: (items: Item[]) => void;
@@ -902,4 +875,4 @@ declare class Grid {
     }): void;
 }
 
-export default Grid;
+export { Grid as default };

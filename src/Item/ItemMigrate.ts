@@ -5,8 +5,8 @@
  */
 
 import { EVENT_BEFORE_SEND, EVENT_BEFORE_RECEIVE, EVENT_SEND, EVENT_RECEIVE } from '../constants';
-import Grid, { GridInternal } from '../Grid/Grid';
-import Item, { ItemInternal } from './Item';
+import Grid from '../Grid/Grid';
+import Item from './Item';
 import ItemDrag from './ItemDrag';
 import addClass from '../utils/addClass';
 import getOffsetDiff from '../utils/getOffsetDiff';
@@ -22,12 +22,12 @@ import { Writeable } from '../types';
  * @param {Item} item
  */
 export default class ItemMigrate {
-  readonly item: ItemInternal | null;
+  readonly item: Item | null;
   readonly container: HTMLElement | null;
-  protected _isActive: boolean;
+  _isActive: boolean;
 
   constructor(item: Item) {
-    this.item = (item as any) as ItemInternal;
+    this.item = item;
     this.container = null;
     this._isActive = false;
   }
@@ -59,7 +59,7 @@ export default class ItemMigrate {
     const isActive = item.isActive();
     const isVisible = item.isVisible();
     const settings = grid.settings;
-    const currentIndex = grid.items.indexOf((item as any) as Item);
+    const currentIndex = grid.items.indexOf(item as any as Item);
     const targetElement = targetGrid.element;
     const targetSettings = targetGrid.settings;
     const targetItems = targetGrid.items;
@@ -100,23 +100,23 @@ export default class ItemMigrate {
     item._visibility.stop(true);
 
     // Emit beforeSend event.
-    if (((grid as any) as GridInternal)._hasListeners(EVENT_BEFORE_SEND)) {
-      ((grid as any) as GridInternal)._emit(EVENT_BEFORE_SEND, {
-        item: (item as any) as Item,
-        fromGrid: (grid as any) as Grid,
+    if (grid._hasListeners(EVENT_BEFORE_SEND)) {
+      grid._emit(EVENT_BEFORE_SEND, {
+        item: item as any as Item,
+        fromGrid: grid as any as Grid,
         fromIndex: currentIndex,
-        toGrid: (targetGrid as any) as Grid,
+        toGrid: targetGrid as any as Grid,
         toIndex: targetIndex,
       });
     }
 
     // Emit beforeReceive event.
-    if (((targetGrid as any) as GridInternal)._hasListeners(EVENT_BEFORE_RECEIVE)) {
-      ((targetGrid as any) as GridInternal)._emit(EVENT_BEFORE_RECEIVE, {
-        item: (item as any) as Item,
-        fromGrid: (grid as any) as Grid,
+    if (targetGrid._hasListeners(EVENT_BEFORE_RECEIVE)) {
+      targetGrid._emit(EVENT_BEFORE_RECEIVE, {
+        item: item as any as Item,
+        fromGrid: grid as any as Grid,
         fromIndex: currentIndex,
-        toGrid: (targetGrid as any) as Grid,
+        toGrid: targetGrid as any as Grid,
         toIndex: targetIndex,
       });
     }
@@ -193,7 +193,7 @@ export default class ItemMigrate {
 
     // Create new drag handler.
     if (targetSettings.dragEnabled) {
-      item._drag = new ItemDrag((item as any) as Item);
+      item._drag = new ItemDrag(item as any as Item);
     }
 
     // Setup migration data.
@@ -206,23 +206,23 @@ export default class ItemMigrate {
     }
 
     // Emit send event.
-    if (((grid as any) as GridInternal)._hasListeners(EVENT_SEND)) {
-      ((grid as any) as GridInternal)._emit(EVENT_SEND, {
-        item: (item as any) as Item,
-        fromGrid: (grid as any) as Grid,
+    if (grid._hasListeners(EVENT_SEND)) {
+      grid._emit(EVENT_SEND, {
+        item: item as any as Item,
+        fromGrid: grid as any as Grid,
         fromIndex: currentIndex,
-        toGrid: (targetGrid as any) as Grid,
+        toGrid: targetGrid as any as Grid,
         toIndex: targetIndex,
       });
     }
 
     // Emit receive event.
-    if (((targetGrid as any) as GridInternal)._hasListeners(EVENT_RECEIVE)) {
-      ((targetGrid as any) as GridInternal)._emit(EVENT_RECEIVE, {
-        item: (item as any) as Item,
-        fromGrid: (grid as any) as Grid,
+    if (targetGrid._hasListeners(EVENT_RECEIVE)) {
+      targetGrid._emit(EVENT_RECEIVE, {
+        item: item as any as Item,
+        fromGrid: grid as any as Grid,
         fromIndex: currentIndex,
-        toGrid: (targetGrid as any) as Grid,
+        toGrid: targetGrid as any as Grid,
         toIndex: targetIndex,
       });
     }
@@ -278,8 +278,4 @@ export default class ItemMigrate {
     this.stop(true);
     (this as Writeable<this>).item = null;
   }
-}
-
-export interface ItemMigrateInternal extends Writeable<ItemMigrate> {
-  _isActive: ItemMigrate['_isActive'];
 }

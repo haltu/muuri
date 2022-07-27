@@ -5,23 +5,23 @@
  */
 
 import { GRID_INSTANCES, ITEM_ELEMENT_MAP } from '../constants';
-import Grid from '../Grid/Grid';
-import ItemDrag from './ItemDrag';
-import ItemDragPlaceholder from './ItemDragPlaceholder';
-import ItemDragRelease from './ItemDragRelease';
-import ItemLayout from './ItemLayout';
-import ItemMigrate from './ItemMigrate';
-import ItemVisibility from './ItemVisibility';
-import Emitter from '../Emitter/Emitter';
-import addClass from '../utils/addClass';
-import createTranslate from '../utils/createTranslate';
-import createUid from '../utils/createUid';
-import getStyle from '../utils/getStyle';
-import getStyleAsFloat from '../utils/getStyleAsFloat';
-import getTranslate from '../utils/getTranslate';
-import isInViewport from '../utils/isInViewport';
-import removeClass from '../utils/removeClass';
-import transformProp from '../utils/transformProp';
+import { Grid } from '../Grid/Grid';
+import { ItemDrag } from './ItemDrag';
+import { ItemDragPlaceholder } from './ItemDragPlaceholder';
+import { ItemDragRelease } from './ItemDragRelease';
+import { ItemLayout } from './ItemLayout';
+import { ItemMigrate } from './ItemMigrate';
+import { ItemVisibility } from './ItemVisibility';
+import { Emitter } from '../Emitter/Emitter';
+import { addClass } from '../utils/addClass';
+import { createTranslate } from '../utils/createTranslate';
+import { createUid } from '../utils/createUid';
+import { getStyle } from '../utils/getStyle';
+import { getStyleAsFloat } from '../utils/getStyleAsFloat';
+import { getTranslate } from '../utils/getTranslate';
+import { isInViewport } from '../utils/isInViewport';
+import { removeClass } from '../utils/removeClass';
+import { transformProp } from '../utils/transformProp';
 import { Writeable } from '../types';
 
 const _getTranslateResult = { x: 0, y: 0 };
@@ -35,7 +35,7 @@ const _getClientRootPositionResult = { left: 0, top: 0 };
  * @param {HTMLElement} element
  * @param {boolean} [isActive]
  */
-export default class Item {
+export class Item {
   readonly id: number;
   readonly element: HTMLElement;
   readonly left: number;

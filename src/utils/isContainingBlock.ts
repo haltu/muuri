@@ -4,8 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from './getStyle';
-import transformStyle from './transformStyle';
+import { getStyle } from './getStyle';
+import { transformStyle } from './transformStyle';
 import { IS_SAFARI } from '../constants';
 
 /**
@@ -15,7 +15,7 @@ import { IS_SAFARI } from '../constants';
  * @param {HTMLElement} element
  * @returns {boolean}
  */
-export default function isContainingBlock(element: HTMLElement) {
+export function isContainingBlock(element: HTMLElement) {
   // The first thing to check is the element's position. If it's anything else
   // than "static" the element is a containing block.
   if (getStyle(element, 'position') !== 'static') {

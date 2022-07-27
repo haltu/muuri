@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from './getStyle';
+import { getStyle } from './getStyle';
 
 /**
  * Returns the computed value of an element's style property transformed into
@@ -14,6 +14,6 @@ import getStyle from './getStyle';
  * @param {string} style
  * @returns {number}
  */
-export default function getStyleAsFloat(el: HTMLElement, styleProp: string) {
+export function getStyleAsFloat(el: HTMLElement, styleProp: string) {
   return parseFloat(getStyle(el, styleProp)) || 0;
 }

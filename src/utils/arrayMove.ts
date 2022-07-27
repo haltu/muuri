@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import normalizeArrayIndex from './normalizeArrayIndex';
+import { normalizeArrayIndex } from './normalizeArrayIndex';
 
 /**
  * Move array item to another index.
@@ -15,7 +15,7 @@ import normalizeArrayIndex from './normalizeArrayIndex';
  * @param {number} toIndex
  *   - Index (positive or negative) where the item should be moved to.
  */
-export default function arrayMove(array: any[], fromIndex: number, toIndex: number) {
+export function arrayMove(array: any[], fromIndex: number, toIndex: number) {
   // Make sure the array has two or more items.
   if (array.length < 2) return;
 

@@ -10,7 +10,7 @@
 
       var done = assert.async();
       var container = utils.createGridElements({ itemCount: 3 });
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         itemDraggingClass: 'foo',
         dragEnabled: true,
       });

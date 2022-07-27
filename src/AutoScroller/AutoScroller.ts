@@ -6,13 +6,13 @@
  */
 
 import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
-import Grid from '../Grid/Grid';
-import Item from '../Item/Item';
-import ItemDrag from '~Item/ItemDrag';
+import { Grid } from '../Grid/Grid';
+import { Item } from '../Item/Item';
+import { ItemDrag } from '~Item/ItemDrag';
 import { DraggerStartEvent, DraggerMoveEvent } from '../Dragger/Dragger';
-import getIntersectionScore from '../utils/getIntersectionScore';
-import getStyleAsFloat from '../utils/getStyleAsFloat';
-import isFunction from '../utils/isFunction';
+import { getIntersectionScore } from '../utils/getIntersectionScore';
+import { getStyleAsFloat } from '../utils/getStyleAsFloat';
+import { isFunction } from '../utils/isFunction';
 import { Rect, RectExtended } from '../types';
 
 //
@@ -42,14 +42,14 @@ const SPEED_DATA: AutoScrollSpeedData = {
   isEnding: false,
 };
 
-export const AXIS_X = 1;
-export const AXIS_Y = 2;
-export const FORWARD = 4;
-export const BACKWARD = 8;
-export const LEFT = (AXIS_X | BACKWARD) as 9;
-export const RIGHT = (AXIS_X | FORWARD) as 5;
-export const UP = (AXIS_Y | BACKWARD) as 10;
-export const DOWN = (AXIS_Y | FORWARD) as 6;
+const AXIS_X = 1;
+const AXIS_Y = 2;
+const FORWARD = 4;
+const BACKWARD = 8;
+const LEFT = (AXIS_X | BACKWARD) as 9;
+const RIGHT = (AXIS_X | FORWARD) as 5;
+const UP = (AXIS_Y | BACKWARD) as 10;
+const DOWN = (AXIS_Y | FORWARD) as 6;
 
 //
 // Types
@@ -110,7 +110,7 @@ export type AutoScrollEventCallback = (
 // Utils
 //
 
-export function pointerHandle(pointerSize: number): AutoScrollHandleCallback {
+function pointerHandle(pointerSize: number): AutoScrollHandleCallback {
   const rect = { left: 0, top: 0, width: 0, height: 0 };
   const size = pointerSize || 1;
   return function (_item, _x, _y, _w, _h, pX, pY) {
@@ -122,7 +122,7 @@ export function pointerHandle(pointerSize: number): AutoScrollHandleCallback {
   };
 }
 
-export function smoothSpeed(
+function smoothSpeed(
   maxSpeed: number,
   acceleration: number,
   deceleration: number
@@ -475,7 +475,7 @@ class ScrollRequest {
 // AutoScroller
 //
 
-export default class AutoScroller {
+export class AutoScroller {
   protected _isDestroyed: boolean;
   protected _isTicking: boolean;
   protected _tickTime: number;

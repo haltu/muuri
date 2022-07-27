@@ -10,6 +10,6 @@ let id = 0;
  * Returns a unique numeric id (increments a base value on every call).
  * @returns {number}
  */
-export default function createUid() {
+export function createUid() {
   return ++id;
 }

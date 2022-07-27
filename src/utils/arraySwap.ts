@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import normalizeArrayIndex from './normalizeArrayIndex';
+import { normalizeArrayIndex } from './normalizeArrayIndex';
 
 /**
  * Swap array items.
@@ -15,7 +15,7 @@ import normalizeArrayIndex from './normalizeArrayIndex';
  * @param {number} withIndex
  *   - Index (positive or negative) of the other item that will be swapped.
  */
-export default function arraySwap(array: any[], index: number, withIndex: number) {
+export function arraySwap(array: any[], index: number, withIndex: number) {
   // Make sure the array has two or more items.
   if (array.length < 2) return;
 

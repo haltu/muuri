@@ -11,7 +11,7 @@ export type EmitterListener = Function;
 /**
  * Event emitter.
  */
-export default class Emitter {
+export class Emitter {
   protected _events: { [event: string]: EmitterListener[] } | null;
   protected _queue: EmitterListener[];
   protected _counter: number;

@@ -10,8 +10,8 @@
 
       var containerA = utils.createGridElements();
       var containerB = utils.createGridElements();
-      var gridA = new Muuri(containerA);
-      var gridB = new Muuri(containerB);
+      var gridA = new Muuri.Grid(containerA);
+      var gridB = new Muuri.Grid(containerB);
       var item = gridA.getItems()[0];
       var teardown = function () {
         gridA.destroy();
@@ -118,13 +118,13 @@
         },
       });
       var grids = [];
-      var gridA = new Muuri(containerA, {
+      var gridA = new Muuri.Grid(containerA, {
         dragEnabled: true,
         dragSort: function () {
           return grids;
         },
       });
-      var gridB = new Muuri(containerB, {
+      var gridB = new Muuri.Grid(containerB, {
         dragEnabled: true,
         dragSort: function () {
           return grids;

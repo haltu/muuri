@@ -6,11 +6,11 @@
 
 import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END, HAS_PASSIVE_EVENTS } from '../constants';
 import { addReleaseScrollTick, cancelReleaseScrollTick } from '../ticker';
-import Grid from '../Grid/Grid';
-import Item from './Item';
-import addClass from '../utils/addClass';
-import getOffsetDiff from '../utils/getOffsetDiff';
-import removeClass from '../utils/removeClass';
+import { Grid } from '../Grid/Grid';
+import { Item } from './Item';
+import { addClass } from '../utils/addClass';
+import { getOffsetDiff } from '../utils/getOffsetDiff';
+import { removeClass } from '../utils/removeClass';
 import { Writeable } from '../types';
 
 const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: true } : true;
@@ -24,7 +24,7 @@ const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: t
  * @class
  * @param {Item} item
  */
-export default class ItemDragRelease {
+export class ItemDragRelease {
   readonly item: Item | null;
   _isActive: boolean;
   _isPositioning: boolean;

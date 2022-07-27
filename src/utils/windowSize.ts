@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-const windowSize = {
+export const windowSize = {
   width: window.innerWidth,
   height: window.innerHeight,
 };
@@ -13,5 +13,3 @@ window.addEventListener('resize', function () {
   windowSize.width = window.innerWidth;
   windowSize.height = window.innerHeight;
 });
-
-export default windowSize;

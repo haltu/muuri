@@ -8,7 +8,7 @@
 
     var container = utils.createGridElements();
     var itemElement = container.children[1];
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var item = grid.getItems(itemElement)[0];
     var teardown = function () {
       grid.destroy();

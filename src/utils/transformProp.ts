@@ -4,9 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getPrefixedPropName from './getPrefixedPropName';
+import { getPrefixedPropName } from './getPrefixedPropName';
 
-const transformProp =
+export const transformProp =
   getPrefixedPropName(document.documentElement.style, 'transform') || 'transform';
-
-export default transformProp;

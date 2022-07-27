@@ -4,8 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import Grid from './Grid/Grid';
-import Item from './Item/Item';
+import { Grid } from './Grid/Grid';
+import { Item } from './Item/Item';
 
 export const GRID_INSTANCES: Map<number, Grid> = new Map();
 export const ITEM_ELEMENT_MAP: Map<HTMLElement, Item> = new Map();

@@ -9,7 +9,7 @@
       assert.expect(2);
 
       var container = utils.createGridElements();
-      var grid = new Muuri(container);
+      var grid = new Muuri.Grid(container);
       var item = grid.getItems()[0];
       var teardown = function () {
         grid.destroy();

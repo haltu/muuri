@@ -7,7 +7,7 @@
     assert.expect(1);
 
     var container = utils.createGridElements();
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -35,7 +35,7 @@
           background: '#000',
         },
       });
-      var grid = new Muuri(container);
+      var grid = new Muuri.Grid(container);
       var items = grid.getItems();
       var updateItemDimensions = function (items) {
         [].concat(items).forEach(function (item) {

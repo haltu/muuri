@@ -10,6 +10,6 @@
  * @param {HTMLElement} element
  * @param {string} className
  */
-export default function removeClass(element: HTMLElement, className: string) {
+export function removeClass(element: HTMLElement, className: string) {
   className && element.classList.remove(className);
 }

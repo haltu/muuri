@@ -14,7 +14,7 @@
           width: '140px',
         },
       });
-      var grid = new Muuri(container);
+      var grid = new Muuri.Grid(container);
       var items = grid.getItems();
       var itemA = items[0];
       var itemB = items[1];

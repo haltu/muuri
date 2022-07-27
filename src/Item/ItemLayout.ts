@@ -6,15 +6,15 @@
 
 import { VIEWPORT_THRESHOLD } from '../constants';
 import { addLayoutTick, cancelLayoutTick } from '../ticker';
-import Grid from '../Grid/Grid';
-import Item from './Item';
-import Animator, { AnimationOptions } from '../Animator/Animator';
-import addClass from '../utils/addClass';
-import createTranslate from '../utils/createTranslate';
-import getTranslate from '../utils/getTranslate';
-import isFunction from '../utils/isFunction';
-import removeClass from '../utils/removeClass';
-import transformProp from '../utils/transformProp';
+import { Grid } from '../Grid/Grid';
+import { Item } from './Item';
+import { Animator, AnimationOptions } from '../Animator/Animator';
+import { addClass } from '../utils/addClass';
+import { createTranslate } from '../utils/createTranslate';
+import { getTranslate } from '../utils/getTranslate';
+import { isFunction } from '../utils/isFunction';
+import { removeClass } from '../utils/removeClass';
+import { transformProp } from '../utils/transformProp';
 import { StyleDeclaration, Writeable } from '../types';
 
 const MIN_ANIMATION_DISTANCE = 2;
@@ -32,7 +32,7 @@ const ANIM_OPTIONS: AnimationOptions = {
  * @class
  * @param {Item} item
  */
-export default class ItemLayout {
+export class ItemLayout {
   readonly item: Item | null;
   readonly animator: Animator;
   _skipNextAnimation: boolean;

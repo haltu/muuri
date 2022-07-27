@@ -13,7 +13,7 @@ import { Rect } from '../types';
  * @param {Object} b
  * @returns {boolean}
  */
-export default function isOverlapping(a: Rect, b: Rect) {
+export function isOverlapping(a: Rect, b: Rect) {
   return !(
     a.left + a.width <= b.left ||
     b.left + b.width <= a.left ||

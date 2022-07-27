@@ -10,7 +10,7 @@
  * @param {HTMLElement} element
  * @param {Object} styles
  */
-export default function setStyles(element: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
+export function setStyles(element: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
   let prop: string;
   for (prop in styles) {
     element.style[prop] = styles[prop] || '';

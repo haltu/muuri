@@ -14,7 +14,7 @@ const banner = `/**
 * Copyright (c) 2016-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
 *
-* Muuri Ticker / Muuri Emitter / Muuri Dragger
+* Muuri Emitter / Muuri Dragger
 * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
 *
@@ -40,21 +40,26 @@ module.exports = [
       {
         name: 'Muuri',
         file: pkg.main,
-        format: 'umd',
+        format: 'es',
         banner: banner,
       },
       {
         name: 'Muuri',
-        file: pkg.module,
-        format: 'es',
+        file: pkg['umd:main'],
+        format: 'umd',
+        globals: {
+          tikki: 'tikki',
+        },
         banner: banner,
       },
     ],
+    external: ['tikki'],
     plugins: [stripBanner, typescript()],
   },
   {
     input: 'src/index.ts',
-    output: [{ file: 'dist/muuri.d.ts', format: 'es' }],
+    external: ['tikki'],
+    output: [{ file: pkg.types, format: 'es' }],
     plugins: [dts()],
   },
 ];

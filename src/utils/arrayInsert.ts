@@ -13,7 +13,7 @@
  * @param {*} items
  * @param {number} [index=-1]
  */
-export default function arrayInsert(array: any[], items: any, index = -1) {
+export function arrayInsert(array: any[], items: any, index = -1) {
   if (index < 0) index = array.length - index + 1;
   Array.isArray(items) ? array.splice(index, 0, ...items) : array.splice(index, 0, items);
 }

@@ -5,7 +5,7 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-import createPackerProcessor from './createPackerProcessor';
+import { createPackerProcessor } from './createPackerProcessor';
 import { createWorkerProcessors, destroyWorkerProcessors } from './workerUtils';
 import { StyleDeclaration } from '../types';
 
@@ -93,7 +93,7 @@ const PACKET_INDEX: PackerLayoutPacket = {
 
 const PACKER_PROCESSOR = createPackerProcessor();
 
-export default class Packer {
+export class Packer {
   protected _settings: number;
   protected _asyncMode: boolean;
   protected _layoutWorkerQueue: PackerLayoutId[];

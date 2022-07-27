@@ -4,8 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from './getStyle';
-import transformStyle from './transformStyle';
+import { getStyle } from './getStyle';
+import { transformStyle } from './transformStyle';
 
 const translateValue = { x: 0, y: 0 };
 const transformNone = 'none';
@@ -22,7 +22,7 @@ const rxNextItem = /[^,]*,/;
  * @param {HTMLElement} element
  * @returns {Object}
  */
-export default function getTranslate(element: HTMLElement) {
+export function getTranslate(element: HTMLElement) {
   translateValue.x = 0;
   translateValue.y = 0;
 

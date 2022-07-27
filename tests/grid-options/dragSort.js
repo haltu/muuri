@@ -13,7 +13,7 @@
         width: '70px',
       },
     });
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       dragEnabled: true,
     });
     var item = grid.getItems()[0];
@@ -45,7 +45,7 @@
         width: '70px',
       },
     });
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       dragEnabled: true,
       dragSort: false,
     });
@@ -102,10 +102,10 @@
         background: '#000',
       },
     });
-    var gridA = new Muuri(containerA, {
+    var gridA = new Muuri.Grid(containerA, {
       dragEnabled: true,
     });
-    var gridB = new Muuri(containerB, {
+    var gridB = new Muuri.Grid(containerB, {
       dragEnabled: true,
     });
     var item = gridA.getItems()[0];
@@ -166,13 +166,13 @@
         },
       });
       var grids = [];
-      var gridA = new Muuri(containerA, {
+      var gridA = new Muuri.Grid(containerA, {
         dragEnabled: true,
         dragSort: function () {
           return grids;
         },
       });
-      var gridB = new Muuri(containerB, {
+      var gridB = new Muuri.Grid(containerB, {
         dragEnabled: true,
         dragSort: function () {
           return grids;

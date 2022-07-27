@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import isContainingBlock from './isContainingBlock';
+import { isContainingBlock } from './isContainingBlock';
 
 /**
  * Returns an absolute positioned element's containing block, which is
@@ -15,7 +15,7 @@ import isContainingBlock from './isContainingBlock';
  * @param {HTMLElement} element
  * @returns {(Document|Element)}
  */
-export default function getContainingBlock(element: HTMLElement | Document) {
+export function getContainingBlock(element: HTMLElement | Document) {
   // As long as the containing block is an element, static and not
   // transformed, try to get the element's parent element and fallback to
   // document. https://github.com/niklasramo/mezr/blob/0.6.1/mezr.js#L339

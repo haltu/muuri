@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import isOverlapping from './isOverlapping';
+import { isOverlapping } from './isOverlapping';
 import { Rect } from '../types';
 
 /**
@@ -14,7 +14,7 @@ import { Rect } from '../types';
  * @param {Object} b
  * @returns {number}
  */
-export default function getIntersectionArea(a: Rect, b: Rect) {
+export function getIntersectionArea(a: Rect, b: Rect) {
   if (!isOverlapping(a, b)) return 0;
   var width = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
   var height = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);

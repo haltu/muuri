@@ -5,14 +5,14 @@
  */
 
 import { EVENT_BEFORE_SEND, EVENT_BEFORE_RECEIVE, EVENT_SEND, EVENT_RECEIVE } from '../constants';
-import Grid from '../Grid/Grid';
-import Item from './Item';
-import ItemDrag from './ItemDrag';
-import addClass from '../utils/addClass';
-import getOffsetDiff from '../utils/getOffsetDiff';
-import arrayInsert from '../utils/arrayInsert';
-import normalizeArrayIndex from '../utils/normalizeArrayIndex';
-import removeClass from '../utils/removeClass';
+import { Grid } from '../Grid/Grid';
+import { Item } from './Item';
+import { ItemDrag } from './ItemDrag';
+import { addClass } from '../utils/addClass';
+import { getOffsetDiff } from '../utils/getOffsetDiff';
+import { arrayInsert } from '../utils/arrayInsert';
+import { normalizeArrayIndex } from '../utils/normalizeArrayIndex';
+import { removeClass } from '../utils/removeClass';
 import { Writeable } from '../types';
 
 /**
@@ -21,7 +21,7 @@ import { Writeable } from '../types';
  * @class
  * @param {Item} item
  */
-export default class ItemMigrate {
+export class ItemMigrate {
   readonly item: Item | null;
   readonly container: HTMLElement | null;
   _isActive: boolean;

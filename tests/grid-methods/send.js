@@ -8,8 +8,8 @@
 
     var containerA = utils.createGridElements();
     var containerB = utils.createGridElements();
-    var gridA = new Muuri(containerA);
-    var gridB = new Muuri(containerB);
+    var gridA = new Muuri.Grid(containerA);
+    var gridB = new Muuri.Grid(containerB);
     var teardown = function () {
       gridA.destroy();
       gridB.destroy();
@@ -28,8 +28,8 @@
 
       var containerA = utils.createGridElements();
       var containerB = utils.createGridElements();
-      var gridA = new Muuri(containerA);
-      var gridB = new Muuri(containerB);
+      var gridA = new Muuri.Grid(containerA);
+      var gridB = new Muuri.Grid(containerB);
       var item = gridA.getItems()[0];
       var teardown = function () {
         gridA.destroy();
@@ -56,8 +56,8 @@
 
     var containerA = utils.createGridElements();
     var containerB = utils.createGridElements();
-    var gridA = new Muuri(containerA);
-    var gridB = new Muuri(containerB);
+    var gridA = new Muuri.Grid(containerA);
+    var gridB = new Muuri.Grid(containerB);
     var item = gridA.getItems()[0];
     var teardown = function () {
       gridA.destroy();
@@ -88,8 +88,8 @@
 
     var containerA = utils.createGridElements();
     var containerB = utils.createGridElements();
-    var gridA = new Muuri(containerA);
-    var gridB = new Muuri(containerB);
+    var gridA = new Muuri.Grid(containerA);
+    var gridB = new Muuri.Grid(containerB);
     var gridALayoutId;
     var gridBLayoutId;
     var teardown = function () {

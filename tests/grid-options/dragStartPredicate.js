@@ -11,7 +11,7 @@
       var done = assert.async();
       var container = utils.createGridElements();
       var isChecked = false;
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragStartPredicate: function (draggedItem, ev) {
           if (!isChecked) {
@@ -53,7 +53,7 @@
     var done = assert.async();
     var container = utils.createGridElements();
     var counter = 0;
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       dragEnabled: true,
       dragStartPredicate: function () {
         ++counter;
@@ -119,7 +119,7 @@
     var done = assert.async();
     var container = utils.createGridElements();
     var counter = 0;
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       dragEnabled: true,
       dragStartPredicate: function () {
         ++counter;
@@ -168,7 +168,7 @@
       var done = assert.async();
       var container = utils.createGridElements();
       var counter = 0;
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragStartPredicate: function () {
           ++counter;
@@ -216,7 +216,7 @@
 
       var done = assert.async();
       var container = utils.createGridElements();
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragStartPredicate: {
           delay: 100,
@@ -267,7 +267,7 @@
 
       var done = assert.async();
       var container = utils.createGridElements();
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragStartPredicate: {
           distance: 10,

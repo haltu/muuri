@@ -15,7 +15,7 @@ const cache = new Map<string, string>();
  * @param {string} prop
  * @returns {string}
  */
-export default function getPrefixedPropName(style: CSSStyleDeclaration, styleProp: string) {
+export function getPrefixedPropName(style: CSSStyleDeclaration, styleProp: string) {
   let prefixedProp = cache.get(styleProp);
   if (prefixedProp) return prefixedProp;
 

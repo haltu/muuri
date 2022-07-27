@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getIntersectionArea from './getIntersectionArea';
+import { getIntersectionArea } from './getIntersectionArea';
 import { Rect } from '../types';
 
 /**
@@ -15,7 +15,7 @@ import { Rect } from '../types';
  * @param {Object} b
  * @returns {number}
  */
-export default function getIntersectionScore(a: Rect, b: Rect) {
+export function getIntersectionScore(a: Rect, b: Rect) {
   const area = getIntersectionArea(a, b);
   if (!area) return 0;
   const maxArea = Math.min(a.width, b.width) * Math.min(a.height, b.height);

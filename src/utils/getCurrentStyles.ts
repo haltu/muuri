@@ -4,8 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from './getStyle';
-import getStyleName from './getStyleName';
+import { getStyle } from './getStyle';
+import { getStyleName } from './getStyleName';
 
 /**
  * Get current values of the provided styles definition object or array.
@@ -14,7 +14,7 @@ import getStyleName from './getStyleName';
  * @param {(Object|Array} styles
  * @return {Object}
  */
-export default function getCurrentStyles(
+export function getCurrentStyles(
   element: HTMLElement,
   styles: string[] | { [key: string]: string }
 ) {

@@ -4,9 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import transformProp from './transformProp';
-import getStyleName from './getStyleName';
+import { transformProp } from './transformProp';
+import { getStyleName } from './getStyleName';
 
-const transformStyle = getStyleName(transformProp);
-
-export default transformStyle;
+export const transformStyle = getStyleName(transformProp);

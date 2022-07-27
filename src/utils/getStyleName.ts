@@ -16,7 +16,7 @@ const msPrefixRegex = /^(-m-s-)/;
  * @param {string} property
  * @returns {string}
  */
-export default function getStyleName(styleProp: string) {
+export function getStyleName(styleProp: string) {
   // Initial slicing, turns "fooBarProp" into "foo-bar-prop".
   let styleName = styleProp.replace(styleNameRegEx, '-$1').toLowerCase();
 

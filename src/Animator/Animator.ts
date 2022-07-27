@@ -4,9 +4,9 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import isFunction from '../utils/isFunction';
-import isNative from '../utils/isNative';
-import setStyles from '../utils/setStyles';
+import { isFunction } from '../utils/isFunction';
+import { isNative } from '../utils/isNative';
+import { setStyles } from '../utils/setStyles';
 import { Writeable } from '../types';
 
 export interface AnimationProperties {
@@ -24,7 +24,7 @@ const HAS_WEB_ANIMATIONS = isNative(Element.prototype.animate);
 /**
  * Item animation handler powered by Web Animations API.
  */
-export default class Animator {
+export class Animator {
   readonly element: HTMLElement | null;
   readonly animation: Animation | null;
   protected _finishCallback: Function | null;

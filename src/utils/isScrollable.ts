@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getStyle from './getStyle';
+import { getStyle } from './getStyle';
 
 const scrollableOverflows: { [key: string]: boolean } = { auto: true, scroll: true, overlay: true };
 const overflowProp = 'overflow';
@@ -17,7 +17,7 @@ const overflowYProp = 'overflow-y';
  * @param {HTMLElement} element
  * @returns {boolean}
  */
-export default function isScrollable(element: HTMLElement) {
+export function isScrollable(element: HTMLElement) {
   return !!(
     scrollableOverflows[getStyle(element, overflowProp)] ||
     scrollableOverflows[getStyle(element, overflowXProp)] ||

@@ -16,7 +16,7 @@
  * @param {number} [sizeOffset=0]
  * @returns {number}
  */
-export default function normalizeArrayIndex(array: any[], index: number, sizeOffset = 0) {
+export function normalizeArrayIndex(array: any[], index: number, sizeOffset = 0) {
   const maxIndex = Math.max(0, array.length - 1 + sizeOffset);
   return index > maxIndex ? maxIndex : index < 0 ? Math.max(maxIndex + index + 1, 0) : index;
 }

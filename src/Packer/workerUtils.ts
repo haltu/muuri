@@ -5,7 +5,7 @@
  * https://github.com/haltu/muuri/blob/master/src/Packer/LICENSE.md
  */
 
-import createPackerProcessor from './createPackerProcessor';
+import { createPackerProcessor } from './createPackerProcessor';
 
 // Cache packer processor's blob url so we don't have to create multiple times
 // for nothing.

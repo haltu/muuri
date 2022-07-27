@@ -26,23 +26,18 @@ import {
   ITEM_ELEMENT_MAP,
   MAX_SAFE_FLOAT32_INTEGER,
 } from '../constants';
-import Item from '../Item/Item';
-import ItemDrag from '../Item/ItemDrag';
-import ItemDragPlaceholder from '../Item/ItemDragPlaceholder';
-import AutoScroller, {
+import { Item } from '../Item/Item';
+import { ItemDrag } from '../Item/ItemDrag';
+import {
+  AutoScroller,
   AutoScrollSpeedCallback,
   AutoScrollHandleCallback,
   AutoScrollTarget,
   AutoScrollEventCallback,
 } from '../AutoScroller/AutoScroller';
-import ItemLayout from '../Item/ItemLayout';
-import ItemMigrate from '../Item/ItemMigrate';
-import ItemDragRelease from '../Item/ItemDragRelease';
-import ItemVisibility from '../Item/ItemVisibility';
-import Emitter from '../Emitter/Emitter';
-import Animator from '../Animator/Animator';
-import Packer, { PackerLayoutOptions } from '../Packer/Packer';
-import Dragger, {
+import { Emitter } from '../Emitter/Emitter';
+import { Packer, PackerLayoutOptions } from '../Packer/Packer';
+import {
   DraggerCssPropsOptions,
   DraggerListenerOptions,
   DraggerStartEvent,
@@ -50,21 +45,21 @@ import Dragger, {
   DraggerEndEvent,
   DraggerCancelEvent,
 } from '../Dragger/Dragger';
-import addClass from '../utils/addClass';
-import arrayInsert from '../utils/arrayInsert';
-import arrayMove from '../utils/arrayMove';
-import arraySwap from '../utils/arraySwap';
-import createUid from '../utils/createUid';
-import debounce from '../utils/debounce';
-import getPrefixedPropName from '../utils/getPrefixedPropName';
-import getStyle from '../utils/getStyle';
-import getStyleAsFloat from '../utils/getStyleAsFloat';
-import isFunction from '../utils/isFunction';
-import isNodeListOrHTMLCollection from '../utils/isNodeListOrHTMLCollection';
-import isPlainObject from '../utils/isPlainObject';
-import removeClass from '../utils/removeClass';
-import setStyles from '../utils/setStyles';
-import toArray from '../utils/toArray';
+import { addClass } from '../utils/addClass';
+import { arrayInsert } from '../utils/arrayInsert';
+import { arrayMove } from '../utils/arrayMove';
+import { arraySwap } from '../utils/arraySwap';
+import { createUid } from '../utils/createUid';
+import { debounce } from '../utils/debounce';
+import { getPrefixedPropName } from '../utils/getPrefixedPropName';
+import { getStyle } from '../utils/getStyle';
+import { getStyleAsFloat } from '../utils/getStyleAsFloat';
+import { isFunction } from '../utils/isFunction';
+import { isNodeListOrHTMLCollection } from '../utils/isNodeListOrHTMLCollection';
+import { isPlainObject } from '../utils/isPlainObject';
+import { removeClass } from '../utils/removeClass';
+import { setStyles } from '../utils/setStyles';
+import { toArray } from '../utils/toArray';
 import { StyleDeclaration, ScrollEvent, Writeable, RectExtended } from '../types';
 
 type InstantLayout = typeof INSTANT_LAYOUT;
@@ -545,7 +540,7 @@ function isEqualObjects(a: { [key: string]: any }, b: { [key: string]: any }) {
  * @param {string} [options.itemPlaceholderClass="muuri-item-placeholder"]
  * @param {boolean} [options._animationWindowing=false]
  */
-export default class Grid {
+export class Grid {
   readonly id: number;
   readonly element: HTMLElement;
   readonly settings: GridSettings;
@@ -633,18 +628,6 @@ export default class Grid {
     }
   }
 
-  static Item = Item;
-  static ItemLayout = ItemLayout;
-  static ItemVisibility = ItemVisibility;
-  static ItemMigrate = ItemMigrate;
-  static ItemDrag = ItemDrag;
-  static ItemDragRelease = ItemDragRelease;
-  static ItemDragPlaceholder = ItemDragPlaceholder;
-  static AutoScroller = AutoScroller;
-  static Emitter = Emitter;
-  static Animator = Animator;
-  static Dragger = Dragger;
-  static Packer = Packer;
   static defaultPacker: Packer = new Packer();
   static defaultOptions: GridSettings = {
     // Initial item elements

@@ -28,7 +28,7 @@
     document.body.style.width = '10000px';
 
     // Init grid.
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       dragEnabled: true,
       dragSort: false,
       dragContainer: dragContainer,

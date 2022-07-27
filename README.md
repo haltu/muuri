@@ -40,46 +40,35 @@ The long-term goal of Muuri is to provide a simple (and as low-level as possible
 
 <h2><a id="getting-started" href="#getting-started" aria-hidden="true">#</a> Getting started</h2>
 
-<h3><a id="getting-started-1" href="#getting-started-1" aria-hidden="true">#</a> 1. Get Muuri</h3>
+<h3><a id="getting-started-1" href="#getting-started-1" aria-hidden="true">#</a> 1. Install Muuri and it's dependencies</h3>
 
-Install via [npm](https://www.npmjs.com/package/muuri):
-
-```bash
-npm install muuri
-```
-
-Or download:
-
-- [muuri.js](https://cdn.jsdelivr.net/npm/muuri@0.10.0/dist/muuri.js) - for development (not minified, with comments).
-- [muuri.min.js](https://cdn.jsdelivr.net/npm/muuri@0.10.0/dist/muuri.min.js) - for production (minified, no comments).
-
-Or link directly:
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/muuri@0.10.0/dist/muuri.min.js"></script>
-```
-
-<h3><a id="getting-started-2" href="#getting-started-2" aria-hidden="true">#</a> 2. Get Web Animations Polyfill (if needed)</h3>
+Muuri has two required dependencies: [eventti](https://github.com/niklasramo/eventti) (event emitter) and [tikki](https://github.com/niklasramo/tikki) (animation loop orchestrator). Both of the libraries were previously integrated into Muuri, but now have been separated into their own repos for better code reusablility. Also, they have gone through major overhaul to be better suited for use cases outside of Muuri too.
 
 Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations you need to use a [polyfill](https://github.com/web-animations/web-animations-js).
 
-Install via [npm](https://www.npmjs.com/package/web-animations-js):
+Install via npm:
 
 ```bash
-npm install web-animations-js
+npm install muuri eventti tikki web-animations-js
 ```
 
 Or download:
 
 - [web-animations.min.js](https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js)
+- [eventti.umd.js](https://cdn.jsdelivr.net/npm/eventti@2.0.1/dist/eventti.umd.js)
+- [tikki.umd.js](https://cdn.jsdelivr.net/npm/tikki@1.0.2/dist/tikki.umd.js)
+- [muuri.umd.min.js](https://cdn.jsdelivr.net/npm/muuri@0.10.0/dist/muuri.umd.min.js)
 
 Or link directly:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/eventti@2.0.1/dist/eventti.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tikki@1.0.2/dist/tikki.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/muuri@0.10.0/dist/muuri.umd.min.js"></script>
 ```
 
-<h3><a id="getting-started-3" href="#getting-started-3" aria-hidden="true">#</a> 3. Add the markup</h3>
+<h3><a id="getting-started-2" href="#getting-started-2" aria-hidden="true">#</a> 3. Add the markup</h3>
 
 - Every grid must have a container element (referred as the _grid element_ from now on).
 - Grid items must always consist of at least two elements. The outer element is used for positioning the item and the inner element (first direct child) is used for animating the item's visibility (show/hide methods). You can insert any markup you wish inside the inner item element.
@@ -105,7 +94,7 @@ Or link directly:
 </div>
 ```
 
-<h3><a id="getting-started-4" href="#getting-started-4" aria-hidden="true">#</a> 4. Add the styles</h3>
+<h3><a id="getting-started-3" href="#getting-started-3" aria-hidden="true">#</a> 4. Add the styles</h3>
 
 - The grid element must be "positioned" meaning that it's CSS position property must be set to _relative_, _absolute_ or _fixed_. Also note that Muuri automatically resizes the grid element's width/height depending on the area the items cover and the layout algorithm configuration.
 - The item elements must have their CSS position set to _absolute_.
@@ -143,12 +132,12 @@ Or link directly:
 }
 ```
 
-<h3><a id="getting-started-5" href="#getting-started-5" aria-hidden="true">#</a> 5. Fire it up</h3>
+<h3><a id="getting-started-4" href="#getting-started-4" aria-hidden="true">#</a> 5. Fire it up</h3>
 
 The bare minimum configuration is demonstrated below. You must always provide the grid element (or a selector so Muuri can fetch the element for you), everything else is optional.
 
 ```javascript
-const grid = new Muuri('.grid');
+const grid = new Muuri.Grid('.grid');
 ```
 
 You can view this little tutorial demo [here](https://codepen.io/niklasramo/pen/wpwNjK). After that you might want to check some [other demos](https://codepen.io/collection/AWopag/) as well.
@@ -173,7 +162,7 @@ You can view this little tutorial demo [here](https://codepen.io/niklasramo/pen/
 
 **Default options**
 
-The default options are stored in `Muuri.defaultOptions` object, which in it's default state contains the following configuration:
+The default options are stored in `Muuri.Grid.defaultOptions` object, which in it's default state contains the following configuration:
 
 ```javascript
 {
@@ -287,18 +276,18 @@ The default options are stored in `Muuri.defaultOptions` object, which in it's d
 You can modify the default options easily:
 
 ```javascript
-Muuri.defaultOptions.showDuration = 400;
-Muuri.defaultOptions.dragSortPredicate.action = 'swap';
+Muuri.Grid.defaultOptions.showDuration = 400;
+Muuri.Grid.defaultOptions.dragSortPredicate.action = 'swap';
 ```
 
 This is how you would use the options:
 
 ```javascript
 // Minimum configuration.
-const gridA = new Muuri('.grid-a');
+const gridA = new Muuri.Grid('.grid-a');
 
 // Providing some options.
-const gridB = new Muuri('.grid-b', {
+const gridB = new Muuri.Grid('.grid-b', {
   items: '.item',
 });
 ```
@@ -352,17 +341,17 @@ The initial item elements, which should be children of the grid element. All ele
 
 ```javascript
 // Use specific items.
-const gridA = new Muuri(elem, {
+const gridA = new Muuri.Grid(elem, {
   items: [elemA, elemB, elemC],
 });
 
 // Use node list.
-const gridB = new Muuri(elem, {
+const gridB = new Muuri.Grid(elem, {
   items: elem.querySelectorAll('.item'),
 });
 
 // Use selector.
-const gridC = new Muuri(elem, {
+const gridC = new Muuri.Grid(elem, {
   items: '.item',
 });
 ```
@@ -377,7 +366,7 @@ Show animation duration in milliseconds. Set to `0` to disable show animation.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   showDuration: 600,
 });
 ```
@@ -392,7 +381,7 @@ Show animation easing. Accepts any valid [Animation easing](https://developer.mo
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   showEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
 });
 ```
@@ -407,7 +396,7 @@ Hide animation duration in milliseconds. Set to `0` to disable hide animation.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   hideDuration: 600,
 });
 ```
@@ -422,7 +411,7 @@ Hide animation easing. Accepts any valid [Animation easing](https://developer.mo
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   hideEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
 });
 ```
@@ -443,7 +432,7 @@ The styles that will be applied to all visible items. These styles are also used
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   visibleStyles: {
     opacity: 1,
     transform: 'rotate(45deg)',
@@ -471,7 +460,7 @@ The styles that will be applied to all hidden items. These styles are also used 
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   visibleStyles: {
     opacity: 1,
     transform: 'rotate(45deg)',
@@ -569,7 +558,7 @@ Note that you can add additional properties to the layout object if you wish, e.
 
 ```javascript
 // Customize the default layout algorithm.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   layout: {
     fillGaps: true,
     horizontal: true,
@@ -587,7 +576,7 @@ const grid = new Muuri(elem, {
 // multiple layouts simultaneously without blocking the main thread. Async
 // packer is recommended only for situations where the layout calculations are
 // starting to block the main thread too much (subjective matter).
-const asyncPacker = new Muuri.Packer(2, {
+const asyncPacker = new Muuri.Grid.Packer(2, {
   fillGaps: true,
   horizontal: true,
   alignRight: true,
@@ -607,18 +596,18 @@ const asyncLayout = (layoutId, grid, items, containerData, callback) => {
 };
 
 // Provide the custom layout method to specific grids.
-const gridA = new Muuri(elemA, { layout: asyncLayout });
-const gridB = new Muuri(elemA, { layout: asyncLayout });
+const gridA = new Muuri.Grid(elemA, { layout: asyncLayout });
+const gridB = new Muuri.Grid(elemA, { layout: asyncLayout });
 
 // You can also set an async packer as the default packer and continue using
 // Muuri as if there never was a sync packer there in the first place.
-Muuri.defaultPacker.destroy();
-Muuri.defaultPacker = new Muuri.Packer(2);
+Muuri.Grid.defaultPacker.destroy();
+Muuri.Grid.defaultPacker = new Muuri.Grid.Packer(2);
 
 // This grid will use the new default (async) packer. Note that Muuri always
 // automatically updates the default packer's options before starting layout so
 // it's fine to have different configurations per grid.
-const gridC = new Muuri(elemA, {
+const gridC = new Muuri.Grid(elemA, {
   layout: {
     fillGaps: true,
     horizontal: true,
@@ -631,7 +620,7 @@ const gridC = new Muuri(elemA, {
 
 ```javascript
 // Build your own layout algorithm.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   layout(layoutId, grid, items, containerData, callback) {
     const layoutData = {
       id: layoutId,
@@ -684,21 +673,21 @@ Should Muuri automatically trigger `layout` method on window resize? Set to `fal
 
 ```javascript
 // No layout on resize.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   layoutOnResize: false,
 });
 ```
 
 ```javascript
 // Layout on resize (instantly).
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   layoutOnResize: true,
 });
 ```
 
 ```javascript
 // Layout on resize (with 200ms debounce).
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   layoutOnResize: 200,
 });
 ```
@@ -713,7 +702,7 @@ Should Muuri trigger `layout` method automatically on init?
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   layoutOnInit: false,
 });
 ```
@@ -728,7 +717,7 @@ The duration for item's layout animation in milliseconds. Set to `0` to disable.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   layoutDuration: 600,
 });
 ```
@@ -743,7 +732,7 @@ The easing for item's layout animation. Accepts any valid [Animation easing](htt
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   layoutEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
 });
 ```
@@ -758,7 +747,7 @@ The sort data getter functions. Provide an object where the key is the name of t
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   sortData: {
     foo(item, element) {
       return parseFloat(element.getAttribute('data-foo'));
@@ -784,8 +773,8 @@ When `true`, `translate3d()` is used instead of `translateX()` and `translateY()
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
-  translate3d: true
+const grid = new Muuri.Grid(elem, {
+  translate3d: true,
 });
 ```
 
@@ -799,7 +788,7 @@ Should items be draggable?
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragEnabled: true,
 });
 ```
@@ -814,7 +803,7 @@ The element the dragged item should be appended to for the duration of the drag.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragContainer: document.body,
 });
 ```
@@ -829,7 +818,7 @@ The element within the item element that should be used as the drag handle. This
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragHandle: '.handle',
 });
 ```
@@ -869,7 +858,7 @@ The predicate function receives two arguments:
 
 ```javascript
 // Configure the default predicate
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragStartPredicate: {
     distance: 10,
     delay: 100,
@@ -879,7 +868,7 @@ const grid = new Muuri(elem, {
 
 ```javascript
 // Provide your own predicate
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragStartPredicate(item, e) {
     // Start moving the item after the item has been dragged for one second.
     if (e.deltaTime > 1000) {
@@ -891,7 +880,7 @@ const grid = new Muuri(elem, {
 
 ```javascript
 // Pro tip: provide your own predicate and fall back to the default predicate.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragStartPredicate(item, e) {
     // If this is final event in the drag process, let's prepare the predicate
     // for the next round (do some resetting/teardown). The default predicate
@@ -926,14 +915,14 @@ Force items to be moved only vertically or horizontally when dragged. Set to `'x
 
 ```javascript
 // Move items only horizontally when dragged.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragAxis: 'x',
 });
 ```
 
 ```javascript
 // Move items only vertically when dragged.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragAxis: 'y',
 });
 ```
@@ -951,7 +940,7 @@ Alternatively you can do some advanced stuff and control within which grids a sp
 
 ```javascript
 // Disable drag sorting.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragSort: false,
 });
 ```
@@ -960,9 +949,9 @@ const grid = new Muuri(elem, {
 // Multigrid drag sorting.
 const grids = [];
 const getGrids = () => grids;
-const gridA = new Muuri(elemA, { dragSort: getGrids });
-const gridB = new Muuri(elemB, { dragSort: getGrids });
-const gridC = new Muuri(elemC, { dragSort: getGrids });
+const gridA = new Muuri.Grid(elemA, { dragSort: getGrids });
+const gridB = new Muuri.Grid(elemB, { dragSort: getGrids });
+const gridC = new Muuri.Grid(elemC, { dragSort: getGrids });
 grids.push(gridA, gridB, gridC);
 ```
 
@@ -995,7 +984,7 @@ You can define the following properties:
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragEnabled: true,
   dragSortHeuristics: {
     sortInterval: 10,
@@ -1059,7 +1048,7 @@ The callback should return a _falsy_ (e.g. `null`) value if sorting should not o
 
 ```javascript
 // Customize the default predicate.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragSortPredicate: {
     threshold: 90,
     action: 'swap',
@@ -1069,7 +1058,7 @@ const grid = new Muuri(elem, {
 
 ```javascript
 // Provide your own predicate.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragSortPredicate(item, e) {
     if (e.type !== 'move') return null;
     if (e.deltaTime < 1000) return null;
@@ -1083,7 +1072,7 @@ const grid = new Muuri(elem, {
 
 ```javascript
 // Use the default predicate as fallback in your custom predicate.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragSortPredicate(item, e) {
     if (e.type !== 'move') return null;
     if (item.classList.contains('no-sort')) return null;
@@ -1097,7 +1086,7 @@ const grid = new Muuri(elem, {
 
 ```javascript
 // Only do sorting on drop.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragSortPredicate(item, e) {
     if (e.type === 'move') return null;
     return Muuri.ItemDrag.defaultSortPredicate(item, {
@@ -1135,7 +1124,7 @@ You can define the following properties:
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragRelease: {
     duration: 600,
     easing: 'ease-out',
@@ -1192,7 +1181,7 @@ You can define the following properties:
 ```javascript
 // Only set the required touch-action CSS property via the options if you for
 // example want to set the other props via CSS instead.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragEnabled: true,
   dragCssProps: {
     touchAction: 'pan-y',
@@ -1235,7 +1224,7 @@ You can define the following properties:
 // calling `event.preventDefault()` within the dragStartPredicate at some point
 // then this is a must as you can't call `event.preventDefault()` on passive
 // events.
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragEnabled: true,
   dragEventListenerOptions: {
     passive: false,
@@ -1282,7 +1271,7 @@ You can define the following properties:
 const phPool = [];
 const phElem = document.createElement('div');
 
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragEnabled: true,
   dragPlaceholder: {
     enabled: true,
@@ -1428,7 +1417,7 @@ dragContainer.style.top = '0px';
 dragContainer.style.zIndex = 1000;
 document.body.appendChild(dragContainer);
 
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   dragEnabled: true,
   dragContainer: dragContainer,
   dragAutoScroll: {
@@ -1477,7 +1466,7 @@ Grid element's class name.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   containerClass: 'foo',
 });
 ```
@@ -1492,7 +1481,7 @@ Item element's class name.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   itemClass: 'foo-item',
 });
 ```
@@ -1507,7 +1496,7 @@ Visible item's class name.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   itemVisibleClass: 'foo-item-shown',
 });
 ```
@@ -1522,7 +1511,7 @@ Hidden item's class name.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   itemHiddenClass: 'foo-item-hidden',
 });
 ```
@@ -1537,7 +1526,7 @@ This class name will be added to the item element for the duration of positionin
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   itemPositioningClass: 'foo-item-positioning',
 });
 ```
@@ -1552,7 +1541,7 @@ This class name will be added to the item element for the duration of drag.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   itemDraggingClass: 'foo-item-dragging',
 });
 ```
@@ -1567,7 +1556,7 @@ This class name will be added to the item element for the duration of release.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   itemReleasingClass: 'foo-item-releasing',
 });
 ```
@@ -1582,7 +1571,7 @@ This class name will be added to the drag placeholder element.
 **Examples**
 
 ```javascript
-const grid = new Muuri(elem, {
+const grid = new Muuri.Grid(elem, {
   itemPlaceholderClass: 'foo-item-placeholder',
 });
 ```

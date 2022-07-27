@@ -12,8 +12,8 @@ import {
   IS_FIREFOX,
   IS_ANDROID,
 } from '../constants';
-import Emitter from '../Emitter/Emitter';
-import getPrefixedPropName from '../utils/getPrefixedPropName';
+import { Emitter } from '../Emitter/Emitter';
+import { getPrefixedPropName } from '../utils/getPrefixedPropName';
 import { Writeable } from '../types';
 
 type DraggerListenerType = 0 | 1 | 2 | 3;
@@ -99,32 +99,32 @@ export interface DraggerEvents {
   cancel(event: DraggerCancelEvent): any;
 }
 
-export const POINTER_EVENTS = {
+const POINTER_EVENTS = {
   start: 'pointerdown',
   move: 'pointermove',
   cancel: 'pointercancel',
   end: 'pointerup',
 } as const;
 
-export const TOUCH_EVENTS = {
+const TOUCH_EVENTS = {
   start: 'touchstart',
   move: 'touchmove',
   cancel: 'touchcancel',
   end: 'touchend',
 } as const;
 
-export const MOUSE_EVENTS = {
+const MOUSE_EVENTS = {
   start: 'mousedown',
   move: 'mousemove',
   cancel: '',
   end: 'mouseup',
 } as const;
 
-export const SOURCE_EVENTS = {
+const SOURCE_EVENTS = {
   ...(HAS_TOUCH_EVENTS ? TOUCH_EVENTS : HAS_POINTER_EVENTS ? POINTER_EVENTS : MOUSE_EVENTS),
 } as const;
 
-export const DRAGGER_EVENTS = {
+const DRAGGER_EVENTS = {
   start: 'start',
   move: 'move',
   cancel: 'cancel',
@@ -288,7 +288,7 @@ if (HAS_PASSIVE_EVENTS) dragProxies.push(new DragProxy(2), new DragProxy(3));
 /**
  * Creates a new Dragger instance for an element.
  */
-export default class Dragger {
+export class Dragger {
   readonly element: HTMLElement | null;
   protected _emitter: Emitter;
   protected _cssProps: { [key: string]: string };

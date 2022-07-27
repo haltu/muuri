@@ -9,7 +9,7 @@
 
     var done = assert.async();
     var container = utils.createGridElements();
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var items = grid.getItems();
     var teardown = function () {
       grid.destroy();

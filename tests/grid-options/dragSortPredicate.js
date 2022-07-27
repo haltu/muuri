@@ -13,7 +13,7 @@
         width: '140px',
       },
     });
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       dragEnabled: true,
     });
     var item = grid.getItems()[0];
@@ -48,7 +48,7 @@
         width: '140px',
       },
     });
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       dragEnabled: true,
       dragSortPredicate: {
         action: 'swap',
@@ -89,7 +89,7 @@
         },
       });
       var isChecked = false;
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragSortPredicate: function (draggedItem, ev) {
           if (!isChecked) {
@@ -136,7 +136,7 @@
           width: '140px',
         },
       });
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragSortPredicate: function () {
           return null;
@@ -177,7 +177,7 @@
           width: '140px',
         },
       });
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragSortPredicate: function (item, e) {
           if (e.type === 'move') {
@@ -230,7 +230,7 @@
           width: '140px',
         },
       });
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragSortPredicate: function (item, e) {
           if (e.type === 'move') {
@@ -275,7 +275,7 @@
           width: '140px',
         },
       });
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         dragEnabled: true,
         dragSortPredicate: function (item, e) {
           if (e.type === 'move') {

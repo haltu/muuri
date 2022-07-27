@@ -16,16 +16,16 @@ import {
   EVENT_LAYOUT_START,
   EVENT_HIDE_START,
 } from '../constants';
-import Grid from '../Grid/Grid';
-import Item from './Item';
-import Animator from '../Animator/Animator';
-import addClass from '../utils/addClass';
-import createTranslate from '../utils/createTranslate';
-import getTranslate from '../utils/getTranslate';
-import isFunction from '../utils/isFunction';
-import setStyles from '../utils/setStyles';
-import removeClass from '../utils/removeClass';
-import transformProp from '../utils/transformProp';
+import { Grid } from '../Grid/Grid';
+import { Item } from './Item';
+import { Animator } from '../Animator/Animator';
+import { addClass } from '../utils/addClass';
+import { createTranslate } from '../utils/createTranslate';
+import { getTranslate } from '../utils/getTranslate';
+import { isFunction } from '../utils/isFunction';
+import { setStyles } from '../utils/setStyles';
+import { removeClass } from '../utils/removeClass';
+import { transformProp } from '../utils/transformProp';
 import { StyleDeclaration, Writeable } from '../types';
 
 const CURRENT_STYLES: StyleDeclaration = {};
@@ -37,7 +37,7 @@ const TARGET_STYLES: StyleDeclaration = {};
  * @class
  * @param {Item} item
  */
-export default class ItemDragPlaceholder {
+export class ItemDragPlaceholder {
   readonly item: Item | null;
   readonly element: HTMLElement | null;
   readonly animator: Animator;

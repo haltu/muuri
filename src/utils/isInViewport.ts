@@ -4,8 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import isOverlapping from './isOverlapping';
-import windowSize from './windowSize';
+import { isOverlapping } from './isOverlapping';
+import { windowSize } from './windowSize';
 
 const targetRect = {
   left: 0,
@@ -31,7 +31,7 @@ const viewportRect = {
  * @param {number} padding
  * @returns {boolean}
  */
-export default function isInViewport(
+export function isInViewport(
   width: number,
   height: number,
   left: number,

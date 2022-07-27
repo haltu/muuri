@@ -111,7 +111,7 @@
     assert.expect(1);
 
     var container = utils.createGridElements();
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -125,7 +125,7 @@
     assert.expect(Object.keys(newOptions).length);
 
     var container = utils.createGridElements({ itemCount: 1 });
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -156,14 +156,14 @@
     assert.expect(3);
 
     var container = utils.createGridElements();
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
     assert.strictEqual(
-      utils.matches(grid.element, '.' + Muuri.defaultOptions.containerClass),
+      utils.matches(grid.element, '.' + Muuri.Grid.defaultOptions.containerClass),
       true
     );
 
@@ -172,7 +172,7 @@
     assert.strictEqual(utils.matches(grid.element, '.foo'), true, 'new containerClass added');
 
     assert.strictEqual(
-      utils.matches(grid.element, '.' + Muuri.defaultOptions.containerClass),
+      utils.matches(grid.element, '.' + Muuri.Grid.defaultOptions.containerClass),
       false,
       'old containerClass removed'
     );
@@ -184,21 +184,21 @@
     assert.expect(3);
 
     var container = utils.createGridElements();
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var item = grid.getItems()[0];
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
     };
 
-    assert.strictEqual(utils.matches(item.element, '.' + Muuri.defaultOptions.itemClass), true);
+    assert.strictEqual(utils.matches(item.element, '.' + Muuri.Grid.defaultOptions.itemClass), true);
 
     grid.updateSettings({ itemClass: 'foo' });
 
     assert.strictEqual(utils.matches(item.element, '.foo'), true, 'new itemClass added');
 
     assert.strictEqual(
-      utils.matches(item.element, '.' + Muuri.defaultOptions.itemClass),
+      utils.matches(item.element, '.' + Muuri.Grid.defaultOptions.itemClass),
       false,
       'old itemClass removed'
     );
@@ -212,7 +212,7 @@
       assert.expect(4);
 
       var container = utils.createGridElements();
-      var grid = new Muuri(container);
+      var grid = new Muuri.Grid(container);
       var item = grid.getItems()[0];
       var teardown = function () {
         grid.destroy();

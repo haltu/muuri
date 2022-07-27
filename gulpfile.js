@@ -1,10 +1,13 @@
-const fs = require('fs');
-const gulp = require('gulp');
-const karma = require('karma');
-const size = require('gulp-size');
-const rimraf = require('rimraf');
-const dotenv = require('dotenv');
-const pkg = require('./package.json');
+import fs from 'fs';
+import gulp from 'gulp';
+import karma from 'karma';
+import size from 'gulp-size';
+import rimraf from 'rimraf';
+import dotenv from 'dotenv';
+import * as url from 'url';
+import pkg from './package.json' assert { type: 'json' };
+
+const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 if (fs.existsSync('./.env')) dotenv.config();
 
@@ -37,7 +40,7 @@ gulp.task('clean', (cb) => {
 gulp.task('test-local', (done) => {
   new karma.Server(
     {
-      configFile: __dirname + '/karma.conf.js',
+      configFile: __dirname + '/karma.conf.cjs',
       action: 'run',
     },
     (exitCode) => {
@@ -49,7 +52,7 @@ gulp.task('test-local', (done) => {
 gulp.task('test-browserstack', (done) => {
   new karma.Server(
     {
-      configFile: __dirname + '/karma.conf.js',
+      configFile: __dirname + '/karma.conf.cjs',
       action: 'run',
       plugins: ['karma-qunit', 'karma-story-reporter', 'karma-browserstack-launcher'],
       reporters: ['story', 'BrowserStack'],

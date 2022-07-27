@@ -21,14 +21,16 @@ import {
   IS_IOS,
   HAS_PASSIVE_EVENTS,
 } from '../constants';
-import Grid, {
+import {
+  Grid,
   DragStartPredicateOptions,
   DragSortPredicateOptions,
   DragSortPredicateResult,
 } from '../Grid/Grid';
-import Item from './Item';
-import AutoScroller from '../AutoScroller/AutoScroller';
-import Dragger, {
+import { Item } from './Item';
+import { AutoScroller } from '../AutoScroller/AutoScroller';
+import {
+  Dragger,
   DraggerStartEvent,
   DraggerMoveEvent,
   DraggerEndEvent,
@@ -45,17 +47,17 @@ import {
   addDragSortTick,
   cancelDragSortTick,
 } from '../ticker';
-import addClass from '../utils/addClass';
-import arrayInsert from '../utils/arrayInsert';
-import arrayMove from '../utils/arrayMove';
-import arraySwap from '../utils/arraySwap';
-import getContainingBlock from '../utils/getContainingBlock';
-import getIntersectionScore from '../utils/getIntersectionScore';
-import getOffsetDiff from '../utils/getOffsetDiff';
-import getStyle from '../utils/getStyle';
-import isFunction from '../utils/isFunction';
-import normalizeArrayIndex from '../utils/normalizeArrayIndex';
-import removeClass from '../utils/removeClass';
+import { addClass } from '../utils/addClass';
+import { arrayInsert } from '../utils/arrayInsert';
+import { arrayMove } from '../utils/arrayMove';
+import { arraySwap } from '../utils/arraySwap';
+import { getContainingBlock } from '../utils/getContainingBlock';
+import { getIntersectionScore } from '../utils/getIntersectionScore';
+import { getOffsetDiff } from '../utils/getOffsetDiff';
+import { getStyle } from '../utils/getStyle';
+import { isFunction } from '../utils/isFunction';
+import { normalizeArrayIndex } from '../utils/normalizeArrayIndex';
+import { removeClass } from '../utils/removeClass';
 import { ScrollEvent, Rect, RectExtended, Writeable } from '../types';
 
 const START_PREDICATE_INACTIVE = 0;
@@ -379,7 +381,7 @@ const defaultSortPredicate = function (
  * @class
  * @param {Item} item
  */
-export default class ItemDrag {
+export class ItemDrag {
   readonly item: Item | null;
   readonly dragger: Dragger;
   _originGridId: number;

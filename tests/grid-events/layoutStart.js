@@ -9,7 +9,7 @@
       assert.expect(6);
 
       var container = utils.createGridElements();
-      var grid = new Muuri(container);
+      var grid = new Muuri.Grid(container);
       var layoutId = grid._layout.id;
       var numEvents = 0;
       var teardown = function () {

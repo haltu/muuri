@@ -7,7 +7,7 @@
     assert.expect(2);
 
     var container = utils.createGridElements();
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var newElems = [
       document.createElement('div').appendChild(document.createElement('div')).parentNode,
       document.createElement('div').appendChild(document.createElement('div')).parentNode,

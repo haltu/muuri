@@ -21,7 +21,10 @@
     "type": "git",
     "url": "git@github.com:haltu/muuri.git"
   },
-  "main": "dist/muuri.js",
+  "type": "module",
+  "source": "src/index.ts",
+  "main": "dist/muuri.module.js",
+  "umd:main": "dist/muuri.umd.js",
   "module": "dist/muuri.module.js",
   "types": "dist/muuri.d.ts",
   "files": [
@@ -38,8 +41,9 @@
     "test-local": "$(npm bin)/gulp test-local",
     "test-browserstack": "$(npm bin)/gulp test-browserstack",
     "bundle": "$(npm bin)/rollup -c",
-    "minify": "$(npm bin)/terser ./dist/muuri.js -o ./dist/muuri.min.js --compress --mangle --comments false",
-    "build": "npm run bundle && npm run minify",
+    "minify-module": "$(npm bin)/terser ./dist/muuri.module.js -o ./dist/muuri.module.min.js --compress --mangle --comments false",
+    "minify-umd": "$(npm bin)/terser ./dist/muuri.umd.js -o ./dist/muuri.umd.min.js --compress --mangle --comments false",
+    "build": "npm run bundle && npm run minify-module && npm run minify-umd",
     "ts-check": "$(npm bin)/tsc --noEmit",
     "format": "$(npm bin)/prettier --write ./src/**/*.ts",
     "format-tests": "$(npm bin)/prettier --write ./tests/**/*.js",
@@ -51,23 +55,29 @@
   ],
   "devDependencies": {
     "@fastify/pre-commit": "2.0.2",
-    "@rollup/plugin-typescript": "8.3.0",
-    "dotenv": "16.0.0",
+    "@rollup/plugin-typescript": "8.3.3",
+    "dotenv": "16.0.1",
+    "eventti": "2.0.1",
     "gulp": "4.0.2",
     "gulp-size": "4.0.1",
-    "karma": "6.3.16",
+    "karma": "6.4.0",
     "karma-browserstack-launcher": "1.6.0",
-    "karma-chrome-launcher": "3.1.0",
+    "karma-chrome-launcher": "3.1.1",
     "karma-qunit": "4.1.2",
     "karma-story-reporter": "0.3.1",
     "mezr": "0.6.2",
-    "prettier": "2.5.1",
+    "prettier": "2.7.1",
     "prosthetic-hand": "1.4.0",
-    "qunit": "2.18.0",
+    "qunit": "2.19.1",
     "rimraf": "3.0.2",
-    "rollup": "2.67.3",
-    "rollup-plugin-dts": "4.1.0",
-    "terser": "5.10.0",
-    "typescript": "4.5.5"
+    "rollup": "2.77.2",
+    "rollup-plugin-dts": "4.2.2",
+    "terser": "5.14.2",
+    "tikki": "1.0.2",
+    "typescript": "4.7.4"
+  },
+  "peerDependencies": {
+    "eventti": "^2.0.1",
+    "tikki": "^1.0.2"
   }
 }

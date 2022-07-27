@@ -7,7 +7,7 @@
     assert.expect(3);
 
     var container = utils.createGridElements();
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var currentOrder = grid.getItems();
     var newOrder = currentOrder.concat().reverse();
     var teardown = function () {

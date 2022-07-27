@@ -10,6 +10,6 @@
  * @param {HTMLElement} element
  * @param {string} className
  */
-export default function addClass(element: HTMLElement, className: string) {
+export function addClass(element: HTMLElement, className: string) {
   className && element.classList.add(className);
 }

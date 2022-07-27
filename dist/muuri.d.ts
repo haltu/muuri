@@ -1,3 +1,48 @@
+import { Ticker, PhaseListener } from 'tikki';
+
+interface AnimationProperties {
+    [key: string]: string;
+}
+interface AnimationOptions {
+    duration?: number;
+    easing?: string;
+    onFinish?: Function;
+}
+declare class Animator {
+    readonly element: HTMLElement | null;
+    readonly animation: Animation | null;
+    protected _finishCallback: Function | null;
+    constructor(element?: HTMLElement);
+    start(propsFrom: AnimationProperties, propsTo: AnimationProperties, options?: AnimationOptions): void;
+    stop(): void;
+    isAnimating(): boolean;
+    destroy(): void;
+    protected _onFinish(): void;
+}
+
+declare const ACTION_SWAP = "swap";
+declare const ACTION_MOVE = "move";
+declare const INSTANT_LAYOUT = "instant";
+
+declare type EmitterEvent = string;
+declare type EmitterListener = Function;
+declare class Emitter {
+    protected _events: {
+        [event: string]: EmitterListener[];
+    } | null;
+    protected _queue: EmitterListener[];
+    protected _counter: number;
+    protected _clearOnEmit: boolean;
+    constructor();
+    on(event: EmitterEvent, listener: EmitterListener): this;
+    off(event: EmitterEvent, listener: EmitterListener): this;
+    clear(event: EmitterEvent): this;
+    emit(event: EmitterEvent, ...args: any[]): this;
+    burst(event: EmitterEvent, ...args: any[]): this;
+    countListeners(event: EmitterEvent): number;
+    destroy(): this;
+}
+
 interface Rect {
   left: number;
   top: number;
@@ -18,154 +63,80 @@ interface ScrollEvent extends Event {
   type: 'scroll';
 }
 
-declare const AXIS_X = 1;
-declare const AXIS_Y = 2;
-declare const LEFT: 9;
-declare const RIGHT: 5;
-declare const UP: 10;
-declare const DOWN: 6;
-declare type AutoScrollItemId = number | string;
-declare type AutoScrollAxis = typeof AXIS_X | typeof AXIS_Y;
-declare type AutoScrollDirectionX = typeof LEFT | typeof RIGHT;
-declare type AutoScrollDirectionY = typeof UP | typeof DOWN;
-declare type AutoScrollDirection = AutoScrollDirectionX | AutoScrollDirectionY;
-declare type AutoScrollHandleCallback = (item: Item, itemClientX: number, itemClientY: number, itemWidth: number, itemHeight: number, pointerClientX: number, pointerClientY: number) => Rect;
-interface AutoScrollSpeedData {
-    direction: AutoScrollDirection | 0;
-    threshold: number;
-    distance: number;
-    value: number;
-    maxValue: number;
-    duration: number;
-    speed: number;
-    deltaTime: number;
-    isEnding: boolean;
+interface PackerLayoutOptions {
+    fillGaps?: boolean;
+    horizontal?: boolean;
+    alignRight?: boolean;
+    alignBottom?: boolean;
+    rounding?: boolean;
 }
-declare type AutoScrollSpeedCallback = (item: Item, scrollElement: Window | HTMLElement, scrollData: AutoScrollSpeedData) => number;
-interface AutoScrollTarget {
-    element: Window | HTMLElement;
-    axis?: number;
-    priority?: number;
-    threshold?: number;
+interface PackerLayoutSettingsMasks {
+    readonly fillGaps: 1;
+    readonly horizontal: 2;
+    readonly alignRight: 4;
+    readonly alignBottom: 8;
+    readonly rounding: 16;
 }
-declare type AutoScrollEventCallback = (item: Item, scrollElement: Window | HTMLElement, scrollDirection: AutoScrollDirection | 0) => void;
-declare function pointerHandle(pointerSize: number): AutoScrollHandleCallback;
-declare function smoothSpeed(maxSpeed: number, acceleration: number, deceleration: number): AutoScrollSpeedCallback;
-declare class ObjectPool<T> {
-    protected _pool: T[];
-    protected _createObject: () => T;
-    protected _onRelease: ((object: T) => void) | undefined;
-    constructor(createObject: () => T, onRelease?: (object: T) => void);
-    pick(): T;
-    release(object: T): void;
-    reset(): void;
+interface PackerLayoutPacket {
+    readonly id: 0;
+    readonly width: 1;
+    readonly height: 2;
+    readonly settings: 3;
+    readonly slots: 4;
 }
-declare class ScrollAction {
-    element: HTMLElement | Window | null;
-    requestX: ScrollRequest | null;
-    requestY: ScrollRequest | null;
-    scrollLeft: number;
-    scrollTop: number;
-    constructor();
-    reset(): void;
-    addRequest(request: ScrollRequest): void;
-    removeRequest(request: ScrollRequest): void;
-    computeScrollValues(): void;
-    scroll(): void;
+interface PackerContainerData {
+    width: number;
+    height: number;
+    borderLeft?: number;
+    borderRight?: number;
+    borderTop?: number;
+    borderBottom?: number;
+    boxSizing?: 'content-box' | 'border-box' | '';
 }
-declare class ScrollRequest {
-    item: Item | null;
-    element: HTMLElement | Window | null;
-    isActive: boolean;
-    isEnding: boolean;
-    direction: AutoScrollDirection | 0;
-    value: number;
-    maxValue: number;
-    threshold: number;
-    distance: number;
-    deltaTime: number;
-    speed: number;
-    duration: number;
-    action: ScrollAction | null;
-    constructor();
-    reset(): void;
-    hasReachedEnd(): boolean;
-    computeCurrentScrollValue(): number;
-    computeNextScrollValue(): number;
-    computeSpeed(): number;
-    tick(deltaTime: number): number;
-    onStart(): void;
-    onStop(): void;
+declare type PackerLayoutId = number;
+declare type PackerLayoutCallback = (layout: PackerLayoutData) => void;
+interface PackerLayoutItem {
+    width: number;
+    height: number;
+    marginLeft?: number;
+    marginRight?: number;
+    marginTop?: number;
+    marginBottom?: number;
+    [key: string]: any;
 }
-declare class AutoScroller {
-    protected _isDestroyed: boolean;
-    protected _isTicking: boolean;
-    protected _tickTime: number;
-    protected _tickDeltaTime: number;
-    protected _items: Item[];
-    protected _actions: ScrollAction[];
-    protected _requests: {
-        [AXIS_X]: Map<AutoScrollItemId, ScrollRequest>;
-        [AXIS_Y]: Map<AutoScrollItemId, ScrollRequest>;
-    };
-    protected _requestOverlapCheck: Map<AutoScrollItemId, number>;
-    protected _dragPositions: Map<AutoScrollItemId, [number, number]>;
-    protected _dragDirections: Map<AutoScrollItemId, [
-        AutoScrollDirectionX | 0,
-        AutoScrollDirectionY | 0
-    ]>;
-    protected _overlapCheckInterval: number;
-    protected _requestPool: ObjectPool<ScrollRequest>;
-    protected _actionPool: ObjectPool<ScrollAction>;
-    constructor();
-    static AXIS_X: number;
-    static AXIS_Y: number;
-    static LEFT: 9;
-    static RIGHT: 5;
-    static UP: 10;
-    static DOWN: 6;
-    static smoothSpeed: typeof smoothSpeed;
-    static pointerHandle: typeof pointerHandle;
-    isDestroyed(): boolean;
-    addItem(item: Item, posX: number, posY: number): void;
-    updateItem(item: Item, posX: number, posY: number): void;
-    removeItem(item: Item): void;
-    isItemScrollingX(item: Item): boolean;
-    isItemScrollingY(item: Item): boolean;
-    isItemScrolling(item: Item): boolean;
+interface PackerLayoutData {
+    id: PackerLayoutId;
+    items: PackerLayoutItem[];
+    width: number;
+    height: number;
+    slots: Float32Array;
+    styles: StyleDeclaration;
+}
+interface PackerLayoutWorkerData extends PackerLayoutData {
+    container: PackerContainerData;
+    settings: number;
+    callback: PackerLayoutCallback;
+    packet: Float32Array;
+    aborted: boolean;
+    worker?: Worker;
+}
+declare class Packer {
+    protected _settings: number;
+    protected _asyncMode: boolean;
+    protected _layoutWorkerQueue: PackerLayoutId[];
+    protected _layoutsProcessing: Set<PackerLayoutId>;
+    protected _layoutWorkerData: Map<PackerLayoutId, PackerLayoutWorkerData>;
+    protected _workers: Worker[];
+    constructor(numWorkers?: number, options?: PackerLayoutOptions);
+    updateSettings(options: PackerLayoutOptions): void;
+    createLayout(layoutId: PackerLayoutId, items: PackerLayoutItem[], containerData: PackerContainerData, callback: PackerLayoutCallback): (() => void) | undefined;
+    cancelLayout(layoutId: PackerLayoutId): void;
     destroy(): void;
-    protected _readTick(time: number): void;
-    protected _writeTick(): void;
-    protected _startTicking(): void;
-    protected _stopTicking(): void;
-    protected _getItemHandleRect(item: Item, handle: AutoScrollHandleCallback | null, rect?: RectExtended): RectExtended;
-    protected _requestItemScroll(item: Item, axis: AutoScrollAxis, element: Window | HTMLElement, direction: AutoScrollDirection, threshold: number, distance: number, maxValue: number): void;
-    protected _cancelItemScroll(item: Item, axis: AutoScrollAxis): void;
-    protected _checkItemOverlap(item: Item, checkX: boolean, checkY: boolean): void;
-    protected _updateScrollRequest(scrollRequest: ScrollRequest): boolean;
-    protected _updateRequests(): void;
-    protected _requestAction(request: ScrollRequest, axis: AutoScrollAxis): void;
-    protected _updateActions(): void;
-    protected _applyActions(): void;
-}
-
-declare type EmitterEvent = string;
-declare type EmitterListener = Function;
-declare class Emitter {
-    protected _events: {
-        [event: string]: EmitterListener[];
-    } | null;
-    protected _queue: EmitterListener[];
-    protected _counter: number;
-    protected _clearOnEmit: boolean;
-    constructor();
-    on(event: EmitterEvent, listener: EmitterListener): this;
-    off(event: EmitterEvent, listener: EmitterListener): this;
-    clear(event: EmitterEvent): this;
-    emit(event: EmitterEvent, ...args: any[]): this;
-    burst(event: EmitterEvent, ...args: any[]): this;
-    countListeners(event: EmitterEvent): number;
-    destroy(): this;
+    protected _sendToWorker(): void;
+    protected _onWorkerMessage(msg: {
+        data: ArrayBufferLike;
+    }): void;
+    protected _setContainerStyles(layout: PackerLayoutData, containerData: PackerContainerData, settings: number): void;
 }
 
 declare type DraggerListenerType = 0 | 1 | 2 | 3;
@@ -269,329 +240,6 @@ declare class Dragger {
     destroy(): void;
     protected _createEvent(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent): DraggerEvent | null;
     protected _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent): void;
-}
-
-declare class ItemDrag {
-    readonly item: Item | null;
-    readonly dragger: Dragger;
-    _originGridId: number;
-    _isMigrated: boolean;
-    _isActive: boolean;
-    _isStarted: boolean;
-    _startPredicateState: number;
-    _startPredicateData: {
-        distance: number;
-        delay: number;
-        event?: DraggerAnyEvent;
-        delayTimer?: number;
-    } | null;
-    _isSortNeeded: boolean;
-    _sortTimer?: number;
-    _blockedSortIndex: number | null;
-    _sortX1: number;
-    _sortX2: number;
-    _sortY1: number;
-    _sortY2: number;
-    _container: HTMLElement | null;
-    _containingBlock: HTMLElement | Document | null;
-    _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
-    _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
-    _dragMoveEvent: DraggerMoveEvent | null;
-    _dragPrevMoveEvent: DraggerMoveEvent | null;
-    _scrollEvent: ScrollEvent | null;
-    _translateX: number;
-    _translateY: number;
-    _clientX: number;
-    _clientY: number;
-    _scrollDiffX: number;
-    _scrollDiffY: number;
-    _moveDiffX: number;
-    _moveDiffY: number;
-    _containerDiffX: number;
-    _containerDiffY: number;
-    constructor(item: Item);
-    static autoScroll: AutoScroller;
-    static defaultStartPredicate: (item: Item, event: DraggerAnyEvent, options?: DragStartPredicateOptions | undefined) => boolean | undefined;
-    static defaultSortPredicate: (item: Item, options?: DragSortPredicateOptions | undefined) => DragSortPredicateResult;
-    isActive(): boolean;
-    getOriginGrid(): Grid | null;
-    stop(): void;
-    sort(force?: boolean): void;
-    destroy(): void;
-    _startPredicate(item: Item, event: DraggerAnyEvent): boolean | undefined;
-    _reset(): void;
-    _bindScrollHandler(): void;
-    _unbindScrollHandler(): void;
-    _resetHeuristics(x: number, y: number): void;
-    _checkHeuristics(x: number, y: number): boolean;
-    _resetDefaultStartPredicate(): void;
-    _handleSort(): void;
-    _handleSortDelayed(): void;
-    _cancelSort(): void;
-    _finishSort(): void;
-    _checkOverlap(isDrop?: boolean): void;
-    _finishMigration(): void;
-    _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent): void;
-    _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent): void;
-    _onStart(event: DraggerStartEvent | DraggerMoveEvent): void;
-    _prepareStart(): void;
-    _applyStart(): void;
-    _onMove(event: DraggerMoveEvent): void;
-    _prepareMove(): void;
-    _applyMove(): void;
-    _onScroll(event: Event): void;
-    _prepareScroll(): void;
-    _applyScroll(): void;
-    _onEnd(event: DraggerEndEvent | DraggerCancelEvent): void;
-}
-
-interface AnimationProperties {
-    [key: string]: string;
-}
-interface AnimationOptions {
-    duration?: number;
-    easing?: string;
-    onFinish?: Function;
-}
-declare class Animator {
-    readonly element: HTMLElement | null;
-    readonly animation: Animation | null;
-    protected _finishCallback: Function | null;
-    constructor(element?: HTMLElement);
-    start(propsFrom: AnimationProperties, propsTo: AnimationProperties, options?: AnimationOptions): void;
-    stop(): void;
-    isAnimating(): boolean;
-    destroy(): void;
-    protected _onFinish(): void;
-}
-
-declare class ItemDragPlaceholder {
-    readonly item: Item | null;
-    readonly element: HTMLElement | null;
-    readonly animator: Animator;
-    readonly left: number;
-    readonly top: number;
-    _className: string;
-    _didMigrate: boolean;
-    _resetAfterLayout: boolean;
-    _transX: number;
-    _transY: number;
-    _nextTransX: number;
-    _nextTransY: number;
-    constructor(item: Item);
-    create(): void;
-    reset(): void;
-    isActive(): boolean;
-    updateDimensions(): void;
-    updateClassName(className: string): void;
-    destroy(): void;
-    _updateDimensions(): void;
-    _onLayoutStart(items: Item[], isInstant: boolean): void;
-    _setupAnimation(): void;
-    _startAnimation(): void;
-    _onLayoutEnd(): void;
-    _onReleaseEnd(item: Item): void;
-    _onMigrate(data: {
-        item: Item;
-        fromGrid: Grid;
-        fromIndex: number;
-        toGrid: Grid;
-        toIndex: number;
-    }): void;
-    _onHide(items: Item[]): void;
-}
-
-declare class ItemDragRelease {
-    readonly item: Item | null;
-    _isActive: boolean;
-    _isPositioning: boolean;
-    constructor(item: Item);
-    isActive(): boolean;
-    isPositioning(): boolean;
-    start(): void;
-    stop(abort?: boolean, left?: number, top?: number): void;
-    reset(needsReflow?: boolean): void;
-    destroy(): void;
-    _placeToGrid(left?: number, top?: number): boolean;
-    _onScroll(): void;
-}
-
-declare class ItemLayout {
-    readonly item: Item | null;
-    readonly animator: Animator;
-    _skipNextAnimation: boolean;
-    _isActive: boolean;
-    _isInterrupted: boolean;
-    _easing: string;
-    _duration: number;
-    _tX: number;
-    _tY: number;
-    _queue: string;
-    constructor(item: Item);
-    isActive(): boolean;
-    start(instant: boolean, onFinish?: () => void): void;
-    stop(processCallbackQueue: boolean, left?: number, top?: number): void;
-    destroy(): void;
-    _finish(): void;
-    _setupAnimation(): void;
-    _startAnimation(): void;
-}
-
-declare class ItemMigrate {
-    readonly item: Item | null;
-    readonly container: HTMLElement | null;
-    _isActive: boolean;
-    constructor(item: Item);
-    isActive(): boolean;
-    start(targetGrid: Grid, position: HTMLElement | number | Item, container?: HTMLElement): void;
-    stop(abort?: boolean, left?: number, top?: number): void;
-    destroy(): void;
-}
-
-declare class ItemVisibility {
-    readonly item: Item | null;
-    readonly element: HTMLElement | null;
-    readonly animator: Animator;
-    _isHidden: boolean;
-    _isHiding: boolean;
-    _isShowing: boolean;
-    _currentStyleProps: string[];
-    _queue: string;
-    constructor(item: Item);
-    isHidden(): boolean;
-    isHiding(): boolean;
-    isShowing(): boolean;
-    show(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => void): void;
-    hide(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => void): void;
-    stop(processCallbackQueue: boolean): void;
-    setStyles(styles: StyleDeclaration): void;
-    destroy(): void;
-    _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void): void;
-    _finishShow(): void;
-    _finishHide(): void;
-    _removeCurrentStyles(): void;
-}
-
-declare class Item {
-    readonly id: number;
-    readonly element: HTMLElement;
-    readonly left: number;
-    readonly top: number;
-    readonly width: number;
-    readonly height: number;
-    readonly marginLeft: number;
-    readonly marginRight: number;
-    readonly marginTop: number;
-    readonly marginBottom: number;
-    _gridId: number;
-    _isActive: boolean;
-    _isDestroyed: boolean;
-    _translateX?: number;
-    _translateY?: number;
-    _containerDiffX: number;
-    _containerDiffY: number;
-    _sortData: {
-        [key: string]: any;
-    } | null;
-    _emitter: Emitter;
-    _visibility: ItemVisibility;
-    _layout: ItemLayout;
-    _migrate: ItemMigrate;
-    _drag: ItemDrag | null;
-    _dragRelease: ItemDragRelease;
-    _dragPlaceholder: ItemDragPlaceholder;
-    constructor(grid: Grid, element: HTMLElement, isActive?: boolean);
-    getGrid(): Grid | null;
-    isActive(): boolean;
-    isVisible(): boolean;
-    isShowing(): boolean;
-    isHiding(): boolean;
-    isPositioning(): boolean;
-    isDragging(): boolean;
-    isReleasing(): boolean;
-    isDestroyed(): boolean;
-    _updateDimensions(force?: boolean): void;
-    _updateSortData(): void;
-    _addToLayout(left?: number, top?: number): void;
-    _removeFromLayout(): void;
-    _canSkipLayout(left: number, top: number): boolean;
-    _setTranslate(x: number, y: number): void;
-    _getTranslate(): {
-        x: number;
-        y: number;
-    };
-    _getClientRootPosition(): {
-        left: number;
-        top: number;
-    };
-    _isInViewport(x: number, y: number, viewportThreshold?: number): boolean;
-    _destroy(removeElement?: boolean): void;
-}
-
-declare const ACTION_SWAP = "swap";
-declare const ACTION_MOVE = "move";
-declare const INSTANT_LAYOUT = "instant";
-
-interface PackerLayoutOptions {
-    fillGaps?: boolean;
-    horizontal?: boolean;
-    alignRight?: boolean;
-    alignBottom?: boolean;
-    rounding?: boolean;
-}
-interface PackerContainerData {
-    width: number;
-    height: number;
-    borderLeft?: number;
-    borderRight?: number;
-    borderTop?: number;
-    borderBottom?: number;
-    boxSizing?: 'content-box' | 'border-box' | '';
-}
-declare type PackerLayoutId = number;
-declare type PackerLayoutCallback = (layout: PackerLayoutData) => void;
-interface PackerLayoutItem {
-    width: number;
-    height: number;
-    marginLeft?: number;
-    marginRight?: number;
-    marginTop?: number;
-    marginBottom?: number;
-    [key: string]: any;
-}
-interface PackerLayoutData {
-    id: PackerLayoutId;
-    items: PackerLayoutItem[];
-    width: number;
-    height: number;
-    slots: Float32Array;
-    styles: StyleDeclaration;
-}
-interface PackerLayoutWorkerData extends PackerLayoutData {
-    container: PackerContainerData;
-    settings: number;
-    callback: PackerLayoutCallback;
-    packet: Float32Array;
-    aborted: boolean;
-    worker?: Worker;
-}
-declare class Packer {
-    protected _settings: number;
-    protected _asyncMode: boolean;
-    protected _layoutWorkerQueue: PackerLayoutId[];
-    protected _layoutsProcessing: Set<PackerLayoutId>;
-    protected _layoutWorkerData: Map<PackerLayoutId, PackerLayoutWorkerData>;
-    protected _workers: Worker[];
-    constructor(numWorkers?: number, options?: PackerLayoutOptions);
-    updateSettings(options: PackerLayoutOptions): void;
-    createLayout(layoutId: PackerLayoutId, items: PackerLayoutItem[], containerData: PackerContainerData, callback: PackerLayoutCallback): (() => void) | undefined;
-    cancelLayout(layoutId: PackerLayoutId): void;
-    destroy(): void;
-    protected _sendToWorker(): void;
-    protected _onWorkerMessage(msg: {
-        data: ArrayBufferLike;
-    }): void;
-    protected _setContainerStyles(layout: PackerLayoutData, containerData: PackerContainerData, settings: number): void;
 }
 
 declare function debounce(fn: () => void, durationMs: number): (cancel?: boolean) => void;
@@ -794,18 +442,6 @@ declare class Grid {
     _resizeHandler: ReturnType<typeof debounce> | null;
     _emitter: Emitter;
     constructor(element: string | HTMLElement, options?: GridInitOptions);
-    static Item: typeof Item;
-    static ItemLayout: typeof ItemLayout;
-    static ItemVisibility: typeof ItemVisibility;
-    static ItemMigrate: typeof ItemMigrate;
-    static ItemDrag: typeof ItemDrag;
-    static ItemDragRelease: typeof ItemDragRelease;
-    static ItemDragPlaceholder: typeof ItemDragPlaceholder;
-    static AutoScroller: typeof AutoScroller;
-    static Emitter: typeof Emitter;
-    static Animator: typeof Animator;
-    static Dragger: typeof Dragger;
-    static Packer: typeof Packer;
     static defaultPacker: Packer;
     static defaultOptions: GridSettings;
     on<T extends keyof GridEvents>(event: T, listener: GridEvents[T]): this;
@@ -875,4 +511,400 @@ declare class Grid {
     }): void;
 }
 
-export { Grid as default };
+declare class ItemDrag {
+    readonly item: Item | null;
+    readonly dragger: Dragger;
+    _originGridId: number;
+    _isMigrated: boolean;
+    _isActive: boolean;
+    _isStarted: boolean;
+    _startPredicateState: number;
+    _startPredicateData: {
+        distance: number;
+        delay: number;
+        event?: DraggerAnyEvent;
+        delayTimer?: number;
+    } | null;
+    _isSortNeeded: boolean;
+    _sortTimer?: number;
+    _blockedSortIndex: number | null;
+    _sortX1: number;
+    _sortX2: number;
+    _sortY1: number;
+    _sortY2: number;
+    _container: HTMLElement | null;
+    _containingBlock: HTMLElement | Document | null;
+    _dragStartEvent: DraggerStartEvent | DraggerMoveEvent | null;
+    _dragEndEvent: DraggerEndEvent | DraggerCancelEvent | null;
+    _dragMoveEvent: DraggerMoveEvent | null;
+    _dragPrevMoveEvent: DraggerMoveEvent | null;
+    _scrollEvent: ScrollEvent | null;
+    _translateX: number;
+    _translateY: number;
+    _clientX: number;
+    _clientY: number;
+    _scrollDiffX: number;
+    _scrollDiffY: number;
+    _moveDiffX: number;
+    _moveDiffY: number;
+    _containerDiffX: number;
+    _containerDiffY: number;
+    constructor(item: Item);
+    static autoScroll: AutoScroller;
+    static defaultStartPredicate: (item: Item, event: DraggerAnyEvent, options?: DragStartPredicateOptions | undefined) => boolean | undefined;
+    static defaultSortPredicate: (item: Item, options?: DragSortPredicateOptions | undefined) => DragSortPredicateResult;
+    isActive(): boolean;
+    getOriginGrid(): Grid | null;
+    stop(): void;
+    sort(force?: boolean): void;
+    destroy(): void;
+    _startPredicate(item: Item, event: DraggerAnyEvent): boolean | undefined;
+    _reset(): void;
+    _bindScrollHandler(): void;
+    _unbindScrollHandler(): void;
+    _resetHeuristics(x: number, y: number): void;
+    _checkHeuristics(x: number, y: number): boolean;
+    _resetDefaultStartPredicate(): void;
+    _handleSort(): void;
+    _handleSortDelayed(): void;
+    _cancelSort(): void;
+    _finishSort(): void;
+    _checkOverlap(isDrop?: boolean): void;
+    _finishMigration(): void;
+    _preStartCheck(event: DraggerStartEvent | DraggerMoveEvent): void;
+    _preEndCheck(event: DraggerEndEvent | DraggerCancelEvent): void;
+    _onStart(event: DraggerStartEvent | DraggerMoveEvent): void;
+    _prepareStart(): void;
+    _applyStart(): void;
+    _onMove(event: DraggerMoveEvent): void;
+    _prepareMove(): void;
+    _applyMove(): void;
+    _onScroll(event: Event): void;
+    _prepareScroll(): void;
+    _applyScroll(): void;
+    _onEnd(event: DraggerEndEvent | DraggerCancelEvent): void;
+}
+
+declare class ItemDragPlaceholder {
+    readonly item: Item | null;
+    readonly element: HTMLElement | null;
+    readonly animator: Animator;
+    readonly left: number;
+    readonly top: number;
+    _className: string;
+    _didMigrate: boolean;
+    _resetAfterLayout: boolean;
+    _transX: number;
+    _transY: number;
+    _nextTransX: number;
+    _nextTransY: number;
+    constructor(item: Item);
+    create(): void;
+    reset(): void;
+    isActive(): boolean;
+    updateDimensions(): void;
+    updateClassName(className: string): void;
+    destroy(): void;
+    _updateDimensions(): void;
+    _onLayoutStart(items: Item[], isInstant: boolean): void;
+    _setupAnimation(): void;
+    _startAnimation(): void;
+    _onLayoutEnd(): void;
+    _onReleaseEnd(item: Item): void;
+    _onMigrate(data: {
+        item: Item;
+        fromGrid: Grid;
+        fromIndex: number;
+        toGrid: Grid;
+        toIndex: number;
+    }): void;
+    _onHide(items: Item[]): void;
+}
+
+declare class ItemDragRelease {
+    readonly item: Item | null;
+    _isActive: boolean;
+    _isPositioning: boolean;
+    constructor(item: Item);
+    isActive(): boolean;
+    isPositioning(): boolean;
+    start(): void;
+    stop(abort?: boolean, left?: number, top?: number): void;
+    reset(needsReflow?: boolean): void;
+    destroy(): void;
+    _placeToGrid(left?: number, top?: number): boolean;
+    _onScroll(): void;
+}
+
+declare class ItemLayout {
+    readonly item: Item | null;
+    readonly animator: Animator;
+    _skipNextAnimation: boolean;
+    _isActive: boolean;
+    _isInterrupted: boolean;
+    _easing: string;
+    _duration: number;
+    _tX: number;
+    _tY: number;
+    _queue: string;
+    constructor(item: Item);
+    isActive(): boolean;
+    start(instant: boolean, onFinish?: () => void): void;
+    stop(processCallbackQueue: boolean, left?: number, top?: number): void;
+    destroy(): void;
+    _finish(): void;
+    _setupAnimation(): void;
+    _startAnimation(): void;
+}
+
+declare class ItemMigrate {
+    readonly item: Item | null;
+    readonly container: HTMLElement | null;
+    _isActive: boolean;
+    constructor(item: Item);
+    isActive(): boolean;
+    start(targetGrid: Grid, position: HTMLElement | number | Item, container?: HTMLElement): void;
+    stop(abort?: boolean, left?: number, top?: number): void;
+    destroy(): void;
+}
+
+declare class ItemVisibility {
+    readonly item: Item | null;
+    readonly element: HTMLElement | null;
+    readonly animator: Animator;
+    _isHidden: boolean;
+    _isHiding: boolean;
+    _isShowing: boolean;
+    _currentStyleProps: string[];
+    _queue: string;
+    constructor(item: Item);
+    isHidden(): boolean;
+    isHiding(): boolean;
+    isShowing(): boolean;
+    show(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => void): void;
+    hide(instant: boolean, onFinish?: (isInterrupted: boolean, item: Item) => void): void;
+    stop(processCallbackQueue: boolean): void;
+    setStyles(styles: StyleDeclaration): void;
+    destroy(): void;
+    _startAnimation(toVisible: boolean, instant: boolean, onFinish?: () => void): void;
+    _finishShow(): void;
+    _finishHide(): void;
+    _removeCurrentStyles(): void;
+}
+
+declare class Item {
+    readonly id: number;
+    readonly element: HTMLElement;
+    readonly left: number;
+    readonly top: number;
+    readonly width: number;
+    readonly height: number;
+    readonly marginLeft: number;
+    readonly marginRight: number;
+    readonly marginTop: number;
+    readonly marginBottom: number;
+    _gridId: number;
+    _isActive: boolean;
+    _isDestroyed: boolean;
+    _translateX?: number;
+    _translateY?: number;
+    _containerDiffX: number;
+    _containerDiffY: number;
+    _sortData: {
+        [key: string]: any;
+    } | null;
+    _emitter: Emitter;
+    _visibility: ItemVisibility;
+    _layout: ItemLayout;
+    _migrate: ItemMigrate;
+    _drag: ItemDrag | null;
+    _dragRelease: ItemDragRelease;
+    _dragPlaceholder: ItemDragPlaceholder;
+    constructor(grid: Grid, element: HTMLElement, isActive?: boolean);
+    getGrid(): Grid | null;
+    isActive(): boolean;
+    isVisible(): boolean;
+    isShowing(): boolean;
+    isHiding(): boolean;
+    isPositioning(): boolean;
+    isDragging(): boolean;
+    isReleasing(): boolean;
+    isDestroyed(): boolean;
+    _updateDimensions(force?: boolean): void;
+    _updateSortData(): void;
+    _addToLayout(left?: number, top?: number): void;
+    _removeFromLayout(): void;
+    _canSkipLayout(left: number, top: number): boolean;
+    _setTranslate(x: number, y: number): void;
+    _getTranslate(): {
+        x: number;
+        y: number;
+    };
+    _getClientRootPosition(): {
+        left: number;
+        top: number;
+    };
+    _isInViewport(x: number, y: number, viewportThreshold?: number): boolean;
+    _destroy(removeElement?: boolean): void;
+}
+
+declare const AXIS_X = 1;
+declare const AXIS_Y = 2;
+declare const LEFT: 9;
+declare const RIGHT: 5;
+declare const UP: 10;
+declare const DOWN: 6;
+declare type AutoScrollItemId = number | string;
+declare type AutoScrollAxis = typeof AXIS_X | typeof AXIS_Y;
+declare type AutoScrollDirectionX = typeof LEFT | typeof RIGHT;
+declare type AutoScrollDirectionY = typeof UP | typeof DOWN;
+declare type AutoScrollDirection = AutoScrollDirectionX | AutoScrollDirectionY;
+declare type AutoScrollHandleCallback = (item: Item, itemClientX: number, itemClientY: number, itemWidth: number, itemHeight: number, pointerClientX: number, pointerClientY: number) => Rect;
+interface AutoScrollSpeedData {
+    direction: AutoScrollDirection | 0;
+    threshold: number;
+    distance: number;
+    value: number;
+    maxValue: number;
+    duration: number;
+    speed: number;
+    deltaTime: number;
+    isEnding: boolean;
+}
+declare type AutoScrollSpeedCallback = (item: Item, scrollElement: Window | HTMLElement, scrollData: AutoScrollSpeedData) => number;
+interface AutoScrollTarget {
+    element: Window | HTMLElement;
+    axis?: number;
+    priority?: number;
+    threshold?: number;
+}
+declare type AutoScrollEventCallback = (item: Item, scrollElement: Window | HTMLElement, scrollDirection: AutoScrollDirection | 0) => void;
+declare function pointerHandle(pointerSize: number): AutoScrollHandleCallback;
+declare function smoothSpeed(maxSpeed: number, acceleration: number, deceleration: number): AutoScrollSpeedCallback;
+declare class ObjectPool<T> {
+    protected _pool: T[];
+    protected _createObject: () => T;
+    protected _onRelease: ((object: T) => void) | undefined;
+    constructor(createObject: () => T, onRelease?: (object: T) => void);
+    pick(): T;
+    release(object: T): void;
+    reset(): void;
+}
+declare class ScrollAction {
+    element: HTMLElement | Window | null;
+    requestX: ScrollRequest | null;
+    requestY: ScrollRequest | null;
+    scrollLeft: number;
+    scrollTop: number;
+    constructor();
+    reset(): void;
+    addRequest(request: ScrollRequest): void;
+    removeRequest(request: ScrollRequest): void;
+    computeScrollValues(): void;
+    scroll(): void;
+}
+declare class ScrollRequest {
+    item: Item | null;
+    element: HTMLElement | Window | null;
+    isActive: boolean;
+    isEnding: boolean;
+    direction: AutoScrollDirection | 0;
+    value: number;
+    maxValue: number;
+    threshold: number;
+    distance: number;
+    deltaTime: number;
+    speed: number;
+    duration: number;
+    action: ScrollAction | null;
+    constructor();
+    reset(): void;
+    hasReachedEnd(): boolean;
+    computeCurrentScrollValue(): number;
+    computeNextScrollValue(): number;
+    computeSpeed(): number;
+    tick(deltaTime: number): number;
+    onStart(): void;
+    onStop(): void;
+}
+declare class AutoScroller {
+    protected _isDestroyed: boolean;
+    protected _isTicking: boolean;
+    protected _tickTime: number;
+    protected _tickDeltaTime: number;
+    protected _items: Item[];
+    protected _actions: ScrollAction[];
+    protected _requests: {
+        [AXIS_X]: Map<AutoScrollItemId, ScrollRequest>;
+        [AXIS_Y]: Map<AutoScrollItemId, ScrollRequest>;
+    };
+    protected _requestOverlapCheck: Map<AutoScrollItemId, number>;
+    protected _dragPositions: Map<AutoScrollItemId, [number, number]>;
+    protected _dragDirections: Map<AutoScrollItemId, [
+        AutoScrollDirectionX | 0,
+        AutoScrollDirectionY | 0
+    ]>;
+    protected _overlapCheckInterval: number;
+    protected _requestPool: ObjectPool<ScrollRequest>;
+    protected _actionPool: ObjectPool<ScrollAction>;
+    constructor();
+    static AXIS_X: number;
+    static AXIS_Y: number;
+    static LEFT: 9;
+    static RIGHT: 5;
+    static UP: 10;
+    static DOWN: 6;
+    static smoothSpeed: typeof smoothSpeed;
+    static pointerHandle: typeof pointerHandle;
+    isDestroyed(): boolean;
+    addItem(item: Item, posX: number, posY: number): void;
+    updateItem(item: Item, posX: number, posY: number): void;
+    removeItem(item: Item): void;
+    isItemScrollingX(item: Item): boolean;
+    isItemScrollingY(item: Item): boolean;
+    isItemScrolling(item: Item): boolean;
+    destroy(): void;
+    protected _readTick(time: number): void;
+    protected _writeTick(): void;
+    protected _startTicking(): void;
+    protected _stopTicking(): void;
+    protected _getItemHandleRect(item: Item, handle: AutoScrollHandleCallback | null, rect?: RectExtended): RectExtended;
+    protected _requestItemScroll(item: Item, axis: AutoScrollAxis, element: Window | HTMLElement, direction: AutoScrollDirection, threshold: number, distance: number, maxValue: number): void;
+    protected _cancelItemScroll(item: Item, axis: AutoScrollAxis): void;
+    protected _checkItemOverlap(item: Item, checkX: boolean, checkY: boolean): void;
+    protected _updateScrollRequest(scrollRequest: ScrollRequest): boolean;
+    protected _updateRequests(): void;
+    protected _requestAction(request: ScrollRequest, axis: AutoScrollAxis): void;
+    protected _updateActions(): void;
+    protected _applyActions(): void;
+}
+
+declare const PHASE_SETUP: unique symbol;
+declare const PHASE_READ: unique symbol;
+declare const PHASE_READ_TAIL: unique symbol;
+declare const PHASE_WRITE: unique symbol;
+declare const ticker: Ticker<typeof PHASE_SETUP | typeof PHASE_READ | typeof PHASE_READ_TAIL | typeof PHASE_WRITE>;
+declare function addLayoutTick(itemId: string | number, read: PhaseListener, write: PhaseListener): void;
+declare function cancelLayoutTick(itemId: string | number): void;
+declare function addVisibilityTick(itemId: string | number, read: PhaseListener, write: PhaseListener): void;
+declare function cancelVisibilityTick(itemId: string | number): void;
+declare function addDragStartTick(itemId: string | number, read: PhaseListener, write: PhaseListener): void;
+declare function cancelDragStartTick(itemId: string | number): void;
+declare function addDragMoveTick(itemId: string | number, read: PhaseListener, write: PhaseListener): void;
+declare function cancelDragMoveTick(itemId: string | number): void;
+declare function addDragScrollTick(itemId: string | number, read: PhaseListener, write: PhaseListener): void;
+declare function cancelDragScrollTick(itemId: string | number): void;
+declare function addDragSortTick(itemId: string | number, read: PhaseListener): void;
+declare function cancelDragSortTick(itemId: string | number): void;
+declare function addReleaseScrollTick(itemId: string | number, read: PhaseListener, write: PhaseListener): void;
+declare function cancelReleaseScrollTick(itemId: string | number): void;
+declare function addPlaceholderLayoutTick(itemId: string | number, read: PhaseListener, write: PhaseListener): void;
+declare function cancelPlaceholderLayoutTick(itemId: string | number): void;
+declare function addPlaceholderResizeTick(itemId: string | number, write: PhaseListener): void;
+declare function cancelPlaceholderResizeTick(itemId: string | number): void;
+declare function addAutoScrollTick(read: PhaseListener, write: PhaseListener): void;
+declare function cancelAutoScrollTick(): void;
+declare function addDebounceTick(debounceId: string | number, read: PhaseListener): void;
+declare function cancelDebounceTick(debounceId: string | number): void;
+
+export { AnimationOptions, AnimationProperties, Animator, AutoScrollAxis, AutoScrollDirection, AutoScrollDirectionX, AutoScrollDirectionY, AutoScrollEventCallback, AutoScrollHandleCallback, AutoScrollSpeedCallback, AutoScrollSpeedData, AutoScrollTarget, AutoScroller, DragAutoScrollOptions, DragPlaceholderOptions, DragReleaseOptions, DragSortGetter, DragSortHeuristicsOptions, DragSortPredicate, DragSortPredicateOptions, DragSortPredicateResult, DragStartPredicate, DragStartPredicateOptions, Dragger, DraggerAnyEvent, DraggerCancelEvent, DraggerCssPropsOptions, DraggerEndEvent, DraggerEvent, DraggerEventType, DraggerEvents, DraggerListenerOptions, DraggerMoveEvent, DraggerPointerType, DraggerStartEvent, DraggerTouchAction, Emitter, EmitterEvent, EmitterListener, Grid, GridEvents, GridInitOptions, GridOptions, GridSettings, Item, ItemDrag, ItemDragPlaceholder, ItemDragRelease, ItemLayout, ItemMigrate, ItemVisibility, LayoutData, LayoutFunction, PHASE_READ, PHASE_READ_TAIL, PHASE_SETUP, PHASE_WRITE, Packer, PackerContainerData, PackerLayoutCallback, PackerLayoutData, PackerLayoutId, PackerLayoutItem, PackerLayoutOptions, PackerLayoutPacket, PackerLayoutSettingsMasks, addAutoScrollTick, addDebounceTick, addDragMoveTick, addDragScrollTick, addDragSortTick, addDragStartTick, addLayoutTick, addPlaceholderLayoutTick, addPlaceholderResizeTick, addReleaseScrollTick, addVisibilityTick, cancelAutoScrollTick, cancelDebounceTick, cancelDragMoveTick, cancelDragScrollTick, cancelDragSortTick, cancelDragStartTick, cancelLayoutTick, cancelPlaceholderLayoutTick, cancelPlaceholderResizeTick, cancelReleaseScrollTick, cancelVisibilityTick, ticker };

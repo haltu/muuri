@@ -12,7 +12,7 @@
  * @param {boolean} [translate3d=false]
  * @returns {string}
  */
-export default function createTranslate(x: number, y: number, translate3d = false) {
+export function createTranslate(x: number, y: number, translate3d = false) {
   return translate3d
     ? 'translate3d(' + x + 'px, ' + y + 'px, 0px)'
     : 'translateX(' + x + 'px) translateY(' + y + 'px)';

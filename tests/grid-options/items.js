@@ -7,7 +7,7 @@
     assert.expect(1);
 
     var container = utils.createGridElements();
-    var grid = new Muuri(container);
+    var grid = new Muuri.Grid(container);
     var teardown = function () {
       grid.destroy();
       container.parentNode.removeChild(container);
@@ -34,7 +34,7 @@
         return children[i];
       });
       container.classList.add('foo');
-      var grid = new Muuri(container, {
+      var grid = new Muuri.Grid(container, {
         items: '.foo',
       });
       var teardown = function () {
@@ -61,7 +61,7 @@
       children[i].classList.add('foo');
       return children[i];
     });
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       items: document.querySelectorAll('.foo'),
     });
     var teardown = function () {
@@ -86,7 +86,7 @@
     var targets = [0, 1, 2].map(function (i) {
       return children[i];
     });
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       items: targets,
     });
     var teardown = function () {

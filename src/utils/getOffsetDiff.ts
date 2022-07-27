@@ -4,8 +4,8 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import getContainingBlock from './getContainingBlock';
-import getStyleAsFloat from './getStyleAsFloat';
+import { getContainingBlock } from './getContainingBlock';
+import { getStyleAsFloat } from './getStyleAsFloat';
 
 const offsetA = { left: 0, top: 0 };
 const offsetB = { left: 0, top: 0 };
@@ -63,7 +63,7 @@ function getOffset(
  *     elements will be compared directly.
  * @returns {object}
  */
-export default function getOffsetDiff(
+export function getOffsetDiff(
   elemA: HTMLElement | Document,
   elemB: HTMLElement | Document,
   compareContainingBlocks = false

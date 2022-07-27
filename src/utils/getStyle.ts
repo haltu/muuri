@@ -29,7 +29,7 @@ const clearCache = function () {
  * @param {HTMLElement} element
  * @param {string} prop
  */
-export default function getStyle(element: HTMLElement, prop: string) {
+export function getStyle(element: HTMLElement, prop: string) {
   if (!prop) return '';
 
   let styles = cache.get(element);

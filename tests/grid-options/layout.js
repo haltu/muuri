@@ -13,7 +13,7 @@
     utils.setStyles(children[0], { width: '70px' });
     utils.setStyles(children[3], { width: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: false,
         fillGaps: false,
@@ -45,7 +45,7 @@
     utils.setStyles(children[0], { width: '70px' });
     utils.setStyles(children[3], { width: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: false,
         fillGaps: true,
@@ -77,7 +77,7 @@
     utils.setStyles(children[0], { width: '70px' });
     utils.setStyles(children[3], { width: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: false,
         fillGaps: false,
@@ -109,7 +109,7 @@
     utils.setStyles(children[0], { width: '70px' });
     utils.setStyles(children[3], { width: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: false,
         fillGaps: true,
@@ -141,7 +141,7 @@
     utils.setStyles(children[0], { width: '70px' });
     utils.setStyles(children[3], { width: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: false,
         fillGaps: false,
@@ -173,7 +173,7 @@
     utils.setStyles(children[0], { width: '70px' });
     utils.setStyles(children[3], { width: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: false,
         fillGaps: true,
@@ -205,7 +205,7 @@
     utils.setStyles(children[0], { width: '70px' });
     utils.setStyles(children[3], { width: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: false,
         fillGaps: false,
@@ -237,7 +237,7 @@
     utils.setStyles(children[0], { width: '70px' });
     utils.setStyles(children[3], { width: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: false,
         fillGaps: true,
@@ -269,7 +269,7 @@
     utils.setStyles(children[0], { height: '70px' });
     utils.setStyles(children[3], { height: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: true,
         fillGaps: false,
@@ -301,7 +301,7 @@
     utils.setStyles(children[0], { height: '70px' });
     utils.setStyles(children[3], { height: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: true,
         fillGaps: true,
@@ -333,7 +333,7 @@
     utils.setStyles(children[0], { height: '70px' });
     utils.setStyles(children[3], { height: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: true,
         fillGaps: false,
@@ -365,7 +365,7 @@
     utils.setStyles(children[0], { height: '70px' });
     utils.setStyles(children[3], { height: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: true,
         fillGaps: true,
@@ -397,7 +397,7 @@
     utils.setStyles(children[0], { height: '70px' });
     utils.setStyles(children[3], { height: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: true,
         fillGaps: false,
@@ -429,7 +429,7 @@
     utils.setStyles(children[0], { height: '70px' });
     utils.setStyles(children[3], { height: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: true,
         fillGaps: true,
@@ -461,7 +461,7 @@
     utils.setStyles(children[0], { height: '70px' });
     utils.setStyles(children[3], { height: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: true,
         fillGaps: false,
@@ -493,7 +493,7 @@
     utils.setStyles(children[0], { height: '70px' });
     utils.setStyles(children[3], { height: '30px' });
 
-    var grid = new Muuri(container, {
+    var grid = new Muuri.Grid(container, {
       layout: {
         horizontal: true,
         fillGaps: true,
@@ -530,7 +530,7 @@
           boxSizing: 'border-box',
         },
       });
-      var grid = new Muuri(container);
+      var grid = new Muuri.Grid(container);
       var hasIncorrectPosition = grid.getItems().some(function (item) {
         return item.top !== 0;
       });

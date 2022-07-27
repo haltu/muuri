@@ -4,7 +4,12 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import Ticker, { TickCallback } from './Ticker/Ticker';
+import { Ticker, PhaseListener } from 'tikki';
+
+export const PHASE_SETUP = Symbol();
+export const PHASE_READ = Symbol();
+export const PHASE_READ_TAIL = Symbol();
+export const PHASE_WRITE = Symbol();
 
 const LAYOUT_READ = 'layoutRead';
 const LAYOUT_WRITE = 'layoutWrite';
@@ -26,130 +31,168 @@ const AUTO_SCROLL_READ = 'autoScrollRead';
 const AUTO_SCROLL_WRITE = 'autoScrollWrite';
 const DEBOUNCE_READ = 'debounceRead';
 
-const LANE_READ = 0;
-const LANE_READ_TAIL = 1;
-const LANE_WRITE = 2;
+const LISTENER_ID_MAP: Map<string, symbol> = new Map();
 
-const ticker = new Ticker(3);
+function addUniqueListener(
+  phase: typeof PHASE_READ | typeof PHASE_READ_TAIL | typeof PHASE_WRITE,
+  key: string,
+  listener: PhaseListener
+) {
+  // If this is the first listener on this tick let's queue a one-off listener
+  // in the setup phase which clears the LISTENER_ID_MAP. This is not important
+  // for functionality, but very important to keep memory usage optimal.
+  if (!LISTENER_ID_MAP.size) {
+    ticker.once(PHASE_SETUP, () => {
+      LISTENER_ID_MAP.clear();
+    });
+  }
 
-export default ticker;
+  // Here we remove the existing listener based on the key and add new listener
+  // to the queue.
+  let listenerId = LISTENER_ID_MAP.get(key);
+  if (listenerId) ticker.off(phase, listenerId);
+  listenerId = ticker.once(phase, listener);
+  LISTENER_ID_MAP.set(key, listenerId);
+}
 
-export function addLayoutTick(itemId: string | number, read: TickCallback, write: TickCallback) {
-  ticker.add(LANE_READ, LAYOUT_READ + itemId, read);
-  ticker.add(LANE_WRITE, LAYOUT_WRITE + itemId, write);
+function removeUniqueListener(
+  phase: typeof PHASE_READ | typeof PHASE_READ_TAIL | typeof PHASE_WRITE,
+  key: string
+) {
+  const listenerId = LISTENER_ID_MAP.get(key);
+  if (!listenerId) return;
+  LISTENER_ID_MAP.delete(key);
+  ticker.off(phase, listenerId);
+}
+
+export const ticker = new Ticker({
+  phases: [PHASE_SETUP, PHASE_READ, PHASE_READ_TAIL, PHASE_WRITE],
+});
+
+export function addLayoutTick(itemId: string | number, read: PhaseListener, write: PhaseListener) {
+  addUniqueListener(PHASE_READ, LAYOUT_READ + itemId, read);
+  addUniqueListener(PHASE_WRITE, LAYOUT_WRITE + itemId, write);
 }
 
 export function cancelLayoutTick(itemId: string | number) {
-  ticker.remove(LANE_READ, LAYOUT_READ + itemId);
-  ticker.remove(LANE_WRITE, LAYOUT_WRITE + itemId);
+  removeUniqueListener(PHASE_READ, LAYOUT_READ + itemId);
+  removeUniqueListener(PHASE_WRITE, LAYOUT_WRITE + itemId);
 }
 
 export function addVisibilityTick(
   itemId: string | number,
-  read: TickCallback,
-  write: TickCallback
+  read: PhaseListener,
+  write: PhaseListener
 ) {
-  ticker.add(LANE_READ, VISIBILITY_READ + itemId, read);
-  ticker.add(LANE_WRITE, VISIBILITY_WRITE + itemId, write);
+  addUniqueListener(PHASE_READ, VISIBILITY_READ + itemId, read);
+  addUniqueListener(PHASE_WRITE, VISIBILITY_WRITE + itemId, write);
 }
 
 export function cancelVisibilityTick(itemId: string | number) {
-  ticker.remove(LANE_READ, VISIBILITY_READ + itemId);
-  ticker.remove(LANE_WRITE, VISIBILITY_WRITE + itemId);
+  removeUniqueListener(PHASE_READ, VISIBILITY_READ + itemId);
+  removeUniqueListener(PHASE_WRITE, VISIBILITY_WRITE + itemId);
 }
 
-export function addDragStartTick(itemId: string | number, read: TickCallback, write: TickCallback) {
-  ticker.add(LANE_READ, DRAG_START_READ + itemId, read);
-  ticker.add(LANE_WRITE, DRAG_START_WRITE + itemId, write);
+export function addDragStartTick(
+  itemId: string | number,
+  read: PhaseListener,
+  write: PhaseListener
+) {
+  addUniqueListener(PHASE_READ, DRAG_START_READ + itemId, read);
+  addUniqueListener(PHASE_WRITE, DRAG_START_WRITE + itemId, write);
 }
 
 export function cancelDragStartTick(itemId: string | number) {
-  ticker.remove(LANE_READ, DRAG_START_READ + itemId);
-  ticker.remove(LANE_WRITE, DRAG_START_WRITE + itemId);
+  removeUniqueListener(PHASE_READ, DRAG_START_READ + itemId);
+  removeUniqueListener(PHASE_WRITE, DRAG_START_WRITE + itemId);
 }
 
-export function addDragMoveTick(itemId: string | number, read: TickCallback, write: TickCallback) {
-  ticker.add(LANE_READ, DRAG_MOVE_READ + itemId, read);
-  ticker.add(LANE_WRITE, DRAG_MOVE_WRITE + itemId, write);
+export function addDragMoveTick(
+  itemId: string | number,
+  read: PhaseListener,
+  write: PhaseListener
+) {
+  addUniqueListener(PHASE_READ, DRAG_MOVE_READ + itemId, read);
+  addUniqueListener(PHASE_WRITE, DRAG_MOVE_WRITE + itemId, write);
 }
 
 export function cancelDragMoveTick(itemId: string | number) {
-  ticker.remove(LANE_READ, DRAG_MOVE_READ + itemId);
-  ticker.remove(LANE_WRITE, DRAG_MOVE_WRITE + itemId);
+  removeUniqueListener(PHASE_READ, DRAG_MOVE_READ + itemId);
+  removeUniqueListener(PHASE_WRITE, DRAG_MOVE_WRITE + itemId);
 }
 
 export function addDragScrollTick(
   itemId: string | number,
-  read: TickCallback,
-  write: TickCallback
+  read: PhaseListener,
+  write: PhaseListener
 ) {
-  ticker.add(LANE_READ, DRAG_SCROLL_READ + itemId, read);
-  ticker.add(LANE_WRITE, DRAG_SCROLL_WRITE + itemId, write);
+  addUniqueListener(PHASE_READ, DRAG_SCROLL_READ + itemId, read);
+  addUniqueListener(PHASE_WRITE, DRAG_SCROLL_WRITE + itemId, write);
 }
 
 export function cancelDragScrollTick(itemId: string | number) {
-  ticker.remove(LANE_READ, DRAG_SCROLL_READ + itemId);
-  ticker.remove(LANE_WRITE, DRAG_SCROLL_WRITE + itemId);
+  removeUniqueListener(PHASE_READ, DRAG_SCROLL_READ + itemId);
+  removeUniqueListener(PHASE_WRITE, DRAG_SCROLL_WRITE + itemId);
 }
 
-export function addDragSortTick(itemId: string | number, read: TickCallback) {
-  ticker.add(LANE_READ_TAIL, DRAG_SORT_READ + itemId, read);
+export function addDragSortTick(itemId: string | number, read: PhaseListener) {
+  addUniqueListener(PHASE_READ_TAIL, DRAG_SORT_READ + itemId, read);
 }
 
 export function cancelDragSortTick(itemId: string | number) {
-  ticker.remove(LANE_READ_TAIL, DRAG_SORT_READ + itemId);
+  removeUniqueListener(PHASE_READ_TAIL, DRAG_SORT_READ + itemId);
 }
 
 export function addReleaseScrollTick(
   itemId: string | number,
-  read: TickCallback,
-  write: TickCallback
+  read: PhaseListener,
+  write: PhaseListener
 ) {
-  ticker.add(LANE_READ, RELEASE_SCROLL_READ + itemId, read);
-  ticker.add(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId, write);
+  addUniqueListener(PHASE_READ, RELEASE_SCROLL_READ + itemId, read);
+  addUniqueListener(PHASE_WRITE, RELEASE_SCROLL_WRITE + itemId, write);
 }
 
 export function cancelReleaseScrollTick(itemId: string | number) {
-  ticker.remove(LANE_READ, RELEASE_SCROLL_READ + itemId);
-  ticker.remove(LANE_WRITE, RELEASE_SCROLL_WRITE + itemId);
+  removeUniqueListener(PHASE_READ, RELEASE_SCROLL_READ + itemId);
+  removeUniqueListener(PHASE_WRITE, RELEASE_SCROLL_WRITE + itemId);
 }
 
 export function addPlaceholderLayoutTick(
   itemId: string | number,
-  read: TickCallback,
-  write: TickCallback
+  read: PhaseListener,
+  write: PhaseListener
 ) {
-  ticker.add(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId, read);
-  ticker.add(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId, write);
+  addUniqueListener(PHASE_READ, PLACEHOLDER_LAYOUT_READ + itemId, read);
+  addUniqueListener(PHASE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId, write);
 }
 
 export function cancelPlaceholderLayoutTick(itemId: string | number) {
-  ticker.remove(LANE_READ, PLACEHOLDER_LAYOUT_READ + itemId);
-  ticker.remove(LANE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId);
+  removeUniqueListener(PHASE_READ, PLACEHOLDER_LAYOUT_READ + itemId);
+  removeUniqueListener(PHASE_WRITE, PLACEHOLDER_LAYOUT_WRITE + itemId);
 }
 
-export function addPlaceholderResizeTick(itemId: string | number, write: TickCallback) {
-  ticker.add(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId, write);
+export function addPlaceholderResizeTick(itemId: string | number, write: PhaseListener) {
+  addUniqueListener(PHASE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId, write);
 }
 
 export function cancelPlaceholderResizeTick(itemId: string | number) {
-  ticker.remove(LANE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId);
+  removeUniqueListener(PHASE_WRITE, PLACEHOLDER_RESIZE_WRITE + itemId);
 }
 
-export function addAutoScrollTick(read: TickCallback, write: TickCallback) {
-  ticker.add(LANE_READ, AUTO_SCROLL_READ, read);
-  ticker.add(LANE_WRITE, AUTO_SCROLL_WRITE, write);
+export function addAutoScrollTick(read: PhaseListener, write: PhaseListener) {
+  addUniqueListener(PHASE_READ, AUTO_SCROLL_READ, read);
+  addUniqueListener(PHASE_WRITE, AUTO_SCROLL_WRITE, write);
 }
 
 export function cancelAutoScrollTick() {
-  ticker.remove(LANE_READ, AUTO_SCROLL_READ);
-  ticker.remove(LANE_WRITE, AUTO_SCROLL_WRITE);
+  removeUniqueListener(PHASE_READ, AUTO_SCROLL_READ);
+  removeUniqueListener(PHASE_WRITE, AUTO_SCROLL_WRITE);
 }
 
-export function addDebounceTick(debounceId: string | number, read: TickCallback) {
-  ticker.add(LANE_READ, DEBOUNCE_READ + debounceId, read);
+export function addDebounceTick(debounceId: string | number, read: PhaseListener) {
+  addUniqueListener(PHASE_READ, DEBOUNCE_READ + debounceId, read);
 }
 
 export function cancelDebounceTick(debounceId: string | number) {
-  ticker.remove(LANE_READ, DEBOUNCE_READ + debounceId);
+  removeUniqueListener(PHASE_READ, DEBOUNCE_READ + debounceId);
 }

@@ -28,7 +28,7 @@ interface PackerProcessor {
   ): PackerProcessorLayoutData;
 }
 
-export default function createPackerProcessor(isWorker = false): PackerProcessor {
+export function createPackerProcessor(isWorker = false): PackerProcessor {
   const SETTINGS: PackerLayoutSettingsMasks = {
     fillGaps: 1,
     horizontal: 2,

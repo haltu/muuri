@@ -6,14 +6,14 @@
 
 import { VIEWPORT_THRESHOLD } from '../constants';
 import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
-import Grid from '../Grid/Grid';
-import Item from './Item';
-import Animator from '../Animator/Animator';
-import addClass from '../utils/addClass';
-import getCurrentStyles from '../utils/getCurrentStyles';
-import isFunction from '../utils/isFunction';
-import removeClass from '../utils/removeClass';
-import setStyles from '../utils/setStyles';
+import { Grid } from '../Grid/Grid';
+import { Item } from './Item';
+import { Animator } from '../Animator/Animator';
+import { addClass } from '../utils/addClass';
+import { getCurrentStyles } from '../utils/getCurrentStyles';
+import { isFunction } from '../utils/isFunction';
+import { removeClass } from '../utils/removeClass';
+import { setStyles } from '../utils/setStyles';
 import { StyleDeclaration, Writeable } from '../types';
 
 /**
@@ -22,7 +22,7 @@ import { StyleDeclaration, Writeable } from '../types';
  * @class
  * @param {Item} item
  */
-export default class ItemVisibility {
+export class ItemVisibility {
   readonly item: Item | null;
   readonly element: HTMLElement | null;
   readonly animator: Animator;
@@ -366,7 +366,6 @@ export default class ItemVisibility {
 
   /**
    * Finish hide procedure.
-
    */
   _finishHide() {
     if (!this.item || !this._isHidden) return;

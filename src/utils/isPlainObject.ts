@@ -13,6 +13,6 @@ export type PlainObject = { [key: string]: any };
  * @param {*} val
  * @returns {boolean}
  */
-export default function isPlainObject(val: any): val is PlainObject {
+export function isPlainObject(val: any): val is PlainObject {
   return typeof val === 'object' && toString.call(val) === '[object Object]';
 }

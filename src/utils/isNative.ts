@@ -4,7 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import isFunction from './isFunction';
+import { isFunction } from './isFunction';
 
 const nativeCode = '[native code]';
 
@@ -15,7 +15,7 @@ const nativeCode = '[native code]';
  * @param {*} feat
  * @returns {boolean}
  */
-export default function isNative(feat: any) {
+export function isNative(feat: any) {
   return !!(
     feat &&
     isFunction(window.Symbol) &&

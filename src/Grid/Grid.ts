@@ -26,6 +26,7 @@ import {
   ITEM_ELEMENT_MAP,
   MAX_SAFE_FLOAT32_INTEGER,
 } from '../constants';
+import { Emitter } from 'eventti';
 import { Item } from '../Item/Item';
 import { ItemDrag } from '../Item/ItemDrag';
 import {
@@ -35,7 +36,6 @@ import {
   AutoScrollTarget,
   AutoScrollEventCallback,
 } from '../AutoScroller/AutoScroller';
-import { Emitter } from '../Emitter/Emitter';
 import { Packer, PackerLayoutOptions } from '../Packer/Packer';
 import {
   DraggerCssPropsOptions,
@@ -154,7 +154,7 @@ export interface DragAutoScrollOptions {
   onStop?: AutoScrollEventCallback | null;
 }
 
-export interface GridEvents {
+export type GridEvents = {
   synchronize(): any;
   layoutStart(items: Item[], isInstant: boolean): any;
   layoutEnd(items: Item[]): any;
@@ -198,7 +198,7 @@ export interface GridEvents {
   dragReleaseStart(item: Item): any;
   dragReleaseEnd(item: Item): any;
   destroy(): any;
-}
+};
 
 export interface GridSettings {
   items: HTMLElement[] | NodeList | HTMLCollection | string;
@@ -563,7 +563,7 @@ export class Grid {
     cancel?: LayoutCancel | null;
   } | null;
   _resizeHandler: ReturnType<typeof debounce> | null;
-  _emitter: Emitter;
+  _emitter: Emitter<GridEvents>;
 
   constructor(element: string | HTMLElement, options: GridInitOptions = {}) {
     // Allow passing element as selector string
@@ -1841,7 +1841,7 @@ export class Grid {
     // grid's _emit method for emitting this event because it shortcircuits if
     // _isDestroyed flag is true.
     this._emitter.emit(EVENT_DESTROY);
-    this._emitter.destroy();
+    this._emitter.off();
 
     return this;
   }
@@ -1865,7 +1865,7 @@ export class Grid {
    */
   _hasListeners<T extends keyof GridEvents>(event: T) {
     if (this._isDestroyed) return false;
-    return this._emitter.countListeners(event) > 0;
+    return this._emitter.listenerCount(event) > 0;
   }
 
   /**

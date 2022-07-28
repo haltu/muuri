@@ -10,8 +10,6 @@ export * from './AutoScroller/AutoScroller';
 
 export * from './Dragger/Dragger';
 
-export * from './Emitter/Emitter';
-
 export * from './Grid/Grid';
 
 export * from './Item/Item';

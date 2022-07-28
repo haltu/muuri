@@ -10,7 +10,7 @@
 * Copyright (c) 2016-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
 *
-* Muuri Emitter / Muuri Dragger
+* Muuri Dragger
 * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
 *
@@ -20,10 +20,10 @@
 */
 
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('tikki')) :
-    typeof define === 'function' && define.amd ? define(['exports', 'tikki'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.Muuri = {}, global.tikki));
-})(this, (function (exports, tikki) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('tikki'), require('eventti')) :
+    typeof define === 'function' && define.amd ? define(['exports', 'tikki', 'eventti'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.Muuri = {}, global.tikki, global.eventti));
+})(this, (function (exports, tikki, eventti) { 'use strict';
 
     function isFunction(val) {
         return typeof val === 'function';
@@ -1144,94 +1144,6 @@
         return isPassiveEventsSupported;
     })();
 
-    class Emitter {
-        constructor() {
-            this._events = {};
-            this._queue = [];
-            this._counter = 0;
-            this._clearOnEmit = false;
-        }
-        on(event, listener) {
-            if (!this._events)
-                return this;
-            const listeners = this._events[event] || [];
-            this._events[event] = listeners;
-            listeners.push(listener);
-            return this;
-        }
-        off(event, listener) {
-            if (!this._events)
-                return this;
-            const listeners = this._events[event];
-            if (!listeners || !listeners.length)
-                return this;
-            let index = 0;
-            while ((index = listeners.indexOf(listener)) !== -1) {
-                listeners.splice(index, 1);
-            }
-            return this;
-        }
-        clear(event) {
-            if (!this._events)
-                return this;
-            const listeners = this._events[event];
-            if (listeners) {
-                listeners.length = 0;
-                delete this._events[event];
-            }
-            return this;
-        }
-        emit(event, ...args) {
-            if (!this._events) {
-                this._clearOnEmit = false;
-                return this;
-            }
-            const listeners = this._events[event];
-            if (!listeners || !listeners.length) {
-                this._clearOnEmit = false;
-                return this;
-            }
-            const queue = this._queue;
-            const startIndex = queue.length;
-            queue.push(...listeners);
-            if (this._clearOnEmit) {
-                listeners.length = 0;
-                this._clearOnEmit = false;
-            }
-            ++this._counter;
-            let i = startIndex;
-            const endIndex = queue.length;
-            for (; i < endIndex; i++) {
-                queue[i](...args);
-                if (!this._events)
-                    return this;
-            }
-            --this._counter;
-            if (!this._counter)
-                queue.length = 0;
-            return this;
-        }
-        burst(event, ...args) {
-            if (!this._events)
-                return this;
-            this._clearOnEmit = true;
-            return this.emit(event, ...args);
-        }
-        countListeners(event) {
-            if (!this._events)
-                return 0;
-            const listeners = this._events[event];
-            return listeners ? listeners.length : 0;
-        }
-        destroy() {
-            if (!this._events)
-                return this;
-            this._queue.length = this._counter = 0;
-            this._events = null;
-            return this;
-        }
-    }
-
     const vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
     const cache = new Map();
     function getPrefixedPropName(style, styleProp) {
@@ -1328,7 +1240,7 @@
     }
     class DragProxy {
         constructor(listenerType) {
-            this._emitter = new Emitter();
+            this._emitter = new eventti.Emitter();
             this._listenerOptions = getListenerOptions(listenerType);
             this._draggers = new Set();
             this._onMove = this._onMove.bind(this);
@@ -1364,7 +1276,7 @@
             if (this._draggers.size)
                 this._deactivate();
             this._draggers.clear();
-            this._emitter.destroy();
+            this._emitter.off();
         }
         _activate() {
             window.addEventListener(SOURCE_EVENTS.move, this._onMove, this._listenerOptions);
@@ -1397,7 +1309,7 @@
         constructor(element, cssProps, listenerOptions = {}) {
             const { capture = true, passive = true } = listenerOptions;
             this.element = element;
-            this._emitter = new Emitter();
+            this._emitter = new eventti.Emitter();
             this._cssProps = {};
             this._touchAction = '';
             this._listenerType = getListenerType(capture, passive);
@@ -1569,7 +1481,7 @@
             if (!element)
                 return;
             this.reset();
-            this._emitter.destroy();
+            this._emitter.off();
             element.removeEventListener(SOURCE_EVENTS.start, this.onStart, getListenerOptions(this._listenerType));
             element.removeEventListener('dragstart', preventDefault, false);
             element.removeEventListener(TOUCH_EVENTS.start, preventDefault, true);
@@ -2965,12 +2877,12 @@
             const animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
             if (isPositioning) {
                 cancelLayoutTick(item.id);
-                item._emitter.burst(this._queue, true, item);
+                item._emitter.emit(this._queue, true, item);
             }
             if (isJustReleased)
                 release._isPositioning = true;
             if (onFinish && isFunction(onFinish)) {
-                item._emitter.on(this._queue, onFinish);
+                item._emitter.once(this._queue, onFinish);
             }
             this._skipNextAnimation = false;
             if (!animEnabled) {
@@ -3008,14 +2920,14 @@
             removeClass(item.element, itemPositioningClass);
             this._isActive = false;
             if (processCallbackQueue) {
-                item._emitter.burst(this._queue, true, item);
+                item._emitter.emit(this._queue, true, item);
             }
         }
         destroy() {
             if (!this.item)
                 return;
             this.stop(true, 0, 0);
-            this.item._emitter.clear(this._queue);
+            this.item._emitter.off(this._queue);
             this.animator.destroy();
             const { style } = this.item.element;
             style[transformProp] = '';
@@ -3038,7 +2950,7 @@
                 item._dragRelease.stop();
             if (item._migrate.isActive())
                 item._migrate.stop();
-            item._emitter.burst(this._queue, false, item);
+            item._emitter.emit(this._queue, false, item);
         }
         _setupAnimation() {
             if (!this.item || !this.isActive())
@@ -3322,11 +3234,11 @@
                 return;
             }
             if (this._isShowing && !instant) {
-                callback && item._emitter.on(this._queue, callback);
+                callback && item._emitter.once(this._queue, callback);
                 return;
             }
             if (!this._isShowing) {
-                item._emitter.burst(this._queue, true, item);
+                item._emitter.emit(this._queue, true, item);
                 const { settings } = item.getGrid();
                 if (settings) {
                     removeClass(item.element, settings.itemHiddenClass);
@@ -3335,7 +3247,7 @@
                 if (!this._isHiding)
                     item.element.style.display = '';
             }
-            callback && item._emitter.on(this._queue, callback);
+            callback && item._emitter.once(this._queue, callback);
             this._isShowing = true;
             this._isHiding = this._isHidden = false;
             this._startAnimation(true, instant, this._finishShow);
@@ -3350,16 +3262,16 @@
                 return;
             }
             if (this._isHiding && !instant) {
-                callback && item._emitter.on(this._queue, callback);
+                callback && item._emitter.once(this._queue, callback);
                 return;
             }
             if (!this._isHiding) {
-                item._emitter.burst(this._queue, true, item);
+                item._emitter.emit(this._queue, true, item);
                 const { settings } = item.getGrid();
                 addClass(item.element, settings.itemHiddenClass);
                 removeClass(item.element, settings.itemVisibleClass);
             }
-            callback && item._emitter.on(this._queue, callback);
+            callback && item._emitter.once(this._queue, callback);
             this._isHidden = this._isHiding = true;
             this._isShowing = false;
             this._startAnimation(false, instant, this._finishHide);
@@ -3371,7 +3283,7 @@
             cancelVisibilityTick(item.id);
             this.animator.stop();
             if (processCallbackQueue) {
-                item._emitter.burst(this._queue, true, item);
+                item._emitter.emit(this._queue, true, item);
             }
         }
         setStyles(styles) {
@@ -3392,7 +3304,7 @@
             const itemElement = item.element;
             const { settings } = item.getGrid();
             this.stop(true);
-            item._emitter.clear(this._queue);
+            item._emitter.off(this._queue);
             this.animator.destroy();
             this._removeCurrentStyles();
             if (settings) {
@@ -3470,7 +3382,7 @@
             if (!this.item || this._isHidden)
                 return;
             this._isShowing = false;
-            this.item._emitter.burst(this._queue, false, this.item);
+            this.item._emitter.emit(this._queue, false, this.item);
         }
         _finishHide() {
             if (!this.item || !this._isHidden)
@@ -3479,7 +3391,7 @@
             this._isHiding = false;
             item._layout.stop(true, 0, 0);
             item.element.style.display = 'none';
-            item._emitter.burst(this._queue, false, item);
+            item._emitter.emit(this._queue, false, item);
         }
         _removeCurrentStyles() {
             if (!this.element)
@@ -3562,7 +3474,7 @@
             this._containerDiffX = 0;
             this._containerDiffY = 0;
             this._sortData = null;
-            this._emitter = new Emitter();
+            this._emitter = new eventti.Emitter();
             if (gridElement && element.parentNode !== gridElement) {
                 gridElement.appendChild(element);
             }
@@ -3697,7 +3609,7 @@
             this._visibility.destroy();
             if (this._drag)
                 this._drag.destroy();
-            this._emitter.destroy();
+            this._emitter.off();
             removeClass(element, settings.itemClass);
             if (removeElement)
                 (_a = element.parentNode) === null || _a === void 0 ? void 0 : _a.removeChild(element);
@@ -4416,7 +4328,7 @@
             this._isLayoutFinished = true;
             this._nextLayoutData = null;
             this._resizeHandler = null;
-            this._emitter = new Emitter();
+            this._emitter = new eventti.Emitter();
             GRID_INSTANCES.set(this.id, this);
             addClass(element, settings.containerClass);
             this._bindLayoutOnResize(settings.layoutOnResize);
@@ -5051,7 +4963,7 @@
             GRID_INSTANCES.delete(this.id);
             this._isDestroyed = true;
             this._emitter.emit(EVENT_DESTROY);
-            this._emitter.destroy();
+            this._emitter.off();
             return this;
         }
         _emit(event, ...args) {
@@ -5062,7 +4974,7 @@
         _hasListeners(event) {
             if (this._isDestroyed)
                 return false;
-            return this._emitter.countListeners(event) > 0;
+            return this._emitter.listenerCount(event) > 0;
         }
         _updateBoundingRect() {
             const { _rect } = this;
@@ -5355,7 +5267,6 @@
     exports.Animator = Animator;
     exports.AutoScroller = AutoScroller;
     exports.Dragger = Dragger;
-    exports.Emitter = Emitter;
     exports.Grid = Grid;
     exports.Item = Item;
     exports.ItemDrag = ItemDrag;

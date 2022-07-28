@@ -10,7 +10,7 @@
 * Copyright (c) 2016-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
 *
-* Muuri Emitter / Muuri Dragger
+* Muuri Dragger
 * Copyright (c) 2018-present, Niklas Rämö <inramo@gmail.com>
 * @license MIT
 *
@@ -20,6 +20,7 @@
 */
 
 import { Ticker } from 'tikki';
+import { Emitter } from 'eventti';
 
 function isFunction(val) {
     return typeof val === 'function';
@@ -1140,94 +1141,6 @@ const HAS_PASSIVE_EVENTS = (() => {
     return isPassiveEventsSupported;
 })();
 
-class Emitter {
-    constructor() {
-        this._events = {};
-        this._queue = [];
-        this._counter = 0;
-        this._clearOnEmit = false;
-    }
-    on(event, listener) {
-        if (!this._events)
-            return this;
-        const listeners = this._events[event] || [];
-        this._events[event] = listeners;
-        listeners.push(listener);
-        return this;
-    }
-    off(event, listener) {
-        if (!this._events)
-            return this;
-        const listeners = this._events[event];
-        if (!listeners || !listeners.length)
-            return this;
-        let index = 0;
-        while ((index = listeners.indexOf(listener)) !== -1) {
-            listeners.splice(index, 1);
-        }
-        return this;
-    }
-    clear(event) {
-        if (!this._events)
-            return this;
-        const listeners = this._events[event];
-        if (listeners) {
-            listeners.length = 0;
-            delete this._events[event];
-        }
-        return this;
-    }
-    emit(event, ...args) {
-        if (!this._events) {
-            this._clearOnEmit = false;
-            return this;
-        }
-        const listeners = this._events[event];
-        if (!listeners || !listeners.length) {
-            this._clearOnEmit = false;
-            return this;
-        }
-        const queue = this._queue;
-        const startIndex = queue.length;
-        queue.push(...listeners);
-        if (this._clearOnEmit) {
-            listeners.length = 0;
-            this._clearOnEmit = false;
-        }
-        ++this._counter;
-        let i = startIndex;
-        const endIndex = queue.length;
-        for (; i < endIndex; i++) {
-            queue[i](...args);
-            if (!this._events)
-                return this;
-        }
-        --this._counter;
-        if (!this._counter)
-            queue.length = 0;
-        return this;
-    }
-    burst(event, ...args) {
-        if (!this._events)
-            return this;
-        this._clearOnEmit = true;
-        return this.emit(event, ...args);
-    }
-    countListeners(event) {
-        if (!this._events)
-            return 0;
-        const listeners = this._events[event];
-        return listeners ? listeners.length : 0;
-    }
-    destroy() {
-        if (!this._events)
-            return this;
-        this._queue.length = this._counter = 0;
-        this._events = null;
-        return this;
-    }
-}
-
 const vendorPrefixes = ['', 'webkit', 'moz', 'ms', 'o', 'Webkit', 'Moz', 'MS', 'O'];
 const cache = new Map();
 function getPrefixedPropName(style, styleProp) {
@@ -1360,7 +1273,7 @@ class DragProxy {
         if (this._draggers.size)
             this._deactivate();
         this._draggers.clear();
-        this._emitter.destroy();
+        this._emitter.off();
     }
     _activate() {
         window.addEventListener(SOURCE_EVENTS.move, this._onMove, this._listenerOptions);
@@ -1565,7 +1478,7 @@ class Dragger {
         if (!element)
             return;
         this.reset();
-        this._emitter.destroy();
+        this._emitter.off();
         element.removeEventListener(SOURCE_EVENTS.start, this.onStart, getListenerOptions(this._listenerType));
         element.removeEventListener('dragstart', preventDefault, false);
         element.removeEventListener(TOUCH_EVENTS.start, preventDefault, true);
@@ -2961,12 +2874,12 @@ class ItemLayout {
         const animEnabled = !instant && !this._skipNextAnimation && animDuration > 0;
         if (isPositioning) {
             cancelLayoutTick(item.id);
-            item._emitter.burst(this._queue, true, item);
+            item._emitter.emit(this._queue, true, item);
         }
         if (isJustReleased)
             release._isPositioning = true;
         if (onFinish && isFunction(onFinish)) {
-            item._emitter.on(this._queue, onFinish);
+            item._emitter.once(this._queue, onFinish);
         }
         this._skipNextAnimation = false;
         if (!animEnabled) {
@@ -3004,14 +2917,14 @@ class ItemLayout {
         removeClass(item.element, itemPositioningClass);
         this._isActive = false;
         if (processCallbackQueue) {
-            item._emitter.burst(this._queue, true, item);
+            item._emitter.emit(this._queue, true, item);
         }
     }
     destroy() {
         if (!this.item)
             return;
         this.stop(true, 0, 0);
-        this.item._emitter.clear(this._queue);
+        this.item._emitter.off(this._queue);
         this.animator.destroy();
         const { style } = this.item.element;
         style[transformProp] = '';
@@ -3034,7 +2947,7 @@ class ItemLayout {
             item._dragRelease.stop();
         if (item._migrate.isActive())
             item._migrate.stop();
-        item._emitter.burst(this._queue, false, item);
+        item._emitter.emit(this._queue, false, item);
     }
     _setupAnimation() {
         if (!this.item || !this.isActive())
@@ -3318,11 +3231,11 @@ class ItemVisibility {
             return;
         }
         if (this._isShowing && !instant) {
-            callback && item._emitter.on(this._queue, callback);
+            callback && item._emitter.once(this._queue, callback);
             return;
         }
         if (!this._isShowing) {
-            item._emitter.burst(this._queue, true, item);
+            item._emitter.emit(this._queue, true, item);
             const { settings } = item.getGrid();
             if (settings) {
                 removeClass(item.element, settings.itemHiddenClass);
@@ -3331,7 +3244,7 @@ class ItemVisibility {
             if (!this._isHiding)
                 item.element.style.display = '';
         }
-        callback && item._emitter.on(this._queue, callback);
+        callback && item._emitter.once(this._queue, callback);
         this._isShowing = true;
         this._isHiding = this._isHidden = false;
         this._startAnimation(true, instant, this._finishShow);
@@ -3346,16 +3259,16 @@ class ItemVisibility {
             return;
         }
         if (this._isHiding && !instant) {
-            callback && item._emitter.on(this._queue, callback);
+            callback && item._emitter.once(this._queue, callback);
             return;
         }
         if (!this._isHiding) {
-            item._emitter.burst(this._queue, true, item);
+            item._emitter.emit(this._queue, true, item);
             const { settings } = item.getGrid();
             addClass(item.element, settings.itemHiddenClass);
             removeClass(item.element, settings.itemVisibleClass);
         }
-        callback && item._emitter.on(this._queue, callback);
+        callback && item._emitter.once(this._queue, callback);
         this._isHidden = this._isHiding = true;
         this._isShowing = false;
         this._startAnimation(false, instant, this._finishHide);
@@ -3367,7 +3280,7 @@ class ItemVisibility {
         cancelVisibilityTick(item.id);
         this.animator.stop();
         if (processCallbackQueue) {
-            item._emitter.burst(this._queue, true, item);
+            item._emitter.emit(this._queue, true, item);
         }
     }
     setStyles(styles) {
@@ -3388,7 +3301,7 @@ class ItemVisibility {
         const itemElement = item.element;
         const { settings } = item.getGrid();
         this.stop(true);
-        item._emitter.clear(this._queue);
+        item._emitter.off(this._queue);
         this.animator.destroy();
         this._removeCurrentStyles();
         if (settings) {
@@ -3466,7 +3379,7 @@ class ItemVisibility {
         if (!this.item || this._isHidden)
             return;
         this._isShowing = false;
-        this.item._emitter.burst(this._queue, false, this.item);
+        this.item._emitter.emit(this._queue, false, this.item);
     }
     _finishHide() {
         if (!this.item || !this._isHidden)
@@ -3475,7 +3388,7 @@ class ItemVisibility {
         this._isHiding = false;
         item._layout.stop(true, 0, 0);
         item.element.style.display = 'none';
-        item._emitter.burst(this._queue, false, item);
+        item._emitter.emit(this._queue, false, item);
     }
     _removeCurrentStyles() {
         if (!this.element)
@@ -3693,7 +3606,7 @@ class Item {
         this._visibility.destroy();
         if (this._drag)
             this._drag.destroy();
-        this._emitter.destroy();
+        this._emitter.off();
         removeClass(element, settings.itemClass);
         if (removeElement)
             (_a = element.parentNode) === null || _a === void 0 ? void 0 : _a.removeChild(element);
@@ -5047,7 +4960,7 @@ class Grid {
         GRID_INSTANCES.delete(this.id);
         this._isDestroyed = true;
         this._emitter.emit(EVENT_DESTROY);
-        this._emitter.destroy();
+        this._emitter.off();
         return this;
     }
     _emit(event, ...args) {
@@ -5058,7 +4971,7 @@ class Grid {
     _hasListeners(event) {
         if (this._isDestroyed)
             return false;
-        return this._emitter.countListeners(event) > 0;
+        return this._emitter.listenerCount(event) > 0;
     }
     _updateBoundingRect() {
         const { _rect } = this;
@@ -5348,4 +5261,4 @@ Grid.defaultOptions = {
     _animationWindowing: false,
 };
 
-export { Animator, AutoScroller, Dragger, Emitter, Grid, Item, ItemDrag, ItemDragPlaceholder, ItemDragRelease, ItemLayout, ItemMigrate, ItemVisibility, PHASE_READ, PHASE_READ_TAIL, PHASE_SETUP, PHASE_WRITE, Packer, addAutoScrollTick, addDebounceTick, addDragMoveTick, addDragScrollTick, addDragSortTick, addDragStartTick, addLayoutTick, addPlaceholderLayoutTick, addPlaceholderResizeTick, addReleaseScrollTick, addVisibilityTick, cancelAutoScrollTick, cancelDebounceTick, cancelDragMoveTick, cancelDragScrollTick, cancelDragSortTick, cancelDragStartTick, cancelLayoutTick, cancelPlaceholderLayoutTick, cancelPlaceholderResizeTick, cancelReleaseScrollTick, cancelVisibilityTick, ticker };
+export { Animator, AutoScroller, Dragger, Grid, Item, ItemDrag, ItemDragPlaceholder, ItemDragRelease, ItemLayout, ItemMigrate, ItemVisibility, PHASE_READ, PHASE_READ_TAIL, PHASE_SETUP, PHASE_WRITE, Packer, addAutoScrollTick, addDebounceTick, addDragMoveTick, addDragScrollTick, addDragSortTick, addDragStartTick, addLayoutTick, addPlaceholderLayoutTick, addPlaceholderResizeTick, addReleaseScrollTick, addVisibilityTick, cancelAutoScrollTick, cancelDebounceTick, cancelDragMoveTick, cancelDragScrollTick, cancelDragSortTick, cancelDragStartTick, cancelLayoutTick, cancelPlaceholderLayoutTick, cancelPlaceholderResizeTick, cancelReleaseScrollTick, cancelVisibilityTick, ticker };

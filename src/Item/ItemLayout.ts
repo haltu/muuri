@@ -101,7 +101,7 @@ export class ItemLayout {
     // and process current layout callback queue with interrupted flag on.
     if (isPositioning) {
       cancelLayoutTick(item.id);
-      item._emitter.burst(this._queue, true, item);
+      item._emitter.emit(this._queue, true, item);
     }
 
     // Mark release positioning as started.
@@ -109,7 +109,7 @@ export class ItemLayout {
 
     // Push the callback to the callback queue.
     if (onFinish && isFunction(onFinish)) {
-      item._emitter.on(this._queue, onFinish);
+      item._emitter.once(this._queue, onFinish);
     }
 
     // Reset animation skipping flag.
@@ -175,7 +175,7 @@ export class ItemLayout {
 
     // Process callback queue if needed.
     if (processCallbackQueue) {
-      item._emitter.burst(this._queue, true, item);
+      item._emitter.emit(this._queue, true, item);
     }
   }
 
@@ -188,7 +188,7 @@ export class ItemLayout {
     if (!this.item) return;
 
     this.stop(true, 0, 0);
-    this.item._emitter.clear(this._queue);
+    this.item._emitter.off(this._queue);
     this.animator.destroy();
 
     const { style } = this.item.element;
@@ -223,7 +223,7 @@ export class ItemLayout {
     if (item._migrate.isActive()) item._migrate.stop();
 
     // Process the callback queue.
-    item._emitter.burst(this._queue, false, item);
+    item._emitter.emit(this._queue, false, item);
   }
 
   /**

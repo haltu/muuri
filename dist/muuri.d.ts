@@ -1,3 +1,4 @@
+import { Emitter, EventName, EventListener } from 'eventti';
 import { Ticker, PhaseListener } from 'tikki';
 
 interface AnimationProperties {
@@ -23,25 +24,6 @@ declare class Animator {
 declare const ACTION_SWAP = "swap";
 declare const ACTION_MOVE = "move";
 declare const INSTANT_LAYOUT = "instant";
-
-declare type EmitterEvent = string;
-declare type EmitterListener = Function;
-declare class Emitter {
-    protected _events: {
-        [event: string]: EmitterListener[];
-    } | null;
-    protected _queue: EmitterListener[];
-    protected _counter: number;
-    protected _clearOnEmit: boolean;
-    constructor();
-    on(event: EmitterEvent, listener: EmitterListener): this;
-    off(event: EmitterEvent, listener: EmitterListener): this;
-    clear(event: EmitterEvent): this;
-    emit(event: EmitterEvent, ...args: any[]): this;
-    burst(event: EmitterEvent, ...args: any[]): this;
-    countListeners(event: EmitterEvent): number;
-    destroy(): this;
-}
 
 interface Rect {
   left: number;
@@ -199,15 +181,15 @@ interface DraggerCancelEvent extends DraggerEvent {
     isFinal: true;
 }
 declare type DraggerAnyEvent = DraggerStartEvent | DraggerMoveEvent | DraggerCancelEvent | DraggerEndEvent;
-interface DraggerEvents {
+declare type DraggerEvents = {
     start(event: DraggerStartEvent): any;
     move(event: DraggerMoveEvent): any;
     end(event: DraggerEndEvent): any;
     cancel(event: DraggerCancelEvent): any;
-}
+};
 declare class Dragger {
     readonly element: HTMLElement | null;
-    protected _emitter: Emitter;
+    protected _emitter: Emitter<DraggerEvents>;
     protected _cssProps: {
         [key: string]: string;
     };
@@ -308,7 +290,7 @@ interface DragAutoScrollOptions {
     onStart?: AutoScrollEventCallback | null;
     onStop?: AutoScrollEventCallback | null;
 }
-interface GridEvents {
+declare type GridEvents = {
     synchronize(): any;
     layoutStart(items: Item[], isInstant: boolean): any;
     layoutEnd(items: Item[]): any;
@@ -363,7 +345,7 @@ interface GridEvents {
     dragReleaseStart(item: Item): any;
     dragReleaseEnd(item: Item): any;
     destroy(): any;
-}
+};
 interface GridSettings {
     items: HTMLElement[] | NodeList | HTMLCollection | string;
     layoutOnInit: boolean;
@@ -440,7 +422,7 @@ declare class Grid {
         cancel?: LayoutCancel | null;
     } | null;
     _resizeHandler: ReturnType<typeof debounce> | null;
-    _emitter: Emitter;
+    _emitter: Emitter<GridEvents>;
     constructor(element: string | HTMLElement, options?: GridInitOptions);
     static defaultPacker: Packer;
     static defaultOptions: GridSettings;
@@ -713,7 +695,7 @@ declare class Item {
     _sortData: {
         [key: string]: any;
     } | null;
-    _emitter: Emitter;
+    _emitter: Emitter<Record<EventName, EventListener>>;
     _visibility: ItemVisibility;
     _layout: ItemLayout;
     _migrate: ItemMigrate;
@@ -907,4 +889,4 @@ declare function cancelAutoScrollTick(): void;
 declare function addDebounceTick(debounceId: string | number, read: PhaseListener): void;
 declare function cancelDebounceTick(debounceId: string | number): void;
 
-export { AnimationOptions, AnimationProperties, Animator, AutoScrollAxis, AutoScrollDirection, AutoScrollDirectionX, AutoScrollDirectionY, AutoScrollEventCallback, AutoScrollHandleCallback, AutoScrollSpeedCallback, AutoScrollSpeedData, AutoScrollTarget, AutoScroller, DragAutoScrollOptions, DragPlaceholderOptions, DragReleaseOptions, DragSortGetter, DragSortHeuristicsOptions, DragSortPredicate, DragSortPredicateOptions, DragSortPredicateResult, DragStartPredicate, DragStartPredicateOptions, Dragger, DraggerAnyEvent, DraggerCancelEvent, DraggerCssPropsOptions, DraggerEndEvent, DraggerEvent, DraggerEventType, DraggerEvents, DraggerListenerOptions, DraggerMoveEvent, DraggerPointerType, DraggerStartEvent, DraggerTouchAction, Emitter, EmitterEvent, EmitterListener, Grid, GridEvents, GridInitOptions, GridOptions, GridSettings, Item, ItemDrag, ItemDragPlaceholder, ItemDragRelease, ItemLayout, ItemMigrate, ItemVisibility, LayoutData, LayoutFunction, PHASE_READ, PHASE_READ_TAIL, PHASE_SETUP, PHASE_WRITE, Packer, PackerContainerData, PackerLayoutCallback, PackerLayoutData, PackerLayoutId, PackerLayoutItem, PackerLayoutOptions, PackerLayoutPacket, PackerLayoutSettingsMasks, addAutoScrollTick, addDebounceTick, addDragMoveTick, addDragScrollTick, addDragSortTick, addDragStartTick, addLayoutTick, addPlaceholderLayoutTick, addPlaceholderResizeTick, addReleaseScrollTick, addVisibilityTick, cancelAutoScrollTick, cancelDebounceTick, cancelDragMoveTick, cancelDragScrollTick, cancelDragSortTick, cancelDragStartTick, cancelLayoutTick, cancelPlaceholderLayoutTick, cancelPlaceholderResizeTick, cancelReleaseScrollTick, cancelVisibilityTick, ticker };
+export { AnimationOptions, AnimationProperties, Animator, AutoScrollAxis, AutoScrollDirection, AutoScrollDirectionX, AutoScrollDirectionY, AutoScrollEventCallback, AutoScrollHandleCallback, AutoScrollSpeedCallback, AutoScrollSpeedData, AutoScrollTarget, AutoScroller, DragAutoScrollOptions, DragPlaceholderOptions, DragReleaseOptions, DragSortGetter, DragSortHeuristicsOptions, DragSortPredicate, DragSortPredicateOptions, DragSortPredicateResult, DragStartPredicate, DragStartPredicateOptions, Dragger, DraggerAnyEvent, DraggerCancelEvent, DraggerCssPropsOptions, DraggerEndEvent, DraggerEvent, DraggerEventType, DraggerEvents, DraggerListenerOptions, DraggerMoveEvent, DraggerPointerType, DraggerStartEvent, DraggerTouchAction, Grid, GridEvents, GridInitOptions, GridOptions, GridSettings, Item, ItemDrag, ItemDragPlaceholder, ItemDragRelease, ItemLayout, ItemMigrate, ItemVisibility, LayoutData, LayoutFunction, PHASE_READ, PHASE_READ_TAIL, PHASE_SETUP, PHASE_WRITE, Packer, PackerContainerData, PackerLayoutCallback, PackerLayoutData, PackerLayoutId, PackerLayoutItem, PackerLayoutOptions, PackerLayoutPacket, PackerLayoutSettingsMasks, addAutoScrollTick, addDebounceTick, addDragMoveTick, addDragScrollTick, addDragSortTick, addDragStartTick, addLayoutTick, addPlaceholderLayoutTick, addPlaceholderResizeTick, addReleaseScrollTick, addVisibilityTick, cancelAutoScrollTick, cancelDebounceTick, cancelDragMoveTick, cancelDragScrollTick, cancelDragSortTick, cancelDragStartTick, cancelLayoutTick, cancelPlaceholderLayoutTick, cancelPlaceholderResizeTick, cancelReleaseScrollTick, cancelVisibilityTick, ticker };

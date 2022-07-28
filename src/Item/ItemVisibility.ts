@@ -112,7 +112,7 @@ export class ItemVisibility {
     // If item is showing and does not need to be shown instantly, let's just
     // push callback to the callback queue and be done with it.
     if (this._isShowing && !instant) {
-      callback && item._emitter.on(this._queue, callback);
+      callback && item._emitter.once(this._queue, callback);
       return;
     }
 
@@ -120,7 +120,7 @@ export class ItemVisibility {
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isShowing) {
-      item._emitter.burst(this._queue, true, item);
+      item._emitter.emit(this._queue, true, item);
       const { settings } = item.getGrid() as Grid;
       if (settings) {
         removeClass(item.element, settings.itemHiddenClass);
@@ -130,7 +130,7 @@ export class ItemVisibility {
     }
 
     // Push callback to the callback queue.
-    callback && item._emitter.on(this._queue, callback);
+    callback && item._emitter.once(this._queue, callback);
 
     // Update visibility states.
     this._isShowing = true;
@@ -162,7 +162,7 @@ export class ItemVisibility {
     // If item is hiding and does not need to be hidden instantly, let's just
     // push callback to the callback queue and be done with it.
     if (this._isHiding && !instant) {
-      callback && item._emitter.on(this._queue, callback);
+      callback && item._emitter.once(this._queue, callback);
       return;
     }
 
@@ -170,14 +170,14 @@ export class ItemVisibility {
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isHiding) {
-      item._emitter.burst(this._queue, true, item);
+      item._emitter.emit(this._queue, true, item);
       const { settings } = item.getGrid() as Grid;
       addClass(item.element, settings.itemHiddenClass);
       removeClass(item.element, settings.itemVisibleClass);
     }
 
     // Push callback to the callback queue.
-    callback && item._emitter.on(this._queue, callback);
+    callback && item._emitter.once(this._queue, callback);
 
     // Update visibility states.
     this._isHidden = this._isHiding = true;
@@ -201,7 +201,7 @@ export class ItemVisibility {
     cancelVisibilityTick(item.id);
     this.animator.stop();
     if (processCallbackQueue) {
-      item._emitter.burst(this._queue, true, item);
+      item._emitter.emit(this._queue, true, item);
     }
   }
 
@@ -241,7 +241,7 @@ export class ItemVisibility {
     const { settings } = item.getGrid() as Grid;
 
     this.stop(true);
-    item._emitter.clear(this._queue);
+    item._emitter.off(this._queue);
     this.animator.destroy();
     this._removeCurrentStyles();
     if (settings) {
@@ -361,7 +361,7 @@ export class ItemVisibility {
   _finishShow() {
     if (!this.item || this._isHidden) return;
     this._isShowing = false;
-    this.item._emitter.burst(this._queue, false, this.item);
+    this.item._emitter.emit(this._queue, false, this.item);
   }
 
   /**
@@ -373,7 +373,7 @@ export class ItemVisibility {
     this._isHiding = false;
     item._layout.stop(true, 0, 0);
     item.element.style.display = 'none';
-    item._emitter.burst(this._queue, false, item);
+    item._emitter.emit(this._queue, false, item);
   }
 
   /**

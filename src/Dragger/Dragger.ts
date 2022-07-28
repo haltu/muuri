@@ -12,7 +12,7 @@ import {
   IS_FIREFOX,
   IS_ANDROID,
 } from '../constants';
-import { Emitter } from '../Emitter/Emitter';
+import { Emitter } from 'eventti';
 import { getPrefixedPropName } from '../utils/getPrefixedPropName';
 import { Writeable } from '../types';
 
@@ -92,12 +92,12 @@ export type DraggerAnyEvent =
   | DraggerCancelEvent
   | DraggerEndEvent;
 
-export interface DraggerEvents {
+export type DraggerEvents = {
   start(event: DraggerStartEvent): any;
   move(event: DraggerMoveEvent): any;
   end(event: DraggerEndEvent): any;
   cancel(event: DraggerCancelEvent): any;
-}
+};
 
 const POINTER_EVENTS = {
   start: 'pointerdown',
@@ -204,7 +204,11 @@ function getTouchById(
  * dragger instances.
  */
 class DragProxy {
-  protected _emitter: Emitter;
+  protected _emitter: Emitter<{
+    move: (e: PointerEvent | TouchEvent | MouseEvent) => void;
+    cancel: (e: PointerEvent | TouchEvent | MouseEvent) => void;
+    end: (e: PointerEvent | TouchEvent | MouseEvent) => void;
+  }>;
   protected _listenerOptions: ReturnType<typeof getListenerOptions>;
   protected _draggers: Set<Dragger>;
 
@@ -250,7 +254,7 @@ class DragProxy {
   destroy() {
     if (this._draggers.size) this._deactivate();
     this._draggers.clear();
-    this._emitter.destroy();
+    this._emitter.off();
   }
 
   protected _activate() {
@@ -290,7 +294,7 @@ if (HAS_PASSIVE_EVENTS) dragProxies.push(new DragProxy(2), new DragProxy(3));
  */
 export class Dragger {
   readonly element: HTMLElement | null;
-  protected _emitter: Emitter;
+  protected _emitter: Emitter<DraggerEvents>;
   protected _cssProps: { [key: string]: string };
   protected _touchAction: DraggerTouchAction;
   protected _listenerType: DraggerListenerType;
@@ -615,7 +619,7 @@ export class Dragger {
     this.reset();
 
     // Destroy emitter.
-    this._emitter.destroy();
+    this._emitter.off();
 
     // Unbind event handlers.
     element.removeEventListener(
@@ -667,6 +671,6 @@ export class Dragger {
   }
 
   protected _emit(type: DraggerEventType, e: PointerEvent | TouchEvent | MouseEvent) {
-    this._emitter.emit(type, this._createEvent(type, e));
+    this._emitter.emit(type, this._createEvent(type, e) as any);
   }
 }

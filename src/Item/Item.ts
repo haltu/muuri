@@ -5,6 +5,7 @@
  */
 
 import { GRID_INSTANCES, ITEM_ELEMENT_MAP } from '../constants';
+import { Emitter, EventName, EventListener } from 'eventti';
 import { Grid } from '../Grid/Grid';
 import { ItemDrag } from './ItemDrag';
 import { ItemDragPlaceholder } from './ItemDragPlaceholder';
@@ -12,7 +13,6 @@ import { ItemDragRelease } from './ItemDragRelease';
 import { ItemLayout } from './ItemLayout';
 import { ItemMigrate } from './ItemMigrate';
 import { ItemVisibility } from './ItemVisibility';
-import { Emitter } from '../Emitter/Emitter';
 import { addClass } from '../utils/addClass';
 import { createTranslate } from '../utils/createTranslate';
 import { createUid } from '../utils/createUid';
@@ -54,7 +54,7 @@ export class Item {
   _containerDiffX: number;
   _containerDiffY: number;
   _sortData: { [key: string]: any } | null;
-  _emitter: Emitter;
+  _emitter: Emitter<Record<EventName, EventListener>>;
   _visibility: ItemVisibility;
   _layout: ItemLayout;
   _migrate: ItemMigrate;
@@ -294,7 +294,6 @@ export class Item {
 
   /**
    * Remove item from layout.
-   *
    */
   _removeFromLayout() {
     if (!this.isActive()) return;
@@ -416,7 +415,7 @@ export class Item {
     if (this._drag) this._drag.destroy();
 
     // Destroy emitter.
-    this._emitter.destroy();
+    this._emitter.off();
 
     // Remove item class.
     removeClass(element, settings.itemClass);

@@ -37,16 +37,7 @@ import {
   DraggerCancelEvent,
   DraggerAnyEvent,
 } from '../Dragger/Dragger';
-import {
-  addDragStartTick,
-  cancelDragStartTick,
-  addDragMoveTick,
-  cancelDragMoveTick,
-  addDragScrollTick,
-  cancelDragScrollTick,
-  addDragSortTick,
-  cancelDragSortTick,
-} from '../ticker';
+import { ticker, PHASE_READ, PHASE_READ_TAIL, PHASE_WRITE } from '../ticker';
 import { addClass } from '../utils/addClass';
 import { arrayInsert } from '../utils/arrayInsert';
 import { arrayMove } from '../utils/arrayMove';
@@ -388,6 +379,10 @@ export class ItemDrag {
   _isMigrated: boolean;
   _isActive: boolean;
   _isStarted: boolean;
+  _dragStartId: symbol;
+  _dragMoveId: symbol;
+  _dragScrollId: symbol;
+  _dragSortId: symbol;
   _startPredicateState: number;
   _startPredicateData: {
     distance: number;
@@ -430,6 +425,10 @@ export class ItemDrag {
     this._isMigrated = false;
     this._isActive = false;
     this._isStarted = false;
+    this._dragStartId = Symbol();
+    this._dragMoveId = Symbol();
+    this._dragScrollId = Symbol();
+    this._dragSortId = Symbol();
     this._startPredicateState = START_PREDICATE_INACTIVE;
     this._startPredicateData = null;
 
@@ -550,9 +549,12 @@ export class ItemDrag {
     ItemDrag.autoScroll.removeItem(item as any as Item);
 
     // Cancel queued ticks.
-    cancelDragStartTick(item.id);
-    cancelDragMoveTick(item.id);
-    cancelDragScrollTick(item.id);
+    ticker.off(PHASE_READ, this._dragStartId);
+    ticker.off(PHASE_WRITE, this._dragStartId);
+    ticker.off(PHASE_READ, this._dragMoveId);
+    ticker.off(PHASE_WRITE, this._dragMoveId);
+    ticker.off(PHASE_READ, this._dragScrollId);
+    ticker.off(PHASE_WRITE, this._dragScrollId);
 
     // Cancel sort procedure.
     this._cancelSort();
@@ -604,7 +606,7 @@ export class ItemDrag {
       if (force) {
         this._handleSort();
       } else {
-        addDragSortTick(this.item.id, this._handleSort);
+        ticker.once(PHASE_READ_TAIL, this._handleSort, this._dragSortId);
       }
     }
   }
@@ -816,7 +818,7 @@ export class ItemDrag {
     if (!this.item) return;
     this._isSortNeeded = true;
     this._sortTimer = undefined;
-    addDragSortTick(this.item.id, this._handleSort);
+    ticker.once(PHASE_READ_TAIL, this._handleSort, this._dragSortId);
   }
 
   /**
@@ -828,7 +830,7 @@ export class ItemDrag {
     if (this._sortTimer !== undefined) {
       this._sortTimer = void window.clearTimeout(this._sortTimer);
     }
-    cancelDragSortTick(this.item.id);
+    ticker.off(PHASE_READ_TAIL, this._dragSortId);
   }
 
   /**
@@ -1157,7 +1159,8 @@ export class ItemDrag {
     this._isActive = true;
     this._dragStartEvent = event;
     ItemDrag.autoScroll.addItem(this.item as any as Item, this._translateX, this._translateY);
-    addDragStartTick(this.item.id, this._prepareStart, this._applyStart);
+    ticker.once(PHASE_READ, this._prepareStart, this._dragStartId);
+    ticker.once(PHASE_WRITE, this._applyStart, this._dragStartId);
   }
 
   /**
@@ -1268,10 +1271,11 @@ export class ItemDrag {
       return;
     }
 
-    const itemId = this.item.id;
     this._dragMoveEvent = event;
-    addDragMoveTick(itemId, this._prepareMove, this._applyMove);
-    addDragSortTick(itemId, this._handleSort);
+
+    ticker.once(PHASE_READ, this._prepareMove, this._dragMoveId);
+    ticker.once(PHASE_WRITE, this._applyMove, this._dragMoveId);
+    ticker.once(PHASE_READ_TAIL, this._handleSort, this._dragSortId);
   }
 
   /**
@@ -1335,10 +1339,11 @@ export class ItemDrag {
       return;
     }
 
-    const itemId = this.item.id;
     this._scrollEvent = event as ScrollEvent;
-    addDragScrollTick(itemId, this._prepareScroll, this._applyScroll);
-    addDragSortTick(itemId, this._handleSort);
+
+    ticker.once(PHASE_READ, this._prepareScroll, this._dragScrollId);
+    ticker.once(PHASE_WRITE, this._applyScroll, this._dragScrollId);
+    ticker.once(PHASE_READ_TAIL, this._handleSort, this._dragSortId);
   }
 
   /**
@@ -1414,9 +1419,12 @@ export class ItemDrag {
     this._dragEndEvent = event;
 
     // Cancel queued ticks.
-    cancelDragStartTick(item.id);
-    cancelDragMoveTick(item.id);
-    cancelDragScrollTick(item.id);
+    ticker.off(PHASE_READ, this._dragStartId);
+    ticker.off(PHASE_WRITE, this._dragStartId);
+    ticker.off(PHASE_READ, this._dragMoveId);
+    ticker.off(PHASE_WRITE, this._dragMoveId);
+    ticker.off(PHASE_READ, this._dragScrollId);
+    ticker.off(PHASE_WRITE, this._dragScrollId);
 
     // Finish sort procedure (does final overlap check if needed).
     this._finishSort();

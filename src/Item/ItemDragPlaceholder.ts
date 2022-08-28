@@ -4,12 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import {
-  addPlaceholderLayoutTick,
-  cancelPlaceholderLayoutTick,
-  addPlaceholderResizeTick,
-  cancelPlaceholderResizeTick,
-} from '../ticker';
+import { ticker, PHASE_READ, PHASE_WRITE } from '../ticker';
 import {
   EVENT_BEFORE_SEND,
   EVENT_DRAG_RELEASE_END,
@@ -50,6 +45,8 @@ export class ItemDragPlaceholder {
   _transY: number;
   _nextTransX: number;
   _nextTransY: number;
+  _layoutListenerId: symbol;
+  _resizeListenerId: symbol;
 
   constructor(item: Item) {
     this.item = item;
@@ -65,6 +62,8 @@ export class ItemDragPlaceholder {
     this._transY = 0;
     this._nextTransX = 0;
     this._nextTransY = 0;
+    this._layoutListenerId = Symbol();
+    this._resizeListenerId = Symbol();
 
     // Bind animation handlers.
     this._setupAnimation = this._setupAnimation.bind(this);
@@ -167,8 +166,9 @@ export class ItemDragPlaceholder {
     this._resetAfterLayout = false;
 
     // Cancel potential (queued) layout tick.
-    cancelPlaceholderLayoutTick(item.id);
-    cancelPlaceholderResizeTick(item.id);
+    ticker.off(PHASE_READ, this._layoutListenerId);
+    ticker.off(PHASE_WRITE, this._layoutListenerId);
+    ticker.off(PHASE_WRITE, this._resizeListenerId);
 
     // Reset animation instance.
     animator.stop();
@@ -216,7 +216,7 @@ export class ItemDragPlaceholder {
    */
   updateDimensions() {
     if (!this.item || !this.isActive()) return;
-    addPlaceholderResizeTick(this.item.id, this._updateDimensions);
+    ticker.once(PHASE_WRITE, this._updateDimensions, this._resizeListenerId);
   }
 
   /**
@@ -299,7 +299,8 @@ export class ItemDragPlaceholder {
     const animEnabled = !isInstant && grid.settings.layoutDuration > 0;
     if (!animEnabled || this._didMigrate) {
       // Cancel potential (queued) layout tick.
-      cancelPlaceholderLayoutTick(item.id);
+      ticker.off(PHASE_READ, this._layoutListenerId);
+      ticker.off(PHASE_WRITE, this._layoutListenerId);
 
       // Snap placeholder to correct position.
       this.element.style[transformProp as 'transform'] = createTranslate(
@@ -325,11 +326,13 @@ export class ItemDragPlaceholder {
       this.animator.animation.onfinish = null;
     }
 
-    // Start the placeholder's layout animation in the next tick. We do this to
-    // avoid layout thrashing.
     this._nextTransX = nextX;
     this._nextTransY = nextY;
-    addPlaceholderLayoutTick(item.id, this._setupAnimation, this._startAnimation);
+
+    // Start the placeholder's layout animation in the next tick. We do this to
+    // avoid layout thrashing.
+    ticker.once(PHASE_READ, this._setupAnimation, this._layoutListenerId);
+    ticker.once(PHASE_WRITE, this._startAnimation, this._layoutListenerId);
   }
 
   /**

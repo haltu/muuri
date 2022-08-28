@@ -5,7 +5,7 @@
  */
 
 import { EVENT_DRAG_RELEASE_START, EVENT_DRAG_RELEASE_END, HAS_PASSIVE_EVENTS } from '../constants';
-import { addReleaseScrollTick, cancelReleaseScrollTick } from '../ticker';
+import { ticker, PHASE_READ, PHASE_WRITE } from '../ticker';
 import { Grid } from '../Grid/Grid';
 import { Item } from './Item';
 import { addClass } from '../utils/addClass';
@@ -26,11 +26,13 @@ const SCROLL_LISTENER_OPTIONS = HAS_PASSIVE_EVENTS ? { capture: true, passive: t
  */
 export class ItemDragRelease {
   readonly item: Item | null;
+  _id: symbol;
   _isActive: boolean;
   _isPositioning: boolean;
 
   constructor(item: Item) {
     this.item = item;
+    this._id = Symbol();
     this._isActive = false;
     this._isPositioning = false;
     this._onScroll = this._onScroll.bind(this);
@@ -133,7 +135,8 @@ export class ItemDragRelease {
     this._isActive = false;
     this._isPositioning = false;
 
-    cancelReleaseScrollTick(item.id);
+    ticker.off(PHASE_READ, this._id);
+    ticker.off(PHASE_WRITE, this._id);
     window.removeEventListener('scroll', this._onScroll, SCROLL_LISTENER_OPTIONS);
 
     // If the element was just reparented we need to do a forced reflow to
@@ -197,8 +200,8 @@ export class ItemDragRelease {
     let diffX = 0;
     let diffY = 0;
 
-    addReleaseScrollTick(
-      item.id,
+    ticker.once(
+      PHASE_READ,
       () => {
         if (!this.isActive()) return;
 
@@ -210,6 +213,11 @@ export class ItemDragRelease {
           diffY = top;
         }
       },
+      this._id
+    );
+
+    ticker.once(
+      PHASE_WRITE,
       () => {
         if (!this.isActive()) return;
 
@@ -223,7 +231,8 @@ export class ItemDragRelease {
           item._layout.stop(true, item.left, item.top);
           this.stop(false, item.left, item.top);
         }
-      }
+      },
+      this._id
     );
   }
 }

@@ -4,9 +4,7 @@
  * https://github.com/haltu/muuri/blob/master/LICENSE.md
  */
 
-import { addDebounceTick, cancelDebounceTick } from '../ticker';
-
-let debounceId = 0;
+import { ticker, PHASE_READ } from '../ticker';
 
 /**
  * Returns a function, that, as long as it continues to be invoked, will not
@@ -20,7 +18,7 @@ let debounceId = 0;
  * @returns {Function}
  */
 export function debounce(fn: () => void, durationMs: number) {
-  let id = ++debounceId;
+  let id = Symbol();
   let timer = 0;
   let lastTime = 0;
   let isCanceled = false;
@@ -31,7 +29,9 @@ export function debounce(fn: () => void, durationMs: number) {
     lastTime = time;
 
     if (timer > 0) {
-      tick && addDebounceTick(id, tick);
+      if (tick) {
+        ticker.once(PHASE_READ, tick, id);
+      }
     } else {
       timer = lastTime = 0;
       fn();
@@ -50,7 +50,7 @@ export function debounce(fn: () => void, durationMs: number) {
       isCanceled = true;
       timer = lastTime = 0;
       tick = undefined;
-      cancelDebounceTick(id);
+      ticker.off(PHASE_READ, id);
       return;
     }
 

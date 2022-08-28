@@ -5,7 +5,7 @@
  * https://github.com/haltu/muuri/blob/master/src/AutoScroller/LICENSE.md
  */
 
-import { addAutoScrollTick, cancelAutoScrollTick } from '../ticker';
+import { ticker, PHASE_READ, PHASE_WRITE } from '../ticker';
 import { Grid } from '../Grid/Grid';
 import { Item } from '../Item/Item';
 import { ItemDrag } from '~Item/ItemDrag';
@@ -476,6 +476,7 @@ class ScrollRequest {
 //
 
 export class AutoScroller {
+  protected _id: symbol;
   protected _isDestroyed: boolean;
   protected _isTicking: boolean;
   protected _tickTime: number;
@@ -497,6 +498,7 @@ export class AutoScroller {
   protected _actionPool: ObjectPool<ScrollAction>;
 
   constructor() {
+    this._id = Symbol();
     this._isDestroyed = false;
     this._isTicking = false;
     this._tickTime = 0;
@@ -651,19 +653,22 @@ export class AutoScroller {
   protected _writeTick() {
     if (this._isDestroyed) return;
     this._applyActions();
-    addAutoScrollTick(this._readTick, this._writeTick);
+    ticker.once(PHASE_READ, this._readTick, this._id);
+    ticker.once(PHASE_WRITE, this._writeTick, this._id);
   }
 
   protected _startTicking() {
     this._isTicking = true;
-    addAutoScrollTick(this._readTick, this._writeTick);
+    ticker.once(PHASE_READ, this._readTick, this._id);
+    ticker.once(PHASE_WRITE, this._writeTick, this._id);
   }
 
   protected _stopTicking() {
     this._isTicking = false;
     this._tickTime = 0;
     this._tickDeltaTime = 0;
-    cancelAutoScrollTick();
+    ticker.off(PHASE_READ, this._id);
+    ticker.off(PHASE_WRITE, this._id);
   }
 
   protected _getItemHandleRect(

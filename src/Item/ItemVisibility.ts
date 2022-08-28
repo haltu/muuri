@@ -5,7 +5,7 @@
  */
 
 import { VIEWPORT_THRESHOLD } from '../constants';
-import { addVisibilityTick, cancelVisibilityTick } from '../ticker';
+import { ticker, PHASE_READ, PHASE_WRITE } from '../ticker';
 import { Grid } from '../Grid/Grid';
 import { Item } from './Item';
 import { Animator } from '../Animator/Animator';
@@ -26,11 +26,11 @@ export class ItemVisibility {
   readonly item: Item | null;
   readonly element: HTMLElement | null;
   readonly animator: Animator;
+  _id: symbol;
   _isHidden: boolean;
   _isHiding: boolean;
   _isShowing: boolean;
   _currentStyleProps: string[];
-  _queue: string;
 
   constructor(item: Item) {
     const element = item.element.children[0] as HTMLElement | null;
@@ -44,11 +44,11 @@ export class ItemVisibility {
     this.element = element;
     this.animator = new Animator(element);
 
+    this._id = Symbol();
     this._isHidden = !isActive;
     this._isHiding = false;
     this._isShowing = false;
     this._currentStyleProps = [];
-    this._queue = 'visibility-' + item.id;
 
     this._finishShow = this._finishShow.bind(this);
     this._finishHide = this._finishHide.bind(this);
@@ -112,7 +112,7 @@ export class ItemVisibility {
     // If item is showing and does not need to be shown instantly, let's just
     // push callback to the callback queue and be done with it.
     if (this._isShowing && !instant) {
-      callback && item._emitter.once(this._queue, callback);
+      callback && item._emitter.once(this._id, callback);
       return;
     }
 
@@ -120,7 +120,7 @@ export class ItemVisibility {
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isShowing) {
-      item._emitter.emit(this._queue, true, item);
+      item._emitter.emit(this._id, true, item);
       const { settings } = item.getGrid() as Grid;
       if (settings) {
         removeClass(item.element, settings.itemHiddenClass);
@@ -130,7 +130,7 @@ export class ItemVisibility {
     }
 
     // Push callback to the callback queue.
-    callback && item._emitter.once(this._queue, callback);
+    callback && item._emitter.once(this._id, callback);
 
     // Update visibility states.
     this._isShowing = true;
@@ -162,7 +162,7 @@ export class ItemVisibility {
     // If item is hiding and does not need to be hidden instantly, let's just
     // push callback to the callback queue and be done with it.
     if (this._isHiding && !instant) {
-      callback && item._emitter.once(this._queue, callback);
+      callback && item._emitter.once(this._id, callback);
       return;
     }
 
@@ -170,14 +170,14 @@ export class ItemVisibility {
     // queue with the interrupted flag active, update classes and set display
     // to block if necessary.
     if (!this._isHiding) {
-      item._emitter.emit(this._queue, true, item);
+      item._emitter.emit(this._id, true, item);
       const { settings } = item.getGrid() as Grid;
       addClass(item.element, settings.itemHiddenClass);
       removeClass(item.element, settings.itemVisibleClass);
     }
 
     // Push callback to the callback queue.
-    callback && item._emitter.once(this._queue, callback);
+    callback && item._emitter.once(this._id, callback);
 
     // Update visibility states.
     this._isHidden = this._isHiding = true;
@@ -198,10 +198,12 @@ export class ItemVisibility {
 
     const { item } = this;
 
-    cancelVisibilityTick(item.id);
+    ticker.off(PHASE_READ, this._id);
+    ticker.off(PHASE_WRITE, this._id);
+
     this.animator.stop();
     if (processCallbackQueue) {
-      item._emitter.emit(this._queue, true, item);
+      item._emitter.emit(this._id, true, item);
     }
   }
 
@@ -241,7 +243,7 @@ export class ItemVisibility {
     const { settings } = item.getGrid() as Grid;
 
     this.stop(true);
-    item._emitter.off(this._queue);
+    item._emitter.off(this._id);
     this.animator.destroy();
     this._removeCurrentStyles();
     if (settings) {
@@ -282,7 +284,8 @@ export class ItemVisibility {
     }
 
     // Cancel queued visibility tick.
-    cancelVisibilityTick(item.id);
+    ticker.off(PHASE_READ, this._id);
+    ticker.off(PHASE_WRITE, this._id);
 
     // If we need to apply the styles instantly without animation.
     if (isInstant) {
@@ -305,8 +308,8 @@ export class ItemVisibility {
 
     // Start the animation in the next tick (to avoid layout thrashing).
     grid._visibilityNeedsDimensionsRefresh = true;
-    addVisibilityTick(
-      item.id,
+    ticker.once(
+      PHASE_READ,
       () => {
         // Make sure the item is still in hiding/showing.
         if (!this.item || (toVisible ? !this._isShowing : !this._isHiding)) return;
@@ -323,6 +326,10 @@ export class ItemVisibility {
           grid._updateBorders(true, false, true, false);
         }
       },
+      this._id
+    );
+    ticker.once(
+      PHASE_WRITE,
       () => {
         // Make sure the item is still in hiding/showing.
         if (!this.item || (toVisible ? !this._isShowing : !this._isHiding)) return;
@@ -351,7 +358,8 @@ export class ItemVisibility {
             onFinish: onFinish,
           });
         }
-      }
+      },
+      this._id
     );
   }
 
@@ -361,7 +369,7 @@ export class ItemVisibility {
   _finishShow() {
     if (!this.item || this._isHidden) return;
     this._isShowing = false;
-    this.item._emitter.emit(this._queue, false, this.item);
+    this.item._emitter.emit(this._id, false, this.item);
   }
 
   /**
@@ -373,7 +381,7 @@ export class ItemVisibility {
     this._isHiding = false;
     item._layout.stop(true, 0, 0);
     item.element.style.display = 'none';
-    item._emitter.emit(this._queue, false, item);
+    item._emitter.emit(this._id, false, item);
   }
 
   /**

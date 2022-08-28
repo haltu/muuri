@@ -5,7 +5,7 @@
  */
 
 import { VIEWPORT_THRESHOLD } from '../constants';
-import { addLayoutTick, cancelLayoutTick } from '../ticker';
+import { ticker, PHASE_READ, PHASE_WRITE } from '../ticker';
 import { Grid } from '../Grid/Grid';
 import { Item } from './Item';
 import { Animator, AnimationOptions } from '../Animator/Animator';
@@ -35,6 +35,7 @@ const ANIM_OPTIONS: AnimationOptions = {
 export class ItemLayout {
   readonly item: Item | null;
   readonly animator: Animator;
+  _id: symbol;
   _skipNextAnimation: boolean;
   _isActive: boolean;
   _isInterrupted: boolean;
@@ -42,12 +43,12 @@ export class ItemLayout {
   _duration: number;
   _tX: number;
   _tY: number;
-  _queue: string;
 
   constructor(item: Item) {
     this.item = item;
     this.animator = new Animator(item.element);
 
+    this._id = Symbol();
     this._skipNextAnimation = false;
     this._isActive = false;
     this._isInterrupted = false;
@@ -55,7 +56,6 @@ export class ItemLayout {
     this._duration = 0;
     this._tX = 0;
     this._tY = 0;
-    this._queue = 'layout-' + item.id;
 
     // Bind animation handlers.
     this._setupAnimation = this._setupAnimation.bind(this);
@@ -100,8 +100,9 @@ export class ItemLayout {
     // If the item is currently positioning cancel potential queued layout tick
     // and process current layout callback queue with interrupted flag on.
     if (isPositioning) {
-      cancelLayoutTick(item.id);
-      item._emitter.emit(this._queue, true, item);
+      ticker.off(PHASE_READ, this._id);
+      ticker.off(PHASE_WRITE, this._id);
+      item._emitter.emit(this._id, true, item);
     }
 
     // Mark release positioning as started.
@@ -109,7 +110,7 @@ export class ItemLayout {
 
     // Push the callback to the callback queue.
     if (onFinish && isFunction(onFinish)) {
-      item._emitter.once(this._queue, onFinish);
+      item._emitter.once(this._id, onFinish);
     }
 
     // Reset animation skipping flag.
@@ -136,7 +137,8 @@ export class ItemLayout {
     this._easing = animEasing;
     this._duration = animDuration;
     this._isInterrupted = isPositioning;
-    addLayoutTick(item.id, this._setupAnimation, this._startAnimation);
+    ticker.once(PHASE_READ, this._setupAnimation, this._id);
+    ticker.once(PHASE_WRITE, this._startAnimation, this._id);
   }
 
   /**
@@ -153,7 +155,8 @@ export class ItemLayout {
     const { item } = this;
 
     // Cancel animation init.
-    cancelLayoutTick(item.id);
+    ticker.off(PHASE_READ, this._id);
+    ticker.off(PHASE_WRITE, this._id);
 
     // Stop animation.
     if (this.animator.isAnimating()) {
@@ -175,7 +178,7 @@ export class ItemLayout {
 
     // Process callback queue if needed.
     if (processCallbackQueue) {
-      item._emitter.emit(this._queue, true, item);
+      item._emitter.emit(this._id, true, item);
     }
   }
 
@@ -188,7 +191,7 @@ export class ItemLayout {
     if (!this.item) return;
 
     this.stop(true, 0, 0);
-    this.item._emitter.off(this._queue);
+    this.item._emitter.off(this._id);
     this.animator.destroy();
 
     const { style } = this.item.element;
@@ -223,7 +226,7 @@ export class ItemLayout {
     if (item._migrate.isActive()) item._migrate.stop();
 
     // Process the callback queue.
-    item._emitter.emit(this._queue, false, item);
+    item._emitter.emit(this._id, false, item);
   }
 
   /**

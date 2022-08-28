@@ -55,9 +55,9 @@
   ],
   "devDependencies": {
     "@fastify/pre-commit": "2.0.2",
-    "@rollup/plugin-typescript": "8.3.3",
+    "@rollup/plugin-typescript": "8.4.0",
     "dotenv": "16.0.1",
-    "eventti": "2.0.1",
+    "eventti": "3.0.0",
     "gulp": "4.0.2",
     "gulp-size": "4.0.1",
     "karma": "6.4.0",
@@ -70,14 +70,14 @@
     "prosthetic-hand": "1.4.0",
     "qunit": "2.19.1",
     "rimraf": "3.0.2",
-    "rollup": "2.77.2",
+    "rollup": "2.78.1",
     "rollup-plugin-dts": "4.2.2",
-    "terser": "5.14.2",
-    "tikki": "1.0.2",
-    "typescript": "4.7.4"
+    "terser": "5.15.0",
+    "tikki": "2.0.0",
+    "typescript": "4.8.2"
   },
   "peerDependencies": {
-    "eventti": "^2.0.1",
-    "tikki": "^1.0.2"
+    "eventti": "^3.0.0",
+    "tikki": "^2.0.0"
   }
 }

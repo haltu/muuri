@@ -418,35 +418,6 @@ function normalizeStyles(styles: StyleDeclaration) {
 }
 
 /**
- * Create index map from items.
- *
- * @param {Item[]} items
- * @returns {Object}
- */
-function createIndexMap(items: Item[]) {
-  const result: { [key: number]: number } = {};
-  let i = 0;
-  for (; i < items.length; i++) {
-    result[items[i].id] = i;
-  }
-  return result;
-}
-
-/**
- * Sort comparer function for items' index map.
- *
- * @param {Object} indexMap
- * @param {Item} itemA
- * @param {Item} itemB
- * @returns {number}
- */
-function compareIndexMap(indexMap: { [key: number]: number }, itemA: Item, itemB: Item) {
-  const indexA = indexMap[itemA.id];
-  const indexB = indexMap[itemB.id];
-  return indexA - indexB;
-}
-
-/**
  * Check if the provided objects have same keys and and values.
  *
  * @param {Object} a
@@ -1586,18 +1557,10 @@ export class Grid {
     const origItems = items.slice(0);
     const layout = options.layout ? options.layout : options.layout === undefined;
     const isDescending = !!options.descending;
-    let indexMap: null | { [key: number]: number } = null;
 
     // If function is provided do a native array sort.
     if (isFunction(comparer)) {
-      items.sort((a: Item, b: Item) => {
-        let result = isDescending ? -comparer(a, b) : comparer(a, b);
-        if (!result) {
-          if (!indexMap) indexMap = createIndexMap(origItems);
-          result = isDescending ? compareIndexMap(indexMap, b, a) : compareIndexMap(indexMap, a, b);
-        }
-        return result;
-      });
+      items.sort((a: Item, b: Item) => (isDescending ? -comparer(a, b) : comparer(a, b)));
     }
     // Otherwise if we got a string, let's sort by the sort data as provided in
     // the instance's options.
@@ -1643,16 +1606,6 @@ export class Grid {
           if (result) return result;
         }
 
-        // If values are equal let's compare the item indices to make sure we
-        // have a stable sort. Note that this is not necessary in evergreen
-        // browsers because Array.sort() is nowadays stable. However, in order
-        // to guarantee same results in older browsers we need this.
-        if (!result) {
-          if (!indexMap) indexMap = createIndexMap(origItems);
-          result = isDescending
-            ? compareIndexMap(indexMap, b as any as Item, a as any as Item)
-            : compareIndexMap(indexMap, a as any as Item, b as any as Item);
-        }
         return result;
       });
     }

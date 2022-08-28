@@ -42,30 +42,20 @@ The long-term goal of Muuri is to provide a simple (and as low-level as possible
 
 <h3><a id="getting-started-1" href="#getting-started-1" aria-hidden="true">#</a> 1. Install Muuri and it's dependencies</h3>
 
-Muuri has two required dependencies: [eventti](https://github.com/niklasramo/eventti) (event emitter) and [tikki](https://github.com/niklasramo/tikki) (animation loop orchestrator). Both of the libraries were previously integrated into Muuri, but now have been separated into their own repos for better code reusablility. Also, they have gone through major overhaul to be better suited for use cases outside of Muuri too.
-
-Muuri uses [Web Animations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API) to handle all the animations by default. If you need to use Muuri on a browser that does not support Web Animations you need to use a [polyfill](https://github.com/web-animations/web-animations-js).
+Muuri has two required dependencies: [Eventti](https://github.com/niklasramo/eventti) (event emitter) and [Tikki](https://github.com/niklasramo/tikki) (animation loop orchestrator). Both of the libraries were previously integrated into Muuri, but now have been separated into their own repos for better code reusablility. Also, they have gone through major overhaul to be better suited for use cases outside of Muuri too.
 
 Install via npm:
 
 ```bash
-npm install muuri eventti tikki web-animations-js
+npm install muuri eventti tikki
 ```
-
-Or download:
-
-- [web-animations.min.js](https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js)
-- [eventti.umd.js](https://cdn.jsdelivr.net/npm/eventti@2.0.1/dist/eventti.umd.js)
-- [tikki.umd.js](https://cdn.jsdelivr.net/npm/tikki@1.0.2/dist/tikki.umd.js)
-- [muuri.umd.min.js](https://cdn.jsdelivr.net/npm/muuri@0.10.0/dist/muuri.umd.min.js)
 
 Or link directly:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/web-animations-js@2.3.2/web-animations.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/eventti@2.0.1/dist/eventti.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tikki@1.0.2/dist/tikki.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/muuri@0.10.0/dist/muuri.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/eventti@3.0.0/dist/eventti.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tikki@2.0.0/dist/tikki.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/muuri@1.0.0/dist/muuri.umd.min.js"></script>
 ```
 
 <h3><a id="getting-started-2" href="#getting-started-2" aria-hidden="true">#</a> 3. Add the markup</h3>
@@ -2972,7 +2962,6 @@ const isDestroyed = item.isDestroyed();
 
 - This project owes much to David DeSandro's [Masonry](http://masonry.desandro.com/), [Packery](http://packery.metafizzy.co/) and [Isotope](https://isotope.metafizzy.co/) libraries. You should go ahead and check them out right now if you haven't yet. Thanks Dave!
 - Jukka Jylänki's [survey](https://github.com/juj/RectangleBinPack) "A Thousand Ways to Pack the Bin - A Practical Approach to Two-Dimensional Rectangle Bin Packing" came in handy when building Muuri's layout algorithms. Thanks Jukka!
-- Big thanks to the people behind [Web Animations polyfill](https://github.com/web-animations/web-animations-js) for making it possible to use Web Animations API reliably across browsers today.
 - [Haltu Oy](http://www.haltu.fi/) was responsible for initiating this project in the first place and funded the initial development. Thanks Haltu!
 
 <h2><a id="license" href="#license" aria-hidden="true">#</a> License</h2>

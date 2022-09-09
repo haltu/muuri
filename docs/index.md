@@ -1,44 +1,16 @@
----
-layout: home
+<img src="/logo.svg" alt="Muuri" width="400" />
 
-title: Muuri
-titleTemplate: Build all kinds of layouts
+# What is Muuri?
 
-hero:
-  name: Muuri
-  text: Build all kinds of layouts
-  tagline: Muuri is a JavaScript layout engine that allows you to build all kinds of layouts (no kidding!) and make them responsive, sortable, filterable, draggable and/or animated.
-  actions:
-    - theme: brand
-      text: Get Started
-      link: /guide/getting-started
-    - theme: alt
-      text: View on GitHub
-      link: https://github.com/haltu/muuri
+Muuri is a JavaScript layout engine that allows you to build all kinds of layouts (no kidding!) and make them responsive, sortable, filterable, draggable and/or animated. Compared to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](https://muuri.dev/) on the website.
 
-features:
-  - icon: ⚡️
-    title: Fully customizable layout
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus rhoncus et magna in vulputate.
-  - icon: ⚡️
-    title: Asynchronous layout calculations in web workers
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus rhoncus et magna in vulputate.
-  - icon: ⚡️
-    title: Drag & drop (even between grids)
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus rhoncus et magna in vulputate.
-  - icon: ⚡️
-    title: Auto-scrolling during drag
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus rhoncus et magna in vulputate.
-  - icon: ⚡️
-    title: Nested grids
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus rhoncus et magna in vulputate.
-  - icon: ⚡️
-    title: Fast animations
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus rhoncus et magna in vulputate.
-  - icon: ⚡️
-    title: Filtering
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus rhoncus et magna in vulputate.
-  - icon: ⚡️
-    title: Sorting
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus rhoncus et magna in vulputate.
----
+**Features**
+
+- Fully customizable layout
+- Asynchronous layout calculations in web workers
+- Drag & drop (even between grids)
+- Auto-scrolling during drag
+- Nested grids
+- Fast animations
+- Filtering
+- Sorting

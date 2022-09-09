@@ -18,7 +18,7 @@ export default {
     nav: nav(),
 
     sidebar: {
-      '/guide/': sidebarGuide(),
+      '/': sidebarGuide(),
     },
 
     editLink: {
@@ -48,11 +48,11 @@ export default {
 
 function nav() {
   return [
-    { text: 'Docs', link: '/guide/what-is-muuri', activeMatch: '/guide/' },
+    { text: 'Docs', link: '/what-is-muuri', activeMatch: '/' },
     {
       text: 'Examples',
-      link: '/guide/examples',
-      activeMatch: '/guide/examples',
+      link: '/examples',
+      activeMatch: '/examples',
     },
     {
       text: version,
@@ -76,27 +76,27 @@ function sidebarGuide() {
       text: 'Introduction',
       collapsible: true,
       items: [
-        { text: 'What is Muuri?', link: '/guide/what-is-muuri' },
-        { text: 'Getting Started', link: '/guide/getting-started' },
-        { text: 'Motivation', link: '/guide/motivation' },
-        { text: 'Credits', link: '/guide/credits' },
+        { text: 'What is Muuri?', link: '/' },
+        { text: 'Getting Started', link: '/getting-started' },
+        { text: 'Motivation', link: '/motivation' },
+        { text: 'Credits', link: '/credits' },
       ],
     },
     {
       text: 'API',
       collapsible: true,
       items: [
-        { text: 'Grid Constructor', link: '/guide/grid-constructor' },
-        { text: 'Grid Options', link: '/guide/grid-options' },
-        { text: 'Grid Methods', link: '/guide/grid-methods' },
-        { text: 'Grid Events', link: '/guide/grid-events' },
-        { text: 'Item Methods', link: '/guide/item-methods' },
+        { text: 'Grid Constructor', link: '/grid-constructor' },
+        { text: 'Grid Options', link: '/grid-options' },
+        { text: 'Grid Methods', link: '/grid-methods' },
+        { text: 'Grid Events', link: '/grid-events' },
+        { text: 'Item Methods', link: '/item-methods' },
       ],
     },
     {
       text: 'Examples',
       collapsible: true,
-      items: [{ text: 'Demos', link: '/guide/examples' }],
+      items: [{ text: 'Demos', link: '/examples' }],
     },
   ];
 }

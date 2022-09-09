@@ -5,3 +5,4 @@ website
 *.log
 *.env
 *.DS_Store
+docs/.vitepress/dist

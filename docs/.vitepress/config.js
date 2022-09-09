@@ -8,7 +8,9 @@ export default {
   head: [['link', { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }]],
 
   lastUpdated: true,
-  cleanUrls: 'without-subfolders',
+
+  // Experimental Feature - it is giving 404 when reloading the page in the docs
+  // cleanUrls: 'without-subfolders',
 
   themeConfig: {
     logo: '/logo.svg',

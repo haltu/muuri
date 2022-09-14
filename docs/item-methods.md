@@ -1,6 +1,8 @@
+# Item Methods
 
+## getGrid
 
-## item.getGrid()
+`item.getGrid()`
 
 Get the grid instance the item belongs to.
 
@@ -9,10 +11,12 @@ Get the grid instance the item belongs to.
 **Examples**
 
 ```javascript
-var grid = item.getGrid();
+const grid = item.getGrid();
 ```
 
-## item.getElement()
+## getElement
+
+`item.getElement()`
 
 Get the item element.
 
@@ -21,10 +25,12 @@ Get the item element.
 **Examples**
 
 ```javascript
-var elem = item.getElement();
+const elem = item.getElement();
 ```
 
-## item.getWidth()
+## getWidth
+
+`item.getWidth()`
 
 Get item element's cached width (in pixels). The returned value includes the element's paddings and borders.
 
@@ -33,10 +39,12 @@ Get item element's cached width (in pixels). The returned value includes the ele
 **Examples**
 
 ```javascript
-var width = item.getWidth();
+const width = item.getWidth();
 ```
 
-## item.getHeight()
+## getHeight
+
+`item.getWidth()`
 
 Get item element's cached height (in pixels). The returned value includes the element's paddings and borders.
 
@@ -45,10 +53,12 @@ Get item element's cached height (in pixels). The returned value includes the el
 **Examples**
 
 ```javascript
-var height = item.getHeight();
+const height = item.getHeight();
 ```
 
-## item.getMargin()
+## getMargin
+
+`item.getMargin()`
 
 Get item element's cached margins (in pixels).
 
@@ -62,10 +72,12 @@ Get item element's cached margins (in pixels).
 **Examples**
 
 ```javascript
-var margin = item.getMargin();
+const margin = item.getMargin();
 ```
 
-## item.getPosition()
+## getPosition
+
+`item.getPosition()`
 
 Get item element's cached position (in pixels, relative to the grid element).
 
@@ -77,10 +89,12 @@ Get item element's cached position (in pixels, relative to the grid element).
 **Examples**
 
 ```javascript
-var position = item.getPosition();
+const position = item.getPosition();
 ```
 
-## item.isActive()
+## isActive
+
+`item.isActive()`
 
 Check if the item is currently _active_. Only active items are considered to be part of the layout.
 
@@ -89,10 +103,12 @@ Check if the item is currently _active_. Only active items are considered to be 
 **Examples**
 
 ```javascript
-var isActive = item.isActive();
+const isActive = item.isActive();
 ```
 
-## item.isVisible()
+## isVisible
+
+`item.isVisible()`
 
 Check if the item is currently _visible_.
 
@@ -101,10 +117,12 @@ Check if the item is currently _visible_.
 **Examples**
 
 ```javascript
-var isVisible = item.isVisible();
+const isVisible = item.isVisible();
 ```
 
-## item.isShowing()
+## isShowing
+
+`item.isShowing()`
 
 Check if the item is currently animating to visible.
 
@@ -113,10 +131,12 @@ Check if the item is currently animating to visible.
 **Examples**
 
 ```javascript
-var isShowing = item.isShowing();
+const isShowing = item.isShowing();
 ```
 
-## item.isHiding()
+## isHiding
+
+`item.isHiding()`
 
 Check if the item is currently animating to hidden.
 
@@ -125,10 +145,12 @@ Check if the item is currently animating to hidden.
 **Examples**
 
 ```javascript
-var isHiding = item.isHiding();
+const isHiding = item.isHiding();
 ```
 
-## item.isPositioning()
+## isPositioning
+
+`item.isPositioning()`
 
 Check if the item is currently being positioned.
 
@@ -137,10 +159,12 @@ Check if the item is currently being positioned.
 **Examples**
 
 ```javascript
-var isPositioning = item.isPositioning();
+const isPositioning = item.isPositioning();
 ```
 
-## item.isDragging()
+## isDragging
+
+`item.isDragging()`
 
 Check if the item is currently being dragged.
 
@@ -149,10 +173,12 @@ Check if the item is currently being dragged.
 **Examples**
 
 ```javascript
-var isDragging = item.isDragging();
+const isDragging = item.isDragging();
 ```
 
-## item.isReleasing()
+## isReleasing
+
+`item.isReleasing()`
 
 Check if the item is currently being released.
 
@@ -161,10 +187,12 @@ Check if the item is currently being released.
 **Examples**
 
 ```javascript
-var isReleasing = item.isReleasing();
+const isReleasing = item.isReleasing();
 ```
 
-## item.isDestroyed()
+## isDestroyed
+
+`item.isDestroyed()`
 
 Check if the item is destroyed.
 
@@ -173,5 +201,5 @@ Check if the item is destroyed.
 **Examples**
 
 ```javascript
-var isDestroyed = item.isDestroyed();
+const isDestroyed = item.isDestroyed();
 ```

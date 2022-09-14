@@ -1,4 +1,6 @@
-## _event:_ synchronize
+# Grid Events
+
+## synchronize
 
 Triggered after item elements are synchronized via `grid.synchronize()`.
 
@@ -10,11 +12,11 @@ grid.on('synchronize', function () {
 });
 ```
 
-## _event:_ layoutStart
+## layoutStart
 
 Triggered when the the layout procedure begins. More specifically, this event is emitted right after new _layout_ has been generated, internal item positions updated and grid element's dimensions updated. After this event is emitted the items in the layout will be positioned to their new positions. So if you e.g. want to react to grid element dimension changes this is a good place to do that.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
   - The items that are about to be positioned.
@@ -29,11 +31,11 @@ grid.on('layoutStart', function (items, isInstant) {
 });
 ```
 
-## _event:_ layoutEnd
+## layoutEnd
 
 Triggered after the layout procedure has finished, successfully. Note that if you abort a layout procedure by calling `grid.layout()` _before_ items have finished positioning, this event will not be emitted for the aborted layout procedure. In such a case `layoutAbort` will be emitted instead.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
   - The items that were positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument.
@@ -52,11 +54,11 @@ grid.on('layoutEnd', function (items) {
 });
 ```
 
-## _event:_ layoutAbort
+## layoutAbort
 
 Triggered if you start a new layout process (`grid.layout()`) while the current layout process is still busy positioning items. Note that this event is not triggered if you start a new layout process while the layout is being computed and the items have not yet started positioning.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
   - The items that were attempted to be positioned. Note that these items are always identical to what the _layoutStart_ event's callback receives as it's argument.
@@ -75,11 +77,11 @@ grid.on('layoutAbort', function (items) {
 });
 ```
 
-## _event:_ add
+## add
 
 Triggered after `grid.add()` is called.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
   - The items that were successfully added.
@@ -92,11 +94,11 @@ grid.on('add', function (items) {
 });
 ```
 
-## _event:_ remove
+## remove
 
 Triggered after `grid.remove()` is called.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
   - The items that were successfully removed.
@@ -111,11 +113,11 @@ grid.on('remove', function (items, indices) {
 });
 ```
 
-## _event:_ showStart
+## showStart
 
 Triggered after `grid.show()` is called, just before the items are shown.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
   - The items that are about to be shown.
@@ -128,14 +130,14 @@ grid.on('showStart', function (items) {
 });
 ```
 
-## _event:_ showEnd
+## showEnd
 
 Triggered after `grid.show()` is called, after the items are shown.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
-  - The items that were successfully shown without interruptions. If you, for example, call `grid.hide()` to some of the items that are currently being shown, those items will be omitted from this argument.
+  - The items that were successfully shown without interruptions. If you, for example, call `grid.hide()` to some of the items that are currently being shown, those items will be omitted from this parameter.
 
 **Examples**
 
@@ -145,11 +147,11 @@ grid.on('showEnd', function (items) {
 });
 ```
 
-## _event:_ hideStart
+## hideStart
 
 Triggered after `grid.hide()` is called, just before the items are hidden.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
   - The items that are about to be hidden.
@@ -162,14 +164,14 @@ grid.on('hideStart', function (items) {
 });
 ```
 
-## _event:_ hideEnd
+## hideEnd
 
 Triggered after `grid.hide()` is called, after the items are hidden.
 
-**Arguments**
+**Listener parameters**
 
 - **items** &nbsp;&mdash;&nbsp; _array_
-  - The items that were successfully hidden without interruptions. If you, for example, call `grid.show()` to some of the items that are currently being hidden, those items will be omitted from this argument.
+  - The items that were successfully hidden without interruptions. If you, for example, call `grid.show()` to some of the items that are currently being hidden, those items will be omitted from this parameter.
 
 **Examples**
 
@@ -179,11 +181,11 @@ grid.on('hideEnd', function (items) {
 });
 ```
 
-## _event:_ filter
+## filter
 
 Triggered after `grid.filter()` is called.
 
-**Arguments**
+**Listener parameters**
 
 - **shownItems** &nbsp;&mdash;&nbsp; _array_
   - The items that are shown.
@@ -199,11 +201,11 @@ grid.on('filter', function (shownItems, hiddenItems) {
 });
 ```
 
-## _event:_ sort
+## sort
 
 Triggered after `grid.sort()` is called.
 
-**Arguments**
+**Listener parameters**
 
 - **currentOrder** &nbsp;&mdash;&nbsp; _array_
   - All items in their current order.
@@ -219,11 +221,11 @@ grid.on('sort', function (currentOrder, previousOrder) {
 });
 ```
 
-## _event:_ move
+## move
 
 Triggered after `grid.move()` is called or when the grid is sorted during drag. Note that this is event not triggered when an item is dragged into another grid.
 
-**Arguments**
+**Listener parameters**
 
 - **data** &nbsp;&mdash;&nbsp; _object_
   - **data.item** &nbsp;&mdash;&nbsp; _Muuri.Item_
@@ -243,11 +245,11 @@ grid.on('move', function (data) {
 });
 ```
 
-## _event:_ send
+## send
 
 Triggered for the originating grid in the end of the _send process_ (after `grid.send()` is called or when an item is dragged into another grid). Note that this event is called _before_ the item's layout starts.
 
-**Arguments**
+**Listener parameters**
 
 - **data** &nbsp;&mdash;&nbsp; _object_
   - **data.item** &nbsp;&mdash;&nbsp; _Muuri.Item_
@@ -269,11 +271,11 @@ grid.on('send', function (data) {
 });
 ```
 
-## _event:_ beforeSend
+## beforeSend
 
 Triggered for the originating grid in the beginning of the _send process_ (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the sent item (freeze it's dimensions for example) before it is appended to it's temporary layout container as defined in [send method options](#gridsend-item-grid-position-options-).
 
-**Arguments**
+**Listener parameters**
 
 - **data** &nbsp;&mdash;&nbsp; _object_
   - **data.item** &nbsp;&mdash;&nbsp; _Muuri.Item_
@@ -295,11 +297,11 @@ grid.on('beforeSend', function (data) {
 });
 ```
 
-## _event:_ receive
+## receive
 
 Triggered for the receiving grid in the end of the _send process_ (after `grid.send()` is called or when an item is dragged into another grid). Note that this event is called _before_ the item's layout starts.
 
-**Arguments**
+**Listener parameters**
 
 - **data** &nbsp;&mdash;&nbsp; _object_
   - **data.item** &nbsp;&mdash;&nbsp; _Muuri.Item_
@@ -321,11 +323,11 @@ grid.on('receive', function (data) {
 });
 ```
 
-## _event:_ beforeReceive
+## beforeReceive
 
 Triggered for the receiving grid in the beginning of the _send process_ (after `grid.send()` is called or when an item is dragged into another grid). This event is highly useful in situations where you need to manipulate the received item (freeze it's dimensions for example) before it is appended to it's temporary layout container as defined in [send method options](#gridsend-item-grid-position-options-).
 
-**Arguments**
+**Listener parameters**
 
 - **data** &nbsp;&mdash;&nbsp; _object_
   - **data.item** &nbsp;&mdash;&nbsp; _Muuri.Item_
@@ -347,11 +349,11 @@ grid.on('beforeReceive', function (data) {
 });
 ```
 
-## _event:_ dragInit
+## dragInit
 
 Triggered in the beginning of the _drag start_ process when dragging of an item begins. This event is highly useful in situations where you need to manipulate the dragged item (freeze it's dimensions for example) before it is appended to the [dragContainer](#dragcontainer-).
 
-**Arguments**
+**Listener parameters**
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The dragged item.
@@ -367,11 +369,11 @@ grid.on('dragInit', function (item, event) {
 });
 ```
 
-## _event:_ dragStart
+## dragStart
 
 Triggered in the end of the _drag start_ process when dragging of an item begins.
 
-**Arguments**
+**Listener parameters**
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The dragged item.
@@ -387,11 +389,11 @@ grid.on('dragStart', function (item, event) {
 });
 ```
 
-## _event:_ dragMove
+## dragMove
 
 Triggered every time a dragged item is _moved_. Note that Muuri has an automatic throttling system which makes sure that this event is triggered at maximum once in an animation frame.
 
-**Arguments**
+**Listener parameters**
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The dragged item.
@@ -407,11 +409,11 @@ grid.on('dragMove', function (item, event) {
 });
 ```
 
-## _event:_ dragScroll
+## dragScroll
 
 Triggered when any of the scroll parents of a dragged item is scrolled.
 
-**Arguments**
+**Listener parameters**
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The dragged item.
@@ -427,11 +429,11 @@ grid.on('dragScroll', function (item, event) {
 });
 ```
 
-## _event:_ dragEnd
+## dragEnd
 
 Triggered when dragged item is released and the drag process ends.
 
-**Arguments**
+**Listener parameters**
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The dragged item.
@@ -447,11 +449,11 @@ grid.on('dragEnd', function (item, event) {
 });
 ```
 
-## _event:_ dragReleaseStart
+## dragReleaseStart
 
 Triggered when a dragged item is released (always after `dragEnd` event).
 
-**Arguments**
+**Listener parameters**
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The released item.
@@ -464,11 +466,11 @@ grid.on('dragReleaseStart', function (item) {
 });
 ```
 
-## _event:_ dragReleaseEnd
+## dragReleaseEnd
 
 Triggered after released item has finished it's position animation.
 
-**Arguments**
+**Listener parameters**
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The released item.
@@ -481,7 +483,7 @@ grid.on('dragReleaseEnd', function (item) {
 });
 ```
 
-## _event:_ destroy
+## destroy
 
 Triggered after grid is destroyed.
 

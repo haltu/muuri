@@ -58,9 +58,7 @@ Or link directly:
   <div class="item">
     <div class="item-content">
       <!-- Safe zone, enter your custom markup -->
-      <div class="my-custom-content">
-        Yippee!
-      </div>
+      <div class="my-custom-content">Yippee!</div>
       <!-- Safe zone ends -->
     </div>
   </div>
@@ -113,4 +111,4 @@ The bare minimum configuration is demonstrated below. You must always provide th
 var grid = new Muuri('.grid');
 ```
 
-You can view this little tutorial demo [here](https://codepen.io/niklasramo/pen/wpwNjK). After that you might want to check some [other demos](https://codepen.io/collection/AWopag/) as well.
+You can view this little tutorial demo [here](https://codepen.io/niklasramo/pen/wpwNjK). After that you might want to check some [examples](/examples.html) as well.

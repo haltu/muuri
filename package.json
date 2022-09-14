@@ -48,9 +48,9 @@
     "validate-formatting": "./node_modules/.bin/prettier --list-different ./src/**/*.js",
     "size": "./node_modules/.bin/gulp size",
     "pre-commit-hook": "./node_modules/.bin/gulp pre-commit",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:serve": "vitepress serve docs"
+    "docs-dev": "vitepress dev docs",
+    "docs-build": "vitepress build docs",
+    "docs-serve": "vitepress serve docs"
   },
   "husky": {
     "hooks": {
@@ -76,7 +76,7 @@
     "rollup": "2.52.8",
     "terser": "5.7.1",
     "web-animations-js": "2.3.2",
-    "vitepress": "^1.0.0-alpha.13",
-    "vue": "^3.2.38"
+    "vitepress": "1.0.0-alpha.14",
+    "vue": "3.2.39"
   }
 }

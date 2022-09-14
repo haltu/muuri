@@ -1,4 +1,8 @@
-## grid.getElement()
+# Grid Methods
+
+## getElement
+
+`grid.getElement()`
 
 Get the grid element.
 
@@ -10,7 +14,9 @@ Get the grid element.
 var elem = grid.getElement();
 ```
 
-## grid.getItem( target )
+## getItem
+
+`grid.getItem( target )`
 
 Get a single grid item by element or by index. Target can also be a `Muuri.Item` instance in which case the function returns the item if it exists within related `Muuri` instance. If nothing is found with the provided target, `null` is returned.
 
@@ -31,7 +37,9 @@ var itemA = grid.getItem(0);
 var itemB = grid.getItem(someElement);
 ```
 
-## grid.getItems( [targets] )
+## getItems
+
+`grid.getItems( [targets] )`
 
 Get all items in the grid. Optionally you can provide specific targets (indices or elements).
 
@@ -64,7 +72,9 @@ var firstItem = grid.getItems(0)[0];
 var items = grid.getItems([elemA, elemB]);
 ```
 
-## grid.refreshItems( [items], [force] )
+## refreshItems
+
+`grid.refreshItems( [items], [force] )`
 
 Update the cached dimensions of the instance's items. By default all the items are refreshed, but you can also provide an array of target items as the first argument if you want to refresh specific items. Note that all hidden items are not refreshed by default since their `display` property is `'none'` and their dimensions are therefore not readable from the DOM. However, if you do want to force update hidden item dimensions too you can provide `true` as the second argument, which makes the elements temporarily visible while their dimensions are being read.
 
@@ -94,7 +104,9 @@ grid.refreshItems([0, someElem, someItem]);
 grid.refreshItems([0, someElem, someHiddenItem], true);
 ```
 
-## grid.refreshSortData( [items] )
+## refreshSortData
+
+`grid.refreshSortData( [items] )`
 
 Refresh the sort data of the grid's items.
 
@@ -117,7 +129,9 @@ grid.refreshSortData();
 grid.refreshSortData([0, someElem, someItem]);
 ```
 
-## grid.synchronize()
+## synchronize
+
+`grid.synchronize()`
 
 Synchronize the item elements in the DOM to match the order of the items in the grid. This comes handy if you need to keep the DOM structure matched with the order of the items. Note that if an item's element is not currently a child of the grid element (if it is dragged for example) it is ignored and left untouched. The reason why item elements are not kept in sync automatically is that there's rarely a need for that as they are absolutely positioned elements.
 
@@ -136,7 +150,9 @@ grid.move(0, -1);
 grid.synchronize();
 ```
 
-## grid.layout( [instant], [callback] )
+## layout
+
+`grid.layout( [instant], [callback] )`
 
 Calculate item positions and move items to their calculated positions, unless they are already positioned correctly. The grid's height/width (depends on the layout algorithm) is also adjusted according to the position of the items.
 
@@ -173,7 +189,9 @@ grid.layout(function (items, hasLayoutChanged) {
 });
 ```
 
-## grid.add( elements, [options] )
+## add
+
+`grid.add( elements, [options] )`
 
 Add new items by providing the elements you wish to add to the grid and optionally provide the index where you want the items to be inserted into. All elements that are not already children of the grid element will be automatically appended to the grid element. If an element has it's CSS display property set to none it will be marked as _inactive_ during the initiation process. As long as the item is _inactive_ it will not be part of the layout, but it will retain it's index. You can activate items at any point with `grid.show()` method. This method will automatically call `grid.layout()` if one or more of the added elements are visible. If only hidden items are added no layout will be called. All the new visible items are positioned without animation during their first layout.
 
@@ -190,7 +208,7 @@ Add new items by providing the elements you wish to add to the grid and optional
   - Default value: `-1`.
   - Optional.
 - **options.layout** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 
@@ -209,7 +227,9 @@ var newItemsB = grid.add([elemA, elemB], { index: 0 });
 var newItemsC = grid.add([elemA, elemB], { layout: false });
 ```
 
-## grid.remove( items, [options] )
+## remove
+
+`grid.remove( items, [options] )`
 
 Remove items from the grid.
 
@@ -222,7 +242,7 @@ Remove items from the grid.
   - Default value: `false`.
   - Optional.
 - **options.layout** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 
@@ -241,7 +261,9 @@ var removedItemsB = grid.remove([itemA, itemB], { removeElements: true });
 var removedItemsC = grid.remove([itemA, itemB], { layout: false });
 ```
 
-## grid.show( items, [options] )
+## show
+
+`grid.show( items, [options] )`
 
 Show the targeted items.
 
@@ -261,7 +283,7 @@ Show the targeted items.
   - A callback function that is called after the items are shown.
   - Optional.
 - **options.layout** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 
@@ -284,7 +306,9 @@ grid.show([itemA, itemB], {
 });
 ```
 
-## grid.hide( items, [options] )
+## hide
+
+`grid.hide( items, [options] )`
 
 Hide the targeted items.
 
@@ -304,7 +328,7 @@ Hide the targeted items.
   - A callback function that is called after the items are hidden.
   - Optional.
 - **options.layout** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 
@@ -328,7 +352,9 @@ grid.hide([itemA, itemB], {
 });
 ```
 
-## grid.filter( predicate, [options] )
+## filter
+
+`grid.filter( predicate, [options] )`
 
 Filter items. Expects at least one argument, a predicate, which should be either a function or a string. The predicate callback is executed for every item in the grid. If the return value of the predicate is truthy the item in question will be shown and otherwise hidden. The predicate callback receives the item instance as it's argument. If the predicate is a string it is considered to be a selector and it is checked against every item element in the grid with the native element.matches() method. All the matching items will be shown and others hidden.
 
@@ -348,7 +374,7 @@ Filter items. Expects at least one argument, a predicate, which should be either
   - An optional callback function that is called after all the items are shown/hidden.
   - Optional.
 - **options.layout** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 
@@ -369,7 +395,9 @@ grid.filter('[data-foo]');
 grid.filter('.foo');
 ```
 
-## grid.sort( comparer, [options] )
+## sort
+
+`grid.sort( comparer, [options] )`
 
 Sort items. There are three ways to sort the items. The first is simply by providing a function as the comparer which works almost identically to [native array sort](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort). The only difference is that the sort is always stable. Alternatively you can sort by the sort data you have provided in the grid's options. Just provide the sort data key(s) as a string (separated by space) and the items will be sorted based on the provided sort data keys. Lastly you have the opportunity to provide a presorted array of items which will be used to sync the internal items array in the same order.
 
@@ -382,7 +410,7 @@ Sort items. There are three ways to sort the items. The first is simply by provi
   - Default value: `false`.
   - Optional.
 - **options.layout** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 
@@ -410,7 +438,9 @@ grid.sort('foo bar', { descending: true });
 grid.sort('foo bar:desc');
 ```
 
-## grid.move( item, position, [options] )
+## move
+
+`grid.move( item, position, [options] )`
 
 Move an item to another position in the grid.
 
@@ -427,7 +457,7 @@ Move an item to another position in the grid.
   - Default value: `'move'`.
   - Optional.
 - **options.layout** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 
@@ -448,7 +478,9 @@ grid.move(elemA, elemB, { action: 'swap' });
 grid.move(0, -1, { action: 'swap' });
 ```
 
-## grid.send( item, grid, position, [options] )
+## send
+
+`grid.send( item, grid, position, [options] )`
 
 Move an item into another grid.
 
@@ -464,11 +496,11 @@ Move an item into another grid.
   - Which element the item element should be appended to for the duration of the layout animation?
   - Default value: `document.body`.
 - **options.layoutSender** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called for the sending grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called for the sending grid at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 - **options.layoutReceiver** &nbsp;&mdash;&nbsp; _boolean / function / string_
-  - By default `grid.layout()` is called for the receiving grid at the end of this method. With this argument you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
+  - By default `grid.layout()` is called for the receiving grid at the end of this method. With this parameter you can control the layout call. You can disable the layout completely with `false`, or provide a callback function for the layout method, or provide the string `'instant'` to make the layout happen instantly without any animations.
   - Default value: `true`.
   - Optional.
 
@@ -499,7 +531,9 @@ gridA.send(0, gridB, -1, {
 });
 ```
 
-## grid.on( event, listener )
+## on
+
+`grid.on( event, listener )`
 
 Bind an event listener.
 
@@ -520,7 +554,9 @@ grid.on('layoutEnd', function (items) {
 });
 ```
 
-## grid.off( event, listener )
+## off
+
+`grid.off( event, listener )`
 
 Unbind an event listener.
 
@@ -545,7 +581,9 @@ grid.on('layoutEnd', onLayoutEnd);
 grid.off('layoutEnd', onLayoutEnd);
 ```
 
-## grid.destroy( [removeElements] )
+## destroy
+
+`grid.destroy( [removeElements] )`
 
 Destroy the grid.
 

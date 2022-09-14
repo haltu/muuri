@@ -1,4 +1,6 @@
-## _option:_ items
+# Grid Options
+
+## items
 
 The initial item elements, which should be children of the grid element. All elements that are not children of the grid element (e.g. if they are not in the DOM yet) will be appended to the grid element. You can provide an array of elements, [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList), [HTMLCollection](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection) or a selector (string). If you provide a selector Muuri uses it to filter the current child elements of the container element and sets them as initial items. By default all current child elements of the provided grid element are used as initial items.
 
@@ -22,7 +24,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ showDuration
+## showDuration
 
 Show animation duration in milliseconds. Set to `0` to disable show animation.
 
@@ -37,7 +39,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ showEasing
+## showEasing
 
 Show animation easing. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
 
@@ -52,7 +54,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ hideDuration
+## hideDuration
 
 Hide animation duration in milliseconds. Set to `0` to disable hide animation.
 
@@ -67,7 +69,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ hideEasing
+## hideEasing
 
 Hide animation easing. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
 
@@ -82,7 +84,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ visibleStyles
+## visibleStyles
 
 The styles that will be applied to all visible items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options. Be sure to define all style properties camel cased and without vendor prefixes (Muuri prefixes the properties automatically where needed).
 
@@ -110,7 +112,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ hiddenStyles
+## hiddenStyles
 
 The styles that will be applied to all hidden items. These styles are also used for the show/hide animations which means that you have to have the same style properties in visibleStyles and hiddenStyles options. Be sure to define all style properties camel cased and without vendor prefixes (Muuri prefixes the properties automatically where needed).
 
@@ -138,7 +140,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ layout
+## layout
 
 Define how the items will be positioned. Muuri ships with a configurable layout algorithm which is used by default. It's pretty flexible and suitable for most common situations (lists, grids and even bin packed grids). If that does not fit the bill you can always provide your own layout algorithm (it's not as scary as it sounds).
 
@@ -178,7 +180,7 @@ Muuri supports calculating the layout both synchronously and asynchronously. By 
 
 When you provide a custom layout function Muuri calls it whenever calculation of layout is necessary. Before calling the layout function Muuri always calculates the current width and height of the grid element and also creates an array of all the items that are part of the layout currently (all _active_ items).
 
-The layout function always receives the following arguments:
+The layout function has the following parameters:
 
 - **grid** &nbsp;&mdash;&nbsp; _Muuri_
   - The grid instance that requested the layout.
@@ -274,7 +276,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ layoutOnResize
+## layoutOnResize
 
 Should Muuri automatically trigger `layout` method on window resize? Set to `false` to disable. When a number or `true` is provided Muuri will automatically position the items every time window is resized. The provided number (`true` is transformed to `0`) equals to the amount of time (in milliseconds) that is waited before items are positioned after each window resize event.
 
@@ -304,7 +306,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ layoutOnInit
+## layoutOnInit
 
 Should Muuri trigger `layout` method automatically on init?
 
@@ -319,7 +321,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ layoutDuration
+## layoutDuration
 
 The duration for item's layout animation in milliseconds. Set to `0` to disable.
 
@@ -334,7 +336,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ layoutEasing
+## layoutEasing
 
 The easing for item's layout animation. Accepts any valid [Animation easing](https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTimingProperties/easing) value.
 
@@ -349,7 +351,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ sortData
+## sortData
 
 The sort data getter functions. Provide an object where the key is the name of the sortable attribute and the function returns a value (from the item) by which the items can be sorted.
 
@@ -375,7 +377,7 @@ grid.refreshSortData();
 grid.sort('foo bar');
 ```
 
-## _option:_ dragEnabled
+## dragEnabled
 
 Should items be draggable?
 
@@ -390,7 +392,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragContainer
+## dragContainer
 
 The element the dragged item should be appended to for the duration of the drag. If set to `null` (which is also the default value) the grid element will be used.
 
@@ -405,7 +407,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragHandle
+## dragHandle
 
 The element within the item element that should be used as the drag handle. This should be a CSS selector which will be fed to `element.querySelector()` as is to obtain the handle element when the item is instantiated. If no valid element is found or if this is `null` Muuri will use the item element as the handle.
 
@@ -420,7 +422,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragStartPredicate
+## dragStartPredicate
 
 A function that determines when the item should start moving when the item is being dragged. By default uses the built-in start predicate which has some configurable options.
 
@@ -444,7 +446,7 @@ If an object is provided the default start predicate handler will be used. You c
 
 If you provide a function you can customize the drag start logic as you please. When the user starts to drag an item this predicate function will be called until you return `true` or `false`. If you return `true` the item will begin to move whenever the item is dragged. If you return `false` the item will not be moved at all. Note that after you have returned `true` or `false` this function will not be called until the item is released and dragged again.
 
-The predicate function receives two arguments:
+The predicate function has the following parameters:
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The item that's being dragged.
@@ -498,7 +500,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragAxis
+## dragAxis
 
 Force items to be moved only vertically or horizontally when dragged. Set to `'x'` for horizontal movement and to `'y'` for vertical movement. By default items can be dragged both vertically and horizontally.
 
@@ -522,11 +524,11 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragSort
+## dragSort
 
 Should the items be sorted during drag? A simple boolean will do just fine here.
 
-Alternatively you can do some advanced stuff and control within which grids a specific item can be sorted and dragged into. To do that you need to provide a function which receives the dragged item as its first argument and should return an array of grid instances. An important thing to note here is that you need to return _all_ the grid instances you want the dragged item to sort within, even the current grid instance. If you return an empty array the dragged item will not cause sorting at all.
+Alternatively you can do some advanced stuff and control within which grids a specific item can be sorted and dragged into. To do that you need to provide a function which receives the dragged item as it's first argument and should return an array of grid instances. An important thing to note here is that you need to return _all_ the grid instances you want the dragged item to sort within, even the current grid instance. If you return an empty array the dragged item will not cause sorting at all.
 
 - Default value: `true`.
 - Accepted types: boolean, function.
@@ -550,7 +552,7 @@ function getAllGrids(item) {
 }
 ```
 
-## _option:_ dragSortHeuristics
+## dragSortHeuristics
 
 Defines various heuristics so that sorting during drag would be smoother and faster.
 
@@ -600,7 +602,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragSortPredicate
+## dragSortPredicate
 
 Defines the logic for the sort procedure during dragging an item.
 
@@ -629,7 +631,7 @@ If an object is provided the default sort predicate handler will be used. You ca
   - Allowed values: `'move'`, `'swap'`.
   - Should the dragged item be _moved_ to the new position or should it _swap_ places with the item it overlaps when the dragged item is moved to another grid?
 
-Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback function receives two arguments:
+Alternatively you can provide your own callback function where you can define your own custom sort logic. The callback function has the following parameters:
 
 - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
   - The item that's being dragged.
@@ -688,7 +690,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragRelease
+## dragRelease
 
 - Default value:
   ```javascript
@@ -724,7 +726,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragCssProps
+## dragCssProps
 
 Drag specific CSS properties that Muuri sets to the draggable item elements. Muuri automatically prefixes the properties before applying them to the element. `touchAction` property is required to be always defined, but the other properties are optional and can be omitted by setting their value to an empty string if you want to e.g. define them via CSS only.
 
@@ -785,7 +787,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragPlaceholder
+## dragPlaceholder
 
 If you want a placeholder item to appear for the duration of an item's drag & drop procedure you can enable and configure it here. The placeholder animation duration is fetched from the grid's `layoutDuration` option and easing from the grid's `layoutEasing` option. Note that a special placeholder class is given to all drag placeholders and is customizable via [itemPlaceholderClass](#itemplaceholderclass-) option.
 
@@ -841,7 +843,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ dragAutoScroll
+## dragAutoScroll
 
 If you want to trigger scrolling on any element during dragging you can enable and configure it here. By default this feature is disabled. When you use this feature it is _highly_ recommended that you create a `fixed` positioned element right under `document.body` and use that as the `dragContainer` for all the dragged items. If you don't do this and a dragged item's parent is auto-scrolled, the dragged item will potentially grow the scrolled element's scroll area to infinity unintentionally.
 
@@ -884,7 +886,7 @@ You can define the following properties:
       - Optional.
 - **handle** &nbsp;&mdash;&nbsp; _function / null_
   - Default value: `null`.
-  - This property defines size and position of the handle (the rectangle that is compared against the scroll element's threshold). By default (when `null`) the dragged element's dimensions and offsets are used. However, you can provide a function which should return an object containing the handle's client offsets in pixels (`left` and `top`) and dimensions in pixels (`width` and `height`). The function receives the following arguments:
+  - This property defines size and position of the handle (the rectangle that is compared against the scroll element's threshold). By default (when `null`) the dragged element's dimensions and offsets are used. However, you can provide a function which should return an object containing the handle's client offsets in pixels (`left` and `top`) and dimensions in pixels (`width` and `height`). The function has the following parameters:
     - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
     - **itemClientX** &nbsp;&mdash;&nbsp; _number_
     - **itemClientY** &nbsp;&mdash;&nbsp; _number_
@@ -901,7 +903,7 @@ You can define the following properties:
   - Defines the size of the minimum "safe zone" space, an area in the center of the scrollable element that will be guaranteed not trigger scrolling regardless of threshold size and the dragged item's size. This value is a percentage of the scrollable element's size (width and/or height depending on the scroll axes), and should be something between `0` and `1`. So in practice, if you set this to e.g `0.5` the safe zone would be 50% of the scrollable element's width and/or height.
 - **speed** &nbsp;&mdash;&nbsp; _number / function_
   - Default value: `Muuri.AutoScroller.smoothSpeed(1000, 2000, 2500)`.
-  - Defines the scrolling speed in pixels per second. You can provide either static speed with a `number` or dynamic speed with a `function`. The function is called before every scroll operation and should return the speed (`number`, pixels per second) for the next scroll operation. The function receives three arguments:
+  - Defines the scrolling speed in pixels per second. You can provide either static speed with a `number` or dynamic speed with a `function`. The function is called before every scroll operation and should return the speed (`number`, pixels per second) for the next scroll operation. The function has the following parameters:
     - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
       - The dragged `Muuri.Item` instance.
     - **scrollElement** &nbsp;&mdash;&nbsp; _element_ / _window_
@@ -925,7 +927,7 @@ You can define the following properties:
         - `requestAnimationFrame`'s delta time (in milliseconds).
       - **data.isEnding** &nbsp;&mdash;&nbsp; _boolean_
         - Is the scroll process ending? When this is `true` it means that the associated drag item does not satisfy the threshold anymore. You should now start decreasing the speed towards `0` to allow the item to come to rest smoothly.
-  - Pro tip: Use `Muuri.AutoScroller.smoothSpeed()` for dynamic speed that provides a smooth scrolling experience. When executed it creates and returns a speed function which you can directly provide for `speed` option. The method _requires_ three arguments (in the following order):
+  - Pro tip: Use `Muuri.AutoScroller.smoothSpeed(maxSpeed, acceleration, deceleration)` for dynamic speed that provides a smooth scrolling experience. When executed it creates and returns a speed function which you can directly provide to `speed` option. The method has the following parameters:
     - **maxSpeed** &nbsp;&mdash;&nbsp; _number_
       - The maximum speed (pixels per second) when the handle's distance to the scroll target's edge is `0` or less.
     - **acceleration** &nbsp;&mdash;&nbsp; _number_
@@ -940,7 +942,7 @@ You can define the following properties:
   - When a dragged item is moved out of the threshold area the scroll process is set to _ending_ state. However, it's up to you to decide if the actual scrolling motion is stopped gradually or instantly. By default, when this is `false`, scrolling will stop immediately. If you set this to `true` scrolling will continue until speed drops to `0`. When this option is `enabled` you _must_ handle decelerating the speed to `0` manually within `speed` function, so do not enable this option if you use a static speed value. The default `speed` function handles the deceleration automatically.
 - **onStart** &nbsp;&mdash;&nbsp; _null / function_
   - Default value: `null`.
-  - Optionally, you can provide a callback that will be called when an item starts auto-scrolling a scroll target. The callback function will receive the following arguments:
+  - Optionally, you can provide a callback that will be called when an item starts auto-scrolling a scroll target. The callback function has the following parameters:
     - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
       - The dragged `Muuri.Item` instance.
     - **scrollElement** &nbsp;&mdash;&nbsp; _element_ / _window_
@@ -949,7 +951,7 @@ You can define the following properties:
       - The direction of the scroll, one of the following: `Muuri.AutoScroller.LEFT`, `Muuri.AutoScroller.RIGHT`, `Muuri.AutoScroller.UP`, `Muuri.AutoScroller.DOWN`.
 - **onStop** &nbsp;&mdash;&nbsp; _null / function_
   - Default value: `null`.
-  - Optionally, you can provide a callback that will be called when an item stops auto-scrolling a scroll target. The callback function will receive the following arguments:
+  - Optionally, you can provide a callback that will be called when an item stops auto-scrolling a scroll target. The callback function has the following parameters:
     - **item** &nbsp;&mdash;&nbsp; _Muuri.Item_
       - The dragged `Muuri.Item` instance.
     - **scrollElement** &nbsp;&mdash;&nbsp; _element_ / _window_
@@ -1007,7 +1009,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ containerClass
+## containerClass
 
 Grid element's class name.
 
@@ -1022,7 +1024,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ itemClass
+## itemClass
 
 Item element's class name.
 
@@ -1037,7 +1039,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ itemVisibleClass
+## itemVisibleClass
 
 Visible item's class name.
 
@@ -1052,7 +1054,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ itemHiddenClass
+## itemHiddenClass
 
 Hidden item's class name.
 
@@ -1067,7 +1069,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ itemPositioningClass
+## itemPositioningClass
 
 This class name will be added to the item element for the duration of positioning.
 
@@ -1082,7 +1084,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ itemDraggingClass
+## itemDraggingClass
 
 This class name will be added to the item element for the duration of drag.
 
@@ -1097,7 +1099,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ itemReleasingClass
+## itemReleasingClass
 
 This class name will be added to the item element for the duration of release.
 
@@ -1112,7 +1114,7 @@ var grid = new Muuri(elem, {
 });
 ```
 
-## _option:_ itemPlaceholderClass
+## itemPlaceholderClass
 
 This class name will be added to the drag placeholder element.
 

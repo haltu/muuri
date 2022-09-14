@@ -1,11 +1,10 @@
 import { version } from '../../package.json';
 
 export default {
-  lang: 'en-US',
-  title: 'Muuri',
-  description: 'Build all kinds of layouts',
+  title: 'Muuri Docs',
+  description: 'Documentation for Muuri JavaScript library.',
 
-  head: [['link', { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }]],
+  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/muuri-icon.svg' }]],
 
   lastUpdated: true,
 
@@ -13,7 +12,7 @@ export default {
   // cleanUrls: 'without-subfolders',
 
   themeConfig: {
-    logo: '/logo.svg',
+    logo: '/muuri-icon.svg',
 
     nav: nav(),
 
@@ -22,16 +21,11 @@ export default {
     },
 
     editLink: {
-      pattern: 'https://github.com/haltu/muuri/edit/main/docs/:path',
+      pattern: 'https://github.com/haltu/muuri/edit/master/docs/:path',
       text: 'Edit this page on GitHub',
     },
 
     socialLinks: [{ icon: 'github', link: 'https://github.com/haltu/muuri' }],
-
-    footer: {
-      message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2017-present Niklas Rämö',
-    },
 
     algolia: {
       appId: 'xxxxx',
@@ -48,12 +42,6 @@ export default {
 
 function nav() {
   return [
-    { text: 'Docs', link: '/what-is-muuri', activeMatch: '/' },
-    {
-      text: 'Examples',
-      link: '/examples',
-      activeMatch: '/examples',
-    },
     {
       text: version,
       items: [
@@ -73,18 +61,16 @@ function nav() {
 function sidebarGuide() {
   return [
     {
-      text: 'Introduction',
-      collapsible: true,
+      collapsible: false,
       items: [
-        { text: 'What is Muuri?', link: '/' },
+        { text: 'Introduction', link: '/' },
         { text: 'Getting Started', link: '/getting-started' },
-        { text: 'Motivation', link: '/motivation' },
-        { text: 'Credits', link: '/credits' },
+        { text: 'Examples', link: '/examples' },
       ],
     },
     {
       text: 'API',
-      collapsible: true,
+      collapsible: false,
       items: [
         { text: 'Grid Constructor', link: '/grid-constructor' },
         { text: 'Grid Options', link: '/grid-options' },
@@ -92,11 +78,6 @@ function sidebarGuide() {
         { text: 'Grid Events', link: '/grid-events' },
         { text: 'Item Methods', link: '/item-methods' },
       ],
-    },
-    {
-      text: 'Examples',
-      collapsible: true,
-      items: [{ text: 'Demos', link: '/examples' }],
     },
   ];
 }

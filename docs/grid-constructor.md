@@ -1,4 +1,4 @@
-# Grid constructor
+# Grid Constructor
 
 `Muuri` is a constructor function and should be always instantiated with the `new` keyword. For the sake of clarity, we refer to a Muuri instance as _grid_ throughout the documentation.
 

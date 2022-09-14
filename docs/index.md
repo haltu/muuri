@@ -1,16 +1,5 @@
-<img src="/logo.svg" alt="Muuri" width="400" />
+# Muuri Docs
 
-# What is Muuri?
+You've stumbled on the official documentation site of [Muuri](https://muuri.dev), a JavaScript layout engine. Here you will find detailed API documentation, usage guides and some nifty examples.
 
-Muuri is a JavaScript layout engine that allows you to build all kinds of layouts (no kidding!) and make them responsive, sortable, filterable, draggable and/or animated. Compared to what's out there Muuri is a combination of [Packery](http://packery.metafizzy.co/), [Masonry](http://masonry.desandro.com/), [Isotope](http://isotope.metafizzy.co/) and [Sortable](https://github.com/RubaXa/Sortable). Wanna see it in action? Check out the [demo](https://muuri.dev/) on the website.
-
-**Features**
-
-- Fully customizable layout
-- Asynchronous layout calculations in web workers
-- Drag & drop (even between grids)
-- Auto-scrolling during drag
-- Nested grids
-- Fast animations
-- Filtering
-- Sorting
+Hopefully you'll find what you're looking for, but if not, please help us improve these docs. You can either [create an issue](https://github.com/haltu/muuri/issues/new) or submit a pull request on Muuri's repo.

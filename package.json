@@ -74,7 +74,7 @@
     "qunit": "2.16.0",
     "rimraf": "3.0.2",
     "rollup": "2.52.8",
-    "terser": "5.7.1",
+    "terser": "5.14.2",
     "web-animations-js": "2.3.2",
     "vitepress": "1.0.0-alpha.14",
     "vue": "3.2.39"

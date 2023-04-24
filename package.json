@@ -62,7 +62,7 @@
     "gulp": "4.0.2",
     "gulp-eslint": "6.0.0",
     "gulp-size": "4.0.1",
-    "husky": "4.3.8",
+    "husky": "8.0.3",
     "karma": "6.3.4",
     "karma-chrome-launcher": "3.1.0",
     "karma-qunit": "4.1.2",

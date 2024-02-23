@@ -26,12 +26,15 @@
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var elemA = document.createElement('div').appendChild(document.createElement('div'))
-        .parentNode;
-      var elemB = document.createElement('div').appendChild(document.createElement('div'))
-        .parentNode;
-      var elemC = document.createElement('div').appendChild(document.createElement('div'))
-        .parentNode;
+      var elemA = document
+        .createElement('div')
+        .appendChild(document.createElement('div')).parentNode;
+      var elemB = document
+        .createElement('div')
+        .appendChild(document.createElement('div')).parentNode;
+      var elemC = document
+        .createElement('div')
+        .appendChild(document.createElement('div')).parentNode;
       var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
@@ -59,23 +62,26 @@
     teardown();
   });
 
-  QUnit.test('add: should allow defining the index where the items are inserted to', function (
-    assert
-  ) {
-    assert.expect(1);
+  QUnit.test(
+    'add: should allow defining the index where the items are inserted to',
+    function (assert) {
+      assert.expect(1);
 
-    var container = utils.createGridElements();
-    var grid = new Muuri(container);
-    var elem = document.createElement('div').appendChild(document.createElement('div')).parentNode;
-    var item = grid.add(elem, { index: 1 })[0];
-    var teardown = function () {
-      grid.destroy();
-      container.parentNode.removeChild(container);
-    };
+      var container = utils.createGridElements();
+      var grid = new Muuri(container);
+      var elem = document
+        .createElement('div')
+        .appendChild(document.createElement('div')).parentNode;
+      var item = grid.add(elem, { index: 1 })[0];
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+      };
 
-    assert.strictEqual(grid.getItems().indexOf(item), 1);
-    teardown();
-  });
+      assert.strictEqual(grid.getItems().indexOf(item), 1);
+      teardown();
+    }
+  );
 
   QUnit.test('add: should automatically layout the grid after add', function (assert) {
     assert.expect(1);
@@ -102,8 +108,9 @@
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var elem = document.createElement('div').appendChild(document.createElement('div'))
-        .parentNode;
+      var elem = document
+        .createElement('div')
+        .appendChild(document.createElement('div')).parentNode;
       var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
@@ -124,8 +131,9 @@
 
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var elem = document.createElement('div').appendChild(document.createElement('div'))
-        .parentNode;
+      var elem = document
+        .createElement('div')
+        .appendChild(document.createElement('div')).parentNode;
       var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);
@@ -147,8 +155,9 @@
       var done = assert.async();
       var container = utils.createGridElements();
       var grid = new Muuri(container);
-      var elem = document.createElement('div').appendChild(document.createElement('div'))
-        .parentNode;
+      var elem = document
+        .createElement('div')
+        .appendChild(document.createElement('div')).parentNode;
       var teardown = function () {
         grid.destroy();
         container.parentNode.removeChild(container);

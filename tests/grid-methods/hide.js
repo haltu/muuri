@@ -79,51 +79,52 @@
     teardown();
   });
 
-  QUnit.test('hide: should call the onFinish callback once the animation is finished', function (
-    assert
-  ) {
-    assert.expect(5);
+  QUnit.test(
+    'hide: should call the onFinish callback once the animation is finished',
+    function (assert) {
+      assert.expect(5);
 
-    var done = assert.async();
-    var container = utils.createGridElements();
-    var grid = new Muuri(container);
-    var items = grid.getItems();
-    var argItems = null;
-    var teardown = function () {
-      grid.destroy();
-      container.parentNode.removeChild(container);
-      done();
-    };
+      var done = assert.async();
+      var container = utils.createGridElements();
+      var grid = new Muuri(container);
+      var items = grid.getItems();
+      var argItems = null;
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+        done();
+      };
 
-    grid
-      .on('hideEnd', function (completedItems) {
-        assert.deepEqual(
-          idList(completedItems),
-          idList(argItems),
-          'callback: the received items should match the items of show event callback'
-        );
-        teardown();
-      })
-      .hide(items.slice(0, 1), {
-        onFinish: function (completedItems) {
-          assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
+      grid
+        .on('hideEnd', function (completedItems) {
           assert.deepEqual(
             idList(completedItems),
-            idList(items.slice(0, 1)),
-            'callback: should receive the hidden items as it`s first argument'
+            idList(argItems),
+            'callback: the received items should match the items of show event callback'
           );
-          assert.strictEqual(
-            completedItems[0].isVisible(),
-            false,
-            'callback: the received items should not be in "visible" state'
-          );
-          assert.strictEqual(
-            completedItems[0].isHiding(),
-            false,
-            'callback: the received items should not be in "hiding" state'
-          );
-          argItems = completedItems;
-        },
-      });
-  });
+          teardown();
+        })
+        .hide(items.slice(0, 1), {
+          onFinish: function (completedItems) {
+            assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
+            assert.deepEqual(
+              idList(completedItems),
+              idList(items.slice(0, 1)),
+              'callback: should receive the hidden items as it`s first argument'
+            );
+            assert.strictEqual(
+              completedItems[0].isVisible(),
+              false,
+              'callback: the received items should not be in "visible" state'
+            );
+            assert.strictEqual(
+              completedItems[0].isHiding(),
+              false,
+              'callback: the received items should not be in "hiding" state'
+            );
+            argItems = completedItems;
+          },
+        });
+    }
+  );
 })(this);

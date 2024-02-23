@@ -1,5 +1,5 @@
 /**
-* Muuri v0.9.5
+* Muuri v0.9.6
 * https://muuri.dev/
 * Copyright (c) 2015-present, Haltu Oy
 * Released under the MIT license
@@ -8990,4 +8990,4 @@ function compareIndexMap(indexMap, itemA, itemB) {
   return indexA - indexB;
 }
 
-export default Grid;
+export { Grid as default };

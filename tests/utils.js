@@ -58,7 +58,7 @@
     from.left += mezr.width(element) / 2;
     from.top += mezr.height(element) / 2;
 
-    // Create the hand istance.
+    // Create the hand instance.
     var hand = new Hand({
       timing: 'fastFrame',
       onStop: function() {

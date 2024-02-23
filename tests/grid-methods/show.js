@@ -81,52 +81,53 @@
     teardown();
   });
 
-  QUnit.test('show: should call the onFinish callback once the animation is finished', function (
-    assert
-  ) {
-    assert.expect(5);
+  QUnit.test(
+    'show: should call the onFinish callback once the animation is finished',
+    function (assert) {
+      assert.expect(5);
 
-    var done = assert.async();
-    var container = utils.createGridElements();
-    var grid = new Muuri(container);
-    var items = grid.getItems();
-    var argItems = null;
-    var teardown = function () {
-      grid.destroy();
-      container.parentNode.removeChild(container);
-      done();
-    };
+      var done = assert.async();
+      var container = utils.createGridElements();
+      var grid = new Muuri(container);
+      var items = grid.getItems();
+      var argItems = null;
+      var teardown = function () {
+        grid.destroy();
+        container.parentNode.removeChild(container);
+        done();
+      };
 
-    grid
-      .on('showEnd', function (completedItems) {
-        assert.deepEqual(
-          idList(completedItems),
-          idList(argItems),
-          'callback: the received items should match the items of show event callback'
-        );
-        teardown();
-      })
-      .hide(items, { instant: true })
-      .show(grid.getItems(0), {
-        onFinish: function (completedItems) {
-          assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
+      grid
+        .on('showEnd', function (completedItems) {
           assert.deepEqual(
             idList(completedItems),
-            idList(items.slice(0, 1)),
-            'callback: should receive the shown items as it`s first argument'
+            idList(argItems),
+            'callback: the received items should match the items of show event callback'
           );
-          assert.strictEqual(
-            completedItems[0].isVisible(),
-            true,
-            'callback: the received items should be in "visible" state'
-          );
-          assert.strictEqual(
-            completedItems[0].isShowing(),
-            false,
-            'callback: the received items should not be in "showing" state'
-          );
-          argItems = completedItems;
-        },
-      });
-  });
+          teardown();
+        })
+        .hide(items, { instant: true })
+        .show(grid.getItems(0), {
+          onFinish: function (completedItems) {
+            assert.strictEqual(arguments.length, 1, 'callback: should receive one argument');
+            assert.deepEqual(
+              idList(completedItems),
+              idList(items.slice(0, 1)),
+              'callback: should receive the shown items as it`s first argument'
+            );
+            assert.strictEqual(
+              completedItems[0].isVisible(),
+              true,
+              'callback: the received items should be in "visible" state'
+            );
+            assert.strictEqual(
+              completedItems[0].isShowing(),
+              false,
+              'callback: the received items should not be in "showing" state'
+            );
+            argItems = completedItems;
+          },
+        });
+    }
+  );
 })(this);
